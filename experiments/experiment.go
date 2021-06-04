@@ -84,7 +84,7 @@ func newExperimentContext(
 		serviceLister:                 serviceLister,
 		recorder:                      recorder,
 		enqueueExperimentAfter:        enqueueExperimentAfter,
-		resyncPeriod:                   resyncPeriod,
+		resyncPeriod:                  resyncPeriod,
 
 		log:           log.WithField(logutil.ExperimentKey, experiment.Name).WithField(logutil.NamespaceKey, experiment.Namespace),
 		newStatus:     experiment.Status.DeepCopy(),

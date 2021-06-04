@@ -817,7 +817,6 @@ func TestUpdateInvalidSpec(t *testing.T) {
 func TestRemoveInvalidSpec(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")
-	services := newServices(templates, e)
 
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{{
 		Type:   v1alpha1.InvalidExperimentSpec,
@@ -825,13 +824,11 @@ func TestRemoveInvalidSpec(t *testing.T) {
 		Reason: conditions.InvalidSpecReason,
 	}}
 
-	f := newFixture(t, e, &services[0], &services[1])
+	f := newFixture(t, e)
 	defer f.Close()
 
 	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
 	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
-	f.expectCreateServiceAction(&services[0])
-	f.expectCreateServiceAction(&services[1])
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(patchIndex)
@@ -844,8 +841,8 @@ func TestRemoveInvalidSpec(t *testing.T) {
 	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
 
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), firstRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
-		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now(), secondRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[1].Name),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
+		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
 	}
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 

@@ -3,6 +3,7 @@ package experiments
 import (
 	"errors"
 	"fmt"
+	"k8s.io/utils/pointer"
 	"math"
 	"testing"
 	"time"
@@ -58,6 +59,7 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 		analysisRunLister,
 		serviceLister,
 		record.NewFakeEventRecorder(),
+		noResyncPeriodFunc(),
 		func(obj interface{}, duration time.Duration) {},
 	)
 }
@@ -71,15 +73,13 @@ func TestSetExperimentToPending(t *testing.T) {
 	defer f.Close()
 
 	rs := templateToRS(e, templates[0], 0)
-	services := newServices(templates, e)
 
 	f.expectCreateReplicaSetAction(rs)
-	f.expectCreateServiceAction(&services[0])
 	f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(0)
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
 	}
 	expectedPatch := calculatePatch(e, `{
 		"status":{
@@ -92,7 +92,7 @@ func TestSetExperimentToPending(t *testing.T) {
 func TestScaleDownRSAfterFinish(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")
-	services := newServices(templates, e)
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
@@ -100,16 +100,15 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	rs1 := templateToRS(e, templates[0], 1)
 	rs2 := templateToRS(e, templates[1], 1)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[1].Name),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), "", ""),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), "", ""),
 	}
 
-	f := newFixture(t, e, rs1, rs2, &services[0], &services[1])
+	f := newFixture(t, e, rs1, rs2)
 	defer f.Close()
-
+	
 	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
 	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
-	f.expectCreateServiceAction(&services[0])
 	expPatchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
@@ -128,12 +127,11 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 func TestSetAvailableAt(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")
-	services := newServices(templates, e)
 	e.Status.Phase = v1alpha1.AnalysisPhasePending
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 0, v1alpha1.TemplateStatusProgressing, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
-		generateTemplatesStatus("baz", 1, 0, v1alpha1.TemplateStatusProgressing, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
+		generateTemplatesStatus("bar", 1, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
+		generateTemplatesStatus("baz", 1, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
 	}
 
 	rs1 := templateToRS(e, templates[0], 1)
@@ -147,8 +145,8 @@ func TestSetAvailableAt(t *testing.T) {
 
 	patch := f.getPatchedExperiment(patchIndex)
 	templateStatuses := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
 	}
 	validatePatch(t, patch, v1alpha1.AnalysisPhaseRunning, Set, templateStatuses, []v1alpha1.ExperimentCondition{*cond})
 }
@@ -165,13 +163,11 @@ func TestNoPatch(t *testing.T) {
 		LastUpdateTime:     metav1.Now(),
 	}}
 
-	services := newServices(templates, e)
-
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
 	}
 
 	rs1 := templateToRS(e, templates[0], 1)
@@ -185,14 +181,13 @@ func TestNoPatch(t *testing.T) {
 func TestSuccessAfterDurationPasses(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "5s")
-	services := newServices(templates, e)
 
 	tenSecondsAgo := metav1.Now().Add(-10 * time.Second)
 	e.Status.AvailableAt = &metav1.Time{Time: tenSecondsAgo}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
 	}
 
 	rs1 := templateToRS(e, templates[0], 1)
@@ -205,8 +200,8 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 	patch := f.getPatchedExperiment(i)
 
 	templateStatuses := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), "", ""),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), "", ""),
 	}
 	cond := newCondition(conditions.ExperimentCompleteReason, e)
 	expectedPatch := calculatePatch(e, `{
@@ -275,9 +270,8 @@ func TestRequeueAfterDuration(t *testing.T) {
 func TestRequeueAfterProgressDeadlineSeconds(t *testing.T) {
 	templates := generateTemplates("bar")
 	ex := newExperiment("foo", templates, "")
-	services := newServices(templates, ex)
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), services[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], services[0].Name),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
 	}
 	now := metav1.Now()
 	ex.Status.TemplateStatuses[0].LastTransitionTime = &now
