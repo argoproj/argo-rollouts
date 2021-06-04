@@ -3,11 +3,12 @@ package experiments
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/undefinedlabs/go-mpatch"
@@ -238,13 +239,13 @@ func templateToService(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, 
 	if template.CreateService {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:                       replicaSet.Name,
-				Namespace:                  ex.Namespace,
-				Annotations:                map[string]string{
+				Name:      replicaSet.Name,
+				Namespace: ex.Namespace,
+				Annotations: map[string]string{
 					v1alpha1.ExperimentNameAnnotationKey:         ex.Name,
 					v1alpha1.ExperimentTemplateNameAnnotationKey: template.Name,
 				},
-				OwnerReferences:            []metav1.OwnerReference{*metav1.NewControllerRef(ex, experimentKind)},
+				OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(ex, experimentKind)},
 			},
 			Spec: corev1.ServiceSpec{
 				Selector: replicaSet.Spec.Selector.MatchLabels,

@@ -57,12 +57,12 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 	newService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            serviceName,
-			Namespace:       ec.ex.Namespace,
+			Name:      serviceName,
+			Namespace: ec.ex.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(ec.ex, experimentKind),
 			},
-			Annotations:     serviceAnnotations,
+			Annotations: serviceAnnotations,
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: selector,
