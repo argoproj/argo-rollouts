@@ -323,7 +323,7 @@ func TestServiceCreationForTemplate(t *testing.T) {
 	rs2 := templateToRS(ex, templates[1], 0)
 
 	s1 := templateToService(ex, templates[0], *rs1)
-	// Verify service NOT created for template without weight set
+	// Verify service is not created for template without weight set
 	s2 := templateToService(ex, templates[1], *rs2)
 	assert.Nil(t, s2)
 
@@ -340,4 +340,30 @@ func TestServiceCreationForTemplate(t *testing.T) {
 	// Verify Experiment TemplateStatus contains reference to new service
 	expected := fmt.Sprintf("\"serviceName\":\"%s\"", s1.Name)
 	assert.Contains(t, patch, expected)
+}
+
+// Verify that outdated service for Template in templateServices map is deleted and new service is created
+func TestDeleteOutdatedService(t *testing.T) {
+	templates := generateTemplates("bar")
+	templates[0].CreateService = true
+	ex := newExperiment("foo", templates, "")
+
+	rs := templateToRS(ex, templates[0], 0)
+	s := templateToService(ex, templates[0], *rs)
+
+	exCtx := newTestContext(ex)
+
+	exCtx.templateRSs = map[string]*appsv1.ReplicaSet{
+		"bar": rs,
+	}
+
+	wrongService := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "wrong-service"}}
+	exCtx.templateServices = map[string]*corev1.Service{
+		"bar": wrongService,
+	}
+
+	exStatus := exCtx.reconcile()
+	assert.Equal(t, s.Name, exStatus.TemplateStatuses[0].ServiceName)
+	assert.Equal(t, s.Name, exCtx.templateServices["bar"].Name)
+	assert.NotContains(t, exCtx.templateServices, wrongService.Name)
 }

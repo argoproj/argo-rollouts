@@ -242,6 +242,17 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 				templateStatus.PodTemplateHash = podTemplateHash
 			}
 		}
+	} else if !template.CreateService {
+		// If CreateService is false but template has service, then create service
+		// Code should not enter this path
+		svc := ec.templateServices[template.Name]
+		if svc != nil {
+			err := ec.deleteService(*svc)
+			if err != nil {
+				templateStatus.Status = v1alpha1.TemplateStatusError
+				templateStatus.Message = fmt.Sprintf("Failed to delete Service for template '%s': %v", template.Name, err)
+			}
+		}
 	}
 
 	if prevStatus.Replicas != templateStatus.Replicas ||
