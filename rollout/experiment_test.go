@@ -749,3 +749,46 @@ func TestRolloutCreateExperimentWithInstanceID(t *testing.T) {
 	assert.Equal(t, createdEx.Name, ex.Name)
 	assert.Equal(t, "instance-id-test", createdEx.Labels[v1alpha1.LabelKeyControllerInstanceID])
 }
+
+// TestRolloutCreateExperimentWithService checks if the controller sets CreateService as true for an Experiment Template
+// when the 'Weight' field is set. CreateService should to be false when 'Weight' is not set
+func TestRolloutCreateExperimentWithService(t *testing.T) {
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{
+				// Service should be created for "stable-template"
+				{
+					Name:     "stable-template",
+					SpecRef:  v1alpha1.StableSpecRef,
+					Replicas: pointer.Int32Ptr(1),
+					Weight:   pointer.Int32Ptr(5),
+				},
+				// Service should not be created for "canary-template"
+				{
+					Name:     "canary-template",
+					SpecRef:  v1alpha1.CanarySpecRef,
+					Replicas: pointer.Int32Ptr(1),
+				},
+			},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.StableRS = rs1PodHash
+
+	ex, err := GetExperimentFromTemplate(r2, rs1, rs2)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "stable-template", ex.Spec.Templates[0].Template.Name)
+	assert.Equal(t, true, ex.Spec.Templates[0].CreateService)
+
+	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Template.Name)
+	assert.Equal(t, false, ex.Spec.Templates[1].CreateService)
+}
