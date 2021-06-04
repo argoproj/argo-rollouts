@@ -80,7 +80,7 @@ func TestSetExperimentToPending(t *testing.T) {
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(0)
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 	expectedPatch := calculatePatch(e, `{
 		"status":{
@@ -101,8 +101,8 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	rs1 := templateToRS(e, templates[0], 1)
 	rs2 := templateToRS(e, templates[1], 1)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), "", ""),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), "", ""),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 	}
 
 	f := newFixture(t, e, rs1, rs2)
@@ -131,8 +131,8 @@ func TestSetAvailableAt(t *testing.T) {
 	e.Status.Phase = v1alpha1.AnalysisPhasePending
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
-		generateTemplatesStatus("baz", 1, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
+		generateTemplatesStatus("bar", 1, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("baz", 1, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 
 	rs1 := templateToRS(e, templates[0], 1)
@@ -146,8 +146,8 @@ func TestSetAvailableAt(t *testing.T) {
 
 	patch := f.getPatchedExperiment(patchIndex)
 	templateStatuses := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
 	validatePatch(t, patch, v1alpha1.AnalysisPhaseRunning, Set, templateStatuses, []v1alpha1.ExperimentCondition{*cond})
 }
@@ -167,8 +167,8 @@ func TestNoPatch(t *testing.T) {
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
 
 	rs1 := templateToRS(e, templates[0], 1)
@@ -187,8 +187,8 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 	e.Status.AvailableAt = &metav1.Time{Time: tenSecondsAgo}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
 
 	rs1 := templateToRS(e, templates[0], 1)
@@ -201,8 +201,8 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 	patch := f.getPatchedExperiment(i)
 
 	templateStatuses := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), "", ""),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now(), "", ""),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 	}
 	cond := newCondition(conditions.ExperimentCompleteReason, e)
 	expectedPatch := calculatePatch(e, `{
@@ -220,7 +220,7 @@ func TestDontRequeueWithoutDuration(t *testing.T) {
 	ex := newExperiment("foo", templates, "")
 	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
 	exCtx := newTestContext(ex)
 	rs1 := templateToRS(ex, ex.Spec.Templates[0], 1)
@@ -245,7 +245,7 @@ func TestRequeueAfterDuration(t *testing.T) {
 	ex.Spec.Duration = "30s"
 	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
 	exCtx := newTestContext(ex)
 	rs1 := templateToRS(ex, ex.Spec.Templates[0], 1)
@@ -270,7 +270,7 @@ func TestRequeueAfterProgressDeadlineSeconds(t *testing.T) {
 	templates := generateTemplates("bar")
 	ex := newExperiment("foo", templates, "")
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 	now := metav1.Now()
 	ex.Status.TemplateStatuses[0].LastTransitionTime = &now
@@ -348,6 +348,12 @@ func TestDeleteOutdatedService(t *testing.T) {
 	templates[0].CreateService = true
 	ex := newExperiment("foo", templates, "")
 
+	wrongService := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "wrong-service"}}
+	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+	}
+	ex.Status.TemplateStatuses[0].ServiceName = wrongService.Name
+
 	rs := templateToRS(ex, templates[0], 0)
 	s := templateToService(ex, templates[0], *rs)
 
@@ -357,7 +363,6 @@ func TestDeleteOutdatedService(t *testing.T) {
 		"bar": rs,
 	}
 
-	wrongService := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "wrong-service"}}
 	exCtx.templateServices = map[string]*corev1.Service{
 		"bar": wrongService,
 	}
@@ -366,4 +371,69 @@ func TestDeleteOutdatedService(t *testing.T) {
 	assert.Equal(t, s.Name, exStatus.TemplateStatuses[0].ServiceName)
 	assert.Equal(t, s.Name, exCtx.templateServices["bar"].Name)
 	assert.NotContains(t, exCtx.templateServices, wrongService.Name)
+}
+
+func TestDeleteServiceIfDesiredReplicasEqualZero(t *testing.T) {
+	templates := generateTemplates("bar")
+	templates[0].CreateService = true
+	templates[0].Replicas = pointer.Int32Ptr(0)
+	ex := newExperiment("foo", templates, "")
+	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+	}
+
+	svcToDelete := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "service-to-delete"}}
+	ex.Status.TemplateStatuses[0].ServiceName = svcToDelete.Name
+
+
+	exCtx := newTestContext(ex)
+
+	rs := templateToRS(ex, templates[0], 0)
+
+	exCtx.templateRSs = map[string]*appsv1.ReplicaSet{
+		"bar": rs,
+	}
+
+	exCtx.templateServices = map[string]*corev1.Service{
+		"bar": svcToDelete,
+	}
+
+	exStatus := exCtx.reconcile()
+
+	assert.Equal(t, "", exStatus.TemplateStatuses[0].ServiceName)
+	assert.Nil(t, exCtx.templateServices["bar"])
+}
+
+func TestDeleteServiceIfNotCreateService(t *testing.T) {
+	templates := generateTemplates("bar")
+	templates[0].CreateService = false
+	templates[0].Replicas = pointer.Int32Ptr(0)
+	ex := newExperiment("foo", templates, "")
+	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+	}
+
+	svcToDelete := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "service-to-delete"}}
+	ex.Status.TemplateStatuses[0].ServiceName = svcToDelete.Name
+
+	exCtx := newTestContext(ex)
+
+	rs := templateToRS(ex, templates[0], 0)
+
+	exCtx.templateRSs = map[string]*appsv1.ReplicaSet{
+		"bar": rs,
+	}
+
+	exCtx.templateServices = map[string]*corev1.Service{
+		"bar": svcToDelete,
+	}
+
+	exStatus := exCtx.reconcile()
+
+	assert.Equal(t, "", exStatus.TemplateStatuses[0].ServiceName)
+	assert.Nil(t, exCtx.templateServices["bar"])
+}
+
+func Test()  {
+
 }

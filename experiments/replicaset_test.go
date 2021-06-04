@@ -33,8 +33,8 @@ func TestCreateMultipleRS(t *testing.T) {
 	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
 
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
-		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 
@@ -69,8 +69,8 @@ func TestCreateMissingRS(t *testing.T) {
 	expectedPatch := `{"status":{}}`
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 	templateStatuses := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
-		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 	assert.Equal(t, calculatePatch(e, expectedPatch, templateStatuses, cond), patch)
 }
@@ -113,7 +113,7 @@ func TestNameCollision(t *testing.T) {
 	{
 		patch := f.getPatchedExperiment(collisionCountPatchIndex)
 		templateStatuses := []v1alpha1.TemplateStatus{
-			generateTemplatesStatus("bar", 0, 0, "", nil, "", ""),
+			generateTemplatesStatus("bar", 0, 0, "", nil),
 		}
 		templateStatuses[0].CollisionCount = pointer.Int32Ptr(1)
 		validatePatch(t, patch, "", NoChange, templateStatuses, nil)
@@ -121,7 +121,7 @@ func TestNameCollision(t *testing.T) {
 	{
 		patch := f.getPatchedExperiment(statusUpdatePatchIndex)
 		templateStatuses := []v1alpha1.TemplateStatus{
-			generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil, "", ""),
+			generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil),
 		}
 		cond := []v1alpha1.ExperimentCondition{*newCondition(conditions.ReplicaSetUpdatedReason, e)}
 		validatePatch(t, patch, "", NoChange, templateStatuses, cond)
@@ -149,7 +149,7 @@ func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 	{
 		patch := f.getPatchedExperiment(collisionCountPatchIndex)
 		templateStatuses := []v1alpha1.TemplateStatus{
-			generateTemplatesStatus("bar", 0, 0, "", nil, "", ""),
+			generateTemplatesStatus("bar", 0, 0, "", nil),
 		}
 		templateStatuses[0].CollisionCount = pointer.Int32Ptr(1)
 		validatePatch(t, patch, "", NoChange, templateStatuses, nil)
@@ -157,7 +157,7 @@ func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 	{
 		patch := f.getPatchedExperiment(statusUpdatePatchIndex)
 		templateStatuses := []v1alpha1.TemplateStatus{
-			generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil, "", ""),
+			generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil),
 		}
 		cond := []v1alpha1.ExperimentCondition{*newCondition(conditions.ReplicaSetUpdatedReason, e)}
 		validatePatch(t, patch, "", NoChange, templateStatuses, cond)

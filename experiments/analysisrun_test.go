@@ -499,7 +499,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	ar2 := analysisTemplateToRun("latency", e, &v1alpha1.AnalysisTemplateSpec{})
 
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now(), "", ""),
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
 	e.Status.AnalysisRuns = []v1alpha1.ExperimentAnalysisRunStatus{
 		{

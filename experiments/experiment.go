@@ -224,13 +224,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		svc := ec.templateServices[template.Name]
 		if desiredReplicaCount == 0 {
-			if svc != nil {
-				err := ec.deleteService(*svc)
-				if err != nil {
-					templateStatus.Status = v1alpha1.TemplateStatusError
-					templateStatus.Message = fmt.Sprintf("Failed to delete Service for template '%s': %v", template.Name, err)
-				}
-			}
+			ec.deleteTemplateService(svc, templateStatus, template.Name)
 		} else if svc == nil || svc.Name != rs.Name {
 			newService, err := ec.CreateService(rs.Name, template, rs.Labels)
 			if err != nil {
@@ -246,13 +240,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		// If CreateService is false but template has service, then create service
 		// Code should not enter this path
 		svc := ec.templateServices[template.Name]
-		if svc != nil {
-			err := ec.deleteService(*svc)
-			if err != nil {
-				templateStatus.Status = v1alpha1.TemplateStatusError
-				templateStatus.Message = fmt.Sprintf("Failed to delete Service for template '%s': %v", template.Name, err)
-			}
-		}
+		ec.deleteTemplateService(svc, templateStatus, template.Name)
 	}
 
 	if prevStatus.Replicas != templateStatus.Replicas ||
@@ -310,6 +298,20 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "Template" + string(templateStatus.Status)}, msg)
 	}
 	experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
+}
+
+func (ec *experimentContext) deleteTemplateService(svc *corev1.Service, templateStatus *v1alpha1.TemplateStatus, templateName string) {
+	if svc != nil {
+		err := ec.deleteService(*svc)
+		if err != nil {
+			templateStatus.Status = v1alpha1.TemplateStatusError
+			templateStatus.Message = fmt.Sprintf("Failed to delete Service for template '%s': %v", templateName, err)
+		} else {
+			ec.templateServices[templateName] = nil
+			templateStatus.ServiceName = ""
+			templateStatus.PodTemplateHash = ""
+		}
+	}
 }
 
 // calculateEnqueueDuration returns an appropriate duration to requeue the experiment. This will be

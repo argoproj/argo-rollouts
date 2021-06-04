@@ -149,7 +149,7 @@ func generateTemplates(imageNames ...string) []v1alpha1.TemplateSpec {
 	return templates
 }
 
-func generateTemplatesStatus(name string, replica, availableReplicas int32, status v1alpha1.TemplateStatusCode, transitionTime *metav1.Time, podTemplateHash string, serviceName string) v1alpha1.TemplateStatus {
+func generateTemplatesStatus(name string, replica, availableReplicas int32, status v1alpha1.TemplateStatusCode, transitionTime *metav1.Time) v1alpha1.TemplateStatus {
 	return v1alpha1.TemplateStatus{
 		Name:               name,
 		Replicas:           replica,
@@ -158,8 +158,6 @@ func generateTemplatesStatus(name string, replica, availableReplicas int32, stat
 		AvailableReplicas:  availableReplicas,
 		Status:             status,
 		LastTransitionTime: transitionTime,
-		PodTemplateHash:    podTemplateHash,
-		ServiceName:        serviceName,
 	}
 }
 
@@ -843,8 +841,8 @@ func TestRemoveInvalidSpec(t *testing.T) {
 	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
 
 	templateStatus := []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
-		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now(), "", ""),
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
 	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
 
