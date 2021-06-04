@@ -4,7 +4,7 @@
 
 ### Does Argo Rollouts depend on Argo CD or any other Argo project?
 
-Argo Rollouts is a standalone project. Even though it works great with Argo CD and other Argo projects, it can by used
+Argo Rollouts is a standalone project. Even though it works great with Argo CD and other Argo projects, it can be used
 on its own for Progressive Delivery scenarios. More specifically, argo Rollouts does **NOT** require that you also have installed Argo CD on the same cluster.
 
 ### How does Argo Rollouts integrate with Argo CD?
