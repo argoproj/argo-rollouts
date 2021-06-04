@@ -3,10 +3,11 @@ package experiments
 import (
 	"errors"
 	"fmt"
-	"k8s.io/utils/pointer"
 	"math"
 	"testing"
 	"time"
+
+	"k8s.io/utils/pointer"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -106,7 +107,7 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 
 	f := newFixture(t, e, rs1, rs2)
 	defer f.Close()
-	
+
 	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
 	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
 	expPatchIndex := f.expectPatchExperimentAction(e)

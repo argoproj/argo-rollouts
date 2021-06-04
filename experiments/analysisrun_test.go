@@ -461,7 +461,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 			e.Status.AnalysisRuns[1].Phase = test.second
 			f := newFixture(t, e, rs, ar1, ar2)
 			f.expectPatchReplicaSetAction(rs) // Add scaleDownDelay annotation to RS
-			f.expectGetReplicaSetAction(rs) // Happens during scale down logic
+			f.expectGetReplicaSetAction(rs)   // Happens during scale down logic
 			if test.expected != v1alpha1.AnalysisPhaseRunning {
 				patchIdx := f.expectPatchExperimentAction(e)
 				f.run(getKey(e, t))
@@ -687,7 +687,7 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 	defer f.Close()
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.expectPatchReplicaSetAction(rs) // Add scaleDownDelay annotation to RS
-	f.expectGetReplicaSetAction(rs) // Happens during scale down logic
+	f.expectGetReplicaSetAction(rs)   // Happens during scale down logic
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
 	//assert.True(t, patchedEx.Spec.Terminate)
@@ -727,7 +727,7 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 	arPatchIdx := f.expectPatchAnalysisRunAction(ar)
 	f.expectPatchExperimentAction(e)
 	f.expectPatchReplicaSetAction(rs) // Add scaleDownDelay annotation to RS
-	f.expectGetReplicaSetAction(rs) // Happens during scale down logic
+	f.expectGetReplicaSetAction(rs)   // Happens during scale down logic
 	f.run(getKey(e, t))
 
 	patchedAr := f.getPatchedAnalysisRunAsObj(arPatchIdx)
