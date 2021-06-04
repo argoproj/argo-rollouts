@@ -205,9 +205,11 @@ func (ec *experimentContext) isReplicaSetSemanticallyEqual(newRS, existingRS *ap
 
 // addScaleDownDelay injects the `scale-down-deadline` annotation to the ReplicaSet, or if
 // scaleDownDelaySeconds is zero, removes it if it exists
-func (ec *experimentContext) addScaleDownDelay(rs *appsv1.ReplicaSet) error {
+// returns True if ReplicaSet is patched, otherwise False
+func (ec *experimentContext) addScaleDownDelay(rs *appsv1.ReplicaSet) (bool, error) {
+	rsIsUpdated := false
 	if rs == nil {
-		return nil
+		return rsIsUpdated, nil
 	}
 	ctx := context.TODO()
 	scaleDownDelaySeconds := time.Duration(defaults.GetExperimentScaleDownDelaySecondsOrDefault(ec.ex))
@@ -217,29 +219,33 @@ func (ec *experimentContext) addScaleDownDelay(rs *appsv1.ReplicaSet) error {
 		if replicasetutil.HasScaleDownDeadline(rs) {
 			return ec.removeScaleDownDelay(rs)
 		}
-		return nil
+		return rsIsUpdated, nil
 	}
 	deadline := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
 	_, err := ec.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
 		ec.log.Infof("Set '%s' annotation on '%s' to %s (%ds)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
+		rsIsUpdated = true
 	}
-	return err
+	return rsIsUpdated, err
 }
 
 // removeScaleDownDelay removes the `scale-down-deadline` annotation from the ReplicaSet (if it exists)
-func (ec *experimentContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
+// returns True if ReplicaSet is patched, otherwise False
+func (ec *experimentContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) (bool, error) {
 	ctx := context.TODO()
+	rsIsUpdated := false
 	if !replicasetutil.HasScaleDownDeadline(rs) {
-		return nil
+		return rsIsUpdated, nil
 	}
 	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 	_, err := ec.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
 		ec.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
+		rsIsUpdated = true
 	}
-	return err
+	return rsIsUpdated, err
 }
 
 func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32) (bool, *appsv1.ReplicaSet, error) {

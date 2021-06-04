@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -143,17 +144,30 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			}
 		}
 	} else {
-		// TODO: Where to call addScaleDownDelay?
 		if desiredReplicaCount == 0 {
-			err := ec.addScaleDownDelay(rs)
-			if err != nil {
-				ec.log.Warnf("Unable to add scaleDownDelay label on rs '%s'", rs.Name)
+			if _, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; !ok {
+				// Add scaleDownDelay if not present
+				rsIsUpdated, err := ec.addScaleDownDelay(rs)
+				if err != nil {
+					ec.log.Warnf("Unable to add scaleDownDelay label on rs '%s'", rs.Name)
+				} else {
+					if rsIsUpdated {
+						ctx := context.TODO()
+						modifiedRS, err := ec.kubeclientset.AppsV1().ReplicaSets(ec.ex.Namespace).Get(ctx, rs.Name, metav1.GetOptions{})
+						if err != nil {
+							ec.log.Warnf("Unable to get rs '%s' with added scaleDownDelay", rs.Name)
+						} else {
+							rs = modifiedRS
+							ec.templateRSs[template.Name] = modifiedRS
+						}
+					}
+				}
+
 			}
 		}
 		// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
 		if *rs.Spec.Replicas != desiredReplicaCount {
 			if desiredReplicaCount == 0 {
-				templateReplicas := defaults.GetReplicasOrDefault(template.Replicas)
 				// Add delay before scaling
 				if scaleDownAtStr, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
 					scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
@@ -168,7 +182,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 						if remainingTime < ec.resyncPeriod {
 							ec.enqueueExperimentAfter(ec.ex, remainingTime)
 						}
-						desiredReplicaCount = templateReplicas
+						desiredReplicaCount = defaults.GetReplicasOrDefault(template.Replicas)
 					}
 				}
 			}
@@ -177,7 +191,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 				templateStatus.Status = v1alpha1.TemplateStatusError
 				templateStatus.Message = fmt.Sprintf("Unable to scale down ReplicaSet for template '%s': %v", template.Name, err)
 			} else {
-				if template.CreateService {
+				if desiredReplicaCount == 0 && template.CreateService {
 					svc := ec.templateServices[template.Name]
 					if svc != nil {
 						err := ec.deleteService(*svc)
