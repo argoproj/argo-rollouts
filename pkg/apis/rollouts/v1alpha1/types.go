@@ -83,6 +83,16 @@ func (s *RolloutSpec) SetResolvedTemplate(template corev1.PodTemplateSpec) {
 	s.Template = template
 }
 
+func (s *RolloutSpec) EmptyTemplate() bool {
+	if len(s.Template.Labels) > 0 {
+		return false
+	}
+	if len(s.Template.Annotations) > 0 {
+		return false
+	}
+	return true
+}
+
 func (s *RolloutSpec) MarshalJSON() ([]byte, error) {
 	type Alias RolloutSpec
 

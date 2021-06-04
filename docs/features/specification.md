@@ -173,6 +173,19 @@ spec:
       # original pods. +optional
       maxSurge: "20%"
 
+      # Adds a delay before scaling down the previous ReplicaSet when the
+      # canary strategy is used with traffic routing (default 30 seconds).
+      # A delay in scaling down the previous ReplicaSet is needed after
+      # switching the stable service selector to point to the new ReplicaSet,
+      # in order to give time for traffic providers to re-target the new pods.
+      # This value is ignored with basic, replica-weighted canary without
+      # traffic routing.
+      ScaleDownDelaySeconds: 30
+
+      # Limits the number of old RS that can run at one time before getting
+      # scaled down. Defaults to nil
+      ScaleDownDelayRevisionLimit: 2
+
       # Background analysis to run during a rollout update. Skipped upon
       # initial deploy of a rollout. +optional
       analysis:
