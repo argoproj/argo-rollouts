@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/undefinedlabs/go-mpatch"
+
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	"github.com/stretchr/testify/assert"
