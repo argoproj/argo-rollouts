@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/mitchellh/mapstructure"
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -224,15 +225,49 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
 	return nil
 }
 
+// destinationRuleReplaceExtraMarshal relace the key of "Extra" with the actual content
+// e.g., "trafficpolicy" and return the bytes of the new object
+func destinationRuleReplaceExtraMarshal(dRule *DestinationRule) []byte {
+	dRuleNew := map[string]interface{}{}
+	dRuleNew["metadata"] = dRule.ObjectMeta.DeepCopy()
+
+	subsets := []map[string]interface{}{}
+	for _, subset := range dRule.Spec.Subsets {
+		newsubset := map[string]interface{}{}
+		newsubset["name"] = subset.Name
+		newsubset["labels"] = subset.Labels
+
+		if subset.Extra == nil {
+			subsets = append(subsets, newsubset)
+			continue
+		}
+
+		extra := map[string]interface{}{}
+		inputbyte, _ := json.Marshal(dRule.Spec.Subsets[1].Extra)
+		json.Unmarshal(inputbyte, &extra)
+
+		subset.Extra = nil
+		for k, v := range extra {
+			newsubset[k] = v
+		}
+		subsets = append(subsets, newsubset)
+	}
+	dRuleNew["spec"] = map[string]interface{}{
+		"subsets": subsets,
+	}
+
+	dRuleNewBytes, _ := json.Marshal(dRuleNew)
+	return dRuleNewBytes
+}
+
 func updateDestinationRule(ctx context.Context, client dynamic.ResourceInterface, orig []byte, dRule, dRuleNew *DestinationRule) (bool, error) {
 	dRuleBytes, err := json.Marshal(dRule)
 	if err != nil {
 		return false, err
 	}
-	dRuleNewBytes, err := json.Marshal(dRuleNew)
-	if err != nil {
-		return false, err
-	}
+	dRuleNewBytes := destinationRuleReplaceExtraMarshal(dRuleNew)
+	log.Infof("dRuleNewBytes: %s", string(dRuleNewBytes))
+
 	patch, err := jsonpatch.CreateMergePatch(dRuleBytes, dRuleNewBytes)
 	if err != nil {
 		return false, err
@@ -275,9 +310,94 @@ func unstructuredToDestinationRules(un *unstructured.Unstructured) ([]byte, *Des
 	return dRuleBytes, dRule1, dRule2, nil
 }
 
+func unMarshalSubsets(dRule *DestinationRule, dRuleBytes []byte) error {
+	var err error
+
+	unstructured := map[string]interface{}{}
+	var extractFieldBytes func([]byte, string) ([]byte, error)
+	extractFieldBytes = func(input []byte, name string) ([]byte, error) {
+		err = json.Unmarshal(input, &unstructured)
+		if err != nil {
+			return nil, err
+		}
+		fieldBytes, err := json.Marshal(unstructured[name])
+		if err != nil {
+			return nil, err
+		}
+		return fieldBytes, nil
+	}
+
+	specBytes, err := extractFieldBytes(dRuleBytes, "spec")
+	if err != nil {
+		return err
+	}
+
+	subsetsBytes, err := extractFieldBytes(specBytes, "subsets")
+	if err != nil {
+		return err
+	}
+
+	subsetsMap := []map[string]interface{}{}
+	err = json.Unmarshal(subsetsBytes, &subsetsMap)
+	if err != nil {
+		return err
+	}
+
+	dRule.Spec.Subsets = []Subset{}
+	for _, si := range subsetsMap {
+		var subset Subset
+
+		jsonInput, _ := json.Marshal(si)
+		extra, err := UnmarshalJson(jsonInput, &subset)
+		if err != nil {
+			return err
+		}
+
+		subset.Extra = extra
+		if len(subset.Extra) == 0 {
+			subset.Extra = nil
+		}
+		dRule.Spec.Subsets = append(dRule.Spec.Subsets, subset)
+	}
+	return nil
+}
+
+func UnmarshalJson(input []byte, result interface{}) (map[string]interface{}, error) {
+	// unmarshal json to a map
+	foomap := make(map[string]interface{})
+	json.Unmarshal(input, &foomap)
+
+	// create a mapstructure decoder
+	var md mapstructure.Metadata
+	decoder, err := mapstructure.NewDecoder(
+		&mapstructure.DecoderConfig{
+			Metadata: &md,
+			Result:   result,
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	// decode the unmarshalled map into the given struct
+	if err := decoder.Decode(foomap); err != nil {
+		return nil, err
+	}
+
+	// copy and return unused fields
+	unused := map[string]interface{}{}
+	for _, k := range md.Unused {
+		unused[k] = foomap[k]
+	}
+	return unused, nil
+}
+
 func jsonBytesToDestinationRule(dRuleBytes []byte) (*DestinationRule, error) {
 	var dRule DestinationRule
 	err := json.Unmarshal(dRuleBytes, &dRule)
+	if err != nil {
+		return nil, err
+	}
+	err = unMarshalSubsets(&dRule, dRuleBytes)
 	if err != nil {
 		return nil, err
 	}

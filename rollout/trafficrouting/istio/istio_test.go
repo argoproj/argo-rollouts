@@ -2,6 +2,7 @@ package istio
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -389,6 +390,52 @@ func rolloutWithDestinationRule() *v1alpha1.Rollout {
 			},
 		},
 	}
+}
+
+// TestUpdateHashWithListers verifies behavior of UpdateHash when using informers/listers
+func TestUpdateHashAdditionalFieldsWithListers(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+    labels:
+      version: v3
+  - name: canary
+    trafficPolicy:
+      loadBalancer:
+        simple: ROUND_ROBIN
+`)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	err := r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+
+	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+	assert.Equal(t, dRule.Annotations[v1alpha1.ManagedByRolloutsKey], "rollout")
+	assert.Equal(t, dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "def456")
+	assert.Equal(t, dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "abc123")
+	assert.Nil(t, dRule.Spec.Subsets[0].Extra)
+	assert.NotNil(t, dRule.Spec.Subsets[1].Extra)
+
+	jsonBytes, err := json.Marshal(dRule)
+	assert.NoError(t, err)
+	assert.Equal(t, `{"metadata":{"name":"istio-destrule","namespace":"default","creationTimestamp":null,"annotations":{"argo-rollouts.argoproj.io/managed-by-rollouts":"rollout"}},"spec":{"subsets":[{"name":"stable","labels":{"rollouts-pod-template-hash":"def456","version":"v3"}},{"name":"canary","labels":{"rollouts-pod-template-hash":"abc123"},"Extra":{"trafficPolicy":{"loadBalancer":{"simple":"ROUND_ROBIN"}}}}]}}`,
+		string(jsonBytes))
 }
 
 // TestUpdateHashWithListers verifies behavior of UpdateHash when using informers/listers
