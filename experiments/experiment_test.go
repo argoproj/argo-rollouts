@@ -90,10 +90,10 @@ func TestSetExperimentToPending(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
+// TestAddScaleDownDelayToRS verifies that we add a scale down delay to the ReplicaSet after experiment completes
 func TestAddScaleDownDelayToRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")
-	//e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
@@ -113,7 +113,6 @@ func TestAddScaleDownDelayToRS(t *testing.T) {
 	f.expectGetReplicaSetAction(rs1)                    // Get RS after patch to modify updated version
 	patchRs2Index := f.expectPatchReplicaSetAction(rs2) // Add scaleDownDelaySeconds
 	f.expectGetReplicaSetAction(rs2)                    // Get RS after patch to modify updated version
-
 	f.run(getKey(e, t))
 
 	f.verifyPatchedReplicaSet(patchRs1Index, 30)
@@ -407,7 +406,9 @@ func TestDeleteServiceIfDesiredReplicasEqualZero(t *testing.T) {
 	templates := generateTemplates("bar")
 	templates[0].CreateService = true
 	templates[0].Replicas = pointer.Int32Ptr(0)
+
 	ex := newExperiment("foo", templates, "")
+	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
@@ -433,7 +434,7 @@ func TestDeleteServiceIfDesiredReplicasEqualZero(t *testing.T) {
 	assert.Nil(t, exCtx.templateServices["bar"])
 }
 
-func TestDeleteServiceIfNotCreateService(t *testing.T) {
+func TestDeleteServiceIfCreateServiceIsFalse(t *testing.T) {
 	templates := generateTemplates("bar")
 	templates[0].Replicas = pointer.Int32Ptr(0)
 	ex := newExperiment("foo", templates, "")
@@ -461,37 +462,3 @@ func TestDeleteServiceIfNotCreateService(t *testing.T) {
 	assert.Equal(t, "", exStatus.TemplateStatuses[0].ServiceName)
 	assert.Nil(t, exCtx.templateServices["bar"])
 }
-
-//TestExperimentAddScaleDownDelay verifies that we add a scale down delay to the ReplicaSet after experiment completes
-//func TestExperimentTemplateAddScaleDownDelay(t *testing.T) {
-//	f := newFixture(t)
-//	defer f.Close()
-//
-//	templates := generateTemplates("bar")
-//	templates[0].CreateService = true
-//	ex := newExperiment("foo", templates, "")
-//
-//	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentCompleted, corev1.ConditionTrue, conditions.ExperimentCompleteReason, Sprnconditions.ExperimentCompletedMessage)
-//	ex.Status.Conditions = append(ex.Status.Conditions, *cond)
-//
-//	rs := templateToRS(ex, templates[0], 1)
-//	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-//		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
-//		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
-//	}
-//
-//	//s := templateToService(ex, templates[0], *rs)
-//
-//	//f.expectUpdateReplicaSetAction(rs) // Scale up ReplicaSet
-//	//f.expectCreateServiceAction(s) // Create Service
-//	rsPatch := f.expectPatchReplicaSetAction(rs) // Add ScaleDownDelaySeconds annotation
-//	//f.expectUpdateReplicaSetAction(rs) // Scale down
-//	//f.expectDeleteServiceAction(s)
-//
-//	f.run(getKey(ex, t))
-//
-//	f.verifyPatchedReplicaSet(rsPatch, 30)
-//	//roPatchObj := f.getPatchedRolloutAsObject(patchIndex)
-//	//assert.Equal(t, rs2PodHash, roPatchObj.Status.StableRS)
-//	//assert.Nil(t, roPatchObj.Status.CurrentStepIndex)
-//}
