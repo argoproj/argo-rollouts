@@ -193,13 +193,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			} else {
 				if desiredReplicaCount == 0 && template.CreateService {
 					svc := ec.templateServices[template.Name]
-					if svc != nil {
-						err := ec.deleteService(*svc)
-						if err != nil {
-							templateStatus.Status = v1alpha1.TemplateStatusError
-							templateStatus.Message = fmt.Sprintf("Failed to delete Service for template '%s': %v", template.Name, err)
-						}
-					}
+					ec.deleteTemplateService(svc, templateStatus, template.Name)
 				}
 			}
 			templateStatus.LastTransitionTime = &now

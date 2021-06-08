@@ -527,6 +527,12 @@ func (f *fixture) expectCreateServiceAction(service *corev1.Service) int {
 	return len
 }
 
+func (f *fixture) expectDeleteServiceAction(service *corev1.Service) int {
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewDeleteAction(schema.GroupVersionResource{Resource: "services"}, service.Namespace, service.Name))
+	return len
+}
+
 func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewCreateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
@@ -618,6 +624,17 @@ func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	objMap, _ := converter.ToUnstructured(obj)
 	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, rs)
 	return rs
+}
+
+func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+	now := metav1.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
+	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
 
 func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {

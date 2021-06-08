@@ -480,6 +480,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -657,6 +658,7 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "1m")
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -686,8 +688,6 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 	f := newFixture(t, e, rs, ar)
 	defer f.Close()
 	patchIndex := f.expectPatchExperimentAction(e)
-	f.expectPatchReplicaSetAction(rs) // Add scaleDownDelay annotation to RS
-	f.expectGetReplicaSetAction(rs)   // Happens during scale down logic
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
 	//assert.True(t, patchedEx.Spec.Terminate)
@@ -698,6 +698,7 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 func TestTerminateAnalysisRuns(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -726,8 +727,6 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 
 	arPatchIdx := f.expectPatchAnalysisRunAction(ar)
 	f.expectPatchExperimentAction(e)
-	f.expectPatchReplicaSetAction(rs) // Add scaleDownDelay annotation to RS
-	f.expectGetReplicaSetAction(rs)   // Happens during scale down logic
 	f.run(getKey(e, t))
 
 	patchedAr := f.getPatchedAnalysisRunAsObj(arPatchIdx)
