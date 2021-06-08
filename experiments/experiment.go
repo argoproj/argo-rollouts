@@ -145,25 +145,23 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		}
 	} else {
 		if desiredReplicaCount == 0 {
-			if _, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; !ok {
-				// Add scaleDownDelay if not present
-				rsIsUpdated, err := ec.addScaleDownDelay(rs)
-				if err != nil {
-					ec.log.Warnf("Unable to add scaleDownDelay label on rs '%s'", rs.Name)
-				} else {
-					if rsIsUpdated {
-						ctx := context.TODO()
-						modifiedRS, err := ec.kubeclientset.AppsV1().ReplicaSets(ec.ex.Namespace).Get(ctx, rs.Name, metav1.GetOptions{})
-						if err != nil {
-							ec.log.Warnf("Unable to get rs '%s' with added scaleDownDelay", rs.Name)
-						} else {
-							rs = modifiedRS
-							ec.templateRSs[template.Name] = modifiedRS
-						}
+			// Add scaleDownDelay if necessary
+			rsIsUpdated, err := ec.addScaleDownDelay(rs)
+			if err != nil {
+				ec.log.Warnf("Unable to add scaleDownDelay label on rs '%s'", rs.Name)
+			} else {
+				if rsIsUpdated {
+					ctx := context.TODO()
+					modifiedRS, err := ec.kubeclientset.AppsV1().ReplicaSets(ec.ex.Namespace).Get(ctx, rs.Name, metav1.GetOptions{})
+					if err != nil {
+						ec.log.Warnf("Unable to get rs '%s' with added scaleDownDelay", rs.Name)
+					} else {
+						rs = modifiedRS
+						ec.templateRSs[template.Name] = modifiedRS
 					}
 				}
-
 			}
+
 		}
 		// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
 		if *rs.Spec.Replicas != desiredReplicaCount {

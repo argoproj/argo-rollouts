@@ -216,12 +216,17 @@ func (ec *experimentContext) addScaleDownDelay(rs *appsv1.ReplicaSet) (bool, err
 	scaleDownDelaySeconds := time.Duration(defaults.GetExperimentScaleDownDelaySecondsOrDefault(ec.ex))
 	if scaleDownDelaySeconds == 0 {
 		// If scaledown deadline is zero, it means we need to remove any replicasets with the delay
-		// This might happen if we switch from canary with traffic routing to basic canary
 		if replicasetutil.HasScaleDownDeadline(rs) {
 			return ec.removeScaleDownDelay(rs)
 		}
 		return rsIsUpdated, nil
+	} else {
+		// If RS already has non-zero scaleDownDelayDeadline set, then we don't do anything
+		if replicasetutil.HasScaleDownDeadline(rs) {
+			return rsIsUpdated, nil
+		}
 	}
+
 	deadline := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
 	_, err := ec.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})

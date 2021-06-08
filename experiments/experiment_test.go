@@ -122,7 +122,7 @@ func TestAddScaleDownDelayToRS(t *testing.T) {
 func TestScaleDownRSAfterFinish(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	//e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
@@ -133,6 +133,10 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	e.Status.Conditions = append(e.Status.Conditions, *cond)
 	rs1 := templateToRS(e, templates[0], 1)
 	rs2 := templateToRS(e, templates[1], 1)
+
+	inThePast := metav1.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
+	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
 
 	f := newFixture(t, e, rs1, rs2)
 	defer f.Close()
@@ -406,9 +410,38 @@ func TestDeleteServiceIfDesiredReplicasEqualZero(t *testing.T) {
 	templates := generateTemplates("bar")
 	templates[0].CreateService = true
 	templates[0].Replicas = pointer.Int32Ptr(0)
-
 	ex := newExperiment("foo", templates, "")
 	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+	}
+
+	svcToDelete := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "service-to-delete"}}
+	ex.Status.TemplateStatuses[0].ServiceName = svcToDelete.Name
+
+	exCtx := newTestContext(ex)
+
+	rs := templateToRS(ex, templates[0], 0)
+	rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = metav1.Now().UTC().Format(time.RFC3339)
+
+	exCtx.templateRSs = map[string]*appsv1.ReplicaSet{
+		"bar": rs,
+	}
+
+	exCtx.templateServices = map[string]*corev1.Service{
+		"bar": svcToDelete,
+	}
+
+	exStatus := exCtx.reconcile()
+
+	assert.Equal(t, "", exStatus.TemplateStatuses[0].ServiceName)
+	assert.Nil(t, exCtx.templateServices["bar"])
+}
+
+func TestDeleteServiceIfNotCreateService(t *testing.T) {
+	templates := generateTemplates("bar")
+	templates[0].Replicas = pointer.Int32Ptr(0)
+	ex := newExperiment("foo", templates, "")
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
