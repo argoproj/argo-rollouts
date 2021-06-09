@@ -106,6 +106,6 @@ func collectAnalysisTemplate(ch chan<- prometheus.Metric, namespace, name string
 
 	for _, metric := range at.Metrics {
 		metricType := metricproviders.Type(metric)
-		addGauge(MetricAnalysisTemplateMetricInfo, 1, metricType)
+		addGauge(MetricAnalysisTemplateMetricInfo, 1, metricType, metric.Name)
 	}
 }
