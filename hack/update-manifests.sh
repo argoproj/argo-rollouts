@@ -16,6 +16,7 @@ fi
 
 if [ ! -z "${SET_IMAGE_NAMESPACE}" ] || [ ! -z "${SET_IMAGE_TAG}" ]; then
   (cd ${SRCROOT}/manifests/base && kustomize edit set image quay.io/argoproj/argo-rollouts${SET_IMAGE_NAMESPACE}${SET_IMAGE_TAG})
+  (cd ${SRCROOT}/manifests/dashboard-install && kustomize edit set image quay.io/argoproj/kubectl-argo-rollouts${SET_IMAGE_NAMESPACE}${SET_IMAGE_TAG})
 fi
 
 kust_cmd="kustomize build --load-restrictor LoadRestrictionsNone"
@@ -24,3 +25,6 @@ ${kust_cmd} "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/inst
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/namespace-install.yaml"
 ${kust_cmd} "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
+
+echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/dashboard-install.yaml"
+${kust_cmd} "${SRCROOT}/manifests/dashboard-install" >> "${SRCROOT}/manifests/dashboard-install.yaml"
