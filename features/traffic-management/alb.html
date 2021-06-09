@@ -14,7 +14,7 @@
     
     
       
-        <title>Ambassador - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
+        <title>AWS ALB - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
       
     
     
@@ -67,7 +67,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#argo-rollouts-and-ambassador-quick-start" class="md-skip">
+        <a href="#aws-load-balancer-controller-alb" class="md-skip">
           Skip to content
         </a>
       
@@ -96,7 +96,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Ambassador
+              AWS ALB
             
           </span>
         </div>
@@ -259,14 +259,12 @@
 
   
   
-    
-  
   
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5" type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5" type="checkbox" id="__nav_5" >
       
       <label class="md-nav__link" for="__nav_5">
         Getting Started
@@ -294,86 +292,11 @@
             
   
   
-    
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          Ambassador
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="index.html" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../getting-started/ambassador/index.html" class="md-nav__link">
         Ambassador
       </a>
-      
-        
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
-    Requirements
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#1-install-and-configure-ambassador-edge-stack" class="md-nav__link">
-    1. Install and configure Ambassador Edge Stack
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2-create-the-kubernetes-services" class="md-nav__link">
-    2. Create the Kubernetes Services
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3-deploy-the-echo-service" class="md-nav__link">
-    3. Deploy the Echo Service
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-test-the-service" class="md-nav__link">
-    4. Test the service
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#5-rollout-a-new-version" class="md-nav__link">
-    5. Rollout a new version
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -383,7 +306,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../alb/index.html" class="md-nav__link">
+      <a href="../../getting-started/alb/index.html" class="md-nav__link">
         AWS ALB
       </a>
     </li>
@@ -395,7 +318,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../istio/index.html" class="md-nav__link">
+      <a href="../../getting-started/istio/index.html" class="md-nav__link">
         Istio
       </a>
     </li>
@@ -407,7 +330,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../nginx/index.html" class="md-nav__link">
+      <a href="../../getting-started/nginx/index.html" class="md-nav__link">
         NGINX
       </a>
     </li>
@@ -419,7 +342,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../smi/index.html" class="md-nav__link">
+      <a href="../../getting-started/smi/index.html" class="md-nav__link">
         SMI
       </a>
     </li>
@@ -497,7 +420,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/bluegreen.html" class="md-nav__link">
+      <a href="../bluegreen.html" class="md-nav__link">
         BlueGreen
       </a>
     </li>
@@ -509,7 +432,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/canary.html" class="md-nav__link">
+      <a href="../canary.html" class="md-nav__link">
         Canary
       </a>
     </li>
@@ -527,7 +450,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/specification.html" class="md-nav__link">
+      <a href="../specification.html" class="md-nav__link">
         Rollout Spec
       </a>
     </li>
@@ -539,7 +462,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/hpa-support.html" class="md-nav__link">
+      <a href="../hpa-support.html" class="md-nav__link">
         HPA
       </a>
     </li>
@@ -551,7 +474,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/ephemeral-metadata.html" class="md-nav__link">
+      <a href="../ephemeral-metadata.html" class="md-nav__link">
         Ephemeral Metadata
       </a>
     </li>
@@ -563,7 +486,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/restart.html" class="md-nav__link">
+      <a href="../restart.html" class="md-nav__link">
         Restarting Rollouts
       </a>
     </li>
@@ -575,7 +498,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/anti-affinity/anti-affinity.html" class="md-nav__link">
+      <a href="../anti-affinity/anti-affinity.html" class="md-nav__link">
         Anti Affinity
       </a>
     </li>
@@ -587,7 +510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/kustomize.html" class="md-nav__link">
+      <a href="../kustomize.html" class="md-nav__link">
         Kustomize
       </a>
     </li>
@@ -599,7 +522,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/controller-metrics.html" class="md-nav__link">
+      <a href="../controller-metrics.html" class="md-nav__link">
         Controller Metrics
       </a>
     </li>
@@ -618,12 +541,14 @@
 
   
   
+    
+  
   
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_8" type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_8" type="checkbox" id="__nav_8" checked>
       
       <label class="md-nav__link" for="__nav_8">
         Traffic Management
@@ -641,7 +566,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/index.html" class="md-nav__link">
+      <a href="index.html" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -653,7 +578,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/ambassador.html" class="md-nav__link">
+      <a href="ambassador.html" class="md-nav__link">
         Ambassador
       </a>
     </li>
@@ -663,11 +588,106 @@
             
   
   
+    
   
-    <li class="md-nav__item">
-      <a href="../../features/traffic-management/alb.html" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          AWS ALB
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="alb.html" class="md-nav__link md-nav__link--active">
         AWS ALB
       </a>
+      
+        
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    Requirements
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    Overview
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    How it works
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    Usage
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rootservice" class="md-nav__link">
+    rootService
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#weight-verification" class="md-nav__link">
+    Weight verification
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-annotations-prefix" class="md-nav__link">
+    Custom annotations-prefix
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-kubernetesioingressclass" class="md-nav__link">
+    Custom kubernetes.io/ingress.class
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -677,7 +697,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/istio.html" class="md-nav__link">
+      <a href="istio.html" class="md-nav__link">
         Istio
       </a>
     </li>
@@ -689,7 +709,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/nginx.html" class="md-nav__link">
+      <a href="nginx.html" class="md-nav__link">
         NGINX
       </a>
     </li>
@@ -701,7 +721,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/smi.html" class="md-nav__link">
+      <a href="smi.html" class="md-nav__link">
         SMI
       </a>
     </li>
@@ -743,7 +763,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/analysis.html" class="md-nav__link">
+      <a href="../analysis.html" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -848,7 +868,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/experiment.html" class="md-nav__link">
+      <a href="../experiment.html" class="md-nav__link">
         Experiments
       </a>
     </li>
@@ -884,7 +904,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/kubectl-plugin.html" class="md-nav__link">
+      <a href="../kubectl-plugin.html" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -1352,7 +1372,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../setup/index.html" class="md-nav__link">
+      <a href="../../getting-started/setup/index.html" class="md-nav__link">
         Environment Setup
       </a>
     </li>
@@ -1443,37 +1463,57 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#1-install-and-configure-ambassador-edge-stack" class="md-nav__link">
-    1. Install and configure Ambassador Edge Stack
+  <a href="#overview" class="md-nav__link">
+    Overview
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-create-the-kubernetes-services" class="md-nav__link">
-    2. Create the Kubernetes Services
+  <a href="#how-it-works" class="md-nav__link">
+    How it works
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-deploy-the-echo-service" class="md-nav__link">
-    3. Deploy the Echo Service
+  <a href="#usage" class="md-nav__link">
+    Usage
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rootservice" class="md-nav__link">
+    rootService
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#4-test-the-service" class="md-nav__link">
-    4. Test the service
+        
+          <li class="md-nav__item">
+  <a href="#weight-verification" class="md-nav__link">
+    Weight verification
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#5-rollout-a-new-version" class="md-nav__link">
-    5. Rollout a new version
+        
+          <li class="md-nav__item">
+  <a href="#custom-annotations-prefix" class="md-nav__link">
+    Custom annotations-prefix
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-kubernetesioingressclass" class="md-nav__link">
+    Custom kubernetes.io/ingress.class
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1489,202 +1529,227 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/getting-started/ambassador/index.md" title="Edit this page" class="md-content__button md-icon">
+                  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/features/traffic-management/alb.md" title="Edit this page" class="md-content__button md-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
                   </a>
                 
                 
-                <h1 id="argo-rollouts-and-ambassador-quick-start">Argo Rollouts and Ambassador Quick Start<a class="headerlink" href="#argo-rollouts-and-ambassador-quick-start" title="Permanent link">&para;</a></h1>
-<p>This tutorial will walk you through the process of configuring Argo Rollouts to work with Ambassador to facilitate canary releases. All files used in this guide are available in the <a href="https://github.com/argoproj/argo-rollouts/blob/master/examples/ambassador">examples</a> directory of this repository.</p>
+                <h1 id="aws-load-balancer-controller-alb">AWS Load Balancer Controller (ALB)<a class="headerlink" href="#aws-load-balancer-controller-alb" title="Permanent link">&para;</a></h1>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Kubernetes cluster</li>
-<li>Argo-Rollouts installed in the cluster</li>
+<li>AWS Load Balancer Controller v1.1.5 or greater</li>
 </ul>
-<h2 id="1-install-and-configure-ambassador-edge-stack">1. Install and configure Ambassador Edge Stack<a class="headerlink" href="#1-install-and-configure-ambassador-edge-stack" title="Permanent link">&para;</a></h2>
-<p>If you don't have Ambassador in your cluster you can install it following the <a href="https://www.getambassador.io/docs/latest/topics/install/">Edge Stack documentation</a>.</p>
-<p>By default, Edge Stack routes via Kubernetes services. For best performance with canaries, we recommend you use endpoint routing. Enable endpoint routing on your cluster by saving the following configuration in a file called <code>resolver.yaml</code>:</p>
-<div class="highlight"><pre><span></span><code>apiVersion: getambassador.io/v2
-kind: KubernetesEndpointResolver
-metadata:
-  name: endpoint
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p><a href="https://github.com/kubernetes-sigs/aws-load-balancer-controller">AWS Load Balancer Controller</a> 
+(also known as AWS ALB Ingress Controller) enables traffic management through an Ingress object,
+which configures an AWS Application Load Balancer (ALB) to route traffic to one or more Kubernetes
+services. ALBs provides advanced traffic splitting capability through the concept of
+<a href="https://aws.amazon.com/blogs/aws/new-application-load-balancer-simplifies-deployment-with-weighted-target-groups/">weighted target groups</a>.
+This feature is supported by the AWS Load Balancer Controller through annotations made to the
+Ingress object to configure "actions."</p>
+<h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<p>ALBs are configured via Listeners, and Rules which contain Actions. Listeners define how traffic
+from a client comes in, and Rules define how to handle those requests with various Actions. One
+type of Action allows users to forward traffic to multiple TargetGroups (with each being defined as
+a Kubernetes service). You can read more about ALB concepts
+<a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html">here</a>.</p>
+<p>An Ingress which is managed by the AWS Load Balancer Controller, controls an ALB's Listener and
+Rules through the Ingress' annotations and spec. In order to split traffic among multiple target
+groups (e.g. different Kubernetes services), the AWS Load Balancer controller looks to a specific
+"action" annotation on the Ingress,
+<a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#actions"><code>alb.ingress.kubernetes.io/actions.&lt;service-name&gt;</code></a>.
+This annotation is injected and updated automatically by a Rollout during an update according to
+the desired traffic weights.</p>
+<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
+<p>To configure a Rollout to use the ALB integration and split traffic between the canary and stable 
+services during updates, the Rollout should be configured with the following fields:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nn">...</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="c1"># canaryService and stableService are references to Services which the Rollout will modify</span>
+      <span class="c1"># to target the canary ReplicaSet and stable ReplicaSet respectively (required).</span>
+      <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-service</span>
+      <span class="nt">stableService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-service</span>
+      <span class="nt">trafficRouting</span><span class="p">:</span>
+        <span class="nt">alb</span><span class="p">:</span>
+          <span class="c1"># The referenced ingress will be injected with a custom action annotation, directing</span>
+          <span class="c1"># the AWS Load Balancer Controller to split traffic between the canary and stable</span>
+          <span class="c1"># Service, according to the desired traffic weight (required).</span>
+          <span class="nt">ingress</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>
+          <span class="c1"># Reference to a Service that the Ingress must target in one of the rules (optional).</span>
+          <span class="c1"># If omitted, uses canary.stableService.</span>
+          <span class="nt">rootService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">root-service</span>
+          <span class="c1"># Service port is the port which the Service listens on (required).</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">443</span>
 </code></pre></div>
-<p>Apply this configuration to your cluster: <code>kubectl apply -f resolver.yaml</code>.</p>
-<h2 id="2-create-the-kubernetes-services">2. Create the Kubernetes Services<a class="headerlink" href="#2-create-the-kubernetes-services" title="Permanent link">&para;</a></h2>
-<p>We'll create two Kubernetes services, named <code>echo-stable</code> and <code>echo-canary</code>. Save this configuration to the file <code>echo-service.yaml</code>.</p>
-<div class="highlight"><pre><span></span><code>apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: echo
-  name: echo-stable
-spec:
-  type: ClusterIP
-  ports:
-  - name: http
-    port: 80
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app: echo
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: echo
-  name: echo-canary
-spec:
-  type: ClusterIP
-  ports:
-  - name: http
-    port: 80
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app: echo 
+<p>The referenced Ingress should be deployed with an ingress rule that matches the Rollout service:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">alb</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/*</span>
+        <span class="nt">backend</span><span class="p">:</span>
+          <span class="c1"># serviceName must match either: canary.trafficRouting.alb.rootService (if specified),</span>
+          <span class="c1"># or canary.stableService (if rootService is omitted)</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">root-service</span>
+          <span class="c1"># servicePort must be the value: use-annotation</span>
+          <span class="c1"># This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
 </code></pre></div>
-<p>We'll also create an Edge Stack route to the services. Save the following configuration to a file called <code>echo-mapping.yaml</code>.</p>
-<div class="highlight"><pre><span></span><code>apiVersion: getambassador.io/v2
-kind:  Mapping
-metadata:
-  name:  echo
-spec:
-  prefix: /echo
-  rewrite: /echo
-  service: echo-stable:80
-  resolver: endpoint
+<p>During an update, the rollout controller injects the <code>alb.ingress.kubernetes.io/actions.&lt;SERVICE-NAME&gt;</code>
+annotation, containing a JSON payload understood by the AWS Load Balancer Controller, directing it
+to split traffic between the <code>canaryService</code> and <code>stableService</code> according to the current canary weight. </p>
+<p>The following is an example of our example Ingress after the rollout has injected the custom action 
+annotation that splits traffic between the canary-service and stable-service, with a traffic weight
+of 80 and 20 respectively:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">alb</span>
+    <span class="nt">alb.ingress.kubernetes.io/actions.root-service</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+      <span class="no">{ </span>
+        <span class="no">&quot;Type&quot;:&quot;forward&quot;,</span>
+        <span class="no">&quot;ForwardConfig&quot;:{ </span>
+          <span class="no">&quot;TargetGroups&quot;:[ </span>
+            <span class="no">{ </span>
+                <span class="no">&quot;Weight&quot;:10,</span>
+                <span class="no">&quot;ServiceName&quot;:&quot;canary-service&quot;,</span>
+                <span class="no">&quot;ServicePort&quot;:&quot;80&quot;</span>
+            <span class="no">},</span>
+            <span class="no">{ </span>
+                <span class="no">&quot;Weight&quot;:90,</span>
+                <span class="no">&quot;ServiceName&quot;:&quot;stable-service&quot;,</span>
+                <span class="no">&quot;ServicePort&quot;:&quot;80&quot;</span>
+            <span class="no">}</span>
+          <span class="no">]</span>
+        <span class="no">}</span>
+      <span class="no">}</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/*</span>
+        <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">root-service</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
 </code></pre></div>
-<p>Apply both of these configurations to the Kubernetes cluster:</p>
-<div class="highlight"><pre><span></span><code>kubectl apply -f echo-service.yaml
-kubectl apply -f echo-mapping.yaml
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Argo rollouts additionally injects an annotation, <code>rollouts.argoproj.io/managed-alb-actions</code>,
+to the Ingress for bookkeeping purposes. The annotation indicates which actions are being
+managed by the Rollout object (since multiple Rollouts can reference one Ingress). Upon a
+rollout deletion, the rollout controller looks to this annotation to understand that this action
+is no longer managed, and is reset to point only the stable service with 100 weight.</p>
+</div>
+<h3 id="rootservice">rootService<a class="headerlink" href="#rootservice" title="Permanent link">&para;</a></h3>
+<p>By default, a rollout will inject the <code>alb.ingress.kubernetes.io/actions.&lt;SERVICE-NAME&gt;</code> annotation
+using the service/action name specified under <code>spec.strategy.canary.stableService</code>. However, it may
+be desirable to specify an explicit service/action name different from the <code>stableService</code>. For
+example, <a href="/best-practices/#ingress-desiredstable-host-routes">one pattern</a> is to use a single
+Ingress containing three different rules to reach the canary, stable, and root service separately
+(e.g. for testing purposes). In this case, you may want to specify a "root" service as the
+service/action name instead of stable. To do so, reference a service under <code>rootService</code> under the
+alb specification:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-canary</span>
+      <span class="nt">stableService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-stable</span>
+      <span class="nt">trafficRouting</span><span class="p">:</span>
+        <span class="nt">alb</span><span class="p">:</span>
+          <span class="nt">rootService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-root</span>
+<span class="nn">...</span>
 </code></pre></div>
-<h2 id="3-deploy-the-echo-service">3. Deploy the Echo Service<a class="headerlink" href="#3-deploy-the-echo-service" title="Permanent link">&para;</a></h2>
-<p>Create a Rollout resource and save it to a file called <code>rollout.yaml</code>. Note the <code>trafficRouting</code> attribute, which tells Argo to use Ambassador Edge Stack for routing.</p>
-<div class="highlight"><pre><span></span><code>apiVersion: argoproj.io/v1alpha1
-kind: Rollout
-metadata:
-  name: echo-rollout
-spec:
-  selector:
-    matchLabels:
-      app: echo
-  template:
-    metadata:
-      labels:
-        app: echo
-    spec:
-      containers:
-        - image: hashicorp/http-echo
-          args:
-            - &quot;-text=VERSION 1&quot;
-            - -listen=:8080
-          imagePullPolicy: Always
-          name: echo-v1
-          ports:
-            - containerPort: 8080
-  strategy:
-    canary:
-      stableService: echo-stable
-      canaryService: echo-canary
-      trafficRouting:
-        ambassador:
-          mappings:
-            - echo
-      steps:
-      - setWeight: 30
-      - pause: {duration: 30s}
-      - setWeight: 60
-      - pause: {duration: 30s}
-      - setWeight: 100
-      - pause: {duration: 10}
+<h3 id="weight-verification">Weight verification<a class="headerlink" href="#weight-verification" title="Permanent link">&para;</a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Since Argo Rollouts v1.0</p>
+</div>
+<p>When Argo Rollouts adjusts a canary weight by updating the Ingress annotation, it assumes that
+the new weight immediately takes effect and moves on to the next step. However, due to external
+factors (e.g. AWS rate limiting, AWS load balancer controller downtime) it is possible that the
+ingress modification may take a long time to take effect (or possibly never even made). This is
+potentially dangerous when the rollout completes its steps, it will scale down the old stack. If
+the ALB Rules/Actions were still directing traffic to the old stack (because the weights never took
+effect), then this would cause downtime to the service when the old stack was scaled down.</p>
+<p>To mitigate this, the rollout controller has a feature to additionally <em>verify</em> the canary weight 
+after a <code>setWeight</code> canary step. It accomplishes this by querying AWS LoadBalancer APIs directly,
+to confirm that the Rules, Actions, and TargetGroups reflect the desire of Ingress annotation.
+To enable ALB weight verification, add <code>--alb-verify-weight</code> flag to the rollout-controller flags:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-rollouts</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-rollouts</span>
+        <span class="nt">args</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">--alb-verify-weight</span><span class="p p-Indicator">]</span>
 </code></pre></div>
-<p>Apply the rollout to your cluster <code>kubectl apply -f rollout.yaml</code>. Note that no canary rollout will occur, as this is the first version of the service being deployed. </p>
-<h2 id="4-test-the-service">4. Test the service<a class="headerlink" href="#4-test-the-service" title="Permanent link">&para;</a></h2>
-<p>We'll now test that this rollout works as expected.  Open a new terminal window. We'll use it to send requests to the cluster. Get the external IP address for Edge Stack:</p>
-<div class="highlight"><pre><span></span><code>export AMBASSADOR_LB_ENDPOINT=$(kubectl -n ambassador get svc ambassador -o &quot;go-template={{range .status.loadBalancer.ingress}}{{or .ip .hostname}}{{end}}&quot;)
+<p>For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
+under the <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html">Elastic Load Balancing API</a>:</p>
+<ul>
+<li><code>DescribeTargetGroups</code></li>
+<li><code>DescribeLoadBalancers</code></li>
+<li><code>DescribeListeners</code></li>
+<li><code>DescribeRules</code></li>
+<li><code>DescribeTags</code></li>
+</ul>
+<p>There are various ways of granting AWS privileges to the argo-rollouts pods, which is highly
+dependent to your cluster's AWS environment, and out-of-scope of this documentation. Some solutions
+include:</p>
+<ul>
+<li>AWS access and secret keys</li>
+<li><a href="https://github.com/uswitch/kiam">kiam</a></li>
+<li><a href="https://github.com/jtblin/kube2iam">kube2iam</a></li>
+<li><a href="https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html">EKS ServiceAccount IAM Roles</a></li>
+</ul>
+<h3 id="custom-annotations-prefix">Custom annotations-prefix<a class="headerlink" href="#custom-annotations-prefix" title="Permanent link">&para;</a></h3>
+<p>The AWS Load Balancer Controller allows users to customize the
+<a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#ingress-annotations">annotation prefix</a>
+used by the Ingress controller using a flag to the controller, <code>--annotations-prefix</code> (from the
+default of <code>alb.ingress.kubernetes.io</code>). If your AWS Load Balancer Controller is customized to use
+a different annotation prefix, <code>annotationPrefix</code> field should be specified such that the Ingress
+object will be annotated in a manner understood by the cluster's aws load balancer controller.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">trafficRouting</span><span class="p">:</span>
+        <span class="nt">alb</span><span class="p">:</span>
+          <span class="nt">annotationPrefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">custom.alb.ingress.kubernetes.io</span>
 </code></pre></div>
-<p>Send a request to the <code>echo</code> service:  </p>
-<div class="highlight"><pre><span></span><code>curl -Lk &quot;https://$AMBASSADOR_LB_ENDPOINT/echo/&quot;
+<h3 id="custom-kubernetesioingressclass">Custom kubernetes.io/ingress.class<a class="headerlink" href="#custom-kubernetesioingressclass" title="Permanent link">&para;</a></h3>
+<p>By default, Argo Rollout will operates on Ingresses with the annotation:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">alb</span>
 </code></pre></div>
-<p>You should get a response of "VERSION 1".</p>
-<h2 id="5-rollout-a-new-version">5. Rollout a new version<a class="headerlink" href="#5-rollout-a-new-version" title="Permanent link">&para;</a></h2>
-<p>It's time to rollout a new version of the service. Update the echo container in the <code>rollout.yaml</code> to display "VERSION 2":</p>
-<div class="highlight"><pre><span></span><code>apiVersion: argoproj.io/v1alpha1
-kind: Rollout
-metadata:
-  name: echo-rollout
-spec:
-  selector:
-    matchLabels:
-      app: echo
-  template:
-    metadata:
-      labels:
-        app: echo
-    spec:
-      containers:
-        - image: hashicorp/http-echo
-          args:
-            - &quot;-text=VERSION 2&quot;
-            - -listen=:8080
-          imagePullPolicy: Always
-          name: echo-v1
-          ports:
-            - containerPort: 8080
-  strategy:
-    canary:
-      stableService: echo-stable
-      canaryService: echo-canary
-      trafficRouting:
-        ambassador:
-          mappings:
-            - echo
-      steps:
-      - setWeight: 30
-      - pause: {duration: 30s}
-      - setWeight: 60
-      - pause: {duration: 30s}
-      - setWeight: 100
-      - pause: {duration: 10}
-</code></pre></div>
-<p>Apply the rollout to the cluster by typing <code>kubectl apply -f rollout.yaml</code>. This will rollout a version 2 of the service by routing 30% of traffic to the service for 30 seconds, followed by 60% of traffic for another 30 seconds.</p>
-<p>You can monitor the status of your rollout at the command line:</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts get rollout echo-rollout --watch
-</code></pre></div>
-<p>Will display an output similar to the following:</p>
-<div class="highlight"><pre><span></span><code>Name:            echo-rollout
-Namespace:       default
-Status:          ॥ Paused
-Message:         CanaryPauseStep
-Strategy:        Canary
-  Step:          1/6
-  SetWeight:     30
-  ActualWeight:  30
-Images:          hashicorp/http-echo (canary, stable)
-Replicas:
-  Desired:       1
-  Current:       2
-  Updated:       1
-  Ready:         2
-  Available:     2
-
-NAME                                      KIND        STATUS        AGE    INFO
-⟳ echo-rollout                            Rollout     ॥ Paused      2d21h
-├──# revision:3
-│  └──⧉ echo-rollout-64fb847897           ReplicaSet  ✔ Healthy     2s     canary
-│     └──□ echo-rollout-64fb847897-49sg6  Pod         ✔ Running     2s     ready:1/1
-├──# revision:2
-│  └──⧉ echo-rollout-578bfdb4b8           ReplicaSet  ✔ Healthy     3h5m   stable
-│     └──□ echo-rollout-578bfdb4b8-86z6n  Pod         ✔ Running     3h5m   ready:1/1
-└──# revision:1
-   └──⧉ echo-rollout-948d9c9f9            ReplicaSet  • ScaledDown  2d21h
-</code></pre></div>
-<p>In your other terminal window, you can verify that the canary is progressing appropriately by sending requests in a loop:</p>
-<div class="highlight"><pre><span></span><code>while true; do curl -k https://$AMBASSADOR_LB_ENDPOINT/echo/; sleep 0.2; done
-</code></pre></div>
-<p>This will display a running list of responses from the service that will gradually transition from VERSION 1 strings to VERSION 2 strings.</p>
-<p>For more details about the Ambassador and Argo-Rollouts integration, see the <a href="https://www.getambassador.io/docs/argo/latest/quick-start/">Ambassador Argo documentation</a>.</p>
+<p>To configure the controller to operate on Ingresses with different <code>kubernetes.io/ingress.class</code>
+values, the controller can specify a different value through the <code>--alb-ingress-classes</code> flag in
+the controller command line arguments.</p>
+<p>Note that the <code>--alb-ingress-classes</code> flag can be specified multiple times if the Argo Rollouts
+controller should operate on multiple values. This may be desired when a cluster has multiple
+Ingress controllers that operate on different <code>kubernetes.io/ingress.class</code> values.</p>
+<p>If the controller needs to operate on any Ingress without the <code>kubernetes.io/ingress.class</code>
+annotation, the flag can be specified with an empty string (e.g. <code>--alb-ingress-classes ''</code>).</p>
                 
               
               
@@ -1704,7 +1769,7 @@ NAME                                      KIND        STATUS        AGE    INFO
     <nav class="md-footer__inner md-grid" aria-label="Footer">
       
         
-        <a href="../../getting-started.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Basic Usage" rel="prev">
+        <a href="ambassador.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Ambassador" rel="prev">
           <div class="md-footer__button md-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
           </div>
@@ -1713,20 +1778,20 @@ NAME                                      KIND        STATUS        AGE    INFO
               <span class="md-footer__direction">
                 Previous
               </span>
-              Basic Usage
+              Ambassador
             </div>
           </div>
         </a>
       
       
         
-        <a href="../alb/index.html" class="md-footer__link md-footer__link--next" aria-label="Next: AWS ALB" rel="next">
+        <a href="istio.html" class="md-footer__link md-footer__link--next" aria-label="Next: Istio" rel="next">
           <div class="md-footer__title">
             <div class="md-ellipsis">
               <span class="md-footer__direction">
                 Next
               </span>
-              AWS ALB
+              Istio
             </div>
           </div>
           <div class="md-footer__button md-icon">
