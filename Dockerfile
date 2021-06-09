@@ -73,6 +73,8 @@ FROM docker.io/library/ubuntu:20.10 as kubectl-argo-rollouts
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts-linux-amd64 /bin/kubectl-argo-rollouts
 
+USER 999
+
 WORKDIR /home/argo-rollouts
 
 ENTRYPOINT ["/bin/kubectl-argo-rollouts"]
