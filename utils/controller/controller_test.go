@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/queue"
+
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +32,7 @@ import (
 )
 
 func TestProcessNextWorkItemHandlePanic(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add("valid/key")
 
 	metricServer := metrics.NewMetricsServer(metrics.ServerConfig{
@@ -44,7 +46,7 @@ func TestProcessNextWorkItemHandlePanic(t *testing.T) {
 }
 
 func TestProcessNextWorkItemShutDownQueue(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	syncHandler := func(key string) error {
 		return nil
 	}
@@ -53,7 +55,7 @@ func TestProcessNextWorkItemShutDownQueue(t *testing.T) {
 }
 
 func TestProcessNextWorkItemNoTStringKey(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add(1)
 	syncHandler := func(key string) error {
 		return nil
@@ -62,7 +64,7 @@ func TestProcessNextWorkItemNoTStringKey(t *testing.T) {
 }
 
 func TestProcessNextWorkItemNoValidKey(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add("invalid.key")
 	syncHandler := func(key string) error {
 		return nil
@@ -71,7 +73,7 @@ func TestProcessNextWorkItemNoValidKey(t *testing.T) {
 }
 
 func TestProcessNextWorkItemNormalSync(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add("valid/key")
 	syncHandler := func(key string) error {
 		return nil
@@ -80,7 +82,7 @@ func TestProcessNextWorkItemNormalSync(t *testing.T) {
 }
 
 func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add("valid/key")
 	metricServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
@@ -93,7 +95,7 @@ func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {
 }
 
 func TestEnqueue(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	r := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "testName",
@@ -105,13 +107,13 @@ func TestEnqueue(t *testing.T) {
 }
 
 func TestEnqueueInvalidObj(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	Enqueue(struct{}{}, q)
 	assert.Equal(t, 0, q.Len())
 }
 
 func TestEnqueueAfter(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	r := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "testName",
@@ -125,13 +127,13 @@ func TestEnqueueAfter(t *testing.T) {
 }
 
 func TestEnqueueString(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	Enqueue("default/foo", q)
 	assert.Equal(t, 1, q.Len())
 }
 
 func TestEnqueueAfterInvalidObj(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	EnqueueAfter(struct{}{}, time.Duration(1), q)
 	assert.Equal(t, 0, q.Len())
 	time.Sleep(2 * time.Second)
@@ -139,7 +141,7 @@ func TestEnqueueAfterInvalidObj(t *testing.T) {
 }
 
 func TestEnqueueRateLimited(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	r := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "testName",
@@ -153,7 +155,7 @@ func TestEnqueueRateLimited(t *testing.T) {
 }
 
 func TestEnqueueRateLimitedInvalidObject(t *testing.T) {
-	q := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	EnqueueRateLimited(struct{}{}, q)
 	assert.Equal(t, 0, q.Len())
 	time.Sleep(time.Second)
@@ -440,7 +442,7 @@ func TestProcessNextWatchObj(t *testing.T) {
 	})
 	indexer.Add(obj)
 	{
-		wq := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+		wq := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 		watchEvent := watch.Event{
 			Object: obj,
 		}
@@ -448,7 +450,7 @@ func TestProcessNextWatchObj(t *testing.T) {
 		assert.Equal(t, 1, wq.Len())
 	}
 	{
-		wq := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+		wq := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 		watchEvent := watch.Event{
 			Object: obj,
 		}
@@ -456,7 +458,7 @@ func TestProcessNextWatchObj(t *testing.T) {
 		assert.Equal(t, 0, wq.Len())
 	}
 	{
-		wq := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
+		wq := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 		invalidWatchEvent := watch.Event{}
 		processNextWatchObj(invalidWatchEvent, wq, indexer, "testIndexer")
 		assert.Equal(t, 0, wq.Len())
