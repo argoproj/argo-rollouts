@@ -41,9 +41,6 @@ rules:
   - get
   - list
   - watch
-  - update
-  - patch
-  - delete
 - apiGroups:
   - argoproj.io
   resources:
@@ -121,7 +118,7 @@ spec:
         app.kubernetes.io/name: argo-rollouts-dashboard
     spec:
       containers:
-      - image: quay.io/argoproj/kubectl-argo-rollouts
+      - image: quay.io/argoproj/kubectl-argo-rollouts:latest
         name: argo-rollouts-dashboard
         ports:
         - containerPort: 3100
