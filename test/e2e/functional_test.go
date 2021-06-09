@@ -1063,6 +1063,60 @@ spec:
 		ExpectActiveRevision("2")
 }
 
+func (s *FunctionalSuite) TestWorkloadRefTemplate() {
+	s.Given().
+		RolloutObjects(`
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: rollout-canary
+  name: rollout-ref-deployment
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: rollout-ref-deployment
+  template:
+    metadata:
+      labels:
+        app: rollout-ref-deployment
+    spec:
+      containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:green
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-ref-deployment
+spec:
+  replicas: 1
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rollout-ref-deployment
+  selector:
+    matchLabels:
+      app: rollout-demo-deploy
+  template:
+    metadata:
+      labels:
+        app: rollout-ref-deployment
+  strategy:
+    blueGreen: 
+      activeService: rollout-bluegreen-active
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		ExpectRollout("error due to workload ref and template", func(r *v1alpha1.Rollout) bool {
+			return len(r.Status.Conditions) == 1 && strings.Contains(r.Status.Conditions[0].Message, "template must be empty for workload reference rollout")
+		})
+}
+
 func (s *FunctionalSuite) TestWorkloadRef() {
 	s.Given().
 		RolloutObjects(`
