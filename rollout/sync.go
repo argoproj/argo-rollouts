@@ -571,11 +571,14 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 	return nil
 }
 
-// isIndefiniteStep returns whether or not the rollout is at an Experiment or Analysis step which should
+// isIndefiniteStep returns whether or not the rollout is at an Experiment or Analysis or Pause step which should
 // not affect the progressDeadlineSeconds
 func isIndefiniteStep(r *v1alpha1.Rollout) bool {
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(r)
-	return currentStep != nil && (currentStep.Experiment != nil || currentStep.Analysis != nil)
+	if currentStep != nil && (currentStep.Experiment != nil || currentStep.Analysis != nil || currentStep.Pause != nil) {
+		return true
+	}
+	return false
 }
 
 func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutStatus) v1alpha1.RolloutStatus {
@@ -657,7 +660,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			if c.newRS != nil {
 				msg = fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, c.newRS.Name)
 			}
-			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.TimedOutReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *condition)
 		}
 	}
