@@ -243,7 +243,7 @@ func destinationRuleReplaceExtraMarshal(dRule *DestinationRule) []byte {
 		}
 
 		extra := map[string]interface{}{}
-		inputbyte, _ := json.Marshal(dRule.Spec.Subsets[1].Extra)
+		inputbyte, _ := json.Marshal(subset.Extra)
 		json.Unmarshal(inputbyte, &extra)
 
 		subset.Extra = nil
@@ -266,7 +266,7 @@ func updateDestinationRule(ctx context.Context, client dynamic.ResourceInterface
 		return false, err
 	}
 	dRuleNewBytes := destinationRuleReplaceExtraMarshal(dRuleNew)
-	log.Infof("dRuleNewBytes: %s", string(dRuleNewBytes))
+	log.Debugf("dRuleNewBytes: %s", string(dRuleNewBytes))
 
 	patch, err := jsonpatch.CreateMergePatch(dRuleBytes, dRuleNewBytes)
 	if err != nil {
