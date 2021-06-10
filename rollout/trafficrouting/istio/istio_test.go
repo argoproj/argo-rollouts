@@ -402,6 +402,10 @@ metadata:
   name: istio-destrule
   namespace: default
 spec:
+  host: ratings.prod.svc.cluster.local
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
   subsets:
   - name: stable
     labels:
@@ -424,6 +428,12 @@ spec:
 
 	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
 	assert.NoError(t, err)
+
+	dRuleUnBytes, err := json.Marshal(dRuleUn)
+	assert.NoError(t, err)
+	assert.Equal(t, `{"apiVersion":"networking.istio.io/v1alpha3","kind":"DestinationRule","metadata":{"annotations":{"argo-rollouts.argoproj.io/managed-by-rollouts":"rollout"},"name":"istio-destrule","namespace":"default"},"spec":{"host":"ratings.prod.svc.cluster.local","subsets":[{"labels":{"rollouts-pod-template-hash":"def456","version":"v3"},"name":"stable"},{"labels":{"rollouts-pod-template-hash":"abc123"},"name":"canary","trafficPolicy":{"loadBalancer":{"simple":"ROUND_ROBIN"}}}],"trafficPolicy":{"loadBalancer":{"simple":"LEAST_CONN"}}}}`,
+		string(dRuleUnBytes))
+
 	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
 	assert.NoError(t, err)
 	assert.Equal(t, dRule.Annotations[v1alpha1.ManagedByRolloutsKey], "rollout")

@@ -288,7 +288,7 @@ func updateDestinationRule(ctx context.Context, client dynamic.ResourceInterface
 	if err != nil {
 		return false, err
 	}
-	log.Infof("updated destinationrule: %s", string(patch))
+	log.Infof("updating destinationrule: %s", string(patch))
 	return true, nil
 }
 
