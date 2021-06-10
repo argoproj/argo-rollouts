@@ -3,9 +3,10 @@ package status
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
