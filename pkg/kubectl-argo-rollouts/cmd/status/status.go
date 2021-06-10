@@ -3,10 +3,7 @@ package status
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
-
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
@@ -106,7 +103,7 @@ func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, cancelFunc context.C
 	for {
 		select {
 		case roInfo = <-rolloutUpdates:
-			if roInfo != nil && roInfo.Status == "Healthy" || (roInfo.Status == "Degraded" && !strings.Contains(roInfo.Message, conditions.TimedOutReason)) {
+			if roInfo != nil && roInfo.Status == "Healthy" || roInfo.Status == "Degraded" {
 				fmt.Fprintln(o.Out, roInfo.Status)
 				cancelFunc()
 				return
