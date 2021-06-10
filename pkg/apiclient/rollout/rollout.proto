@@ -59,6 +59,7 @@ message RolloutWatchEvent {
 
 message NamespaceInfo {
     string namespace = 1;
+    repeated string availableNamespaces = 2;
 }
 
 message RolloutInfoList {
