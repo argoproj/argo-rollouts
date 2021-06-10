@@ -510,6 +510,18 @@
   
   
     <li class="md-nav__item">
+      <a href="features/helm.html" class="md-nav__link">
+        Helm
+      </a>
+    </li>
+  
+
+          
+            
+  
+  
+  
+    <li class="md-nav__item">
       <a href="features/kustomize.html" class="md-nav__link">
         Kustomize
       </a>
@@ -1536,7 +1548,7 @@ Rollout won't try to manage existing Deployment Pods. That means you can safely 
 to the production environment without any interruption but you are going to run twice more Pods during migration.</p>
 <p><strong>Traffic Management During Migration</strong></p>
 <p>The Rollout offers traffic management functionality that manages routing rules and flows the traffic to different
-versions of an application. For example <a href="../docs/features/bluegreen.md">Blue-Green</a> deployment strategy manipulates
+versions of an application. For example <a href="features/bluegreen.html">Blue-Green</a> deployment strategy manipulates
 Kubernetes Service selector and direct production traffic to "green" instances only.</p>
 <p>If you are using this feature then Rollout switches production traffic to Pods that it manages. The switch happens
 only when the required number of Pod is running and healthy so it is safe in production as well. However, if you
