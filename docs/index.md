@@ -35,7 +35,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 
 ```
 kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
+kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
 ```
 
 Follow the full [getting started guide](getting-started.md) to walk through creating and then updating a rollout object. 
