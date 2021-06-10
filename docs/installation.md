@@ -4,7 +4,7 @@
 
 ```bash
 kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
+kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
 ```
 
 This will create a new namespace, `argo-rollouts`, where Argo Rollouts controller will run.
