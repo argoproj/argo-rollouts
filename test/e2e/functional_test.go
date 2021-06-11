@@ -3,9 +3,12 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -1236,4 +1239,52 @@ func (s *FunctionalSuite) TestControllerMetrics() {
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", controller.DefaultMetricsPort))
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
+}
+
+func (s *FunctionalSuite) TestRolloutPauseDurationGreaterThanProgressDeadlineSeconds() {
+	s.Given().
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-canary
+spec:
+  replicas: 3
+  progressDeadlineSeconds: 5
+  selector:
+    matchLabels:
+      app: rollout-canary
+  template:
+    metadata:
+      labels:
+        app: rollout-canary
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    canary:
+      steps:
+      - setWeight: 32
+      - pause: {duration: 7s}
+      - setWeight: 67
+`).
+		When().
+		UpdateSpec().
+		Then().
+		ExpectRollout("status command returns Healthy", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "argo", "rollouts", "status", r.Name)
+
+			var stdBuffer bytes.Buffer
+			mw := io.MultiWriter(os.Stdout, &stdBuffer)
+			cmd.Stdout = mw
+			cmd.Stderr = mw
+
+			// Execute the command
+			err := cmd.Run()
+			return err == nil && strings.Contains(stdBuffer.String(), "Healthy")
+		})
 }
