@@ -440,7 +440,8 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
 
-		rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
+		rolloutPatch, err := f.getPatchedRolloutWithoutConditions(patchRolloutIndex)
+		assert.Nil(t, err)
 		assert.Equal(t, expectedPatch, rolloutPatch)
 	})
 
@@ -798,7 +799,8 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 	f.run(getKey(r2, t))
 
-	rolloutPatch := f.getPatchedRollout(patchIndex)
+	rolloutPatch, err := f.getPatchedRolloutWithoutConditions(patchIndex)
+	assert.Nil(t, err)
 	assert.Equal(t, expectedPatch, rolloutPatch)
 }
 
@@ -1060,6 +1062,8 @@ func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 
 	f.kubeobjects = append(f.kubeobjects, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs2)
@@ -1084,7 +1088,7 @@ func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
 	err := json.Unmarshal([]byte(patch), &rolloutPatch)
 	assert.NoError(t, err)
 
-	index := len(rolloutPatch.Status.Conditions) - 1
+	index := len(rolloutPatch.Status.Conditions) - 2
 	assert.Equal(t, v1alpha1.RolloutCompleted, rolloutPatch.Status.Conditions[index].Type)
 	assert.Equal(t, corev1.ConditionFalse, rolloutPatch.Status.Conditions[index].Status)
 }

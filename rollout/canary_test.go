@@ -230,6 +230,9 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, 0, 0)
 
@@ -896,6 +899,9 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -940,6 +946,9 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -997,7 +1006,8 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	patch := f.getPatchedRollout(patchIndex)
+	patch, err := f.getPatchedRolloutWithoutConditions(patchIndex)
+	assert.Nil(t, err)
 	expectedPatch := `{
 		"status":{
 			"controllerPause": null,
@@ -1048,7 +1058,8 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	index := f.expectPatchRolloutActionWithPatch(r2, expectedPatchWithSub)
 	f.run(getKey(r2, t))
 
-	patch := f.getPatchedRollout(index)
+	patch, err := f.getPatchedRolloutWithoutConditions(index)
+	assert.Nil(t, err)
 	assert.Equal(t, calculatePatch(r2, expectedPatchWithSub), patch)
 }
 
@@ -1285,7 +1296,8 @@ func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 	updatedRS := f.getUpdatedReplicaSet(updatedIndex)
 	assert.Equal(t, int32(8), *updatedRS.Spec.Replicas)
 
-	patch := f.getPatchedRollout(patchIndex)
+	patch, err := f.getPatchedRolloutWithoutConditions(patchIndex)
+	assert.Nil(t, err)
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1381,7 +1393,8 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 	_ = f.expectPatchRolloutAction(r2) // this just sets a conditions. ignore for now
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
-	patch := f.getPatchedRollout(patchIndex)
+	patch, err := f.getPatchedRolloutWithoutConditions(patchIndex)
+	assert.Nil(t, err)
 	expectedPatch := `{
 		"status": {
 			"message": "manually paused"
@@ -1418,6 +1431,9 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
