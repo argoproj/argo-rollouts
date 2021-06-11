@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- dashboard-clusterrolebinding.yaml
+- dashboard-clusterrole.yaml
+- dashboard-deployment.yaml
+- dashboard-service.yaml
+- dashboard-serviceaccount.yaml
+images:
+- name: quay.io/argoproj/kubectl-argo-rollouts
+  newTag: latest

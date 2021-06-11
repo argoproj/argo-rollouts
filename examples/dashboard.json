@@ -671,7 +671,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(rollout_phase{phase=\"Paused\"} == 1)",
+          "expr": "sum(rollout_phase{phase=\"Error\"} == 1)",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,

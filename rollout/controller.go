@@ -377,6 +377,7 @@ func (c *Controller) syncHandler(key string) error {
 	resolveErr := c.refResolver.Resolve(r)
 	roCtx, err := c.newRolloutContext(r)
 	if err != nil {
+		logCtx.Errorf("newRolloutContext err %v", err)
 		return err
 	}
 	if resolveErr != nil {
@@ -387,6 +388,9 @@ func (c *Controller) syncHandler(key string) error {
 	err = roCtx.reconcile()
 	if roCtx.newRollout != nil {
 		c.writeBackToInformer(roCtx.newRollout)
+	}
+	if err != nil {
+		logCtx.Errorf("roCtx.reconcile err %v", err)
 	}
 	return err
 }

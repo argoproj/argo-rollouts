@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/queue"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -98,7 +100,7 @@ func newViewController(namespace string, name string, kubeClient kubernetes.Inte
 		rolloutLister:           rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace),
 		experimentLister:        rolloutsInformerFactory.Argoproj().V1alpha1().Experiments().Lister().Experiments(namespace),
 		analysisRunLister:       rolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns().Lister().AnalysisRuns(namespace),
-		workqueue:               workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		workqueue:               workqueue.NewRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter()),
 	}
 
 	controller.cacheSyncs = append(controller.cacheSyncs,

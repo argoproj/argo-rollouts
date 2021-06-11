@@ -179,8 +179,8 @@ analysis_template_info{name="http-benchmark-test",namespace=""} 1
 analysis_template_info{name="http-benchmark-test",namespace="jesse-test"} 1
 # HELP analysis_template_metric_info Information on metrics in analysis templates.
 # TYPE analysis_template_metric_info gauge
-analysis_template_metric_info{name="http-benchmark-test",namespace="",type="Web"} 1
-analysis_template_metric_info{name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
+analysis_template_metric_info{metric="webmetric",name="http-benchmark-test",namespace="",type="Web"} 1
+analysis_template_metric_info{metric="webmetric",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
 `
 	registry := prometheus.NewRegistry()
 	at := newFakeAnalysisTemplate(fakeAnalysisTemplate)

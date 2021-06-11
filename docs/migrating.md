@@ -111,7 +111,7 @@ to the production environment without any interruption but you are going to run 
 **Traffic Management During Migration**
 
 The Rollout offers traffic management functionality that manages routing rules and flows the traffic to different
-versions of an application. For example [Blue-Green](../docs/features/bluegreen.md) deployment strategy manipulates
+versions of an application. For example [Blue-Green](features/bluegreen.md) deployment strategy manipulates
 Kubernetes Service selector and direct production traffic to "green" instances only.
 
 If you are using this feature then Rollout switches production traffic to Pods that it manages. The switch happens
