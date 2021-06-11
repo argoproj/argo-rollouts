@@ -1326,3 +1326,74 @@ func TestBlueGreenAbort(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
+
+func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r1 := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.BlueGreen.AutoPromotionSeconds = 10
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
+	now := metav1.Now()
+	before := metav1.NewTime(now.Add(-1 * time.Minute))
+	r2.Status.PauseConditions[0].StartTime = before
+	r2.Status.ControllerPause = true
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+	r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
+
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
+
+	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	activeSvc := newService("active", 80, activeSelector, r2)
+	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	previewSvc := newService("preview", 80, previewSelector, r2)
+
+	f.objects = append(f.objects, r2)
+	f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
+
+	expectedPatchWithoutSubs := `{
+			"status": {
+				"blueGreen": {
+					"activeSelector": "%s"
+				},
+				"conditions": [%s, %s, %s],
+				"stableRS": "%s",
+				"pauseConditions": null,
+				"controllerPause": null,
+				"selector": "foo=bar,rollouts-pod-template-hash=%s",
+				"phase": "Healthy",
+				"message": null
+			}
+		}`
+	availableCondBytes, err := json.Marshal(r2.Status.Conditions[0])
+	assert.Nil(t, err)
+	updatedProgressingCond, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, fmt.Sprintf("ReplicaSet \"%s\" is progressing.", rs2.Name))
+	progressingCondBytes, err := json.Marshal(updatedProgressingCond)
+	assert.Nil(t, err)
+	pausedCondBytes, err := json.Marshal(r2.Status.Conditions[2])
+	assert.Nil(t, err)
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, string(availableCondBytes), string(pausedCondBytes), string(progressingCondBytes), rs2PodHash, rs2PodHash))
+	f.expectPatchServiceAction(activeSvc, rs2PodHash)
+	f.expectPatchReplicaSetAction(rs1)
+	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
+	f.run(getKey(r2, t))
+
+	rolloutPatch := f.getPatchedRollout(patchRolloutIndex)
+	assert.Equal(t, expectedPatch, rolloutPatch)
+}
