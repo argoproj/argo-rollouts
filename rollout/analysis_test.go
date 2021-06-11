@@ -1847,8 +1847,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	f.expectPatchReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
-	patch, err := f.getPatchedRolloutWithoutConditions(patchIndex)
-	assert.Nil(t, err)
+	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
@@ -1916,8 +1915,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	f.expectPatchReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
-	patch, err := f.getPatchedRolloutWithoutConditions(patchIndex)
-	assert.Nil(t, err)
+	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {

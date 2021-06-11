@@ -440,8 +440,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
 
-		rolloutPatch, err := f.getPatchedRolloutWithoutConditions(patchRolloutIndex)
-		assert.Nil(t, err)
+		rolloutPatch := f.getPatchedRolloutWithoutConditions(patchRolloutIndex)
 		assert.Equal(t, expectedPatch, rolloutPatch)
 	})
 
@@ -799,8 +798,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 	f.run(getKey(r2, t))
 
-	rolloutPatch, err := f.getPatchedRolloutWithoutConditions(patchIndex)
-	assert.Nil(t, err)
+	rolloutPatch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	assert.Equal(t, expectedPatch, rolloutPatch)
 }
 

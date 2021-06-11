@@ -1006,8 +1006,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	patch, err := f.getPatchedRolloutWithoutConditions(patchIndex)
-	assert.Nil(t, err)
+	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := `{
 		"status":{
 			"controllerPause": null,
@@ -1058,8 +1057,7 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	index := f.expectPatchRolloutActionWithPatch(r2, expectedPatchWithSub)
 	f.run(getKey(r2, t))
 
-	patch, err := f.getPatchedRolloutWithoutConditions(index)
-	assert.Nil(t, err)
+	patch := f.getPatchedRolloutWithoutConditions(index)
 	assert.Equal(t, calculatePatch(r2, expectedPatchWithSub), patch)
 }
 
@@ -1296,8 +1294,7 @@ func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 	updatedRS := f.getUpdatedReplicaSet(updatedIndex)
 	assert.Equal(t, int32(8), *updatedRS.Spec.Replicas)
 
-	patch, err := f.getPatchedRolloutWithoutConditions(patchIndex)
-	assert.Nil(t, err)
+	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1393,8 +1390,7 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 	_ = f.expectPatchRolloutAction(r2) // this just sets a conditions. ignore for now
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
-	patch, err := f.getPatchedRolloutWithoutConditions(patchIndex)
-	assert.Nil(t, err)
+	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := `{
 		"status": {
 			"message": "manually paused"

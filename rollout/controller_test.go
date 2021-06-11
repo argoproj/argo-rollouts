@@ -965,7 +965,7 @@ func (f *fixture) getPatchedRollout(index int) string {
 	return string(patchAction.GetPatch())
 }
 
-func (f *fixture) getPatchedRolloutWithoutConditions(index int) (string, error) {
+func (f *fixture) getPatchedRolloutWithoutConditions(index int) string {
 	action := filterInformerActions(f.client.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
@@ -974,14 +974,14 @@ func (f *fixture) getPatchedRolloutWithoutConditions(index int) (string, error) 
 	ro := make(map[string]interface{})
 	err := json.Unmarshal(patchAction.GetPatch(), &ro)
 	if err != nil {
-		return "", err
+		f.t.Fatalf("Unable to unmarshal Patch")
 	}
 	unstructured.RemoveNestedField(ro, "status", "conditions")
 	roBytes, err := json.Marshal(ro)
 	if err != nil {
-		return "", err
+		f.t.Fatalf("Unable to marshal Patch")
 	}
-	return string(roBytes), nil
+	return string(roBytes)
 }
 
 func (f *fixture) getPatchedRolloutAsObject(index int) *v1alpha1.Rollout {
