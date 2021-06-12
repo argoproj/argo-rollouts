@@ -96,6 +96,7 @@ type ControllerConfig struct {
 	ServicesInformer                coreinformers.ServiceInformer
 	IngressInformer                 extensionsinformers.IngressInformer
 	RolloutsInformer                informers.RolloutInformer
+	IstioPrimaryCluster istio.PrimaryCluster
 	IstioVirtualServiceInformer     cache.SharedIndexInformer
 	IstioDestinationRuleInformer    cache.SharedIndexInformer
 	ResyncPeriod                    time.Duration
@@ -202,8 +203,9 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	controller.IstioController = istio.NewIstioController(istio.IstioControllerConfig{
+		PrimaryCluster: cfg.IstioPrimaryCluster,
 		ArgoprojClientSet:       cfg.ArgoProjClientset,
-		DynamicClientSet:        cfg.DynamicClientSet,
+		DynamicClientSet:        cfg.IstioPrimaryCluster.GetDynamicClient(),
 		EnqueueRollout:          controller.enqueueRollout,
 		RolloutsInformer:        cfg.RolloutsInformer,
 		VirtualServiceInformer:  cfg.IstioVirtualServiceInformer,

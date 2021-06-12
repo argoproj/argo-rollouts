@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"time"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
@@ -114,6 +115,7 @@ func NewManager(
 	analysisRunInformer informers.AnalysisRunInformer,
 	analysisTemplateInformer informers.AnalysisTemplateInformer,
 	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
+	istioPrimaryCluster istio.PrimaryCluster,
 	istioVirtualServiceInformer cache.SharedIndexInformer,
 	istioDestinationRuleInformer cache.SharedIndexInformer,
 	configMapInformer coreinformers.ConfigMapInformer,
@@ -175,6 +177,7 @@ func NewManager(
 		AnalysisRunInformer:             analysisRunInformer,
 		AnalysisTemplateInformer:        analysisTemplateInformer,
 		ClusterAnalysisTemplateInformer: clusterAnalysisTemplateInformer,
+		IstioPrimaryCluster: istioPrimaryCluster,
 		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
 		IstioDestinationRuleInformer:    istioDestinationRuleInformer,
 		ReplicaSetInformer:              replicaSetInformer,
