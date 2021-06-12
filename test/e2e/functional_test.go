@@ -1237,3 +1237,40 @@ func (s *FunctionalSuite) TestControllerMetrics() {
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
 }
+
+func (s *FunctionalSuite) TestRolloutPauseDurationGreaterThanProgressDeadlineSeconds() {
+	(s.Given().
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-canary
+spec:
+  replicas: 3
+  progressDeadlineSeconds: 5
+  selector:
+    matchLabels:
+      app: rollout-canary
+  template:
+    metadata:
+      labels:
+        app: rollout-canary
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        ports:
+        - containerPort: 80
+  strategy:
+    canary:
+      steps:
+      - setWeight: 32
+      - pause: {duration: 30s}
+      - setWeight: 67
+`).
+		When().
+		UpdateSpec().
+		WatchRolloutStatus("Healthy").
+		Then().
+		ExpectRolloutStatus("Healthy"))
+}
