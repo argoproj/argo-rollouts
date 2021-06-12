@@ -274,7 +274,7 @@ spec:
           virtualService: 
             name: rollout-vsvc  # required
             routes:
-            - primary # At least one route is required
+            - primary # optional if there is a single route in VirtualService, required otherwise
 
         # NGINX Ingress Controller routing configuration
         nginx:

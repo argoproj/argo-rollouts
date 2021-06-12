@@ -559,7 +559,7 @@ message IstioVirtualService {
   // Name holds the name of the VirtualService
   optional string name = 1;
 
-  // Routes list of routes within VirtualService to edit
+  // Routes are list of routes within VirtualService to edit. If omitted, VirtualService must have a single route
   repeated string routes = 2;
 }
 
