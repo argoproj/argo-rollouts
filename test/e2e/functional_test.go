@@ -3,12 +3,9 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -1242,7 +1239,7 @@ func (s *FunctionalSuite) TestControllerMetrics() {
 }
 
 func (s *FunctionalSuite) TestRolloutPauseDurationGreaterThanProgressDeadlineSeconds() {
-	s.Given().
+	(s.Given().
 		HealthyRollout(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -1261,30 +1258,19 @@ spec:
     spec:
       containers:
       - name: rollouts-demo
-        image: argoproj/rollouts-demo:blue
-        imagePullPolicy: Always
+        image: nginx:1.19-alpine
         ports:
-        - containerPort: 8080
+        - containerPort: 80
   strategy:
     canary:
       steps:
       - setWeight: 32
-      - pause: {duration: 7s}
+      - pause: {duration: 30s}
       - setWeight: 67
 `).
 		When().
 		UpdateSpec().
+		WatchRolloutStatus("Healthy").
 		Then().
-		ExpectRollout("status command returns Healthy", func(r *v1alpha1.Rollout) bool {
-			cmd := exec.Command("kubectl", "argo", "rollouts", "status", r.Name)
-
-			var stdBuffer bytes.Buffer
-			mw := io.MultiWriter(os.Stdout, &stdBuffer)
-			cmd.Stdout = mw
-			cmd.Stderr = mw
-
-			// Execute the command
-			err := cmd.Run()
-			return err == nil && strings.Contains(stdBuffer.String(), "Healthy")
-		})
+		ExpectRolloutStatus("Healthy"))
 }
