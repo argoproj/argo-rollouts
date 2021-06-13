@@ -19,3 +19,4 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [PayPal](https://www.paypal.com/)
 1. [Shipt](https://www.shipt.com/)
 1. [Nitro](https://www.gonitro.com)
+1. [Salesforce](https://www.salesforce.com/)
