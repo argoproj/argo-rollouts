@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	routils "github.com/argoproj/argo-rollouts/utils/unstructured"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -67,6 +68,8 @@ func NewCmdUndo(o *options.ArgoRolloutsOptions) *cobra.Command {
 // RunUndoRollout performs the execution of 'rollouts undo' sub command
 func RunUndoRollout(rolloutIf dynamic.ResourceInterface, c kubernetes.Interface, name string, toRevision int64) (string, error) {
 	ctx := context.TODO()
+	var err error
+
 	ro, err := rolloutIf.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -93,11 +96,39 @@ func RunUndoRollout(rolloutIf dynamic.ResourceInterface, c kubernetes.Interface,
 		return "", fmt.Errorf("failed restoring revision %d: %v", toRevision, err)
 	}
 
-	// Restore revision
-	if _, err = rolloutIf.Patch(ctx, name, patchType, patch, metav1.PatchOptions{}); err != nil {
+	// Restore revision depending on whether workload ref is nil
+	rollout := routils.ObjectToRollout(ro)
+	if rollout == nil {
+		return "", fmt.Errorf("Invalid rollout object")
+	}
+	if rollout.Spec.WorkloadRef != nil {
+		err = undoWorkloadRef(c, rollout, patchType, patch)
+	} else {
+		_, err = rolloutIf.Patch(ctx, name, patchType, patch, metav1.PatchOptions{})
+	}
+	if err != nil {
 		return "", fmt.Errorf("failed restoring revision %d: %v", toRevision, err)
 	}
 	return fmt.Sprintf("rollout '%s' undo\n", ro.GetName()), nil
+}
+
+func undoWorkloadRef(c kubernetes.Interface, rollout *v1alpha1.Rollout, patchType types.PatchType, patch []byte) error {
+	var err error
+
+	refName := rollout.Spec.WorkloadRef.Name
+	namespace := rollout.GetNamespace()
+
+	switch rollout.Spec.WorkloadRef.Kind {
+	case "Deployment":
+		_, err = c.AppsV1().Deployments(namespace).Patch(context.TODO(), refName, patchType, patch, metav1.PatchOptions{})
+	case "ReplicaSet":
+		_, err = c.AppsV1().ReplicaSets(namespace).Patch(context.TODO(), refName, patchType, patch, metav1.PatchOptions{})
+	case "PodTemplate":
+		_, err = c.CoreV1().PodTemplates(namespace).Patch(context.TODO(), refName, patchType, patch, metav1.PatchOptions{})
+	default:
+		return fmt.Errorf("workload of type %s is not supported", rollout.Spec.WorkloadRef.Kind)
+	}
+	return err
 }
 
 func rolloutRevision(ro *unstructured.Unstructured, c kubernetes.Interface, toRevision int64) (*appsv1.ReplicaSet, error) {

@@ -29,6 +29,7 @@ type RolloutObjects struct {
 	Pods         []*corev1.Pod
 	Experiments  []*v1alpha1.Experiment
 	AnalysisRuns []*v1alpha1.AnalysisRun
+	Deployments  []*appsv1.Deployment
 }
 
 func (r *RolloutObjects) AllObjects() []k8sruntime.Object {
@@ -37,6 +38,9 @@ func (r *RolloutObjects) AllObjects() []k8sruntime.Object {
 		objs = append(objs, o)
 	}
 	for _, o := range r.ReplicaSets {
+		objs = append(objs, o)
+	}
+	for _, o := range r.Deployments {
 		objs = append(objs, o)
 	}
 	for _, o := range r.Pods {
@@ -107,6 +111,14 @@ func discoverObjects(path string) *RolloutObjects {
 			}
 			rs.CreationTimestamp = aWeekAgo
 			objs.ReplicaSets = append(objs.ReplicaSets, &rs)
+		case "Deployment":
+			var de appsv1.Deployment
+			err = yaml.UnmarshalStrict(yamlBytes, &de, yaml.DisallowUnknownFields)
+			if err != nil {
+				panic(err)
+			}
+			de.CreationTimestamp = aWeekAgo
+			objs.Deployments = append(objs.Deployments, &de)
 		case "Pod":
 			var pod corev1.Pod
 			err = yaml.UnmarshalStrict(yamlBytes, &pod, yaml.DisallowUnknownFields)
