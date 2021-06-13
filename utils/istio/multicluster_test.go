@@ -10,6 +10,12 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
+var (
+	secret0                    = makeSecret("secret0", "namespace0", "primary0", []byte("kubeconfig0-0"))
+	secret1                    = makeSecret("secret1", "namespace1", "primary1", []byte("kubeconfig1-1"))
+	rolloutControllerNamespace = "argo-rollout-ns"
+)
+
 func TestGetPrimaryClusterDynamicClient(t *testing.T) {
 	testCases := []struct {
 		name              string
@@ -27,7 +33,7 @@ func TestGetPrimaryClusterDynamicClient(t *testing.T) {
 			"TestPrimaryClusterSingleSecret",
 			metav1.NamespaceAll,
 			[]*v1.Secret{
-				makeSecret("secret0", "namespace0", "primary0", []byte("kubeconfig0-0")),
+				secret0,
 			},
 			"primary0",
 		},
@@ -35,24 +41,24 @@ func TestGetPrimaryClusterDynamicClient(t *testing.T) {
 			"TestPrimaryClusterMultipleSecrets",
 			metav1.NamespaceAll,
 			[]*v1.Secret{
-				makeSecret("secret0", "namespace0", "primary0", []byte("kubeconfig0-0")),
-				makeSecret("secret1", "namespace1", "primary1", []byte("kubeconfig1-1")),
+				secret0,
+				secret1,
 			},
 			"primary0",
 		},
 		{
 			"TestPrimaryClusterNoSecretInNamespaceForNamespacedController",
-			"argo-rollout-ns",
+			rolloutControllerNamespace,
 			[]*v1.Secret{
-				makeSecret("secret0", "namespace0", "primary0", []byte("kubeconfig0-0")),
+				secret0,
 			},
 			"",
 		},
 		{
 			"TestPrimaryClusterSingleSecretInNamespaceForNamespacedController",
-			"argo-rollout-ns",
+			rolloutControllerNamespace,
 			[]*v1.Secret{
-				makeSecret("secret0", "argo-rollout-ns", "primary0", []byte("kubeconfig0-0")),
+				makeSecret("secret0", rolloutControllerNamespace, "primary0", []byte("kubeconfig0-0")),
 			},
 			"primary0",
 		},
