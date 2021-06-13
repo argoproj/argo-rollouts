@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,61 +19,30 @@ const (
 	PrimaryClusterSecretLabel = "istio.argoproj.io/primary-cluster"
 )
 
-type PrimaryCluster interface {
-	GetKubeClient() kubernetes.Interface
-	GetDynamicClient() dynamic.Interface
-}
-
-type primaryCluster struct {
-	namespace string
-	secret *corev1.Secret
-	kubeClient kubernetes.Interface
-	dynamicClient dynamic.Interface
-}
-
-func NewPrimaryCluster(kubeClient kubernetes.Interface, dynamicClient dynamic.Interface, namespace string) PrimaryCluster {
-	pc := &primaryCluster{namespace: namespace, kubeClient: kubeClient, dynamicClient: dynamicClient}
-
+func GetPrimaryClusterDynamicClient(kubeClient kubernetes.Interface, namespace string) (string, dynamic.Interface) {
 	primaryClusterSecret := getPrimaryClusterSecret(kubeClient, namespace)
 	if primaryClusterSecret != nil {
-		pc.secret = primaryClusterSecret
-		clientConfig, err := getKubeClientConfig(primaryClusterSecret)
+		clusterId, clientConfig, err := getKubeClientConfig(primaryClusterSecret)
 		if err != nil {
-			// TODO log the error
-			return pc
+			return clusterId, nil
 		}
 
 		config, err := clientConfig.ClientConfig()
 		if err != nil {
-			// TODO log the error
-			return pc
-		}
-
-		kubeClient, err := kubernetes.NewForConfig(config)
-		if err != nil {
-			// TODO log the error
-			return pc
+			log.Errorf("Error fetching primary ClientConfig: %v", err)
+			return clusterId, nil
 		}
 
 		dynamicClient, err := dynamic.NewForConfig(config)
 		if err != nil {
-			// TODO log the error
-			return pc
+			log.Errorf("Error building dynamic client from config: %v", err)
+			return clusterId, nil
 		}
 
-		pc.kubeClient = kubeClient
-		pc.dynamicClient = dynamicClient
+		return clusterId, dynamicClient
 	}
 
-	return pc
-}
-
-func (pc *primaryCluster) GetKubeClient() kubernetes.Interface {
-	return pc.kubeClient
-}
-
-func (pc *primaryCluster) GetDynamicClient() dynamic.Interface {
-	return pc.dynamicClient
+	return "", nil
 }
 
 func getPrimaryClusterSecret(kubeClient kubernetes.Interface, namespace string) *corev1.Secret {
@@ -93,17 +63,17 @@ func getPrimaryClusterSecret(kubeClient kubernetes.Interface, namespace string) 
 	return nil
 }
 
-func getKubeClientConfig(secret *corev1.Secret) (clientcmd.ClientConfig, error) {
+func getKubeClientConfig(secret *corev1.Secret) (string, clientcmd.ClientConfig, error) {
 	for clusterId, kubeConfig := range secret.Data {
 		primaryClusterConfig, err := buildKubeClientConfig(kubeConfig)
 		if err != nil {
-			// TODO log error
-			continue
+			log.Errorf("Error building kubeconfig for primary cluster %s: %v", clusterId, err)
+			return clusterId, nil, err
 		}
 		log.Infof("Istio primary/config cluster is %s", clusterId)
-		return primaryClusterConfig, err
+		return clusterId, primaryClusterConfig, err
 	}
-	return nil, nil
+	return "", nil, nil
 }
 
 func buildKubeClientConfig(kubeConfig []byte) (clientcmd.ClientConfig, error) {

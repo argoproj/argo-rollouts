@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"os"
 	"time"
 
@@ -132,8 +131,12 @@ func newCommand() *cobra.Command {
 			// a single namespace (i.e. rollouts-controller --namespace foo).
 			clusterDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, metav1.NamespaceAll, instanceIDTweakListFunc)
 			// 3. We finally need an istio dynamic informer factory which does not use a tweakListFunc.
-			istioPrimaryCluster := istio.NewPrimaryCluster(kubeClient, dynamicClient, namespace)
-			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(istioPrimaryCluster.GetDynamicClient(), resyncDuration, namespace, nil)
+			//istioPrimaryCluster := istio.NewPrimaryCluster(kubeClient, dynamicClient, namespace)
+			_, istioPrimaryDynamicClient := istioutil.GetPrimaryClusterDynamicClient(kubeClient, namespace)
+			if istioPrimaryDynamicClient == nil {
+				istioPrimaryDynamicClient = dynamicClient
+			}
+			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(istioPrimaryDynamicClient, resyncDuration, namespace, nil)
 
 			controllerNamespaceInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
@@ -161,7 +164,7 @@ func newCommand() *cobra.Command {
 				tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
 				tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
 				tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
-				istioPrimaryCluster,
+				istioPrimaryDynamicClient,
 				istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
 				istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
 				configMapInformer,
@@ -183,7 +186,7 @@ func newCommand() *cobra.Command {
 			jobInformerFactory.Start(stopCh)
 
 			// Check if Istio installed on cluster before starting dynamicInformerFactory
-			if istioutil.DoesIstioExist(istioPrimaryCluster.GetDynamicClient(), namespace) {
+			if istioutil.DoesIstioExist(istioPrimaryDynamicClient, namespace) {
 				istioDynamicInformerFactory.Start(stopCh)
 			}
 

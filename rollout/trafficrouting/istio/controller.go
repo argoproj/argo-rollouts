@@ -41,7 +41,6 @@ const (
 )
 
 type IstioControllerConfig struct {
-	PrimaryCluster
 	ArgoprojClientSet       roclientset.Interface
 	DynamicClientSet        dynamic.Interface
 	EnqueueRollout          func(ro interface{})
