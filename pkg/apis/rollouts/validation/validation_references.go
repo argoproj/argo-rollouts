@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+
+	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -64,6 +66,7 @@ type ReferencedResources struct {
 	VirtualServices           []unstructured.Unstructured
 	AmbassadorMappings        []unstructured.Unstructured
 	AppMeshResources          []unstructured.Unstructured
+	OpenshiftRoutes           []routev1.Route
 }
 
 func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList {
@@ -413,6 +416,27 @@ func ValidateAppMeshVirtualRouter(vrouter *unstructured.Unstructured) *field.Err
 		}
 	}
 	return nil
+}
+
+func ValidateOpenshiftRoute(rollout *v1alpha1.Rollout, route *routev1.Route) field.ErrorList {
+	allErrs := field.ErrorList{}
+	fldPath := field.NewPath("spec", "to", "name")
+	defaultBackend := route.Spec.To.Name
+	stableService := rollout.Spec.Strategy.Canary.StableService
+	if defaultBackend != stableService {
+		msg := fmt.Sprintf(
+			"Openshift route %q has default backend %q, must be stable service %q",
+			route.GetName(), defaultBackend, stableService)
+		allErrs = append(allErrs, field.Invalid(fldPath, route.GetName(), msg))
+	}
+
+	fldPath = field.NewPath("spec", "alternateBackends")
+	alternateBackends := route.Spec.AlternateBackends
+	if len(alternateBackends) != 0 {
+		msg := fmt.Sprintf("Openshift route %q cannot define alternateBackends", route.GetName())
+		allErrs = append(allErrs, field.Invalid(fldPath, route.GetName(), msg))
+	}
+	return allErrs
 }
 
 func GetServiceWithTypeFieldPath(serviceType ServiceType) *field.Path {

@@ -372,6 +372,8 @@ type RolloutTrafficRouting struct {
 	// A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
 	// traffic router.
 	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
+	// Openshift holds specific configuration to use routes for traffic
+	Openshift *OpenshiftTrafficRouting `json:"openshift,omitempty" protobuf:"bytes,6,opt,name=openshift"`
 	// Apisix holds specific configuration to use Apisix to route traffic
 	Apisix *ApisixTrafficRouting `json:"apisix,omitempty" protobuf:"bytes,9,opt,name=apisix"`
 }
@@ -386,6 +388,12 @@ type MangedRoutes struct {
 type TraefikTrafficRouting struct {
 	// TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
 	WeightedTraefikServiceName string `json:"weightedTraefikServiceName" protobuf:"bytes,1,name=weightedTraefikServiceName"`
+}
+
+// OpenshiftTrafficRouting defines the configuration required to use Openshift routes for traffic
+type OpenshiftTrafficRouting struct {
+	// Openshift route definition
+	Routes []string `json:"routes" protobuf:"bytes,1,opt,name=routes"`
 }
 
 // ApisixTrafficRouting defines the configuration required to use APISIX as traffic router

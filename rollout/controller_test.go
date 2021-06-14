@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	openshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -1869,6 +1871,32 @@ spec:
 		assert.Equal(t, refRsources.AppMeshResources[0].GetKind(), "VirtualRouter")
 	})
 
+}
+
+func TestGetOpenshiftRoutes(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	c.openshiftclientset = openshiftfake.NewSimpleClientset()
+	t.Run("will fail on trying to get some-route", func(t *testing.T) {
+		// given
+		t.Parallel()
+		r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Openshift: &v1alpha1.OpenshiftTrafficRouting{
+				Routes: []string{"some-route"},
+			},
+		}
+		r.Namespace = metav1.NamespaceDefault
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+
+		// when
+		_, err = roCtx.getOpenshiftRoutes()
+
+		// then
+		assert.Error(t, err)
+	})
 }
 
 func TestGetAmbassadorMappings(t *testing.T) {
