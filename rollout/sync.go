@@ -571,11 +571,14 @@ func (c *rolloutContext) patchCondition(r *v1alpha1.Rollout, newStatus *v1alpha1
 	return nil
 }
 
-// isIndefiniteStep returns whether or not the rollout is at an Experiment or Analysis step which should
+// isIndefiniteStep returns whether or not the rollout is at an Experiment or Analysis or Pause step which should
 // not affect the progressDeadlineSeconds
 func isIndefiniteStep(r *v1alpha1.Rollout) bool {
 	currentStep, _ := replicasetutil.GetCurrentCanaryStep(r)
-	return currentStep != nil && (currentStep.Experiment != nil || currentStep.Analysis != nil)
+	if currentStep != nil && (currentStep.Experiment != nil || currentStep.Analysis != nil || currentStep.Pause != nil) {
+		return true
+	}
+	return false
 }
 
 func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutStatus) v1alpha1.RolloutStatus {
@@ -603,10 +606,6 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 		if conditions.SetRolloutCondition(&newStatus, *condition) {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, message)
 		}
-	}
-
-	if isPaused {
-		return newStatus
 	}
 
 	// If there is only one replica set that is active then that means we are not running
