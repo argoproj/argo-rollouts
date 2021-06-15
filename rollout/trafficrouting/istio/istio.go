@@ -462,7 +462,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	}
 	_, err = client.Update(ctx, modifiedVsvc, metav1.UpdateOptions{})
 	if err == nil {
-		r.log.Infof("UpdatedVirtualService: %s", modifiedVsvc)
+		r.log.Debugf("UpdatedVirtualService: %s", modifiedVsvc)
 		r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "UpdatedVirtualService"}, "VirtualService `%s` set to desiredWeight '%d'", vsvcName, desiredWeight)
 	}
 	return err

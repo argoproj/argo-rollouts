@@ -193,7 +193,7 @@ func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	assert.True(t, k8serrors.IsNotFound(err))
 }
 
-// TestReconcileAmbiguousRoutes tests when we omit route names an there are multiple routes in the VirtualService
+// TestReconcileAmbiguousRoutes tests when we omit route names and there are multiple routes in the VirtualService
 func TestReconcileAmbiguousRoutes(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
