@@ -50,8 +50,6 @@ const (
 	ScaleDownLimitLargerThanRevisionLimit = "This rollout's revision history limit can not be smaller than the rollout's scale down limit"
 	// InvalidTrafficRoutingMessage indicates that both canary and stable service must be set to use Traffic Routing
 	InvalidTrafficRoutingMessage = "Canary service and Stable service must to be set to use Traffic Routing"
-	// InvalidIstioRoutesMessage indicates that rollout does not have a route specified for the istio Traffic Routing
-	InvalidIstioRoutesMessage = "Istio virtual service must have at least 1 route specified"
 	// InvalidAnalysisArgsMessage indicates that arguments provided in analysis steps are refrencing un-supported metadatafield.
 	//supported fields are "metadata.annotations", "metadata.labels", "metadata.name", "metadata.namespace", "metadata.uid"
 	InvalidAnalysisArgsMessage = "Analyses arguments must refer to valid object metadata supported by downwardAPI"
@@ -212,9 +210,6 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if canary.CanaryService == "" {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("canaryService"), canary.CanaryService, InvalidTrafficRoutingMessage))
 		}
-	}
-	if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil && len(canary.TrafficRouting.Istio.VirtualService.Routes) == 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("istio").Child("virtualService").Child("routes"), "[]", InvalidIstioRoutesMessage))
 	}
 
 	if canary.ScaleDownDelaySeconds != nil && canary.TrafficRouting == nil {

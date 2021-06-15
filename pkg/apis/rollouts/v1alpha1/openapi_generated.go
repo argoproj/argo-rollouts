@@ -1636,7 +1636,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceC
 					},
 					"routes": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Routes list of routes within VirtualService to edit",
+							Description: "Routes are list of routes within VirtualService to edit. If omitted, VirtualService must have a single route",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1650,7 +1650,7 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref common.ReferenceC
 						},
 					},
 				},
-				Required: []string{"name", "routes"},
+				Required: []string{"name"},
 			},
 		},
 	}
