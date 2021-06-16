@@ -19,6 +19,65 @@
   "links": [],
   "panels": [
     {
+      "type": "stat",
+      "title": "up(controller)",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "id": 32,
+      "targets": [
+        {
+          "expr": "up{kubernetes_pod_name=~\"argo-rollouts-.*\"}",
+          "legendFormat": "",
+          "interval": "",
+          "refId": "A",
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "last"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 80,
+                "color": "red"
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "pluginVersion": "7.2.1",
+      "timeFrom": null,
+      "timeShift": null,
+      "datasource": null
+    },
+    {
       "cacheTimeout": null,
       "colorBackground": false,
       "colorValue": false,
