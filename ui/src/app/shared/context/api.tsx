@@ -33,7 +33,7 @@ export const NamespaceProvider = (props: {children: React.ReactNode}) => {
             setNamespace(localNamespace ? localNamespace : nsInfo.namespace)
         };
         getNs();
-    })
+    }, [])
     return <NamespaceContext.Provider value={ {
         namespace: namespace,
         availableNamespaces: availableNamespaces,

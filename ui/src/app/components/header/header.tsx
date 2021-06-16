@@ -1,6 +1,16 @@
 import * as React from 'react';
 
-import {ActionButton, Brand, InfoItemRow, ThemeToggle, Tooltip, Header as GenericHeader, Autocomplete, useAutocomplete, ThemeDiv} from 'argo-ux';
+import {
+    ActionButton,
+    Brand,
+    InfoItemRow,
+    ThemeToggle,
+    Tooltip,
+    Header as GenericHeader,
+    Autocomplete,
+    ThemeDiv,
+    useAutocomplete
+} from 'argo-ux';
 import {useParams} from 'react-router';
 import {RolloutAPIContext} from '../../shared/context/api';
 import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
