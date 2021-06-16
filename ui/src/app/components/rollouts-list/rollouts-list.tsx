@@ -85,7 +85,7 @@ export const RolloutsList = () => {
         }
     }, [searchString, rollouts]);
 
-    const namespace = React.useContext(NamespaceContext);
+    const namespaceCtx = React.useContext(NamespaceContext);
 
     return (
         <div className='rollouts-list'>
@@ -112,7 +112,7 @@ export const RolloutsList = () => {
                         </div>
                     </React.Fragment>
                 ) : (
-                    <EmptyMessage namespace={namespace} />
+                    <EmptyMessage namespace={namespaceCtx.namespace} />
                 )}
             </WaitFor>
         </div>

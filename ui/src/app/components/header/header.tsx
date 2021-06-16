@@ -1,10 +1,10 @@
 import * as React from 'react';
 
-import {ActionButton, Brand, InfoItemRow, ThemeToggle, Tooltip, useData, Header as GenericHeader} from 'argo-ux';
+import {ActionButton, Brand, InfoItemRow, ThemeToggle, Tooltip, Header as GenericHeader, Autocomplete, useAutocomplete, ThemeDiv} from 'argo-ux';
 import {useParams} from 'react-router';
-import {RolloutNamespaceInfo, RolloutServiceApi} from '../../../models/rollout/generated';
 import {RolloutAPIContext} from '../../shared/context/api';
 import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
+import {NamespaceContext} from '../../shared/context/api';
 
 import './header.scss';
 import {Link} from 'react-router-dom';
@@ -12,14 +12,15 @@ import {Link} from 'react-router-dom';
 const Logo = () => <img src='assets/images/argo-icon-color-square.png' style={{width: '35px', height: '35px', margin: '0 8px'}} alt='Argo Logo' />;
 
 export const Header = (props: {pageHasShortcuts: boolean; showHelp: () => void}) => {
-    const getNs = React.useCallback(() => new RolloutServiceApi().rolloutServiceGetNamespace(), []);
-    const [nsData, loading] = useData<RolloutNamespaceInfo>(getNs);
-    const [namespace, setNamespace] = React.useState('Unknown');
+    const namespaceCtx = React.useContext(NamespaceContext);
+    const [, setNamespaceInputStr, namespaceInput] = useAutocomplete('');
     React.useEffect(() => {
-        if (!loading && nsData && nsData.namespace) {
-            setNamespace(nsData.namespace);
+        if (namespaceCtx.namespace) {
+            console.log("namespace context updated: " + namespaceCtx.namespace)
+            setNamespaceInputStr(namespaceCtx.namespace)
         }
-    }, [nsData, loading]);
+    }, [namespaceCtx.namespace]);
+
     const {name} = useParams<{name: string}>();
     const api = React.useContext(RolloutAPIContext);
     const [version, setVersion] = React.useState('v?');
@@ -51,7 +52,14 @@ export const Header = (props: {pageHasShortcuts: boolean; showHelp: () => void})
                         <ThemeToggle />
                     </Tooltip>
                 </span>
-                <InfoItemRow label={'NS:'} items={{content: namespace}} />
+                <InfoItemRow label={'NS:'} items={{content: namespaceCtx.namespace}} />
+                <ThemeDiv className='rollouts-header__namespace'>
+                    <Autocomplete items={namespaceCtx.availableNamespaces}
+                                  placeholder='Namespace'
+                                  onItemClick={(item) => { namespaceCtx.set(item) } }
+                                  {...namespaceInput}
+                    />
+                </ThemeDiv>
                 <div className='rollouts-header__version'>{version}</div>
             </div>
         </GenericHeader>

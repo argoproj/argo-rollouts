@@ -6,16 +6,16 @@ import {NamespaceContext, RolloutAPIContext} from '../context/api';
 
 export const useRollouts = (): RolloutInfo[] => {
     const api = React.useContext(RolloutAPIContext);
-    const namespace = React.useContext(NamespaceContext) || 'unknown';
+    const namespaceCtx = React.useContext(NamespaceContext);
     const [rollouts, setRollouts] = React.useState([]);
 
     React.useEffect(() => {
         const fetchList = async () => {
-            const list = await api.rolloutServiceListRolloutInfos(namespace);
+            const list = await api.rolloutServiceListRolloutInfos(namespaceCtx.namespace);
             setRollouts(list.rollouts || []);
         };
         fetchList();
-    }, [api, namespace]);
+    }, [api, namespaceCtx]);
 
     return rollouts;
 };
@@ -23,8 +23,8 @@ export const useRollouts = (): RolloutInfo[] => {
 export const useWatchRollouts = (): ListState<RolloutInfo> => {
     const findRollout = React.useCallback((ri: RolloutInfo, change: RolloutRolloutWatchEvent) => ri.objectMeta.name === change.rolloutInfo?.objectMeta?.name, []);
     const getRollout = React.useCallback((c) => c.rolloutInfo as RolloutInfo, []);
-    const namespace = React.useContext(NamespaceContext);
-    const streamUrl = RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfos(namespace).url;
+    const namespaceCtx = React.useContext(NamespaceContext);
+    const streamUrl = RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfos(namespaceCtx.namespace).url;
 
     const init = useRollouts();
     const loading = useLoading(init);
@@ -43,7 +43,7 @@ export const useWatchRollouts = (): ListState<RolloutInfo> => {
 };
 
 export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?: number, callback?: (ri: RolloutInfo) => void): [RolloutInfo, boolean] => {
-    const namespace = React.useContext(NamespaceContext);
+    const namespaceCtx = React.useContext(NamespaceContext);
     name = name || '';
     const isEqual = React.useCallback((a, b) => {
         if (!a.objectMeta || !b.objectMeta) {
@@ -52,7 +52,7 @@ export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?:
 
         return JSON.parse(a.objectMeta.resourceVersion) === JSON.parse(b.objectMeta.resourceVersion);
     }, []);
-    const streamUrl = RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfo(namespace, name).url;
+    const streamUrl = RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfo(namespaceCtx.namespace, name).url;
     const ri = useWatch<RolloutInfo>(streamUrl, subscribe, isEqual, timeoutAfter);
     if (callback && ri.objectMeta) {
         callback(ri);

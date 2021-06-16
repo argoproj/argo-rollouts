@@ -4130,6 +4130,12 @@
       "properties": {
         "namespace": {
           "type": "string"
+        },
+        "availableNamespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

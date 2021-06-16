@@ -364,7 +364,20 @@ func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollou
 }
 
 func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (*rollout.NamespaceInfo, error) {
-	return &rollout.NamespaceInfo{Namespace: s.Options.Namespace}, nil
+	allReplicaSets, _, err := s.ListReplicaSetsAndPods(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	var m = make(map[string]bool)
+	var namespaces []string
+	for _, rs := range allReplicaSets {
+		ns := rs.Namespace
+		if !m[ns] {
+			m[ns] = true
+			namespaces = append(namespaces, ns)
+		}
+	}
+	return &rollout.NamespaceInfo{Namespace: s.Options.Namespace, AvailableNamespaces: namespaces}, nil
 }
 
 func (s *ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.PromoteRolloutRequest) (*v1alpha1.Rollout, error) {

@@ -4822,6 +4822,12 @@ export interface RolloutNamespaceInfo {
      * @memberof RolloutNamespaceInfo
      */
     namespace?: string;
+    /**
+     *
+     * @type {Array<string>}
+     * @memberof RolloutNamespaceInfo
+     */
+    availableNamespaces?: Array<string>;
 }
 /**
  * 
