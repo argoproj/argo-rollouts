@@ -199,7 +199,7 @@ export const Rollout = () => {
                                 </div>
                             </ThemeDiv>
                         )}
-                        {(rollout.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
+                        {(rollout?.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
                             <ThemeDiv className='info steps'>
                                 <ThemeDiv className='info__title'>Steps</ThemeDiv>
                                 <div style={{marginTop: '1em'}}>
@@ -338,7 +338,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                 <div>Created at {formatTimestamp(JSON.stringify(ar.objectMeta.creationTimestamp))}</div>
                             </React.Fragment>
                         }>
-                        <ThemeDiv className={`analysis__run analysis__run--${ar.status.toLowerCase() || 'unknown'}`} />
+                        <ThemeDiv className={`analysis__run analysis__run--${ar.status ? ar.status.toLowerCase() : 'unknown'}`} />
                     </Tooltip>
                 ))}
             </div>

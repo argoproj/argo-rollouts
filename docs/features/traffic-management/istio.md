@@ -17,7 +17,7 @@ stable ReplicaSet. Istio provides two approaches for weighted traffic splitting,
 are available as options in Argo Rollouts:
 
 1. [Host-level traffic splitting](#host-level-traffic-splitting)
-2. [Subset-lvel traffic splitting](#subset-level-traffic-splitting)
+2. [Subset-level traffic splitting](#subset-level-traffic-splitting)
 
 ## Host-level Traffic Splitting
 
@@ -49,7 +49,7 @@ spec:
           virtualService: 
             name: rollout-vsvc   # required
             routes:
-            - primary            # required
+            - primary            # optional if there is a single route in VirtualService, required otherwise
       steps:
       - setWeight: 5
       - pause:
@@ -60,7 +60,7 @@ The VirtualService must contain an HTTP route with a name referenced in the Roll
 two route destinations with `host` values that match the `canaryService` and `stableService` 
 referenced in the Rollout.  If the VirtualService is defined in a different namespace than the rollout,
 its name should be `rollout-vsvc.<vsvc namespace name>`. Note that Istio requires that all weights add to
-100, so the initial weights can be be 100% to stable, and 0% to canary.
+100, so the initial weights can be 100% to stable, and 0% to canary.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -85,7 +85,7 @@ spec:
 
 Finally, a canary and stable Service should be deployed. The selector of these Services will be
 modified by the Rollout during an update to target the canary and stable ReplicaSet pods.
-Note that if virtualservice and destionation host reside in different namespaces (e.g., virtualservice and rollout are not in the same namespace), we should use FQDN as the destination host like `stable-svc.<namespace>`.
+Note that if the VirtualService and destination host resides in different namespaces (e.g., VirtualService and Rollout are not in the same namespace), the namespace should be included in the destination host (e.g. `stable-svc.<namespace>`).
 
 ```yaml
 apiVersion: v1
@@ -127,7 +127,7 @@ During the lifecycle of a Rollout update, Argo Rollouts will continuously:
 
 !!! note
 
-    Rollout does not make any other assumptions about the fields within the Virtual Service or the Istio mesh. The user could specify additional configurations for the virtual service like URI rewrite rules on the primary route or any other route if desired. The user can also create specific destination rules for each of the services. 
+    Rollout does not make any other assumptions about the fields within the VirtualService or the Istio mesh. The user could specify additional configurations for the VirtualService like URI rewrite rules on the primary route or any other route if desired. The user can also create specific DestinationRules for each of the services. 
 
 
 ## Subset-level Traffic Splitting
@@ -162,7 +162,7 @@ spec:
           virtualService: 
             name: rollout-vsvc        # required
             routes:
-            - primary                 # required
+            - primary                 # optional if there is a single route in VirtualService, required otherwise
           destinationRule:
             name: rollout-destrule    # required
             canarySubsetName: canary  # required
@@ -173,7 +173,7 @@ spec:
           duration: 10m
 ```
 
-A single service should be defined, which target the Rollout pods. Note that unlike the first
+A single service should be defined, which targets the Rollout pods. Note that unlike the first
 approach, where traffic splitting is against multiple Services which are modified to contain the
 rollout-pod-template-hash of the canary/stable ReplicaSets, this Service is not modified by
 the rollout controller.
@@ -195,8 +195,8 @@ spec:
 
 The VirtualService must contain an HTTP route with a name referenced in the Rollout, containing
 two route destinations with `subset` values that match the `canarySubsetName` and `stableSubsetName` 
-referenced in the Rollout. Note that Istio require that all weights add to 100, so the initial
-weights can be be 100% to stable, and 0% to canary.
+referenced in the Rollout. Note that Istio requires that all weights add to 100, so the initial
+weights can be 100% to stable, and 0% to canary.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -254,11 +254,11 @@ splitting.
 ### DNS requirements
 
 With host-level splitting, the VirtualService requires different `host` values to split among the
-two destinations. However, using two host values implies that there are different DNS names. For
-north-south traffic, which reach the service through the Istio Gateway, having multiple DNS names to
-reach the canary vs. stable pods may not matter. However, for east-west traffic that happen inside
-the cluster, it forces microservice-to-microservice communication to choose whether to hit the
-stable or the canary DNS name, go through the gateway, or add DNS entries for the virtualservices.
+two destinations. However, using two host values implies the use of different DNS names (one for
+the canary, the other for the stable). For north-south traffic, which reaches the Service through
+the Istio Gateway, having multiple DNS names to reach the canary vs. stable pods may not matter.
+However, for east-west or intra-cluster traffic, it forces microservice-to-microservice communication to choose whether to hit the
+stable or the canary DNS name, go through the gateway, or add DNS entries for the VirtualServices.
 In this situation, the DestinationRule subset traffic splitting would be a better option for
 intra-cluster canarying.
 
@@ -358,7 +358,7 @@ other controllers (e.g. Argo Rollouts) controller manage them instead.
 
 An early design alternative was that instead of the controller modifying a referenced VirtualService, the Rollout controller would create, manage, and own a Virtual Service. While this approach is GitOps friendly, it introduces other issues:
 
-*  To provide the same flexibility as referencing VirtualService within a Rollout, the Rollout needs to inline a large portion of the Istio spec. However, networking is outside the responsibility of the Rollout and makes the Rollout spec unnecessary complicated.
+*  To provide the same flexibility as referencing VirtualService within a Rollout, the Rollout needs to inline a large portion of the Istio spec. However, networking is outside the responsibility of the Rollout and makes the Rollout spec unnecessarily complicated.
 * If Istio introduces a feature, that feature will not be available in Argo Rollouts until implemented within Argo Rollouts.
 
 Both of these issues adds more complexity to the users and Argo Rollouts developers compared to referencing a Virtual Service.

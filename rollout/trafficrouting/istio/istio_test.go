@@ -63,7 +63,10 @@ func rollout(stableSvc, canarySvc, vsvc string, routes []string) *v1alpha1.Rollo
 
 func checkDestination(t *testing.T, route map[string]interface{}, svc string, expectWeight int) {
 	destinations := route["route"].([]interface{})
-	routeName := route["name"].(string)
+	routeName := ""
+	if routeNameObj, ok := route["name"]; ok {
+		routeName = routeNameObj.(string)
+	}
 	for _, elem := range destinations {
 		destination := elem.(map[string]interface{})
 		if destination["destination"].(map[string]interface{})["host"] == svc {
@@ -96,6 +99,25 @@ spec:
       weight: 0
   - name: secondary
     route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
+const singleRouteVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - route:
     - destination:
         host: 'stable'
       weight: 100
@@ -169,6 +191,41 @@ func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	err := r.SetWeight(10)
 	assert.NotNil(t, err)
 	assert.True(t, k8serrors.IsNotFound(err))
+}
+
+// TestReconcileAmbiguousRoutes tests when we omit route names and there are multiple routes in the VirtualService
+func TestReconcileAmbiguousRoutes(t *testing.T) {
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	ro := rollout("stable", "canary", "vsvc", nil)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+	err := r.SetWeight(0)
+	assert.Equal(t, "VirtualService spec.http[] must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes", err.Error())
+}
+
+// TestReconcileInferredSingleRoute we can support case where we infer the only route in the VirtualService
+func TestReconcileInferredSingleRoute(t *testing.T) {
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	ro := rollout("stable", "canary", "vsvc", nil)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+	err := r.SetWeight(10)
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+
+	// Verify we actually made the correct change
+	vsvcUn, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
+	assert.NoError(t, err)
+	routes, _, _ := unstructured.NestedSlice(vsvcUn.Object, "spec", "http")
+	route := routes[0].(map[string]interface{})
+	checkDestination(t, route, "stable", 90)
+	checkDestination(t, route, "canary", 10)
 }
 
 func TestType(t *testing.T) {

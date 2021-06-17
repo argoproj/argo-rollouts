@@ -823,7 +823,7 @@
           "items": {
             "type": "string"
           },
-          "title": "Routes list of routes within VirtualService to edit"
+          "title": "Routes are list of routes within VirtualService to edit. If omitted, VirtualService must have a single route"
         }
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"

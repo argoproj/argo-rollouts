@@ -1261,6 +1261,10 @@ spec:
         image: nginx:1.19-alpine
         ports:
         - containerPort: 80
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
   strategy:
     canary:
       steps:
