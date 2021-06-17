@@ -59,8 +59,8 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                     <ThemeDiv className='rollouts-header__namespace'>
                         <Autocomplete items={namespaceInfo.availableNamespaces || []}
                                     placeholder='Namespace'
-                                    onChange={(val) => setNsInput(val.target.value)}
-                                    onItemClick={() => { props.changeNamespace(nsInput) } }
+                                    onChange={(el) => setNsInput(el.target.value)}
+                                    onItemClick={(val) => { props.changeNamespace(val ? val : nsInput) } }
                                     value={nsInput}
                         />
                     </ThemeDiv>
