@@ -364,20 +364,20 @@ func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollou
 }
 
 func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (*rollout.NamespaceInfo, error) {
-	rolloutList, err := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts("").List(ctx, v1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
 	var m = make(map[string]bool)
 	var namespaces []string
 
-	for _, r := range rolloutList.Items {
-		ns := r.Namespace
-		if !m[ns] {
-			m[ns] = true
-			namespaces = append(namespaces, ns)
+	rolloutList, err := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts("").List(ctx, v1.ListOptions{})
+	if err == nil {
+		for _, r := range rolloutList.Items {
+			ns := r.Namespace
+			if !m[ns] {
+				m[ns] = true
+				namespaces = append(namespaces, ns)
+			}
 		}
 	}
+
 	return &rollout.NamespaceInfo{Namespace: s.Options.Namespace, AvailableNamespaces: namespaces}, nil
 }
 
