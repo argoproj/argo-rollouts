@@ -15,11 +15,12 @@ import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
 
 import './header.scss';
-import {Link} from 'react-router-dom';
+import {Link, useHistory} from 'react-router-dom';
 
 const Logo = () => <img src='assets/images/argo-icon-color-square.png' style={{width: '35px', height: '35px', margin: '0 8px'}} alt='Argo Logo' />;
 
 export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val: string) => void; showHelp: () => void}) => {
+    const history = useHistory();
     const namespaceInfo = React.useContext(NamespaceContext);
     const {name} = useParams<{name: string}>();
     const api = React.useContext(RolloutAPIContext);
@@ -60,7 +61,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                         <Autocomplete items={namespaceInfo.availableNamespaces || []}
                                     placeholder='Namespace'
                                     onChange={(el) => setNsInput(el.target.value)}
-                                    onItemClick={(val) => { props.changeNamespace(val ? val : nsInput) } }
+                                    onItemClick={(val) => { props.changeNamespace(val ? val : nsInput); history.push(`/rollouts`) } }
                                     value={nsInput}
                         />
                     </ThemeDiv>
