@@ -115,8 +115,8 @@ spec:
       # down. Defaults to nil
       scaleDownDelayRevisionLimit: 2
 
-      # Adds a delay before scaling down the p preview replicaset if update is
-      # aborted. Default is 0, meaning preview replicaset  are not scaled down.
+      # Adds a delay before scaling down the preview replicaset if update is
+      # aborted. Default is 0, meaning preview replicaset won't be scaled down.
       AbortScaleDownDelaySeconds: 30
 
       # Anti Affinity configuration between desired and previous ReplicaSet.
