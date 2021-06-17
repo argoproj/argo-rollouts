@@ -120,14 +120,12 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 		return false, err
 	}
 
-	abortScaleDownDelaySeconds := time.Duration(defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout))
 	if c.isScaleDownOnabort() {
-		c.log.Info("scale down on abort for the newRS")
+		c.log.Infof("Scale down new rs '%s' on abort", c.newRS.Name)
 
-		// if the newRS has scale down annotation and to be scaled down now, set
-		// Update newReplicasCount = int32(0)
+		// if the newRS has scale down annotation, check if it should be scaled down now
 		if scaleDownAtStr, ok := c.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
-			c.log.Infof("New rs '%s' has scaledown delay annotation: %s", c.newRS.Name, scaleDownAtStr)
+			c.log.Infof("New rs '%s' has scaledown deadline annotation: %s", c.newRS.Name, scaleDownAtStr)
 			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
 			if err != nil {
 				c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", c.newRS.Name)
@@ -147,6 +145,7 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				}
 			}
 		} else {
+			abortScaleDownDelaySeconds := time.Duration(defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout))
 			err = c.addScaleDownDelay(c.newRS, abortScaleDownDelaySeconds)
 			if err != nil {
 				return false, err

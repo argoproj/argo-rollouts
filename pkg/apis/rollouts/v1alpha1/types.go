@@ -287,7 +287,7 @@ type CanaryStrategy struct {
 	// +optional
 	ScaleDownDelayRevisionLimit *int32 `json:"scaleDownDelayRevisionLimit,omitempty" protobuf:"varint,12,opt,name=scaleDownDelayRevisionLimit"`
 	// AbortScaleDownDelaySeconds adds a delay before scaling down the canary pods when update
-	// is aborted for canary strategy using replicas of setCanaryScale.
+	// is aborted for canary strategy with traffic routing (not applicable for basic canary).
 	// Default is 0, meaning canary pods are not scaled down.
 	// +optional
 	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,13,opt,name=abortScaleDownDelaySeconds"`

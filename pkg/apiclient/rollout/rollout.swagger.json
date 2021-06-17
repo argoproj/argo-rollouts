@@ -775,7 +775,7 @@
         "abortScaleDownDelaySeconds": {
           "type": "integer",
           "format": "int32",
-          "title": "AbortScaleDownDelaySeconds adds a delay before scaling down the canary pods when update\nis aborted for canary strategy using replicas of setCanaryScale.\nDefault is 0, meaning canary pods are not scaled down.\n+optional"
+          "title": "AbortScaleDownDelaySeconds adds a delay before scaling down the canary pods when update\nis aborted for canary strategy with traffic routing (not applicable for basic canary).\nDefault is 0, meaning canary pods are not scaled down.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
