@@ -1,5 +1,8 @@
 # Notifications
 
+!!! important
+    Available since v1.1
+
 Argo Rollouts provides notifications powered by the [Notifications Engine](https://github.com/argoproj/notifications-engine).
 Controller administrators can leverage flexible systems of triggers and templates to configure notifications requested
 by the end users. The end-users can subscribe to the configured triggers by adding an annotation to the Rollout objects.
