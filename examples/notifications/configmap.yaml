@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-notification-configmap
+data:
+  service.slack: |
+    token: $slack-token
+  ## Custom Trigger
+  trigger.on-purple: |
+    - send: [my-purple-template]
+      when: rollout.spec.template.spec.containers[0].image == 'argoproj/rollouts-demo:purple'
+  template.my-purple-template: |
+    message: |
+      Rollout {{.rollout.metadata.name}} has purple image
+    slack:
+        attachments: |
+            [{
+              "title": "{{ .rollout.metadata.name}}",
+              "color": "#800080"
+            }]
