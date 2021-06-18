@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -1049,6 +1050,96 @@ spec:
 		assert.NotNil(t, errList)
 		assert.Len(t, errList, 1)
 		assert.Equal(t, field.NewPath("spec", "routes").Index(0).Child("httpRoute").Child("action").Child("weightedTargets").String(), errList[0].Field)
+	})
+}
+
+func TestValidateOpenshiftRoute(t *testing.T) {
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService: "stable",
+					CanaryService: "canary",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Openshift: &v1alpha1.OpenshiftTrafficRouting{
+							Routes: []string{"main-route"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("will return error when alternate backends are defined", func(t *testing.T) {
+		//given
+		t.Parallel()
+		route := routev1.Route{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "main-route",
+				Namespace: "default",
+			},
+			Spec: routev1.RouteSpec{
+				To: routev1.RouteTargetReference{
+					Name: "bogus",
+				},
+			},
+		}
+		// when
+		errList := ValidateOpenshiftRoute(rollout, route)
+
+		// then
+		assert.NotNil(t, errList)
+		assert.Equal(t, 1, len(errList))
+	})
+	t.Run("will return error if route has alternate backends", func(t *testing.T) {
+		// given
+		t.Parallel()
+		route := routev1.Route{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "main-route",
+				Namespace: "default",
+			},
+			Spec: routev1.RouteSpec{
+				To: routev1.RouteTargetReference{
+					Name: "stable",
+				},
+				AlternateBackends: []routev1.RouteTargetReference{{
+					Name: "bogus",
+					Kind: "Service",
+				},
+				},
+			},
+		}
+		// when
+		errList := ValidateOpenshiftRoute(rollout, route)
+
+		// then
+		assert.NotNil(t, errList)
+		assert.Equal(t, 1, len(errList))
+	})
+	t.Run("will succeed no matter what initial weight is ", func(t *testing.T) {
+		// given
+		t.Parallel()
+		route := routev1.Route{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "main-route",
+				Namespace: "default",
+			},
+			Spec: routev1.RouteSpec{
+				To: routev1.RouteTargetReference{
+					Name: "stable",
+				},
+			},
+		}
+		// when
+		errList := ValidateOpenshiftRoute(rollout, route)
+
+		// then
+		assert.NotNil(t, errList)
+		assert.Equal(t, 0, len(errList))
 	})
 }
 

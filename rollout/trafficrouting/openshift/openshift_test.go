@@ -1,321 +1,139 @@
-package openshift_test
+package openshift
 
 import (
 	"context"
-	"sync"
 	"testing"
 
+	routev1 "github.com/openshift/api/route/v1"
+	openshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
+	"github.com/openshift/client-go/route/clientset/versioned/fake"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/openshift"
 	"github.com/argoproj/argo-rollouts/utils/record"
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
-const (
-	routeNoAlt = `
-apiVersion: route.openshift.io/v1
-kind:  Route
-metadata:
-  name: myapp-mapping
-spec:
-  to:
-    kind: Service
-    name: stable-service
-    weight: 100
-`
-	routeWithAlt = `
-apiVersion: route.openshift.io/v1
-kind:  Route
-metadata:
-  name: myapp-mapping
-spec:
-  to:
-    kind: Service
-    name: stable-service
-    weight: 100
-  alternateBackends:
-  - kind: Service
-    name: canary-service
-    weight: 100
-`
-)
+var routeNames = []string{"route1", "route2", "route3"}
 
-type fakeClient struct {
-	getInvokations    []*getInvokation
-	getReturns        []*getReturn
-	createInvokations []*createInvokation
-	createReturns     []*createReturn
-	updateInvokations []*updateInvokation
-	updateReturns     []error
-	deleteInvokations []*deleteInvokation
-	deleteReturns     []error
-	mu                sync.Mutex
-}
+func TestReconcilerSetWeight(t *testing.T) {
+	t.Parallel()
+	rollout := newRollout()
+	rec := record.NewFakeEventRecorder()
+	tests := []struct {
+		title          string
+		clientset      openshiftclientset.Interface
+		weight         int
+		expectedRoutes []*routev1.Route
+	}{
 
-type deleteInvokation struct {
-	name string
-}
-
-type updateInvokation struct {
-	obj *unstructured.Unstructured
-}
-
-type getInvokation struct {
-	name string
-}
-
-type createInvokation struct {
-	obj          *unstructured.Unstructured
-	options      metav1.CreateOptions
-	subresources []string
-}
-
-type createReturn struct {
-	obj *unstructured.Unstructured
-	err error
-}
-
-type getReturn struct {
-	obj *unstructured.Unstructured
-	err error
-}
-
-func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	invokation := &getInvokation{name: name}
-	f.mu.Lock()
-	f.getInvokations = append(f.getInvokations, invokation)
-	f.mu.Unlock()
-	if len(f.getReturns) == 0 {
-		return nil, nil
+		{
+			title:     "Fail: No routes",
+			clientset: fake.NewSimpleClientset(),
+			weight:    50,
+		},
+		{
+			title:     "Fail: Wrong route name",
+			clientset: fake.NewSimpleClientset(&routev1.Route{ObjectMeta: metav1.ObjectMeta{Name: "new-route"}}),
+			weight:    50,
+		},
+		{
+			title:          "Succeed: Create Alternate Backends",
+			clientset:      fake.NewSimpleClientset(runtimeObj(routesNoCanary(100))...),
+			weight:         25,
+			expectedRoutes: routesWithCanary(25),
+		},
+		{
+			title:          "Succeed: Update Alternate Backends",
+			clientset:      fake.NewSimpleClientset(runtimeObj(routesWithCanary(40))...),
+			weight:         60,
+			expectedRoutes: routesWithCanary(60),
+		},
+		{
+			title:          "Succeed: Delete Alternate Backends",
+			clientset:      fake.NewSimpleClientset(runtimeObj(routesWithCanary(80))...),
+			weight:         0,
+			expectedRoutes: routesNoCanary(100),
+		},
 	}
-	ret := f.getReturns[0]
-	if len(f.getReturns) >= len(f.getInvokations) {
-		ret = f.getReturns[len(f.getInvokations)-1]
-	}
-	return ret.obj, ret.err
-}
-
-func (f *fakeClient) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	invokation := &createInvokation{
-		obj:          obj,
-		options:      options,
-		subresources: subresources,
-	}
-	f.mu.Lock()
-	f.createInvokations = append(f.createInvokations, invokation)
-	f.mu.Unlock()
-	if len(f.createReturns) == 0 {
-		return nil, nil
-	}
-	ret := f.createReturns[0]
-	if len(f.createReturns) >= len(f.createInvokations) {
-		ret = f.createReturns[len(f.createInvokations)-1]
-	}
-	return ret.obj, ret.err
-}
-
-func (f *fakeClient) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	invokation := &updateInvokation{obj: obj}
-	f.mu.Lock()
-	f.updateInvokations = append(f.updateInvokations, invokation)
-	f.mu.Unlock()
-	if len(f.updateReturns) == 0 {
-		return nil, nil
-	}
-	err := f.updateReturns[0]
-	if len(f.updateReturns) >= len(f.updateInvokations) {
-		err = f.updateReturns[len(f.updateInvokations)-1]
-	}
-	return nil, err
-}
-
-func (f *fakeClient) Delete(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error {
-	invokation := &deleteInvokation{name: name}
-	f.mu.Lock()
-	f.deleteInvokations = append(f.deleteInvokations, invokation)
-	f.mu.Unlock()
-	if len(f.deleteReturns) == 0 {
-		return nil
-	}
-	err := f.deleteReturns[0]
-	if len(f.deleteReturns) >= len(f.deleteInvokations) {
-		err = f.deleteReturns[len(f.deleteInvokations)-1]
-	}
-	return err
-}
-
-func TestReconciler_SetWeight(t *testing.T) {
-	type fixture struct {
-		rollout    *v1alpha1.Rollout
-		fakeClient *fakeClient
-		recorder   record.EventRecorder
-		reconciler *openshift.Reconciler
-	}
-
-	setup := func() *fixture {
-		r := rollout("main-service", "canary-service", []string{"main-route"})
-		fakeClient := &fakeClient{}
-		rec := record.NewFakeEventRecorder()
-		l, _ := test.NewNullLogger()
-		return &fixture{
-			rollout:    r,
-			fakeClient: fakeClient,
-			recorder:   rec,
-			reconciler: &openshift.Reconciler{
-				Rollout:  r,
-				Client:   fakeClient,
+	for _, test := range tests {
+		t.Run(test.title, func(t *testing.T) {
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:  rollout,
+				Client:   test.clientset,
 				Recorder: rec,
-				Log:      l.WithContext(context.TODO()),
-			},
-		}
+			})
+			err := r.SetWeight(int32(test.weight))
+			if test.expectedRoutes != nil {
+				assert.NoError(t, err)
+				routes := make([]*routev1.Route, 0)
+				for _, routeName := range routeNames {
+					route, err := r.getRoute(context.TODO(), routeName)
+					assert.NoError(t, err)
+					routes = append(routes, route)
+				}
+				assert.Equal(t, test.expectedRoutes, routes)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+
 	}
-	t.Run("SetWeight", func(t *testing.T) {
-		t.Run("will create and update alternateBackends of route", func(t *testing.T) {
-			// given
-			t.Parallel()
-			f := setup()
-			getReturns := []*getReturn{
-				{obj: toUnstructured(t, routeNoAlt)},
-			}
-			createReturns := []*createReturn{
-				{nil, nil},
-			}
-			f.fakeClient.getReturns = getReturns
-			f.fakeClient.createReturns = createReturns
-
-			// when
-			err := f.reconciler.SetWeight(13)
-
-			// then
-			assert.NoError(t, err)
-			assert.Equal(t, 1, len(f.fakeClient.getInvokations))
-			assert.Equal(t, "main-route", f.fakeClient.getInvokations[0].name)
-			assert.Equal(t, 0, len(f.fakeClient.createInvokations))
-			assert.Equal(t, 1, len(f.fakeClient.updateInvokations))
-			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
-		})
-		t.Run("will update alternateBackends according to provided weight", func(t *testing.T) {
-			// given
-			t.Parallel()
-			f := setup()
-			getReturns := []*getReturn{
-				{obj: toUnstructured(t, routeWithAlt)},
-			}
-			createReturns := []*createReturn{
-				{nil, nil},
-			}
-			f.fakeClient.getReturns = getReturns
-			f.fakeClient.createReturns = createReturns
-
-			// when
-			err := f.reconciler.SetWeight(13)
-
-			// then
-			assert.NoError(t, err)
-			assert.Equal(t, 1, len(f.fakeClient.getInvokations))
-			assert.Equal(t, "main-route", f.fakeClient.getInvokations[0].name)
-			assert.Equal(t, 0, len(f.fakeClient.createInvokations))
-			assert.Equal(t, 1, len(f.fakeClient.updateInvokations))
-			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
-		})
-	})
-	t.Run("Type", func(t *testing.T) {
-		t.Run("will validate returned type", func(t *testing.T) {
-			// given
-			t.Parallel()
-			f := setup()
-
-			// when
-			tp := f.reconciler.Type()
-
-			// then
-			assert.Equal(t, openshift.Type, tp)
-		})
-	})
-	t.Run("VerifyWeight", func(t *testing.T) {
-		t.Run("verify weight will always return true", func(t *testing.T) {
-			// given
-			t.Parallel()
-			f := setup()
-
-			// when
-			verified, err := f.reconciler.VerifyWeight(0)
-
-			// then
-			assert.Nil(t, err)
-			assert.True(t, verified)
-		})
-	})
-	t.Run("UpdateHash", func(t *testing.T) {
-		t.Run("will always return nil", func(t *testing.T) {
-			// given
-			t.Parallel()
-			f := setup()
-
-			// when
-			err := f.reconciler.UpdateHash("", "")
-
-			// then
-			assert.Nil(t, err)
-		})
-	})
 }
 
-func TestGetRouteGVR(t *testing.T) {
-	t.Run("will return default gvr if apiVersion not provided", func(t *testing.T) {
-		// when
-		gvr := openshift.GetRouteGVR()
+func TestVerifyWeight(t *testing.T) {
+	t.Parallel()
+	rollout := newRollout()
+	rec := record.NewFakeEventRecorder()
+	tests := []struct {
+		title     string
+		clientset openshiftclientset.Interface
+		weight    int
+		expected  bool
+	}{
 
-		// then
-		assert.Equal(t, "route.openshift.io", gvr.Group)
-		assert.Equal(t, "v1", gvr.Version)
-		assert.Equal(t, "routes", gvr.Resource)
-	})
-	t.Run("will get gvr successfully", func(t *testing.T) {
-		// given
-		openshift.SetAPIVersion("v2")
-
-		// when
-		gvr := openshift.GetRouteGVR()
-
-		// then
-		assert.Equal(t, "route.openshift.io", gvr.Group)
-		assert.Equal(t, "v2", gvr.Version)
-		assert.Equal(t, "routes", gvr.Resource)
-	})
-	t.Run("will get valid gvr even if apiVersion has the wrong domain", func(t *testing.T) {
-		// given
-		apiVersion := "invalid.com/v1alpha1"
-		openshift.SetAPIVersion(apiVersion)
-
-		// when
-		gvr := openshift.GetRouteGVR()
-
-		// then
-		assert.Equal(t, "route.openshift.io", gvr.Group)
-		assert.Equal(t, "v1alpha1", gvr.Version)
-		assert.Equal(t, "routes", gvr.Resource)
-		assert.Equal(t, apiVersion, openshift.GetAPIVersion())
-	})
-}
-
-func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
-	t.Helper()
-	obj := &unstructured.Unstructured{}
-
-	dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	_, _, err := dec.Decode([]byte(manifest), nil, obj)
-	if err != nil {
-		t.Fatal(err)
+		{
+			title:     "Fail: Routes have wrong weight",
+			clientset: fake.NewSimpleClientset(runtimeObj(routesNoCanary(100))...),
+			weight:    50,
+			expected:  false,
+		},
+		{
+			title:     "Fail: Routes have alternate backends",
+			clientset: fake.NewSimpleClientset(runtimeObj(routesWithCanary(50))...),
+			weight:    0,
+			expected:  false,
+		},
+		{
+			title:     "Success: Routes have right weight",
+			clientset: fake.NewSimpleClientset(runtimeObj(routesWithCanary(45))...),
+			weight:    45,
+			expected:  true,
+		},
+		{
+			title:     "Success: Routes have no alternate backends",
+			clientset: fake.NewSimpleClientset(runtimeObj(routesNoCanary(100))...),
+			weight:    0,
+			expected:  true,
+		},
 	}
-	return obj
+	for _, test := range tests {
+		t.Run(test.title, func(t *testing.T) {
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:  rollout,
+				Client:   test.clientset,
+				Recorder: rec,
+			})
+			result, err := r.VerifyWeight(int32(test.weight))
+			assert.NoError(t, err)
+			assert.Equal(t, test.expected, result)
+		})
+
+	}
 }
 
-func rollout(stableSvc, canarySvc string, routes []string) *v1alpha1.Rollout {
+func newRollout() *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rollout",
@@ -324,15 +142,56 @@ func rollout(stableSvc, canarySvc string, routes []string) *v1alpha1.Rollout {
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
 				Canary: &v1alpha1.CanaryStrategy{
-					StableService: stableSvc,
-					CanaryService: canarySvc,
+					StableService: "stable",
+					CanaryService: "canary",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Openshift: &v1alpha1.OpenshiftTrafficRouting{
-							Routes: routes,
+							Routes: routeNames,
 						},
 					},
 				},
 			},
 		},
 	}
+}
+
+func routesNoCanary(weight int32) []*routev1.Route {
+	routes := make([]*routev1.Route, 0)
+	for _, name := range routeNames {
+		routes = append(routes, &routev1.Route{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: "default",
+			},
+			Spec: routev1.RouteSpec{
+				To: routev1.RouteTargetReference{
+					Kind:   "Service",
+					Name:   "stable",
+					Weight: &weight,
+				},
+			},
+		})
+
+	}
+	return routes
+}
+
+func routesWithCanary(weight int32) []*routev1.Route {
+	routes := routesNoCanary(100 - weight)
+	for _, route := range routes {
+		route.Spec.AlternateBackends = []routev1.RouteTargetReference{{
+			Kind:   "Service",
+			Name:   "canary",
+			Weight: &weight,
+		}}
+	}
+	return routes
+}
+
+func runtimeObj(routes []*routev1.Route) []runtime.Object {
+	objects := make([]runtime.Object, 0)
+	for _, route := range routes {
+		objects = append(objects, route)
+	}
+	return objects
 }

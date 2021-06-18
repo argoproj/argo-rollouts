@@ -9,10 +9,10 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 	openshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -20,10 +20,8 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
-// Type defines the Openshift traffic routing type.
-const (
-	Type = "Openshift"
-)
+//Openshift reconciler type
+const Type = "Openshift"
 
 // ReconcilerConfig describes static configuration data
 type ReconcilerConfig struct {
@@ -34,26 +32,23 @@ type ReconcilerConfig struct {
 
 // Reconciler implements a TrafficRoutingReconciler
 type Reconciler struct {
-	cfg ReconcilerConfig
-	log *logrus.Entry
+	Cfg ReconcilerConfig
+	Log *logrus.Entry
 }
 
 // NewReconciler will build and return an OpenShift Reconciler
 func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 	return &Reconciler{
-		cfg: cfg,
-		log: logutil.WithRollout(cfg.Rollout),
+		Cfg: cfg,
+		Log: logutil.WithRollout(cfg.Rollout),
 	}
 }
 
-// SetWeight will change the route to either...
-//	include a canary alternate backend with desired weight
-//	change an existing canary backend with desired weight
-//	delete a canary alternate backend
+// SetWeight changes the route configuration according to desiredWeight
 func (r *Reconciler) SetWeight(desiredWeight int32) error {
-	r.sendNormalEvent("AlternateBackendWeightUpdate", fmt.Sprintf("Set alternateBackends weight to %d", desiredWeight))
+	r.sendNormalEvent("WeightUpdate", fmt.Sprintf("Set weight to %d", desiredWeight))
 	ctx := context.TODO()
-	routeNameList := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Openshift.Routes
+	routeNameList := r.Cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Openshift.Routes
 	doneChan := make(chan struct{})
 	errChan := make(chan error)
 	defer close(errChan)
@@ -101,14 +96,16 @@ func formatErrors(errs []error) error {
 	return errors.New(errMsg.String())
 }
 
-// update Route according to following:
-//	update default backend weight
-//	remove alternateBackends if weight is 0
-//	otherwise update alternateBackends
+func (r *Reconciler) getRoute(ctx context.Context, routeName string) (*routev1.Route, error) {
+	return r.Cfg.Client.RouteV1().Routes(r.Cfg.Rollout.GetNamespace()).Get(ctx, routeName, metav1.GetOptions{})
+}
+
+//Update default backend weight,
+//remove alternateBackends if weight is 0,
+//otherwise update alternateBackends
 func (r *Reconciler) updateRoute(ctx context.Context, routeName string, desiredWeight int32) error {
-	routesClient := r.cfg.Client.RouteV1().Routes(r.cfg.Rollout.GetNamespace())
 	// get the route
-	route, err := routesClient.Get(ctx, routeName, metav1.GetOptions{})
+	route, err := r.getRoute(ctx, routeName)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			msg := fmt.Sprintf("Route %q not found", routeName)
@@ -119,29 +116,45 @@ func (r *Reconciler) updateRoute(ctx context.Context, routeName string, desiredW
 
 	// update default backend weight
 	altWeight := 100 - desiredWeight
-	r.log.Infof("updating default backend weight to %d", altWeight)
+	r.Log.Infof("updating default backend weight to %d", altWeight)
 	route.Spec.To.Weight = &altWeight
 	if desiredWeight == 0 {
-		r.log.Infof("deleting alternateBackends")
+		r.Log.Infof("deleting alternateBackends")
 		route.Spec.AlternateBackends = nil
 	} else {
-		r.log.Infof("updating alternate backend weight to %d", desiredWeight)
+		r.Log.Infof("updating alternate backend weight to %d", desiredWeight)
 		route.Spec.AlternateBackends = []routev1.RouteTargetReference{{
 			Kind:   "Service",
-			Name:   r.cfg.Rollout.Spec.Strategy.Canary.CanaryService,
+			Name:   r.Cfg.Rollout.Spec.Strategy.Canary.CanaryService,
 			Weight: &desiredWeight,
 		}}
 	}
 
-	_, err = routesClient.Update(ctx, route, metav1.UpdateOptions{})
+	_, err = r.Cfg.Client.RouteV1().Routes(r.Cfg.Rollout.GetNamespace()).Update(ctx, route, metav1.UpdateOptions{})
 
 	return err
 }
 
+// Verifies weight of routes given by rollout
 func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+	r.sendNormalEvent("VerifyWeight", fmt.Sprintf("Verify weight is %d", desiredWeight))
+	for _, routeName := range r.Cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Openshift.Routes {
+		route, err := r.getRoute(context.TODO(), routeName)
+		if err != nil {
+			return false, err
+		}
+		if route.Spec.AlternateBackends == nil {
+			if desiredWeight != 0 {
+				return false, nil
+			}
+		} else if *route.Spec.To.Weight != 100-desiredWeight || *route.Spec.AlternateBackends[0].Weight != desiredWeight {
+			return false, nil
+		}
+	}
 	return true, nil
 }
 
+// Openshift reconciler type
 func (r *Reconciler) Type() string {
 	return Type
 }
@@ -155,7 +168,7 @@ func (r *Reconciler) sendWarningEvent(id, msg string) {
 }
 
 func (r *Reconciler) sendEvent(eventType, id, msg string) {
-	r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventType: eventType, EventReason: id}, msg)
+	r.Cfg.Recorder.Eventf(r.Cfg.Rollout, record.EventOptions{EventType: eventType, EventReason: id}, msg)
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes

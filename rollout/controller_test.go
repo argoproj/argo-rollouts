@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	routev1 "github.com/openshift/api/route/v1"
 	openshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
 
 	"github.com/ghodss/yaml"
@@ -97,6 +98,7 @@ type fixture struct {
 	replicaSetLister              []*appsv1.ReplicaSet
 	serviceLister                 []*corev1.Service
 	ingressLister                 []*ingressutil.Ingress
+	routeLister                   []*routev1.Route
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -1876,18 +1878,21 @@ spec:
 func TestGetOpenshiftRoutes(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
+
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Openshift: &v1alpha1.OpenshiftTrafficRouting{
+			Routes: []string{"some-route"},
+		},
+	}
+
+	r.Namespace = metav1.NamespaceDefault
+
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	c.openshiftclientset = openshiftfake.NewSimpleClientset()
+
 	t.Run("will fail on trying to get some-route", func(t *testing.T) {
 		// given
-		t.Parallel()
-		r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
-		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-			Openshift: &v1alpha1.OpenshiftTrafficRouting{
-				Routes: []string{"some-route"},
-			},
-		}
-		r.Namespace = metav1.NamespaceDefault
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 
@@ -1896,6 +1901,28 @@ func TestGetOpenshiftRoutes(t *testing.T) {
 
 		// then
 		assert.Error(t, err)
+	})
+	t.Run("will succeed on trying to get some-route", func(t *testing.T) {
+		// given
+
+		route := &routev1.Route{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "some-route",
+				Namespace: r.GetNamespace(),
+			},
+		}
+
+		_, err := c.openshiftclientset.RouteV1().Routes(r.GetNamespace()).Create(
+			context.Background(), route, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+
+		// when
+		_, err = roCtx.getOpenshiftRoutes()
+
+		// then
+		assert.NoError(t, err)
 	})
 }
 
