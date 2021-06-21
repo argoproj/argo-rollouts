@@ -58,6 +58,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                     <InfoItemRow label={'NS:'} items={{content: namespaceInfo.namespace}} />
                 ) : (
                     <ThemeDiv className='rollouts-header__namespace'>
+                        <div className='rollouts-header__label'>NS:</div>
                         <Autocomplete items={namespaceInfo.availableNamespaces || []}
                                     placeholder='Namespace'
                                     onChange={(el) => setNsInput(el.target.value)}
@@ -66,7 +67,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                         />
                     </ThemeDiv>
                 )}
-                <div className='rollouts-header__version'>{version}</div>
+                <div className='rollouts-header__label'>{version}</div>
             </div>
         </GenericHeader>
     );
