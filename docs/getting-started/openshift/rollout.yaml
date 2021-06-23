@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-demo
+  namespace: argo-rollouts
+spec:
+  replicas: 5
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: deployment-example
+  template:
+    metadata:
+      labels:
+        app: deployment-example
+    spec:
+      containers:
+        - image: openshift/deployment-example:v1
+          imagePullPolicy: Always
+          name: deployment-example-v1
+          ports:
+            - containerPort: 8080
+  strategy:
+    canary:
+      stableService: stable-service
+      canaryService: canary-service
+      trafficRouting:
+        openshift:
+          routes:
+            - stable-service # Enter one or multiple routes
+      steps:
+      - setWeight: 30
+      - pause: {}
+      - setWeight: 60
+      - pause: {duration: 30s}
+      - setWeight: 100
+      - pause: {duration: 10s}

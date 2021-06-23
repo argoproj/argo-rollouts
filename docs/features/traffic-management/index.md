@@ -23,6 +23,7 @@ Argo Rollouts enables traffic management by manipulating the Service Mesh resour
 - [Apache APISIX](apisix.md)
 - [Istio](istio.md)
 - [Nginx Ingress Controller](nginx.md)
+- [Openshift Routes](openshift.md)
 - [Service Mesh Interface (SMI)](smi.md)
 - [Traefik Proxy](traefik.md)
 - [Multiple Providers](mixed.md)
