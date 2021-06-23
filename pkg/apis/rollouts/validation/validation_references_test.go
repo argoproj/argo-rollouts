@@ -1073,7 +1073,7 @@ func TestValidateOpenshiftRoute(t *testing.T) {
 		},
 	}
 
-	t.Run("will return error when alternate backends are defined", func(t *testing.T) {
+	t.Run("will return error when default backend is not stable service", func(t *testing.T) {
 		//given
 		t.Parallel()
 		route := routev1.Route{
@@ -1084,32 +1084,6 @@ func TestValidateOpenshiftRoute(t *testing.T) {
 			Spec: routev1.RouteSpec{
 				To: routev1.RouteTargetReference{
 					Name: "bogus",
-				},
-			},
-		}
-		// when
-		errList := ValidateOpenshiftRoute(rollout, route)
-
-		// then
-		assert.NotNil(t, errList)
-		assert.Equal(t, 1, len(errList))
-	})
-	t.Run("will return error if route has alternate backends", func(t *testing.T) {
-		// given
-		t.Parallel()
-		route := routev1.Route{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "main-route",
-				Namespace: "default",
-			},
-			Spec: routev1.RouteSpec{
-				To: routev1.RouteTargetReference{
-					Name: "stable",
-				},
-				AlternateBackends: []routev1.RouteTargetReference{{
-					Name: "bogus",
-					Kind: "Service",
-				},
 				},
 			},
 		}

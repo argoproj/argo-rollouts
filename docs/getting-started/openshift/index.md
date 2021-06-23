@@ -96,7 +96,7 @@ You must define at least one route under the routes field:
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-demo
+  name: openshift-rollout-demo
   namespace: argo-rollouts
 spec:
   replicas: 5
@@ -142,7 +142,7 @@ And navigate to http://localhost:3100
 
 Alternatively, watch the rollout through the CLI:
 ```shell
-oc argo rollouts get rollout rollout-demo -w
+oc argo rollouts get rollout openshift-rollout-demo -w
 ```
 
 You should see that 5 pods are deployed with version 1 of the deployment-example container under the service `stable-service`. Since this is the first version, the rollout is in a finished state.

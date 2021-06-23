@@ -435,12 +435,6 @@ func ValidateOpenshiftRoute(rollout *v1alpha1.Rollout, route routev1.Route) fiel
 		allErrs = append(allErrs, field.Invalid(fldPath, route.GetName(), msg))
 	}
 
-	fldPath = field.NewPath("spec", "alternateBackends")
-	alternateBackends := route.Spec.AlternateBackends
-	if len(alternateBackends) != 0 {
-		msg := fmt.Sprintf("Openshift route %q cannot define alternateBackends", route.GetName())
-		allErrs = append(allErrs, field.Invalid(fldPath, route.GetName(), msg))
-	}
 	return allErrs
 }
 
