@@ -24,6 +24,6 @@ spec:
   - port: 80
     targetPort: http
     protocol: TCP
-    name: http0
+    name: http
   selector:
     app: rollouts-demo 

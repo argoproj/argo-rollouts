@@ -40,7 +40,7 @@ spec:
   - port: 80
     targetPort: http
     protocol: TCP
-    name: http0
+    name: http
   selector:
     app: rollouts-demo 
 ```
@@ -87,14 +87,17 @@ kind: Rollout
 metadata:
   name: rollouts-demo
 spec:
-  # Inserting traffic management here, rest is taken from rollouts-demo
-  trafficManager:
-    openshift:
-      routes:
-      - main-route # Enter name of route
   replicas: 5
   strategy:
     canary:
+      # Inserting traffic management here
+      trafficRouting:
+        openshift:
+          routes:
+          - main-route # Enter name of route
+      canaryService: canary-service
+      stableService: stable-service
+      # Rest is same as getting started guide
       steps:
       - setWeight: 20
       - pause: {}
