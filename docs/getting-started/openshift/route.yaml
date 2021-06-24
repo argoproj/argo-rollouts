@@ -2,12 +2,11 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   labels:
-    app: deployment-example
-  name: stable-service
-  namespace: argo-rollouts
+    app: rollouts-demo
+  name: main-route
 spec:
   port:
-    targetPort: 8080-tcp
+    targetPort: http
   to:
     kind: Service
     name: stable-service

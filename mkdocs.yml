@@ -25,6 +25,7 @@ nav:
   - AWS ALB: getting-started/alb/index.md
   - Istio: getting-started/istio/index.md
   - NGINX: getting-started/nginx/index.md
+  - OpenShift Routes: getting-started/openshift/index.md
   - SMI: getting-started/smi/index.md
 - Dashboard: dashboard.md
 - Rollout:
@@ -49,6 +50,7 @@ nav:
   - AWS ALB: features/traffic-management/alb.md
   - Istio: features/traffic-management/istio.md
   - NGINX: features/traffic-management/nginx.md
+  - OpenShift Routes: features/traffic-management/openshift.md
   - SMI: features/traffic-management/smi.md
   - Traefik: features/traffic-management/traefik.md
 - Analysis:

@@ -2,31 +2,28 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: deployment-example
+    app: rollouts-demo
   name: stable-service
-  namespace: argo-rollouts
 spec:
-  type: ClusterIP
   ports:
-  - name: 8080-tcp
-    port: 8080
+  - port: 80
+    targetPort: http
     protocol: TCP
-    targetPort: 8080
+    name: http
   selector:
-    app: deployment-example
+    app: rollouts-demo
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: deployment-example
+    app: rollouts-demo
   name: canary-service
 spec:
-  type: ClusterIP
   ports:
-  - name: 8080-tcp
-    port: 8080
+  - port: 80
+    targetPort: http
     protocol: TCP
-    targetPort: 8080
+    name: http0
   selector:
-    app: deployment-example 
+    app: rollouts-demo 
