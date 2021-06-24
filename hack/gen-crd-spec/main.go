@@ -253,10 +253,6 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 		// Replace this with "spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
 		// when it's ok to only support k8s 1.17+
 		setValidationOverride(un, preserveUnknownFields, "spec.template.spec.volumes")
-		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
-		removeFieldHelper(validation, "x-kubernetes-list-type")
-		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
-		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	case "Experiment":
 		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.limits")
 		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.containers[].resources.requests")
@@ -267,10 +263,6 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 		// Replace this with "spec.templates[].template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
 		// when it's ok to only support k8s 1.17+
 		setValidationOverride(un, preserveUnknownFields, "spec.templates[].template.spec.volumes")
-		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
-		removeFieldHelper(validation, "x-kubernetes-list-type")
-		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
-		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	case "ClusterAnalysisTemplate", "AnalysisTemplate", "AnalysisRun":
 		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.limits")
 		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.containers[].resources.requests")
@@ -281,10 +273,6 @@ func removeK8S118Fields(un *unstructured.Unstructured) {
 		// Replace this with "spec.metrics[].provider.job.spec.template.spec.volumes[].ephemeral.volumeClaimTemplate.spec.resources.{limits/requests}"
 		// when it's ok to only support k8s 1.17+
 		setValidationOverride(un, preserveUnknownFields, "spec.metrics[].provider.job.spec.template.spec.volumes")
-		validation, _, _ := unstructured.NestedMap(un.Object, "spec", "validation", "openAPIV3Schema")
-		removeFieldHelper(validation, "x-kubernetes-list-type")
-		removeFieldHelper(validation, "x-kubernetes-list-map-keys")
-		unstructured.SetNestedMap(un.Object, validation, "spec", "validation", "openAPIV3Schema")
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind))
 	}
