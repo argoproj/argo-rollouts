@@ -24,8 +24,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	appslisters "k8s.io/client-go/listers/apps/v1"
-	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
@@ -69,42 +67,13 @@ const (
 
 // ArgoRolloutsServer holds information about rollouts server
 type ArgoRolloutsServer struct {
-	Options     ServerOptions
-	NamespaceVC NamespaceViewController
-	stopCh      chan struct{}
-}
-
-type NamespaceViewController struct {
-	namespace string
-
-	kubeInformerFactory kubeinformers.SharedInformerFactory
-	replicaSetLister    appslisters.ReplicaSetNamespaceLister
-	podLister           corelisters.PodNamespaceLister
-	cacheSyncs          []cache.InformerSynced
-}
-
-func (vc *NamespaceViewController) Start(ctx context.Context) {
-	vc.kubeInformerFactory.Start(ctx.Done())
-	cache.WaitForCacheSync(ctx.Done(), vc.cacheSyncs...)
+	Options ServerOptions
+	stopCh  chan struct{}
 }
 
 // NewServer creates an ArgoRolloutsServer
 func NewServer(o ServerOptions) *ArgoRolloutsServer {
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(o.KubeClientset, 0, kubeinformers.WithNamespace(o.Namespace))
-
-	vc := NamespaceViewController{
-		namespace:           o.Namespace,
-		kubeInformerFactory: kubeInformerFactory,
-		podLister:           kubeInformerFactory.Core().V1().Pods().Lister().Pods(o.Namespace),
-		replicaSetLister:    kubeInformerFactory.Apps().V1().ReplicaSets().Lister().ReplicaSets(o.Namespace),
-	}
-
-	vc.cacheSyncs = append(vc.cacheSyncs,
-		kubeInformerFactory.Apps().V1().ReplicaSets().Informer().HasSynced,
-		kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
-	)
-
-	return &ArgoRolloutsServer{Options: o, NamespaceVC: vc}
+	return &ArgoRolloutsServer{Options: o}
 }
 
 type spaFileSystem struct {
@@ -258,20 +227,27 @@ func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws ro
 	return nil
 }
 
-func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context) ([]*appsv1.ReplicaSet, []*corev1.Pod, error) {
-	s.NamespaceVC.Start(ctx)
+func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context, namespace string) ([]*appsv1.ReplicaSet, []*corev1.Pod, error) {
 
-	allReplicaSets, err := s.NamespaceVC.replicaSetLister.List(labels.Everything())
+	allReplicaSets, err := s.Options.KubeClientset.AppsV1().ReplicaSets(namespace).List(ctx, v1.ListOptions{})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	allPods, err := s.NamespaceVC.podLister.List(labels.Everything())
+	allPods, err := s.Options.KubeClientset.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{})
 	if err != nil {
-		return allReplicaSets, nil, err
+		return nil, nil, err
 	}
 
-	return allReplicaSets, allPods, nil
+	var allReplicaSetsP = make([]*appsv1.ReplicaSet, len(allReplicaSets.Items))
+	for i := range allReplicaSets.Items {
+		allReplicaSetsP[i] = &allReplicaSets.Items[i]
+	}
+	var allPodsP = make([]*corev1.Pod, len(allPods.Items))
+	for i := range allPods.Items {
+		allPodsP[i] = &allPods.Items[i]
+	}
+	return allReplicaSetsP, allPodsP, nil
 }
 
 // ListRollouts returns a list of all rollouts
@@ -283,7 +259,7 @@ func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.Ro
 		return nil, err
 	}
 
-	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx)
+	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx, q.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
@@ -316,13 +292,19 @@ func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, 
 			return
 		}
 	}
-	ctx := context.Background()
+	ctx := ws.Context()
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 
-	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx)
-	if err != nil {
-		return err
-	}
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(s.Options.KubeClientset, 0, kubeinformers.WithNamespace(q.Namespace))
+	podsLister := kubeInformerFactory.Core().V1().Pods().Lister().Pods(q.GetNamespace())
+	rsLister := kubeInformerFactory.Apps().V1().ReplicaSets().Lister().ReplicaSets(q.GetNamespace())
+	kubeInformerFactory.Start(ws.Context().Done())
+
+	cache.WaitForCacheSync(
+		ws.Context().Done(),
+		kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
+		kubeInformerFactory.Apps().V1().ReplicaSets().Informer().HasSynced,
+	)
 
 	watchIf, err := rolloutIf.Watch(ctx, v1.ListOptions{})
 	if err != nil {
@@ -355,6 +337,15 @@ L:
 			}
 			continue
 		}
+		allPods, err := podsLister.List(labels.Everything())
+		if err != nil {
+			return err
+		}
+		allReplicaSets, err := rsLister.List(labels.Everything())
+		if err != nil {
+			return err
+		}
+
 		// get shallow rollout info
 		ri := info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil)
 		send(ri)
@@ -365,7 +356,7 @@ L:
 
 func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollout.RolloutInfo, error) {
 	ctx := context.Background()
-	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx)
+	allReplicaSets, allPods, err := s.ListReplicaSetsAndPods(ctx, ro.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +364,21 @@ func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollou
 }
 
 func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (*rollout.NamespaceInfo, error) {
-	return &rollout.NamespaceInfo{Namespace: s.Options.Namespace}, nil
+	var m = make(map[string]bool)
+	var namespaces []string
+
+	rolloutList, err := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts("").List(ctx, v1.ListOptions{})
+	if err == nil {
+		for _, r := range rolloutList.Items {
+			ns := r.Namespace
+			if !m[ns] {
+				m[ns] = true
+				namespaces = append(namespaces, ns)
+			}
+		}
+	}
+
+	return &rollout.NamespaceInfo{Namespace: s.Options.Namespace, AvailableNamespaces: namespaces}, nil
 }
 
 func (s *ArgoRolloutsServer) PromoteRollout(ctx context.Context, q *rollout.PromoteRolloutRequest) (*v1alpha1.Rollout, error) {

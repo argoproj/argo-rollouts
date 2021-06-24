@@ -108,7 +108,7 @@ export const Rollout = () => {
 
     const [rollout, loading] = useWatchRollout(name, true);
     const api = React.useContext(RolloutAPIContext);
-    const namespace = React.useContext(NamespaceContext);
+    const namespaceCtx = React.useContext(NamespaceContext);
     const images = parseImages(rollout.replicaSets || []);
 
     for (const img of images) {
@@ -174,7 +174,7 @@ export const Rollout = () => {
                                 images={images}
                                 containers={rollout.containers || []}
                                 setImage={(container, image, tag) => {
-                                    api.rolloutServiceSetRolloutImage({}, namespace, name, container, image, tag);
+                                    api.rolloutServiceSetRolloutImage({}, namespaceCtx.namespace, name, container, image, tag);
                                 }}
                                 editing={editing}
                                 setEditing={setEditing}
@@ -192,7 +192,7 @@ export const Rollout = () => {
                                             key={i}
                                             revision={r}
                                             initCollapsed={false}
-                                            rollback={(r) => api.rolloutServiceUndoRollout({}, namespace, name, `${r}`)}
+                                            rollback={(r) => api.rolloutServiceUndoRollout({}, namespaceCtx.namespace, name, `${r}`)}
                                             current={i === 0}
                                         />
                                     ))}
