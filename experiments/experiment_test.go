@@ -119,10 +119,11 @@ func TestAddScaleDownDelayToRS(t *testing.T) {
 	f.verifyPatchedReplicaSet(patchRs2Index, 30)
 }
 
+// TestScaleDownRSAfterFinish verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down
 func TestScaleDownRSAfterFinish(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
+
 	e := newExperiment("foo", templates, "")
-	//e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
@@ -345,7 +346,7 @@ func TestFailReplicaSetCreation(t *testing.T) {
 	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseError)
 }
 
-// TestServiceCreationForTemplate verifies that a service is created for a template if CreateService is true
+// TestServiceCreationForTemplate verifies that a service is created for an experiment template if field CreateService is true
 func TestServiceCreationForTemplate(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	templates[0].CreateService = true
@@ -375,7 +376,7 @@ func TestServiceCreationForTemplate(t *testing.T) {
 	assert.Contains(t, patch, expected)
 }
 
-// Verify that outdated service for Template in templateServices map is deleted and new service is created
+// TestDeleteOutdatedService verifies that outdated service for Template in templateServices map is deleted and new service is created
 func TestDeleteOutdatedService(t *testing.T) {
 	templates := generateTemplates("bar")
 	templates[0].CreateService = true
