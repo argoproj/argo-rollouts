@@ -2,6 +2,7 @@ package undo
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -116,6 +117,51 @@ func TestUndoCmdToRevision(t *testing.T) {
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Equal(t, fmt.Sprintf("rollout '%s' undo\n", ro.Name), stdout)
 	assert.Empty(t, stderr)
+}
+
+func TestUndoCmdToRevisionOfWorkloadRef(t *testing.T) {
+
+	roTests := []struct {
+		idx     int
+		refName string
+		refType string
+	}{
+		{1, "canary-demo-65fb5ffc84", "ReplicaSet"},
+		{2, "canary-demo-deploy", "Deployment"},
+	}
+
+	for _, roTest := range roTests {
+		rolloutObjs := testdata.NewCanaryRollout()
+		ro := rolloutObjs.Rollouts[roTest.idx]
+		ro.Spec.Template = corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+			},
+		}
+		tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+		o.RESTClientGetter = tf.WithNamespace(ro.Namespace)
+		defer tf.Cleanup()
+		cmd := NewCmdUndo(o)
+		cmd.PersistentPreRunE = o.PersistentPreRunE
+		cmd.SetArgs([]string{ro.Name, "--to-revision=29"})
+
+		err := cmd.Execute()
+		assert.Nil(t, err)
+
+		// Verify the current RS has been patched by the oldRS's template
+		switch roTest.refType {
+		case "Deployment":
+			currentRs, _ := o.KubeClient.AppsV1().Deployments(ro.Namespace).Get(context.TODO(), "canary-demo-deploy", metav1.GetOptions{})
+			assert.Equal(t, "argoproj/rollouts-demo:asdf", currentRs.Spec.Template.Spec.Containers[0].Image)
+		case "ReplicaSet":
+			currentRs, _ := o.KubeClient.AppsV1().ReplicaSets(ro.Namespace).Get(context.TODO(), "canary-demo-65fb5ffc84", metav1.GetOptions{})
+			assert.Equal(t, "argoproj/rollouts-demo:asdf", currentRs.Spec.Template.Spec.Containers[0].Image)
+		}
+		stdout := o.Out.(*bytes.Buffer).String()
+		stderr := o.ErrOut.(*bytes.Buffer).String()
+		assert.Equal(t, fmt.Sprintf("rollout '%s' undo\n", ro.Name), stdout)
+		assert.Empty(t, stderr)
+	}
 }
 
 func TestUndoCmdToRevisionSkipCurrent(t *testing.T) {

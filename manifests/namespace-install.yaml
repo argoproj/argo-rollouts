@@ -10226,7 +10226,6 @@ spec:
                                     type: array
                                 required:
                                 - name
-                                - routes
                                 type: object
                             required:
                             - virtualService

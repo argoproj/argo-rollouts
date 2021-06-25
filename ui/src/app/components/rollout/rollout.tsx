@@ -108,7 +108,7 @@ export const Rollout = () => {
 
     const [rollout, loading] = useWatchRollout(name, true);
     const api = React.useContext(RolloutAPIContext);
-    const namespace = React.useContext(NamespaceContext);
+    const namespaceCtx = React.useContext(NamespaceContext);
     const images = parseImages(rollout.replicaSets || []);
 
     for (const img of images) {
@@ -174,7 +174,7 @@ export const Rollout = () => {
                                 images={images}
                                 containers={rollout.containers || []}
                                 setImage={(container, image, tag) => {
-                                    api.rolloutServiceSetRolloutImage({}, namespace, name, container, image, tag);
+                                    api.rolloutServiceSetRolloutImage({}, namespaceCtx.namespace, name, container, image, tag);
                                 }}
                                 editing={editing}
                                 setEditing={setEditing}
@@ -192,14 +192,14 @@ export const Rollout = () => {
                                             key={i}
                                             revision={r}
                                             initCollapsed={false}
-                                            rollback={(r) => api.rolloutServiceUndoRollout({}, namespace, name, `${r}`)}
+                                            rollback={(r) => api.rolloutServiceUndoRollout({}, namespaceCtx.namespace, name, `${r}`)}
                                             current={i === 0}
                                         />
                                     ))}
                                 </div>
                             </ThemeDiv>
                         )}
-                        {(rollout.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
+                        {(rollout?.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
                             <ThemeDiv className='info steps'>
                                 <ThemeDiv className='info__title'>Steps</ThemeDiv>
                                 <div style={{marginTop: '1em'}}>
@@ -338,7 +338,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                 <div>Created at {formatTimestamp(JSON.stringify(ar.objectMeta.creationTimestamp))}</div>
                             </React.Fragment>
                         }>
-                        <ThemeDiv className={`analysis__run analysis__run--${ar.status.toLowerCase() || 'unknown'}`} />
+                        <ThemeDiv className={`analysis__run analysis__run--${ar.status ? ar.status.toLowerCase() : 'unknown'}`} />
                     </Tooltip>
                 ))}
             </div>

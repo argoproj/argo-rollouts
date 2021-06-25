@@ -65,8 +65,8 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 				controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
 					rolloutUpdates <- roInfo
 				})
-				go statusOptions.WatchStatus(ctx.Done(), cancel, statusOptions.Timeout, rolloutUpdates)
-				controller.Run(ctx)
+				go controller.Run(ctx)
+				statusOptions.WatchStatus(ctx.Done(), rolloutUpdates)
 
 				finalRi, err := controller.GetRolloutInfo()
 				if err != nil {
@@ -88,14 +88,14 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, cancelFunc context.CancelFunc, timeoutDuration time.Duration, rolloutUpdates chan *rollout.RolloutInfo) {
+func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, rolloutUpdates chan *rollout.RolloutInfo) string {
 	timeout := make(chan bool)
 	var roInfo *rollout.RolloutInfo
 	var preventFlicker time.Time
 
-	if timeoutDuration != 0 {
+	if o.Timeout != 0 {
 		go func() {
-			time.Sleep(timeoutDuration)
+			time.Sleep(o.Timeout)
 			timeout <- true
 		}()
 	}
@@ -105,18 +105,16 @@ func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, cancelFunc context.C
 		case roInfo = <-rolloutUpdates:
 			if roInfo != nil && roInfo.Status == "Healthy" || roInfo.Status == "Degraded" {
 				fmt.Fprintln(o.Out, roInfo.Status)
-				cancelFunc()
-				return
+				return roInfo.Status
 			}
 			if roInfo != nil && time.Now().After(preventFlicker.Add(200*time.Millisecond)) {
 				fmt.Fprintf(o.Out, "%s - %s\n", roInfo.Status, roInfo.Message)
 				preventFlicker = time.Now()
 			}
 		case <-stopCh:
-			return
+			return ""
 		case <-timeout:
-			cancelFunc()
-			return
+			return ""
 		}
 	}
 }

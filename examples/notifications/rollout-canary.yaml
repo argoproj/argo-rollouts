@@ -1,0 +1,73 @@
+# This example demonstrates a Rollout using the canary update strategy with a customized rollout
+# plan. The prescribed steps initially sets a canary weight of 20%, then pauses indefinitely. Once
+# resumed, the rollout performs a gradual, automated 20% weight increase until it reaches 100%.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rollouts-canary
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: rollout-canary
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: rollouts-demo-stable
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            backend:
+              # Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field
+              serviceName: rollouts-canary
+              servicePort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-canary
+  annotations:
+    notifications.argoproj.io/subscribe.on-rollout-completed.slack: argoproj-deployments-notifications
+    notifications.argoproj.io/subscribe.on-rollout-step-completed.slack: argoproj-deployments-notifications
+    notifications.argoproj.io/subscribe.on-rollout-updated.slack: argoproj-deployments-notifications
+    notifications.argoproj.io/subscribe.on-scaling-replica-set.slack: argoproj-deployments-notifications
+    notifications.argoproj.io/subscribe.on-purple.slack: argoproj-deployments-notifications
+spec:
+  replicas: 5
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-canary
+  template:
+    metadata:
+      labels:
+        app: rollout-canary
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20
+      # The following pause step will pause the rollout indefinitely until manually resumed.
+      # Rollouts can be manually resumed by running `kubectl argo rollouts promote ROLLOUT`
+      - pause: {}
+      - setWeight: 40
+      - pause: {duration: 10s}
+      - setWeight: 60
+      - pause: {duration: 10s}
+      - setWeight: 80
+      - pause: {duration: 10s}

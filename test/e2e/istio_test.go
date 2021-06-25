@@ -147,3 +147,53 @@ spec:
 		}).
 		ExpectRevisionPodCount("1", 0) // since we moved back to basic canary, we should scale down older RSs
 }
+
+func (s *IstioSuite) TestIstioSubsetSplitSingleRoute() {
+	s.Given().
+		RolloutObjects("@istio/istio-subset-split-single-route.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+
+			rs1 := t.GetReplicaSetByRevision("1")
+			destrule := t.GetDestinationRule()
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // stable
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // canary
+		}).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(90), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(10), vsvc.Spec.HTTP[0].Route[1].Weight)
+
+			rs1 := t.GetReplicaSetByRevision("1")
+			rs2 := t.GetReplicaSetByRevision("2")
+			destrule := t.GetDestinationRule()
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // stable
+			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // canary
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+
+			rs2 := t.GetReplicaSetByRevision("2")
+			destrule := t.GetDestinationRule()
+			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // stable
+			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // canary
+		}).
+		ExpectRevisionPodCount("1", 1) // don't scale down old replicaset since it will be within scaleDownDelay
+}
