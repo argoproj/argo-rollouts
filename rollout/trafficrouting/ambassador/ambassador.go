@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -84,7 +86,7 @@ func NewReconciler(r *v1alpha1.Rollout, c ClientInterface, rec record.EventRecor
 // in the ambassador configuration in the traffic routing section of the rollout. If
 // the canary ambassador mapping is already present, it will be updated to the given
 // desiredWeight.
-func (r *Reconciler) SetWeight(desiredWeight int32) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
 	r.sendNormalEvent(CanaryMappingWeightUpdate, fmt.Sprintf("Set canary mapping weight to %d", desiredWeight))
 	ctx := context.TODO()
 	baseMappingNameList := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings

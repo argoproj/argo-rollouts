@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+
 	"github.com/sirupsen/logrus"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,7 +76,7 @@ func (r *Reconciler) Type() string {
 }
 
 // SetWeight modifies ALB Ingress resources to reach desired state
-func (r *Reconciler) SetWeight(desiredWeight int32) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
 	ctx := context.TODO()
 	rollout := r.cfg.Rollout
 	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/mitchellh/mapstructure"
 	log "github.com/sirupsen/logrus"
@@ -436,7 +438,7 @@ func (r *Reconciler) Type() string {
 }
 
 // SetWeight modifies Istio resources to reach desired state
-func (r *Reconciler) SetWeight(desiredWeight int32) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
 	ctx := context.TODO()
 	var vsvc *unstructured.Unstructured
 	var err error
