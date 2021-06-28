@@ -94,8 +94,6 @@ type Manager struct {
 
 	refResolver rollout.TemplateRefResolver
 
-	dynamicClientSet dynamic.Interface
-
 	namespace string
 }
 
@@ -266,7 +264,6 @@ func NewManager(
 		experimentController:          experimentController,
 		analysisController:            analysisController,
 		notificationsController:       notificationsController,
-		dynamicClientSet:              dynamicclientset,
 		refResolver:                   refResolver,
 		namespace:                     namespace,
 	}
