@@ -3,6 +3,8 @@ package experiments
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/scaledown"
+	"k8s.io/utils/pointer"
 	"time"
 
 	v1 "k8s.io/client-go/listers/core/v1"
@@ -126,76 +128,100 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	now := metav1.Now()
 
 	rs := ec.templateRSs[template.Name]
-	if rs == nil {
-		// Create the ReplicaSet if necessary
-		if desiredReplicaCount > 0 {
-			newRS, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
-			if err != nil {
-				logCtx.Warnf("Failed to create ReplicaSet: %v", err)
-				if !k8serrors.IsAlreadyExists(err) {
-					templateStatus.Status = v1alpha1.TemplateStatusError
-					templateStatus.Message = fmt.Sprintf("Failed to create ReplicaSet for template '%s': %v", template.Name, err)
-				}
-			}
+
+	// Create Service for template
+	// Use same Name and rollout-pod-template-hash as ReplicaSet
+	if template.Service != nil {
+		if rs == nil {
+			newRS := ec.createReplicaSetForTemplate(template.DeepCopy(), templateStatus, rs, logCtx, now)
 			if newRS != nil {
-				ec.templateRSs[template.Name] = newRS
-				templateStatus.LastTransitionTime = &now
 				rs = newRS
 			}
 		}
+		ec.createTemplateService(&template, templateStatus, desiredReplicaCount, rs)
 	} else {
-		if desiredReplicaCount == 0 {
-			// Add scaleDownDelay if necessary
-			rsIsUpdated, err := ec.addScaleDownDelay(rs)
-			if err != nil {
-				ec.log.Warnf("Unable to add scaleDownDelay label on rs '%s'", rs.Name)
-			} else {
-				if rsIsUpdated {
-					ctx := context.TODO()
-					modifiedRS, err := ec.kubeclientset.AppsV1().ReplicaSets(ec.ex.Namespace).Get(ctx, rs.Name, metav1.GetOptions{})
-					if err != nil {
-						ec.log.Warnf("Unable to get rs '%s' with added scaleDownDelay", rs.Name)
-					} else {
-						rs = modifiedRS
-						ec.templateRSs[template.Name] = modifiedRS
-					}
-				}
-			}
+		// If service field not set, then delete template service if exists
+		// Code should not enter this path
+		svc := ec.templateServices[template.Name]
+		ec.deleteTemplateService(svc, templateStatus, template.Name)
+	}
 
-		}
-		// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
-		if *rs.Spec.Replicas != desiredReplicaCount {
-			if desiredReplicaCount == 0 {
-				// Add delay before scaling
-				if scaleDownAtStr, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
-					scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
-					if err != nil {
-						ec.log.Warnf("Unable to read scaleDownAt label on rs '%s'", rs.Name)
-					}
-					now := metav1.Now()
-					scaleDownAt := metav1.NewTime(scaleDownAtTime)
-					if scaleDownAt.After(now.Time) {
-						ec.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
-						remainingTime := scaleDownAt.Sub(now.Time)
-						if remainingTime < ec.resyncPeriod {
-							ec.enqueueExperimentAfter(ec.ex, remainingTime)
-						}
-						desiredReplicaCount = defaults.GetReplicasOrDefault(template.Replicas)
-					}
+	//if rs == nil {
+	//	// Create the ReplicaSet if necessary
+	//	if desiredReplicaCount > 0 {
+	//		newRS, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
+	//		if err != nil {
+	//			logCtx.Warnf("Failed to create ReplicaSet: %v", err)
+	//			if !k8serrors.IsAlreadyExists(err) {
+	//				templateStatus.Status = v1alpha1.TemplateStatusError
+	//				templateStatus.Message = fmt.Sprintf("Failed to create ReplicaSet for template '%s': %v", template.Name, err)
+	//			}
+	//		}
+	//		if newRS != nil {
+	//			ec.templateRSs[template.Name] = newRS
+	//			templateStatus.LastTransitionTime = &now
+	//			rs = newRS
+	//		}
+	//	}
+	//} else {
+	if desiredReplicaCount == 0 {
+		// Add scaleDownDelay if necessary
+		rsIsUpdated, err := ec.addScaleDownDelay(rs)
+		if err != nil {
+			ec.log.Warnf("Unable to add scaleDownDelay label on rs '%s'", rs.Name)
+		} else {
+			if rsIsUpdated {
+				ctx := context.TODO()
+				modifiedRS, err := ec.kubeclientset.AppsV1().ReplicaSets(ec.ex.Namespace).Get(ctx, rs.Name, metav1.GetOptions{})
+				if err != nil {
+					ec.log.Warnf("Unable to get rs '%s' with added scaleDownDelay", rs.Name)
+				} else {
+					rs = modifiedRS
+					ec.templateRSs[template.Name] = modifiedRS
 				}
 			}
-			_, _, err := ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
-			if err != nil {
-				templateStatus.Status = v1alpha1.TemplateStatusError
-				templateStatus.Message = fmt.Sprintf("Unable to scale down ReplicaSet for template '%s': %v", template.Name, err)
-			} else {
-				if desiredReplicaCount == 0 && template.CreateService {
-					svc := ec.templateServices[template.Name]
-					ec.deleteTemplateService(svc, templateStatus, template.Name)
-				}
-			}
-			templateStatus.LastTransitionTime = &now
 		}
+
+	}
+	// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
+	if *rs.Spec.Replicas != desiredReplicaCount {
+		if desiredReplicaCount == 0 {
+			// Add delay before scaling
+			_, remainingTime := scaledown.ScaleDownOldReplicaSetHelper(rs, 0, 0)
+			if remainingTime != nil {
+				if *remainingTime < ec.resyncPeriod {
+					ec.enqueueExperimentAfter(ec.ex, *remainingTime)
+				}
+				desiredReplicaCount = defaults.GetReplicasOrDefault(template.Replicas)
+			}
+			//if scaleDownAtStr, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+			//	scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+			//	if err != nil {
+			//		ec.log.Warnf("Unable to read scaleDownAt label on rs '%s'", rs.Name)
+			//	}
+			//	now := metav1.Now()
+			//	scaleDownAt := metav1.NewTime(scaleDownAtTime)
+			//	if scaleDownAt.After(now.Time) {
+			//		ec.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
+			//		remainingTime := scaleDownAt.Sub(now.Time)
+			//		if remainingTime < ec.resyncPeriod {
+			//			ec.enqueueExperimentAfter(ec.ex, remainingTime)
+			//		}
+			//		desiredReplicaCount = defaults.GetReplicasOrDefault(template.Replicas)
+			//	}
+			//}
+		}
+		_, _, err := ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
+		if err != nil {
+			templateStatus.Status = v1alpha1.TemplateStatusError
+			templateStatus.Message = fmt.Sprintf("Unable to scale down ReplicaSet for template '%s': %v", template.Name, err)
+		} else {
+			if desiredReplicaCount == 0 && &template.Service != nil {
+				svc := ec.templateServices[template.Name]
+				ec.deleteTemplateService(svc, templateStatus, template.Name)
+			}
+		}
+		templateStatus.LastTransitionTime = &now
 	}
 
 	if rs == nil {
@@ -208,31 +234,6 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
-	}
-
-	// Create Service for template
-	// Use same Name and rollout-pod-template-hash as ReplicaSet
-	if template.CreateService && rs != nil {
-		podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-		svc := ec.templateServices[template.Name]
-		if desiredReplicaCount == 0 {
-			ec.deleteTemplateService(svc, templateStatus, template.Name)
-		} else if svc == nil || svc.Name != rs.Name {
-			newService, err := ec.CreateService(rs.Name, template, rs.Labels)
-			if err != nil {
-				templateStatus.Status = v1alpha1.TemplateStatusError
-				templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
-			} else {
-				ec.templateServices[template.Name] = newService
-				templateStatus.ServiceName = newService.Name
-				templateStatus.PodTemplateHash = podTemplateHash
-			}
-		}
-	} else if !template.CreateService {
-		// If CreateService is false but template has service, then create service
-		// Code should not enter this path
-		svc := ec.templateServices[template.Name]
-		ec.deleteTemplateService(svc, templateStatus, template.Name)
 	}
 
 	if prevStatus.Replicas != templateStatus.Replicas ||
@@ -290,6 +291,47 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "Template" + string(templateStatus.Status)}, msg)
 	}
 	experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
+}
+
+// createServiceTemplate creates service for given experiment template
+func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, desiredReplicaCount int32, rs *appsv1.ReplicaSet) {
+	// Create service with has same name, podTemplateHash, and labels as RS
+	podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	svc := ec.templateServices[template.Name]
+	if desiredReplicaCount == 0 {
+		ec.deleteTemplateService(svc, templateStatus, template.Name)
+		return
+	} else if svc == nil || svc.Name != rs.Name {
+		newService, err := ec.CreateService(rs.Name, *template, rs.Labels)
+		if err != nil {
+			templateStatus.Status = v1alpha1.TemplateStatusError
+			templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
+		} else {
+			ec.templateServices[template.Name] = newService
+			templateStatus.ServiceName = newService.Name
+			templateStatus.PodTemplateHash = podTemplateHash
+		}
+	}
+}
+
+func (ec *experimentContext) createReplicaSetForTemplate(template *v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, rs *appsv1.ReplicaSet, logCtx *log.Entry, now metav1.Time) *appsv1.ReplicaSet {
+	if rs == nil {
+		template.Replicas = pointer.Int32Ptr(0)
+		newRS, err := ec.createReplicaSet(*template, templateStatus.CollisionCount)
+		if err != nil {
+			logCtx.Warnf("Failed to create ReplicaSet: %v", err)
+			if !k8serrors.IsAlreadyExists(err) {
+				templateStatus.Status = v1alpha1.TemplateStatusError
+				templateStatus.Message = fmt.Sprintf("Failed to create ReplicaSet for template '%s': %v", template.Name, err)
+			}
+		}
+		if newRS != nil {
+			ec.templateRSs[template.Name] = newRS
+			templateStatus.LastTransitionTime = &now
+		}
+		return newRS
+	}
+	return nil
 }
 
 func (ec *experimentContext) deleteTemplateService(svc *corev1.Service, templateStatus *v1alpha1.TemplateStatus, templateName string) {

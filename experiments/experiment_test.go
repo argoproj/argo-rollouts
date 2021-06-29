@@ -134,6 +134,7 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	e.Status.Conditions = append(e.Status.Conditions, *cond)
 	rs1 := templateToRS(e, templates[0], 1)
 	rs2 := templateToRS(e, templates[1], 1)
+	//svc := templateToService()
 
 	inThePast := metav1.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
@@ -144,6 +145,8 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 
 	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
 	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
+	//f.expectDeleteServiceAction(svc)
+	//f.expectCreateServiceAction()
 	expPatchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
@@ -349,8 +352,8 @@ func TestFailReplicaSetCreation(t *testing.T) {
 // TestServiceCreationForTemplate verifies that a service is created for an experiment template if field CreateService is true
 func TestServiceCreationForTemplate(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
-	templates[0].CreateService = true
-	templates[1].CreateService = false
+	templates[0].Service = &v1alpha1.TemplateService{}
+	templates[1].Service = nil
 	ex := newExperiment("foo", templates, "")
 
 	rs1 := templateToRS(ex, templates[0], 0)
@@ -379,7 +382,7 @@ func TestServiceCreationForTemplate(t *testing.T) {
 // TestDeleteOutdatedService verifies that outdated service for Template in templateServices map is deleted and new service is created
 func TestDeleteOutdatedService(t *testing.T) {
 	templates := generateTemplates("bar")
-	templates[0].CreateService = true
+	templates[0].Service = &v1alpha1.TemplateService{}
 	ex := newExperiment("foo", templates, "")
 
 	wrongService := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "wrong-service"}}
@@ -409,7 +412,7 @@ func TestDeleteOutdatedService(t *testing.T) {
 
 func TestDeleteServiceIfDesiredReplicasEqualZero(t *testing.T) {
 	templates := generateTemplates("bar")
-	templates[0].CreateService = true
+	templates[0].Service = &v1alpha1.TemplateService{}
 	templates[0].Replicas = pointer.Int32Ptr(0)
 	ex := newExperiment("foo", templates, "")
 	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)

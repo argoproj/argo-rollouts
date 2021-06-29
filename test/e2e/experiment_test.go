@@ -80,6 +80,12 @@ func (s *ExperimentSuite) TestRolloutWithExperimentAndAnalysis() {
 		WaitForRolloutStatus("Healthy")
 }
 
+// TestRolloutWithCanaryExperimentStepWithWeight verifies that the experiment creates and deletes a service as expected when
+// the experiment canary step has the 'weight' field set
+func (s *ExperimentSuite) TestRolloutWithCanaryExperimentStepWithWeight() {
+
+}
+
 func TestExperimentSuite(t *testing.T) {
 	suite.Run(t, new(ExperimentSuite))
 }

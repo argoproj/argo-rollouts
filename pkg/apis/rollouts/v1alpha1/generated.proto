@@ -1177,6 +1177,9 @@ message SetCanaryScale {
   optional bool matchTrafficWeight = 3;
 }
 
+message TemplateService {
+}
+
 message TemplateSpec {
   // Name of the template used to identity replicaset running for this experiment
   optional string name = 1;
@@ -1200,8 +1203,8 @@ message TemplateSpec {
   // Template describes the pods that will be created.
   optional k8s.io.api.core.v1.PodTemplateSpec template = 5;
 
-  // CreateService determines if a service should be created for the template
-  optional bool createService = 6;
+  // TemplateService describes how a service should be generated for template
+  optional TemplateService service = 6;
 }
 
 // TemplateStatus is the status of a specific template of an Experiment
@@ -1240,7 +1243,7 @@ message TemplateStatus {
   // ServiceName is the name of the service which corresponds to this experiment
   optional string serviceName = 10;
 
-  // PodTemplateHash is the
+  // PodTemplateHash is the value of the Replicas' PodTemplateHash
   optional string podTemplateHash = 11;
 }
 

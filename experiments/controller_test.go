@@ -237,7 +237,7 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 }
 
 func templateToService(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, replicaSet appsv1.ReplicaSet) *corev1.Service {
-	if template.CreateService {
+	if template.Service != nil {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      replicaSet.Name,

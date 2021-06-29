@@ -318,6 +318,26 @@ func (c *Common) GetJobFromAnalysisRun(ar *rov1.AnalysisRun) *batchv1.Job {
 	return found
 }
 
+func (c *Common) GetServiceFromExperiment(exp *rov1.Experiment, templateName string) *corev1.Service {
+	services, err := c.kubeClient.CoreV1().Services(c.namespace).List(c.Context, metav1.ListOptions{})
+	c.CheckError(err)
+	var found *corev1.Service
+	for i, rs := range services.Items {
+		controllerRef := metav1.GetControllerOf(&rs)
+		if controllerRef == nil || controllerRef.UID != exp.UID || rs.Annotations[rov1.ExperimentTemplateNameAnnotationKey] != templateName {
+			continue
+		}
+		if found != nil {
+			c.t.Fatalf("Found multiple Services associated with experiment: %s, template: %s", exp.Name, templateName)
+		}
+		found = &services.Items[i]
+	}
+	if found == nil {
+		c.t.Fatalf("Could not find Service from experiment: %s, template: %s", exp.Name, templateName)
+	}
+	return found
+}
+
 func (c *Common) GetReplicaSetFromExperiment(exp *rov1.Experiment, templateName string) *appsv1.ReplicaSet {
 	replicasets, err := c.kubeClient.AppsV1().ReplicaSets(c.namespace).List(c.Context, metav1.ListOptions{})
 	c.CheckError(err)

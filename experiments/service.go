@@ -76,7 +76,20 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 
 	service, err := ec.kubeclientset.CoreV1().Services(ec.ex.Namespace).Create(ctx, newService, metav1.CreateOptions{})
 	if err != nil {
-		return nil, err
+		// If service already exists, get service and check that it is owned by Experiment Template. Otherwise return error.
+		if errors.IsAlreadyExists(err) {
+			svc, err := ec.kubeclientset.CoreV1().Services(ec.ex.Namespace).Get(ctx, service.Name, metav1.GetOptions{})
+			if err != nil {
+				return nil, err
+			}
+			controllerRef := metav1.GetControllerOf(svc)
+			if controllerRef == nil || controllerRef.UID != ec.ex.UID || svc.Annotations == nil || svc.Annotations[v1alpha1.ExperimentNameAnnotationKey] != ec.ex.Name || svc.Annotations[v1alpha1.ExperimentTemplateNameAnnotationKey] != template.Name {
+				return nil, fmt.Errorf("service %s already exists and is not owned by experiment template %s", serviceName, template.Name)
+			}
+			return svc, nil
+		} else {
+			return nil, err
+		}
 	}
 	return service, nil
 }

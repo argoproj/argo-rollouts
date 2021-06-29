@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"reflect"
 	"strconv"
 	"time"
@@ -139,7 +140,7 @@ type reconcilerBase struct {
 	// used for unit testing
 	enqueueRollout              func(obj interface{})                                         //nolint:structcheck
 	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                 //nolint:structcheck
-	newTrafficRoutingReconciler func(roCtx *rolloutContext) (TrafficRoutingReconciler, error) //nolint:structcheck
+	newTrafficRoutingReconciler func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
 
 	// recorder is an event recorder for recording Event resources to the Kubernetes API.
 	recorder     record.EventRecorder
