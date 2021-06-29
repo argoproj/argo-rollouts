@@ -73,7 +73,7 @@ var (
 	}
 	pdbGVR = schema.GroupVersionResource{
 		Group:    "policy",
-		Version:  "v1beta1",
+		Version:  "v1",
 		Resource: "poddisruptionbudgets",
 	}
 	jobGVR = schema.GroupVersionResource{
