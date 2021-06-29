@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/notifications-engine/pkg/api"
-	"github.com/argoproj/notifications-engine/pkg/controller"
+	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
+	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -72,7 +72,7 @@ type Manager struct {
 	analysisController      *analysis.Controller
 	serviceController       *service.Controller
 	ingressController       *ingress.Controller
-	notificationsController controller.NotificationController
+	notificationsController notificationcontroller.NotificationController
 
 	rolloutSynced                 cache.InformerSynced
 	experimentSynced              cache.InformerSynced
@@ -148,10 +148,10 @@ func NewManager(
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
 	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, argoprojclientset, rolloutsInformer.Informer())
-	apiFactory := api.NewFactory(record.NewAPIFactorySettings(), defaults.Namespace(), secretInformer.Informer(), configMapInformer.Informer())
+	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(), defaults.Namespace(), secretInformer.Informer(), configMapInformer.Informer())
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, apiFactory)
-	notificationsController := controller.NewController(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory,
-		controller.WithToUnstructured(func(obj metav1.Object) (*unstructured.Unstructured, error) {
+	notificationsController := notificationcontroller.NewController(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory,
+		notificationcontroller.WithToUnstructured(func(obj metav1.Object) (*unstructured.Unstructured, error) {
 			data, err := json.Marshal(obj)
 			if err != nil {
 				return nil, err
