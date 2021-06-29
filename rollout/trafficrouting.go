@@ -16,20 +16,8 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
-// TrafficRoutingReconciler common function across all TrafficRouting implementation
-type TrafficRoutingReconciler interface {
-	// UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-	UpdateHash(canaryHash, stableHash string) error
-	// SetWeight sets the canary weight to the desired weight
-	SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error
-	// VerifyWeight returns true if the canary is at the desired weight
-	VerifyWeight(desiredWeight int32) (bool, error)
-	// Type returns the type of the traffic routing reconciler
-	Type() string
-}
-
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
-func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (TrafficRoutingReconciler, error) {
+func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
 	rollout := roCtx.rollout
 	if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		return nil, nil
@@ -135,6 +123,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				}
 				return nil
 			}
+			// TODO: Check if Experiment is running
 			for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
 				templateWeight := getTemplateWeight(templateStatus.Name)
 				weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
