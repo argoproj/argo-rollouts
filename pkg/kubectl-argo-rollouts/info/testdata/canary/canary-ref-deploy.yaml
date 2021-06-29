@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canary-demo-deploy
+  namespace: jesse-test
+spec:
+  selector:
+    matchLabels:
+      app: canary-demo-deploy
+  replicas: 0
+  template:
+    metadata:
+      labels:
+        app: canary-demo-deploy
+    spec:
+      containers:
+        - name: canary-demo-deploy
+          image: argoproj/rollouts-demo:red
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 5m

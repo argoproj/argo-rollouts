@@ -1,9 +1,18 @@
 package record
 
 import (
+	"encoding/json"
+	"regexp"
+	"strings"
+
+	"github.com/argoproj/notifications-engine/pkg/services"
+
+	"github.com/argoproj/notifications-engine/pkg/api"
+	"github.com/argoproj/notifications-engine/pkg/subscriptions"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -22,7 +31,11 @@ func init() {
 	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 }
 
-const controllerAgentName = "rollouts-controller"
+const (
+	controllerAgentName   = "rollouts-controller"
+	NotificationConfigMap = "argo-rollouts-notification-configmap"
+	NotificationSecret    = "argo-rollouts-notification-secret"
+)
 
 type EventOptions struct {
 	// EventType is the kubernetes event type (Normal or Warning). Defaults to Normal
@@ -48,9 +61,11 @@ type EventRecorderAdapter struct {
 	RolloutEventCounter *prometheus.CounterVec
 
 	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{})
+	// apiFactory is a notifications engine API factory
+	apiFactory api.Factory
 }
 
-func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec) EventRecorder {
+func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, apiFactory api.Factory) EventRecorder {
 	// Create event broadcaster
 	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
 	// logged for argo-rollouts types.
@@ -61,6 +76,7 @@ func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *p
 	recorder := &EventRecorderAdapter{
 		Recorder:            k8srecorder,
 		RolloutEventCounter: rolloutEventCounter,
+		apiFactory:          apiFactory,
 	}
 	recorder.eventf = recorder.defaultEventf
 	return recorder
@@ -82,6 +98,7 @@ func NewFakeEventRecorder() *FakeEventRecorder {
 			},
 			[]string{"name", "namespace", "type", "reason"},
 		),
+		nil,
 	).(*EventRecorderAdapter)
 	recorder.Recorder = record.NewFakeRecorder(1000)
 	fakeRecorder := &FakeEventRecorder{}
@@ -119,6 +136,10 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 		if kind == "Rollout" {
 			e.RolloutEventCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
+		err := e.sendNotifications(object, opts)
+		if err != nil {
+			logCtx.Errorf("Notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
+		}
 	}
 
 	logFn := logCtx.Infof
@@ -130,4 +151,66 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 
 func (e *EventRecorderAdapter) K8sRecorder() record.EventRecorder {
 	return e.Recorder
+}
+
+func NewAPIFactorySettings() api.Settings {
+	return api.Settings{
+		SecretName:    NotificationSecret,
+		ConfigMapName: NotificationConfigMap,
+		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
+			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
+				return map[string]interface{}{"rollout": obj}
+			}, nil
+		},
+	}
+}
+
+// Send notifications for triggered event if user is subscribed
+func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts EventOptions) error {
+	subsFromAnnotations := subscriptions.Annotations(object.(metav1.Object).GetAnnotations())
+	destByTrigger := subsFromAnnotations.GetDestinations(nil, map[string][]string{})
+
+	trigger := translateReasonToTrigger(opts.EventReason)
+
+	destinations := destByTrigger[trigger]
+	if len(destinations) == 0 {
+		return nil
+	}
+
+	notificationsAPI, err := e.apiFactory.GetAPI()
+	if err != nil {
+		return err
+	}
+
+	// Creates config for notifications for built-in triggers
+	triggerActions, ok := notificationsAPI.GetConfig().Triggers[trigger]
+	if !ok {
+		return nil
+	}
+
+	objBytes, err := json.Marshal(object)
+	if err != nil {
+		return err
+	}
+	var objMap map[string]interface{}
+	err = json.Unmarshal(objBytes, &objMap)
+	if err != nil {
+		return err
+	}
+	for _, dest := range destinations {
+		err = notificationsAPI.Send(objMap, triggerActions[0].Send, dest)
+		if err != nil {
+			log.Errorf("notification error: %s", err.Error())
+			return err
+		}
+	}
+	return nil
+}
+
+func translateReasonToTrigger(reason string) string {
+	var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+	var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+	trigger := matchFirstCap.ReplaceAllString(reason, "${1}-${2}")
+	trigger = matchAllCap.ReplaceAllString(trigger, "${1}-${2}")
+	return "on-" + strings.ToLower(trigger)
 }

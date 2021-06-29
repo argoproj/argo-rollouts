@@ -83,10 +83,6 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHTTPRoute, desiredWeight int64) virtualServicePatches {
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	stableSvc := r.rollout.Spec.Strategy.Canary.StableService
-	routes := map[string]bool{}
-	for _, r := range r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes {
-		routes[r] = true
-	}
 	canarySubset := ""
 	stableSubset := ""
 	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule != nil {
@@ -94,14 +90,14 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHT
 		stableSubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.StableSubsetName
 	}
 
+	// err can be ignored because we already called ValidateHTTPRoutes earlier
+	routeIndexesToPatch, _ := getRouteIndexesToPatch(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes, httpRoutes)
+
 	patches := virtualServicePatches{}
-	for i := range httpRoutes {
-		route := httpRoutes[i]
-		if !routes[route.Name] {
-			continue
-		}
+	for _, routeIdx := range routeIndexesToPatch {
+		route := httpRoutes[routeIdx]
 		for j := range route.Route {
-			destination := httpRoutes[i].Route[j]
+			destination := route.Route[j]
 
 			var host string
 			if idx := strings.Index(destination.Destination.Host, "."); idx > 0 {
@@ -115,7 +111,7 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHT
 			if (host != "" && host == canarySvc) || (subset != "" && subset == canarySubset) {
 				if weight != desiredWeight {
 					patch := virtualServicePatch{
-						routeIndex:       i,
+						routeIndex:       routeIdx,
 						destinationIndex: j,
 						weight:           desiredWeight,
 					}
@@ -125,7 +121,7 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHT
 			if (host != "" && host == stableSvc) || (subset != "" && subset == stableSubset) {
 				if weight != 100-desiredWeight {
 					patch := virtualServicePatch{
-						routeIndex:       i,
+						routeIndex:       routeIdx,
 						destinationIndex: j,
 						weight:           100 - desiredWeight,
 					}
@@ -466,6 +462,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	}
 	_, err = client.Update(ctx, modifiedVsvc, metav1.UpdateOptions{})
 	if err == nil {
+		r.log.Debugf("UpdatedVirtualService: %s", modifiedVsvc)
 		r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "UpdatedVirtualService"}, "VirtualService `%s` set to desiredWeight '%d'", vsvcName, desiredWeight)
 	}
 	return err
@@ -475,34 +472,48 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 	return true, nil
 }
 
-// validateHTTPRoutes ensures that all the routes in the rollout exist and they only have two destinations
-func ValidateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []VirtualServiceHTTPRoute) error {
-	routes := r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
-	stableSvc := r.Spec.Strategy.Canary.StableService
-	canarySvc := r.Spec.Strategy.Canary.CanaryService
-
-	routesPatched := map[string]bool{}
-	for _, route := range routes {
-		routesPatched[route] = false
-	}
-
-	for _, route := range httpRoutes {
-		// check if the httpRoute is in the list of routes from the rollout
-		if _, ok := routesPatched[route.Name]; ok {
-			routesPatched[route.Name] = true
-			err := validateVirtualServiceHTTPRouteDestinations(route, stableSvc, canarySvc, r.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule)
-			if err != nil {
-				return err
+// getRouteIndexesToPatch returns array indices of the httpRoutes which need to be patched when updating weights
+func getRouteIndexesToPatch(routeNames []string, httpRoutes []VirtualServiceHTTPRoute) ([]int, error) {
+	var routeIndexesToPatch []int
+	if len(routeNames) == 0 {
+		if len(httpRoutes) != 1 {
+			return nil, fmt.Errorf("VirtualService spec.http[] must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes")
+		}
+		routeIndexesToPatch = append(routeIndexesToPatch, 0)
+	} else {
+		for _, routeName := range routeNames {
+			foundRoute := false
+			for i, route := range httpRoutes {
+				if route.Name == routeName {
+					routeIndexesToPatch = append(routeIndexesToPatch, i)
+					foundRoute = true
+					break
+				}
+			}
+			if !foundRoute {
+				return nil, fmt.Errorf("Route '%s' is not found", routeName)
 			}
 		}
 	}
+	return routeIndexesToPatch, nil
+}
 
-	for i := range routesPatched {
-		if !routesPatched[i] {
-			return fmt.Errorf("Route '%s' is not found", i)
+// validateHTTPRoutes ensures that all the routes in the rollout exist and they only have two destinations
+func ValidateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []VirtualServiceHTTPRoute) error {
+	stableSvc := r.Spec.Strategy.Canary.StableService
+	canarySvc := r.Spec.Strategy.Canary.CanaryService
+
+	routeIndexesToPatch, err := getRouteIndexesToPatch(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes, httpRoutes)
+	if err != nil {
+		return err
+	}
+	for _, routeIndex := range routeIndexesToPatch {
+		route := httpRoutes[routeIndex]
+		err := validateVirtualServiceHTTPRouteDestinations(route, stableSvc, canarySvc, r.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule)
+		if err != nil {
+			return err
 		}
 	}
-
 	return nil
 }
 

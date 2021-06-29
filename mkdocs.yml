@@ -8,16 +8,16 @@ theme:
   palette:
     primary: teal
 google_analytics:
-  - UA-105170809-3
-  - auto
+- UA-105170809-3
+- auto
 markdown_extensions:
-  - codehilite
-  - admonition
-  - pymdownx.superfences
-  - pymdownx.tabbed
-  - footnotes
-  - toc:
-      permalink: true
+- codehilite
+- admonition
+- pymdownx.superfences
+- pymdownx.tabbed
+- footnotes
+- toc:
+    permalink: true
 nav:
 - Overview: index.md
 - Installation: installation.md
@@ -60,6 +60,20 @@ nav:
   - Web: analysis/web.md
   - Kayenta: analysis/kayenta.md
 - Experiments: features/experiment.md
+- Notifications:
+  - Overview: features/notifications.md
+  - Services:
+    - generated/notification-services/email.md
+    - generated/notification-services/github.md
+    - generated/notification-services/grafana.md
+    - generated/notification-services/mattermost.md
+    - generated/notification-services/opsgenie.md
+    - generated/notification-services/overview.md
+    - generated/notification-services/rocketchat.md
+    - generated/notification-services/slack.md
+    - generated/notification-services/teams.md
+    - generated/notification-services/telegram.md
+    - generated/notification-services/webhook.md
 - Kubectl Plugin:
   - Overview: features/kubectl-plugin.md
   - Commands:
@@ -75,6 +89,13 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart.md

@@ -352,8 +352,8 @@ type IstioTrafficRouting struct {
 type IstioVirtualService struct {
 	// Name holds the name of the VirtualService
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	// Routes list of routes within VirtualService to edit
-	Routes []string `json:"routes" protobuf:"bytes,2,rep,name=routes"`
+	// Routes are list of routes within VirtualService to edit. If omitted, VirtualService must have a single route
+	Routes []string `json:"routes,omitempty" protobuf:"bytes,2,rep,name=routes"`
 }
 
 // IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic

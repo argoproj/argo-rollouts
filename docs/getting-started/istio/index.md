@@ -34,7 +34,7 @@ spec:
             # Reference to a VirtualService which the controller updates with canary weights
             name: rollouts-demo-vsvc
             routes:
-            - primary # At least one route is required
+            - primary # optional if there is a single route in VirtualService, required otherwise
 ...
 ```
 

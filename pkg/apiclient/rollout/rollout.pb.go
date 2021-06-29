@@ -559,6 +559,7 @@ func (m *RolloutWatchEvent) GetRolloutInfo() *RolloutInfo {
 
 type NamespaceInfo struct {
 	Namespace            string   `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	AvailableNamespaces  []string `protobuf:"bytes,2,rep,name=availableNamespaces,proto3" json:"availableNamespaces,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -602,6 +603,13 @@ func (m *NamespaceInfo) GetNamespace() string {
 		return m.Namespace
 	}
 	return ""
+}
+
+func (m *NamespaceInfo) GetAvailableNamespaces() []string {
+	if m != nil {
+		return m.AvailableNamespaces
+	}
+	return nil
 }
 
 type RolloutInfoList struct {
@@ -2538,6 +2546,15 @@ func (m *NamespaceInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if len(m.AvailableNamespaces) > 0 {
+		for iNdEx := len(m.AvailableNamespaces) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.AvailableNamespaces[iNdEx])
+			copy(dAtA[i:], m.AvailableNamespaces[iNdEx])
+			i = encodeVarintRollout(dAtA, i, uint64(len(m.AvailableNamespaces[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
+	}
 	if len(m.Namespace) > 0 {
 		i -= len(m.Namespace)
 		copy(dAtA[i:], m.Namespace)
@@ -3533,6 +3550,12 @@ func (m *NamespaceInfo) Size() (n int) {
 	l = len(m.Namespace)
 	if l > 0 {
 		n += 1 + l + sovRollout(uint64(l))
+	}
+	if len(m.AvailableNamespaces) > 0 {
+		for _, s := range m.AvailableNamespaces {
+			l = len(s)
+			n += 1 + l + sovRollout(uint64(l))
+		}
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -5107,6 +5130,38 @@ func (m *NamespaceInfo) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Namespace = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AvailableNamespaces", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AvailableNamespaces = append(m.AvailableNamespaces, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
