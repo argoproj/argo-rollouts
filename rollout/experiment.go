@@ -62,7 +62,6 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			Name:     templateStep.Name,
 			Replicas: templateStep.Replicas,
 		}
-
 		templateRS := &appsv1.ReplicaSet{}
 		switch templateStep.SpecRef {
 		case v1alpha1.CanarySpecRef:

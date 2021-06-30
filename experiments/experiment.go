@@ -175,11 +175,12 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			if err != nil {
 				ec.log.Warnf(err.Error())
 			} else if remainingTime != nil {
+				ec.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
 				if *remainingTime < ec.resyncPeriod {
-					ec.enqueueExperimentAfter(ec.ex, *remainingTime)
+					ec.enqueueExperimentAfter(ec.enqueueExperimentAfter, *remainingTime)
 				}
+				desiredReplicaCount = experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
 			}
-			desiredReplicaCount = defaults.GetReplicasOrDefault(template.Replicas)
 		}
 		_, _, err := ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
 		if err != nil {

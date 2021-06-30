@@ -74,8 +74,8 @@ func TestSetExperimentToPending(t *testing.T) {
 	defer f.Close()
 
 	rs := templateToRS(e, templates[0], 0)
-
-	f.expectCreateReplicaSetAction(rs)
+	f.expectCreateReplicaSetAction(rs) // Create RS with 0 replicas
+	f.expectUpdateReplicaSetAction(rs) // Scale RS
 	f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(0)
@@ -90,6 +90,7 @@ func TestSetExperimentToPending(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
+// TODO: why isn't scaleDownDelay being respected? RSs scale down immediately
 // TestAddScaleDownDelayToRS verifies that we add a scale down delay to the ReplicaSet after experiment completes
 func TestAddScaleDownDelayToRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
@@ -108,15 +109,24 @@ func TestAddScaleDownDelayToRS(t *testing.T) {
 	f := newFixture(t, e, rs1, rs2)
 	defer f.Close()
 
+
 	f.expectPatchExperimentAction(e)
 	patchRs1Index := f.expectPatchReplicaSetAction(rs1) // Add scaleDownDelaySeconds
 	f.expectGetReplicaSetAction(rs1)                    // Get RS after patch to modify updated version
+	updatedRs1Index := f.expectUpdateReplicaSetAction(rs1)
 	patchRs2Index := f.expectPatchReplicaSetAction(rs2) // Add scaleDownDelaySeconds
 	f.expectGetReplicaSetAction(rs2)                    // Get RS after patch to modify updated version
+	updatedRs2Index := f.expectUpdateReplicaSetAction(rs1)
 	f.run(getKey(e, t))
 
-	f.verifyPatchedReplicaSet(patchRs1Index, 30)
-	f.verifyPatchedReplicaSet(patchRs2Index, 30)
+	f.verifyPatchedReplicaSetScaleDownDelayAnnotation(patchRs1Index, 30)
+	f.verifyPatchedReplicaSetScaleDownDelayAnnotation(patchRs2Index, 30)
+
+	updatedRS1 := f.getUpdatedReplicaSet(updatedRs1Index)
+	updatedRS2 := f.getUpdatedReplicaSet(updatedRs2Index)
+
+	assert.Empty(t, updatedRS1)
+	assert.Empty(t, updatedRS2)
 }
 
 // TestScaleDownRSAfterFinish verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down

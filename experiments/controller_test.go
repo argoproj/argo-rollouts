@@ -629,7 +629,7 @@ func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
+func (f *fixture) verifyPatchedReplicaSetScaleDownDelayAnnotation(index int, scaleDownDelaySeconds int32) {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
@@ -847,8 +847,10 @@ func TestRemoveInvalidSpec(t *testing.T) {
 	f := newFixture(t, e)
 	defer f.Close()
 
-	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
+	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0)) // Create RS with 0 replicas
+	f.expectUpdateReplicaSetAction(templateToRS(e, templates[0], 1)) // Scale RS
 	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
+	f.expectUpdateReplicaSetAction(templateToRS(e, templates[1], 1))
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(patchIndex)

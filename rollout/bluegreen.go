@@ -242,18 +242,20 @@ func (c *rolloutContext) ScaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 		annotationedRSs++
 		if annotationedRSs > scaleDownRevisionLimit {
 			c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
+		} else {
+			remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
+			if err != nil {
+				c.log.Warnf(err.Error())
+			} else if remainingTime != nil {
+				c.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
+				if *remainingTime < c.resyncPeriod {
+					c.enqueueRolloutAfter(c.rollout, *remainingTime)
+				}
+				desiredReplicaCount = rolloutReplicas
+			}
 		}
 	}
-	remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
-	if err != nil {
-		c.log.Warnf(err.Error())
-	} else if remainingTime != nil {
-		c.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
-		if *remainingTime < c.resyncPeriod {
-			c.enqueueRolloutAfter(c.rollout, *remainingTime)
-		}
-		desiredReplicaCount = rolloutReplicas
-	}
+
 	return annotationedRSs, desiredReplicaCount
 }
 
