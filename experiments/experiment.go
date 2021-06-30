@@ -128,27 +128,27 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	// Create ReplicaSet
 	rs := ec.templateRSs[template.Name]
 	if rs == nil {
-		newRS := ec.createReplicaSetForTemplate(template.DeepCopy(), templateStatus, rs, logCtx, now)
-		if newRS != nil {
-			rs = newRS
-		}
+		rs = ec.createReplicaSetForTemplate(template.DeepCopy(), templateStatus, logCtx, now)
 	}
 
-	// Verify RS created properly before creating service and scaling replicas
+	// verify RS created properly before creating service and scaling replicas
 	if rs != nil {
-		// Create Service for template
 		if template.Service != nil {
+			// create service for template if service field is set
 			ec.createTemplateService(&template, templateStatus, desiredReplicaCount, rs)
 		} else {
-			// If service field not set, then delete template service if exists
-			// Code should not enter this path
+			// if service field not set, then delete template service if exists
+			// code should not enter this path
 			svc := ec.templateServices[template.Name]
 			ec.deleteTemplateService(svc, templateStatus, template.Name)
 		}
 
-		// Add scaleDownDelaySeconds if replicas will be scaled down
+		// add scaleDownDelaySeconds if replicas will be scaled down
 		if desiredReplicaCount == 0 {
-			rs = ec.addScaleDownDelayToTemplateRS(rs, template.Name)
+			modifiedRS := ec.addScaleDownDelayToTemplateRS(rs, template.Name)
+			if modifiedRS != nil {
+				rs = modifiedRS
+			}
 		}
 
 		// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
@@ -243,7 +243,7 @@ func (ec *experimentContext) addScaleDownDelayToTemplateRS(rs *appsv1.ReplicaSet
 			}
 		}
 	}
-	return rs
+	return nil
 }
 
 func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, templateStatus *v1alpha1.TemplateStatus, desiredReplicaCount int32, experimentReplicas int32) {
@@ -293,21 +293,19 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 	}
 }
 
-func (ec *experimentContext) createReplicaSetForTemplate(template *v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, rs *appsv1.ReplicaSet, logCtx *log.Entry, now metav1.Time) *appsv1.ReplicaSet {
-	if rs == nil {
-		template.Replicas = pointer.Int32Ptr(0)
-		newRS, err := ec.createReplicaSet(*template, templateStatus.CollisionCount)
-		if err != nil {
-			logCtx.Warnf("Failed to create ReplicaSet: %v", err)
-			if !k8serrors.IsAlreadyExists(err) {
-				templateStatus.Status = v1alpha1.TemplateStatusError
-				templateStatus.Message = fmt.Sprintf("Failed to create ReplicaSet for template '%s': %v", template.Name, err)
-			}
+func (ec *experimentContext) createReplicaSetForTemplate(template *v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, logCtx *log.Entry, now metav1.Time) *appsv1.ReplicaSet {
+	template.Replicas = pointer.Int32Ptr(0)
+	newRS, err := ec.createReplicaSet(*template, templateStatus.CollisionCount)
+	if err != nil {
+		logCtx.Warnf("Failed to create ReplicaSet: %v", err)
+		if !k8serrors.IsAlreadyExists(err) {
+			templateStatus.Status = v1alpha1.TemplateStatusError
+			templateStatus.Message = fmt.Sprintf("Failed to create ReplicaSet for template '%s': %v", template.Name, err)
 		}
-		if newRS != nil {
-			ec.templateRSs[template.Name] = newRS
-			templateStatus.LastTransitionTime = &now
-		}
+	}
+	if newRS != nil {
+		ec.templateRSs[template.Name] = newRS
+		templateStatus.LastTransitionTime = &now
 		return newRS
 	}
 	return nil
