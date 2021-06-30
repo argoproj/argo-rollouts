@@ -938,9 +938,6 @@ message RolloutExperimentTemplate {
   // use the same selector as the Rollout
   // +optional
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 5;
-
-  // Weight sets the percentage of traffic the template's replicas should receive
-  optional int32 weight = 6;
 }
 
 // RolloutList is a list of Rollout resources
