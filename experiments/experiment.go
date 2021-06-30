@@ -134,39 +134,40 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		}
 	}
 
-	// Create Service for template
-	// Use same Name and rollout-pod-template-hash as ReplicaSet
-	if template.Service != nil {
-		ec.createTemplateService(&template, templateStatus, desiredReplicaCount, rs)
-	} else {
-		// If service field not set, then delete template service if exists
-		// Code should not enter this path
-		svc := ec.templateServices[template.Name]
-		ec.deleteTemplateService(svc, templateStatus, template.Name)
-	}
+	// Verify RS created properly before creating service and scaling replicas
+	if rs != nil {
+		// Create Service for template
+		if template.Service != nil {
+			ec.createTemplateService(&template, templateStatus, desiredReplicaCount, rs)
+		} else {
+			// If service field not set, then delete template service if exists
+			// Code should not enter this path
+			svc := ec.templateServices[template.Name]
+			ec.deleteTemplateService(svc, templateStatus, template.Name)
+		}
 
-	// Add scaleDownDelaySeconds if replicas will be scaled down
-	if desiredReplicaCount == 0 {
-		ec.addScaleDownDelayToTemplateRS(rs, template.Name)
-	}
+		// Add scaleDownDelaySeconds if replicas will be scaled down
+		if desiredReplicaCount == 0 {
+			rs = ec.addScaleDownDelayToTemplateRS(rs, template.Name)
+		}
 
-	// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
-	if *rs.Spec.Replicas != desiredReplicaCount {
-		experimentReplicas := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
-		ec.scaleTemplateRS(rs, templateStatus, desiredReplicaCount, experimentReplicas)
-		templateStatus.LastTransitionTime = &now
-	}
+		// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
+		if *rs.Spec.Replicas != desiredReplicaCount {
+			experimentReplicas := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
+			ec.scaleTemplateRS(rs, templateStatus, desiredReplicaCount, experimentReplicas)
+			templateStatus.LastTransitionTime = &now
+		}
 
-	if rs == nil {
-		templateStatus.Replicas = 0
-		templateStatus.UpdatedReplicas = 0
-		templateStatus.ReadyReplicas = 0
-		templateStatus.AvailableReplicas = 0
-	} else {
 		templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
+
+	} else {
+		templateStatus.Replicas = 0
+		templateStatus.UpdatedReplicas = 0
+		templateStatus.ReadyReplicas = 0
+		templateStatus.AvailableReplicas = 0
 	}
 
 	if prevStatus.Replicas != templateStatus.Replicas ||
@@ -226,7 +227,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
 }
 
-func (ec *experimentContext) addScaleDownDelayToTemplateRS(rs *appsv1.ReplicaSet, templateName string) {
+func (ec *experimentContext) addScaleDownDelayToTemplateRS(rs *appsv1.ReplicaSet, templateName string) *appsv1.ReplicaSet {
 	rsIsUpdated, err := ec.addScaleDownDelay(rs)
 	if err != nil {
 		ec.log.Warnf("Unable to add scaleDownDelay label on rs '%s'", rs.Name)
@@ -237,11 +238,12 @@ func (ec *experimentContext) addScaleDownDelayToTemplateRS(rs *appsv1.ReplicaSet
 			if err != nil {
 				ec.log.Warnf("Unable to get rs '%s' with added scaleDownDelay", rs.Name)
 			} else {
-				rs = modifiedRS
 				ec.templateRSs[templateName] = modifiedRS
+				return modifiedRS
 			}
 		}
 	}
+	return rs
 }
 
 func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, templateStatus *v1alpha1.TemplateStatus, desiredReplicaCount int32, experimentReplicas int32) {
