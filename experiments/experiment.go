@@ -145,53 +145,15 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		ec.deleteTemplateService(svc, templateStatus, template.Name)
 	}
 
-	// TODO: put in helper
+	// Add scaleDownDelaySeconds if replicas will be scaled down
 	if desiredReplicaCount == 0 {
-		// Add scaleDownDelay if necessary
-		rsIsUpdated, err := ec.addScaleDownDelay(rs)
-		if err != nil {
-			ec.log.Warnf("Unable to add scaleDownDelay label on rs '%s'", rs.Name)
-		} else {
-			if rsIsUpdated {
-				ctx := context.TODO()
-				modifiedRS, err := ec.kubeclientset.AppsV1().ReplicaSets(ec.ex.Namespace).Get(ctx, rs.Name, metav1.GetOptions{})
-				if err != nil {
-					ec.log.Warnf("Unable to get rs '%s' with added scaleDownDelay", rs.Name)
-				} else {
-					rs = modifiedRS
-					ec.templateRSs[template.Name] = modifiedRS
-				}
-			}
-		}
-
+		ec.addScaleDownDelayToTemplateRS(rs, template.Name)
 	}
 
-	// TODO: put in helper
 	// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
 	if *rs.Spec.Replicas != desiredReplicaCount {
-		if desiredReplicaCount == 0 {
-			// Add delay before scaling
-			remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
-			if err != nil {
-				ec.log.Warnf(err.Error())
-			} else if remainingTime != nil {
-				ec.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
-				if *remainingTime < ec.resyncPeriod {
-					ec.enqueueExperimentAfter(ec.enqueueExperimentAfter, *remainingTime)
-				}
-				desiredReplicaCount = experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
-			}
-		}
-		_, _, err := ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
-		if err != nil {
-			templateStatus.Status = v1alpha1.TemplateStatusError
-			templateStatus.Message = fmt.Sprintf("Unable to scale down ReplicaSet for template '%s': %v", template.Name, err)
-		} else {
-			if desiredReplicaCount == 0 && &template.Service != nil {
-				svc := ec.templateServices[template.Name]
-				ec.deleteTemplateService(svc, templateStatus, template.Name)
-			}
-		}
+		experimentReplicas := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
+		ec.scaleTemplateRS(rs, templateStatus, desiredReplicaCount, experimentReplicas)
 		templateStatus.LastTransitionTime = &now
 	}
 
@@ -262,6 +224,50 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		ec.recorder.Eventf(ec.ex, record.EventOptions{EventType: eventType, EventReason: "Template" + string(templateStatus.Status)}, msg)
 	}
 	experimentutil.SetTemplateStatus(ec.newStatus, *templateStatus)
+}
+
+func (ec *experimentContext) addScaleDownDelayToTemplateRS(rs *appsv1.ReplicaSet, templateName string) {
+	rsIsUpdated, err := ec.addScaleDownDelay(rs)
+	if err != nil {
+		ec.log.Warnf("Unable to add scaleDownDelay label on rs '%s'", rs.Name)
+	} else {
+		if rsIsUpdated {
+			ctx := context.TODO()
+			modifiedRS, err := ec.kubeclientset.AppsV1().ReplicaSets(ec.ex.Namespace).Get(ctx, rs.Name, metav1.GetOptions{})
+			if err != nil {
+				ec.log.Warnf("Unable to get rs '%s' with added scaleDownDelay", rs.Name)
+			} else {
+				rs = modifiedRS
+				ec.templateRSs[templateName] = modifiedRS
+			}
+		}
+	}
+}
+
+func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, templateStatus *v1alpha1.TemplateStatus, desiredReplicaCount int32, experimentReplicas int32) {
+	if desiredReplicaCount == 0 {
+		// Add delay before scaling
+		remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
+		if err != nil {
+			ec.log.Warnf(err.Error())
+		} else if remainingTime != nil {
+			ec.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
+			if *remainingTime < ec.resyncPeriod {
+				ec.enqueueExperimentAfter(ec.enqueueExperimentAfter, *remainingTime)
+			}
+			desiredReplicaCount = experimentReplicas
+		}
+	}
+	_, _, err := ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
+	if err != nil {
+		templateStatus.Status = v1alpha1.TemplateStatusError
+		templateStatus.Message = fmt.Sprintf("Unable to scale down ReplicaSet for template '%s': %v", templateStatus.Name, err)
+	} else {
+		if desiredReplicaCount == 0 && templateStatus.ServiceName != "" {
+			svc := ec.templateServices[templateStatus.Name]
+			ec.deleteTemplateService(svc, templateStatus, templateStatus.Name)
+		}
+	}
 }
 
 // createServiceTemplate creates service for given experiment template

@@ -848,7 +848,7 @@ func TestRemoveInvalidSpec(t *testing.T) {
 	defer f.Close()
 
 	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0)) // Create RS with 0 replicas
-	f.expectUpdateReplicaSetAction(templateToRS(e, templates[0], 1)) // Scale RS
+	f.expectUpdateReplicaSetAction(templateToRS(e, templates[0], 1))                       // Scale RS
 	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
 	f.expectUpdateReplicaSetAction(templateToRS(e, templates[1], 1))
 	patchIndex := f.expectPatchExperimentAction(e)

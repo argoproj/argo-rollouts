@@ -7445,8 +7445,6 @@ spec:
               templates:
                 items:
                   properties:
-                    createService:
-                      type: boolean
                     minReadySeconds:
                       format: int32
                       type: integer
@@ -7477,6 +7475,8 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                      type: object
+                    service:
                       type: object
                     template:
                       properties:

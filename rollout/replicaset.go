@@ -192,4 +192,3 @@ func (c *rolloutContext) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet) (
 	}
 	return oldRSs, totalScaledDown, nil
 }
-
