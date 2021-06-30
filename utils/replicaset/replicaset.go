@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -560,6 +561,23 @@ func HasScaleDownDeadline(rs *appsv1.ReplicaSet) bool {
 		return false
 	}
 	return rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] != ""
+}
+
+func GetTimeRemainingBeforeScaleDownDeadline(rs *appsv1.ReplicaSet) (*time.Duration, error) {
+	if HasScaleDownDeadline(rs) {
+		scaleDownAtStr := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+		scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read scaleDownAt label on rs '%s'", rs.Name)
+		}
+		now := metav1.Now()
+		scaleDownAt := metav1.NewTime(scaleDownAtTime)
+		if scaleDownAt.After(now.Time) {
+			remainingTime := scaleDownAt.Sub(now.Time)
+			return &remainingTime, nil
+		}
+	}
+	return nil, nil
 }
 
 // GetPodsOwnedByReplicaSet returns a list of pods owned by the given replicaset

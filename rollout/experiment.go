@@ -59,11 +59,8 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	for i := range step.Templates {
 		templateStep := step.Templates[i]
 		template := v1alpha1.TemplateSpec{
-			Name:          templateStep.Name,
-			Replicas:      templateStep.Replicas,
-		}
-		if templateStep.Weight != nil {
-			template.Service = &v1alpha1.TemplateService{}
+			Name:     templateStep.Name,
+			Replicas: templateStep.Replicas,
 		}
 
 		templateRS := &appsv1.ReplicaSet{}

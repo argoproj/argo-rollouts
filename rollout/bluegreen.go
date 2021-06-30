@@ -1,10 +1,8 @@
 package rollout
 
 import (
-	"github.com/argoproj/argo-rollouts/utils/scaledown"
 	"math"
 	"sort"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -219,37 +217,9 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 			continue
 		}
 
-		desiredReplicaCount := int32(0)
-		var remainingTime *time.Duration
-		scaleDownRevisionLimit := GetScaleDownRevisionLimit(c.rollout)
-		annotationedRSs, remainingTime = scaledown.ScaleDownOldReplicaSetHelper(targetRS, annotationedRSs, scaleDownRevisionLimit)
-		if remainingTime != nil {
-			if *remainingTime < c.resyncPeriod {
-				c.enqueueRolloutAfter(c.rollout, *remainingTime)
-			}
-			desiredReplicaCount = rolloutReplicas
-		}
-		//if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
-		//	annotationedRSs++
-		//	scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
-		//	scaleDownRevisionLimit := GetScaleDownRevisionLimit(c.rollout)
-		//	if err != nil {
-		//		c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", targetRS.Name)
-		//	} else if annotationedRSs > scaleDownRevisionLimit {
-		//		c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
-		//	} else {
-		//		now := metav1.Now()
-		//		scaleDownAt := metav1.NewTime(scaleDownAtTime)
-		//		if scaleDownAt.After(now.Time) {
-		//			c.log.Infof("RS '%s' has not reached the scaleDownTime", targetRS.Name)
-		//			remainingTime := scaleDownAt.Sub(now.Time)
-		//			if remainingTime < c.resyncPeriod {
-		//				c.enqueueRolloutAfter(c.rollout, remainingTime)
-		//			}
-		//			desiredReplicaCount = rolloutReplicas
-		//		}
-		//	}
-		//}
+		var desiredReplicaCount int32
+		annotationedRSs, desiredReplicaCount = c.ScaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
+
 		if *(targetRS.Spec.Replicas) == desiredReplicaCount {
 			// at desired account
 			continue
@@ -263,6 +233,28 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 	}
 
 	return hasScaled, nil
+}
+
+func (c *rolloutContext) ScaleDownDelayHelper(rs *appsv1.ReplicaSet, annotationedRSs int32, rolloutReplicas int32) (int32, int32) {
+	desiredReplicaCount := int32(0)
+	scaleDownRevisionLimit := GetScaleDownRevisionLimit(c.rollout)
+	if replicasetutil.HasScaleDownDeadline(rs) {
+		annotationedRSs++
+		if annotationedRSs > scaleDownRevisionLimit {
+			c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
+		}
+	}
+	remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
+	if err != nil {
+		c.log.Warnf(err.Error())
+	} else if remainingTime != nil {
+		c.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
+		if *remainingTime < c.resyncPeriod {
+			c.enqueueRolloutAfter(c.rollout, *remainingTime)
+		}
+		desiredReplicaCount = rolloutReplicas
+	}
+	return annotationedRSs, desiredReplicaCount
 }
 
 func GetScaleDownRevisionLimit(ro *v1alpha1.Rollout) int32 {

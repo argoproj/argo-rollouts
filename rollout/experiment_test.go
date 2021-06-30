@@ -787,8 +787,8 @@ func TestRolloutCreateExperimentWithService(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, "stable-template", ex.Spec.Templates[0].Name)
-	assert.Equal(t, true, ex.Spec.Templates[0].CreateService)
+	assert.Equal(t, nil, ex.Spec.Templates[0].Service)
 
 	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Name)
-	assert.Equal(t, false, ex.Spec.Templates[1].CreateService)
+	assert.Equal(t, nil, ex.Spec.Templates[1].Service)
 }

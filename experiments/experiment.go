@@ -3,11 +3,7 @@ package experiments
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/scaledown"
-	"k8s.io/utils/pointer"
 	"time"
-
-	v1 "k8s.io/client-go/listers/core/v1"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,6 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
+	v1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
@@ -127,17 +125,18 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	desiredReplicaCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
 	now := metav1.Now()
 
+	// Create ReplicaSet
 	rs := ec.templateRSs[template.Name]
+	if rs == nil {
+		newRS := ec.createReplicaSetForTemplate(template.DeepCopy(), templateStatus, rs, logCtx, now)
+		if newRS != nil {
+			rs = newRS
+		}
+	}
 
 	// Create Service for template
 	// Use same Name and rollout-pod-template-hash as ReplicaSet
 	if template.Service != nil {
-		if rs == nil {
-			newRS := ec.createReplicaSetForTemplate(template.DeepCopy(), templateStatus, rs, logCtx, now)
-			if newRS != nil {
-				rs = newRS
-			}
-		}
 		ec.createTemplateService(&template, templateStatus, desiredReplicaCount, rs)
 	} else {
 		// If service field not set, then delete template service if exists
@@ -146,24 +145,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		ec.deleteTemplateService(svc, templateStatus, template.Name)
 	}
 
-	//if rs == nil {
-	//	// Create the ReplicaSet if necessary
-	//	if desiredReplicaCount > 0 {
-	//		newRS, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
-	//		if err != nil {
-	//			logCtx.Warnf("Failed to create ReplicaSet: %v", err)
-	//			if !k8serrors.IsAlreadyExists(err) {
-	//				templateStatus.Status = v1alpha1.TemplateStatusError
-	//				templateStatus.Message = fmt.Sprintf("Failed to create ReplicaSet for template '%s': %v", template.Name, err)
-	//			}
-	//		}
-	//		if newRS != nil {
-	//			ec.templateRSs[template.Name] = newRS
-	//			templateStatus.LastTransitionTime = &now
-	//			rs = newRS
-	//		}
-	//	}
-	//} else {
+	// TODO: put in helper
 	if desiredReplicaCount == 0 {
 		// Add scaleDownDelay if necessary
 		rsIsUpdated, err := ec.addScaleDownDelay(rs)
@@ -183,33 +165,21 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		}
 
 	}
+
+	// TODO: put in helper
 	// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
 	if *rs.Spec.Replicas != desiredReplicaCount {
 		if desiredReplicaCount == 0 {
 			// Add delay before scaling
-			_, remainingTime := scaledown.ScaleDownOldReplicaSetHelper(rs, 0, 0)
-			if remainingTime != nil {
+			remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
+			if err != nil {
+				ec.log.Warnf(err.Error())
+			} else if remainingTime != nil {
 				if *remainingTime < ec.resyncPeriod {
 					ec.enqueueExperimentAfter(ec.ex, *remainingTime)
 				}
-				desiredReplicaCount = defaults.GetReplicasOrDefault(template.Replicas)
 			}
-			//if scaleDownAtStr, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
-			//	scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
-			//	if err != nil {
-			//		ec.log.Warnf("Unable to read scaleDownAt label on rs '%s'", rs.Name)
-			//	}
-			//	now := metav1.Now()
-			//	scaleDownAt := metav1.NewTime(scaleDownAtTime)
-			//	if scaleDownAt.After(now.Time) {
-			//		ec.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
-			//		remainingTime := scaleDownAt.Sub(now.Time)
-			//		if remainingTime < ec.resyncPeriod {
-			//			ec.enqueueExperimentAfter(ec.ex, remainingTime)
-			//		}
-			//		desiredReplicaCount = defaults.GetReplicasOrDefault(template.Replicas)
-			//	}
-			//}
+			desiredReplicaCount = defaults.GetReplicasOrDefault(template.Replicas)
 		}
 		_, _, err := ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
 		if err != nil {

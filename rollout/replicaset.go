@@ -192,3 +192,12 @@ func (c *rolloutContext) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet) (
 	}
 	return oldRSs, totalScaledDown, nil
 }
+
+//func checkScaleDownRevisionLimit(rs *v1.ReplicaSet, annotationedRSs int32, scaleDownRevisionLimit int32) {
+//	if _, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+//		annotationedRSs++
+//		if annotationedRSs > scaleDownRevisionLimit {
+//			c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
+//		}
+//	}
+//}
