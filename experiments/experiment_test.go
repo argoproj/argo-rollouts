@@ -372,29 +372,24 @@ func TestFailReplicaSetCreation(t *testing.T) {
 	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseError)
 }
 
-// TestServiceCreationForTemplate verifies that a service is created for an experiment template if field Service is not nil
-//func TestServiceCreationForTemplate(t *testing.T) {
-//	templates := generateTemplates("bar")
-//	templates[0].Service = &v1alpha1.TemplateService{}
-//	ex := newExperiment("foo", templates, "")
-//
-//	rs1 := templateToRS(ex, templates[0], 0)
-//	//s1 := templateToService(ex, templates[0], *rs1)
-//
-//	f := newFixture(t, ex, rs1, s1)
-//	defer f.Close()
-//
-//	f.expectCreateServiceAction(s1)
-//	i := f.expectPatchExperimentAction(ex)
-//
-//	f.run(getKey(ex, t))
-//
-//	patch := f.getPatchedExperiment(i)
-//
-//	// Verify Experiment TemplateStatus contains reference to new service
-//	expected := fmt.Sprintf("\"serviceName\":\"%s\"", s1.Name)
-//	assert.Contains(t, patch, expected)
-//}
+func TestFailServiceCreation(t *testing.T) {
+	templates := generateTemplates("bad")
+	templates[0].Service = &v1alpha1.TemplateService{}
+	e := newExperiment("foo", templates, "")
+
+	exCtx := newTestContext(e)
+	rs := templateToRS(e, templates[0], 0)
+	exCtx.templateRSs[templates[0].Name] = rs
+
+	fakeClient := exCtx.kubeclientset.(*k8sfake.Clientset)
+	fakeClient.PrependReactor("create", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New("intentional error")
+	})
+	newStatus := exCtx.reconcile()
+	assert.Equal(t, v1alpha1.TemplateStatusError, newStatus.TemplateStatuses[0].Status)
+	assert.Contains(t, newStatus.TemplateStatuses[0].Message, "Failed to create Service for template 'bad'")
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, newStatus.Phase)
+}
 
 // TestDeleteOutdatedService verifies that outdated service for Template in templateServices map is deleted and new service is created
 func TestDeleteOutdatedService(t *testing.T) {
@@ -428,35 +423,6 @@ func TestDeleteOutdatedService(t *testing.T) {
 }
 
 func TestDeleteServiceIfServiceFieldNil(t *testing.T) {
-	templates := generateTemplates("bar")
-	templates[0].Replicas = pointer.Int32Ptr(0)
-	ex := newExperiment("foo", templates, "")
-	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
-	}
-
-	svcToDelete := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "service-to-delete"}}
-	ex.Status.TemplateStatuses[0].ServiceName = svcToDelete.Name
-
-	exCtx := newTestContext(ex)
-
-	rs := templateToRS(ex, templates[0], 0)
-
-	exCtx.templateRSs = map[string]*appsv1.ReplicaSet{
-		"bar": rs,
-	}
-
-	exCtx.templateServices = map[string]*corev1.Service{
-		"bar": svcToDelete,
-	}
-
-	exStatus := exCtx.reconcile()
-
-	assert.Equal(t, "", exStatus.TemplateStatuses[0].ServiceName)
-	assert.Nil(t, exCtx.templateServices["bar"])
-}
-
-func TestDeleteServiceIfCreateServiceIsFalse(t *testing.T) {
 	templates := generateTemplates("bar")
 	templates[0].Replicas = pointer.Int32Ptr(0)
 	ex := newExperiment("foo", templates, "")
