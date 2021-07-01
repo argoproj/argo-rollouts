@@ -136,10 +136,12 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	} else {
 		if template.Service != nil {
 			// Create service for template if service field is set
-			ec.createTemplateService(&template, templateStatus, desiredReplicaCount, rs)
+			if desiredReplicaCount != 0 {
+				ec.createTemplateService(&template, templateStatus, rs)
+			}
 		} else {
 			// If service field nil but service exists, then delete it
-			// code should not enter this path
+			// Code should not enter this path
 			svc := ec.templateServices[template.Name]
 			ec.deleteTemplateService(svc, templateStatus, template.Name)
 		}
@@ -276,14 +278,11 @@ func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, templateStat
 }
 
 // createServiceTemplate creates service for given experiment template
-func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, desiredReplicaCount int32, rs *appsv1.ReplicaSet) {
+func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, rs *appsv1.ReplicaSet) {
 	// Create service with has same name, podTemplateHash, and labels as RS
 	podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	svc := ec.templateServices[template.Name]
-	if desiredReplicaCount == 0 {
-		ec.deleteTemplateService(svc, templateStatus, template.Name)
-		return
-	} else if svc == nil || svc.Name != rs.Name {
+	if svc == nil || svc.Name != rs.Name {
 		newService, err := ec.CreateService(rs.Name, *template, rs.Labels)
 		if err != nil {
 			templateStatus.Status = v1alpha1.TemplateStatusError
