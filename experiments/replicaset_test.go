@@ -45,7 +45,6 @@ func TestCreateMultipleRS(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
-
 func TestCreateMissingRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")
