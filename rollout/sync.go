@@ -697,6 +697,8 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 		if workloadRefObservation != int32(currentWorkloadObservedGeneration) {
 			newStatus.WorkloadObservedGeneration = strconv.Itoa(int(workloadRefObservation))
 		}
+	} else {
+		newStatus.WorkloadObservedGeneration = ""
 	}
 
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))

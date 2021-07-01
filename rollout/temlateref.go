@@ -25,7 +25,6 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -61,7 +60,6 @@ type informerBasedTemplateResolver struct {
 	discoClient            discovery.DiscoveryInterface
 	ctx                    context.Context
 	cancelContext          context.CancelFunc
-	rolloutWorkQueue       workqueue.Interface
 	rolloutsInformer       cache.SharedIndexInformer
 	argoprojclientset      clientset.Interface
 }
@@ -72,7 +70,6 @@ func NewInformerBasedWorkloadRefResolver(
 	dynamicClient dynamic.Interface,
 	discoClient discovery.DiscoveryInterface,
 	agrgoProjClientset clientset.Interface,
-	rolloutWorkQueue workqueue.Interface,
 	rolloutsInformer cache.SharedIndexInformer,
 ) *informerBasedTemplateResolver {
 	ctx, cancelContext := context.WithCancel(context.TODO())
@@ -97,7 +94,6 @@ func NewInformerBasedWorkloadRefResolver(
 		argoprojclientset:      agrgoProjClientset,
 		dynamicClient:          dynamicClient,
 		discoClient:            discoClient,
-		rolloutWorkQueue:       rolloutWorkQueue,
 		rolloutsInformer:       rolloutsInformer,
 	}
 }
@@ -178,11 +174,11 @@ func (r *informerBasedTemplateResolver) Resolve(rollout *v1alpha1.Rollout) error
 	}
 
 	// initialize rollout workload-generation annotation
-	roMeta, err := meta.Accessor(obj)
+	workloadMeta, err := meta.Accessor(obj)
 	if err != nil {
 		return err
 	}
-	generation := strconv.FormatInt(roMeta.GetGeneration(), 10)
+	generation := strconv.FormatInt(workloadMeta.GetGeneration(), 10)
 	annotations.SetRolloutWorkloadRefGeneration(rollout, generation)
 
 	return nil
@@ -213,52 +209,51 @@ func (r *informerBasedTemplateResolver) newInformerForGVK(gvk schema.GroupVersio
 		nil)
 	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			r.requeueReferencedRollouts(obj, gvk)
+			r.updateRolloutsReferenceAnnotation(obj, gvk)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			r.requeueReferencedRollouts(newObj, gvk)
+			r.updateRolloutsReferenceAnnotation(newObj, gvk)
 		},
 		DeleteFunc: func(obj interface{}) {
-			r.requeueReferencedRollouts(obj, gvk)
+			r.updateRolloutsReferenceAnnotation(obj, gvk)
 		},
 	})
 	return informer, nil
 
 }
 
-// requeueReferencedRollouts re-queues all rollouts referenced by given object
-func (r *informerBasedTemplateResolver) requeueReferencedRollouts(obj interface{}, gvk schema.GroupVersionKind) {
-	roMeta, err := meta.Accessor(obj)
-	if err != nil {
-		return
-	}
-	rollouts, err := r.rolloutsInformer.GetIndexer().ByIndex(templateRefIndexName, refKey(v1alpha1.ObjectRef{
-		Kind:       gvk.Kind,
-		APIVersion: gvk.GroupVersion().String(),
-		Name:       roMeta.GetName(),
-	}, roMeta.GetNamespace()))
+// updateRolloutsReferenceAnnotation update the annotation of all rollouts referenced by given object
+func (r *informerBasedTemplateResolver) updateRolloutsReferenceAnnotation(obj interface{}, gvk schema.GroupVersionKind) {
+	workloadMeta, err := meta.Accessor(obj)
 	if err != nil {
 		return
 	}
 
-	generation := strconv.FormatInt(roMeta.GetGeneration(), 10)
+	rollouts, err := r.rolloutsInformer.GetIndexer().ByIndex(templateRefIndexName, refKey(v1alpha1.ObjectRef{
+		Kind:       gvk.Kind,
+		APIVersion: gvk.GroupVersion().String(),
+		Name:       workloadMeta.GetName(),
+	}, workloadMeta.GetNamespace()))
+	if err != nil {
+		return
+	}
+
+	generation := strconv.FormatInt(workloadMeta.GetGeneration(), 10)
 	for _, ro := range rollouts {
 		un, ok := ro.(*unstructured.Unstructured)
 		if ok {
 			rollout := unstructuredutil.ObjectToRollout(un)
 			updated := annotations.SetRolloutWorkloadRefGeneration(rollout, generation)
-			rollout.Spec.Template.Spec.Containers = []corev1.Container{}
 			if updated {
+				rollout.Spec.Template.Spec.Containers = []corev1.Container{}
 				_, err := r.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(context.TODO(), rollout, v1.UpdateOptions{})
 				if err != nil {
 					log.Errorf("Cannot update the workload-ref/annotation for %s/%s", rollout.GetName(), rollout.GetNamespace())
 				}
 			}
 
-		}
-
-		if key, err := cache.MetaNamespaceKeyFunc(ro); err == nil {
-			r.rolloutWorkQueue.Add(key)
+		} else {
+			fmt.Println("DEBUG: ro is not Unstructured:", ro)
 		}
 	}
 }

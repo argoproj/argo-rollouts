@@ -407,7 +407,7 @@ spec:
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Degraded").
-		WaitForRolloutStatus("Healthy", time.Second*90)
+		WaitForRolloutStatus("Healthy")
 }
 
 // TestCanaryScaleDownDelay verifies canary uses a scaleDownDelay when traffic routing is used,
