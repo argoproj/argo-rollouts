@@ -91,31 +91,53 @@ func TestSetExperimentToPending(t *testing.T) {
 
 // TestAddScaleDownDelayToRS verifies that we add a scale down delay to the ReplicaSet after experiment completes
 func TestAddScaleDownDelayToRS(t *testing.T) {
-	templates := generateTemplates("bar", "baz")
+	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
 	e.Status.Conditions = append(e.Status.Conditions, *cond)
-	rs1 := templateToRS(e, templates[0], 1)
-	rs2 := templateToRS(e, templates[1], 1)
+	rs := templateToRS(e, templates[0], 1)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
-		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 	}
 
-	f := newFixture(t, e, rs1, rs2)
+	f := newFixture(t, e, rs)
 	defer f.Close()
 
 	f.expectPatchExperimentAction(e)
-	patchRs1Index := f.expectPatchReplicaSetAction(rs1) // Add scaleDownDelaySeconds
-	f.expectGetReplicaSetAction(rs1)                    // Get RS after patch to modify updated version
-	patchRs2Index := f.expectPatchReplicaSetAction(rs2) // Add scaleDownDelaySeconds
-	f.expectGetReplicaSetAction(rs2)                    // Get RS after patch to modify updated version
+	patchRs1Index := f.expectPatchReplicaSetAction(rs) // Add scaleDownDelaySeconds
+	f.expectGetReplicaSetAction(rs)                    // Get RS after patch to modify updated version
 	f.run(getKey(e, t))
 
-	f.verifyPatchedReplicaSetScaleDownDelayAnnotation(patchRs1Index, 30)
-	f.verifyPatchedReplicaSetScaleDownDelayAnnotation(patchRs2Index, 30)
+	f.verifyPatchedReplicaSetAddScaleDownDelay(patchRs1Index, 30)
+}
+
+// TestAddScaleDownDelayToRS verifies that we add a scale down delay to the ReplicaSet after experiment completes
+func TestRemoveScaleDownDelayFromRS(t *testing.T) {
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Status.AvailableAt = now()
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
+	e.Status.Conditions = append(e.Status.Conditions, *cond)
+	rs := templateToRS(e, templates[0], 1)
+	rs.ObjectMeta.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = metav1.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)
+	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
+	}
+
+	f := newFixture(t, e, rs)
+	defer f.Close()
+
+	f.expectPatchExperimentAction(e)
+	patchRs1Index := f.expectPatchReplicaSetAction(rs) // Remove scaleDownDelaySeconds
+	f.expectGetReplicaSetAction(rs)                    // Get RS after patch to modify updated version
+	f.expectUpdateReplicaSetAction(rs)
+	f.run(getKey(e, t))
+
+	f.verifyPatchedReplicaSetRemoveScaleDownDelayAnnotation(patchRs1Index)
 }
 
 // TestScaleDownRSAfterFinish verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down

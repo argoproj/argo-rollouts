@@ -629,7 +629,7 @@ func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) verifyPatchedReplicaSetScaleDownDelayAnnotation(index int, scaleDownDelaySeconds int32) {
+func (f *fixture) verifyPatchedReplicaSetAddScaleDownDelay(index int, scaleDownDelaySeconds int32) {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
@@ -637,6 +637,16 @@ func (f *fixture) verifyPatchedReplicaSetScaleDownDelayAnnotation(index int, sca
 	}
 	now := metav1.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
+	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
+}
+
+func (f *fixture) verifyPatchedReplicaSetRemoveScaleDownDelayAnnotation(index int) {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
 
