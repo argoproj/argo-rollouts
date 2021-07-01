@@ -5,14 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	appslisters "k8s.io/client-go/listers/apps/v1"
-	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -25,6 +17,14 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
+	log "github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	appslisters "k8s.io/client-go/listers/apps/v1"
+	v1 "k8s.io/client-go/listers/core/v1"
 )
 
 const (
@@ -125,14 +125,15 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	desiredReplicaCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
 	now := metav1.Now()
 
-	// Create ReplicaSet
 	rs := ec.templateRSs[template.Name]
-	if rs == nil {
-		rs = ec.createReplicaSetForTemplate(template.DeepCopy(), templateStatus, logCtx, now)
-	}
 
-	// verify RS created properly before creating service and scaling replicas
-	if rs != nil {
+	// Create ReplicaSet if does not exist
+	if rs == nil {
+		newRS := ec.createReplicaSetForTemplate(template.DeepCopy(), templateStatus, logCtx, now)
+		if newRS != nil {
+			rs = newRS
+		}
+	} else {
 		if template.Service != nil {
 			// create service for template if service field is set
 			ec.createTemplateService(&template, templateStatus, desiredReplicaCount, rs)
@@ -158,11 +159,13 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 			templateStatus.LastTransitionTime = &now
 		}
 
+	}
+
+	if rs == nil {
 		templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 		templateStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
-
 	} else {
 		templateStatus.Replicas = 0
 		templateStatus.UpdatedReplicas = 0
@@ -263,7 +266,7 @@ func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, templateStat
 	_, _, err := ec.scaleReplicaSetAndRecordEvent(rs, desiredReplicaCount)
 	if err != nil {
 		templateStatus.Status = v1alpha1.TemplateStatusError
-		templateStatus.Message = fmt.Sprintf("Unable to scale down ReplicaSet for template '%s': %v", templateStatus.Name, err)
+		templateStatus.Message = fmt.Sprintf("Unable to scale ReplicaSet for template '%s' to desired replica count '%v': %v", templateStatus.Name, desiredReplicaCount, err)
 	} else {
 		if desiredReplicaCount == 0 && templateStatus.ServiceName != "" {
 			svc := ec.templateServices[templateStatus.Name]
