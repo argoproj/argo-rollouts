@@ -268,7 +268,7 @@ release-docs: docs
 
 # convenience target to run `mkdocs serve` using a docker container
 .PHONY: serve-docs
-serve-docs: plugin-docs
+serve-docs: docs
 	docker run --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs squidfunk/mkdocs-material serve -a 0.0.0.0:8000
 
 .PHONY: release-precheck
