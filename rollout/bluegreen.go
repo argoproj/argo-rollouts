@@ -245,7 +245,7 @@ func (c *rolloutContext) ScaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 		} else {
 			remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
 			if err != nil {
-				c.log.Warnf(err.Error())
+				c.log.Warnf("%v", err)
 			} else if remainingTime != nil {
 				c.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
 				if *remainingTime < c.resyncPeriod {

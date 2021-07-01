@@ -154,7 +154,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 
 		// Replicaset exists. We ensure it is scaled properly based on termination, or changed replica count
 		if *rs.Spec.Replicas != desiredReplicaCount {
-			experimentReplicas := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
+			experimentReplicas := defaults.GetReplicasOrDefault(template.Replicas)
 			ec.scaleTemplateRS(rs, templateStatus, desiredReplicaCount, experimentReplicas)
 			templateStatus.LastTransitionTime = &now
 		}
@@ -254,11 +254,11 @@ func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, templateStat
 		// Add delay before scaling
 		remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
 		if err != nil {
-			ec.log.Warnf(err.Error())
+			ec.log.Warnf("%v", err)
 		} else if remainingTime != nil {
 			ec.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
 			if *remainingTime < ec.resyncPeriod {
-				ec.enqueueExperimentAfter(ec.enqueueExperimentAfter, *remainingTime)
+				ec.enqueueExperimentAfter(ec.ex, *remainingTime)
 			}
 			desiredReplicaCount = experimentReplicas
 		}
