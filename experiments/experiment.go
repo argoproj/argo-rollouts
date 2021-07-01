@@ -129,16 +129,16 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 
 	// Create ReplicaSet if does not exist
 	if rs == nil {
-		newRS := ec.createReplicaSetForTemplate(template.DeepCopy(), templateStatus, logCtx, now)
+		newRS := ec.createReplicaSetForTemplate(template, templateStatus, logCtx, now)
 		if newRS != nil {
 			rs = newRS
 		}
 	} else {
 		if template.Service != nil {
-			// create service for template if service field is set
+			// Create service for template if service field is set
 			ec.createTemplateService(&template, templateStatus, desiredReplicaCount, rs)
 		} else {
-			// if service field not set, then delete template service if exists
+			// If service field nil but service exists, then delete it
 			// code should not enter this path
 			svc := ec.templateServices[template.Name]
 			ec.deleteTemplateService(svc, templateStatus, template.Name)
@@ -162,15 +162,15 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	}
 
 	if rs == nil {
-		templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
-		templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
-		templateStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
-		templateStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
-	} else {
 		templateStatus.Replicas = 0
 		templateStatus.UpdatedReplicas = 0
 		templateStatus.ReadyReplicas = 0
 		templateStatus.AvailableReplicas = 0
+	} else {
+		templateStatus.Replicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
+		templateStatus.UpdatedReplicas = replicasetutil.GetActualReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
+		templateStatus.ReadyReplicas = replicasetutil.GetReadyReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
+		templateStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets([]*appsv1.ReplicaSet{rs})
 	}
 
 	if prevStatus.Replicas != templateStatus.Replicas ||
@@ -296,9 +296,9 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 	}
 }
 
-func (ec *experimentContext) createReplicaSetForTemplate(template *v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, logCtx *log.Entry, now metav1.Time) *appsv1.ReplicaSet {
+func (ec *experimentContext) createReplicaSetForTemplate(template v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, logCtx *log.Entry, now metav1.Time) *appsv1.ReplicaSet {
 	template.Replicas = pointer.Int32Ptr(0)
-	newRS, err := ec.createReplicaSet(*template, templateStatus.CollisionCount)
+	newRS, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
 	if err != nil {
 		logCtx.Warnf("Failed to create ReplicaSet: %v", err)
 		if !k8serrors.IsAlreadyExists(err) {
