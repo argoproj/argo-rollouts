@@ -391,6 +391,29 @@ func TestFailServiceCreation(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, newStatus.Phase)
 }
 
+func TestFailAddScaleDownDelay(t *testing.T) {
+	templates := generateTemplates("bar")
+	templates[0].Service = &v1alpha1.TemplateService{}
+	ex := newExperiment("foo", templates, "")
+	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusFailed, now()),
+	}
+	rs := templateToRS(ex, templates[0], 1)
+
+	exCtx := newTestContext(ex)
+	exCtx.templateRSs["bar"] = rs
+
+	fakeClient := exCtx.kubeclientset.(*k8sfake.Clientset)
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New("intentional error")
+	})
+	newStatus := exCtx.reconcile()
+	assert.Equal(t, v1alpha1.TemplateStatusError, newStatus.TemplateStatuses[0].Status)
+	assert.Contains(t, newStatus.TemplateStatuses[0].Message, "Unable to scale ReplicaSet for template 'bar' to desired replica count '0'")
+	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseError)
+}
+
 // TestDeleteOutdatedService verifies that outdated service for Template in templateServices map is deleted and new service is created
 func TestDeleteOutdatedService(t *testing.T) {
 	templates := generateTemplates("bar")
@@ -437,13 +460,9 @@ func TestDeleteServiceIfServiceFieldNil(t *testing.T) {
 
 	rs := templateToRS(ex, templates[0], 0)
 
-	exCtx.templateRSs = map[string]*appsv1.ReplicaSet{
-		"bar": rs,
-	}
+	exCtx.templateRSs["bar"] = rs
 
-	exCtx.templateServices = map[string]*corev1.Service{
-		"bar": svcToDelete,
-	}
+	exCtx.templateServices["bar"] = svcToDelete
 
 	exStatus := exCtx.reconcile()
 
