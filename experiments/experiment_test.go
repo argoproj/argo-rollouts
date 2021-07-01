@@ -143,31 +143,33 @@ func TestRemoveScaleDownDelayFromRS(t *testing.T) {
 // TestScaleDownRSAfterFinish verifies that ScaleDownDelaySeconds annotation is added to ReplicaSet that is to be scaled down
 func TestScaleDownRSAfterFinish(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
+	templates[0].Service = &v1alpha1.TemplateService{}
 
 	e := newExperiment("foo", templates, "")
+	rs1 := templateToRS(e, templates[0], 1)
+	rs2 := templateToRS(e, templates[1], 1)
+	s1 := templateToService(e, templates[0], *rs1)
+
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 		generateTemplatesStatus("baz", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 	}
+	e.Status.TemplateStatuses[0].ServiceName = s1.Name
 	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
 	e.Status.Conditions = append(e.Status.Conditions, *cond)
-	rs1 := templateToRS(e, templates[0], 1)
-	rs2 := templateToRS(e, templates[1], 1)
-	//svc := templateToService()
 
 	inThePast := metav1.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
 	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
 
-	f := newFixture(t, e, rs1, rs2)
+	f := newFixture(t, e, rs1, rs2, s1)
 	defer f.Close()
 
 	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
+	f.expectDeleteServiceAction(s1)
 	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
-	//f.expectDeleteServiceAction(svc)
-	//f.expectCreateServiceAction()
 	expPatchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
@@ -370,35 +372,29 @@ func TestFailReplicaSetCreation(t *testing.T) {
 	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseError)
 }
 
-// TestServiceCreationForTemplate verifies that a service is created for an experiment template if field CreateService is true
-func TestServiceCreationForTemplate(t *testing.T) {
-	templates := generateTemplates("bar", "baz")
-	templates[0].Service = &v1alpha1.TemplateService{}
-	templates[1].Service = nil
-	ex := newExperiment("foo", templates, "")
-
-	rs1 := templateToRS(ex, templates[0], 0)
-	rs2 := templateToRS(ex, templates[1], 0)
-
-	s1 := templateToService(ex, templates[0], *rs1)
-	// Verify service is not created for template without weight set
-	s2 := templateToService(ex, templates[1], *rs2)
-	assert.Nil(t, s2)
-
-	f := newFixture(t, ex, rs1, rs2, s1)
-	defer f.Close()
-
-	f.expectCreateServiceAction(s1)
-	i := f.expectPatchExperimentAction(ex)
-
-	f.run(getKey(ex, t))
-
-	patch := f.getPatchedExperiment(i)
-
-	// Verify Experiment TemplateStatus contains reference to new service
-	expected := fmt.Sprintf("\"serviceName\":\"%s\"", s1.Name)
-	assert.Contains(t, patch, expected)
-}
+// TestServiceCreationForTemplate verifies that a service is created for an experiment template if field Service is not nil
+//func TestServiceCreationForTemplate(t *testing.T) {
+//	templates := generateTemplates("bar")
+//	templates[0].Service = &v1alpha1.TemplateService{}
+//	ex := newExperiment("foo", templates, "")
+//
+//	rs1 := templateToRS(ex, templates[0], 0)
+//	//s1 := templateToService(ex, templates[0], *rs1)
+//
+//	f := newFixture(t, ex, rs1, s1)
+//	defer f.Close()
+//
+//	f.expectCreateServiceAction(s1)
+//	i := f.expectPatchExperimentAction(ex)
+//
+//	f.run(getKey(ex, t))
+//
+//	patch := f.getPatchedExperiment(i)
+//
+//	// Verify Experiment TemplateStatus contains reference to new service
+//	expected := fmt.Sprintf("\"serviceName\":\"%s\"", s1.Name)
+//	assert.Contains(t, patch, expected)
+//}
 
 // TestDeleteOutdatedService verifies that outdated service for Template in templateServices map is deleted and new service is created
 func TestDeleteOutdatedService(t *testing.T) {
