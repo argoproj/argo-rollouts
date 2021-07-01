@@ -19,18 +19,16 @@ func TestCreateMultipleRS(t *testing.T) {
 	f := newFixture(t, e)
 	defer f.Close()
 
-	f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
-	updateFirstRSIndex := f.expectUpdateReplicaSetAction(templateToRS(e, templates[0], 0))
-	f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
-	updateSecondRSIndex := f.expectUpdateReplicaSetAction(templateToRS(e, templates[1], 0))
+	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
+	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(patchIndex)
-	firstRS := f.getUpdatedReplicaSet(updateFirstRSIndex)
+	firstRS := f.getCreatedReplicaSet(createFirstRSIndex)
 	assert.NotNil(t, firstRS)
 	assert.Equal(t, generateRSName(e, templates[0]), firstRS.Name)
 
-	secondRS := f.getUpdatedReplicaSet(updateSecondRSIndex)
+	secondRS := f.getCreatedReplicaSet(createSecondRSIndex)
 	assert.NotNil(t, secondRS)
 	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
 
@@ -47,6 +45,7 @@ func TestCreateMultipleRS(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
+
 func TestCreateMissingRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")
@@ -60,7 +59,6 @@ func TestCreateMissingRS(t *testing.T) {
 	defer f.Close()
 
 	createRsIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
-	f.expectUpdateReplicaSetAction(templateToRS(e, templates[1], 0))
 	patchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))

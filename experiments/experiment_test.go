@@ -74,8 +74,7 @@ func TestSetExperimentToPending(t *testing.T) {
 	defer f.Close()
 
 	rs := templateToRS(e, templates[0], 0)
-	f.expectCreateReplicaSetAction(rs) // Create RS with 0 replicas
-	f.expectUpdateReplicaSetAction(rs) // Scale RS
+	f.expectCreateReplicaSetAction(rs)
 	f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(0)
@@ -90,7 +89,6 @@ func TestSetExperimentToPending(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
-// TODO: why isn't scaleDownDelay being respected? RSs scale down immediately
 // TestAddScaleDownDelayToRS verifies that we add a scale down delay to the ReplicaSet after experiment completes
 func TestAddScaleDownDelayToRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
@@ -112,10 +110,8 @@ func TestAddScaleDownDelayToRS(t *testing.T) {
 	f.expectPatchExperimentAction(e)
 	patchRs1Index := f.expectPatchReplicaSetAction(rs1) // Add scaleDownDelaySeconds
 	f.expectGetReplicaSetAction(rs1)                    // Get RS after patch to modify updated version
-	f.expectUpdateReplicaSetAction(rs1)
 	patchRs2Index := f.expectPatchReplicaSetAction(rs2) // Add scaleDownDelaySeconds
 	f.expectGetReplicaSetAction(rs2)                    // Get RS after patch to modify updated version
-	f.expectUpdateReplicaSetAction(rs1)
 	f.run(getKey(e, t))
 
 	f.verifyPatchedReplicaSetScaleDownDelayAnnotation(patchRs1Index, 30)
@@ -413,39 +409,7 @@ func TestDeleteOutdatedService(t *testing.T) {
 	assert.NotContains(t, exCtx.templateServices, wrongService.Name)
 }
 
-func TestDeleteServiceIfDesiredReplicasEqualZero(t *testing.T) {
-	templates := generateTemplates("bar")
-	templates[0].Service = &v1alpha1.TemplateService{}
-	templates[0].Replicas = pointer.Int32Ptr(0)
-	ex := newExperiment("foo", templates, "")
-	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
-	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
-		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
-	}
-
-	svcToDelete := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "service-to-delete"}}
-	ex.Status.TemplateStatuses[0].ServiceName = svcToDelete.Name
-
-	exCtx := newTestContext(ex)
-
-	rs := templateToRS(ex, templates[0], 0)
-	rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = metav1.Now().UTC().Format(time.RFC3339)
-
-	exCtx.templateRSs = map[string]*appsv1.ReplicaSet{
-		"bar": rs,
-	}
-
-	exCtx.templateServices = map[string]*corev1.Service{
-		"bar": svcToDelete,
-	}
-
-	exStatus := exCtx.reconcile()
-
-	assert.Equal(t, "", exStatus.TemplateStatuses[0].ServiceName)
-	assert.Nil(t, exCtx.templateServices["bar"])
-}
-
-func TestDeleteServiceIfNotCreateService(t *testing.T) {
+func TestDeleteServiceIfServiceFieldNil(t *testing.T) {
 	templates := generateTemplates("bar")
 	templates[0].Replicas = pointer.Int32Ptr(0)
 	ex := newExperiment("foo", templates, "")
