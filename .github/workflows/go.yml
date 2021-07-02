@@ -133,6 +133,7 @@ jobs:
         run: |
           make codegen
           make manifests
+          make docs
 
       - name: Ensure nothing changed
         run: git diff --exit-code
