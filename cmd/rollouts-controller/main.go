@@ -131,7 +131,6 @@ func newCommand() *cobra.Command {
 			// a single namespace (i.e. rollouts-controller --namespace foo).
 			clusterDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, metav1.NamespaceAll, instanceIDTweakListFunc)
 			// 3. We finally need an istio dynamic informer factory which does not use a tweakListFunc.
-			//istioPrimaryCluster := istio.NewPrimaryCluster(kubeClient, dynamicClient, namespace)
 			_, istioPrimaryDynamicClient := istioutil.GetPrimaryClusterDynamicClient(kubeClient, namespace)
 			if istioPrimaryDynamicClient == nil {
 				istioPrimaryDynamicClient = dynamicClient

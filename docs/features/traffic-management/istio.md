@@ -278,6 +278,8 @@ rules:
   - update
   - patch
 ```
+Note: If Argo Rollout controller is also installed in the Istio primary cluster, then you can reuse the 
+`argo-rollouts-clusterrole` ClusterRole instead of creating a new one. 
 3. Link the `ClusterRole` with the `ServiceAccount` in the Istio primary cluster.
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1

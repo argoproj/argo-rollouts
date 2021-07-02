@@ -68,7 +68,7 @@ func getKubeClientConfig(secret *corev1.Secret) (string, clientcmd.ClientConfig,
 		primaryClusterConfig, err := buildKubeClientConfig(kubeConfig)
 		if err != nil {
 			log.Errorf("Error building kubeconfig for primary cluster %s: %v", clusterId, err)
-			return clusterId, nil, err
+			return clusterId, nil, fmt.Errorf("error building primary cluster client %s: %v", clusterId, err)
 		}
 		log.Infof("Istio primary/config cluster is %s", clusterId)
 		return clusterId, primaryClusterConfig, err
