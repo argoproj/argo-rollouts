@@ -176,6 +176,13 @@ func (s *E2ESuite) AfterTest(suiteName, testName string) {
 			s.PrintRolloutYAML(&ro)
 			s.PrintRolloutEvents(&ro)
 		}
+		exList, err := s.rolloutClient.ArgoprojV1alpha1().Experiments(s.namespace).List(s.Context, metav1.ListOptions{LabelSelector: req.String()})
+		s.CheckError(err)
+		for _, ex := range exList.Items {
+			s.PrintExperiment(ex.Name)
+			s.PrintExperimentYAML(&ex)
+			s.PrintExperimentEvents(&ex)
+		}
 	}
 	if os.Getenv(EnvVarE2EDebug) == "true" {
 		return
