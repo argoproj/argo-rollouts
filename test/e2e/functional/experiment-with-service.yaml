@@ -3,8 +3,7 @@ kind: Experiment
 metadata:
   name: experiment-with-service
 spec:
-  duration: 5s
-  progressDeadlineSeconds: 10
+  duration: 10s
   scaleDownDelaySeconds: 5
   # List of pod template specs to run in the experiment as ReplicaSets
   templates:
