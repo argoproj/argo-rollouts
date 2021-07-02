@@ -174,6 +174,12 @@ func (c *Common) GetBackgroundAnalysisRun() *rov1.AnalysisRun {
 	return found
 }
 
+func (c *Common) GetExperimentByName(name string) *rov1.Experiment {
+	ex, err := c.rolloutClient.ArgoprojV1alpha1().Experiments(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ex
+}
+
 // GetInlineAnalysisRun returns the latest Step analysis run. This should generally be coupled with
 // a count check, to ensure we are not checking the previous one. This may fail to accurately return
 // the latest if the creationTimestamps are the same
@@ -314,26 +320,6 @@ func (c *Common) GetJobFromAnalysisRun(ar *rov1.AnalysisRun) *batchv1.Job {
 	}
 	if found == nil {
 		c.t.Fatalf("Could not find Job from AnalysisRun: %s", ar.Name)
-	}
-	return found
-}
-
-func (c *Common) GetServiceFromExperiment(exp *rov1.Experiment, templateName string) *corev1.Service {
-	services, err := c.kubeClient.CoreV1().Services(c.namespace).List(c.Context, metav1.ListOptions{})
-	c.CheckError(err)
-	var found *corev1.Service
-	for i, rs := range services.Items {
-		controllerRef := metav1.GetControllerOf(&rs)
-		if controllerRef == nil || controllerRef.UID != exp.UID || rs.Annotations[rov1.ExperimentTemplateNameAnnotationKey] != templateName {
-			continue
-		}
-		if found != nil {
-			c.t.Fatalf("Found multiple Services associated with experiment: %s, template: %s", exp.Name, templateName)
-		}
-		found = &services.Items[i]
-	}
-	if found == nil {
-		c.t.Fatalf("Could not find Service from experiment: %s, template: %s", exp.Name, templateName)
 	}
 	return found
 }

@@ -1,9 +1,12 @@
 package fixtures
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/experiments"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -153,6 +156,26 @@ func (t *Then) ExpectReplicaSets(expectation string, expectFunc ReplicaSetExpect
 	return t
 }
 
+type ExperimentTemplateReplicaSetExpectation func(set *appsv1.ReplicaSet) bool
+
+func (t *Then) ExpectExperimentTemplateReplicaSet(expectation string, experiment string, template string, expectFunc ExperimentTemplateReplicaSetExpectation) *Then {
+	ex, err := t.rolloutClient.ArgoprojV1alpha1().Experiments(t.namespace).Get(t.Context, experiment, metav1.GetOptions{})
+	t.CheckError(err)
+	rs := t.GetReplicaSetFromExperiment(ex, template)
+	if !expectFunc(rs) {
+		t.log.Errorf("Experiment template replicaset '%s' expectation '%s' failed", rs.Name, expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("Experiment template replicaset '%s' expectation '%s' met", rs.Name, expectation)
+	return t
+}
+
+func (t *Then) ExpectExperimentTemplateReplicaSetNumReplicas(experiment string, template string, expectedReplicas int) *Then {
+	return t.ExpectExperimentTemplateReplicaSet(fmt.Sprintf("experiment template '%s' num replicas == %d", template, expectedReplicas), experiment, template, func(rs *appsv1.ReplicaSet) bool {
+		return int(rs.Status.Replicas) == expectedReplicas
+	})
+}
+
 type AnalysisRunListExpectation func(*rov1.AnalysisRunList) bool
 type AnalysisRunExpectation func(*rov1.AnalysisRun) bool
 
@@ -284,8 +307,44 @@ func (t *Then) ExpectServiceSelector(service string, selector map[string]string,
 	return t
 }
 
+type ExperimentServiceListExpectation func(map[string]*corev1.Service) bool
 type ExperimentListExpectation func(*rov1.ExperimentList) bool
 type ExperimentExpectation func(*rov1.Experiment) bool
+
+func (t *Then) ExpectExperimentServices(expectation string, experiment string, expectFunc ExperimentServiceListExpectation) *Then {
+	ex, err := t.rolloutClient.ArgoprojV1alpha1().Experiments(t.namespace).Get(t.Context, experiment, metav1.GetOptions{})
+	t.CheckError(err)
+	svcList, err := t.kubeClient.CoreV1().Services(t.namespace).List(t.Context, metav1.ListOptions{})
+	t.CheckError(err)
+	templateToService := make(map[string]*corev1.Service)
+	for _, svc := range svcList.Items {
+		svcBytes, err := json.Marshal(svc)
+		t.CheckError(err)
+		newSvc := &corev1.Service{}
+		err = json.Unmarshal(svcBytes, newSvc)
+		t.CheckError(err)
+		err = experiments.GetServiceForExperiment(ex, newSvc, templateToService)
+		t.CheckError(err)
+	}
+	if !expectFunc(templateToService) {
+		t.log.Errorf("Experiment expectation '%s' failed", expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("Experiment expectation '%s' met", expectation)
+	return t
+}
+
+func (t *Then) ExpectExperimentServiceCount(experimentName string, expectedCount int) *Then {
+	return t.ExpectExperimentServices(fmt.Sprintf("experiment services count == %d", expectedCount), experimentName, func(templateToService map[string]*corev1.Service) bool {
+		count := 0
+		for _, svc := range templateToService {
+			if svc != nil {
+				count++
+			}
+		}
+		return count == expectedCount
+	})
+}
 
 func (t *Then) ExpectExperiments(expectation string, expectFunc ExperimentListExpectation) *Then {
 	exps := t.GetRolloutExperiments()

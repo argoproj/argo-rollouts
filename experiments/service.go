@@ -22,33 +22,40 @@ func (c *Controller) getServicesForExperiment(experiment *v1alpha1.Experiment) (
 	if err != nil {
 		return nil, err
 	}
-	templateDefined := func(name string) bool {
-		for _, tmpl := range experiment.Spec.Templates {
-			if tmpl.Name == name {
-				return true
-			}
-		}
-		return false
-	}
 	templateToService := make(map[string]*corev1.Service)
 	for _, svc := range svcList {
-		controllerRef := metav1.GetControllerOf(svc)
-		if controllerRef == nil || controllerRef.UID != experiment.UID || svc.Annotations == nil || svc.Annotations[v1alpha1.ExperimentNameAnnotationKey] != experiment.Name {
-			continue
+		err = GetServiceForExperiment(experiment, svc, templateToService)
+		if err != nil {
+			return nil, err
 		}
+	}
+	return templateToService, nil
+}
+
+func templateDefined(experiment *v1alpha1.Experiment, templateName string) bool {
+	for _, tmpl := range experiment.Spec.Templates {
+		if tmpl.Name == templateName {
+			return true
+		}
+	}
+	return false
+}
+
+func GetServiceForExperiment(experiment *v1alpha1.Experiment, svc *corev1.Service, templateToService map[string]*corev1.Service) error {
+	controllerRef := metav1.GetControllerOf(svc)
+	if controllerRef != nil || controllerRef.UID == experiment.UID || svc.Annotations != nil || svc.Annotations[v1alpha1.ExperimentNameAnnotationKey] == experiment.Name {
 		if templateName := svc.Annotations[v1alpha1.ExperimentTemplateNameAnnotationKey]; templateName != "" {
 			if _, ok := templateToService[templateName]; ok {
-				return nil, fmt.Errorf("multiple Services match single experiment template: %s", templateName)
+				return fmt.Errorf("multiple Services match single experiment template: %s", templateName)
 			}
-			if templateDefined(templateName) {
+			if templateDefined(experiment, templateName) {
 				templateToService[templateName] = svc
 				logCtx := log.WithField(logutil.ExperimentKey, experiment.Name).WithField(logutil.NamespaceKey, experiment.Namespace)
 				logCtx.Infof("Claimed Service '%s' for template '%s'", svc.Name, templateName)
 			}
 		}
 	}
-
-	return templateToService, nil
+	return nil
 }
 
 func (ec *experimentContext) CreateService(serviceName string, template v1alpha1.TemplateSpec, selector map[string]string) (*corev1.Service, error) {
