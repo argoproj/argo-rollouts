@@ -1,5 +1,37 @@
 # Changelog
 
+# v1.0.2
+
+## Changes since v1.0.1
+
+### Controller
+
+* feat: allow VirtualService HTTPRoute to be inferred if there is single route (#1273)
+* fix: rollout paused longer than progressDeadlineSeconds would briefly degrade (#1268)
+* fix: controller would drop fields when updating DestinationRules (#1253)
+* fix: the wrong panel title on the sample dashboard (#1260)
+* fix: analysis with multiple metrics (#1261)
+* fix: Mitigate the bug where items are re-added constantly to the workqueue. #1193 (#1243)
+* fix: workload rollout spec is invalid template is not empty (#1224)
+* fix: Fix error check in validation for AnalysisTemplates not found (#1249)
+* fix: make function call consistent with otherRSs definition (#1171)
+
+### Plugin
+
+* fix: avoid using root user in plugin container (#1256)
+
+
+# v1.0.1
+
+## Changes since v1.0.0
+
+### Controller
+
+* feat: WebMetric to support string body responses (#1212)
+* fix: Modify validation to check Analysis args passed through RO spec (#1215)
+* fix: AnalysisRun args could not be resolved from secret (#1213)
+
+
 # v1.0.0
 
 ## Notable Features
