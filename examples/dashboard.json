@@ -158,7 +158,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(rollout_info)",
+          "expr": "sum(rollout_info{job=\"argo-rollouts-metrics\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -216,7 +216,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rollout_info) by (strategy)",
+          "expr": "sum(rollout_info{job=\"argo-rollouts-metrics\"}) by (strategy)",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -326,7 +326,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(rollout_reconcile_error)",
+          "expr": "sum(rollout_reconcile_error{job=\"argo-rollouts-metrics\"})",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -422,7 +422,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(rollout_phase{phase=\"Completed\"} == 1)",
+          "expr": "sum(rollout_info{phase=\"Completed\",job=\"argo-rollouts-metrics\"} == 1)",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -505,7 +505,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(rollout_phase{phase=\"Progressing\"})",
+          "expr": "sum(rollout_info{phase=\"Progressing\",job=\"argo-rollouts-metrics\"})",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -588,7 +588,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(rollout_phase{phase=\"Paused\"} == 1)",
+          "expr": "sum(rollout_info{job=\"argo-rollouts-metrics\",phase=\"Paused\"} == 1)",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -671,7 +671,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(rollout_phase{phase=\"Error\"} == 1)",
+          "expr": "sum(rollout_info{job=\"argo-rollouts-metrics\",phase=\"Error\"} == 1)",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -754,7 +754,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(rollout_phase{phase=\"InvalidSpec\"} == 1)",
+          "expr": "sum(rollout_info{job=\"argo-rollouts-metrics\",phase=\"InvalidSpec\"} == 1)",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -773,6 +773,65 @@
         }
       ],
       "valueName": "current"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 8
+      },
+      "id": 32,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.4.3",
+      "targets": [
+        {
+          "expr": "sum(rollout_info{job=\"argo-rollouts-metrics\",phase=\"Abort\"} == 1)",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Aborted",
+      "type": "stat"
     },
     {
       "cacheTimeout": null,
@@ -837,7 +896,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(rollout_phase{phase=\"Timeout\"} == 1)",
+          "expr": "sum(rollout_info{job=\"argo-rollouts-metrics\",phase=\"Timeout\"} == 1)",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -893,7 +952,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(rollout_reconcile_count[10m]))",
+          "expr": "sum(increase(rollout_reconcile_count{job=\"argo-rollouts-metrics\"}[10m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
