@@ -20,7 +20,7 @@ jobs:
       - name: build
         run: |
           pip install mkdocs mkdocs_material
-          make plugin-docs
+          make docs
           mkdocs build
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
