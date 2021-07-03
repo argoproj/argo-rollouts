@@ -125,6 +125,7 @@ func remarshalMap(objMap map[string]interface{}, res interface{}) error {
 // Resolve verifies if given rollout has template reference and resolves pod template
 func (r *informerBasedTemplateResolver) Resolve(rollout *v1alpha1.Rollout) error {
 	if rollout.Spec.WorkloadRef == nil {
+		annotations.RemoveRolloutWorkloadRefGeneration(rollout)
 		return nil
 	}
 

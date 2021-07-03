@@ -150,6 +150,13 @@ func TestAnnotationUtils(t *testing.T) {
 			t.Errorf("WorkloadGeneration Expected=2 Obtained=%s", copyRollout.Annotations[WorkloadGenerationAnnotation])
 		}
 	})
+	t.Run("RemoveRolloutWorkloadRefGeneration", func(t *testing.T) {
+		copyRollout := tRollout.DeepCopy()
+		copyRollout.Annotations = map[string]string{WorkloadGenerationAnnotation: "2"}
+		RemoveRolloutWorkloadRefGeneration(copyRollout)
+		_, ok := copyRollout.Annotations[WorkloadGenerationAnnotation]
+		assert.False(t, ok)
+	})
 
 	t.Run("SetRolloutRevisionAlreadySet", func(t *testing.T) {
 		copyRollout := tRollout.DeepCopy()

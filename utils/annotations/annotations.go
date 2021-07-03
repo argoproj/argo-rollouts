@@ -91,6 +91,14 @@ func SetRolloutWorkloadRefGeneration(rollout *v1alpha1.Rollout, workloadGenerati
 	return false
 }
 
+// RemoveRolloutWorkloadRefGeneration remove the annotation of workload ref generation
+func RemoveRolloutWorkloadRefGeneration(rollout *v1alpha1.Rollout) {
+	if rollout.Annotations == nil {
+		return
+	}
+	delete(rollout.Annotations, WorkloadGenerationAnnotation)
+}
+
 // SetReplicasAnnotations sets the desiredReplicas into the annotations
 func SetReplicasAnnotations(rs *appsv1.ReplicaSet, desiredReplicas int32) bool {
 	if rs.Annotations == nil {

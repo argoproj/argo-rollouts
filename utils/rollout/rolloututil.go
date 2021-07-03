@@ -18,7 +18,7 @@ func GetRolloutPhase(ro *v1alpha1.Rollout) (v1alpha1.RolloutPhase, string) {
 		return v1alpha1.RolloutPhaseProgressing, "waiting for rollout spec update to be observed"
 	}
 
-	if !isWorkloadGenerationObserved(ro) {
+	if ro.Spec.TemplateResolvedFromRef && !isWorkloadGenerationObserved(ro) {
 		return v1alpha1.RolloutPhaseProgressing, "waiting for rollout spec update to be observed for the reference workload"
 	}
 
@@ -50,7 +50,7 @@ func isWorkloadGenerationObserved(ro *v1alpha1.Rollout) bool {
 		return true
 	}
 	workloadGeneration, _ := annotations.GetWorkloadGenerationAnnotation(ro)
-	observedWorkloadGen, err := strconv.Atoi(ro.Status.WorkloadObservedGeneration)
+	observedWorkloadGen, err := strconv.ParseInt(ro.Status.WorkloadObservedGeneration, 10, 32)
 	if err != nil {
 		return true
 	}
