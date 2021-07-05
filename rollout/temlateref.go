@@ -239,22 +239,31 @@ func (r *informerBasedTemplateResolver) updateRolloutsReferenceAnnotation(obj in
 		return
 	}
 
-	generation := strconv.FormatInt(workloadMeta.GetGeneration(), 10)
-	for _, ro := range rollouts {
-		un, ok := ro.(*unstructured.Unstructured)
-		if ok {
-			rollout := unstructuredutil.ObjectToRollout(un)
-			updated := annotations.SetRolloutWorkloadRefGeneration(rollout, generation)
-			if updated {
-				rollout.Spec.Template.Spec.Containers = []corev1.Container{}
-				_, err := r.argoprojclientset.ArgoprojV1alpha1().Rollouts(rollout.Namespace).Update(context.TODO(), rollout, v1.UpdateOptions{})
-				if err != nil {
-					log.Errorf("Cannot update the workload-ref/annotation for %s/%s", rollout.GetName(), rollout.GetNamespace())
-				}
-			}
+	var updateAnnotation func(ro *v1alpha1.Rollout)
 
+	generation := strconv.FormatInt(workloadMeta.GetGeneration(), 10)
+	updateAnnotation = func(ro *v1alpha1.Rollout) {
+		updated := annotations.SetRolloutWorkloadRefGeneration(ro, generation)
+		if updated {
+			// update the annotation causes the rollout to be requeued and the template will be resolved to the referred
+			// workload during next reconciliation
+			ro.Spec.Template.Spec.Containers = []corev1.Container{}
+			_, err := r.argoprojclientset.ArgoprojV1alpha1().Rollouts(ro.Namespace).Update(context.TODO(), ro, v1.UpdateOptions{})
+			if err != nil {
+				log.Errorf("Cannot update the workload-ref/annotation for %s/%s", ro.GetName(), ro.GetNamespace())
+			}
+		}
+	}
+	for _, ro := range rollouts {
+		rollout, ok := ro.(*v1alpha1.Rollout)
+		if ok {
+			updateAnnotation(rollout)
 		} else {
-			fmt.Println("DEBUG: ro is not Unstructured:", ro)
+			un, ok := ro.(*unstructured.Unstructured)
+			if ok {
+				rollout := unstructuredutil.ObjectToRollout(un)
+				updateAnnotation(rollout)
+			}
 		}
 	}
 }

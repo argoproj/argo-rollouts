@@ -152,6 +152,11 @@ func TestAnnotationUtils(t *testing.T) {
 	})
 	t.Run("RemoveRolloutWorkloadRefGeneration", func(t *testing.T) {
 		copyRollout := tRollout.DeepCopy()
+
+		copyRollout.Annotations = nil
+		RemoveRolloutWorkloadRefGeneration(copyRollout)
+		assert.Nil(t, copyRollout.Annotations)
+
 		copyRollout.Annotations = map[string]string{WorkloadGenerationAnnotation: "2"}
 		RemoveRolloutWorkloadRefGeneration(copyRollout)
 		_, ok := copyRollout.Annotations[WorkloadGenerationAnnotation]

@@ -223,6 +223,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 	{
 		//Rollout observed workload generation is not updated
 		ro := newCanaryRollout()
+		ro.Spec.TemplateResolvedFromRef = true
 		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
 		ro.Status = v1alpha1.RolloutStatus{
 			WorkloadObservedGeneration: "1",
@@ -230,6 +231,25 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		status, message := GetRolloutPhase(ro)
 		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
 		assert.Equal(t, "waiting for rollout spec update to be observed for the reference workload", message)
+	}
+	{
+		ro := newCanaryRollout()
+
+		observed := isWorkloadGenerationObserved(ro)
+		assert.True(t, observed)
+
+		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
+		ro.Status.WorkloadObservedGeneration = "222222222222222222"
+		observed = isWorkloadGenerationObserved(ro)
+		assert.True(t, observed)
+
+		ro.Status.WorkloadObservedGeneration = "1"
+		observed = isWorkloadGenerationObserved(ro)
+		assert.False(t, observed)
+
+		ro.Status.WorkloadObservedGeneration = "2"
+		observed = isWorkloadGenerationObserved(ro)
+		assert.True(t, observed)
 	}
 }
 

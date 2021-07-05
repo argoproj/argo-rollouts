@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	disco "k8s.io/client-go/discovery"
 	discofake "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic"
@@ -377,9 +379,18 @@ func TestRequeueReferencedRollouts(t *testing.T) {
 	require.NoError(t, err)
 
 	// verify rollout's annotation is updated
-	ro, _ := rolloutsClient.ArgoprojV1alpha1().Rollouts("default").Get(context.TODO(), "my-rollout", v1.GetOptions{})
-	assert.NotNil(t, ro)
-	assert.Equal(t, "2", ro.GetAnnotations()[annotations.WorkloadGenerationAnnotation])
+	timeout := 3 * time.Second
+	err = wait.Poll(time.Second, timeout, func() (done bool, err error) {
+		ro, err := rolloutsClient.ArgoprojV1alpha1().Rollouts("default").Get(context.TODO(), "my-rollout", v1.GetOptions{})
+		if err != nil {
+			return false, fmt.Errorf("error get %v", err)
+		}
+		if "2" != ro.GetAnnotations()[annotations.WorkloadGenerationAnnotation] {
+			return false, fmt.Errorf("workload generation not equal to 2: %v", ro.GetAnnotations()[annotations.WorkloadGenerationAnnotation])
+		}
+		return true, nil
+	})
+	assert.NoError(t, err)
 
 	err = deploymentsClient.Delete(context.TODO(), deployment.Name, v1.DeleteOptions{})
 	require.NoError(t, err)
