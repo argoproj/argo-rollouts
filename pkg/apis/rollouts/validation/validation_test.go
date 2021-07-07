@@ -47,6 +47,13 @@ func TestValidateRollout(t *testing.T) {
 		assert.Equal(t, message, allErrs[0].Detail)
 	})
 
+	t.Run("empty selector", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Selector = &metav1.LabelSelector{}
+		allErrs := ValidateRollout(invalidRo)
+		assert.Equal(t, "empty selector is invalid for deployment", allErrs[0].Detail)
+	})
+
 	t.Run("invalid progressDeadlineSeconds", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		invalidRo.Spec.MinReadySeconds = defaults.GetProgressDeadlineSecondsOrDefault(invalidRo) + 1
