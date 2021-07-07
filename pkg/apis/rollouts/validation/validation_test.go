@@ -47,6 +47,13 @@ func TestValidateRollout(t *testing.T) {
 		assert.Equal(t, message, allErrs[0].Detail)
 	})
 
+	t.Run("empty selector", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Selector = &metav1.LabelSelector{}
+		allErrs := ValidateRollout(invalidRo)
+		assert.Equal(t, "empty selector is invalid for deployment", allErrs[0].Detail)
+	})
+
 	t.Run("invalid progressDeadlineSeconds", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		invalidRo.Spec.MinReadySeconds = defaults.GetProgressDeadlineSecondsOrDefault(invalidRo) + 1
@@ -341,8 +348,20 @@ func TestWorkloadRefWithTemplate(t *testing.T) {
 	t.Run("workload reference with template", func(t *testing.T) {
 		ro := ro.DeepCopy()
 		allErrs := ValidateRollout(ro)
-		assert.Equal(t, 2, len(allErrs))
+		assert.Equal(t, 1, len(allErrs))
 		assert.EqualError(t, allErrs[0], "spec.template: Internal error: template must be empty for workload reference rollout")
-		assert.EqualError(t, allErrs[1], "spec.template.spec.containers: Required value")
+	})
+	t.Run("valid workload reference with selector", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Template = corev1.PodTemplateSpec{}
+		allErrs := ValidateRollout(ro)
+		assert.Equal(t, 0, len(allErrs))
+	})
+	t.Run("valid workload reference without selector", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Selector = nil
+		ro.Spec.Template = corev1.PodTemplateSpec{}
+		allErrs := ValidateRollout(ro)
+		assert.Equal(t, 0, len(allErrs))
 	})
 }

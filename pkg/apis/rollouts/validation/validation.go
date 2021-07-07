@@ -71,13 +71,15 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 	replicas := defaults.GetReplicasOrDefault(spec.Replicas)
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(replicas), fldPath.Child("replicas"))...)
 
-	if spec.Selector == nil {
-		message := fmt.Sprintf(MissingFieldMessage, ".spec.selector")
-		allErrs = append(allErrs, field.Required(fldPath.Child("selector"), message))
-	} else {
-		allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, fldPath.Child("selector"))...)
-		if len(spec.Selector.MatchLabels)+len(spec.Selector.MatchExpressions) == 0 {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "empty selector is invalid for deployment"))
+	if spec.WorkloadRef == nil {
+		if spec.Selector == nil {
+			message := fmt.Sprintf(MissingFieldMessage, ".spec.selector")
+			allErrs = append(allErrs, field.Required(fldPath.Child("selector"), message))
+		} else {
+			allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, fldPath.Child("selector"))...)
+			if len(spec.Selector.MatchLabels)+len(spec.Selector.MatchExpressions) == 0 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "empty selector is invalid for deployment"))
+			}
 		}
 	}
 
@@ -119,9 +121,12 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 			AllowMultipleHugePageResources: true,
 			AllowDownwardAPIHugePages:      true,
 		}
-		allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), opts)...)
-	}
 
+		// Skip validating empty template for rollout resolved from ref
+		if rollout.Spec.TemplateResolvedFromRef || spec.WorkloadRef == nil {
+			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), opts)...)
+		}
+	}
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(spec.MinReadySeconds), fldPath.Child("minReadySeconds"))...)
 
 	revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
