@@ -12836,10 +12836,27 @@ spec:
         - --namespaced
         image: quay.io/argoproj/argo-rollouts:latest
         imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /metrics
+            port: 8090
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         name: argo-rollouts
         ports:
         - containerPort: 8090
           name: metrics
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /metrics
+            port: 8090
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 4
       securityContext:
         runAsNonRoot: true
       serviceAccountName: argo-rollouts
