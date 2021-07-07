@@ -341,8 +341,20 @@ func TestWorkloadRefWithTemplate(t *testing.T) {
 	t.Run("workload reference with template", func(t *testing.T) {
 		ro := ro.DeepCopy()
 		allErrs := ValidateRollout(ro)
-		assert.Equal(t, 2, len(allErrs))
+		assert.Equal(t, 1, len(allErrs))
 		assert.EqualError(t, allErrs[0], "spec.template: Internal error: template must be empty for workload reference rollout")
-		assert.EqualError(t, allErrs[1], "spec.template.spec.containers: Required value")
+	})
+	t.Run("valid workload reference with selector", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Template = corev1.PodTemplateSpec{}
+		allErrs := ValidateRollout(ro)
+		assert.Equal(t, 0, len(allErrs))
+	})
+	t.Run("valid workload reference without selector", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Selector = nil
+		ro.Spec.Template = corev1.PodTemplateSpec{}
+		allErrs := ValidateRollout(ro)
+		assert.Equal(t, 0, len(allErrs))
 	})
 }
