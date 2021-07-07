@@ -108,6 +108,8 @@ After creation Rollout will spinup required number of Pods side-by-side with the
 Rollout won't try to manage existing Deployment Pods. That means you can safely update add Rollout
 to the production environment without any interruption but you are going to run twice more Pods during migration.
 
+Argo-rollouts controller patches the spec of rollout object with an annotation of `rollout.argoproj.io/workload-generation`, which equals the generation of referenced deployment. Users can detect if the rollout matches desired generation of deployment by checking the `workloadObservedGeneration` in the rollout status.
+
 **Traffic Management During Migration**
 
 The Rollout offers traffic management functionality that manages routing rules and flows the traffic to different

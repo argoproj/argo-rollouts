@@ -691,6 +691,16 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 
 	prevStatus := c.rollout.Status
 	c.pauseContext.CalculatePauseStatus(newStatus)
+	if c.rollout.Spec.TemplateResolvedFromRef {
+		workloadRefObservation, _ := annotations.GetWorkloadGenerationAnnotation(c.rollout)
+		currentWorkloadObservedGeneration, _ := strconv.ParseInt(newStatus.WorkloadObservedGeneration, 10, 32)
+		if workloadRefObservation != int32(currentWorkloadObservedGeneration) {
+			newStatus.WorkloadObservedGeneration = strconv.Itoa(int(workloadRefObservation))
+		}
+	} else {
+		newStatus.WorkloadObservedGeneration = ""
+	}
+
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(c.rollout.Spec, *newStatus)
 

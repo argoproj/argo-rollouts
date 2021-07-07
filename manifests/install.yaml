@@ -12509,6 +12509,8 @@ spec:
               updatedReplicas:
                 format: int32
                 type: integer
+              workloadObservedGeneration:
+                type: string
             type: object
         required:
         - spec
