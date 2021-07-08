@@ -511,6 +511,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ServicesInformer:                k8sI.Core().V1().Services(),
 		IngressInformer:                 k8sI.Extensions().V1beta1().Ingresses(),
 		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
+		IstioPrimaryDynamicClient:       dynamicClient,
 		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
 		IstioDestinationRuleInformer:    istioDestinationRuleInformer,
 		ResyncPeriod:                    resync(),
