@@ -668,6 +668,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#multicluster-setup" class="md-nav__link">
+    Multicluster Setup
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#comparison-between-approaches" class="md-nav__link">
     Comparison Between Approaches
   </a>
@@ -1806,6 +1813,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#multicluster-setup" class="md-nav__link">
+    Multicluster Setup
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#comparison-between-approaches" class="md-nav__link">
     Comparison Between Approaches
   </a>
@@ -2103,6 +2117,67 @@ weights can be 100% to stable, and 0% to canary.</p>
 <li>modify the DestinationRule <code>spec.subsets[].labels</code> to contain the <code>rollouts-pod-template-hash</code>
   label of the canary and stable ReplicaSets</li>
 </ul>
+<h2 id="multicluster-setup">Multicluster Setup<a class="headerlink" href="#multicluster-setup" title="Permanent link">&para;</a></h2>
+<p>If you have <a href="https://istio.io/latest/docs/setup/install/multicluster/">Istio multicluster setup</a>
+where the primary Istio cluster is different than the cluster where the Argo Rollout controller
+is running, then you need to do the following setup:</p>
+<ol>
+<li>Create a <code>ServiceAccount</code> in the Istio primary cluster.
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ServiceAccount</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-rollouts-istio-primary</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;any-namespace-preferrably-config-namespace&gt;</span>
+</code></pre></div></li>
+<li>Create a <code>ClusterRole</code> that provides access to Rollout controller in the Istio primary cluster.
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rbac.authorization.k8s.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ClusterRole</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-rollouts-istio-primary</span>
+<span class="nt">rules</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="nt">apiGroups</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">networking.istio.io</span>
+  <span class="nt">resources</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">virtualservices</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">destinationrules</span>
+  <span class="nt">verbs</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">get</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">list</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">watch</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">update</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">patch</span>
+</code></pre></div>
+Note: If Argo Rollout controller is also installed in the Istio primary cluster, then you can reuse the 
+<code>argo-rollouts-clusterrole</code> ClusterRole instead of creating a new one. </li>
+<li>Link the <code>ClusterRole</code> with the <code>ServiceAccount</code> in the Istio primary cluster.
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rbac.authorization.k8s.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ClusterRoleBinding</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-rollouts-istio-primary</span>
+<span class="nt">roleRef</span><span class="p">:</span>
+  <span class="nt">apiGroup</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rbac.authorization.k8s.io</span>
+  <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ClusterRole</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-rollouts-istio-primary</span>
+<span class="nt">subjects</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ServiceAccount</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-rollouts-istio-primary</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;namespace-of-the-service-account&gt;</span>
+</code></pre></div></li>
+<li>Now, use the following command to generate a secret for Rollout controller to access the Istio primary cluster.
+   This secret will be applied to the cluster where Argo Rollout is running (i.e, Istio remote cluster),
+   but will be generated from the Istio primary cluster. This secret can be generated right after Step 1,
+   it only requires <code>ServiceAccount</code> to exist.
+   <a href="https://istio.io/latest/docs/reference/commands/istioctl/#istioctl-experimental-create-remote-secret">Reference to the command</a>.
+<div class="highlight"><pre><span></span><code>istioctl x create-remote-secret --type remote --name &lt;cluster-name&gt; <span class="se">\</span>
+    --namespace &lt;namespace-of-the-service-account&gt; <span class="se">\</span>
+    --service-account &lt;service-account-created-in-step1&gt; <span class="se">\</span>
+    --context<span class="o">=</span><span class="s2">&quot;&lt;ISTIO_PRIMARY_CLUSTER&gt;&quot;</span> <span class="p">|</span> <span class="se">\</span>
+    kubectl apply -f - --context<span class="o">=</span><span class="s2">&quot;&lt;ARGO_ROLLOUT_CLUSTER/ISTIO_REMOTE_CLUSTER&gt;&quot;</span>
+</code></pre></div></li>
+<li>Label the secret.
+<div class="highlight"><pre><span></span><code>kubectl label secret &lt;istio-remote-secret&gt; istio.argoproj.io/primary-cluster<span class="o">=</span><span class="s2">&quot;true&quot;</span> -n &lt;namespace-of-the-secret&gt;
+</code></pre></div></li>
+</ol>
 <h2 id="comparison-between-approaches">Comparison Between Approaches<a class="headerlink" href="#comparison-between-approaches" title="Permanent link">&para;</a></h2>
 <p>There are some advantages and disadvantages of host-level traffic splitting vs. subset-level traffic
 splitting.</p>
