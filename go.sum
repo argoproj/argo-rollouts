@@ -1004,8 +1004,8 @@ github.com/securego/gosec/v2 v2.4.0/go.mod h1:0/Q4cjmlFDfDUj1+Fib61sc+U5IQb2w+Iv
 github.com/securego/gosec/v2 v2.5.0/go.mod h1:L/CDXVntIff5ypVHIkqPXbtRpJiNCh6c6Amn68jXDjo=
 github.com/sergi/go-diff v1.0.0/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
 github.com/sergi/go-diff v1.1.0/go.mod h1:STckp+ISIX8hZLjrqAeVduY0gWCT9IjLuqbuNXdaHfM=
-github.com/servicemeshinterface/smi-sdk-go v0.4.1 h1:L8nS7WtVlGoEJF7RdCbwh0Oj/JheGY+5fa3R+cA2ReY=
-github.com/servicemeshinterface/smi-sdk-go v0.4.1/go.mod h1:9rsLPBNcqfDNmEgyYwpopn93aE9yz46d2EHFBNOYj/w=
+github.com/servicemeshinterface/smi-sdk-go v0.5.0 h1:9cZdhvGbGDlmnp9qqmcQL+RL6KZ3IzHfDLoA5Axg8n0=
+github.com/servicemeshinterface/smi-sdk-go v0.5.0/go.mod h1:nm1Slf3pfaZPP3g2tE/K5wDmQ1uWVSP0p3uu5rQAQLc=
 github.com/shazow/go-diff v0.0.0-20160112020656-b6b7b6733b8c/go.mod h1:/PevMnwAxekIXwN8qQyfc5gl2NlkB3CQlkizAbOkeBs=
 github.com/shirou/gopsutil v0.0.0-20190901111213-e4ec7b275ada/go.mod h1:WWnYX4lzhCH5h/3YBfyVA3VbLYjlMZZAQcW9ojMexNc=
 github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4/go.mod h1:qsXQc7+bwAM3Q1u/4XEfrquwF8Lw7D7y5cD8CuHnfIc=
