@@ -103,7 +103,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 		// when newRS is not available or replicas num is 0. never weight to canary
 	} else if index != nil {
-		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.rollout.Spec.Strategy.Canary.CheckNewRSOnly)
 		if !atDesiredReplicaCount {
 			// Use the previous weight since the new RS is not ready for a new weight
 			for i := *index - 1; i >= 0; i-- {

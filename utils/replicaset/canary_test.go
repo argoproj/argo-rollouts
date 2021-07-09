@@ -68,6 +68,32 @@ func newSetCanaryScale(replicas, weight *int32, matchTrafficWeight bool) *v1alph
 	return &scs
 }
 
+func TestAtDesiredReplicaCountsForCanary(t *testing.T) {
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
+	stableRS := newRS("stable", 9, 9)
+	oldRS := newRS("old", 1, 1)
+	newRS := newRS("canary", 1, 1)
+	atDesired := AtDesiredReplicaCountsForCanary(rollout, newRS, stableRS, []*appsv1.ReplicaSet{}, false)
+	assert.True(t, atDesired)
+
+	stableRS.Status.AvailableReplicas = 8
+	atDesired = AtDesiredReplicaCountsForCanary(rollout, newRS, stableRS, []*appsv1.ReplicaSet{}, false)
+	assert.False(t, atDesired)
+
+	atDesired = AtDesiredReplicaCountsForCanary(rollout, newRS, stableRS, []*appsv1.ReplicaSet{}, true)
+	assert.True(t, atDesired)
+
+	stableRS.Status.AvailableReplicas = 9
+	newRS.Status.AvailableReplicas = 0
+	atDesired = AtDesiredReplicaCountsForCanary(rollout, newRS, stableRS, []*appsv1.ReplicaSet{}, false)
+	assert.False(t, atDesired)
+
+	stableRS.Status.AvailableReplicas = 9
+	newRS.Status.AvailableReplicas = 1
+	atDesired = AtDesiredReplicaCountsForCanary(rollout, newRS, stableRS, []*appsv1.ReplicaSet{oldRS}, false)
+	assert.False(t, atDesired)
+}
+
 func TestCalculateReplicaCountsForCanary(t *testing.T) {
 	intPnt := func(i int32) *int32 {
 		return &i

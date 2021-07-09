@@ -134,6 +134,7 @@ spec:
       maxSurge: stringOrInt
       maxUnavailable: stringOrInt
       trafficRouting: object
+      checkNewRSOnly: boolean
 ```
 
 ### analysis
@@ -170,3 +171,8 @@ Defaults to 25%
 The [traffic management](traffic-management/index.md) rules to apply to control the flow of traffic between the active and canary versions. If not set, the default weighted pod replica based routing will be used.
 
 Defaults to nil
+
+### checkNewRSOnly
+By default, rollout controller will both verify the available replicas of stable rs and new rs before the controller goes to next canary step. If checkNewRSOnly is true, it will only check the available replicas of new rs.
+
+Defaults to false

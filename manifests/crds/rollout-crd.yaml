@@ -288,6 +288,8 @@ spec:
                         type: object
                       canaryService:
                         type: string
+                      checkNewRSOnly:
+                        type: boolean
                       maxSurge:
                         anyOf:
                         - type: integer

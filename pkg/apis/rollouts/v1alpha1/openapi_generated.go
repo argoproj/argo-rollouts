@@ -984,6 +984,13 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Format:      "int32",
 						},
 					},
+					"checkNewRSOnly": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CheckNewRSOnly indicates if only check the health of new rs before go to next canary step.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
