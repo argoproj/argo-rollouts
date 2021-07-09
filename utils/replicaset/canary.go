@@ -107,7 +107,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(weight) / 100))))
 	desiredNewRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (float64(weight) / 100)))
 
-	if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+	if rollout.Spec.Strategy.Canary.TrafficRouting != nil && !rollout.Status.Abort {
 		return desiredNewRSReplicaCount, rolloutSpecReplica
 	}
 
