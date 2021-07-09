@@ -7,6 +7,11 @@ This tutorial will walk you through the process of configuring Argo Rollouts to 
 - Kubernetes cluster
 - Argo-Rollouts installed in the cluster
 
+---
+**Note**
+If using Ambassador Edge Stack or Emissary-ingress 2.0+, you will need to install Argo-Rollouts version v1.1+, and you will need to supply `--ambassador-api-version x.getambassador.io/v3alpha1` to your `argo-rollouts` deployment.
+---
+
 ## 1. Install and configure Ambassador Edge Stack
 
 If you don't have Ambassador in your cluster you can install it following the [Edge Stack documentation](https://www.getambassador.io/docs/latest/topics/install/).

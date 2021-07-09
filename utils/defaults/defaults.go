@@ -31,7 +31,8 @@ const (
 )
 
 const (
-	DefaultAmbassadorVersion      = "v2"
+	DefaultAmbassadorAPIGroup     = "getambassador.io"
+	DefaultAmbassadorVersion      = "getambassador.io/v2"
 	DefaultIstioVersion           = "v1alpha3"
 	DefaultSMITrafficSplitVersion = "v1alpha1"
 )
