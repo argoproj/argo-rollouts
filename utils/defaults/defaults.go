@@ -32,7 +32,7 @@ const (
 
 const (
 	DefaultAmbassadorAPIGroup     = "getambassador.io"
-	DefaultAmbassadorVersion      = "v2"
+	DefaultAmbassadorVersion      = "getambassador.io/v2"
 	DefaultIstioVersion           = "v1alpha3"
 	DefaultSMITrafficSplitVersion = "v1alpha1"
 )
