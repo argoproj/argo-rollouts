@@ -3,6 +3,7 @@ package rollout
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"strconv"
 	"strings"
 
@@ -131,7 +132,9 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 		return err
 	}
 
-	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, c.allRSs)
+	limitSucceedArs := defaults.GetAnalysisRunSucceedHistoryLimitOrDefault(c.rollout)
+	limitFailedArs := defaults.GetAnalysisRunFailedHistoryLimitOrDefault(c.rollout)
+	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, c.allRSs, limitSucceedArs, limitFailedArs)
 	err = c.deleteAnalysisRuns(arsToDelete)
 	if err != nil {
 		return err

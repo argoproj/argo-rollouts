@@ -64,6 +64,15 @@ spec:
               revisionHistoryLimit:
                 format: int32
                 type: integer
+              analysis:
+                properties:
+                  succeedRunHistoryLimit:
+                    format: int32
+                    type: integer
+                  failedRunHistoryLimit:
+                    format: int32
+                    type: integer
+                type: object
               selector:
                 properties:
                   matchExpressions:

@@ -71,6 +71,8 @@ type RolloutSpec struct {
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty" protobuf:"varint,8,opt,name=progressDeadlineSeconds"`
 	// RestartAt indicates when all the pods of a Rollout should be restarted
 	RestartAt *metav1.Time `json:"restartAt,omitempty" protobuf:"bytes,9,opt,name=restartAt"`
+	// Analysis configuration for the analysis runs to retain
+	Analysis *Analysis `json:"analysis,omitempty" protobuf:"bytes,11,opt,name=analysis"`
 }
 
 func (s *RolloutSpec) SetResolvedSelector(selector *metav1.LabelSelector) {
@@ -293,6 +295,14 @@ type CanaryStrategy struct {
 	// Default is 30 seconds.
 	// +optional
 	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,13,opt,name=abortScaleDownDelaySeconds"`
+}
+
+// Analysis configuration for the analysis runs to retain
+type Analysis struct {
+	// SucceedRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
+	SucceedRunHistoryLimit *int32 `json:"succeedRunHistoryLimit,omitempty" protobuf:"varint,1,opt,name=succeedRunHistoryLimit"`
+	// FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history
+	FailedRunHistoryLimit *int32 `json:"failedRunHistoryLimit,omitempty" protobuf:"varint,2,opt,name=failedRunHistoryLimit"`
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing

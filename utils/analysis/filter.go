@@ -4,6 +4,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+
+	"sort"
 )
 
 func GetCurrentAnalysisRunByType(currentArs []*v1alpha1.AnalysisRun, kind string) *v1alpha1.AnalysisRun {
@@ -108,6 +110,15 @@ func SortAnalysisRunByPodHash(ars []*v1alpha1.AnalysisRun) map[string][]*v1alpha
 	return podHashToAr
 }
 
+// AnalysisRunByCreationTimestamp sorts a list of AnalysisRun by creation timestamp
+type AnalysisRunByCreationTimestamp []*v1alpha1.AnalysisRun
+
+func (o AnalysisRunByCreationTimestamp) Len() int      { return len(o) }
+func (o AnalysisRunByCreationTimestamp) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o AnalysisRunByCreationTimestamp) Less(i, j int) bool {
+	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
+}
+
 // FilterAnalysisRunsToDelete returns a list of analysis runs that should be deleted in the cases where:
 // 1. The analysis run has no pod hash label,
 // 2. There is no ReplicaSet with the same pod hash as the analysis run
@@ -115,7 +126,7 @@ func SortAnalysisRunByPodHash(ars []*v1alpha1.AnalysisRun) map[string][]*v1alpha
 // Note: It is okay to use pod hash for filtering since the analysis run's pod hash is originally derived from the new RS.
 // Even if there is a library change during the lifetime of the analysis run, the ReplicaSet's pod hash that the analysis
 // run references does not change.
-func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, olderRSs []*appsv1.ReplicaSet) []*v1alpha1.AnalysisRun {
+func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, olderRSs []*appsv1.ReplicaSet, limitSucceedArs int32, limitFailedArs int32) []*v1alpha1.AnalysisRun {
 	olderRsPodHashes := map[string]bool{}
 	for i := range olderRSs {
 		rs := olderRSs[i]
@@ -126,6 +137,10 @@ func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, olderRSs []*appsv1.
 			olderRsPodHashes[podHash] = rs.DeletionTimestamp != nil
 		}
 	}
+	sort.Sort(sort.Reverse(AnalysisRunByCreationTimestamp(ars)))
+
+	var retainedSucceed int32 = 0
+	var retainedFailed int32 = 0
 	arsToDelete := []*v1alpha1.AnalysisRun{}
 	for i := range ars {
 		ar := ars[i]
@@ -148,6 +163,19 @@ func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, olderRSs []*appsv1.
 			arsToDelete = append(arsToDelete, ar)
 			continue
 		}
+
+		if ar.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
+			if retainedSucceed < limitSucceedArs {
+				retainedSucceed++
+				continue
+			}
+		} else {
+			if retainedFailed < limitFailedArs {
+				retainedFailed++
+				continue
+			}
+		}
+		arsToDelete = append(arsToDelete, ar)
 	}
 	return arsToDelete
 }
