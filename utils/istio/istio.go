@@ -13,18 +13,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
-var (
-	istioAPIVersion = defaults.DefaultIstioVersion
-)
-
-func SetIstioAPIVersion(apiVersion string) {
-	istioAPIVersion = apiVersion
-}
-
-func GetIstioAPIVersion() string {
-	return istioAPIVersion
-}
-
 func DoesIstioExist(dynamicClient dynamic.Interface, namespace string) bool {
 	_, err := dynamicClient.Resource(GetIstioVirtualServiceGVR()).Namespace(namespace).List(context.TODO(), metav1.ListOptions{Limit: 1})
 	if err != nil {
@@ -36,7 +24,7 @@ func DoesIstioExist(dynamicClient dynamic.Interface, namespace string) bool {
 func GetIstioVirtualServiceGVR() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    "networking.istio.io",
-		Version:  istioAPIVersion,
+		Version:  defaults.GetIstioAPIVersion(),
 		Resource: "virtualservices",
 	}
 }
@@ -44,7 +32,7 @@ func GetIstioVirtualServiceGVR() schema.GroupVersionResource {
 func GetIstioDestinationRuleGVR() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    "networking.istio.io",
-		Version:  istioAPIVersion,
+		Version:  defaults.GetIstioAPIVersion(),
 		Resource: "destinationrules",
 	}
 }
