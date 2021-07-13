@@ -107,7 +107,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(weight) / 100))))
 	desiredNewRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (float64(weight) / 100)))
 
-	if rollout.Spec.Strategy.Canary.TrafficRouting != nil && !rollout.Status.Abort {
+	if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
 		return desiredNewRSReplicaCount, rolloutSpecReplica
 	}
 
@@ -293,7 +293,7 @@ func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int
 
 // GetCanaryReplicasOrWeight either returns a static set of replicas or a weight percentage
 func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32) {
-	if rollout.Status.PromoteFull {
+	if rollout.Status.PromoteFull || rollout.Status.CurrentPodHash == rollout.Status.StableRS {
 		return nil, 100
 	}
 	if scs := UseSetCanaryScale(rollout); scs != nil {
