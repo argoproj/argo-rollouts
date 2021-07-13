@@ -211,7 +211,7 @@ func (s *ArgoRolloutsServer) GetRolloutInfo(c context.Context, q *rollout.Rollou
 
 // WatchRollout returns a rollout stream
 func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws rollout.RolloutService_WatchRolloutInfoServer) error {
-	ctx := context.Background()
+	ctx := ws.Context()
 	controller := s.initRolloutViewController(q.GetNamespace(), q.GetName(), ctx)
 
 	rolloutUpdates := make(chan *rollout.RolloutInfo)
