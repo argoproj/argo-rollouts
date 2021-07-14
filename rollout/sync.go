@@ -879,6 +879,10 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 			// active selector still pointing to previous RS, don't update stable yet
 			return ""
 		}
+		if !c.areTargetsVerified() {
+			// active selector is pointing to desired RS, but we have not verify the target group yet
+			return ""
+		}
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
 		}

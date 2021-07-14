@@ -52,6 +52,11 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return err
 	}
 
+	err = c.awsVerifyTargetGroups(activeSvc)
+	if err != nil {
+		return err
+	}
+
 	err = c.reconcileAnalysisRuns()
 	if err != nil {
 		return err

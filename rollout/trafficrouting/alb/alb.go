@@ -16,6 +16,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/aws"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
@@ -43,15 +44,6 @@ type Reconciler struct {
 	cfg ReconcilerConfig
 	log *logrus.Entry
 	aws aws.Client
-}
-
-var (
-	defaultVerifyWeight = false
-)
-
-// SetDefaultVerifyWeight sets the default setWeight verification when instantiating the reconciler
-func SetDefaultVerifyWeight(b bool) {
-	defaultVerifyWeight = b
 }
 
 // NewReconciler returns a reconciler struct that brings the ALB Ingress into the desired state
@@ -119,7 +111,7 @@ func (r *Reconciler) shouldVerifyWeight() bool {
 	if r.cfg.VerifyWeight != nil {
 		return *r.cfg.VerifyWeight
 	}
-	return defaultVerifyWeight
+	return defaults.VerifyTargetGroup()
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
@@ -134,7 +126,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 		return false, err
 	}
 	canaryService := rollout.Spec.Strategy.Canary.CanaryService
-	resourceID := aws.BuildV2TargetGroupID(rollout.Namespace, ingress.Name, canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+	resourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.Name, canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 	if len(ingress.Status.LoadBalancer.Ingress) == 0 {
 		r.log.Infof("LoadBalancer not yet allocated")
 	}

@@ -240,7 +240,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
 			return false
 		}
-		if c.weightVerified != nil && !*c.weightVerified {
+		if !c.areTargetsVerified() {
 			return false
 		}
 		return true

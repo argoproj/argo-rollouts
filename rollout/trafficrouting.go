@@ -144,7 +144,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		} else {
 			c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
 		}
-		c.weightVerified = &weightVerified
+		c.targetsVerified = &weightVerified
 	}
 
 	return nil

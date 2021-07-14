@@ -42,10 +42,13 @@ type rolloutContext struct {
 	newStatus    v1alpha1.RolloutStatus
 	pauseContext *pauseContext
 
-	// weightVerified keeps track of the verified weight. nil indicates the check was not performed.
-	// we only perform weight verification when we are at a setWeight step since we do not want to
-	// continually verify weight in case it could incur rate-limiting or other expenses.
-	weightVerified *bool
+	// targetsVerified indicates if the pods targets have been verified with underlying LoadBalancer.
+	// This is used in pod-aware flat networks where LoadBalancers target Pods and not Nodes.
+	// nil indicates the check was unnecessary or not performed.
+	// NOTE: we only perform target verification when we are at specific points in time
+	// (e.g. a setWeight step, after a blue-green active switch, after stable service switch),
+	// since we do not want to continually verify weight in case it could incur rate-limiting or other expenses.
+	targetsVerified *bool
 }
 
 func (c *rolloutContext) reconcile() error {

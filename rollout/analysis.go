@@ -284,7 +284,8 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 	}
 
 	c.log.Info("Reconciling Post Promotion Analysis")
-	if skipPostPromotionAnalysisRun(c.rollout, c.newRS) {
+	// don't start post-promotion if we are not ready to, or we are still waiting for target verification
+	if skipPostPromotionAnalysisRun(c.rollout, c.newRS) || !c.areTargetsVerified() {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return currentAr, err
 	}

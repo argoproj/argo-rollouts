@@ -51,12 +51,6 @@ type VersionedTrafficSplits struct {
 	ts3 *smiv1alpha3.TrafficSplit
 }
 
-var smiAPIVersion = defaults.DefaultSMITrafficSplitVersion
-
-func SetSMIAPIVersion(apiVersion string) {
-	smiAPIVersion = apiVersion
-}
-
 // NewReconciler returns a reconciler struct that brings the SMI into the desired state
 func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 	r := &Reconciler{
@@ -64,7 +58,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 		log: logutil.WithRollout(cfg.Rollout),
 	}
 	ctx := context.TODO()
-	switch smiAPIVersion {
+	switch defaults.GetSMIAPIVersion() {
 	case "v1alpha1":
 		r.getTrafficSplit = func(trafficSplitName string) (VersionedTrafficSplits, error) {
 			ts1, err := r.cfg.Client.SplitV1alpha1().TrafficSplits(r.cfg.Rollout.Namespace).Get(ctx, trafficSplitName, metav1.GetOptions{})
@@ -174,7 +168,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 			return metav1.IsControlledBy(ts.ts3, r.cfg.Rollout)
 		}
 	default:
-		err := fmt.Errorf("Unsupported TrafficSplit API version `%s`", smiAPIVersion)
+		err := fmt.Errorf("Unsupported TrafficSplit API version `%s`", defaults.GetSMIAPIVersion())
 		return nil, err
 	}
 	return r, nil
@@ -239,7 +233,7 @@ func (r *Reconciler) generateTrafficSplits(trafficSplitName string, desiredWeigh
 
 	objectMeta := objectMeta(trafficSplitName, r.cfg.Rollout, r.cfg.ControllerKind)
 
-	switch smiAPIVersion {
+	switch defaults.GetSMIAPIVersion() {
 	case "v1alpha1":
 		trafficSplits.ts1 = trafficSplitV1Alpha1(r.cfg.Rollout, objectMeta, rootSvc, desiredWeight)
 	case "v1alpha2":

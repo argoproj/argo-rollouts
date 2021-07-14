@@ -56,17 +56,17 @@ rules:
   - update
   - patch
   - delete
-  # deployments and podtemplates read access needed for workload reference support
+# deployments and podtemplates read access needed for workload reference support
 - apiGroups:
-    - ""
-    - apps
+  - ""
+  - apps
   resources:
-    - deployments
-    - podtemplates
+  - deployments
+  - podtemplates
   verbs:
-    - get
-    - list
-    - watch
+  - get
+  - list
+  - watch
 # services patch needed to update selector of canary/stable/active/preview services
 - apiGroups:
   - ""
@@ -159,20 +159,12 @@ rules:
   - get
   - update
   - patch
+# ambassador access needed for Ambassador provider
 - apiGroups:
   - getambassador.io
-  resources:
-  - mappings
-  verbs:
-  - create
-  - watch
-  - get
-  - update
-  - list
-  - delete
-- apiGroups:
   - x.getambassador.io
   resources:
+  - mappings
   - ambassadormappings
   verbs:
   - create
@@ -181,3 +173,17 @@ rules:
   - update
   - list
   - delete
+# Endpoints and TargetGroupBindings needed for ALB target group verification
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+- apiGroups:
+  - elbv2.k8s.aws
+  resources:
+  - targetgroupbindings
+  verbs:
+  - list
+  - get
