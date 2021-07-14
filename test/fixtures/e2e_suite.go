@@ -39,6 +39,8 @@ const (
 	// E2E_POD_DELAY slows down pod startup and shutdown by the value in seconds (default: 0)
 	// Used humans slow down rollout activity during a test
 	EnvVarE2EPodDelay = "E2E_POD_DELAY"
+	// EnvVarE2EImagePrefix is a prefix that will be prefixed to images used by the e2e tests
+	EnvVarE2EImagePrefix = "E2E_IMAGE_PREFIX"
 	// E2E_DEBUG makes e2e testing easier to debug by not tearing down the suite
 	EnvVarE2EDebug = "E2E_DEBUG"
 	// E2E_ALB_INGESS_ANNOTATIONS is a map of annotations to apply to ingress for AWS Load Balancer Controller

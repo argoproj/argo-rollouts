@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
@@ -86,7 +87,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	desiredWeight := int32(0)
 	weightDestinations := make([]trafficrouting.WeightDestination, 0)
-	if c.rollout.Status.StableRS == c.rollout.Status.CurrentPodHash {
+	if rolloututil.IsFullyPromoted(c.rollout) {
 		// when we are fully promoted. desired canary weight should be 0
 	} else if c.pauseContext.IsAborted() {
 		// when promote aborted. desired canary weight should be 0
@@ -142,10 +143,14 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		return err
 	}
 
-	// If we are at a setWeight step, also perform weight verification. Note that we don't do this
-	// every reconciliation because weight verification typically involves API calls to the cloud
-	// provider which could incur rate limiting
-	if currentStep != nil && currentStep.SetWeight != nil {
+	// If we are in the middle of an update at a setWeight step, also perform weight verification.
+	// Note that we don't do this every reconciliation because weight verification typically involves
+	// API calls to the cloud provider which could incur rate limiting
+	shouldVerifyWeight := c.rollout.Status.StableRS != "" &&
+		c.rollout.Status.CurrentPodHash != c.rollout.Status.StableRS &&
+		currentStep != nil && currentStep.SetWeight != nil
+
+	if shouldVerifyWeight {
 		weightVerified, err := reconciler.VerifyWeight(desiredWeight)
 		if err != nil {
 			return err

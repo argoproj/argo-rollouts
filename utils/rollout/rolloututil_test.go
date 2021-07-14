@@ -71,6 +71,27 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 	}
 }
 
+func TestIsFullyPromoted(t *testing.T) {
+	{
+		ro := &v1alpha1.Rollout{
+			Status: v1alpha1.RolloutStatus{
+				StableRS:       "abc123",
+				CurrentPodHash: "abc123",
+			},
+		}
+		assert.True(t, IsFullyPromoted(ro))
+	}
+	{
+		ro := &v1alpha1.Rollout{
+			Status: v1alpha1.RolloutStatus{
+				StableRS:       "abc123",
+				CurrentPodHash: "def456",
+			},
+		}
+		assert.False(t, IsFullyPromoted(ro))
+	}
+}
+
 func TestRolloutStatusDegraded(t *testing.T) {
 	ro := newCanaryRollout()
 	ro.Status.Conditions = append(ro.Status.Conditions, v1alpha1.RolloutCondition{
@@ -137,6 +158,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 	}
 	{
 		ro := newBlueGreenRollout()
+		ro.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{}
 		ro.Status.BlueGreen.ActiveSelector = "def5678"
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "def5678"
@@ -147,6 +169,19 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		status, message := GetRolloutPhase(ro)
 		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
 		assert.Equal(t, "waiting for analysis to complete", message)
+	}
+	{
+		ro := newBlueGreenRollout()
+		ro.Status.BlueGreen.ActiveSelector = "def5678"
+		ro.Status.StableRS = "abc1234"
+		ro.Status.CurrentPodHash = "def5678"
+		ro.Spec.Replicas = pointer.Int32Ptr(5)
+		ro.Status.Replicas = 5
+		ro.Status.UpdatedReplicas = 5
+		ro.Status.AvailableReplicas = 5
+		status, message := GetRolloutPhase(ro)
+		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
+		assert.Equal(t, "waiting for post-promotion verification to complete", message)
 	}
 	{
 		// Scenario when a newly created rollout has partially filled in status (with hashes)

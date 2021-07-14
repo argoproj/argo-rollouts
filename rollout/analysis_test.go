@@ -1847,7 +1847,6 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
-	f.expectPatchReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
@@ -1915,7 +1914,6 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
-	f.expectPatchReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)

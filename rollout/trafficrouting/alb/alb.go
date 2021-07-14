@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/aws"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -137,6 +138,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 		}
 		lb, err := r.aws.FindLoadBalancerByDNSName(ctx, lbIngress.Hostname)
 		if err != nil {
+			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
 			return false, err
 		}
 		if lb == nil || lb.LoadBalancerArn == nil {
@@ -145,6 +147,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 		}
 		lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 		if err != nil {
+			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
 			return false, err
 		}
 		logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
@@ -153,7 +156,13 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 				if tg.Weight != nil {
 					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 					logCtx.Infof("canary weight of %s (desired: %d, current: %d)", resourceID, desiredWeight, *tg.Weight)
-					return *tg.Weight == desiredWeight, nil
+					verified := *tg.Weight == desiredWeight
+					if verified {
+						r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight)
+					} else {
+						r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight, *tg.Weight)
+					}
+					return verified, nil
 				}
 			}
 		}

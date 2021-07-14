@@ -38,7 +38,7 @@ const (
 )
 
 type Client interface {
-	GetTargetGroupTargets(ctx context.Context, targetGroupARN string) ([]elbv2types.TargetHealthDescription, error)
+	GetTargetGroupHealth(ctx context.Context, targetGroupARN string) ([]elbv2types.TargetHealthDescription, error)
 	GetTargetGroupMetadata(ctx context.Context, loadBalancerARN string) ([]TargetGroupMeta, error)
 	FindLoadBalancerByDNSName(ctx context.Context, dnsName string) (*elbv2types.LoadBalancer, error)
 }
@@ -53,7 +53,8 @@ type ELBv2APIClient interface {
 	DescribeTags(ctx context.Context, params *elbv2.DescribeTagsInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTagsOutput, error)
 }
 
-type client struct {
+// ClientAdapter implements the Client interface
+type ClientAdapter struct {
 	ELBV2 ELBv2APIClient
 
 	// loadBalancerDNStoARN is a cache that maps a LoadBalancer DNSName to an ARN
@@ -100,19 +101,32 @@ type ServiceReference struct {
 	Port intstr.IntOrString `json:"port"`
 }
 
-func NewClient() (Client, error) {
+// NewClient instantiates a new AWS Client. It is declared as a variable to allow mocking
+var NewClient = DefaultNewClientFunc
+
+func DefaultNewClientFunc() (Client, error) {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return nil, err
 	}
-	c := client{
+	c := ClientAdapter{
 		ELBV2:                elbv2.NewFromConfig(cfg),
 		loadBalancerDNStoARN: make(map[string]string),
 	}
 	return &c, nil
 }
 
-func (c *client) FindLoadBalancerByDNSName(ctx context.Context, dnsName string) (*elbv2types.LoadBalancer, error) {
+func FakeNewClientFunc(elbClient ELBv2APIClient) func() (Client, error) {
+	return func() (Client, error) {
+		c := ClientAdapter{
+			ELBV2:                elbClient,
+			loadBalancerDNStoARN: make(map[string]string),
+		}
+		return &c, nil
+	}
+}
+
+func (c *ClientAdapter) FindLoadBalancerByDNSName(ctx context.Context, dnsName string) (*elbv2types.LoadBalancer, error) {
 	lbOutput, err := c.ELBV2.DescribeLoadBalancers(ctx, &elbv2.DescribeLoadBalancersInput{})
 	if err != nil {
 		return nil, err
@@ -127,7 +141,7 @@ func (c *client) FindLoadBalancerByDNSName(ctx context.Context, dnsName string) 
 
 // GetTargetGroupMetadata is a convenience to retrieve the target groups of a load balancer along
 // with relevant metadata (tags, and traffic weights).
-func (c *client) GetTargetGroupMetadata(ctx context.Context, loadBalancerARN string) ([]TargetGroupMeta, error) {
+func (c *ClientAdapter) GetTargetGroupMetadata(ctx context.Context, loadBalancerARN string) ([]TargetGroupMeta, error) {
 	// Get target groups associated with LoadBalancer
 	tgIn := elbv2.DescribeTargetGroupsInput{
 		LoadBalancerArn: &loadBalancerARN,
@@ -206,8 +220,9 @@ func (c *client) GetTargetGroupMetadata(ctx context.Context, loadBalancerARN str
 	return tgMeta, nil
 }
 
-func (c *client) GetTargetGroupTargets(ctx context.Context, targetGroupARN string) ([]elbv2types.TargetHealthDescription, error) {
-	// Get target groups associated with LoadBalancer
+// GetTargetGroupHealth returns health descriptions of registered targets in a target group.
+// A TargetHealthDescription is an IP:port pair, along with its health status.
+func (c *ClientAdapter) GetTargetGroupHealth(ctx context.Context, targetGroupARN string) ([]elbv2types.TargetHealthDescription, error) {
 	thIn := elbv2.DescribeTargetHealthInput{
 		TargetGroupArn: &targetGroupARN,
 	}
@@ -296,18 +311,29 @@ func getNumericPort(tgb TargetGroupBinding, svc corev1.Service) int32 {
 	return 0
 }
 
-// VerifyTargetGroupBinding verifies if the underlying AWS TargetGroup:
-// 1. targets all the Pod IPs and port in the given service
-// 2. those targets are in a healthy state
-func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Client, tgb TargetGroupBinding, endpoints *corev1.Endpoints, svc *corev1.Service) (bool, error) {
+// TargetGroupVerifyResult returns metadata when a target group is verified.
+type TargetGroupVerifyResult struct {
+	Service             string
+	Verified            bool
+	EndpointsRegistered int
+	EndpointsTotal      int
+}
+
+// VerifyTargetGroupBinding verifies if the underlying AWS TargetGroup has all Pod IPs and ports
+// from the given service (the K8s Endpoints list) registered to the TargetGroup.
+// NOTE: a previous version of this method used to additionally verify that all registered targets
+// were "healthy" (in addition to registered), but the health of registered targets is actually
+// irrelevant for our purposes of verifying the service label change was reflected in the LB.
+// Returns nil if the verification is not applicable (e.g. target type is not IP)
+func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Client, tgb TargetGroupBinding, endpoints *corev1.Endpoints, svc *corev1.Service) (*TargetGroupVerifyResult, error) {
 	if tgb.Spec.TargetType == nil || *tgb.Spec.TargetType != TargetTypeIP {
 		// We only need to verify target groups using AWS CNI (spec.targetType: ip)
-		return true, nil
+		return nil, nil
 	}
 	port := getNumericPort(tgb, *svc)
 	if port == 0 {
 		logCtx.Warn("Unable to match TargetGroupBinding spec.serviceRef.port to Service spec.ports")
-		return false, nil
+		return nil, nil
 	}
 	logCtx = logCtx.WithFields(map[string]interface{}{
 		"service":            svc.Name,
@@ -315,12 +341,12 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 		"tg":                 tgb.Spec.TargetGroupARN,
 		"port":               port,
 	})
-	targets, err := awsClnt.GetTargetGroupTargets(ctx, tgb.Spec.TargetGroupARN)
+	targets, err := awsClnt.GetTargetGroupHealth(ctx, tgb.Spec.TargetGroupARN)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	// Remember all of the ip:port of the endpoints list
+	// Remember/initialize all of the ip:port of the endpoints list that we expect to see registered
 	endpointIPs := make(map[string]bool)
 	for _, subset := range endpoints.Subsets {
 		for _, addr := range subset.Addresses {
@@ -330,9 +356,9 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 
 	logCtx.Infof("verifying %d endpoint addresses (of %d targets)", len(endpointIPs), len(targets))
 
-	// Iterate all targets in AWS TargetGroup. Mark all endpoint IPs which are healthy
+	// Iterate all registered targets in AWS TargetGroup. Mark all endpoint IPs which we see registered
 	for _, target := range targets {
-		if target.Target == nil || target.Target.Id == nil || target.Target.Port == nil || target.TargetHealth == nil {
+		if target.Target == nil || target.Target.Id == nil || target.Target.Port == nil {
 			logCtx.Warnf("Invalid target in TargetGroup: %v", target)
 			continue
 		}
@@ -342,17 +368,25 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 			// this is a target for something not in the endpoint list (e.g. old endpoint entry). Ignore it
 			continue
 		}
-		// Mark the endpoint IP as healthy or not
-		endpointIPs[targetStr] = bool(target.TargetHealth.State == elbv2types.TargetHealthStateEnumHealthy)
+		// Verify we see the endpoint IP registered to the TargetGroup
+		// NOTE: we used to check health here, but health is not relevant for verifying service label change
+		endpointIPs[targetStr] = true
 	}
 
-	// Check if any of our desired endpoints are not yet healthy
-	for epIP, healthy := range endpointIPs {
-		if !healthy {
-			logCtx.Infof("Service endpoint IP %s not yet targeted or healthy", epIP)
-			return false, nil
+	tgvr := TargetGroupVerifyResult{
+		Service:             svc.Name,
+		EndpointsTotal:      len(endpointIPs),
+		EndpointsRegistered: 0,
+	}
+
+	// Check if any of our desired endpoints are not yet registered
+	for epIP, seen := range endpointIPs {
+		if !seen {
+			logCtx.Infof("Service endpoint IP %s not yet registered", epIP)
+		} else {
+			tgvr.EndpointsRegistered++
 		}
 	}
-	logCtx.Info("TargetGroupBinding verified")
-	return true, nil
+	tgvr.Verified = bool(tgvr.EndpointsRegistered == tgvr.EndpointsTotal)
+	return &tgvr, nil
 }
