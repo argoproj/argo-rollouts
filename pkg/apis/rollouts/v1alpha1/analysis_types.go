@@ -139,6 +139,8 @@ type MetricProvider struct {
 	NewRelic *NewRelicMetric `json:"newRelic,omitempty" protobuf:"bytes,6,opt,name=newRelic"`
 	// Job specifies the job metric run
 	Job *JobMetric `json:"job,omitempty" protobuf:"bytes,7,opt,name=job"`
+	// CloudWatch specifies the cloudWatch metric to query
+	CloudWatch *CloudWatchMetric `json:"cloudWatch,omitempty" protobuf:"bytes,8,opt,name=cloudWatch"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -191,6 +193,12 @@ type NewRelicMetric struct {
 type JobMetric struct {
 	Metadata metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Spec     batchv1.JobSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+}
+
+// CloudWatchMetric defines the cloudwatch query to perform canary analysis
+type CloudWatchMetric struct {
+	Interval          DurationString `json:"interval,omitempty" protobuf:"bytes,1,opt,name=interval,casttype=DurationString"`
+	MetricDataQueries string         `json:"metricDataQueries" protobuf:"bytes,2,opt,name=metricDataQueries"`
 }
 
 // AnalysisRun is an instantiation of an AnalysisTemplate

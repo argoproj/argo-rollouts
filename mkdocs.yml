@@ -47,6 +47,7 @@ nav:
   - Job: analysis/job.md
   - Web: analysis/web.md
   - Kayenta: analysis/kayenta.md
+  - CloudWatch: analysis/cloudwatch.md
 - Experiments: features/experiment.md
 - Notifications:
   - Overview: features/notifications.md
