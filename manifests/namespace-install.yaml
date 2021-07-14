@@ -10231,6 +10231,15 @@ spec:
                             required:
                             - stableIngress
                             type: object
+                          openshift:
+                            properties:
+                              routes:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - routes
+                            type: object
                           smi:
                             properties:
                               rootService:
@@ -12698,6 +12707,17 @@ rules:
   - x.getambassador.io
   resources:
   - ambassadormappings
+  verbs:
+  - create
+  - watch
+  - get
+  - update
+  - list
+  - delete
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
   verbs:
   - create
   - watch

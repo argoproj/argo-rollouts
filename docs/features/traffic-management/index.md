@@ -22,6 +22,7 @@ Argo Rollouts enables traffic management by manipulating the Service Mesh resour
 - [Ambassador Edge Stack](ambassador.md)
 - [Istio](istio.md)
 - [Nginx Ingress Controller](nginx.md)
+- [Openshift Routes](openshift.md)
 - [Service Mesh Interface (SMI)](smi.md)
 - File a ticket [here](https://github.com/argoproj/argo-rollouts/issues) if you would like another implementation (or thumbs up it if that issue already exists)
 

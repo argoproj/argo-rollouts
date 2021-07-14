@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/openshift"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -68,6 +69,14 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (Traffic
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador != nil {
 		ac := ambassador.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
 		return ambassador.NewReconciler(rollout, ac, c.recorder), nil
+	}
+
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Openshift != nil {
+		return openshift.NewReconciler(openshift.ReconcilerConfig{
+			Rollout:  rollout,
+			Client:   c.openshiftclientset,
+			Recorder: c.recorder,
+		}), nil
 	}
 	return nil, nil
 }

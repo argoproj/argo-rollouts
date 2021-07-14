@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	routev1 "github.com/openshift/api/route/v1"
+	openshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -88,6 +90,7 @@ type ControllerConfig struct {
 	DynamicClientSet                dynamic.Interface
 	RefResolver                     TemplateRefResolver
 	SmiClientSet                    smiclientset.Interface
+	OpenshiftClientSet              openshiftclientset.Interface
 	ExperimentInformer              informers.ExperimentInformer
 	AnalysisRunInformer             informers.AnalysisRunInformer
 	AnalysisTemplateInformer        informers.AnalysisTemplateInformer
@@ -116,8 +119,9 @@ type reconcilerBase struct {
 	argoprojclientset clientset.Interface
 	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
 	// It is used to interact with TrafficRouting resources
-	dynamicclientset dynamic.Interface
-	smiclientset     smiclientset.Interface
+	dynamicclientset   dynamic.Interface
+	openshiftclientset openshiftclientset.Interface
+	smiclientset       smiclientset.Interface
 
 	refResolver TemplateRefResolver
 
@@ -168,6 +172,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		argoprojclientset:             cfg.ArgoProjClientset,
 		dynamicclientset:              cfg.DynamicClientSet,
 		smiclientset:                  cfg.SmiClientSet,
+		openshiftclientset:            cfg.OpenshiftClientSet,
 		replicaSetLister:              cfg.ReplicaSetInformer.Lister(),
 		replicaSetSynced:              cfg.ReplicaSetInformer.Informer().HasSynced,
 		rolloutsInformer:              cfg.RolloutsInformer.Informer(),
@@ -538,7 +543,40 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 	}
 	refResources.AmbassadorMappings = ambassadorMappings
 
+	openshiftRoutes, err := c.getOpenshiftRoutes()
+	if err != nil {
+		return nil, err
+	}
+	refResources.OpenshiftRoutes = *openshiftRoutes
+
 	return &refResources, nil
+}
+
+func (c *rolloutContext) getOpenshiftRoutes() (*[]routev1.Route, error) {
+	routes := []routev1.Route{}
+	if c.rollout.Spec.Strategy.Canary != nil {
+		canary := c.rollout.Spec.Strategy.Canary
+		if canary.TrafficRouting != nil && canary.TrafficRouting.Openshift != nil {
+			routeNames := canary.TrafficRouting.Openshift.Routes
+			fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "openshift", "routes")
+			if len(routeNames) == 0 {
+				return nil, field.Invalid(fldPath, nil, "must provide at least one route")
+			}
+			for _, routeName := range routeNames {
+				route, err := c.openshiftclientset.RouteV1().
+					Routes(c.rollout.GetNamespace()).
+					Get(context.Background(), routeName, metav1.GetOptions{})
+				if err != nil {
+					if k8serrors.IsNotFound(err) {
+						return nil, field.Invalid(fldPath, routeName, err.Error())
+					}
+					return nil, err
+				}
+				routes = append(routes, *route)
+			}
+		}
+	}
+	return &routes, nil
 }
 
 func (c *rolloutContext) getAmbassadorMappings() ([]unstructured.Unstructured, error) {

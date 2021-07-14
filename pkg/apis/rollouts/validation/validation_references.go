@@ -11,6 +11,7 @@ import (
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -62,6 +63,7 @@ type ReferencedResources struct {
 	ServiceWithType           []ServiceWithType
 	VirtualServices           []unstructured.Unstructured
 	AmbassadorMappings        []unstructured.Unstructured
+	OpenshiftRoutes           []routev1.Route
 }
 
 func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedResources ReferencedResources) field.ErrorList {
@@ -80,6 +82,9 @@ func ValidateRolloutReferencedResources(rollout *v1alpha1.Rollout, referencedRes
 	}
 	for _, mapping := range referencedResources.AmbassadorMappings {
 		allErrs = append(allErrs, ValidateAmbassadorMapping(mapping)...)
+	}
+	for _, route := range referencedResources.OpenshiftRoutes {
+		allErrs = append(allErrs, ValidateOpenshiftRoute(rollout, route)...)
 	}
 	return allErrs
 }
@@ -244,6 +249,21 @@ func ValidateAmbassadorMapping(obj unstructured.Unstructured) field.ErrorList {
 		msg := fmt.Sprintf("Ambassador mapping %q can not define weight", obj.GetName())
 		allErrs = append(allErrs, field.Invalid(fldPath, obj.GetName(), msg))
 	}
+	return allErrs
+}
+
+func ValidateOpenshiftRoute(rollout *v1alpha1.Rollout, route routev1.Route) field.ErrorList {
+	allErrs := field.ErrorList{}
+	fldPath := field.NewPath("spec", "to", "name")
+	defaultBackend := route.Spec.To.Name
+	stableService := rollout.Spec.Strategy.Canary.StableService
+	if defaultBackend != stableService {
+		msg := fmt.Sprintf(
+			"Openshift route %q has default backend %q, must be stable service %q",
+			route.GetName(), defaultBackend, stableService)
+		allErrs = append(allErrs, field.Invalid(fldPath, route.GetName(), msg))
+	}
+
 	return allErrs
 }
 

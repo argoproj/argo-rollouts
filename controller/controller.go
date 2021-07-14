@@ -7,6 +7,7 @@ import (
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/controller"
+	openshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -104,6 +105,7 @@ func NewManager(
 	argoprojclientset clientset.Interface,
 	dynamicclientset dynamic.Interface,
 	smiclientset smiclientset.Interface,
+	openshiftclientset openshiftclientset.Interface,
 	discoveryClient discovery.DiscoveryInterface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
@@ -172,6 +174,7 @@ func NewManager(
 		DynamicClientSet:                dynamicclientset,
 		RefResolver:                     refResolver,
 		SmiClientSet:                    smiclientset,
+		OpenshiftClientSet:              openshiftclientset,
 		ExperimentInformer:              experimentsInformer,
 		AnalysisRunInformer:             analysisRunInformer,
 		AnalysisTemplateInformer:        analysisTemplateInformer,

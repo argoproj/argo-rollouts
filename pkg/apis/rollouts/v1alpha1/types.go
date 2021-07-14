@@ -309,6 +309,14 @@ type RolloutTrafficRouting struct {
 	SMI *SMITrafficRouting `json:"smi,omitempty" protobuf:"bytes,4,opt,name=smi"`
 	// Ambassador holds specific configuration to use Ambassador to route traffic
 	Ambassador *AmbassadorTrafficRouting `json:"ambassador,omitempty" protobuf:"bytes,5,opt,name=ambassador"`
+	// Openshift holds specific configuration to use routes for traffic
+	Openshift *OpenshiftTrafficRouting `json:"openshift,omitempty" protobuf:"bytes,6,opt,name=openshift"`
+}
+
+// OpenshiftTrafficRouting defines the configuration required to use Openshift routes for traffic
+type OpenshiftTrafficRouting struct {
+	// Openshift route definition
+	Routes []string `json:"routes" protobuf:"bytes,1,opt,name=routes"`
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic

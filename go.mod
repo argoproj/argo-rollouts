@@ -22,6 +22,8 @@ require (
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/newrelic/newrelic-client-go v0.49.0
+	github.com/openshift/api v0.0.0-20210521075222-e273a339932a
+	github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.10.0
 	github.com/prometheus/client_model v0.2.0
@@ -35,22 +37,21 @@ require (
 	github.com/tj/assert v0.0.3
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/valyala/fasttemplate v1.2.1
-	golang.org/x/tools v0.1.0 // indirect
 	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a
 	google.golang.org/grpc v1.33.1
 	google.golang.org/grpc/examples v0.0.0-20210331235824-f6bb3972ed15 // indirect
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
-	k8s.io/api v0.20.4
+	k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver v0.19.4
-	k8s.io/apimachinery v0.20.4
+	k8s.io/apimachinery v0.21.1
 	k8s.io/apiserver v0.20.4
 	k8s.io/cli-runtime v0.20.4
-	k8s.io/client-go v0.20.4
-	k8s.io/code-generator v0.20.4
+	k8s.io/client-go v0.21.1
+	k8s.io/code-generator v0.21.1
 	k8s.io/component-base v0.20.4
-	k8s.io/klog/v2 v2.5.0
+	k8s.io/klog/v2 v2.8.0
 	k8s.io/kube-openapi v0.0.0-20210216185858-15cd8face8d6
 	k8s.io/kubectl v0.19.4
 	k8s.io/kubernetes v1.20.4

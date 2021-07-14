@@ -294,6 +294,11 @@ spec:
         smi:
           rootService: root-svc # optional
           trafficSplitName: rollout-example-traffic-split # optional
+        
+        # OpenShift routing configuration
+        openshift:
+          routes:
+          - main-route # required (at least one)
 
 status:
   pauseConditions:
