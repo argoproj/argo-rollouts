@@ -126,10 +126,10 @@ func (o AnalysisRunByCreationTimestamp) Less(i, j int) bool {
 // Note: It is okay to use pod hash for filtering since the analysis run's pod hash is originally derived from the new RS.
 // Even if there is a library change during the lifetime of the analysis run, the ReplicaSet's pod hash that the analysis
 // run references does not change.
-func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, olderRSs []*appsv1.ReplicaSet, limitSucceedArs int32, limitFailedArs int32) []*v1alpha1.AnalysisRun {
+func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, allRSs []*appsv1.ReplicaSet, limitSucceedArs int32, limitFailedArs int32) []*v1alpha1.AnalysisRun {
 	olderRsPodHashes := map[string]bool{}
-	for i := range olderRSs {
-		rs := olderRSs[i]
+	for i := range allRSs {
+		rs := allRSs[i]
 		if rs == nil {
 			continue
 		}
