@@ -237,7 +237,7 @@ func TestFilterAnalysisRunsToDeleteByLimit(t *testing.T) {
 
 	validRS := rs("a")
 	ars := []*v1alpha1.AnalysisRun{
-		arS0, arS1, arS2, arS3, arS4, arF0, arF1, arF2, arF3, arF4,
+		arS0, arF0, arS1, arF1, arS2, arF2, arS3, arF3, arS4, arF4,
 	}
 	olderRSs := []*appsv1.ReplicaSet{
 		validRS,
