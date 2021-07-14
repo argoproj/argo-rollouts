@@ -115,6 +115,10 @@ spec:
       # down. Defaults to nil
       scaleDownDelayRevisionLimit: 2
 
+      # Adds a delay before scaling down the preview replicaset if update is
+      # aborted. Default is 0, meaning preview replicaset won't be scaled down.
+      AbortScaleDownDelaySeconds: 30
+
       # Anti Affinity configuration between desired and previous ReplicaSet.
       # Only one must be specified
       antiAffinity:
@@ -294,6 +298,11 @@ spec:
         smi:
           rootService: root-svc # optional
           trafficSplitName: rollout-example-traffic-split # optional
+
+      # Add a delay before scaling down the canary pods when update
+      # is aborted for canary strategy using replicas of setCanaryScale.
+      # Default is 0, meaning canary pods are not scaled down.
+      AbortScaleDownDelaySeconds: 30
 
 status:
   pauseConditions:

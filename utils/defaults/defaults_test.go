@@ -165,6 +165,62 @@ func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 	}
 }
 
+func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
+	{
+		abortScaleDownDelaySeconds := int32(60)
+		blueGreenNonDefaultValue := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					BlueGreen: &v1alpha1.BlueGreenStrategy{
+						AbortScaleDownDelaySeconds: &abortScaleDownDelaySeconds,
+					},
+				},
+			},
+		}
+		assert.Equal(t, abortScaleDownDelaySeconds, GetAbortScaleDownDelaySecondsOrDefault(blueGreenNonDefaultValue))
+	}
+	{
+		blueGreenDefaultValue := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					BlueGreen: &v1alpha1.BlueGreenStrategy{},
+				},
+			},
+		}
+		assert.Equal(t, DefaultAbortScaleDownDelaySeconds, GetAbortScaleDownDelaySecondsOrDefault(blueGreenDefaultValue))
+	}
+	{
+		abortScaleDownDelaySeconds := int32(60)
+		canaryNonDefaultValue := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{
+						AbortScaleDownDelaySeconds: &abortScaleDownDelaySeconds,
+						TrafficRouting:             &v1alpha1.RolloutTrafficRouting{},
+					},
+				},
+			},
+		}
+		assert.Equal(t, abortScaleDownDelaySeconds, GetAbortScaleDownDelaySecondsOrDefault(canaryNonDefaultValue))
+	}
+	{
+		rolloutNoStrategyDefaultValue := &v1alpha1.Rollout{}
+		assert.Equal(t, int32(0), GetAbortScaleDownDelaySecondsOrDefault(rolloutNoStrategyDefaultValue))
+	}
+	{
+		canaryDefaultValue := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{
+						TrafficRouting: &v1alpha1.RolloutTrafficRouting{},
+					},
+				},
+			},
+		}
+		assert.Equal(t, DefaultAbortScaleDownDelaySeconds, GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue))
+	}
+}
+
 func TestGetAutoPromotionEnabledOrDefault(t *testing.T) {
 	autoPromote := false
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
