@@ -766,6 +766,10 @@
           "type": "integer",
           "format": "int32",
           "title": "ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down\n+optional"
+        },
+        "checkNewRSOnly": {
+          "type": "boolean",
+          "description": "CheckNewRSOnly indicates if only check the health of new rs before go to next canary step."
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"

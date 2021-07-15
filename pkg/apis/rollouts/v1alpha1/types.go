@@ -271,7 +271,6 @@ type CanaryStrategy struct {
 	// StableMetadata specify labels and annotations which will be attached to the stable pods for
 	// the duration which they act as a canary, and will be removed after
 	StableMetadata *PodTemplateMetadata `json:"stableMetadata,omitempty" protobuf:"bytes,10,opt,name=stableMetadata"`
-
 	// ScaleDownDelaySeconds adds a delay before scaling down the previous ReplicaSet when the
 	// canary strategy is used with traffic routing (default 30 seconds). A delay in scaling down
 	// the previous ReplicaSet is needed after switching the stable service selector to point to
@@ -282,6 +281,8 @@ type CanaryStrategy struct {
 	// ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down
 	// +optional
 	ScaleDownDelayRevisionLimit *int32 `json:"scaleDownDelayRevisionLimit,omitempty" protobuf:"varint,12,opt,name=scaleDownDelayRevisionLimit"`
+	// CheckNewRSOnly indicates if only check the health of new rs before go to next canary step.
+	CheckNewRSOnly bool `json:"checkNewRSOnly,omitempty" protobuf:"bytes,13,opt,name=checkNewRSOnly"`
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing

@@ -1528,3 +1528,46 @@ func TestHandleCanaryAbort(t *testing.T) {
 		assert.Equal(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions, conditions.RolloutAbortedReason, errmsg)), patch)
 	})
 }
+
+func TestCompletedCurrentCanaryStep(t *testing.T) {
+	pauseRo := &rolloutContext{rollout: &v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Paused: true}}}
+	assert.False(t, pauseRo.completedCurrentCanaryStep())
+
+	rollout := newCanaryRollout("foo", 10, nil, nil, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
+	rc := rolloutContext{
+		pauseContext: &pauseContext{
+			rollout: rollout,
+		},
+		rollout: rollout,
+	}
+	newRS1 := newReplicaSetWithStatus(rollout, 1, 1)
+	newRS1.Name = "newRS1"
+	stableRS1 := newReplicaSetWithStatus(rollout, 9, 9)
+	stableRS1.Name = "stableRS1"
+	stableRS2 := newReplicaSetWithStatus(rollout, 9, 0)
+	stableRS2.Name = "stableRS2"
+	stableRS3 := newReplicaSetWithStatus(rollout, 10, 8)
+	stableRS3.Name = "stableRS3"
+	for _, c := range []struct {
+		newRS          *v1.ReplicaSet
+		stableRS       *v1.ReplicaSet
+		step           *v1alpha1.CanaryStep
+		trafficRouting *v1alpha1.RolloutTrafficRouting
+		checkNewRsOnly bool
+		expected       bool
+	}{
+		{step: &v1alpha1.CanaryStep{Pause: &v1alpha1.RolloutPause{}}, expected: false},
+		{step: &v1alpha1.CanaryStep{SetWeight: int32Ptr(10)}, newRS: newRS1, stableRS: stableRS1, expected: true},
+		{step: &v1alpha1.CanaryStep{SetWeight: int32Ptr(10)}, newRS: newRS1, stableRS: stableRS2, expected: false},
+		{step: &v1alpha1.CanaryStep{SetWeight: int32Ptr(10)}, newRS: newRS1, stableRS: stableRS2, checkNewRsOnly: true, expected: true},
+		{step: &v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: int32Ptr(1)}}, newRS: newRS1, stableRS: stableRS2, trafficRouting: &v1alpha1.RolloutTrafficRouting{}, expected: false},
+		{step: &v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: int32Ptr(1)}}, newRS: newRS1, stableRS: stableRS2, trafficRouting: &v1alpha1.RolloutTrafficRouting{}, checkNewRsOnly: true, expected: true},
+	} {
+		rollout.Spec.Strategy.Canary.TrafficRouting = c.trafficRouting
+		rollout.Spec.Strategy.Canary.CheckNewRSOnly = c.checkNewRsOnly
+		rollout.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{*c.step}
+		rc.newRS = c.newRS
+		rc.stableRS = c.stableRS
+		assert.Equal(t, c.expected, rc.completedCurrentCanaryStep(), c)
+	}
+}

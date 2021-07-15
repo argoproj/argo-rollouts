@@ -235,9 +235,9 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	case currentStep.Pause != nil:
 		return c.pauseContext.CompletedCanaryPauseStep(*currentStep.Pause)
 	case currentStep.SetCanaryScale != nil:
-		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.rollout.Spec.Strategy.Canary.CheckNewRSOnly)
 	case currentStep.SetWeight != nil:
-		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
+		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.rollout.Spec.Strategy.Canary.CheckNewRSOnly) {
 			return false
 		}
 		if c.weightVerified != nil && !*c.weightVerified {
