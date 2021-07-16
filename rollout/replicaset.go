@@ -39,7 +39,7 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 }
 
 // addScaleDownDelay injects the `scale-down-deadline` annotation to the ReplicaSet, or if
-// scaleDownDelaySeconds is zero, removes it if it exists
+// scaleDownDelaySeconds is zero, removes the annotation if it exists
 func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelaySeconds time.Duration) error {
 	if rs == nil {
 		return nil

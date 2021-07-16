@@ -1,8 +1,10 @@
 # Scaledown New Replicaset on Aborted Rollout
 
-Upon an abort, we should scale down the new replicaset for all strategies. Users can then choose to leave the new replicaset scaled up indefinitely by setting abortScaleDownDelaySeconds to 0, or adjust the value to something larger (or smaller).
+Upon an aborted update, we may scale down the new replicaset for all strategies. Users can then choose to leave the new replicaset scaled up indefinitely by setting abortScaleDownDelaySeconds to 0, or adjust the value to something larger (or smaller).
 
-`abortScaleDownDelaySeconds = nil` is the default.
+The following table summarizes the behavior under combinations of rollout strategy and `abortScaleDownDelaySeconds`. Note that `abortScaleDownDelaySeconds` is not applicable to argo-rollouts v1.0.
+`abortScaleDownDelaySeconds = nil` is the default, which means in v1.1 across all rollout strategies, the new replicaset
+is scaled down in 30 seconds on abort by default.
 
 |                                    strategy |         v1.0 behavior         | abortScaleDownDelaySeconds |         v1.1 behavior         |
 |--------------------------------------------:|:-----------------------------:|:--------------------------:|:-----------------------------:|

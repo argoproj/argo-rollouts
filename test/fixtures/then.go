@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -73,6 +74,7 @@ func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available i
 }
 
 type PodExpectation func(*corev1.PodList) bool
+type ReplicasetExpectation func(*appsv1.ReplicaSet) bool
 
 func (t *Then) ExpectPods(expectation string, expectFunc PodExpectation) *Then {
 	t.t.Helper()
@@ -113,6 +115,44 @@ func (t *Then) ExpectRevisionPodCount(revision string, expectedCount int) *Then 
 	description := fmt.Sprintf("revision:%s", revision)
 	hash := rs.Labels[rov1.DefaultRolloutUniqueLabelKey]
 	return t.expectPodCountByHash(description, hash, expectedCount)
+}
+
+func (t *Then) ExpectRevisionScaleDown(revision string, expectScaleDown bool) *Then {
+	t.t.Helper()
+	rs := t.GetReplicaSetByRevision(revision)
+	description := fmt.Sprintf("revision:%s", revision)
+	return t.expectRSScaleDownByName(description, rs.Name, expectScaleDown)
+}
+
+func (t *Then) expectRSScaleDownByName(description, name string, expectScaleDown bool) *Then {
+	return t.ExpectRS(fmt.Sprintf("RS %s scale down", name), name, func(rs *appsv1.ReplicaSet) bool {
+		hasScaleDownDelay := false
+
+		if _, ok := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
+			hasScaleDownDelay = true
+		}
+
+		metExpectation := hasScaleDownDelay == expectScaleDown
+		if !metExpectation {
+			t.log.Warnf("unexpected %s (rs %s): expected to be scaled down is %v", description, name, expectScaleDown)
+		}
+		return metExpectation
+	})
+}
+
+func (t *Then) ExpectRS(expectation string, name string, expectFunc ReplicasetExpectation) *Then {
+	t.t.Helper()
+	_, err := metav1.LabelSelectorAsSelector(t.Rollout().Spec.Selector)
+	t.CheckError(err)
+	rs, err := t.kubeClient.AppsV1().ReplicaSets(t.namespace).Get(t.Context, name, metav1.GetOptions{})
+	// List(t.Context, metav1.ListOptions{LabelSelector: selector.String()})
+	t.CheckError(err)
+	if !expectFunc(rs) {
+		t.log.Errorf("rs expectation '%s' failed", expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("rs expectation '%s' met", expectation)
+	return t
 }
 
 func (t *Then) expectPodCountByHash(description, hash string, expectedCount int) *Then {

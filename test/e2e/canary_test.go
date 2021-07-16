@@ -487,3 +487,17 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 		Then().
 		ExpectRevisionPodCount("2", 0)
 }
+
+func (s *CanarySuite) TestCanaryUnScaleDownOnAbort() {
+	s.Given().
+		HealthyRollout(`@functional/canary-unscaledownonabort.yaml`).
+		When().
+		UpdateSpec(). // update to revision 2
+		WaitForRolloutStatus("Paused").
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Sleep(3*time.Second).
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		ExpectRevisionScaleDown("2", false)
+}
