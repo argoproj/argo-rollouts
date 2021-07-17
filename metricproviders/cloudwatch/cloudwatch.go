@@ -89,7 +89,11 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	measurement.Value = fmt.Sprintf("%+v", result.MetricDataResults)
+	value := [][]float64{}
+	for _, result := range result.MetricDataResults {
+		value = append(value, result.Values)
+	}
+	measurement.Value = fmt.Sprintf("%+v", value)
 	measurement.Phase = status
 	finishedTime := metav1.Now()
 	measurement.FinishedAt = &finishedTime

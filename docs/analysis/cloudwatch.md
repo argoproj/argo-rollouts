@@ -71,3 +71,11 @@ spec:
             }
           ]
 ```
+
+## debug
+
+You can confirm the results value in `AnalysisRun`.
+
+```bash
+kubectl get analysisrun/rollouts-name-xxxxxxxxxx-xx -o json | jq ".status.metricResults"
+```
