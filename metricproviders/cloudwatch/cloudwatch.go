@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
@@ -20,8 +19,7 @@ import (
 
 const (
 	//ProviderType indicates the provider is cloudwatch
-	ProviderType         = "CloudWatch"
-	CloudWatchSecretName = "cloudWatch"
+	ProviderType = "CloudWatch"
 )
 
 type CloudWatchClientAPI interface {
@@ -121,13 +119,13 @@ func NewCloudWatchProvider(api CloudWatchClientAPI, logCtx log.Entry) *Provider 
 	}
 }
 
-func NewCloudWatchAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (CloudWatchClientAPI, error) {
+func NewCloudWatchAPIClient(metric v1alpha1.Metric, opts ...func(*cloudwatch.Options)) (CloudWatchClientAPI, error) {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return nil, err
 	}
 
 	return &CloudWatchClient{
-		client: cloudwatch.NewFromConfig(cfg),
+		client: cloudwatch.NewFromConfig(cfg, opts...),
 	}, nil
 }

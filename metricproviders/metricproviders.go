@@ -79,7 +79,7 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		}
 		return newrelic.NewNewRelicProvider(client, logCtx), nil
 	case cloudwatch.ProviderType:
-		clinet, err := cloudwatch.NewCloudWatchAPIClient(metric, f.KubeClient)
+		clinet, err := cloudwatch.NewCloudWatchAPIClient(metric)
 		if err != nil {
 			return nil, err
 		}
