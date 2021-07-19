@@ -2,7 +2,9 @@
 Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
 
 1. [ADP](https://www.adp.com)
+1. [Alibaba Group](https://www.alibabagroup.com/)
 1. [Ambassador Labs](https://www.getambassador.io)
+1. [Ant Group](https://www.antgroup.com/)
 1. [Bucketplace](https://www.bucketplace.co.kr/)
 1. [Intuit](https://www.intuit.com/)
 1. [Nozzle](https://nozzle.io)
