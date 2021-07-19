@@ -23,6 +23,8 @@ const (
 	DefaultProgressDeadlineSeconds = int32(600)
 	// DefaultScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
 	DefaultScaleDownDelaySeconds = int32(30)
+	// DefaultAbortScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
+	DefaultAbortScaleDownDelaySeconds = int32(30)
 	// DefaultAutoPromotionEnabled default value for auto promoting a blueGreen strategy
 	DefaultAutoPromotionEnabled = true
 	// DefaultConsecutiveErrorLimit is the default number times a metric can error in sequence before
@@ -106,6 +108,24 @@ func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
 				return *rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds
 			}
 			return DefaultScaleDownDelaySeconds
+		}
+	}
+	return 0
+}
+
+func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		if rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds != nil {
+			return *rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds
+		}
+		return DefaultAbortScaleDownDelaySeconds
+	}
+	if rollout.Spec.Strategy.Canary != nil {
+		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+			if rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds != nil {
+				return *rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds
+			}
+			return DefaultAbortScaleDownDelaySeconds
 		}
 	}
 	return 0

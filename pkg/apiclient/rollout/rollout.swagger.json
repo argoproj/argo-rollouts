@@ -662,6 +662,11 @@
         "activeMetadata": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodTemplateMetadata",
           "title": "ActiveMetadata specify labels and annotations which will be attached to the active pods for\nthe duration which they act as a active pod, and will be removed after"
+        },
+        "abortScaleDownDelaySeconds": {
+          "type": "integer",
+          "format": "int32",
+          "title": "AbortScaleDownDelaySeconds adds a delay in second before scaling down the preview replicaset\nif update is aborted. 0 means not to scale down.\nDefault is 30 second\n+optional"
         }
       },
       "title": "BlueGreenStrategy defines parameters for Blue Green deployment"
@@ -766,6 +771,11 @@
           "type": "integer",
           "format": "int32",
           "title": "ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down\n+optional"
+        },
+        "abortScaleDownDelaySeconds": {
+          "type": "integer",
+          "format": "int32",
+          "title": "AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update\nis aborted for canary strategy with traffic routing (not applicable for basic canary).\n0 means canary pods are not scaled down.\nDefault is 30 seconds.\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"

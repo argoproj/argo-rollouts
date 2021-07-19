@@ -936,6 +936,58 @@ spec:
 		ExpectReplicaCounts(1, 2, 1, 1, 1)
 }
 
+// TestBlueGreenScaleDownOnAbort verifies the scaleDownOnAbort feature
+func (s *FunctionalSuite) TestBlueGreenScaleDownOnAbort() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-preview-replicas-active")).
+		RolloutObjects(newService("bluegreen-preview-replicas-preview")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-scaledown-on-abort
+spec:
+  replicas: 2
+  strategy:
+    blueGreen:
+      abortScaleDownDelaySeconds: 1
+      activeService: bluegreen-preview-replicas-active
+      previewService: bluegreen-preview-replicas-preview
+      previewReplicaCount: 1
+      scaleDownDelaySeconds: 5
+      autoPromotionEnabled: false
+  selector:
+    matchLabels:
+      app: bluegreen-preview-replicas
+  template:
+    metadata:
+      labels:
+        app: bluegreen-preview-replicas
+    spec:
+      containers:
+      - name: bluegreen-preview-replicas
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		ExpectRevisionPodCount("1", 2).
+		When().
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Sleep(3*time.Second).
+		Then().
+		ExpectRevisionPodCount("2", 0)
+}
+
 func (s *FunctionalSuite) TestKubectlWaitForPaused() {
 	s.Given().
 		HealthyRollout(`
