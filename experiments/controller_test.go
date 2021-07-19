@@ -72,6 +72,7 @@ type fixture struct {
 	analysisRunLister             []*v1alpha1.AnalysisRun
 	analysisTemplateLister        []*v1alpha1.AnalysisTemplate
 	clusterAnalysisTemplateLister []*v1alpha1.ClusterAnalysisTemplate
+	serviceLister                 []*corev1.Service
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -104,6 +105,9 @@ func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 		case *appsv1.ReplicaSet:
 			f.kubeobjects = append(f.kubeobjects, obj)
 			f.replicaSetLister = append(f.replicaSetLister, obj.(*appsv1.ReplicaSet))
+		case *corev1.Service:
+			f.kubeobjects = append(f.kubeobjects, obj)
+			f.serviceLister = append(f.serviceLister, obj.(*corev1.Service))
 		}
 	}
 	f.client = fake.NewSimpleClientset(f.objects...)
@@ -237,11 +241,11 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 }
 
 func templateToService(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec, replicaSet appsv1.ReplicaSet) *corev1.Service {
-	if template.CreateService {
+	if template.Service != nil {
 		service := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      replicaSet.Name,
-				Namespace: ex.Namespace,
+				Namespace: replicaSet.Namespace,
 				Annotations: map[string]string{
 					v1alpha1.ExperimentNameAnnotationKey:         ex.Name,
 					v1alpha1.ExperimentTemplateNameAnnotationKey: template.Name,
@@ -398,6 +402,10 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 
 	for _, r := range f.replicaSetLister {
 		k8sI.Apps().V1().ReplicaSets().Informer().GetIndexer().Add(r)
+	}
+
+	for _, r := range f.serviceLister {
+		k8sI.Core().V1().Services().Informer().GetIndexer().Add(r)
 	}
 
 	for _, r := range f.analysisRunLister {
@@ -629,7 +637,7 @@ func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32) {
+func (f *fixture) verifyPatchedReplicaSetAddScaleDownDelay(index int, scaleDownDelaySeconds int32) {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
@@ -637,6 +645,16 @@ func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32
 	}
 	now := metav1.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
+	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
+}
+
+func (f *fixture) verifyPatchedReplicaSetRemoveScaleDownDelayAnnotation(index int) {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	patchAction, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
 

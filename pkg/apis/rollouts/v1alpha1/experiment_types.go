@@ -74,9 +74,11 @@ type TemplateSpec struct {
 	Selector *metav1.LabelSelector `json:"selector" protobuf:"bytes,4,opt,name=selector"`
 	// Template describes the pods that will be created.
 	Template corev1.PodTemplateSpec `json:"template" protobuf:"bytes,5,opt,name=template"`
-	// CreateService determines if a service should be created for the template
-	CreateService bool `json:"createService,omitempty" protobuf:"varint,6,opt,name=createService"`
+	// TemplateService describes how a service should be generated for template
+	Service *TemplateService `json:"service,omitempty" protobuf:"bytes,6,opt,name=service"`
 }
+
+type TemplateService struct{}
 
 type TemplateStatusCode string
 
@@ -122,7 +124,7 @@ type TemplateStatus struct {
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,9,opt,name=lastTransitionTime"`
 	// ServiceName is the name of the service which corresponds to this experiment
 	ServiceName string `json:"serviceName,omitempty" protobuf:"bytes,10,opt,name=serviceName"`
-	// PodTemplateHash is the
+	// PodTemplateHash is the value of the Replicas' PodTemplateHash
 	PodTemplateHash string `json:"podTemplateHash,omitempty" protobuf:"bytes,11,opt,name=podTemplateHash"`
 }
 
