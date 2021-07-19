@@ -12,9 +12,9 @@ by the end users. The end-users can subscribe to the configured triggers by addi
 The trigger defines the condition when the notification should be sent as well as the notification content template.
 Default Argo Rollouts comes with a list of built-in triggers that cover the most important events of Argo Rollout live-cycle.
 Both triggers and templates are configured in the `argo-rollouts-notification-configmap` ConfigMap. In order to get
-started quickly, you can use pre-configured notification templates defined in [notifications-install.yaml](../../manifests/notifications-install.yaml).
+started quickly, you can use pre-configured notification templates defined in [notifications-install.yaml](https://github.com/argoproj/argo-rollouts/blob/master/manifests/notifications-install.yaml).
 
-If you are leveraging Kustomize it is recommended to include [notifications-install.yaml](../../manifests/notifications-install.yaml) as a remote
+If you are leveraging Kustomize it is recommended to include [notifications-install.yaml](https://github.com/argoproj/argo-rollouts/blob/master/manifests/notifications-install.yaml) as a remote
 resource into your `kustomization.yaml` file:
 
 ```yaml

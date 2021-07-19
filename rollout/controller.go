@@ -96,6 +96,7 @@ type ControllerConfig struct {
 	ServicesInformer                coreinformers.ServiceInformer
 	IngressInformer                 extensionsinformers.IngressInformer
 	RolloutsInformer                informers.RolloutInformer
+	IstioPrimaryDynamicClient       dynamic.Interface
 	IstioVirtualServiceInformer     cache.SharedIndexInformer
 	IstioDestinationRuleInformer    cache.SharedIndexInformer
 	ResyncPeriod                    time.Duration
@@ -203,7 +204,7 @@ func NewController(cfg ControllerConfig) *Controller {
 
 	controller.IstioController = istio.NewIstioController(istio.IstioControllerConfig{
 		ArgoprojClientSet:       cfg.ArgoProjClientset,
-		DynamicClientSet:        cfg.DynamicClientSet,
+		DynamicClientSet:        cfg.IstioPrimaryDynamicClient,
 		EnqueueRollout:          controller.enqueueRollout,
 		RolloutsInformer:        cfg.RolloutsInformer,
 		VirtualServiceInformer:  cfg.IstioVirtualServiceInformer,
@@ -360,14 +361,6 @@ func (c *Controller) syncHandler(key string) error {
 		return nil
 	}
 
-	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
-	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
-	if rollout.Spec.Replicas == nil {
-		logCtx.Info("Defaulting .spec.replica to 1")
-		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
-		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
-		return err
-	}
 	defer func() {
 		duration := time.Since(startTime)
 		c.metricsServer.IncRolloutReconcile(r, duration)
@@ -383,6 +376,15 @@ func (c *Controller) syncHandler(key string) error {
 	if resolveErr != nil {
 		roCtx.createInvalidRolloutCondition(resolveErr, r)
 		return resolveErr
+	}
+
+	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
+	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
+	if rollout.Spec.Replicas == nil {
+		logCtx.Info("Defaulting .spec.replica to 1")
+		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
+		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
+		return err
 	}
 
 	err = roCtx.reconcile()

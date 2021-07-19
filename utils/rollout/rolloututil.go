@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
@@ -16,6 +17,11 @@ func GetRolloutPhase(ro *v1alpha1.Rollout) (v1alpha1.RolloutPhase, string) {
 	if !isGenerationObserved(ro) {
 		return v1alpha1.RolloutPhaseProgressing, "waiting for rollout spec update to be observed"
 	}
+
+	if ro.Spec.TemplateResolvedFromRef && !isWorkloadGenerationObserved(ro) {
+		return v1alpha1.RolloutPhaseProgressing, "waiting for rollout spec update to be observed for the reference workload"
+	}
+
 	if ro.Status.Phase != "" {
 		// for 1.0+ phase/message is calculated controller side
 		return ro.Status.Phase, ro.Status.Message
@@ -37,6 +43,19 @@ func isGenerationObserved(ro *v1alpha1.Rollout) bool {
 		return true
 	}
 	return int64(observedGen) == ro.Generation
+}
+
+func isWorkloadGenerationObserved(ro *v1alpha1.Rollout) bool {
+	if _, ok := annotations.GetWorkloadGenerationAnnotation(ro); !ok {
+		return true
+	}
+	workloadGeneration, _ := annotations.GetWorkloadGenerationAnnotation(ro)
+	observedWorkloadGen, err := strconv.ParseInt(ro.Status.WorkloadObservedGeneration, 10, 32)
+	if err != nil {
+		return true
+	}
+
+	return int32(observedWorkloadGen) == workloadGeneration
 }
 
 // CalculateRolloutPhase calculates a rollout phase and message for the given rollout based on

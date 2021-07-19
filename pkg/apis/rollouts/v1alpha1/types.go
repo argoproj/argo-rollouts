@@ -202,6 +202,11 @@ type BlueGreenStrategy struct {
 	// ActiveMetadata specify labels and annotations which will be attached to the active pods for
 	// the duration which they act as a active pod, and will be removed after
 	ActiveMetadata *PodTemplateMetadata `json:"activeMetadata,omitempty" protobuf:"bytes,13,opt,name=activeMetadata"`
+	// AbortScaleDownDelaySeconds adds a delay in second before scaling down the preview replicaset
+	// if update is aborted. 0 means not to scale down.
+	// Default is 30 second
+	// +optional
+	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,14,opt,name=abortScaleDownDelaySeconds"`
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
@@ -282,6 +287,12 @@ type CanaryStrategy struct {
 	// ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down
 	// +optional
 	ScaleDownDelayRevisionLimit *int32 `json:"scaleDownDelayRevisionLimit,omitempty" protobuf:"varint,12,opt,name=scaleDownDelayRevisionLimit"`
+	// AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update
+	// is aborted for canary strategy with traffic routing (not applicable for basic canary).
+	// 0 means canary pods are not scaled down.
+	// Default is 30 seconds.
+	// +optional
+	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,13,opt,name=abortScaleDownDelaySeconds"`
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
@@ -664,6 +675,9 @@ type RolloutStatus struct {
 	// The generation observed by the rollout controller from metadata.generation
 	// +optional
 	ObservedGeneration string `json:"observedGeneration,omitempty" protobuf:"bytes,13,opt,name=observedGeneration"`
+	// The generation of referenced workload observed by the rollout controller
+	// +optional
+	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
 	// Conditions a list of conditions a rollout can have.
 	// +optional
 	Conditions []RolloutCondition `json:"conditions,omitempty" protobuf:"bytes,14,rep,name=conditions"`

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/tj/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -219,6 +220,37 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
 		assert.Equal(t, "rollout is restarting", message)
 	}
+	{
+		//Rollout observed workload generation is not updated
+		ro := newCanaryRollout()
+		ro.Spec.TemplateResolvedFromRef = true
+		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
+		ro.Status = v1alpha1.RolloutStatus{
+			WorkloadObservedGeneration: "1",
+		}
+		status, message := GetRolloutPhase(ro)
+		assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
+		assert.Equal(t, "waiting for rollout spec update to be observed for the reference workload", message)
+	}
+	{
+		ro := newCanaryRollout()
+
+		observed := isWorkloadGenerationObserved(ro)
+		assert.True(t, observed)
+
+		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
+		ro.Status.WorkloadObservedGeneration = "222222222222222222"
+		observed = isWorkloadGenerationObserved(ro)
+		assert.True(t, observed)
+
+		ro.Status.WorkloadObservedGeneration = "1"
+		observed = isWorkloadGenerationObserved(ro)
+		assert.False(t, observed)
+
+		ro.Status.WorkloadObservedGeneration = "2"
+		observed = isWorkloadGenerationObserved(ro)
+		assert.True(t, observed)
+	}
 }
 
 func TestRolloutStatusHealthy(t *testing.T) {
@@ -258,6 +290,21 @@ func TestRolloutStatusHealthy(t *testing.T) {
 		ro.Status.ReadyReplicas = 5
 		ro.Status.StableRS = "abc1234"
 		ro.Status.CurrentPodHash = "abc1234"
+		status, message := GetRolloutPhase(ro)
+		assert.Equal(t, v1alpha1.RolloutPhaseHealthy, status)
+		assert.Equal(t, "", message)
+	}
+	{
+		//Rollout observed workload generation is updated
+		ro := newCanaryRollout()
+		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
+		ro.Status.Replicas = 5
+		ro.Status.UpdatedReplicas = 5
+		ro.Status.AvailableReplicas = 5
+		ro.Status.ReadyReplicas = 5
+		ro.Status.StableRS = "abc1234"
+		ro.Status.CurrentPodHash = "abc1234"
+		ro.Status.WorkloadObservedGeneration = "2"
 		status, message := GetRolloutPhase(ro)
 		assert.Equal(t, v1alpha1.RolloutPhaseHealthy, status)
 		assert.Equal(t, "", message)

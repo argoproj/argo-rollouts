@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,6 +23,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	disco "k8s.io/client-go/discovery"
 	discofake "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic"
@@ -28,7 +31,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 )
 
 func newFakeDiscoClient() *discofake.FakeDiscovery {
@@ -55,7 +57,8 @@ func newFakeDiscoClient() *discofake.FakeDiscovery {
 
 func newResolver(dynamicClient dynamic.Interface, discoveryClient disco.DiscoveryInterface, rolloutClient versioned.Interface) (*informerBasedTemplateResolver, context.CancelFunc) {
 	rolloutsInformer := rolloutinformers.NewRolloutInformer(rolloutClient, "", time.Minute, cache.Indexers{})
-	resolver := NewInformerBasedWorkloadRefResolver("", dynamicClient, discoveryClient, workqueue.NewDelayingQueue(), rolloutsInformer)
+	// argoprojectclientset := fake.Clientset{}
+	resolver := NewInformerBasedWorkloadRefResolver("", dynamicClient, discoveryClient, rolloutClient, rolloutsInformer)
 	stop := make(chan struct{})
 	go rolloutsInformer.Run(stop)
 	cache.WaitForCacheSync(stop, rolloutsInformer.HasSynced)
@@ -327,20 +330,34 @@ func TestRequeueReferencedRollouts(t *testing.T) {
 			},
 		},
 	}
+	deployment.SetGeneration(int64(1))
 
 	rollout := v1alpha1.Rollout{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: v1alpha1.SchemeGroupVersion.String(),
+			Kind:       "Rollout",
+		},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "my-rollout",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{},
+			},
 			WorkloadRef: &v1alpha1.ObjectRef{
 				Name:       "my-deployment",
 				Kind:       "Deployment",
 				APIVersion: "apps/v1",
 			},
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"test": "app",
+				},
+			},
 		},
 	}
+
 	rolloutsClient := fake.NewSimpleClientset(&rollout)
 
 	discoveryClient := newFakeDiscoClient()
@@ -350,30 +367,34 @@ func TestRequeueReferencedRollouts(t *testing.T) {
 
 	err := resolver.Resolve(&rollout)
 	require.NoError(t, err)
+	assert.True(t, len(rollout.GetAnnotations()) > 0, "Number of annotatioin must be > 0 after resolve")
+	assert.Equal(t, "1", rollout.GetAnnotations()[annotations.WorkloadGenerationAnnotation])
+	// manually apply the update
+	rolloutsClient.ArgoprojV1alpha1().Rollouts("default").Update(context.TODO(), &rollout, v1.UpdateOptions{})
 
+	// Update the deployment
+	deployment.SetGeneration(int64(2))
 	deploymentsClient := dynamicClient.Resource(appsv1.SchemeGroupVersion.WithResource("deployments")).Namespace("default")
-
 	_, err = deploymentsClient.Update(context.TODO(), mustToUnstructured(deployment), v1.UpdateOptions{})
 	require.NoError(t, err)
 
-	go func() {
-		// shutdown queue to make sure test fails if requeue functionality is broken
-		time.Sleep(5 * time.Second)
-		resolver.rolloutWorkQueue.ShutDown()
-	}()
-
-	item, done := resolver.rolloutWorkQueue.Get()
-	require.False(t, done)
-	assert.Equal(t, "default/my-rollout", item)
-	resolver.rolloutWorkQueue.Done(item)
+	// verify rollout's annotation is updated
+	timeout := 3 * time.Second
+	err = wait.Poll(time.Second, timeout, func() (done bool, err error) {
+		ro, err := rolloutsClient.ArgoprojV1alpha1().Rollouts("default").Get(context.TODO(), "my-rollout", v1.GetOptions{})
+		if err != nil {
+			return false, fmt.Errorf("error get %v", err)
+		}
+		if "2" != ro.GetAnnotations()[annotations.WorkloadGenerationAnnotation] {
+			return false, fmt.Errorf("workload generation not equal to 2: %v", ro.GetAnnotations()[annotations.WorkloadGenerationAnnotation])
+		}
+		return true, nil
+	})
+	assert.NoError(t, err)
 
 	err = deploymentsClient.Delete(context.TODO(), deployment.Name, v1.DeleteOptions{})
 	require.NoError(t, err)
 
-	item, done = resolver.rolloutWorkQueue.Get()
-	require.False(t, done)
-	assert.Equal(t, "default/my-rollout", item)
-	resolver.rolloutWorkQueue.Done(item)
 }
 
 func TestRequeueReferencedRollouts_InvalidMeta(t *testing.T) {
@@ -382,9 +403,7 @@ func TestRequeueReferencedRollouts_InvalidMeta(t *testing.T) {
 	resolver, cancel := newResolver(dynamicClient, discoveryClient, fake.NewSimpleClientset())
 	defer cancel()
 
-	resolver.requeueReferencedRollouts(nil, schema.GroupVersionKind{})
-
-	assert.Equal(t, 0, resolver.rolloutWorkQueue.Len())
+	resolver.updateRolloutsReferenceAnnotation(nil, schema.GroupVersionKind{})
 }
 
 func TestResolveNotRef(t *testing.T) {

@@ -197,3 +197,30 @@ func (s *IstioSuite) TestIstioSubsetSplitSingleRoute() {
 		}).
 		ExpectRevisionPodCount("1", 1) // don't scale down old replicaset since it will be within scaleDownDelay
 }
+
+func (s *IstioSuite) TestIstioAbortUpdate() {
+	s.Given().
+		RolloutObjects("@istio/istio-host-split.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		When().
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		ExpectRevisionPodCount("1", 1).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		When().
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		ExpectRevisionPodCount("2", 1)
+}

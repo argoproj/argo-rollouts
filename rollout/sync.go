@@ -390,7 +390,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
-		if fullScaleDown {
+		if fullScaleDown && !c.isScaleDownOnabort() {
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
@@ -691,6 +691,16 @@ func (c *rolloutContext) persistRolloutStatus(newStatus *v1alpha1.RolloutStatus)
 
 	prevStatus := c.rollout.Status
 	c.pauseContext.CalculatePauseStatus(newStatus)
+	if c.rollout.Spec.TemplateResolvedFromRef {
+		workloadRefObservation, _ := annotations.GetWorkloadGenerationAnnotation(c.rollout)
+		currentWorkloadObservedGeneration, _ := strconv.ParseInt(newStatus.WorkloadObservedGeneration, 10, 32)
+		if workloadRefObservation != int32(currentWorkloadObservedGeneration) {
+			newStatus.WorkloadObservedGeneration = strconv.Itoa(int(workloadRefObservation))
+		}
+	} else {
+		newStatus.WorkloadObservedGeneration = ""
+	}
+
 	newStatus.ObservedGeneration = strconv.Itoa(int(c.rollout.Generation))
 	newStatus.Phase, newStatus.Message = rolloututil.CalculateRolloutPhase(c.rollout.Spec, *newStatus)
 
@@ -917,7 +927,8 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		// Now that we've marked the desired RS as stable, start the scale-down countdown on the previous stable RS
 		previousStableRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.olderRSs, previousStableHash)
 		if replicasetutil.GetReplicaCountForReplicaSets([]*appsv1.ReplicaSet{previousStableRS}) > 0 {
-			err := c.addScaleDownDelay(previousStableRS)
+			scaleDownDelaySeconds := time.Duration(defaults.GetScaleDownDelaySecondsOrDefault(c.rollout))
+			err := c.addScaleDownDelay(previousStableRS, scaleDownDelaySeconds)
 			if err != nil {
 				return err
 			}

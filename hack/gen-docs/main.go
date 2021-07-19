@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	"github.com/argoproj/notifications-engine/pkg/docs"
-
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
@@ -63,11 +63,12 @@ func updateMkDocsNav(parent string, child string, files []string) error {
 	if err != nil {
 		return err
 	}
-	var mkdocs mkDocs
-	if e := yaml.Unmarshal(data, &mkdocs); e != nil {
+	var un unstructured.Unstructured
+	if e := yaml.Unmarshal(data, &un.Object); e != nil {
 		return e
 	}
-	navitem, _ := findNavItem(mkdocs.Nav, parent)
+	nav := un.Object["nav"].([]interface{})
+	navitem, _ := findNavItem(nav, parent)
 	if navitem == nil {
 		return fmt.Errorf("Can't find '%s' nav item in mkdoc.yml", parent)
 	}
@@ -78,7 +79,7 @@ func updateMkDocsNav(parent string, child string, files []string) error {
 	commands[child] = files
 	navitemmap[parent] = append(subnav, commands)
 
-	newmkdocs, err := yaml.Marshal(mkdocs)
+	newmkdocs, err := yaml.Marshal(un.Object)
 	if err != nil {
 		return err
 	}
@@ -262,15 +263,3 @@ type byName []*cobra.Command
 func (s byName) Len() int           { return len(s) }
 func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s byName) Less(i, j int) bool { return s[i].Name() < s[j].Name() }
-
-// mkDocs config struct to keep output order
-type mkDocs struct {
-	SiteName           string                 `yaml:"site_name,omitempty"`
-	RepoURL            string                 `yaml:"repo_url,omitempty"`
-	Strict             bool                   `yaml:"strict,omitempty"`
-	Theme              map[string]interface{} `yaml:"theme,omitempty"`
-	GoogleAnalytics    []string               `yaml:"google_analytics,omitempty"`
-	MarkdownExtensions []interface{}          `yaml:"markdown_extensions,omitempty"`
-	Plugins            []interface{}          `yaml:"plugins,omitempty"`
-	Nav                []interface{}          `yaml:"nav,omitempty"`
-}

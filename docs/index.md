@@ -58,3 +58,10 @@ If another change occurs in the `spec.template` during a transition from a stabl
 - A user wants to slowly give the new version more production traffic. They start by giving it a small percentage of the live traffic and wait a while before giving the new version more traffic. Eventually, the new version will receive all the production traffic. With the canary strategy, the user specifies the percentages they want the new version to receive and the amount of time to wait between percentages. ([example](https://github.com/argoproj/argo-rollouts/blob/master/examples/rollout-canary.yaml))
 
 - A user wants to use the normal Rolling Update strategy from the deployment. If a user uses the canary strategy with no steps, the rollout will use the max surge and max unavailable values to roll to the new version. ([example](https://github.com/argoproj/argo-rollouts/blob/master/examples/rollout-rolling-update.yaml))
+
+## Examples 
+
+You can see more examples of Rollouts at:
+
+ * The [example directory](https://github.com/argoproj/argo-rollouts/tree/master/examples)
+ * The [Argo Rollouts Demo application](https://github.com/argoproj/rollouts-demo)

@@ -26,9 +26,11 @@ var (
 
 func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32, activeSvc string, previewSvc string) *v1alpha1.Rollout {
 	rollout := newRollout(name, replicas, revisionHistoryLimit, map[string]string{"foo": "bar"})
+	abortScaleDownDelaySeconds := int32(0)
 	rollout.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{
-		ActiveService:  activeSvc,
-		PreviewService: previewSvc,
+		ActiveService:              activeSvc,
+		PreviewService:             previewSvc,
+		AbortScaleDownDelaySeconds: &abortScaleDownDelaySeconds,
 	}
 	rollout.Status.CurrentStepHash = conditions.ComputeStepHash(rollout)
 	rollout.Status.CurrentPodHash = controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
