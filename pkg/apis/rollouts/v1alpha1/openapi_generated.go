@@ -805,6 +805,13 @@ func schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref common.ReferenceCal
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata"),
 						},
 					},
+					"abortScaleDownDelaySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AbortScaleDownDelaySeconds adds a delay in second before scaling down the preview replicaset if update is aborted. 0 means not to scale down. Default is 30 second",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 				Required: []string{"activeService"},
 			},
@@ -981,6 +988,13 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 					"scaleDownDelayRevisionLimit": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"abortScaleDownDelaySeconds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update is aborted for canary strategy with traffic routing (not applicable for basic canary). 0 means canary pods are not scaled down. Default is 30 seconds.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -3084,6 +3098,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					"observedGeneration": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The generation observed by the rollout controller from metadata.generation",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"workloadObservedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The generation of referenced workload observed by the rollout controller",
 							Type:        []string{"string"},
 							Format:      "",
 						},

@@ -264,6 +264,12 @@ message BlueGreenStrategy {
   // ActiveMetadata specify labels and annotations which will be attached to the active pods for
   // the duration which they act as a active pod, and will be removed after
   optional PodTemplateMetadata activeMetadata = 13;
+
+  // AbortScaleDownDelaySeconds adds a delay in second before scaling down the preview replicaset
+  // if update is aborted. 0 means not to scale down.
+  // Default is 30 second
+  // +optional
+  optional int32 abortScaleDownDelaySeconds = 14;
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout
@@ -368,6 +374,13 @@ message CanaryStrategy {
   // ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down
   // +optional
   optional int32 scaleDownDelayRevisionLimit = 12;
+
+  // AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update
+  // is aborted for canary strategy with traffic routing (not applicable for basic canary).
+  // 0 means canary pods are not scaled down.
+  // Default is 30 seconds.
+  // +optional
+  optional int32 abortScaleDownDelaySeconds = 13;
 }
 
 // ClusterAnalysisTemplate holds the template for performing canary analysis
@@ -1063,6 +1076,10 @@ message RolloutStatus {
   // The generation observed by the rollout controller from metadata.generation
   // +optional
   optional string observedGeneration = 13;
+
+  // The generation of referenced workload observed by the rollout controller
+  // +optional
+  optional string workloadObservedGeneration = 24;
 
   // Conditions a list of conditions a rollout can have.
   // +optional
