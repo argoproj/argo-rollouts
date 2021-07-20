@@ -16,11 +16,6 @@ import (
 type ExperimentSuite struct {
 	fixtures.E2ESuite
 }
-
-func (s *ExperimentSuite) SetupSuite() {
-	s.E2ESuite.SetupSuite()
-}
-
 // TestRolloutWithExperimentAndAnalysis this tests the ability for a rollout to launch an experiment,
 // and use self-referencing features/pass metadata arguments to the experiment and analysis, such as:
 //  * specRef: stable
@@ -86,9 +81,9 @@ func (s *ExperimentSuite) TestRolloutWithExperimentAndAnalysis() {
 }
 
 func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
-	s.ApplyManifests("@functional/experiment-with-service.yaml")
-	s.Given().
-		When().
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-with-service.yaml")
+	g.When().
 		WaitForExperimentPhase("experiment-with-service", "Running").
 		Sleep(time.Second*5).
 		Then().
