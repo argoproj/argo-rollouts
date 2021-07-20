@@ -96,7 +96,7 @@ func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
 		ExpectExperimentServiceCount("experiment-with-service", 1).
 		When().
 		WaitForExperimentPhase("experiment-with-service", "Successful").
-		Sleep(time.Second*10).
+		Sleep(time.Second*15).
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service", "test", 0).
 		ExpectExperimentServiceCount("experiment-with-service", 0)
