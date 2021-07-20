@@ -7,16 +7,56 @@ A [CloudWatch](https://aws.amazon.com/cloudwatch/) using [GetMetricData](https:/
 
 ## Setup
 
-You can use CloudWatch Metrics if you have used to EKS or not.
+You can use CloudWatch Metrics if you have used to EKS or not. This analysis is required IAM permission for `cloudwatch:GetMetricData` and you need to define `AWS_REGION` in Deployment for `argo-rollouts`.
 
 ### EKS
 
-If you create new cluster on EKS, you need to attach [cluster IAM role](https://docs.aws.amazon.com/eks/latest/userguide/service_IAM_role.html) or attach [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).  
-If you have already cluster on EKS, you need to attach [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
+If you create new cluster on EKS, you can attach [cluster IAM role](https://docs.aws.amazon.com/eks/latest/userguide/service_IAM_role.html) or attach [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).  
+If you have already cluster on EKS, you can attach [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
 
 ### not EKS
 
 You need to define access key and secret key.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudwatch-secret
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: <aws-access-key-id>
+  AWS_SECRET_ACCESS_KEY: <aws-secret-access-key>
+  AWS_REGION: <aws-region>
+```
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-rollouts
+spec:
+  template:
+    spec:
+      containers:
+      - name: argo-rollouts
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: cloudwatch-secret
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cloudwatch-secret
+              key: AWS_SECRET_ACCESS_KEY
+        - name: AWS_REGION
+          valueFrom:
+            secretKeyRef:
+              name: cloudwatch-secret
+              key: AWS_REGION
+```
 
 ## Configuration
 
