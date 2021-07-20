@@ -170,3 +170,14 @@ rules:
   - update
   - list
   - delete
+- apiGroups:
+  - x.getambassador.io
+  resources:
+  - ambassadormappings
+  verbs:
+  - create
+  - watch
+  - get
+  - update
+  - list
+  - delete

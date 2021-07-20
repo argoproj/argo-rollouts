@@ -210,7 +210,7 @@ builder-image:
 image:
 ifeq ($(DEV_IMAGE), true)
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller-linux-amd64 ./cmd/rollouts-controller
-	docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev .
+	docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev ${DIST_DIR}
 else
 	docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
 endif
@@ -268,7 +268,7 @@ release-docs: docs
 
 # convenience target to run `mkdocs serve` using a docker container
 .PHONY: serve-docs
-serve-docs: plugin-docs
+serve-docs: docs
 	docker run --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs squidfunk/mkdocs-material serve -a 0.0.0.0:8000
 
 .PHONY: release-precheck

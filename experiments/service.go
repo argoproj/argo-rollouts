@@ -43,16 +43,17 @@ func templateDefined(experiment *v1alpha1.Experiment, templateName string) bool 
 
 func GetServiceForExperiment(experiment *v1alpha1.Experiment, svc *corev1.Service, templateToService map[string]*corev1.Service) error {
 	controllerRef := metav1.GetControllerOf(svc)
-	if controllerRef != nil || controllerRef.UID == experiment.UID || svc.Annotations != nil || svc.Annotations[v1alpha1.ExperimentNameAnnotationKey] == experiment.Name {
-		if templateName := svc.Annotations[v1alpha1.ExperimentTemplateNameAnnotationKey]; templateName != "" {
-			if _, ok := templateToService[templateName]; ok {
-				return fmt.Errorf("multiple Services match single experiment template: %s", templateName)
-			}
-			if templateDefined(experiment, templateName) {
-				templateToService[templateName] = svc
-				logCtx := log.WithField(logutil.ExperimentKey, experiment.Name).WithField(logutil.NamespaceKey, experiment.Namespace)
-				logCtx.Infof("Claimed Service '%s' for template '%s'", svc.Name, templateName)
-			}
+	if controllerRef == nil || controllerRef.UID != experiment.UID || svc.Annotations == nil || svc.Annotations[v1alpha1.ExperimentNameAnnotationKey] != experiment.Name {
+		return nil
+	}
+	if templateName := svc.Annotations[v1alpha1.ExperimentTemplateNameAnnotationKey]; templateName != "" {
+		if _, ok := templateToService[templateName]; ok {
+			return fmt.Errorf("multiple Services match single experiment template: %s", templateName)
+		}
+		if templateDefined(experiment, templateName) {
+			templateToService[templateName] = svc
+			logCtx := log.WithField(logutil.ExperimentKey, experiment.Name).WithField(logutil.NamespaceKey, experiment.Namespace)
+			logCtx.Infof("Claimed Service '%s' for template '%s'", svc.Name, templateName)
 		}
 	}
 	return nil

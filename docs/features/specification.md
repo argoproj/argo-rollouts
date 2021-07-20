@@ -115,6 +115,10 @@ spec:
       # down. Defaults to nil
       scaleDownDelayRevisionLimit: 2
 
+      # Add a delay in second before scaling down the preview replicaset
+      # if update is aborted. 0 means not to scale down. Default is 30 second
+      abortScaleDownDelaySeconds: 30
+
       # Anti Affinity configuration between desired and previous ReplicaSet.
       # Only one must be specified
       antiAffinity:
@@ -295,6 +299,11 @@ spec:
           rootService: root-svc # optional
           trafficSplitName: rollout-example-traffic-split # optional
 
+      # Add a delay in second before scaling down the canary pods when update
+      # is aborted for canary strategy with traffic routing (not applicable for basic canary).
+      # 0 means canary pods are not scaled down. Default is 30 seconds.
+      abortScaleDownDelaySeconds: 30
+
 status:
   pauseConditions:
   - reason: StepPause
@@ -304,3 +313,9 @@ status:
   - reason: AnalysisRunInconclusive
     startTime: 2019-10-00T1234 
 ```
+## Examples
+
+You can find examples of Rollouts at:
+
+ * The [example directory](https://github.com/argoproj/argo-rollouts/tree/master/examples)
+ * The [Argo Rollouts Demo application](https://github.com/argoproj/rollouts-demo)

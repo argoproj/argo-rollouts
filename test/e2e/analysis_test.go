@@ -195,6 +195,7 @@ spec:
   replicas: 2
   strategy:
     blueGreen:
+      abortScaleDownDelaySeconds: 0
       activeService: pre-promotion-fail-active
       previewService: pre-promotion-fail-preview
       previewReplicaCount: 1
@@ -402,7 +403,7 @@ spec:
 		WaitForRolloutStatus("Paused").
 		Then().
 		ExpectRevisionPodCount("1", 1).
-		ExpectRevisionPodCount("2", 0).
+		ExpectRevisionScaleDown("2", true).
 		ExpectRevisionPodCount("3", 1).
 		ExpectActiveRevision("1").
 		ExpectPreviewRevision("3").
@@ -411,7 +412,8 @@ spec:
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectRevisionPodCount("1", 1).
-		ExpectRevisionPodCount("2", 0).
+		ExpectRevisionScaleDown("1", true).
+		ExpectRevisionScaleDown("2", true).
 		ExpectRevisionPodCount("3", 1).
 		ExpectActiveRevision("3").
 		ExpectPreviewRevision("3").

@@ -936,6 +936,58 @@ spec:
 		ExpectReplicaCounts(1, 2, 1, 1, 1)
 }
 
+// TestBlueGreenScaleDownOnAbort verifies the scaleDownOnAbort feature
+func (s *FunctionalSuite) TestBlueGreenScaleDownOnAbort() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-preview-replicas-active")).
+		RolloutObjects(newService("bluegreen-preview-replicas-preview")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-scaledown-on-abort
+spec:
+  replicas: 2
+  strategy:
+    blueGreen:
+      abortScaleDownDelaySeconds: 1
+      activeService: bluegreen-preview-replicas-active
+      previewService: bluegreen-preview-replicas-preview
+      previewReplicaCount: 1
+      scaleDownDelaySeconds: 5
+      autoPromotionEnabled: false
+  selector:
+    matchLabels:
+      app: bluegreen-preview-replicas
+  template:
+    metadata:
+      labels:
+        app: bluegreen-preview-replicas
+    spec:
+      containers:
+      - name: bluegreen-preview-replicas
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		ExpectRevisionPodCount("1", 2).
+		When().
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Sleep(3*time.Second).
+		Then().
+		ExpectRevisionPodCount("2", 0)
+}
+
 func (s *FunctionalSuite) TestKubectlWaitForPaused() {
 	s.Given().
 		HealthyRollout(`
@@ -1178,6 +1230,12 @@ spec:
     `).
 		WaitForRolloutStatus("Healthy").
 		Then().
+		ExpectRollout("WorkloadObservedGeneration is 1", func(r *v1alpha1.Rollout) bool {
+			if r.Status.WorkloadObservedGeneration != "1" {
+				return false
+			}
+			return true
+		}).
 		// verify that service is switched after rollout is healthy
 		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-ref-deployment"}, true).
 		When().
@@ -1194,6 +1252,12 @@ spec:
 		}).
 		WaitForRolloutStatus("Degraded").
 		Then().
+		ExpectRollout("WorkloadObservedGeneration is 2 after workload ref updated", func(r *v1alpha1.Rollout) bool {
+			if r.Status.WorkloadObservedGeneration != "2" {
+				return false
+			}
+			return true
+		}).
 		When().
 		UpdateResource(appsv1.SchemeGroupVersion.WithResource("deployments"), "rollout-ref-deployment", func(res *unstructured.Unstructured) error {
 			containers, _, err := unstructured.NestedSlice(res.Object, "spec", "template", "spec", "containers")
@@ -1228,6 +1292,38 @@ spec:
 		ExpectServiceSelector("rollout-bluegreen-active", map[string]string{"app": "rollout-ref-deployment"}, true).
 		ExpectRollout("Resolved template not persisted", func(rollout *v1alpha1.Rollout) bool {
 			return rollout.Spec.Selector == nil && len(rollout.Spec.Template.Spec.Containers) == 0
+		}).
+		When().
+		ApplyManifests(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-ref-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rollout-bluegreen
+  progressDeadlineSeconds: 5
+  revisionHistoryLimit: 2
+  strategy:
+    blueGreen:
+      activeService: rollout-bluegreen-active
+  template:
+    metadata:
+      labels:
+        app: rollout-bluegreen
+    spec:
+      containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:blue
+`).WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectRollout("WorkloadObservedGeneration must be removed after switch to inline template", func(r *v1alpha1.Rollout) bool {
+			if r.Status.WorkloadObservedGeneration != "" {
+				return false
+			}
+			return true
 		})
 }
 

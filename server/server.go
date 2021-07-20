@@ -189,14 +189,14 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 	errors.CheckError(conn.Close())
 }
 
-func (s *ArgoRolloutsServer) initRolloutViewController(name string, ctx context.Context) *viewcontroller.RolloutViewController {
-	controller := viewcontroller.NewRolloutViewController(s.Options.Namespace, name, s.Options.KubeClientset, s.Options.RolloutsClientset)
+func (s *ArgoRolloutsServer) initRolloutViewController(namespace string, name string, ctx context.Context) *viewcontroller.RolloutViewController {
+	controller := viewcontroller.NewRolloutViewController(namespace, name, s.Options.KubeClientset, s.Options.RolloutsClientset)
 	controller.Start(ctx)
 	return controller
 }
 
-func (s *ArgoRolloutsServer) getRolloutInfo(name string) (*rollout.RolloutInfo, error) {
-	controller := s.initRolloutViewController(name, context.Background())
+func (s *ArgoRolloutsServer) getRolloutInfo(namespace string, name string) (*rollout.RolloutInfo, error) {
+	controller := s.initRolloutViewController(namespace, name, context.Background())
 	ri, err := controller.GetRolloutInfo()
 	if err != nil {
 		return nil, err
@@ -204,15 +204,15 @@ func (s *ArgoRolloutsServer) getRolloutInfo(name string) (*rollout.RolloutInfo, 
 	return ri, nil
 }
 
-// GetRollout returns a rollout
+// GetRolloutInfo returns a rollout
 func (s *ArgoRolloutsServer) GetRolloutInfo(c context.Context, q *rollout.RolloutInfoQuery) (*rollout.RolloutInfo, error) {
-	return s.getRolloutInfo(q.GetName())
+	return s.getRolloutInfo(q.GetNamespace(), q.GetName())
 }
 
-// WatchRollout returns a rollout stream
+// WatchRolloutInfo returns a rollout stream
 func (s *ArgoRolloutsServer) WatchRolloutInfo(q *rollout.RolloutInfoQuery, ws rollout.RolloutService_WatchRolloutInfoServer) error {
-	ctx := context.Background()
-	controller := s.initRolloutViewController(q.GetName(), ctx)
+	ctx := ws.Context()
+	controller := s.initRolloutViewController(q.GetNamespace(), q.GetName(), ctx)
 
 	rolloutUpdates := make(chan *rollout.RolloutInfo)
 	controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
@@ -250,7 +250,7 @@ func (s *ArgoRolloutsServer) ListReplicaSetsAndPods(ctx context.Context, namespa
 	return allReplicaSetsP, allPodsP, nil
 }
 
-// ListRollouts returns a list of all rollouts
+// ListRolloutInfos returns a list of all rollouts
 func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.RolloutInfoListQuery) (*rollout.RolloutInfoList, error) {
 	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
 	rolloutList, err := rolloutIf.List(ctx, v1.ListOptions{})
@@ -281,7 +281,7 @@ func (s *ArgoRolloutsServer) RestartRollout(ctx context.Context, q *rollout.Rest
 	return restart.RestartRollout(rolloutIf, q.GetName(), &restartAt)
 }
 
-// WatchRollouts returns a stream of all rollouts
+// WatchRolloutInfos returns a stream of all rollouts
 func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, ws rollout.RolloutService_WatchRolloutInfosServer) error {
 	send := func(r *rollout.RolloutInfo) {
 		err := ws.Send(&rollout.RolloutWatchEvent{

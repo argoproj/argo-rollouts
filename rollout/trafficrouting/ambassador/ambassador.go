@@ -38,6 +38,10 @@ const (
 
 var (
 	ambassadorAPIVersion = defaults.DefaultAmbassadorVersion
+	apiGroupToResource   = map[string]string{
+		"getambassador.io":   "mappings",
+		"x.getambassador.io": "ambassadormappings",
+	}
 )
 
 func SetAPIVersion(apiVersion string) {
@@ -302,11 +306,19 @@ func GetMappingGVR() schema.GroupVersionResource {
 
 func toMappingGVR(apiVersion string) schema.GroupVersionResource {
 	parts := strings.Split(apiVersion, "/")
+	group := defaults.DefaultAmbassadorAPIGroup
+	if len(parts) > 1 {
+		group = parts[0]
+	}
+	resourcename, known := apiGroupToResource[group]
+	if !known {
+		resourcename = apiGroupToResource[defaults.DefaultAmbassadorAPIGroup]
+	}
 	version := parts[len(parts)-1]
 	return schema.GroupVersionResource{
-		Group:    "getambassador.io",
+		Group:    group,
 		Version:  version,
-		Resource: "mappings",
+		Resource: resourcename,
 	}
 }
 

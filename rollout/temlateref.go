@@ -4,12 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -21,7 +25,6 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -57,8 +60,8 @@ type informerBasedTemplateResolver struct {
 	discoClient            discovery.DiscoveryInterface
 	ctx                    context.Context
 	cancelContext          context.CancelFunc
-	rolloutWorkQueue       workqueue.Interface
 	rolloutsInformer       cache.SharedIndexInformer
+	argoprojclientset      clientset.Interface
 }
 
 // NewInformerBasedWorkloadRefResolver create new instance of workload ref resolver.
@@ -66,7 +69,7 @@ func NewInformerBasedWorkloadRefResolver(
 	namespace string,
 	dynamicClient dynamic.Interface,
 	discoClient discovery.DiscoveryInterface,
-	rolloutWorkQueue workqueue.Interface,
+	agrgoProjClientset clientset.Interface,
 	rolloutsInformer cache.SharedIndexInformer,
 ) *informerBasedTemplateResolver {
 	ctx, cancelContext := context.WithCancel(context.TODO())
@@ -88,9 +91,9 @@ func NewInformerBasedWorkloadRefResolver(
 		cancelContext:          cancelContext,
 		informerResyncDuration: time.Minute * 5,
 		informerSyncTimeout:    time.Minute,
+		argoprojclientset:      agrgoProjClientset,
 		dynamicClient:          dynamicClient,
 		discoClient:            discoClient,
-		rolloutWorkQueue:       rolloutWorkQueue,
 		rolloutsInformer:       rolloutsInformer,
 	}
 }
@@ -122,6 +125,7 @@ func remarshalMap(objMap map[string]interface{}, res interface{}) error {
 // Resolve verifies if given rollout has template reference and resolves pod template
 func (r *informerBasedTemplateResolver) Resolve(rollout *v1alpha1.Rollout) error {
 	if rollout.Spec.WorkloadRef == nil {
+		annotations.RemoveRolloutWorkloadRefGeneration(rollout)
 		return nil
 	}
 
@@ -170,6 +174,14 @@ func (r *informerBasedTemplateResolver) Resolve(rollout *v1alpha1.Rollout) error
 		}
 	}
 
+	// initialize rollout workload-generation annotation
+	workloadMeta, err := meta.Accessor(obj)
+	if err != nil {
+		return err
+	}
+	generation := strconv.FormatInt(workloadMeta.GetGeneration(), 10)
+	annotations.SetRolloutWorkloadRefGeneration(rollout, generation)
+
 	return nil
 }
 
@@ -198,36 +210,60 @@ func (r *informerBasedTemplateResolver) newInformerForGVK(gvk schema.GroupVersio
 		nil)
 	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			r.requeueReferencedRollouts(obj, gvk)
+			r.updateRolloutsReferenceAnnotation(obj, gvk)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			r.requeueReferencedRollouts(newObj, gvk)
+			r.updateRolloutsReferenceAnnotation(newObj, gvk)
 		},
 		DeleteFunc: func(obj interface{}) {
-			r.requeueReferencedRollouts(obj, gvk)
+			r.updateRolloutsReferenceAnnotation(obj, gvk)
 		},
 	})
 	return informer, nil
 
 }
 
-// requeueReferencedRollouts re-queues all rollouts referenced by given object
-func (r *informerBasedTemplateResolver) requeueReferencedRollouts(obj interface{}, gvk schema.GroupVersionKind) {
-	roMeta, err := meta.Accessor(obj)
+// updateRolloutsReferenceAnnotation update the annotation of all rollouts referenced by given object
+func (r *informerBasedTemplateResolver) updateRolloutsReferenceAnnotation(obj interface{}, gvk schema.GroupVersionKind) {
+	workloadMeta, err := meta.Accessor(obj)
 	if err != nil {
 		return
 	}
+
 	rollouts, err := r.rolloutsInformer.GetIndexer().ByIndex(templateRefIndexName, refKey(v1alpha1.ObjectRef{
 		Kind:       gvk.Kind,
 		APIVersion: gvk.GroupVersion().String(),
-		Name:       roMeta.GetName(),
-	}, roMeta.GetNamespace()))
+		Name:       workloadMeta.GetName(),
+	}, workloadMeta.GetNamespace()))
 	if err != nil {
 		return
 	}
+
+	var updateAnnotation func(ro *v1alpha1.Rollout)
+
+	generation := strconv.FormatInt(workloadMeta.GetGeneration(), 10)
+	updateAnnotation = func(ro *v1alpha1.Rollout) {
+		updated := annotations.SetRolloutWorkloadRefGeneration(ro, generation)
+		if updated {
+			// update the annotation causes the rollout to be requeued and the template will be resolved to the referred
+			// workload during next reconciliation
+			ro.Spec.Template.Spec.Containers = []corev1.Container{}
+			_, err := r.argoprojclientset.ArgoprojV1alpha1().Rollouts(ro.Namespace).Update(context.TODO(), ro, v1.UpdateOptions{})
+			if err != nil {
+				log.Errorf("Cannot update the workload-ref/annotation for %s/%s", ro.GetName(), ro.GetNamespace())
+			}
+		}
+	}
 	for _, ro := range rollouts {
-		if key, err := cache.MetaNamespaceKeyFunc(ro); err == nil {
-			r.rolloutWorkQueue.Add(key)
+		rollout, ok := ro.(*v1alpha1.Rollout)
+		if ok {
+			updateAnnotation(rollout)
+		} else {
+			un, ok := ro.(*unstructured.Unstructured)
+			if ok {
+				rollout := unstructuredutil.ObjectToRollout(un)
+				updateAnnotation(rollout)
+			}
 		}
 	}
 }

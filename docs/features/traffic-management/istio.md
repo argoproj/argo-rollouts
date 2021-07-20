@@ -246,6 +246,72 @@ During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts wil
   label of the canary and stable ReplicaSets
 
 
+## Multicluster Setup
+If you have [Istio multicluster setup](https://istio.io/latest/docs/setup/install/multicluster/)
+where the primary Istio cluster is different than the cluster where the Argo Rollout controller
+is running, then you need to do the following setup:
+
+1. Create a `ServiceAccount` in the Istio primary cluster.
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argo-rollouts-istio-primary
+  namespace: <any-namespace-preferrably-config-namespace>
+```
+2. Create a `ClusterRole` that provides access to Rollout controller in the Istio primary cluster.
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argo-rollouts-istio-primary
+rules:
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - virtualservices
+  - destinationrules
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+```
+Note: If Argo Rollout controller is also installed in the Istio primary cluster, then you can reuse the 
+`argo-rollouts-clusterrole` ClusterRole instead of creating a new one. 
+3. Link the `ClusterRole` with the `ServiceAccount` in the Istio primary cluster.
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argo-rollouts-istio-primary
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argo-rollouts-istio-primary
+subjects:
+- kind: ServiceAccount
+  name: argo-rollouts-istio-primary
+  namespace: <namespace-of-the-service-account>
+```
+4. Now, use the following command to generate a secret for Rollout controller to access the Istio primary cluster.
+   This secret will be applied to the cluster where Argo Rollout is running (i.e, Istio remote cluster),
+   but will be generated from the Istio primary cluster. This secret can be generated right after Step 1,
+   it only requires `ServiceAccount` to exist.
+   [Reference to the command](https://istio.io/latest/docs/reference/commands/istioctl/#istioctl-experimental-create-remote-secret).
+```shell
+istioctl x create-remote-secret --type remote --name <cluster-name> \
+    --namespace <namespace-of-the-service-account> \
+    --service-account <service-account-created-in-step1> \
+    --context="<ISTIO_PRIMARY_CLUSTER>" | \
+    kubectl apply -f - --context="<ARGO_ROLLOUT_CLUSTER/ISTIO_REMOTE_CLUSTER>"
+```
+5. Label the secret.
+```shell
+kubectl label secret <istio-remote-secret> istio.argoproj.io/primary-cluster="true" -n <namespace-of-the-secret>
+```
+
 ## Comparison Between Approaches
 
 There are some advantages and disadvantages of host-level traffic splitting vs. subset-level traffic

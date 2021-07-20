@@ -71,7 +71,7 @@ const App = () => {
     }, []);
     const changeNamespace = (val: string) => {
         setNamespace(val);
-        window.localStorage.setItem(NAMESPACE_KEY, namespace);
+        window.localStorage.setItem(NAMESPACE_KEY, val);
     };
 
     return (

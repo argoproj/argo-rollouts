@@ -9789,6 +9789,9 @@ spec:
                 properties:
                   blueGreen:
                     properties:
+                      abortScaleDownDelaySeconds:
+                        format: int32
+                        type: integer
                       activeMetadata:
                         properties:
                           annotations:
@@ -9922,6 +9925,9 @@ spec:
                     type: object
                   canary:
                     properties:
+                      abortScaleDownDelaySeconds:
+                        format: int32
+                        type: integer
                       analysis:
                         properties:
                           args:
@@ -12518,6 +12524,8 @@ spec:
               updatedReplicas:
                 format: int32
                 type: integer
+              workloadObservedGeneration:
+                type: string
             type: object
         required:
         - spec
@@ -12785,6 +12793,17 @@ rules:
   - update
   - list
   - delete
+- apiGroups:
+  - x.getambassador.io
+  resources:
+  - ambassadormappings
+  verbs:
+  - create
+  - watch
+  - get
+  - update
+  - list
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -12842,10 +12861,27 @@ spec:
       containers:
       - image: quay.io/argoproj/argo-rollouts:latest
         imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /metrics
+            port: 8090
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         name: argo-rollouts
         ports:
         - containerPort: 8090
           name: metrics
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /metrics
+            port: 8090
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 4
       securityContext:
         runAsNonRoot: true
       serviceAccountName: argo-rollouts
