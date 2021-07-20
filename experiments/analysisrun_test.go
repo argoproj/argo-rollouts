@@ -598,6 +598,7 @@ func TestCompleteExperimentOnSuccessfulRequiredAnalysisRun(t *testing.T) {
 
 	f := newFixture(t, e, rs, ar)
 	defer f.Close()
+	f.expectGetReplicaSetAction(rs)
 	f.expectUpdateReplicaSetAction(rs)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -648,6 +649,7 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 
 	f := newFixture(t, e, rs, ar, ar2)
 	defer f.Close()
+	f.expectGetReplicaSetAction(rs)
 	f.expectUpdateReplicaSetAction(rs)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
