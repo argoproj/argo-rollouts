@@ -61,7 +61,6 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		template := v1alpha1.TemplateSpec{
 			Name:     templateStep.Name,
 			Replicas: templateStep.Replicas,
-			Service: &v1alpha1.TemplateService{},
 		}
 		if templateStep.Weight != nil {
 			template.Service = &v1alpha1.TemplateService{}

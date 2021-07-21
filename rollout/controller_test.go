@@ -3,6 +3,7 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"reflect"
 	"strconv"
 	"strings"
@@ -544,7 +545,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		c.enqueueRollout(obj)
 	}
 
-	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (TrafficRoutingReconciler, error) {
+	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
 		return f.fakeTrafficRouting, nil
 	}
 
