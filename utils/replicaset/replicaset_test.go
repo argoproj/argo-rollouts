@@ -1167,3 +1167,24 @@ func TestGetPodsOwnedByReplicaSet(t *testing.T) {
 	assert.Len(t, pods, 1)
 	assert.Equal(t, "guestbook-abc123", pods[0].Name)
 }
+
+func TestGetTimeRemainingBeforeScaleDownDeadline(t *testing.T) {
+	rs := generateRS(generateRollout("foo"))
+	{
+		remainingTime, _ := GetTimeRemainingBeforeScaleDownDeadline(&rs)
+		assert.Nil(t, remainingTime)
+	}
+	{
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: metav1.Now().Add(-600 * time.Second).UTC().Format(time.RFC3339)}
+		remainingTime, err := GetTimeRemainingBeforeScaleDownDeadline(&rs)
+		assert.Nil(t, err)
+		assert.Nil(t, remainingTime)
+	}
+	{
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: metav1.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)}
+		remainingTime, err := GetTimeRemainingBeforeScaleDownDeadline(&rs)
+		assert.Nil(t, err)
+		assert.NotNil(t, remainingTime)
+	}
+
+}

@@ -264,6 +264,12 @@ message BlueGreenStrategy {
   // ActiveMetadata specify labels and annotations which will be attached to the active pods for
   // the duration which they act as a active pod, and will be removed after
   optional PodTemplateMetadata activeMetadata = 13;
+
+  // AbortScaleDownDelaySeconds adds a delay in second before scaling down the preview replicaset
+  // if update is aborted. 0 means not to scale down.
+  // Default is 30 second
+  // +optional
+  optional int32 abortScaleDownDelaySeconds = 14;
 }
 
 // CanaryStatus status fields that only pertain to the canary rollout
@@ -368,6 +374,13 @@ message CanaryStrategy {
   // ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down
   // +optional
   optional int32 scaleDownDelayRevisionLimit = 12;
+
+  // AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update
+  // is aborted for canary strategy with traffic routing (not applicable for basic canary).
+  // 0 means canary pods are not scaled down.
+  // Default is 30 seconds.
+  // +optional
+  optional int32 abortScaleDownDelaySeconds = 13;
 }
 
 // ClusterAnalysisTemplate holds the template for performing canary analysis
@@ -498,6 +511,14 @@ message ExperimentSpec {
   // +patchMergeKey=name
   // +patchStrategy=merge
   repeated ExperimentAnalysisTemplateRef analyses = 5;
+
+  // ScaleDownDelaySeconds adds a delay before scaling down the Experiment.
+  // If omitted, the Experiment waits 30 seconds before scaling down.
+  // A minimum of 30 seconds is recommended to ensure IP table propagation across the nodes in
+  // a cluster. See https://github.com/argoproj/argo-rollouts/issues/19#issuecomment-476329960 for
+  // more information
+  // +optional
+  optional int32 scaleDownDelaySeconds = 6;
 }
 
 // ExperimentStatus is the status for a Experiment resource
@@ -1056,6 +1077,10 @@ message RolloutStatus {
   // +optional
   optional string observedGeneration = 13;
 
+  // The generation of referenced workload observed by the rollout controller
+  // +optional
+  optional string workloadObservedGeneration = 24;
+
   // Conditions a list of conditions a rollout can have.
   // +optional
   repeated RolloutCondition conditions = 14;
@@ -1166,6 +1191,9 @@ message SetCanaryScale {
   optional bool matchTrafficWeight = 3;
 }
 
+message TemplateService {
+}
+
 message TemplateSpec {
   // Name of the template used to identity replicaset running for this experiment
   optional string name = 1;
@@ -1188,6 +1216,9 @@ message TemplateSpec {
 
   // Template describes the pods that will be created.
   optional k8s.io.api.core.v1.PodTemplateSpec template = 5;
+
+  // TemplateService describes how a service should be generated for template
+  optional TemplateService service = 6;
 }
 
 // TemplateStatus is the status of a specific template of an Experiment
@@ -1222,6 +1253,12 @@ message TemplateStatus {
   // LastTransitionTime is the last time the replicaset transitioned, which resets the countdown
   // on the ProgressDeadlineSeconds check.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 9;
+
+  // ServiceName is the name of the service which corresponds to this experiment
+  optional string serviceName = 10;
+
+  // PodTemplateHash is the value of the Replicas' PodTemplateHash
+  optional string podTemplateHash = 11;
 }
 
 message ValueFrom {
