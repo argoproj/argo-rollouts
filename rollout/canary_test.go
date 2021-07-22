@@ -77,14 +77,18 @@ func TestCanaryRolloutBumpVersion(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)                  // scale up RS
 	updatedRolloutRevisionIndex := f.expectUpdateRolloutAction(r2)         // update rollout revision
 	updatedRolloutConditionsIndex := f.expectUpdateRolloutStatusAction(r2) // update rollout conditions
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	createdRS := f.getCreatedReplicaSet(createdRSIndex)
-	assert.Equal(t, int32(1), *createdRS.Spec.Replicas)
+	assert.Equal(t, int32(0), *createdRS.Spec.Replicas)
 	assert.Equal(t, "2", createdRS.Annotations[annotations.RevisionAnnotation])
+
+	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, int32(1), *updatedRS.Spec.Replicas)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutRevisionIndex)
 	assert.Equal(t, "2", updatedRollout.Annotations[annotations.RevisionAnnotation])
@@ -475,6 +479,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 	rs := newReplicaSet(r, 1)
 
 	f.expectCreateReplicaSetAction(rs)
+	f.expectUpdateReplicaSetAction(rs) // scale up rs
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
@@ -514,6 +519,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	rs := newReplicaSet(r, 1)
 
 	f.expectCreateReplicaSetAction(rs)
+	f.expectUpdateReplicaSetAction(rs) // scale up rs
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
@@ -559,12 +565,15 @@ func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
 	createdRSIndex := f.expectCreateReplicaSetAction(rs2)
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r2)
 	f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	createdRS := f.getCreatedReplicaSet(createdRSIndex)
-	assert.Equal(t, int32(1), *createdRS.Spec.Replicas)
+	assert.Equal(t, int32(0), *createdRS.Spec.Replicas)
+	updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, int32(1), *updatedRS.Spec.Replicas)
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
 	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
