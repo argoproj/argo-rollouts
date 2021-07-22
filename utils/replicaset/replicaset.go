@@ -493,6 +493,15 @@ func PodTemplateEqualIgnoreHash(live, desired *corev1.PodTemplateSpec) bool {
 	}
 	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
 	desired = &podTemplate.Template
+
+	// Do not allow the deprecated spec.serviceAccount to factor into the equality check. In live
+	// ReplicaSet pod template, this field will be populated, but in the desired pod template
+	// it will be missing (even after defaulting), causing us to believe there is a diff
+	// (when there really wasn't), and hence causing an unsolicited update to be triggered.
+	// See: https://github.com/argoproj/argo-rollouts/issues/1356
+	desired.Spec.DeprecatedServiceAccount = ""
+	live.Spec.DeprecatedServiceAccount = ""
+
 	return apiequality.Semantic.DeepEqual(live, desired)
 }
 
