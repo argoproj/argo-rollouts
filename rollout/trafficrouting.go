@@ -123,14 +123,15 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				}
 				return nil
 			}
-			// TODO: Check if Experiment is running
-			for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
-				templateWeight := getTemplateWeight(templateStatus.Name)
-				weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
-					ServiceName:     templateStatus.ServiceName,
-					PodTemplateHash: templateStatus.PodTemplateHash,
-					Weight:          *templateWeight,
-				})
+			if c.currentEx != nil {
+				for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
+					templateWeight := getTemplateWeight(templateStatus.Name)
+					weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
+						ServiceName:     templateStatus.ServiceName,
+						PodTemplateHash: templateStatus.PodTemplateHash,
+						Weight:          *templateWeight,
+					})
+				}
 			}
 		}
 	}
