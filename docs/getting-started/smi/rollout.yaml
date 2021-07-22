@@ -12,15 +12,6 @@ spec:
         smi: {}
       steps:
       - setWeight: 5
-      - experiment:
-          templates:
-            - name: canary
-              specRef: canary
-          # This experiment performs its own analysis by referencing one or more AnalysisTemplates
-          # here. The success or failure of these runs will progress or abort the rollout respectively.
-          analyses:
-            - name: random-fail
-              templateName: random-fail
       - pause: {}
   revisionHistoryLimit: 2
   selector:

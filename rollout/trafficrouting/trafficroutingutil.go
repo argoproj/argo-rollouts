@@ -1,6 +1,5 @@
 package trafficrouting
 
-// TODO: Modify tests to accomodate moved location of TrafficRoutingReconciler
 // TrafficRoutingReconciler common function across all TrafficRouting implementation
 type TrafficRoutingReconciler interface {
 	// UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
