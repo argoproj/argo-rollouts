@@ -47,6 +47,15 @@ spec:
             type: object
           spec:
             properties:
+              analysis:
+                properties:
+                  failedRunHistoryLimit:
+                    format: int32
+                    type: integer
+                  succeedRunHistoryLimit:
+                    format: int32
+                    type: integer
+                type: object
               minReadySeconds:
                 format: int32
                 type: integer
@@ -64,15 +73,6 @@ spec:
               revisionHistoryLimit:
                 format: int32
                 type: integer
-              analysis:
-                properties:
-                  succeedRunHistoryLimit:
-                    format: int32
-                    type: integer
-                  failedRunHistoryLimit:
-                    format: int32
-                    type: integer
-                type: object
               selector:
                 properties:
                   matchExpressions:

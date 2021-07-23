@@ -532,6 +532,22 @@
       },
       "title": "AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic\nrouter"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Analysis": {
+      "type": "object",
+      "properties": {
+        "succeedRunHistoryLimit": {
+          "type": "integer",
+          "format": "int32",
+          "title": "SucceedRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history"
+        },
+        "failedRunHistoryLimit": {
+          "type": "integer",
+          "format": "int32",
+          "title": "FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history"
+        }
+      },
+      "title": "Analysis configuration for the analysis runs to retain"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunArgument": {
       "type": "object",
       "properties": {
@@ -1165,6 +1181,10 @@
         "restartAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
           "title": "RestartAt indicates when all the pods of a Rollout should be restarted"
+        },
+        "analysis": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Analysis",
+          "title": "Analysis configuration for the analysis runs to retain"
         }
       },
       "title": "RolloutSpec is the spec for a Rollout resource"
