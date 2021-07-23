@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	smiv1alpha2 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha2"
 	smiv1alpha3 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha3"
@@ -277,7 +279,6 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 }
 
 func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
-
 	t.Run("v1alpha1", func(t *testing.T) {
 		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-v1alpha1")
 		objMeta := objectMeta("traffic-split-v1alpha1", ro, schema.GroupVersionKind{})
@@ -430,5 +431,118 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 
 		err = r.SetWeight(10)
 		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
+	})
+}
+
+func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
+	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+	objMeta := objectMeta("traffic-split-name", ro, schema.GroupVersionKind{})
+	weightDestinations := []trafficrouting.WeightDestination{
+		{
+			ServiceName:     "ex-svc-1",
+			PodTemplateHash: "",
+			Weight:          5,
+		},
+		{
+			ServiceName:     "ex-svc-2",
+			PodTemplateHash: "",
+			Weight:          5,
+		},
+	}
+
+	t.Run("v1alpha1", func(t *testing.T) {
+		ts1 := trafficSplitV1Alpha1(ro, objMeta, "root-service", int32(10), weightDestinations...)
+		client := fake.NewSimpleClientset(ts1)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetWeight(10)
+		assert.Nil(t, err)
+
+		// check canary backend
+		assert.Equal(t, "canary-service", ts1.Spec.Backends[0].Service)
+		assert.Equal(t, int64(10), ts1.Spec.Backends[0].Weight.Value())
+
+		// check experiment service backends
+		assert.Equal(t, weightDestinations[0].ServiceName, ts1.Spec.Backends[1].Service)
+		assert.Equal(t, int64(weightDestinations[0].Weight), ts1.Spec.Backends[1].Weight.Value())
+
+		assert.Equal(t, weightDestinations[1].ServiceName, ts1.Spec.Backends[2].Service)
+		assert.Equal(t, int64(weightDestinations[1].Weight), ts1.Spec.Backends[2].Weight.Value())
+
+		// check stable backend
+		assert.Equal(t, "stable-service", ts1.Spec.Backends[3].Service)
+		assert.Equal(t, int64(80), ts1.Spec.Backends[3].Weight.Value())
+	})
+
+	t.Run("v1alpha2", func(t *testing.T) {
+		ts2 := trafficSplitV1Alpha2(ro, objMeta, "root-service", int32(10), weightDestinations...)
+		SetSMIAPIVersion("v1alpha2")
+		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+
+		client := fake.NewSimpleClientset(ts2)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetWeight(10)
+		assert.Nil(t, err)
+
+		// check canary backend
+		assert.Equal(t, "canary-service", ts2.Spec.Backends[0].Service)
+		assert.Equal(t, 10, ts2.Spec.Backends[0].Weight)
+
+		// check experiment service backends
+		assert.Equal(t, weightDestinations[0].ServiceName, ts2.Spec.Backends[1].Service)
+		assert.Equal(t, int(weightDestinations[0].Weight), ts2.Spec.Backends[1].Weight)
+
+		assert.Equal(t, weightDestinations[1].ServiceName, ts2.Spec.Backends[2].Service)
+		assert.Equal(t, int(weightDestinations[1].Weight), ts2.Spec.Backends[2].Weight)
+
+		// check stable backend
+		assert.Equal(t, "stable-service", ts2.Spec.Backends[3].Service)
+		assert.Equal(t, 80, ts2.Spec.Backends[3].Weight)
+	})
+
+	t.Run("v1alpha3", func(t *testing.T) {
+		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10), weightDestinations...)
+		SetSMIAPIVersion("v1alpha3")
+		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+
+		client := fake.NewSimpleClientset(ts3)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetWeight(10)
+		assert.Nil(t, err)
+
+		// check canary backend
+		assert.Equal(t, "canary-service", ts3.Spec.Backends[0].Service)
+		assert.Equal(t, 10, ts3.Spec.Backends[0].Weight)
+
+		// check experiment service backends
+		assert.Equal(t, weightDestinations[0].ServiceName, ts3.Spec.Backends[1].Service)
+		assert.Equal(t, int(weightDestinations[0].Weight), ts3.Spec.Backends[1].Weight)
+
+		assert.Equal(t, weightDestinations[1].ServiceName, ts3.Spec.Backends[2].Service)
+		assert.Equal(t, int(weightDestinations[1].Weight), ts3.Spec.Backends[2].Weight)
+
+		// check stable backend
+		assert.Equal(t, "stable-service", ts3.Spec.Backends[3].Service)
+		assert.Equal(t, 80, ts3.Spec.Backends[3].Weight)
 	})
 }

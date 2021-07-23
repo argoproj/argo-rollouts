@@ -3,13 +3,14 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
