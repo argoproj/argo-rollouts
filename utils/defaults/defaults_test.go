@@ -41,7 +41,7 @@ func TestGetRevisionHistoryOrDefault(t *testing.T) {
 
 	assert.Equal(t, revisionHistoryLimit, GetRevisionHistoryLimitOrDefault(rolloutNonDefaultValue))
 	rolloutDefaultValue := &v1alpha1.Rollout{}
-	assert.Equal(t, DefaultAnalysisRunSucceedHistoryLimit, GetRevisionHistoryLimitOrDefault(rolloutDefaultValue))
+	assert.Equal(t, DefaultRevisionHistoryLimit, GetRevisionHistoryLimitOrDefault(rolloutDefaultValue))
 }
 
 func TestGetAnalysisRunSucceedHistoryLimitOrDefault(t *testing.T) {
