@@ -3,6 +3,7 @@ package rollout
 import (
 	"context"
 	"fmt"
+
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"strconv"
 	"strings"
