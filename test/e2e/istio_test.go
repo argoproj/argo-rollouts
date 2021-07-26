@@ -224,3 +224,32 @@ func (s *IstioSuite) TestIstioAbortUpdate() {
 		Then().
 		ExpectRevisionPodCount("2", 1)
 }
+
+func (s *IstioSuite) TestIstioAbortUpdateDeleteAllCanaryPods() {
+	s.Given().
+		RolloutObjects("@istio/istio-rollout-abort-delete-all-canary-pods.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("2", 2).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Paused").
+		Then().
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("2", 4).
+		When().
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		ExpectRevisionPodCount("2", 0).
+		ExpectRevisionPodCount("1", 5)
+}
