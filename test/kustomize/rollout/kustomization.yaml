@@ -41,3 +41,19 @@ replicas:
 images:
 - name: guestbook
   newTag: v2
+
+openapi:
+ path: ../../../docs/features/kustomize/rollout_cr_schema.json
+
+patchesStrategicMerge:
+- |-
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: guestbook
+  spec:
+    template:
+      spec:
+        containers:
+        - name: guestbook
+          image: guestbook-patched:v1

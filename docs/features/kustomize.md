@@ -17,12 +17,69 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 configurations:
 - rollout-transform.yaml
 ```
-With Kustomize 3.6.1 it is possible to reference the configuration directly from a remote resource:
+
+An example kustomize app demonstrating the ability to use transformers with Rollouts can be seen
+[here](https://github.com/argoproj/argo-rollouts/blob/master/docs/features/kustomize/example).
+
+- With Kustomize 3.6.1 it is possible to reference the configuration directly from a remote resource:
 
 ```yaml
 configurations:
   - https://argoproj.github.io/argo-rollouts/features/kustomize/rollout-transform.yaml
 ```
 
-A example kustomize app demonstrating the ability to use transformers with Rollouts can be seen
-[here](https://github.com/argoproj/argo-rollouts/blob/master/docs/features/kustomize/example).
+- With Kustomize 4.1.0 kustomize can use kubernetes OpenAPI data to get merge key and patch strategy information about [resource types](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/openapi). For example, given the following rollout:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-canary
+spec:
+  strategy:
+    canary:
+      steps:
+      # detail of the canary steps is omitted
+  template:
+    metadata:
+      labels:
+        app: rollout-canary
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+```
+
+user can update the Rollout via a patch in a kustomization file, to change the image to nginx
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- rollout-canary.yaml
+
+openapi:
+ path: <path-to-directory>/rollout_cr_schema.json
+
+patchesStrategicMerge:
+- |-
+  apiVersion: argoproj.io/v1alpha1
+  kind: Rollout
+  metadata:
+    name: rollout-canary
+  spec:
+    template:
+      spec:
+        containers:
+        - name: rollouts-demo
+          image: nginx
+```
+
+The OpenAPI data is defined in a [file](https://github.com/argoproj/argo-rollouts/blob/master/docs/features/kustomize/rollout_cr_schema.json).
+
+An example kustomize app demonstrating the ability to use OpenAPI data with Rollouts can be seen
+[here](https://github.com/argoproj/argo-rollouts/blob/master/test/kustomize/rollout).
