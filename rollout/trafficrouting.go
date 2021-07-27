@@ -114,7 +114,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		}
 
 		exStep := replicasetutil.GetCurrentExperimentStep(c.rollout)
-		if exStep != nil {
+		if exStep != nil && c.currentEx != nil {
 			getTemplateWeight := func(name string) *int32 {
 				for _, tmpl := range exStep.Templates {
 					if tmpl.Name == name {
@@ -123,15 +123,13 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				}
 				return nil
 			}
-			if c.currentEx != nil {
-				for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
-					templateWeight := getTemplateWeight(templateStatus.Name)
-					weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
-						ServiceName:     templateStatus.ServiceName,
-						PodTemplateHash: templateStatus.PodTemplateHash,
-						Weight:          *templateWeight,
-					})
-				}
+			for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
+				templateWeight := getTemplateWeight(templateStatus.Name)
+				weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
+					ServiceName:     templateStatus.ServiceName,
+					PodTemplateHash: templateStatus.PodTemplateHash,
+					Weight:          *templateWeight,
+				})
 			}
 		}
 	}
