@@ -96,6 +96,30 @@ func (c *Common) PrintRolloutYAML(ro *rov1.Rollout) {
 	fmt.Fprintf(logrus.StandardLogger().Out, "\n---\n%s\n", string(yamlBytes))
 }
 
+func (c *Common) PrintExperiment(name string) {
+	streams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	o := options.NewArgoRolloutsOptions(streams)
+	getOptions := get.GetOptions{
+		ArgoRolloutsOptions: *o,
+	}
+	controller := viewcontroller.NewExperimentViewController(c.namespace, name, c.kubeClient, c.rolloutClient)
+	ctx := context.Background()
+	controller.Start(ctx)
+	ei, err := controller.GetExperimentInfo()
+	c.CheckError(err)
+	getOptions.PrintExperiment(ei)
+}
+
+func (c *Common) PrintExperimentYAML(ex *rov1.Experiment) {
+	ex = ex.DeepCopy()
+	// declutter the output
+	delete(ex.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	ex.ManagedFields = nil
+	yamlBytes, err := yaml.Marshal(ex)
+	c.CheckError(err)
+	fmt.Fprintf(logrus.StandardLogger().Out, "\n---\n%s\n", string(yamlBytes))
+}
+
 func (c *Common) GetReplicaSetByRevision(revision string) *appsv1.ReplicaSet {
 	selector, err := metav1.LabelSelectorAsSelector(c.Rollout().Spec.Selector)
 	c.CheckError(err)
@@ -172,6 +196,12 @@ func (c *Common) GetBackgroundAnalysisRun() *rov1.AnalysisRun {
 		c.t.FailNow()
 	}
 	return found
+}
+
+func (c *Common) GetExperimentByName(name string) *rov1.Experiment {
+	ex, err := c.rolloutClient.ArgoprojV1alpha1().Experiments(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ex
 }
 
 // GetInlineAnalysisRun returns the latest Step analysis run. This should generally be coupled with
@@ -512,10 +542,21 @@ func (c *Common) GetRolloutEventReasons() []string {
 }
 
 // PrintRolloutEvents prints all Kubernetes events associated with the given rollout.
-// Note that events may be deduplicated, or printed out-of-order from when they were emitted,
-// so this function should only be used to assist with debugging and not correctness.
 func (c *Common) PrintRolloutEvents(ro *v1alpha1.Rollout) {
 	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("involvedObject.uid=%s", ro.UID)).String()}
+	c.PrintObjectEvents(opts)
+}
+
+// PrintExperimentEvents prints all Kubernetes events associated with the given experiment.
+func (c *Common) PrintExperimentEvents(ex *v1alpha1.Experiment) {
+	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("involvedObject.uid=%s", ex.UID)).String()}
+	c.PrintObjectEvents(opts)
+}
+
+// PrintObjectEvents prints all Kubernetes events associated with the given object.
+// Note that events may be deduplicated, or printed out-of-order from when they were emitted,
+// so this function should only be used to assist with debugging and not correctness.
+func (c *Common) PrintObjectEvents(opts metav1.ListOptions) {
 	events, err := c.kubeClient.CoreV1().Events(c.namespace).List(c.Context, opts)
 	c.CheckError(err)
 	buf := bytes.NewBufferString("")

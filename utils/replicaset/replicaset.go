@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -493,6 +494,15 @@ func PodTemplateEqualIgnoreHash(live, desired *corev1.PodTemplateSpec) bool {
 	}
 	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
 	desired = &podTemplate.Template
+
+	// Do not allow the deprecated spec.serviceAccount to factor into the equality check. In live
+	// ReplicaSet pod template, this field will be populated, but in the desired pod template
+	// it will be missing (even after defaulting), causing us to believe there is a diff
+	// (when there really wasn't), and hence causing an unsolicited update to be triggered.
+	// See: https://github.com/argoproj/argo-rollouts/issues/1356
+	desired.Spec.DeprecatedServiceAccount = ""
+	live.Spec.DeprecatedServiceAccount = ""
+
 	return apiequality.Semantic.DeepEqual(live, desired)
 }
 
@@ -560,6 +570,23 @@ func HasScaleDownDeadline(rs *appsv1.ReplicaSet) bool {
 		return false
 	}
 	return rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] != ""
+}
+
+func GetTimeRemainingBeforeScaleDownDeadline(rs *appsv1.ReplicaSet) (*time.Duration, error) {
+	if HasScaleDownDeadline(rs) {
+		scaleDownAtStr := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+		scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read scaleDownAt label on rs '%s'", rs.Name)
+		}
+		now := metav1.Now()
+		scaleDownAt := metav1.NewTime(scaleDownAtTime)
+		if scaleDownAt.After(now.Time) {
+			remainingTime := scaleDownAt.Sub(now.Time)
+			return &remainingTime, nil
+		}
+	}
+	return nil, nil
 }
 
 // GetPodsOwnedByReplicaSet returns a list of pods owned by the given replicaset

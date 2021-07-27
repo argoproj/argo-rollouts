@@ -2,7 +2,6 @@ package rollout
 
 import (
 	"sort"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -183,35 +182,14 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 			}
 		} else {
 			// For traffic shaped canary, we leave the old ReplicaSets up until scaleDownDelaySeconds
-			if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
-				annotationedRSs++
-				scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
-				scaleDownRevisionLimit := getScaleDownRevisionLimit(c.rollout)
-				if err != nil {
-					c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", targetRS.Name)
-				} else if annotationedRSs > scaleDownRevisionLimit {
-					c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
-				} else {
-					now := metav1.Now()
-					scaleDownAt := metav1.NewTime(scaleDownAtTime)
-					if scaleDownAt.After(now.Time) {
-						c.log.Infof("RS '%s' has not reached the scaleDownTime", targetRS.Name)
-						remainingTime := scaleDownAt.Sub(now.Time)
-						if remainingTime < c.resyncPeriod {
-							c.enqueueRolloutAfter(c.rollout, remainingTime)
-						}
-						desiredReplicaCount = rolloutReplicas
-					}
-				}
-			}
-
+			annotationedRSs, desiredReplicaCount = c.ScaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
 		}
 		if *(targetRS.Spec.Replicas) == desiredReplicaCount {
 			// at desired account
 			continue
 		}
 		// Scale down.
-		_, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
+		_, _, err = c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
 		if err != nil {
 			return totalScaledDown, err
 		}
