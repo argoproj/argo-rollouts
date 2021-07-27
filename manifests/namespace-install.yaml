@@ -12822,6 +12822,11 @@ subjects:
   name: argo-rollouts
 ---
 apiVersion: v1
+kind: Secret
+metadata:
+  name: argo-rollouts-notification-secret
+---
+apiVersion: v1
 kind: Service
 metadata:
   labels:
