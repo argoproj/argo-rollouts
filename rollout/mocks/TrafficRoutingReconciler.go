@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+	trafficrouting "github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -12,13 +12,20 @@ type TrafficRoutingReconciler struct {
 	mock.Mock
 }
 
-// SetWeight provides a mock function with given fields: desiredWeight
-func (_m *TrafficRoutingReconciler) SetWeight(desiredWeight int32, destinations ...trafficrouting.WeightDestination) error {
-	ret := _m.Called(desiredWeight)
+// SetWeight provides a mock function with given fields: desiredWeight, additionalDestinations
+func (_m *TrafficRoutingReconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
+	_va := make([]interface{}, len(additionalDestinations))
+	for _i := range additionalDestinations {
+		_va[_i] = additionalDestinations[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, desiredWeight)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int32) error); ok {
-		r0 = rf(desiredWeight)
+	if rf, ok := ret.Get(0).(func(int32, ...trafficrouting.WeightDestination) error); ok {
+		r0 = rf(desiredWeight, additionalDestinations...)
 	} else {
 		r0 = ret.Error(0)
 	}

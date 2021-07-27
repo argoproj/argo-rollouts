@@ -113,6 +113,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			desiredWeight = replicasetutil.GetCurrentSetWeight(c.rollout)
 		}
 
+		// Checks for experiment step
+		// If current experiment exists, then create WeightDestinations for each experiment template
 		exStep := replicasetutil.GetCurrentExperimentStep(c.rollout)
 		if exStep != nil && c.currentEx != nil {
 			getTemplateWeight := func(name string) *int32 {
