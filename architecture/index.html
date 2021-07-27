@@ -1831,7 +1831,7 @@ that you can install Argo Rollouts in a cluster that is also deploying applicati
 <h2 id="rollout-resource">Rollout resource<a class="headerlink" href="#rollout-resource" title="Permanent link">&para;</a></h2>
 <p>The Rollout resource is a custom Kubernetes resource introduced and managed by Argo Rollouts. It is mostly compatible with the native Kubernetes Deployment resource but with extra
 fields that control the stages, thresholds and methods of advanced deployment methods such as canaries and blue/green deployments.</p>
-<p>Note that the Argo Rollouts controller will only responds to changes that happen in Rollout sources. It will do nothing for normal deployment resources. This means that you need to <a href="../migrating/">migrate your Deployments to Rollouts</a> if you want to manage them with Argo Rollouts.</p>
+<p>Note that the Argo Rollouts controller will only respond to those changes that happen in Rollout sources. It will do nothing for normal deployment resources. This means that you need to <a href="../migrating/">migrate your Deployments to Rollouts</a> if you want to manage them with Argo Rollouts.</p>
 <p>You can see all possible options of a Rollout in the <a href="../features/specification/">full specification page</a>.</p>
 <h2 id="replica-sets-for-old-and-new-version">Replica sets for old and new version<a class="headerlink" href="#replica-sets-for-old-and-new-version" title="Permanent link">&para;</a></h2>
 <p>These are instances of the <a href="https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/">standard Kubernetes ReplicaSet resources</a>. Argo Rollouts puts some extra metadata on them in order to keep track of the different versions that are part of an application.</p>
