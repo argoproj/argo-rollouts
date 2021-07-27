@@ -2,10 +2,11 @@ package rollout
 
 import (
 	"errors"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -184,7 +185,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 				Templates: []v1alpha1.RolloutExperimentTemplate{{
 					Name:     "experiment-template",
 					SpecRef:  "canary",
-					Replicas:  pointer.Int32Ptr(1),
+					Replicas: pointer.Int32Ptr(1),
 					Weight:   pointer.Int32Ptr(5),
 				}},
 			},
@@ -207,9 +208,9 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 	stableSvc := newService("stable", 80, stableSelector, r2)
 	ex, _ := GetExperimentFromTemplate(r1, rs1, rs2)
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
-		Name:               "experiment-template",
-		ServiceName:        "experiment-service",
-		PodTemplateHash:    rs2PodHash,
+		Name:            "experiment-template",
+		ServiceName:     "experiment-service",
+		PodTemplateHash: rs2PodHash,
 	}}
 	r2.Status.Canary.CurrentExperiment = ex.Name
 
