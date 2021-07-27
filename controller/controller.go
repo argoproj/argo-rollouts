@@ -199,6 +199,7 @@ func NewManager(
 		AnalysisRunInformer:             analysisRunInformer,
 		AnalysisTemplateInformer:        analysisTemplateInformer,
 		ClusterAnalysisTemplateInformer: clusterAnalysisTemplateInformer,
+		ServiceInformer:                 servicesInformer,
 		ResyncPeriod:                    resyncPeriod,
 		RolloutWorkQueue:                rolloutWorkqueue,
 		ExperimentWorkQueue:             experimentWorkqueue,

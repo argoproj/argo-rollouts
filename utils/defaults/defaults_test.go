@@ -3,6 +3,8 @@ package defaults
 import (
 	"testing"
 
+	"k8s.io/utils/pointer"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -13,6 +15,20 @@ func TestGetReplicasOrDefault(t *testing.T) {
 	replicas := int32(2)
 	assert.Equal(t, replicas, GetReplicasOrDefault(&replicas))
 	assert.Equal(t, DefaultReplicas, GetReplicasOrDefault(nil))
+}
+
+func TestGetExperimentScaleDownDelaySecondsOrDefault(t *testing.T) {
+	exp := v1alpha1.Experiment{
+		Spec: v1alpha1.ExperimentSpec{
+			ScaleDownDelaySeconds: pointer.Int32Ptr(0),
+		},
+	}
+	// Custom value
+	assert.Equal(t, *exp.Spec.ScaleDownDelaySeconds, GetExperimentScaleDownDelaySecondsOrDefault(&exp))
+
+	// Default value
+	exp.Spec.ScaleDownDelaySeconds = nil
+	assert.Equal(t, DefaultScaleDownDelaySeconds, GetExperimentScaleDownDelaySecondsOrDefault(&exp))
 }
 
 func TestGetRevisionHistoryOrDefault(t *testing.T) {

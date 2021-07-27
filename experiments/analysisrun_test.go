@@ -460,6 +460,8 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 			ar2.Status.Phase = test.second
 			e.Status.AnalysisRuns[1].Phase = test.second
 			f := newFixture(t, e, rs, ar1, ar2)
+			f.expectPatchReplicaSetAction(rs) // Add scaleDownDelay annotation to RS
+			f.expectGetReplicaSetAction(rs)   // Happens during scale down logic
 			if test.expected != v1alpha1.AnalysisPhaseRunning {
 				patchIdx := f.expectPatchExperimentAction(e)
 				f.run(getKey(e, t))
@@ -478,6 +480,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -490,6 +493,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Spec.Duration = "5m"
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Status.AvailableAt = secondsAgo(60)
 	rs := templateToRS(e, templates[0], 1)
 	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
@@ -551,7 +555,8 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 			f := newFixture(t, e, rs, ar1, ar2)
 
 			if test.expected == v1alpha1.AnalysisPhaseFailed {
-				f.expectUpdateReplicaSetAction(rs) // scale down to 0
+				// No scale down delay actions since scaleDownDelay seconds is 0
+				f.expectUpdateReplicaSetAction(rs)
 			}
 			patchIdx := f.expectPatchExperimentAction(e)
 			f.run(getKey(e, t))
@@ -593,6 +598,7 @@ func TestCompleteExperimentOnSuccessfulRequiredAnalysisRun(t *testing.T) {
 
 	f := newFixture(t, e, rs, ar)
 	defer f.Close()
+	f.expectGetReplicaSetAction(rs)
 	f.expectUpdateReplicaSetAction(rs)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -643,6 +649,7 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 
 	f := newFixture(t, e, rs, ar, ar2)
 	defer f.Close()
+	f.expectGetReplicaSetAction(rs)
 	f.expectUpdateReplicaSetAction(rs)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -653,6 +660,7 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "1m")
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -692,6 +700,7 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 func TestTerminateAnalysisRuns(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",

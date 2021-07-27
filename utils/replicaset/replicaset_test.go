@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1166,4 +1167,75 @@ func TestGetPodsOwnedByReplicaSet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, pods, 1)
 	assert.Equal(t, "guestbook-abc123", pods[0].Name)
+}
+
+func TestGetTimeRemainingBeforeScaleDownDeadline(t *testing.T) {
+	rs := generateRS(generateRollout("foo"))
+	{
+		remainingTime, _ := GetTimeRemainingBeforeScaleDownDeadline(&rs)
+		assert.Nil(t, remainingTime)
+	}
+	{
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: metav1.Now().Add(-600 * time.Second).UTC().Format(time.RFC3339)}
+		remainingTime, err := GetTimeRemainingBeforeScaleDownDeadline(&rs)
+		assert.Nil(t, err)
+		assert.Nil(t, remainingTime)
+	}
+	{
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: metav1.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)}
+		remainingTime, err := GetTimeRemainingBeforeScaleDownDeadline(&rs)
+		assert.Nil(t, err)
+		assert.NotNil(t, remainingTime)
+	}
+}
+
+// TestPodTemplateEqualIgnoreHashWithServiceAccount catches a corner case where the K8s ComputeHash
+// function changed from underneath us, and we fell back to deep equality checking, which then
+// incorrectly detected a diff because of a deprecated field being present in the live but not desired.
+func TestPodTemplateEqualIgnoreHashWithServiceAccount(t *testing.T) {
+	var desired corev1.PodTemplateSpec
+	desiredTemplate := `
+metadata:
+  labels:
+    app: serviceaccount-ro
+spec:
+  containers:
+  - image: nginx:1.19-alpine
+    name: app
+  serviceAccountName: default
+`
+	err := yaml.Unmarshal([]byte(desiredTemplate), &desired)
+	assert.NoError(t, err)
+
+	// liveTemplate was captured from a ReplicaSet generated from the above desired template using
+	// Argo Rollouts v0.10. The rollouts-pod-template-hash value will not match newer hashing
+	// versions, causing PodTemplateEqualIgnoreHash to fall back to a deep equality check and
+	// pod template defaulting.
+	liveTemplate := `
+metadata:
+  creationTimestamp: null
+  labels:
+    app: serviceaccount-ro
+    rollouts-pod-template-hash: 8684587d99
+spec:
+  containers:
+  - image: nginx:1.19-alpine
+    imagePullPolicy: IfNotPresent
+    name: app
+    resources: {}
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: default
+  serviceAccountName: default
+  terminationGracePeriodSeconds: 30
+`
+	var live corev1.PodTemplateSpec
+	err = yaml.Unmarshal([]byte(liveTemplate), &live)
+	assert.NoError(t, err)
+
+	assert.True(t, PodTemplateEqualIgnoreHash(&live, &desired))
 }

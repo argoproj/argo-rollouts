@@ -4,6 +4,9 @@ import (
 	"context"
 	"time"
 
+	informersv1 "k8s.io/client-go/informers/core/v1"
+	listersv1 "k8s.io/client-go/listers/core/v1"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -48,6 +51,7 @@ type Controller struct {
 	analysisTemplateLister        listers.AnalysisTemplateLister
 	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
 	analysisRunLister             listers.AnalysisRunLister
+	serviceLister                 listersv1.ServiceLister
 
 	replicaSetSynced              cache.InformerSynced
 	experimentSynced              cache.InformerSynced
@@ -83,6 +87,7 @@ type ControllerConfig struct {
 	AnalysisRunInformer             informers.AnalysisRunInformer
 	AnalysisTemplateInformer        informers.AnalysisTemplateInformer
 	ClusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer
+	ServiceInformer                 informersv1.ServiceInformer
 	ResyncPeriod                    time.Duration
 	RolloutWorkQueue                workqueue.RateLimitingInterface
 	ExperimentWorkQueue             workqueue.RateLimitingInterface
@@ -107,6 +112,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		analysisTemplateLister:        cfg.AnalysisTemplateInformer.Lister(),
 		clusterAnalysisTemplateLister: cfg.ClusterAnalysisTemplateInformer.Lister(),
 		analysisRunLister:             cfg.AnalysisRunInformer.Lister(),
+		serviceLister:                 cfg.ServiceInformer.Lister(),
 		metricsServer:                 cfg.MetricsServer,
 		rolloutWorkqueue:              cfg.RolloutWorkQueue,
 		experimentWorkqueue:           cfg.ExperimentWorkQueue,
@@ -275,16 +281,24 @@ func (ec *Controller) syncHandler(key string) error {
 		return err
 	}
 
+	templateServices, err := ec.getServicesForExperiment(experiment)
+	if err != nil {
+		return err
+	}
+
 	exCtx := newExperimentContext(
 		experiment,
 		templateRSs,
+		templateServices,
 		ec.kubeclientset,
 		ec.argoProjClientset,
 		ec.replicaSetLister,
 		ec.analysisTemplateLister,
 		ec.clusterAnalysisTemplateLister,
 		ec.analysisRunLister,
+		ec.serviceLister,
 		ec.recorder,
+		ec.resyncPeriod,
 		ec.enqueueExperimentAfter,
 	)
 
