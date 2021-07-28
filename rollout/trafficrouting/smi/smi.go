@@ -181,7 +181,7 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 	return r, nil
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
 	return true, nil
 }
 

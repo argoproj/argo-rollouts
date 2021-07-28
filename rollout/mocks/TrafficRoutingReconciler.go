@@ -61,20 +61,27 @@ func (_m *TrafficRoutingReconciler) UpdateHash(canaryHash string, stableHash str
 	return r0
 }
 
-// VerifyWeight provides a mock function with given fields: desiredWeight
-func (_m *TrafficRoutingReconciler) VerifyWeight(desiredWeight int32) (bool, error) {
-	ret := _m.Called(desiredWeight)
+// VerifyWeight provides a mock function with given fields: desiredWeight, additionalDestinations
+func (_m *TrafficRoutingReconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
+	_va := make([]interface{}, len(additionalDestinations))
+	for _i := range additionalDestinations {
+		_va[_i] = additionalDestinations[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, desiredWeight)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(int32) bool); ok {
-		r0 = rf(desiredWeight)
+	if rf, ok := ret.Get(0).(func(int32, ...trafficrouting.WeightDestination) bool); ok {
+		r0 = rf(desiredWeight, additionalDestinations...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(int32) error); ok {
-		r1 = rf(desiredWeight)
+	if rf, ok := ret.Get(1).(func(int32, ...trafficrouting.WeightDestination) error); ok {
+		r1 = rf(desiredWeight, additionalDestinations...)
 	} else {
 		r1 = ret.Error(1)
 	}

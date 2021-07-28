@@ -87,7 +87,6 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...tr
 	actionService := r.cfg.Rollout.Spec.Strategy.Canary.StableService
 	if r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
 		actionService = r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
-
 	}
 	port := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
 	if !ingressutil.HasRuleWithService(ingress, actionService) {
@@ -124,7 +123,7 @@ func (r *Reconciler) shouldVerifyWeight() bool {
 	return defaultVerifyWeight
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
 	if !r.shouldVerifyWeight() {
 		return true, nil
 	}
@@ -185,24 +184,42 @@ func calculatePatch(current *extensionsv1beta1.Ingress, desiredAnnotations map[s
 		}, extensionsv1beta1.Ingress{})
 }
 
-func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32) string {
+func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) string {
 	stableService := r.Spec.Strategy.Canary.StableService
 	canaryService := r.Spec.Strategy.Canary.CanaryService
 	portStr := strconv.Itoa(int(port))
+	stableWeight := int32(100)
+	targetGroups := make([]ingressutil.ALBTargetGroup, 0)
+	// create target group for canary
+	targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
+		ServiceName: canaryService,
+		ServicePort: portStr,
+		Weight:      pointer.Int64Ptr(int64(desiredWeight)),
+	})
+	// update stableWeight
+	stableWeight -= desiredWeight
+
+	for _, dest := range additionalDestinations {
+		// Create target group for each additional destination
+		targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
+			ServiceName: dest.ServiceName,
+			ServicePort: portStr,
+			Weight:      pointer.Int64Ptr(int64(dest.Weight)),
+		})
+		stableWeight -= dest.Weight
+	}
+
+	// Create target group for stable with updated stableWeight
+	targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
+		ServiceName: stableService,
+		ServicePort: portStr,
+		Weight:      pointer.Int64Ptr(int64(stableWeight)),
+	})
+
 	action := ingressutil.ALBAction{
 		Type: "forward",
 		ForwardConfig: ingressutil.ALBForwardConfig{
-			TargetGroups: []ingressutil.ALBTargetGroup{
-				{
-					ServiceName: stableService,
-					ServicePort: portStr,
-					Weight:      pointer.Int64Ptr(100 - int64(desiredWeight)),
-				}, {
-					ServiceName: canaryService,
-					ServicePort: portStr,
-					Weight:      pointer.Int64Ptr(int64(desiredWeight)),
-				},
-			},
+			TargetGroups: targetGroups,
 		},
 	}
 	bytes := jsonutil.MustMarshal(action)

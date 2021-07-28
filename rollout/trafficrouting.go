@@ -146,7 +146,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	// every reconciliation because weight verification typically involves API calls to the cloud
 	// provider which could incur rate limiting
 	if currentStep != nil && currentStep.SetWeight != nil {
-		weightVerified, err := reconciler.VerifyWeight(desiredWeight)
+		weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
 		if err != nil {
 			return err
 		}
