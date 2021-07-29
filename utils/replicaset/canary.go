@@ -331,19 +331,20 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 // TrafficRouting is required to be set for SetCanaryScale to be applicable.
 // If MatchTrafficWeight is set after a previous SetCanaryScale step, it will likewise be ignored.
 func UseSetCanaryScale(rollout *v1alpha1.Rollout) *v1alpha1.SetCanaryScale {
-	// Return nil when rollout is aborted
-	if rollout.Status.Abort {
+	if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		// SetCanaryScale only works with TrafficRouting
+		return nil
+	}
+	if rollout.Status.Abort && defaults.GetAbortScaleDownDelaySecondsOrDefault(rollout) != nil {
+		// If rollout is aborted do not use the set canary scale, *unless* the user explicitly
+		// indicated to leave the canary scaled up (abortScaleDownDelaySeconds: 0).
 		return nil
 	}
 	currentStep, currentStepIndex := GetCurrentCanaryStep(rollout)
 	if currentStep == nil {
+		// setCanaryScale feature is unused
 		return nil
 	}
-	// SetCanaryScale only works with TrafficRouting
-	if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-		return nil
-	}
-
 	for i := *currentStepIndex; i >= 0; i-- {
 		step := rollout.Spec.Strategy.Canary.Steps[i]
 		if step.SetCanaryScale == nil {
