@@ -53,7 +53,7 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 		}
 		return nil
 	}
-	deadline := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
+	deadline := metav1.Now().Add(scaleDownDelaySeconds).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
@@ -94,7 +94,7 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 // in the event that we moved back to an older revision that is still within its scaleDownDelay.
 func (c *rolloutContext) removeScaleDownDeadlines() error {
 	var toRemove []*appsv1.ReplicaSet
-	if c.newRS != nil && !c.isScaleDownOnabort() {
+	if c.newRS != nil && !c.shouldDelayScaleDownOnAbort() {
 		toRemove = append(toRemove, c.newRS)
 	}
 	if c.stableRS != nil {
@@ -120,8 +120,9 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 		return false, err
 	}
 
-	if c.isScaleDownOnabort() {
-		c.log.Infof("Scale down new rs '%s' on abort", c.newRS.Name)
+	if c.shouldDelayScaleDownOnAbort() {
+		abortScaleDownDelaySeconds := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
+		c.log.Infof("Scale down new rs '%s' on abort (%v)", c.newRS.Name, abortScaleDownDelaySeconds)
 
 		// if the newRS has scale down annotation, check if it should be scaled down now
 		if scaleDownAtStr, ok := c.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
@@ -144,9 +145,8 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 					newReplicasCount = int32(0)
 				}
 			}
-		} else {
-			abortScaleDownDelaySeconds := time.Duration(defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout))
-			err = c.addScaleDownDelay(c.newRS, abortScaleDownDelaySeconds)
+		} else if abortScaleDownDelaySeconds != nil {
+			err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
 			if err != nil {
 				return false, err
 			}
@@ -157,12 +157,9 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	return scaled, err
 }
 
-func (c *rolloutContext) isScaleDownOnabort() bool {
-	abortScaleDownDelaySeconds := time.Duration(defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout))
-	if c.pauseContext != nil && c.pauseContext.IsAborted() && abortScaleDownDelaySeconds > 0 {
-		return true
-	}
-	return false
+// shouldDelayScaleDownOnAbort returns if we are aborted and we should delay scaledown of canary/preview
+func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
+	return c.pauseContext.IsAborted() && defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout) != nil
 }
 
 // reconcileOtherReplicaSets reconciles "other" ReplicaSets.
