@@ -66,6 +66,17 @@ func TestGetRolloutVirtualServiceKeys(t *testing.T) {
 		VirtualService: v1alpha1.IstioVirtualService{},
 	}
 	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{
+		VirtualServices: []v1alpha1.IstioVirtualService{},
+	}
+	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
+
+	multipleVirtualService := []v1alpha1.IstioVirtualService{{Name: "test1", Routes: nil}, {Name: "test2", Routes: nil}}
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "test"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices = multipleVirtualService
+	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
+
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices = nil
 	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "test"
 	keys := GetRolloutVirtualServiceKeys(ro)
 	assert.Len(t, keys, 1)
@@ -80,6 +91,35 @@ func TestGetRolloutVirtualServiceKeys(t *testing.T) {
 	keys = GetRolloutVirtualServiceKeys(ro)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, keys[0], "namespace/test")
+
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = ""
+	virtualServices := []v1alpha1.IstioVirtualService{{Name: "test", Routes: nil}}
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices = virtualServices
+	keys = GetRolloutVirtualServiceKeys(ro)
+	assert.Len(t, keys, 1)
+	assert.Equal(t, keys[0], "default/test")
+
+	multipleVirtualService = []v1alpha1.IstioVirtualService{{Name: "test1", Routes: nil}, {Name: "test2", Routes: nil}}
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices = multipleVirtualService
+	keys = GetRolloutVirtualServiceKeys(ro)
+	assert.Len(t, keys, 2)
+	assert.Equal(t, keys[0], "default/test1")
+	assert.Equal(t, keys[1], "default/test2")
+
+	multipleVirtualService = []v1alpha1.IstioVirtualService{{Name: "test1.namespace", Routes: nil}, {Name: "test2.namespace", Routes: nil}}
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices = multipleVirtualService
+	keys = GetRolloutVirtualServiceKeys(ro)
+	assert.Len(t, keys, 2)
+	assert.Equal(t, keys[0], "namespace/test1")
+	assert.Equal(t, keys[1], "namespace/test2")
+
+	multipleVirtualService = []v1alpha1.IstioVirtualService{{Name: "test1.namespace.cluster.local", Routes: nil}, {Name: "test2.namespace.cluster.local", Routes: nil}}
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices = multipleVirtualService
+	keys = GetRolloutVirtualServiceKeys(ro)
+	assert.Len(t, keys, 2)
+	assert.Equal(t, keys[0], "namespace/test1")
+	assert.Equal(t, keys[1], "namespace/test2")
+
 }
 
 func TestGetRolloutDesinationRuleKeys(t *testing.T) {

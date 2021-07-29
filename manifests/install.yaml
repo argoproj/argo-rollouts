@@ -10230,8 +10230,19 @@ spec:
                                 required:
                                 - name
                                 type: object
-                            required:
-                            - virtualService
+                              virtualServices:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    routes:
+                                      items:
+                                        type: string
+                                      type: array
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
                             type: object
                           nginx:
                             properties:

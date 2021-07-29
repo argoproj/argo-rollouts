@@ -354,9 +354,11 @@ type NginxTrafficRouting struct {
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
 type IstioTrafficRouting struct {
 	// VirtualService references an Istio VirtualService to modify to shape traffic
-	VirtualService IstioVirtualService `json:"virtualService" protobuf:"bytes,1,opt,name=virtualService"`
+	VirtualService IstioVirtualService `json:"virtualService,omitempty" protobuf:"bytes,1,opt,name=virtualService"`
 	// DestinationRule references an Istio DestinationRule to modify to shape traffic
 	DestinationRule *IstioDestinationRule `json:"destinationRule,omitempty" protobuf:"bytes,2,opt,name=destinationRule"`
+	// VirtualServices references a list of Istio VirtualService to modify to shape traffic
+	VirtualServices []IstioVirtualService `json:"virtualServices,omitempty" protobuf:"bytes,3,opt,name=virtualServices"`
 }
 
 // IstioVirtualService holds information on the virtual service the rollout needs to modify

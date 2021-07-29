@@ -817,6 +817,13 @@
         "destinationRule": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IstioDestinationRule",
           "title": "DestinationRule references an Istio DestinationRule to modify to shape traffic"
+        },
+        "virtualServices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IstioVirtualService"
+          },
+          "title": "VirtualServices references a list of Istio VirtualService to modify to shape traffic"
         }
       },
       "title": "IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration"

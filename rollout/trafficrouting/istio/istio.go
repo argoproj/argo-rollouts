@@ -80,7 +80,7 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 	return nil
 }
 
-func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHTTPRoute, desiredWeight int64) virtualServicePatches {
+func (r *Reconciler) generateVirtualServicePatches(routeNames []string, httpRoutes []VirtualServiceHTTPRoute, desiredWeight int64) virtualServicePatches {
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	stableSvc := r.rollout.Spec.Strategy.Canary.StableService
 	canarySubset := ""
@@ -91,7 +91,7 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHT
 	}
 
 	// err can be ignored because we already called ValidateHTTPRoutes earlier
-	routeIndexesToPatch, _ := getRouteIndexesToPatch(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes, httpRoutes)
+	routeIndexesToPatch, _ := getRouteIndexesToPatch(routeNames, httpRoutes)
 
 	patches := virtualServicePatches{}
 	for _, routeIdx := range routeIndexesToPatch {
@@ -133,7 +133,7 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHT
 	return patches
 }
 
-func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, desiredWeight int32) (*unstructured.Unstructured, bool, error) {
+func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, routeNames []string, desiredWeight int32) (*unstructured.Unstructured, bool, error) {
 	newObj := obj.DeepCopy()
 	httpRoutesI, err := GetHttpRoutesI(newObj)
 	if err != nil {
@@ -144,11 +144,11 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, des
 		return nil, false, err
 	}
 
-	if err := ValidateHTTPRoutes(r.rollout, httpRoutes); err != nil {
+	if err := ValidateHTTPRoutes(r.rollout, routeNames, httpRoutes); err != nil {
 		return nil, false, err
 	}
 
-	patches := r.generateVirtualServicePatches(httpRoutes, int64(desiredWeight))
+	patches := r.generateVirtualServicePatches(routeNames, httpRoutes, int64(desiredWeight))
 	err = patches.patchVirtualService(httpRoutesI)
 	if err != nil {
 		return nil, false, err
@@ -436,34 +436,45 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	ctx := context.TODO()
 	var vsvc *unstructured.Unstructured
 	var err error
+	var virtualServices []v1alpha1.IstioVirtualService
 
-	namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name)
-	if namespace == "" {
-		namespace = r.rollout.Namespace
-	}
-	client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
-	if r.virtualServiceLister != nil {
-		vsvc, err = r.virtualServiceLister.Namespace(namespace).Get(vsvcName)
+	if istioutil.MultipleVirtualServiceConfigured(r.rollout) {
+		virtualServices = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
 	} else {
-		vsvc, err = client.Get(ctx, vsvcName, metav1.GetOptions{})
+		virtualServices = []v1alpha1.IstioVirtualService{r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
 	}
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			r.recorder.Warnf(r.rollout, record.EventOptions{EventReason: "VirtualServiceNotFound"}, "VirtualService `%s` not found", vsvcName)
+
+	for _, virtualService := range virtualServices {
+		name := virtualService.Name
+		namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(name)
+		if namespace == "" {
+			namespace = r.rollout.Namespace
 		}
-		return err
-	}
-	modifiedVsvc, modified, err := r.reconcileVirtualService(vsvc, desiredWeight)
-	if err != nil {
-		return err
-	}
-	if !modified {
-		return nil
-	}
-	_, err = client.Update(ctx, modifiedVsvc, metav1.UpdateOptions{})
-	if err == nil {
-		r.log.Debugf("UpdatedVirtualService: %s", modifiedVsvc)
-		r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "UpdatedVirtualService"}, "VirtualService `%s` set to desiredWeight '%d'", vsvcName, desiredWeight)
+
+		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
+		if r.virtualServiceLister != nil {
+			vsvc, err = r.virtualServiceLister.Namespace(namespace).Get(vsvcName)
+		} else {
+			vsvc, err = client.Get(ctx, vsvcName, metav1.GetOptions{})
+		}
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				r.recorder.Warnf(r.rollout, record.EventOptions{EventReason: "VirtualServiceNotFound"}, "VirtualService `%s` not found", vsvcName)
+			}
+			return err
+		}
+		modifiedVirtualService, modified, err := r.reconcileVirtualService(vsvc, virtualService.Routes, desiredWeight)
+		if err != nil {
+			return err
+		}
+		if !modified {
+			continue
+		}
+		_, err = client.Update(ctx, modifiedVirtualService, metav1.UpdateOptions{})
+		if err == nil {
+			r.log.Debugf("UpdatedVirtualService: %s", modifiedVirtualService)
+			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "UpdatedVirtualService"}, "VirtualService `%s` set to desiredWeight '%d'", vsvcName, desiredWeight)
+		}
 	}
 	return err
 }
@@ -498,12 +509,12 @@ func getRouteIndexesToPatch(routeNames []string, httpRoutes []VirtualServiceHTTP
 	return routeIndexesToPatch, nil
 }
 
-// validateHTTPRoutes ensures that all the routes in the rollout exist and they only have two destinations
-func ValidateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []VirtualServiceHTTPRoute) error {
+// ValidateHTTPRoutes ensures that all the routes in the rollout exist and they only have two destinations
+func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []VirtualServiceHTTPRoute) error {
 	stableSvc := r.Spec.Strategy.Canary.StableService
 	canarySvc := r.Spec.Strategy.Canary.CanaryService
 
-	routeIndexesToPatch, err := getRouteIndexesToPatch(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes, httpRoutes)
+	routeIndexesToPatch, err := getRouteIndexesToPatch(routeNames, httpRoutes)
 	if err != nil {
 		return err
 	}
