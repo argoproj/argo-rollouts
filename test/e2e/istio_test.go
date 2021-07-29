@@ -250,6 +250,7 @@ func (s *IstioSuite) TestIstioAbortUpdateDeleteAllCanaryPods() {
 		AbortRollout().
 		WaitForRolloutStatus("Degraded").
 		Then().
-		ExpectRevisionPodCount("2", 0).
-		ExpectRevisionPodCount("1", 5)
+		ExpectRevisionPodCount("1", 5).
+		ExpectRevisionPodCount("2", 4).    // canary pods remained scaled
+		ExpectRevisionScaleDown("2", true) // but have a scale down delay
 }

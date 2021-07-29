@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -102,40 +103,52 @@ func GetExperimentScaleDownDelaySecondsOrDefault(e *v1alpha1.Experiment) int32 {
 	return DefaultScaleDownDelaySeconds
 }
 
-func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
+func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) time.Duration {
+	var delaySeconds int32
 	if rollout.Spec.Strategy.BlueGreen != nil {
+		delaySeconds = DefaultAbortScaleDownDelaySeconds
 		if rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds != nil {
-			return *rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds
+			delaySeconds = *rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds
 		}
-		return DefaultScaleDownDelaySeconds
 	}
 	if rollout.Spec.Strategy.Canary != nil {
 		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+			delaySeconds = DefaultAbortScaleDownDelaySeconds
 			if rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds != nil {
-				return *rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds
+				delaySeconds = *rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds
 			}
-			return DefaultScaleDownDelaySeconds
 		}
 	}
-	return 0
+	return time.Duration(delaySeconds) * time.Second
 }
 
-func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) int32 {
+// GetAbortScaleDownDelaySecondsOrDefault returns the duration seconds to delay the scale down of
+// the canary/preview ReplicaSet in a abort situation. A nil value indicates it should not
+// scale down at all (abortScaleDownDelaySeconds: 0). A value of 0 indicates it should scale down
+// immediately.
+func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) *time.Duration {
+	var delaySeconds int32
 	if rollout.Spec.Strategy.BlueGreen != nil {
+		delaySeconds = DefaultAbortScaleDownDelaySeconds
 		if rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds != nil {
-			return *rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds
-		}
-		return DefaultAbortScaleDownDelaySeconds
-	}
-	if rollout.Spec.Strategy.Canary != nil {
-		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
-			if rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds != nil {
-				return *rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds
+			if *rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds == 0 {
+				return nil
 			}
-			return DefaultAbortScaleDownDelaySeconds
+			delaySeconds = *rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds
+		}
+	} else if rollout.Spec.Strategy.Canary != nil {
+		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
+			delaySeconds = DefaultAbortScaleDownDelaySeconds
+			if rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds != nil {
+				if *rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds == 0 {
+					return nil
+				}
+				delaySeconds = *rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds
+			}
 		}
 	}
-	return 0
+	dur := time.Duration(delaySeconds) * time.Second
+	return &dur
 }
 
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
