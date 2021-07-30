@@ -189,6 +189,7 @@ func (w *When) ScaleRollout(scale int) *When {
 }
 
 func (w *When) Sleep(d time.Duration) *When {
+	w.log.Infof("Sleeping %s", d)
 	time.Sleep(d)
 	return w
 }

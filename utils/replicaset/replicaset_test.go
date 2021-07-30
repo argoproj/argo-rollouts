@@ -225,6 +225,7 @@ func TestNewRSNewReplicasWitPreviewReplicaCount(t *testing.T) {
 		overrideCurrentPodHash   string
 		scaleUpPreviewCheckpoint bool
 		expectReplicaCount       int32
+		promoteFull              bool
 	}{
 		{
 			name:               "No active rs is set",
@@ -253,6 +254,12 @@ func TestNewRSNewReplicasWitPreviewReplicaCount(t *testing.T) {
 			activeSelector:     "bar",
 			expectReplicaCount: previewReplicaCount,
 		},
+		{
+			name:               "Ignore preview replica count during promote full",
+			activeSelector:     "bar",
+			expectReplicaCount: replicaCount,
+			promoteFull:        true,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
@@ -272,6 +279,7 @@ func TestNewRSNewReplicasWitPreviewReplicaCount(t *testing.T) {
 						ActiveSelector:           test.activeSelector,
 					},
 					CurrentPodHash: "foo",
+					PromoteFull:    test.promoteFull,
 				},
 			}
 			if test.overrideCurrentPodHash != "" {
