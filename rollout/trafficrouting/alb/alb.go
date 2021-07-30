@@ -134,8 +134,17 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	if err != nil {
 		return false, err
 	}
+	resourceIDToService := map[string]string{}
+
 	canaryService := rollout.Spec.Strategy.Canary.CanaryService
-	resourceID := aws.BuildV2TargetGroupID(rollout.Namespace, ingress.Name, canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+	canaryResourceID := aws.BuildV2TargetGroupID(rollout.Namespace, ingress.Name, canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+	resourceIDToService[canaryResourceID] = canaryService
+
+	for _, dest := range additionalDestinations {
+		resourceID := aws.BuildV2TargetGroupID(rollout.Namespace, ingress.Name, dest.ServiceName, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+		resourceIDToService[resourceID] = dest.ServiceName
+	}
+
 	if len(ingress.Status.LoadBalancer.Ingress) == 0 {
 		r.log.Infof("LoadBalancer not yet allocated")
 	}
@@ -157,10 +166,16 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		}
 		logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
 		for _, tg := range lbTargetGroups {
-			if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == resourceID {
+			//if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == resourceID {
+			resourceID := tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID]
+			if svcName, ok := resourceIDToService[resourceID]; ok {
 				if tg.Weight != nil {
 					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
-					logCtx.Infof("canary weight of %s (desired: %d, current: %d)", resourceID, desiredWeight, *tg.Weight)
+					if resourceID == canaryResourceID {
+						logCtx.Infof("canary weight of %s (desired: %d, current: %d)", resourceID, desiredWeight, *tg.Weight)
+					} else {
+						logCtx.Infof("%s weight of %s (desired: %d, current: %d)", svcName, resourceID, desiredWeight, *tg.Weight)
+					}
 					return *tg.Weight == desiredWeight, nil
 				}
 			}
