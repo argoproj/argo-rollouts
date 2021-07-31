@@ -30,32 +30,63 @@ spec:
       stableService: rollouts-demo-stable
       trafficRouting:
         istio:
-          virtualService:
-            # Reference to a VirtualService which the controller updates with canary weights
-            name: rollouts-demo-vsvc
+          virtualServices:
+          # One or more virtualServices can be configured
+          # Reference to a VirtualService which the controller updates with canary weights.
+          - name: rollouts-demo-vsvc1
             routes:
             - primary # optional if there is a single route in VirtualService, required otherwise
+          # Reference to a VirtualService which the controller updates with canary weights
+          - name: rollouts-demo-vsvc2
+            routes:
+            - secondary # optional if there is a single route in VirtualService, required otherwise
 ...
 ```
 
-The VirtualService and route referenced in `trafficRouting.istio.virtualService` is required
-to have a HTTP route which splits between the stable and canary Services, referenced in the rollout.
+The VirtualService and route referenced in either `trafficRouting.istio.virtualService` or
+`trafficRouting.istio.virtualServices`. `trafficRouting.istio.virtualServices` helps in adding
+one or more virtualServices unlike `trafficRouting.istio.virtualService` where only single virtualService can be added.
+This is required to have a HTTP route which splits between the stable and canary Services, referenced in the rollout.
 In this guide, those Services are named: `rollouts-demo-stable` and `rollouts-demo-canary` 
 respectively. The weight values for these services used should be initially set to 100% stable, 
 and 0% on the canary. During an update, these values will be modified by the controller.
+If there are multiple VirtualService then weight values for stable and canary service of each VirtualService
+will be modified by the controller.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: rollouts-demo-vsvc
+  name: rollouts-demo-vsvc1
 spec:
   gateways:
   - rollouts-demo-gateway
   hosts:
-  - rollouts-demo.local
+  - rollouts-demo-vsvc1.local
   http:
-  - name: primary  # Should match spec.strategy.canary.trafficRouting.istio.virtualService.routes
+  - name: primary  # Should match spec.strategy.canary.trafficRouting.istio.virtualServices.routes
+    route:
+    - destination:
+        host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
+      weight: 100
+    - destination:
+        host: rollouts-demo-canary  # Should match spec.strategy.canary.canaryService
+      weight: 0
+
+```
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: rollouts-demo-vsvc2
+spec:
+  gateways:
+  - rollouts-demo-gateway
+  hosts:
+  - rollouts-demo-vsvc2.local
+  http:
+  - name: secondary  # Should match spec.strategy.canary.trafficRouting.istio.virtualServices.routes
     route:
     - destination:
         host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
@@ -70,13 +101,13 @@ Run the following commands to deploy:
 
 * A Rollout
 * Two Services (stable and canary)
-* An Istio VirtualService
+* One or more Istio VirtualServices
 * An Istio Gateway
 
 ```shell
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/istio/rollout.yaml
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/istio/services.yaml
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/istio/virtualsvc.yaml
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/istio/multipleVirtualsvc.yaml
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/istio/gateway.yaml
 ```
 
@@ -94,8 +125,9 @@ rollouts-demo-canary   ClusterIP   10.103.146.137   <none>        80/TCP    37s
 rollouts-demo-stable   ClusterIP   10.101.158.227   <none>        80/TCP    37s
 
 $ kubectl get virtualservice
-NAME                 GATEWAYS                  HOSTS                   AGE
-rollouts-demo-vsvc   [rollouts-demo-gateway]   [rollouts-demo.local]   54s
+NAME                 GATEWAYS                  HOSTS                        AGE
+rollouts-demo-vsvc1  [rollouts-demo-gateway]   [rollouts-demo-vsvc1.local]  54s
+rollouts-demo-vsvc2  [rollouts-demo-gateway]   [rollouts-demo-vsvc2.local]  54s
 
 $ kubectl get gateway
 NAME                    AGE
@@ -122,22 +154,44 @@ kubectl argo rollouts get rollout rollouts-demo
 
 At this point, both the canary and stable version of the Rollout are running, with 5% of the
 traffic directed to the canary. To understand how this works, inspect the VirtualService which
-the Rollout was referencing. When looking at the VirtualService, we see that the route destination
+the Rollout was referencing. When looking at both the VirtualService, we see that the route destination
 weights have been modified by the controller to reflect the current weight of the canary.
 
 ```yaml
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: rollouts-demo-vsvc
+  name: rollouts-demo-vsvc1
   namespace: default
 spec:
   gateways:
   - rollouts-demo-gateway
   hosts:
-  - rollouts-demo.local
+  - rollouts-demo-vsvc1.local
   http:
   - name: primary
+    route:
+    - destination:
+        host: rollouts-demo-stable
+      weight: 95
+    - destination:
+        host: rollouts-demo-canary
+      weight: 5
+```
+
+```yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: rollouts-demo-vsvc2
+  namespace: default
+spec:
+  gateways:
+  - rollouts-demo-gateway
+  hosts:
+  - rollouts-demo-vsvc2.local
+  http:
+  - name: secondary
     route:
     - destination:
         host: rollouts-demo-stable
