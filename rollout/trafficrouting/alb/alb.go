@@ -93,7 +93,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...tr
 		return fmt.Errorf("ingress does not have service `%s` in rules", actionService)
 	}
 
-	desired, err := getDesiredAnnotations(ingress, rollout, port, desiredWeight)
+	desired, err := getDesiredAnnotations(ingress, rollout, port, desiredWeight, additionalDestinations...)
 	if err != nil {
 		return err
 	}
@@ -241,10 +241,10 @@ func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32
 	return string(bytes)
 }
 
-func getDesiredAnnotations(current *extensionsv1beta1.Ingress, r *v1alpha1.Rollout, port int32, desiredWeight int32) (map[string]string, error) {
+func getDesiredAnnotations(current *extensionsv1beta1.Ingress, r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (map[string]string, error) {
 	desired := current.DeepCopy().Annotations
 	key := ingressutil.ALBActionAnnotationKey(r)
-	desired[key] = getForwardActionString(r, port, desiredWeight)
+	desired[key] = getForwardActionString(r, port, desiredWeight, additionalDestinations...)
 	m, err := ingressutil.NewManagedALBActions(desired[ingressutil.ManagedActionsAnnotation])
 	if err != nil {
 		return nil, err
