@@ -15,8 +15,12 @@ func newMockAPI(response float64) mockAPI {
 	}
 }
 
+func TestType(t *testing.T) {
+	g := NewGraphiteProvider(newMockAPI(10.000), log.Entry{})
+	assert.Equal(t, ProviderType, g.Type())
+}
+
 func TestRunSuccessfulEvaluation(t *testing.T) {
-	e := log.Entry{}
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10.000",
@@ -28,7 +32,7 @@ func TestRunSuccessfulEvaluation(t *testing.T) {
 			},
 		},
 	}
-	g := NewGraphiteProvider(newMockAPI(10.000), e)
+	g := NewGraphiteProvider(newMockAPI(10.000), log.Entry{})
 	measurement := g.Run(&v1alpha1.AnalysisRun{}, metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "10.000", measurement.Value)
@@ -37,7 +41,6 @@ func TestRunSuccessfulEvaluation(t *testing.T) {
 }
 
 func TestRunFailedEvaluation(t *testing.T) {
-	e := log.Entry{}
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10.000",
@@ -49,7 +52,7 @@ func TestRunFailedEvaluation(t *testing.T) {
 			},
 		},
 	}
-	g := NewGraphiteProvider(newMockAPI(5.000), e)
+	g := NewGraphiteProvider(newMockAPI(5.000), log.Entry{})
 	measurement := g.Run(&v1alpha1.AnalysisRun{}, metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "5.000", measurement.Value)
@@ -58,9 +61,7 @@ func TestRunFailedEvaluation(t *testing.T) {
 }
 
 func TestGarbageCollect(t *testing.T) {
-	e := log.NewEntry(log.New())
-	g := NewGraphiteProvider(newMockAPI(1), *e)
-
+	g := NewGraphiteProvider(newMockAPI(1), log.Entry{})
 	err := g.GarbageCollect(nil, v1alpha1.Metric{}, 0)
 	assert.NoError(t, err)
 }
