@@ -15,7 +15,7 @@ func newMockAPI(response float64) mockAPI {
 	}
 }
 
-func TestRunSuccessfully(t *testing.T) {
+func TestRunSuccessfulEvaluation(t *testing.T) {
 	e := log.Entry{}
 	metric := v1alpha1.Metric{
 		Name:             "foo",
@@ -34,6 +34,27 @@ func TestRunSuccessfully(t *testing.T) {
 	assert.Equal(t, "10.000", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
+func TestRunFailedEvaluation(t *testing.T) {
+	e := log.Entry{}
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10.000",
+		FailureCondition: "result != 10.000",
+		Provider: v1alpha1.MetricProvider{
+			Graphite: &v1alpha1.GraphiteMetric{
+				Address: "http://some-graphite.foo",
+				Query:   "foo=1",
+			},
+		},
+	}
+	g := NewGraphiteProvider(newMockAPI(5.000), e)
+	measurement := g.Run(&v1alpha1.AnalysisRun{}, metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "5.000", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, measurement.Phase)
 }
 
 func TestGarbageCollect(t *testing.T) {
