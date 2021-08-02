@@ -17,6 +17,10 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag }}
 
+      - name: Get SHA
+        id: get-sha
+        run: echo "::set-output name=sha::$(git log -1 --format='%H')"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 
@@ -27,9 +31,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
+          key: ${{ runner.os }}-buildx-${{ steps.get-sha.outputs.sha }}
 
       - name: Print Disk Usage
         run: |
