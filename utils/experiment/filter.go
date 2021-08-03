@@ -2,9 +2,10 @@ package experiment
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
-	"sort"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+
+	"sort"
 )
 
 // GetCurrentExperiment grabs the experiment that matches the current rollout
