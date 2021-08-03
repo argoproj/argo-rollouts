@@ -59,8 +59,8 @@ func GetRevisionHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
 	return *rollout.Spec.RevisionHistoryLimit
 }
 
-// GetAnalysisRunSucceedHistoryLimitOrDefault returns the specified number of succeed AnalysisRuns to keep or the default number
-func GetAnalysisRunSucceedHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
+// GetAnalysisRunSuccessfulHistoryLimitOrDefault returns the specified number of succeed AnalysisRuns to keep or the default number
+func GetAnalysisRunSuccessfulHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
 	if rollout.Spec.Analysis == nil || rollout.Spec.Analysis.SuccessfulRunHistoryLimit == nil {
 		return DefaultAnalysisRunSuccessfulHistoryLimit
 	}
