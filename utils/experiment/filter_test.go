@@ -110,7 +110,7 @@ func TestFilterExperimentsToDelete(t *testing.T) {
 		validRS,
 		deletedRS,
 	}
-	filteredArs := FilterExperimentsToDelete(exs, olderRSs)
+	filteredArs := FilterExperimentsToDelete(exs, olderRSs, 5, 5)
 	assert.Len(t, filteredArs, 3)
 	assert.NotContains(t, filteredArs, exNoDeletion)
 	assert.Contains(t, filteredArs, exWithNoPodHash)
