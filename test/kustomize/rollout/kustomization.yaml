@@ -43,7 +43,8 @@ images:
   newTag: v2
 
 openapi:
- path: ../../../docs/features/kustomize/rollout_cr_schema.json
+  path: ../../../docs/features/kustomize/rollout.swagger.json
+# path: ../../../docs/features/kustomize/rollout_cr_schema.json
 
 patchesStrategicMerge:
 - |-

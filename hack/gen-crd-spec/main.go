@@ -4,15 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/blang/semver"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
+
 	"github.com/ghodss/yaml"
+	"github.com/go-openapi/spec"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 const metadataValidation = `properties:
@@ -73,7 +78,7 @@ func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[stri
 
 func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
-		"controller-gen",
+		"dist/controller-gen",
 		"paths=./pkg/apis/rollouts/...",
 		"crd:trivialVersions=true",
 		// The only possible value is 'false' since 'apiextensions.k8s.io/v1'
@@ -228,18 +233,6 @@ func createMetadataValidation(un *unstructured.Unstructured) {
 	}
 }
 
-func removeFieldHelper(obj map[string]interface{}, fieldName string) {
-	for k, v := range obj {
-		if k == fieldName {
-			delete(obj, k)
-			continue
-		}
-		if vObj, ok := v.(map[string]interface{}); ok {
-			removeFieldHelper(vObj, fieldName)
-		}
-	}
-}
-
 func removeK8S118Fields(un *unstructured.Unstructured) {
 	kind := crdKind(un)
 	switch kind {
@@ -295,9 +288,184 @@ func checkErr(err error) {
 	}
 }
 
+// loadK8SDefinitions loads K8S types API schema definitions
+func loadK8SDefinitions() (spec.Definitions, error) {
+	// detects minor version of k8s client
+	k8sVersionCmd := exec.Command("sh", "-c", "go list -m all | grep k8s.io/client-go | awk '{print $2}'")
+	versionData, err := k8sVersionCmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine k8s client verison: %v", err)
+	}
+	v, err := semver.Parse(strings.TrimSpace(strings.Replace(string(versionData), "v", "", 1)))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.%d/api/openapi-spec/swagger.json", v.Minor))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	schema := spec.Schema{}
+	err = json.Unmarshal(data, &schema)
+	if err != nil {
+		return nil, err
+	}
+	return schema.Definitions, nil
+}
+
+// normalizeRef normalizes rollouts and k8s type references since they are slightly different:
+// rollout refs are prefixed with #/definitions/ and k8s types refs starts with io.k8s instead of k8s.io and have no /
+func normalizeRef(ref string) string {
+	if strings.HasPrefix(ref, "#/definitions/") {
+		ref = ref[len("#/definitions/"):]
+	}
+
+	if strings.HasPrefix(ref, "io.k8s.") {
+		ref = "k8s.io." + ref[len("io.k8s."):]
+	}
+	return strings.ReplaceAll(ref, "/", ".")
+}
+
+var patchAnnotationKeys = map[string]bool{
+	"x-kubernetes-patch-merge-key": true,
+	"x-kubernetes-patch-strategy":  true,
+	"x-kubernetes-list-map-keys":   true,
+	"x-kubernetes-list-type":       true,
+}
+
+// injectPatchAnnotations injects patch annotations from given schema definitions and drop properties that don't have
+// patch annotations injected
+func injectPatchAnnotations(prop map[string]interface{}, propSchema spec.Schema, schemaDefinitions spec.Definitions) (bool, error) {
+	injected := false
+	for k, v := range propSchema.Extensions {
+		if patchAnnotationKeys[k] {
+			prop[k] = v
+			injected = true
+		}
+	}
+
+	var propSchemas map[string]spec.Schema
+	refStr := propSchema.Ref.String()
+	normalizedRef := normalizeRef(refStr)
+	switch {
+	case normalizedRef == "":
+		propSchemas = propSchema.Properties
+	default:
+		schema, ok := schemaDefinitions[normalizedRef]
+		if !ok {
+			return false, fmt.Errorf("not supported ref: %s", refStr)
+		}
+		propSchemas = schema.Properties
+	}
+
+	childProps, ok := prop["properties"].(map[string]interface{})
+	if !ok {
+		childProps = map[string]interface{}{}
+	}
+
+	for k, v := range childProps {
+		childInjected, err := injectPatchAnnotations(v.(map[string]interface{}), propSchemas[k], schemaDefinitions)
+		if err != nil {
+			return false, err
+		}
+		if !childInjected {
+			delete(childProps, k)
+		} else {
+			injected = true
+			childProps[k] = v
+		}
+	}
+	return injected, nil
+}
+
+const (
+	rolloutsDefinitionsPrefix = "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
+)
+
+// generateKustomizeSchema generates open api schema that has properies with patch annotations only
+func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, outputPath string) error {
+	k8sDefinitions, err := loadK8SDefinitions()
+	if err != nil {
+		return err
+	}
+	schemaDefinitions := map[string]spec.Schema{}
+	for k, v := range k8sDefinitions {
+		schemaDefinitions[normalizeRef(k)] = v
+	}
+
+	for k, v := range v1alpha1.GetOpenAPIDefinitions(func(path string) spec.Ref {
+		return spec.MustCreateRef(path)
+	}) {
+		schemaDefinitions[normalizeRef(k)] = v.Schema
+	}
+
+	definitions := map[string]interface{}{}
+	for _, crd := range crds {
+		if crd.Spec.Names.Kind != "Rollout" {
+			continue
+		}
+		var version string
+		var props map[string]extensionsobj.JSONSchemaProps
+		for _, v := range crd.Spec.Versions {
+			if v.Schema == nil || v.Schema.OpenAPIV3Schema == nil {
+				continue
+			}
+			version = v.Name
+			props = v.Schema.OpenAPIV3Schema.Properties
+		}
+
+		data, err := json.Marshal(props)
+		if err != nil {
+			return err
+		}
+		propsMap := map[string]interface{}{}
+		err = json.Unmarshal(data, &propsMap)
+		if err != nil {
+			return err
+		}
+
+		crdSchema := schemaDefinitions[normalizeRef(fmt.Sprintf("%s/%s.%s", rolloutsDefinitionsPrefix, version, crd.Spec.Names.Kind))]
+		for k, p := range propsMap {
+			injected, err := injectPatchAnnotations(p.(map[string]interface{}), crdSchema.Properties[k], schemaDefinitions)
+			if err != nil {
+				return err
+			}
+			if injected {
+				propsMap[k] = p
+			} else {
+				delete(propsMap, k)
+			}
+		}
+
+		definitions[fmt.Sprintf("%s.%s", version, crd.Spec.Names.Kind)] = map[string]interface{}{
+			"properties": propsMap,
+			"x-kubernetes-group-version-kind": []map[string]string{{
+				"group":   crd.Spec.Group,
+				"kind":    crd.Spec.Names.Kind,
+				"version": version,
+			}},
+		}
+	}
+	data, err := json.MarshalIndent(map[string]interface{}{
+		"definitions": definitions,
+	}, "", "    ")
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(outputPath, data, 0644)
+}
+
 // Generate CRD spec for Rollout Resource
 func main() {
 	crds := NewCustomResourceDefinition()
+
+	err := generateKustomizeSchema(crds, "docs/features/kustomize/rollout_cr_schema.json")
+	checkErr(err)
+
 	for i := range crds {
 		crd := crds[i]
 		crdKind := crd.Spec.Names.Kind
