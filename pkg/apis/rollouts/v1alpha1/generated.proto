@@ -57,8 +57,8 @@ message AmbassadorTrafficRouting {
 
 // Analysis configuration for the analysis runs to retain
 message Analysis {
-  // SucceedRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
-  optional int32 succeedRunHistoryLimit = 1;
+  // SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
+  optional int32 successfulRunHistoryLimit = 1;
 
   // FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history
   optional int32 failedRunHistoryLimit = 2;

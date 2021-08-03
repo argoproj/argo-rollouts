@@ -52,7 +52,7 @@ spec:
                   failedRunHistoryLimit:
                     format: int32
                     type: integer
-                  succeedRunHistoryLimit:
+                  successfulRunHistoryLimit:
                     format: int32
                     type: integer
                 type: object

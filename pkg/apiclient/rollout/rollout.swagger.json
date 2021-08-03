@@ -535,10 +535,10 @@
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Analysis": {
       "type": "object",
       "properties": {
-        "succeedRunHistoryLimit": {
+        "successfulRunHistoryLimit": {
           "type": "integer",
           "format": "int32",
-          "title": "SucceedRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history"
+          "title": "SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history"
         },
         "failedRunHistoryLimit": {
           "type": "integer",

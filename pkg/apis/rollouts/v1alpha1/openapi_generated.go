@@ -187,9 +187,9 @@ func schema_pkg_apis_rollouts_v1alpha1_Analysis(ref common.ReferenceCallback) co
 				Description: "Analysis configuration for the analysis runs to retain",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"succeedRunHistoryLimit": {
+					"successfulRunHistoryLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SucceedRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history",
+							Description: "SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

@@ -48,14 +48,14 @@ func TestGetAnalysisRunSucceedHistoryLimitOrDefault(t *testing.T) {
 	succeedHistoryLimit := int32(2)
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
-			Analysis: &v1alpha1.Analysis{SucceedRunHistoryLimit: &succeedHistoryLimit},
+			Analysis: &v1alpha1.Analysis{SuccessfulRunHistoryLimit: &succeedHistoryLimit},
 		},
 	}
 
 	assert.Equal(t, succeedHistoryLimit, GetAnalysisRunSucceedHistoryLimitOrDefault(rolloutNonDefaultValue))
-	assert.Equal(t, DefaultAnalysisRunSucceedHistoryLimit, GetAnalysisRunSucceedHistoryLimitOrDefault(&v1alpha1.Rollout{}))
-	assert.Equal(t, DefaultAnalysisRunSucceedHistoryLimit, GetAnalysisRunSucceedHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{}}))
-	assert.Equal(t, DefaultAnalysisRunSucceedHistoryLimit, GetAnalysisRunSucceedHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.Analysis{}}}))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSucceedHistoryLimitOrDefault(&v1alpha1.Rollout{}))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSucceedHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{}}))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSucceedHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.Analysis{}}}))
 }
 
 func TestGetAnalysisRunFailedHistoryLimitOrDefault(t *testing.T) {

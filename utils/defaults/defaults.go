@@ -15,8 +15,8 @@ const (
 	DefaultReplicas = int32(1)
 	// DefaultRevisionHistoryLimit default number of revisions to keep if .Spec.RevisionHistoryLimit is nil
 	DefaultRevisionHistoryLimit = int32(10)
-	// DefaultAnalysisRunSucceedHistoryLimit default number of succeed AnalysisRuns to keep if .Spec.Analysis.SucceedRunHistoryLimit is nil
-	DefaultAnalysisRunSucceedHistoryLimit = int32(1)
+	// DefaultAnalysisRunSuccessfulHistoryLimit default number of succeed AnalysisRuns to keep if .Spec.Analysis.SuccessfulRunHistoryLimit is nil
+	DefaultAnalysisRunSuccessfulHistoryLimit = int32(1)
 	// DefaultAnalysisRunFailedHistoryLimit default number of failed AnalysisRuns to keep if .Spec.Analysis.FailedRunHistoryLimit is nil
 	DefaultAnalysisRunFailedHistoryLimit = int32(1)
 	// DefaultMaxSurge default number for the max number of additional pods that can be brought up during a rollout
@@ -61,10 +61,10 @@ func GetRevisionHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
 
 // GetAnalysisRunSucceedHistoryLimitOrDefault returns the specified number of succeed AnalysisRuns to keep or the default number
 func GetAnalysisRunSucceedHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
-	if rollout.Spec.Analysis == nil || rollout.Spec.Analysis.SucceedRunHistoryLimit == nil {
-		return DefaultAnalysisRunSucceedHistoryLimit
+	if rollout.Spec.Analysis == nil || rollout.Spec.Analysis.SuccessfulRunHistoryLimit == nil {
+		return DefaultAnalysisRunSuccessfulHistoryLimit
 	}
-	return *rollout.Spec.Analysis.SucceedRunHistoryLimit
+	return *rollout.Spec.Analysis.SuccessfulRunHistoryLimit
 }
 
 // GetAnalysisRunFailedHistoryLimitOrDefault returns the specified number of failed AnalysisRuns to keep or the default number

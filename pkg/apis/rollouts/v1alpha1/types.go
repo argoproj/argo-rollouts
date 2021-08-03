@@ -299,8 +299,8 @@ type CanaryStrategy struct {
 
 // Analysis configuration for the analysis runs to retain
 type Analysis struct {
-	// SucceedRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
-	SucceedRunHistoryLimit *int32 `json:"succeedRunHistoryLimit,omitempty" protobuf:"varint,1,opt,name=succeedRunHistoryLimit"`
+	// SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
+	SuccessfulRunHistoryLimit *int32 `json:"successfulRunHistoryLimit,omitempty" protobuf:"varint,1,opt,name=successfulRunHistoryLimit"`
 	// FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history
 	FailedRunHistoryLimit *int32 `json:"failedRunHistoryLimit,omitempty" protobuf:"varint,2,opt,name=failedRunHistoryLimit"`
 }
