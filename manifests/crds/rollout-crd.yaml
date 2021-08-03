@@ -538,6 +538,11 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                  tlsRoutes:
+                                    items:
+                                      format: int64
+                                      type: integer
+                                    type: array
                                 required:
                                 - name
                                 type: object

@@ -849,7 +849,15 @@
           "items": {
             "type": "string"
           },
-          "title": "Routes are list of routes within VirtualService to edit. If omitted, VirtualService must have a single route"
+          "description": "A list of HTTP routes within VirtualService to edit. If omitted, VirtualService must have a single route of any type."
+        },
+        "tlsRoutes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "int64"
+          },
+          "description": "A list of TLS/HTTPS routes (port numbers) within VirtualService to edit. If omitted, VirtualService must have a single route of any type."
         }
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"

@@ -54,7 +54,15 @@ type virtualServicePatch struct {
 	destinationIndex int
 	weight           int64
 }
+
 type virtualServicePatches []virtualServicePatch
+
+type svcSubsets struct {
+	canarySvc    string
+	stableSvc    string
+	canarySubset string
+	stableSubset string
+}
 
 const (
 	invalidCasting = "Invalid casting: field '%s' is not of type '%s'"
@@ -92,13 +100,6 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 	return nil
 }
 
-type svcSubsets struct {
-	canarySvc    string
-	stableSvc    string
-	canarySubset string
-	stableSubset string
-}
-
 func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHTTPRoute, tlsRoutes []VirtualServiceTLSRoute, desiredWeight int64) virtualServicePatches {
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	stableSvc := r.rollout.Spec.Strategy.Canary.StableService
@@ -111,7 +112,7 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHT
 
 	// err can be ignored because we already called ValidateHTTPRoutes earlier
 	httpRouteIndexesToPatch, _ := getHttpRouteIndexesToPatch(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes, httpRoutes)
-	tlsRouteIndexesToPatch, _ := getTlsRouteIndexesToPatch(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes, tlsRoutes)
+	tlsRouteIndexesToPatch, _ := getTlsRouteIndexesToPatch(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TlsRoutes, tlsRoutes)
 
 	patches := virtualServicePatches{}
 	svcSubsets := svcSubsets{
@@ -203,12 +204,6 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, des
 		}
 		if err := ValidateTlsRoutes(r.rollout, tlsRoutes); err != nil {
 			return nil, false, err
-		}
-	}
-
-	if len(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes) == 0 {
-		if len(httpRoutes)+len(tlsRoutes) != 1 {
-			return nil, false, fmt.Errorf("Either of spec.http[] or spec.tls[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes")
 		}
 	}
 
@@ -566,10 +561,6 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 	return true, nil
 }
 
-func hasTlsRoutePrefix(routeName string) bool {
-	return strings.HasPrefix(routeName, "https-") || strings.HasPrefix(routeName, "tls-")
-}
-
 // getHttpRouteIndexesToPatch returns array indices of the httpRoutes which need to be patched when updating weights
 func getHttpRouteIndexesToPatch(routeNames []string, httpRoutes []VirtualServiceHTTPRoute) ([]int, error) {
 	if len(routeNames) == 0 {
@@ -581,7 +572,7 @@ func getHttpRouteIndexesToPatch(routeNames []string, httpRoutes []VirtualService
 		routeIndex := searchHttpRoute(routeName, httpRoutes)
 		if routeIndex > -1 {
 			routeIndexesToPatch = append(routeIndexesToPatch, routeIndex)
-		} else if routeIndex < 0 && !hasTlsRoutePrefix(routeName) {
+		} else if routeIndex < 0 {
 			return nil, fmt.Errorf("HTTP Route '%s' is not found in the defined Virtual Service.", routeName)
 		}
 	}
@@ -600,30 +591,28 @@ func searchHttpRoute(routeName string, httpRoutes []VirtualServiceHTTPRoute) int
 }
 
 // getTlsRouteIndexesToPatch returns array indices of the tlsRoutes which need to be patched when updating weights
-func getTlsRouteIndexesToPatch(routeNames []string, tlsRoutes []VirtualServiceTLSRoute) ([]int, error) {
-	if len(routeNames) == 0 {
+func getTlsRouteIndexesToPatch(routePorts []int64, tlsRoutes []VirtualServiceTLSRoute) ([]int, error) {
+	if len(routePorts) == 0 {
 		return []int{0}, nil
 	}
 
 	var routeIndexesToPatch []int
-	for _, routeName := range routeNames {
-		routeIndex := searchTlsRoute(routeName, tlsRoutes)
+	for _, routePort := range routePorts {
+		routeIndex := searchTlsRoute(routePort, tlsRoutes)
 		if routeIndex > -1 {
 			routeIndexesToPatch = append(routeIndexesToPatch, routeIndex)
-		} else if routeIndex < 0 && hasTlsRoutePrefix(routeName) {
-			return nil, fmt.Errorf("TLS Route '%s' is not found in the defined Virtual Service.", routeName)
+		} else if routeIndex < 0 {
+			return nil, fmt.Errorf("TLS Route '%d' is not found in the defined Virtual Service.", routePort)
 		}
 	}
 	return routeIndexesToPatch, nil
 }
 
-func searchTlsRoute(routeName string, tlsRoutes []VirtualServiceTLSRoute) int {
+func searchTlsRoute(routePort int64, tlsRoutes []VirtualServiceTLSRoute) int {
 	routeIndex := -1
 	for i, route := range tlsRoutes {
 		for _, routeMatch := range route.Match {
-			httpsPrefixedRoute := fmt.Sprintf("%s%d", "https-", routeMatch.Port)
-			tlsPrefixedRoute := fmt.Sprintf("%s%d", "tls-", routeMatch.Port)
-			if httpsPrefixedRoute == routeName || tlsPrefixedRoute == routeName {
+			if routeMatch.Port == routePort {
 				routeIndex = i
 				break
 			}
@@ -651,6 +640,9 @@ func ValidateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []VirtualServiceHTTPRout
 			return err
 		}
 	}
+	if len(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes) == 0 && len(httpRoutes) > 1 {
+		return fmt.Errorf("spec.http[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes")
+	}
 	return nil
 }
 
@@ -659,7 +651,7 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, tlsRoutes []VirtualServiceTLSRoute) 
 	stableSvc := r.Spec.Strategy.Canary.StableService
 	canarySvc := r.Spec.Strategy.Canary.CanaryService
 
-	routeIndexesToPatch, err := getTlsRouteIndexesToPatch(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes, tlsRoutes)
+	routeIndexesToPatch, err := getTlsRouteIndexesToPatch(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TlsRoutes, tlsRoutes)
 	if err != nil {
 		return err
 	}
@@ -669,6 +661,9 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, tlsRoutes []VirtualServiceTLSRoute) 
 		if err != nil {
 			return err
 		}
+	}
+	if len(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TlsRoutes) == 0 && len(tlsRoutes) > 1 {
+		return fmt.Errorf("spec.tls[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes")
 	}
 	return nil
 }

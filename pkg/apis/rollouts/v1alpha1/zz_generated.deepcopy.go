@@ -968,6 +968,11 @@ func (in *IstioVirtualService) DeepCopyInto(out *IstioVirtualService) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.TlsRoutes != nil {
+		in, out := &in.TlsRoutes, &out.TlsRoutes
+		*out = make([]int64, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

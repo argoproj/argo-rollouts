@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
@@ -39,7 +39,7 @@ func getIstioListers(client dynamic.Interface) (dynamiclister.Lister, dynamiclis
 	return vsvcLister, druleLister
 }
 
-func rollout(stableSvc, canarySvc, vsvc string, routes []string) *v1alpha1.Rollout {
+func rollout(stableSvc, canarySvc string, istioVirtualService *v1alpha1.IstioVirtualService) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rollout",
@@ -52,16 +52,38 @@ func rollout(stableSvc, canarySvc, vsvc string, routes []string) *v1alpha1.Rollo
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Istio: &v1alpha1.IstioTrafficRouting{
-							VirtualService: v1alpha1.IstioVirtualService{
-								Name:   vsvc,
-								Routes: routes,
-							},
+							VirtualService: *istioVirtualService,
 						},
 					},
 				},
 			},
 		},
 	}
+}
+
+func rolloutWithHttpRoutes(stableSvc, canarySvc, vsvc string, httpRoutes []string) *v1alpha1.Rollout {
+	istioVirtualService := &v1alpha1.IstioVirtualService{
+		Name:   vsvc,
+		Routes: httpRoutes,
+	}
+	return rollout(stableSvc, canarySvc, istioVirtualService)
+}
+
+func rolloutWithTlsRoutes(stableSvc, canarySvc, vsvc string, tlsRoutes []int64) *v1alpha1.Rollout {
+	istioVirtualService := &v1alpha1.IstioVirtualService{
+		Name:      vsvc,
+		TlsRoutes: tlsRoutes,
+	}
+	return rollout(stableSvc, canarySvc, istioVirtualService)
+}
+
+func rolloutWithHttpAndTlsRoutes(stableSvc, canarySvc, vsvc string, httpRoutes []string, tlsRoutes []int64) *v1alpha1.Rollout {
+	istioVirtualService := &v1alpha1.IstioVirtualService{
+		Name:      vsvc,
+		Routes:    httpRoutes,
+		TlsRoutes: tlsRoutes,
+	}
+	return rollout(stableSvc, canarySvc, istioVirtualService)
 }
 
 func checkDestination(t *testing.T, destinations []VirtualServiceRouteDestination, svc string, expectWeight int) {
@@ -133,6 +155,130 @@ spec:
         host: canary
       weight: 0`
 
+const regularMixedVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0
+  - name: secondary
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0
+  tls:
+  - match:
+    - port: 3000
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0
+  - match:
+    - port: 3001
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
+const regularMixedVsvcTwoHttpRoutes = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0
+  - name: secondary
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0
+  tls:
+  - match:
+    - port: 3000
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
+const regularMixedVsvcTwoTlsRoutes = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0
+  tls:
+  - match:
+    - port: 3000
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0
+  - match:
+    - port: 3001
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
 const singleRouteVsvc = `apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -173,14 +319,36 @@ spec:
         host: canary
       weight: 0`
 
-func TestReconcileWeightsBaseCase(t *testing.T) {
-	r := &Reconciler{
-		rollout: rollout("stable", "canary", "vsvc", []string{"primary"}),
-	}
-	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
-	modifiedObj, _, err := r.reconcileVirtualService(obj, 10)
-	assert.Nil(t, err)
-	assert.NotNil(t, modifiedObj)
+const singleRouteMixedVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0
+  tls:
+  - match:
+    - port: 3000
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
+func extractHttpRoutes(t *testing.T, modifiedObj *unstructured.Unstructured) []VirtualServiceHTTPRoute {
 	routes, ok, err := unstructured.NestedSlice(modifiedObj.Object, "spec", "http")
 	assert.Nil(t, err)
 	assert.True(t, ok)
@@ -188,24 +356,16 @@ func TestReconcileWeightsBaseCase(t *testing.T) {
 	var httpRoutes []VirtualServiceHTTPRoute
 	err = json.Unmarshal(routeBytes, &httpRoutes)
 	assert.Nil(t, err)
-	route := httpRoutes[0]
-	assert.Equal(t, route.Name, "primary")
-	checkDestination(t, route.Route, "stable", 90)
-	checkDestination(t, route.Route, "canary", 10)
-	unmodifiedRoute := httpRoutes[1]
-	assert.Equal(t, unmodifiedRoute.Name, "secondary")
-	checkDestination(t, unmodifiedRoute.Route, "stable", 100)
-	checkDestination(t, unmodifiedRoute.Route, "canary", 0)
+	return httpRoutes
 }
 
-func TestTlsReconcileWeightsBaseCase(t *testing.T) {
-	r := &Reconciler{
-		rollout: rollout("stable", "canary", "vsvc", []string{"tls-3000"}),
-	}
-	obj := unstructuredutil.StrToUnstructuredUnsafe(regularTlsVsvc)
-	modifiedObj, _, err := r.reconcileVirtualService(obj, 20)
-	assert.Nil(t, err)
-	assert.NotNil(t, modifiedObj)
+func assertHttpRouteWeightChanges(t *testing.T, httpRoute VirtualServiceHTTPRoute, routeName string, canaryWeight, stableWeight int) {
+	assert.Equal(t, httpRoute.Name, routeName)
+	checkDestination(t, httpRoute.Route, "stable", stableWeight)
+	checkDestination(t, httpRoute.Route, "canary", canaryWeight)
+}
+
+func extractTlsRoutes(t *testing.T, modifiedObj *unstructured.Unstructured) []VirtualServiceTLSRoute {
 	routes, ok, err := unstructured.NestedSlice(modifiedObj.Object, "spec", "tls")
 	assert.Nil(t, err)
 	assert.True(t, ok)
@@ -213,25 +373,89 @@ func TestTlsReconcileWeightsBaseCase(t *testing.T) {
 	var tlsRoutes []VirtualServiceTLSRoute
 	err = json.Unmarshal(routeBytes, &tlsRoutes)
 	assert.Nil(t, err)
-	route := tlsRoutes[0]
-	routeMatch := route.Match
-	assert.Equal(t, int(routeMatch[0].Port), 3000)
-	checkDestination(t, route.Route, "stable", 80)
-	checkDestination(t, route.Route, "canary", 20)
-	unmodifiedRoute := tlsRoutes[1]
-	unmodifiedRouteMatch := unmodifiedRoute.Match
-	assert.Equal(t, int(unmodifiedRouteMatch[0].Port), 3001)
-	checkDestination(t, unmodifiedRoute.Route, "stable", 100)
-	checkDestination(t, unmodifiedRoute.Route, "canary", 0)
+	return tlsRoutes
+}
+
+func assertTlsRouteWeightChanges(t *testing.T, tlsRoute VirtualServiceTLSRoute, port, canaryWeight, stableWeight int) {
+	routeMatch := tlsRoute.Match
+	assert.Equal(t, int(routeMatch[0].Port), port)
+	checkDestination(t, tlsRoute.Route, "stable", stableWeight)
+	checkDestination(t, tlsRoute.Route, "canary", canaryWeight)
+}
+
+func TestHttpReconcileWeightsBaseCase(t *testing.T) {
+	r := &Reconciler{
+		rollout: rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"}),
+	}
+
+	// Test for both the HTTP VS & Mixed VS
+	for _, vsvc := range []string{regularVsvc, regularMixedVsvcTwoHttpRoutes} {
+		obj := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
+		modifiedObj, _, err := r.reconcileVirtualService(obj, 10)
+		assert.Nil(t, err)
+		assert.NotNil(t, modifiedObj)
+
+		// HTTP Routes
+		httpRoutes := extractHttpRoutes(t, modifiedObj)
+
+		// Assertions
+		assertHttpRouteWeightChanges(t, httpRoutes[0], "primary", 10, 90)
+		assertHttpRouteWeightChanges(t, httpRoutes[1], "secondary", 0, 100)
+	}
+}
+
+func TestTlsReconcileWeightsBaseCase(t *testing.T) {
+	r := &Reconciler{
+		rollout: rolloutWithTlsRoutes("stable", "canary", "vsvc", []int64{3000}),
+	}
+
+	// Test for both the TLS VS & Mixed VS
+	for _, vsvc := range []string{regularTlsVsvc, regularMixedVsvcTwoTlsRoutes} {
+		obj := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
+		modifiedObj, _, err := r.reconcileVirtualService(obj, 30)
+		assert.Nil(t, err)
+		assert.NotNil(t, modifiedObj)
+
+		// TLS Routes
+		tlsRoutes := extractTlsRoutes(t, modifiedObj)
+
+		// Assestions
+		assertTlsRouteWeightChanges(t, tlsRoutes[0], 3000, 30, 70)
+		assertTlsRouteWeightChanges(t, tlsRoutes[1], 3001, 0, 100)
+	}
+}
+
+func TestReconcileWeightsBaseCase(t *testing.T) {
+	r := &Reconciler{
+		rollout: rolloutWithHttpAndTlsRoutes("stable", "canary", "vsvc", []string{"primary"}, []int64{3000}),
+	}
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularMixedVsvc)
+	modifiedObj, _, err := r.reconcileVirtualService(obj, 20)
+	assert.Nil(t, err)
+	assert.NotNil(t, modifiedObj)
+
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, modifiedObj)
+
+	// Assertions
+	assertHttpRouteWeightChanges(t, httpRoutes[0], "primary", 20, 80)
+	assertHttpRouteWeightChanges(t, httpRoutes[1], "secondary", 0, 100)
+
+	// TLS Routes
+	tlsRoutes := extractTlsRoutes(t, modifiedObj)
+
+	// Assestions
+	assertTlsRouteWeightChanges(t, tlsRoutes[0], 3000, 20, 80)
+	assertTlsRouteWeightChanges(t, tlsRoutes[1], 3001, 0, 100)
 }
 
 func TestReconcileUpdateVirtualService(t *testing.T) {
-	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
 	AssertReconcileUpdateVirtualService(t, regularVsvc, ro)
 }
 
 func TestTlsReconcileUpdateVirtualService(t *testing.T) {
-	ro := rollout("stable", "canary", "vsvc", []string{"https-3000"})
+	ro := rolloutWithTlsRoutes("stable", "canary", "vsvc", []int64{3000})
 	AssertReconcileUpdateVirtualService(t, regularTlsVsvc, ro)
 }
 
@@ -252,7 +476,7 @@ func AssertReconcileUpdateVirtualService(t *testing.T, vsvc string, ro *v1alpha1
 func TestReconcileNoChanges(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
-	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil)
 	err := r.SetWeight(0)
 	assert.Nil(t, err)
@@ -263,7 +487,7 @@ func TestReconcileNoChanges(t *testing.T) {
 func TestTlsReconcileNoChanges(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularTlsVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
-	ro := rollout("stable", "canary", "vsvc", []string{"https-3001"})
+	ro := rolloutWithTlsRoutes("stable", "canary", "vsvc", []int64{3001})
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil)
 	err := r.SetWeight(0)
 	assert.Nil(t, err)
@@ -274,7 +498,7 @@ func TestTlsReconcileNoChanges(t *testing.T) {
 func TestReconcileInvalidValidation(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
-	ro := rollout("stable", "canary", "vsvc", []string{"route-not-found"})
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"route-not-found"})
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
@@ -285,17 +509,17 @@ func TestReconcileInvalidValidation(t *testing.T) {
 func TestTlsReconcileInvalidValidation(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularTlsVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
-	ro := rollout("stable", "canary", "vsvc", []string{"tls-route-not-found"})
+	ro := rolloutWithTlsRoutes("stable", "canary", "vsvc", []int64{0})
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
 	err := r.SetWeight(0)
-	assert.Equal(t, "TLS Route 'tls-route-not-found' is not found in the defined Virtual Service.", err.Error())
+	assert.Equal(t, "TLS Route '0' is not found in the defined Virtual Service.", err.Error())
 }
 
 func TestReconcileVirtualServiceNotFound(t *testing.T) {
 	client := testutil.NewFakeDynamicClient()
-	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
@@ -308,28 +532,28 @@ func TestReconcileVirtualServiceNotFound(t *testing.T) {
 func TestReconcileAmbiguousRoutes(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
-	ro := rollout("stable", "canary", "vsvc", nil)
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", nil)
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
 	err := r.SetWeight(0)
-	assert.Equal(t, "Either of spec.http[] or spec.tls[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes", err.Error())
+	assert.Equal(t, "spec.http[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes", err.Error())
 }
 
 func TestTlsReconcileAmbiguousRoutes(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularTlsVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
-	ro := rollout("stable", "canary", "vsvc", nil)
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", nil)
 	vsvcLister, druleLister := getIstioListers(client)
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
 	err := r.SetWeight(0)
-	assert.Equal(t, "Either of spec.http[] or spec.tls[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes", err.Error())
+	assert.Equal(t, "spec.tls[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes", err.Error())
 }
 
 // TestReconcileInferredSingleRoute we can support case where we infer the only route in the VirtualService
-func TestReconcileInferredSingleRoute(t *testing.T) {
-	ro := rollout("stable", "canary", "vsvc", nil)
+func TestHttpReconcileInferredSingleRoute(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", nil)
 	client := AssertReconcileUpdateVirtualService(t, singleRouteVsvc, ro)
 
 	// Verify we actually made the correct change
@@ -346,7 +570,7 @@ func TestReconcileInferredSingleRoute(t *testing.T) {
 }
 
 func TestTlsReconcileInferredSingleRoute(t *testing.T) {
-	ro := rollout("stable", "canary", "vsvc", nil)
+	ro := rolloutWithTlsRoutes("stable", "canary", "vsvc", nil)
 	client := AssertReconcileUpdateVirtualService(t, singleRouteTlsVsvc, ro)
 
 	// Verify we actually made the correct change
@@ -362,9 +586,38 @@ func TestTlsReconcileInferredSingleRoute(t *testing.T) {
 	checkDestination(t, route.Route, "canary", 10)
 }
 
+func TestReconcileInferredSingleRoute(t *testing.T) {
+	ro := rolloutWithHttpAndTlsRoutes("stable", "canary", "vsvc", nil, nil)
+	client := AssertReconcileUpdateVirtualService(t, singleRouteMixedVsvc, ro)
+
+	// Verify we actually made the correct change
+	vsvcUn, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), "vsvc", metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	// HTTP Routes
+	vsHttpRoutes, _, _ := unstructured.NestedSlice(vsvcUn.Object, "spec", "http")
+	routeBytes, _ := json.Marshal(vsHttpRoutes)
+	var httpRoutes []VirtualServiceHTTPRoute
+	err = json.Unmarshal(routeBytes, &httpRoutes)
+	assert.Nil(t, err)
+	httpRoute := httpRoutes[0]
+	checkDestination(t, httpRoute.Route, "stable", 90)
+	checkDestination(t, httpRoute.Route, "canary", 10)
+
+	// TLS Routes
+	vsTlsRoutes, _, _ := unstructured.NestedSlice(vsvcUn.Object, "spec", "tls")
+	routeBytes, _ = json.Marshal(vsTlsRoutes)
+	var tlsRoutes []VirtualServiceTLSRoute
+	err = json.Unmarshal(routeBytes, &tlsRoutes)
+	assert.Nil(t, err)
+	tlsRoute := tlsRoutes[0]
+	checkDestination(t, tlsRoute.Route, "stable", 90)
+	checkDestination(t, tlsRoute.Route, "canary", 10)
+}
+
 func TestType(t *testing.T) {
 	client := testutil.NewFakeDynamicClient()
-	ro := rollout("stable", "canary", "vsvc", []string{"primary"})
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil)
 	assert.Equal(t, Type, r.Type())
 }
@@ -457,7 +710,7 @@ func TestValidateHTTPRoutes(t *testing.T) {
 }
 
 func TestValidateTLSRoutes(t *testing.T) {
-	newRollout := func(routes []string) *v1alpha1.Rollout {
+	newRollout := func(routes []string, tlsRoutes []int64) *v1alpha1.Rollout {
 		return &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Strategy: v1alpha1.RolloutStrategy{
@@ -467,7 +720,8 @@ func TestValidateTLSRoutes(t *testing.T) {
 						TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 							Istio: &v1alpha1.IstioTrafficRouting{
 								VirtualService: v1alpha1.IstioVirtualService{
-									Routes: routes,
+									Routes:    routes,
+									TlsRoutes: tlsRoutes,
 								},
 							},
 						},
@@ -486,11 +740,11 @@ func TestValidateTLSRoutes(t *testing.T) {
 			},
 		}},
 	}}
-	rollout := newRollout([]string{"https-3001"})
+	rollout := newRollout([]string{}, []int64{3001})
 	err := ValidateTlsRoutes(rollout, tlsRoutes)
-	assert.Equal(t, fmt.Errorf("TLS Route 'https-3001' is not found in the defined Virtual Service."), err)
+	assert.Equal(t, fmt.Errorf("TLS Route '3001' is not found in the defined Virtual Service."), err)
 
-	rollout = newRollout([]string{"https-3000"})
+	rollout = newRollout([]string{}, []int64{3000})
 	err = ValidateTlsRoutes(rollout, tlsRoutes)
 	assert.Equal(t, fmt.Errorf(RouteMissingBothDestinationsError), err)
 
@@ -506,9 +760,9 @@ func TestValidateTLSRoutes(t *testing.T) {
 	err = ValidateTlsRoutes(rollout, tlsRoutes)
 	assert.Nil(t, err)
 
-	rolloutWithNotFoundRoute := newRollout([]string{"tls-not-found-route"})
+	rolloutWithNotFoundRoute := newRollout([]string{}, []int64{0})
 	err = ValidateTlsRoutes(rolloutWithNotFoundRoute, tlsRoutes)
-	assert.Equal(t, "TLS Route 'tls-not-found-route' is not found in the defined Virtual Service.", err.Error())
+	assert.Equal(t, "TLS Route '0' is not found in the defined Virtual Service.", err.Error())
 }
 
 func TestValidateHosts(t *testing.T) {

@@ -33,18 +33,20 @@ spec:
           virtualService:
             # Reference to a VirtualService which the controller updates with canary weights
             name: rollouts-demo-vsvc
-            # optional if there is a single route in VirtualService, required otherwise
+            # Optional if there is a single HTTP route in the VirtualService, otherwise required
             routes:
             - http-primary
-            - https-3000
+            # Optional if there is a single HTTPS/TLS route in the VirtualService, otherwise required
+            tlsRoutes:
+            - 3000
 ...
 ```
 
 The VirtualService and route referenced in `trafficRouting.istio.virtualService` is required
-to have either an HTTP or a TLS route spec that splits between the stable and canary Services,
-referenced in the rollout. If the route is HTTP/TLS route it of type then it needs to be
-prefixed with `https-` or `tls-` suffix and should end in the HTTPS/TLS port number.
-In this guide, those Services are named: `rollouts-demo-stable` and `rollouts-demo-canary`
+to have either an HTTP or a TLS route spec that splits between the stable and the canary services,
+referenced in the rollout. If the route is of type HTTPS/TLS, then we specify its port number
+as the unique identifier.
+In this guide, the two services are named: `rollouts-demo-stable` and `rollouts-demo-canary`
 respectively. The weight values for these services used should be initially set to 100% stable,
 and 0% on the canary. During an update, these values will be modified by the controller.
 
@@ -69,7 +71,7 @@ spec:
       weight: 0
   tls:
   - match:
-    - port: 3000  # Should match "https-" or "tls-" prefixed routes in spec.strategy.canary.trafficRouting.istio.virtualService.routes
+    - port: 3000  # Should match the port number of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
     route:
     - destination:
         host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
@@ -170,5 +172,5 @@ spec:
       weight: 5
 ```
 
-As the Rollout progresses through steps, the HTTP/TLS route destination weights will be
-adjusted to match the current setWeight of the steps.
+As the Rollout progresses through steps, the HTTP and/or TLS route(s) destination weights will be
+adjusted to match the current `setWeight` of the steps.
