@@ -126,7 +126,7 @@ func (o AnalysisRunByCreationTimestamp) Less(i, j int) bool {
 // Note: It is okay to use pod hash for filtering since the analysis run's pod hash is originally derived from the new RS.
 // Even if there is a library change during the lifetime of the analysis run, the ReplicaSet's pod hash that the analysis
 // run references does not change.
-func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, allRSs []*appsv1.ReplicaSet, limitSucceedArs int32, limitFailedArs int32) []*v1alpha1.AnalysisRun {
+func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, allRSs []*appsv1.ReplicaSet, limitSuccessful int32, limitUnsuccessful int32) []*v1alpha1.AnalysisRun {
 	olderRsPodHashes := map[string]bool{}
 	for i := range allRSs {
 		rs := allRSs[i]
@@ -139,8 +139,8 @@ func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, allRSs []*appsv1.Re
 	}
 	sort.Sort(sort.Reverse(AnalysisRunByCreationTimestamp(ars)))
 
-	var retainedSucceed int32 = 0
-	var retainedFailed int32 = 0
+	var retainedSuccessful int32 = 0
+	var retainedUnsuccessful int32 = 0
 	arsToDelete := []*v1alpha1.AnalysisRun{}
 	for i := range ars {
 		ar := ars[i]
@@ -165,14 +165,16 @@ func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, allRSs []*appsv1.Re
 		}
 
 		if ar.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
-			if retainedSucceed < limitSucceedArs {
-				retainedSucceed++
+			if retainedSuccessful < limitSuccessful {
+				retainedSuccessful++
 			} else {
 				arsToDelete = append(arsToDelete, ar)
 			}
-		} else if ar.Status.Phase == v1alpha1.AnalysisPhaseFailed {
-			if retainedFailed < limitFailedArs {
-				retainedFailed++
+		} else if ar.Status.Phase == v1alpha1.AnalysisPhaseFailed ||
+			ar.Status.Phase == v1alpha1.AnalysisPhaseError ||
+			ar.Status.Phase == v1alpha1.AnalysisPhaseInconclusive {
+			if retainedUnsuccessful < limitUnsuccessful {
+				retainedUnsuccessful++
 			} else {
 				arsToDelete = append(arsToDelete, ar)
 			}

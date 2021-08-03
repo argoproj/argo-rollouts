@@ -133,7 +133,7 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 	}
 
 	limitSucceedArs := defaults.GetAnalysisRunSuccessfulHistoryLimitOrDefault(c.rollout)
-	limitFailedArs := defaults.GetAnalysisRunFailedHistoryLimitOrDefault(c.rollout)
+	limitFailedArs := defaults.GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(c.rollout)
 	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, c.allRSs, limitSucceedArs, limitFailedArs)
 	err = c.deleteAnalysisRuns(arsToDelete)
 	if err != nil {

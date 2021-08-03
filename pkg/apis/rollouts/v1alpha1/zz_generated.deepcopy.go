@@ -210,8 +210,8 @@ func (in *AnalysisStrategy) DeepCopyInto(out *AnalysisStrategy) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.FailedRunHistoryLimit != nil {
-		in, out := &in.FailedRunHistoryLimit, &out.FailedRunHistoryLimit
+	if in.UnsuccessfulRunHistoryLimit != nil {
+		in, out := &in.UnsuccessfulRunHistoryLimit, &out.UnsuccessfulRunHistoryLimit
 		*out = new(int32)
 		**out = **in
 	}

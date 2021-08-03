@@ -49,10 +49,10 @@ spec:
             properties:
               analysis:
                 properties:
-                  failedRunHistoryLimit:
+                  successfulRunHistoryLimit:
                     format: int32
                     type: integer
-                  successfulRunHistoryLimit:
+                  unsuccessfulRunHistoryLimit:
                     format: int32
                     type: integer
                 type: object

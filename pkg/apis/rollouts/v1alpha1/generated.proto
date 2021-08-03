@@ -125,8 +125,8 @@ message AnalysisStrategy {
   // SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
   optional int32 successfulRunHistoryLimit = 1;
 
-  // FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history
-  optional int32 failedRunHistoryLimit = 2;
+  // UnsuccessfulRunHistoryLimit limits the number of old analysis runs failed to be retained in a history
+  optional int32 unsuccessfulRunHistoryLimit = 2;
 }
 
 // AnalysisTemplate holds the template for performing canary analysis

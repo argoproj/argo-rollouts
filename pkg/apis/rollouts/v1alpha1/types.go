@@ -299,10 +299,11 @@ type CanaryStrategy struct {
 
 // AnalysisStrategy configuration for the analysis runs to retain
 type AnalysisStrategy struct {
-	// SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
+	// SuccessfulRunHistoryLimit limits the number of old successful analysis runs to be retained in a history
 	SuccessfulRunHistoryLimit *int32 `json:"successfulRunHistoryLimit,omitempty" protobuf:"varint,1,opt,name=successfulRunHistoryLimit"`
-	// FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history
-	FailedRunHistoryLimit *int32 `json:"failedRunHistoryLimit,omitempty" protobuf:"varint,2,opt,name=failedRunHistoryLimit"`
+	// UnsuccessfulRunHistoryLimit limits the number of old unsuccessful analysis runs to be retained in a history
+	// Stages for unsuccessful: "Error", "Failed", "Inconclusive"
+	UnsuccessfulRunHistoryLimit *int32 `json:"unsuccessfulRunHistoryLimit,omitempty" protobuf:"varint,2,opt,name=unsuccessfulRunHistoryLimit"`
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
