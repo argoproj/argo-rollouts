@@ -275,10 +275,19 @@ spec:
 
         # Istio traffic routing configuration
         istio:
+          # Either virtualService or virtualServices can be configured.
           virtualService: 
             name: rollout-vsvc  # required
             routes:
             - primary # optional if there is a single route in VirtualService, required otherwise
+          virtualServices:
+          # One or more virtualServices can be configured
+          - name: rollouts-vsvc1  # required
+            routes:
+              - primary # optional if there is a single route in VirtualService, required otherwise
+          - name: rollouts-vsvc2  # required
+            routes:
+              - secondary # optional if there is a single route in VirtualService, required otherwise
 
         # NGINX Ingress Controller routing configuration
         nginx:

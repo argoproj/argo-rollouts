@@ -136,38 +136,6 @@ func TestGetReferencedMultipleVirtualServices(t *testing.T) {
 }
 
 func TestGetReferencedMultipleVirtualServicesInvalidConfig(t *testing.T) {
-
-	multipleVirtualService := []v1alpha1.IstioVirtualService{{Name: "istio-vsvc1-name", Routes: nil}}
-
-	ro := v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{},
-			},
-		},
-	}
-	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-		Istio: &v1alpha1.IstioTrafficRouting{
-			VirtualService: v1alpha1.IstioVirtualService{
-				Name: "istio-vsvc1-name",
-			},
-			VirtualServices: multipleVirtualService,
-		},
-	}
-	ro.Namespace = metav1.NamespaceDefault
-
-	vService := unstructuredutil.StrToUnstructuredUnsafe(istiovsvc1)
-
-	t.Run("get referenced virtualService - fail", func(t *testing.T) {
-		c := NewFakeIstioController(vService)
-		_, err := c.GetReferencedVirtualServices(&ro)
-		fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
-		expected := fmt.Sprintf("%s: Internal error: either VirtualService or VirtualServices must be configured", fldPath)
-		assert.Equal(t, expected, err.Error())
-	})
-}
-
-func TestGetReferencedNoVirtualServicesConfig(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
@@ -182,6 +150,25 @@ func TestGetReferencedNoVirtualServicesConfig(t *testing.T) {
 
 	vService := unstructuredutil.StrToUnstructuredUnsafe(istiovsvc1)
 
+	// Test when both virtualService and  virtualServices are not configured
+	t.Run("get referenced virtualService - fail", func(t *testing.T) {
+		c := NewFakeIstioController(vService)
+		_, err := c.GetReferencedVirtualServices(&ro)
+		fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
+		expected := fmt.Sprintf("%s: Internal error: either VirtualService or VirtualServices must be configured", fldPath)
+		assert.Equal(t, expected, err.Error())
+	})
+
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: v1alpha1.IstioVirtualService{
+				Name: "istio-vsvc1-name",
+			},
+			VirtualServices: []v1alpha1.IstioVirtualService{{Name: "istio-vsvc1-name", Routes: nil}},
+		},
+	}
+
+	// Test when both virtualService and  virtualServices are  configured
 	t.Run("get referenced virtualService - fail", func(t *testing.T) {
 		c := NewFakeIstioController(vService)
 		_, err := c.GetReferencedVirtualServices(&ro)

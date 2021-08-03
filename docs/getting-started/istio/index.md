@@ -47,6 +47,8 @@ The VirtualService and route referenced in either `trafficRouting.istio.virtualS
 `trafficRouting.istio.virtualServices`. `trafficRouting.istio.virtualServices` helps in adding
 one or more virtualServices unlike `trafficRouting.istio.virtualService` where only single virtualService can be added.
 This is required to have a HTTP route which splits between the stable and canary Services, referenced in the rollout.
+In this example, primary route splits the http route with port number 15372 between stable and canary services;
+secondary route splits the http route with port number 15373 between stable and canary services.
 In this guide, those Services are named: `rollouts-demo-stable` and `rollouts-demo-canary` 
 respectively. The weight values for these services used should be initially set to 100% stable, 
 and 0% on the canary. During an update, these values will be modified by the controller.
@@ -68,9 +70,13 @@ spec:
     route:
     - destination:
         host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
+        port:
+          number: 15372
       weight: 100
     - destination:
         host: rollouts-demo-canary  # Should match spec.strategy.canary.canaryService
+        port:
+          number: 15372
       weight: 0
 
 ```
@@ -90,9 +96,13 @@ spec:
     route:
     - destination:
         host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
+        port:
+          number: 15373
       weight: 100
     - destination:
         host: rollouts-demo-canary  # Should match spec.strategy.canary.canaryService
+        port:
+          number: 15373
       weight: 0
 
 ```
@@ -173,9 +183,13 @@ spec:
     route:
     - destination:
         host: rollouts-demo-stable
+        port:
+          number: 15372
       weight: 95
     - destination:
         host: rollouts-demo-canary
+        port:
+          number: 15372
       weight: 5
 ```
 
@@ -195,9 +209,13 @@ spec:
     route:
     - destination:
         host: rollouts-demo-stable
+        port:
+          number: 15373
       weight: 95
     - destination:
         host: rollouts-demo-canary
+        port:
+          number: 15373
       weight: 5
 ```
 

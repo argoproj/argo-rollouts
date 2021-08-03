@@ -12,9 +12,13 @@ spec:
     route:
     - destination:
         host: rollouts-demo-stable
+        port:
+          number: 15372
       weight: 100
     - destination:
         host: rollouts-demo-canary
+        port:
+          number: 15372
       weight: 0
 
 ---
@@ -24,15 +28,19 @@ metadata:
   name: rollouts-demo-vsvc2
 spec:
   gateways:
-    - rollouts-demo-gateway
+  - rollouts-demo-gateway
   hosts:
-    - rollouts-demo-vsvc2.local
+  - rollouts-demo-vsvc2.local
   http:
-    - name: primary
-      route:
-        - destination:
-            host: rollouts-demo-stable
-          weight: 100
-        - destination:
-            host: rollouts-demo-canary
-          weight: 0
+  - name: secondary
+    route:
+    - destination:
+        host: rollouts-demo-stable
+        port:
+          number: 15373
+      weight: 100
+    - destination:
+        host: rollouts-demo-canary
+        port:
+          number: 15373
+      weight: 0

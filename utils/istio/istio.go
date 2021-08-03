@@ -65,10 +65,7 @@ func GetVirtualServiceNamespaceName(vsv string) (string, string) {
 }
 
 func MultipleVirtualServiceConfigured(rollout *v1alpha1.Rollout) bool {
-	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices != nil {
-		return true
-	}
-	return false
+	return rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices != nil
 }
 
 // GetRolloutVirtualServiceKeys gets the referenced VirtualService and its namespace from a Rollout
