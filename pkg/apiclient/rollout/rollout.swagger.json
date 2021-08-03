@@ -532,22 +532,6 @@
       },
       "title": "AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic\nrouter"
     },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Analysis": {
-      "type": "object",
-      "properties": {
-        "successfulRunHistoryLimit": {
-          "type": "integer",
-          "format": "int32",
-          "title": "SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history"
-        },
-        "failedRunHistoryLimit": {
-          "type": "integer",
-          "format": "int32",
-          "title": "FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history"
-        }
-      },
-      "title": "Analysis configuration for the analysis runs to retain"
-    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunArgument": {
       "type": "object",
       "properties": {
@@ -565,6 +549,22 @@
         }
       },
       "title": "AnalysisRunArgument argument to add to analysisRun"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisStrategy": {
+      "type": "object",
+      "properties": {
+        "successfulRunHistoryLimit": {
+          "type": "integer",
+          "format": "int32",
+          "title": "SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history"
+        },
+        "failedRunHistoryLimit": {
+          "type": "integer",
+          "format": "int32",
+          "title": "FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history"
+        }
+      },
+      "title": "AnalysisStrategy configuration for the analysis runs to retain"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AntiAffinity": {
       "type": "object",
@@ -1183,7 +1183,7 @@
           "title": "RestartAt indicates when all the pods of a Rollout should be restarted"
         },
         "analysis": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Analysis",
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisStrategy",
           "title": "Analysis configuration for the analysis runs to retain"
         }
       },

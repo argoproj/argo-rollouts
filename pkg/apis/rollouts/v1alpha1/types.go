@@ -72,7 +72,7 @@ type RolloutSpec struct {
 	// RestartAt indicates when all the pods of a Rollout should be restarted
 	RestartAt *metav1.Time `json:"restartAt,omitempty" protobuf:"bytes,9,opt,name=restartAt"`
 	// Analysis configuration for the analysis runs to retain
-	Analysis *Analysis `json:"analysis,omitempty" protobuf:"bytes,11,opt,name=analysis"`
+	Analysis *AnalysisStrategy `json:"analysis,omitempty" protobuf:"bytes,11,opt,name=analysis"`
 }
 
 func (s *RolloutSpec) SetResolvedSelector(selector *metav1.LabelSelector) {
@@ -297,8 +297,8 @@ type CanaryStrategy struct {
 	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,13,opt,name=abortScaleDownDelaySeconds"`
 }
 
-// Analysis configuration for the analysis runs to retain
-type Analysis struct {
+// AnalysisStrategy configuration for the analysis runs to retain
+type AnalysisStrategy struct {
 	// SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
 	SuccessfulRunHistoryLimit *int32 `json:"successfulRunHistoryLimit,omitempty" protobuf:"varint,1,opt,name=successfulRunHistoryLimit"`
 	// FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history

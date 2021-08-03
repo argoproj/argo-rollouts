@@ -48,28 +48,28 @@ func TestGetAnalysisRunSuccessfulHistoryLimitOrDefault(t *testing.T) {
 	succeedHistoryLimit := int32(2)
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
-			Analysis: &v1alpha1.Analysis{SuccessfulRunHistoryLimit: &succeedHistoryLimit},
+			Analysis: &v1alpha1.AnalysisStrategy{SuccessfulRunHistoryLimit: &succeedHistoryLimit},
 		},
 	}
 
 	assert.Equal(t, succeedHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(rolloutNonDefaultValue))
 	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{}))
 	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{}}))
-	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.Analysis{}}}))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.AnalysisStrategy{}}}))
 }
 
 func TestGetAnalysisRunFailedHistoryLimitOrDefault(t *testing.T) {
 	failedHistoryLimit := int32(3)
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
-			Analysis: &v1alpha1.Analysis{FailedRunHistoryLimit: &failedHistoryLimit},
+			Analysis: &v1alpha1.AnalysisStrategy{FailedRunHistoryLimit: &failedHistoryLimit},
 		},
 	}
 
 	assert.Equal(t, failedHistoryLimit, GetAnalysisRunFailedHistoryLimitOrDefault(rolloutNonDefaultValue))
 	assert.Equal(t, DefaultAnalysisRunFailedHistoryLimit, GetAnalysisRunFailedHistoryLimitOrDefault(&v1alpha1.Rollout{}))
 	assert.Equal(t, DefaultAnalysisRunFailedHistoryLimit, GetAnalysisRunFailedHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{}}))
-	assert.Equal(t, DefaultAnalysisRunFailedHistoryLimit, GetAnalysisRunFailedHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.Analysis{}}}))
+	assert.Equal(t, DefaultAnalysisRunFailedHistoryLimit, GetAnalysisRunFailedHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.AnalysisStrategy{}}}))
 }
 
 func TestGetMaxSurgeOrDefault(t *testing.T) {

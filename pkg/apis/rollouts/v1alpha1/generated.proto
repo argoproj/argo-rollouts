@@ -55,15 +55,6 @@ message AmbassadorTrafficRouting {
   repeated string mappings = 1;
 }
 
-// Analysis configuration for the analysis runs to retain
-message Analysis {
-  // SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
-  optional int32 successfulRunHistoryLimit = 1;
-
-  // FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history
-  optional int32 failedRunHistoryLimit = 2;
-}
-
 // AnalysisRun is an instantiation of an AnalysisTemplate
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -127,6 +118,15 @@ message AnalysisRunStatus {
 
   // StartedAt indicates when the analysisRun first started
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 4;
+}
+
+// AnalysisStrategy configuration for the analysis runs to retain
+message AnalysisStrategy {
+  // SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
+  optional int32 successfulRunHistoryLimit = 1;
+
+  // FailedRunHistoryLimit limits the number of old analysis runs failed to be retained in a history
+  optional int32 failedRunHistoryLimit = 2;
 }
 
 // AnalysisTemplate holds the template for performing canary analysis
@@ -1025,7 +1025,7 @@ message RolloutSpec {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time restartAt = 9;
 
   // Analysis configuration for the analysis runs to retain
-  optional Analysis analysis = 11;
+  optional AnalysisStrategy analysis = 11;
 }
 
 // RolloutStatus is the status for a Rollout resource
