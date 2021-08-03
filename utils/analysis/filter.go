@@ -167,15 +167,16 @@ func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, allRSs []*appsv1.Re
 		if ar.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
 			if retainedSucceed < limitSucceedArs {
 				retainedSucceed++
-				continue
+			} else {
+				arsToDelete = append(arsToDelete, ar)
 			}
-		} else {
+		} else if ar.Status.Phase == v1alpha1.AnalysisPhaseFailed {
 			if retainedFailed < limitFailedArs {
 				retainedFailed++
-				continue
+			} else {
+				arsToDelete = append(arsToDelete, ar)
 			}
 		}
-		arsToDelete = append(arsToDelete, ar)
 	}
 	return arsToDelete
 }
