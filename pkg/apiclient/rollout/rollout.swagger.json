@@ -550,21 +550,21 @@
       },
       "title": "AnalysisRunArgument argument to add to analysisRun"
     },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisStrategy": {
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStrategy": {
       "type": "object",
       "properties": {
         "successfulRunHistoryLimit": {
           "type": "integer",
           "format": "int32",
-          "title": "SuccessfulRunHistoryLimit limits the number of old successful analysis runs to be retained in a history"
+          "title": "SuccessfulRunHistoryLimit limits the number of old successful analysis runs and experiments to be retained in a history"
         },
         "unsuccessfulRunHistoryLimit": {
           "type": "integer",
           "format": "int32",
-          "title": "UnsuccessfulRunHistoryLimit limits the number of old unsuccessful analysis runs to be retained in a history.\nStages for unsuccessful: \"Error\", \"Failed\", \"Inconclusive\""
+          "title": "UnsuccessfulRunHistoryLimit limits the number of old unsuccessful analysis runs and experiments to be retained in a history.\nStages for unsuccessful: \"Error\", \"Failed\", \"Inconclusive\""
         }
       },
-      "title": "AnalysisStrategy configuration for the analysis runs to retain"
+      "title": "AnalysisRunStrategy configuration for the analysis runs and experiments to retain"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AntiAffinity": {
       "type": "object",
@@ -1183,7 +1183,7 @@
           "title": "RestartAt indicates when all the pods of a Rollout should be restarted"
         },
         "analysis": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisStrategy",
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStrategy",
           "title": "Analysis configuration for the analysis runs to retain"
         }
       },

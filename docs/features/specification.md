@@ -12,10 +12,10 @@ spec:
   # Defaults to 1.
   replicas: 5
   analysis:
-    # limits the number of successful analysis runs to be stored in a history
+    # limits the number of successful analysis runs and experiments to be stored in a history
     # Defaults to 5.
     successfulRunHistoryLimit: 10
-    # limits the number of unsuccessful analysis runs to be stored in a history. 
+    # limits the number of unsuccessful analysis runs and experiments to be stored in a history. 
     # Stages for unsuccessful: "Error", "Failed", "Inconclusive"
     # Defaults to 5.
     unsuccessfulRunHistoryLimit: 10
