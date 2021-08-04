@@ -127,7 +127,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 			for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
 				templateWeight := getTemplateWeight(templateStatus.Name)
-				if templateStatus.ServiceName != "" && templateStatus.PodTemplateHash != "" {
+				if templateStatus.ServiceName != "" || templateStatus.PodTemplateHash != "" {
 					weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
 						ServiceName:     templateStatus.ServiceName,
 						PodTemplateHash: templateStatus.PodTemplateHash,
