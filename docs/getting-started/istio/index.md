@@ -53,7 +53,7 @@ In this guide, those Services are named: `rollouts-demo-stable` and `rollouts-de
 respectively. The weight values for these services used should be initially set to 100% stable, 
 and 0% on the canary. During an update, these values will be modified by the controller.
 If there are multiple VirtualService then weight values for stable and canary service of each VirtualService
-will be modified by the controller.
+will be modified by the controller simultaneously.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -66,15 +66,15 @@ spec:
   hosts:
   - rollouts-demo-vsvc1.local
   http:
-  - name: primary  # Should match spec.strategy.canary.trafficRouting.istio.virtualServices.routes
+  - name: primary  # Should match rollout.spec.strategy.canary.trafficRouting.istio.virtualServices.routes
     route:
     - destination:
-        host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
+        host: rollouts-demo-stable  # Should match rollout.spec.strategy.canary.stableService
         port:
           number: 15372
       weight: 100
     - destination:
-        host: rollouts-demo-canary  # Should match spec.strategy.canary.canaryService
+        host: rollouts-demo-canary  # Should match rollout.spec.strategy.canary.canaryService
         port:
           number: 15372
       weight: 0
@@ -92,15 +92,15 @@ spec:
   hosts:
   - rollouts-demo-vsvc2.local
   http:
-  - name: secondary  # Should match spec.strategy.canary.trafficRouting.istio.virtualServices.routes
+  - name: secondary  # Should match rollout.spec.strategy.canary.trafficRouting.istio.virtualServices.routes
     route:
     - destination:
-        host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
+        host: rollouts-demo-stable  # Should match rollout.spec.strategy.canary.stableService
         port:
           number: 15373
       weight: 100
     - destination:
-        host: rollouts-demo-canary  # Should match spec.strategy.canary.canaryService
+        host: rollouts-demo-canary  # Should match rollout.spec.strategy.canary.canaryService
         port:
           number: 15373
       weight: 0
