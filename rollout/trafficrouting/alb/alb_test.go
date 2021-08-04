@@ -73,7 +73,7 @@ func albActionAnnotation(stable string) string {
 
 func ingress(name string, stableSvc, canarySvc string, port, weight int32, managedBy string) *extensionsv1beta1.Ingress {
 	managedByValue := fmt.Sprintf("%s:%s", managedBy, albActionAnnotation(stableSvc))
-	action := fmt.Sprintf(actionTemplate, stableSvc, port, 100-weight, canarySvc, port, weight)
+	action := fmt.Sprintf(actionTemplate, canarySvc, port, weight, stableSvc, port, 100-weight)
 	var a ingressutil.ALBAction
 	err := json.Unmarshal([]byte(action), &a)
 	if err != nil {
