@@ -16,9 +16,9 @@ const (
 	// DefaultRevisionHistoryLimit default number of revisions to keep if .Spec.RevisionHistoryLimit is nil
 	DefaultRevisionHistoryLimit = int32(10)
 	// DefaultAnalysisRunSuccessfulHistoryLimit default number of successful AnalysisRuns to keep if .Spec.Analysis.SuccessfulRunHistoryLimit is nil
-	DefaultAnalysisRunSuccessfulHistoryLimit = int32(1)
+	DefaultAnalysisRunSuccessfulHistoryLimit = int32(5)
 	// DefaultAnalysisRunUnsuccessfulHistoryLimit default number of unsuccessful AnalysisRuns to keep if .Spec.Analysis.UnsuccessfulRunHistoryLimit is nil
-	DefaultAnalysisRunUnsuccessfulHistoryLimit = int32(1)
+	DefaultAnalysisRunUnsuccessfulHistoryLimit = int32(5)
 	// DefaultMaxSurge default number for the max number of additional pods that can be brought up during a rollout
 	DefaultMaxSurge = "25"
 	// DefaultMaxUnavailable default number for the max number of unavailable pods during a rollout
