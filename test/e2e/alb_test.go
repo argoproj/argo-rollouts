@@ -76,6 +76,5 @@ func (s *ALBSuite) TestALBExperimentStep() {
 			port := 80
 			expectedAction := fmt.Sprintf(actionTemplate, "alb-rollout-canary", port, 0, "alb-rollout-stable", port, 100)
 			assert.Equal(s.T(), expectedAction, action)
-		}).
-		ExpectRevisionPodCount("1", 1) // don't scale down old replicaset since it will be within scaleDownDelay
+		})
 }
