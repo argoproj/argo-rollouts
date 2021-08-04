@@ -1,11 +1,11 @@
 package analysis
 
 import (
+	"sort"
+
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-
-	"sort"
 )
 
 func GetCurrentAnalysisRunByType(currentArs []*v1alpha1.AnalysisRun, kind string) *v1alpha1.AnalysisRun {
