@@ -556,12 +556,12 @@
         "successfulRunHistoryLimit": {
           "type": "integer",
           "format": "int32",
-          "title": "SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history"
+          "title": "SuccessfulRunHistoryLimit limits the number of old successful analysis runs to be retained in a history"
         },
         "unsuccessfulRunHistoryLimit": {
           "type": "integer",
           "format": "int32",
-          "title": "UnsuccessfulRunHistoryLimit limits the number of old analysis runs failed to be retained in a history"
+          "title": "UnsuccessfulRunHistoryLimit limits the number of old unsuccessful analysis runs to be retained in a history.\nStages for unsuccessful: \"Error\", \"Failed\", \"Inconclusive\""
         }
       },
       "title": "AnalysisStrategy configuration for the analysis runs to retain"

@@ -437,14 +437,14 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisStrategy(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"successfulRunHistoryLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history",
+							Description: "SuccessfulRunHistoryLimit limits the number of old successful analysis runs to be retained in a history",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"unsuccessfulRunHistoryLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "UnsuccessfulRunHistoryLimit limits the number of old analysis runs failed to be retained in a history",
+							Description: "UnsuccessfulRunHistoryLimit limits the number of old unsuccessful analysis runs to be retained in a history. Stages for unsuccessful: \"Error\", \"Failed\", \"Inconclusive\"",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

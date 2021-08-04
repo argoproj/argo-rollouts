@@ -122,10 +122,11 @@ message AnalysisRunStatus {
 
 // AnalysisStrategy configuration for the analysis runs to retain
 message AnalysisStrategy {
-  // SuccessfulRunHistoryLimit limits the number of old analysis runs succeeded to be retained in a history
+  // SuccessfulRunHistoryLimit limits the number of old successful analysis runs to be retained in a history
   optional int32 successfulRunHistoryLimit = 1;
 
-  // UnsuccessfulRunHistoryLimit limits the number of old analysis runs failed to be retained in a history
+  // UnsuccessfulRunHistoryLimit limits the number of old unsuccessful analysis runs to be retained in a history.
+  // Stages for unsuccessful: "Error", "Failed", "Inconclusive"
   optional int32 unsuccessfulRunHistoryLimit = 2;
 }
 
