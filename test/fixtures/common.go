@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"os"
 	"os/exec"
 	"strings"
@@ -481,6 +482,14 @@ func (c *Common) GetServices() (*corev1.Service, *corev1.Service) {
 		c.CheckError(err)
 	}
 	return desiredSvc, stableSvc
+}
+
+func (c *Common) GetALBIngress() *extensionsv1beta1.Ingress {
+	ro := c.Rollout()
+	name := ro.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
+	ingress, err := c.kubeClient.ExtensionsV1beta1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ingress
 }
 
 func (c *Common) GetTrafficSplit() *smiv1alpha1.TrafficSplit {
