@@ -1747,6 +1747,14 @@
   <span class="c1"># Number of desired pods.</span>
   <span class="c1"># Defaults to 1.</span>
   <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
+  <span class="nt">analysis</span><span class="p">:</span>
+    <span class="c1"># limits the number of successful analysis runs and experiments to be stored in a history</span>
+    <span class="c1"># Defaults to 5.</span>
+    <span class="nt">successfulRunHistoryLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10</span>
+    <span class="c1"># limits the number of unsuccessful analysis runs and experiments to be stored in a history. </span>
+    <span class="c1"># Stages for unsuccessful: &quot;Error&quot;, &quot;Failed&quot;, &quot;Inconclusive&quot;</span>
+    <span class="c1"># Defaults to 5.</span>
+    <span class="nt">unsuccessfulRunHistoryLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10</span>
 
   <span class="c1"># Label selector for pods. Existing ReplicaSets whose pods are selected by</span>
   <span class="c1"># this will be the ones affected by this rollout. It must match the pod</span>
