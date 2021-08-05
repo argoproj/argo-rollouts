@@ -159,7 +159,7 @@ const (
 	// InvalidExperimentSpec means the experiment has an invalid spec and will not progress until
 	// the spec is fixed.
 	InvalidExperimentSpec ExperimentConditionType = "InvalidSpec"
-	// ExperimentConcluded means the experiment is available, ie. the active service is pointing at a
+	// ExperimentCompleted means the experiment is available, ie. the active service is pointing at a
 	// replicaset with the required replicas up and running for at least minReadySeconds.
 	ExperimentCompleted ExperimentConditionType = "Completed"
 	// ExperimentProgressing means the experiment is progressing. Progress for a experiment is
