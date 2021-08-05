@@ -213,6 +213,30 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.E
 	return allErrs
 }
 
+func ValidateRolloutVirtualServicesConfig(r *v1alpha1.Rollout) error {
+	//Either VirtualService or VirtualServices must be configured.
+	//If both configured then it is an invalid configuration
+	var fldPath *field.Path
+	fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
+	errorString := "either VirtualService or VirtualServices must be configured"
+
+	if r.Spec.Strategy.Canary != nil {
+		canary := r.Spec.Strategy.Canary
+		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
+			if istioutil.MultipleVirtualServiceConfigured(r) {
+				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name != "" {
+					return field.InternalError(fldPath, fmt.Errorf(errorString))
+				}
+			} else {
+				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == "" {
+					return field.InternalError(fldPath, fmt.Errorf(errorString))
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstructured) field.ErrorList {
 	var fldPath *field.Path
 	var virtualServices []v1alpha1.IstioVirtualService

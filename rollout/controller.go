@@ -471,6 +471,7 @@ func (c *rolloutContext) getRolloutValidationErrors() error {
 		return rolloutValidationErrors[0]
 	}
 
+
 	refResources, err := c.getRolloutReferencedResources()
 	if err != nil {
 		return err
@@ -525,6 +526,12 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 		return nil, err
 	}
 	refResources.Ingresses = *ingresses
+
+	// Validate Rollout virtualServices before referencing
+	err = validation.ValidateRolloutVirtualServicesConfig(c.rollout)
+	if err != nil {
+		return nil, err
+	}
 
 	virtualServices, err := c.IstioController.GetReferencedVirtualServices(c.rollout)
 	if err != nil {

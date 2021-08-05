@@ -174,22 +174,6 @@ func (c *IstioController) EnqueueRolloutFromIstioVirtualService(vsvc interface{}
 	}
 }
 
-func (c *IstioController) validateRolloutVirtualServicesConfig(r *v1alpha1.Rollout) error {
-	//Either VirtualService or VirtualServices must be configured.
-	//If both configured then it is an invalid configuration
-	errorString := "either VirtualService or VirtualServices must be configured"
-	if istioutil.MultipleVirtualServiceConfigured(r) {
-		if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name != "" {
-			return fmt.Errorf(errorString)
-		}
-	} else {
-		if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == "" {
-			return fmt.Errorf(errorString)
-		}
-	}
-	return nil
-}
-
 func (c *IstioController) GetReferencedVirtualServices(ro *v1alpha1.Rollout) (*[]unstructured.Unstructured, error) {
 	var fldPath *field.Path
 	fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
@@ -201,11 +185,6 @@ func (c *IstioController) GetReferencedVirtualServices(ro *v1alpha1.Rollout) (*[
 			var vsvc *unstructured.Unstructured
 			var err error
 			var vsvcs []v1alpha1.IstioVirtualService
-
-			err = c.validateRolloutVirtualServicesConfig(ro)
-			if err != nil {
-				return nil, field.InternalError(fldPath, err)
-			}
 
 			if istioutil.MultipleVirtualServiceConfigured(ro) {
 				vsvcs = canary.TrafficRouting.Istio.VirtualServices
