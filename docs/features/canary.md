@@ -151,6 +151,14 @@ Defaults to nil
 
 Defaults to an empty string
 
+### dynamicStableScale
+Scaling strategy for the canary (supported only with trafficRouting). 
+If `dynamicStableScale` is enabled it will provide a similar strategy for the 
+_traffic canary_ rollout as a _basic canary_: the old pods will be scaled down once
+the new scaled up. If disabled - the number of old pods will be constant during the upgrade 
+
+Defaults to `false`
+
 ### stableService
 `stableService` the name of a Service which selects pods with stable version and doesn't select any pods with canary version. This allows users to only hit the stable ReplicaSet.
 

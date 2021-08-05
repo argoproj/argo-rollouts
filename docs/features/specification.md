@@ -198,6 +198,11 @@ spec:
       # scaled down. Defaults to nil
       ScaleDownDelayRevisionLimit: 2
 
+      # If a dynamic stable scale is enabled - the old pods will be scaled down 
+      # corresponding to the new pods scaling up (similar to basic canary).  
+      # Defaults to false
+      dynamicStableScale: true
+
       # Background analysis to run during a rollout update. Skipped upon
       # initial deploy of a rollout. +optional
       analysis:
