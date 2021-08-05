@@ -1650,6 +1650,11 @@ func (in *RolloutSpec) DeepCopyInto(out *RolloutSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.AbortExceedProgressDeadline != nil {
+		in, out := &in.AbortExceedProgressDeadline, &out.AbortExceedProgressDeadline
+		*out = new(bool)
+		**out = **in
+	}
 	if in.RestartAt != nil {
 		in, out := &in.RestartAt, &out.RestartAt
 		*out = (*in).DeepCopy()

@@ -153,6 +153,19 @@ func TestGetProgressDeadlineSecondsOrDefault(t *testing.T) {
 	assert.Equal(t, DefaultProgressDeadlineSeconds, GetProgressDeadlineSecondsOrDefault(rolloutDefaultValue))
 }
 
+func TestGetAbortExceedProgressDeadlineOrDefault(t *testing.T) {
+	abort := true
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			AbortExceedProgressDeadline: &abort,
+		},
+	}
+
+	assert.Equal(t, abort, GetAbortExceedProgressDeadlineOrDefault(rolloutNonDefaultValue))
+	rolloutDefaultValue := &v1alpha1.Rollout{}
+	assert.Equal(t, DefaultAbortExceedProgressDeadline, GetAbortExceedProgressDeadlineOrDefault(rolloutDefaultValue))
+}
+
 func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 	{
 		scaleDownDelaySeconds := int32(60)

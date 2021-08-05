@@ -609,6 +609,11 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	// Check for progress. Only do this if the latest rollout hasn't completed yet and it is not aborted
 	if !isCompleteRollout && !isAborted {
 		switch {
+		case conditions.RolloutTimedOut(c.rollout, &newStatus) && defaults.GetAbortExceedProgressDeadlineOrDefault(c.rollout):
+			msg := fmt.Sprintf(conditions.RolloutTimeOutMessage, c.rollout.Name)
+			c.pauseContext.AddAbort(msg)
+			abortCondition := conditions.NewRolloutCondition(v1alpha1.RolloutPaused, corev1.ConditionTrue, conditions.TimedOutReason, msg)
+			conditions.SetRolloutCondition(&newStatus, *abortCondition)
 		case conditions.RolloutComplete(c.rollout, &newStatus):
 			// Update the rollout conditions with a message for the new replica set that
 			// was successfully deployed. If the condition already exists, we ignore this update.

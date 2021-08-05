@@ -9745,6 +9745,8 @@ spec:
             type: object
           spec:
             properties:
+              abortExceedProgressDeadline:
+                type: boolean
               analysis:
                 properties:
                   successfulRunHistoryLimit:

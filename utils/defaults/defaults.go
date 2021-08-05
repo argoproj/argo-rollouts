@@ -26,6 +26,8 @@ const (
 	DefaultMaxUnavailable = "25"
 	// DefaultProgressDeadlineSeconds default number of seconds for the rollout to be making progress
 	DefaultProgressDeadlineSeconds = int32(600)
+	// DefaultAbortExceedProgressDeadline
+	DefaultAbortExceedProgressDeadline = false
 	// DefaultScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
 	DefaultScaleDownDelaySeconds = int32(30)
 	// DefaultAbortScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
@@ -114,6 +116,13 @@ func GetExperimentProgressDeadlineSecondsOrDefault(e *v1alpha1.Experiment) int32
 		return *e.Spec.ProgressDeadlineSeconds
 	}
 	return DefaultProgressDeadlineSeconds
+}
+
+func GetAbortExceedProgressDeadlineOrDefault(rollout *v1alpha1.Rollout) bool {
+	if rollout.Spec.AbortExceedProgressDeadline != nil {
+		return *rollout.Spec.AbortExceedProgressDeadline
+	}
+	return DefaultAbortExceedProgressDeadline
 }
 
 func GetExperimentScaleDownDelaySecondsOrDefault(e *v1alpha1.Experiment) int32 {

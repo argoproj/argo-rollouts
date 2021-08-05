@@ -1185,6 +1185,10 @@
           "format": "int32",
           "description": "ProgressDeadlineSeconds The maximum time in seconds for a rollout to\nmake progress before it is considered to be failed. Argo Rollouts will\ncontinue to process failed rollouts and a condition with a\nProgressDeadlineExceeded reason will be surfaced in the rollout status.\nNote that progress will not be estimated during the time a rollout is paused.\nDefaults to 600s."
         },
+        "abortExceedProgressDeadline": {
+          "type": "boolean",
+          "title": "AbortExceedProgressDeadline to whether abort the update when ProgressDeadlineSeconds\nis exceeded if analysis is not used. Default is false.\n+optional"
+        },
         "restartAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
           "title": "RestartAt indicates when all the pods of a Rollout should be restarted"
