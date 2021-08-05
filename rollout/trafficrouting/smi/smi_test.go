@@ -436,7 +436,6 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 
 func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
-	objMeta := objectMeta("traffic-split-name", ro, schema.GroupVersionKind{})
 	weightDestinations := []trafficrouting.WeightDestination{
 		{
 			ServiceName:     "ex-svc-1",
@@ -451,8 +450,7 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 	}
 
 	t.Run("v1alpha1", func(t *testing.T) {
-		ts1 := trafficSplitV1Alpha1(ro, objMeta, "root-service", int32(10), weightDestinations...)
-		client := fake.NewSimpleClientset(ts1)
+		client := fake.NewSimpleClientset()
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -461,8 +459,20 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.SetWeight(10)
+		err = r.SetWeight(10, weightDestinations...)
 		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
+
+		// Get newly created TrafficSplit
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts1 := &smiv1alpha1.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts1)
 
 		// check canary backend
 		assert.Equal(t, "canary-service", ts1.Spec.Backends[0].Service)
@@ -481,11 +491,10 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 	})
 
 	t.Run("v1alpha2", func(t *testing.T) {
-		ts2 := trafficSplitV1Alpha2(ro, objMeta, "root-service", int32(10), weightDestinations...)
 		SetSMIAPIVersion("v1alpha2")
 		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
-		client := fake.NewSimpleClientset(ts2)
+		client := fake.NewSimpleClientset()
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -494,8 +503,20 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.SetWeight(10)
+		err = r.SetWeight(10, weightDestinations...)
 		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
+
+		// Get newly created TrafficSplit
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts2 := &smiv1alpha2.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts2)
 
 		// check canary backend
 		assert.Equal(t, "canary-service", ts2.Spec.Backends[0].Service)
@@ -514,11 +535,10 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 	})
 
 	t.Run("v1alpha3", func(t *testing.T) {
-		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10), weightDestinations...)
 		SetSMIAPIVersion("v1alpha3")
 		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
-		client := fake.NewSimpleClientset(ts3)
+		client := fake.NewSimpleClientset()
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -527,8 +547,20 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		err = r.SetWeight(10)
+		err = r.SetWeight(10, weightDestinations...)
 		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
+
+		// Get newly created TrafficSplit
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts3 := &smiv1alpha3.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts3)
 
 		// check canary backend
 		assert.Equal(t, "canary-service", ts3.Spec.Backends[0].Service)

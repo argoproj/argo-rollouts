@@ -101,6 +101,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				step := c.rollout.Spec.Strategy.Canary.Steps[i]
 				if step.SetWeight != nil {
 					desiredWeight = *step.SetWeight
+					break
 				}
 			}
 		} else if *index != int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
