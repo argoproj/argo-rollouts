@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"text/tabwriter"
 	"time"
+
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 
