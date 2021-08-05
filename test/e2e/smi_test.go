@@ -37,6 +37,9 @@ func (s *SMISuite) TestSMIExperimentStep() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ts := t.GetTrafficSplit()
+
+			assert.Len(s.T(), ts.Spec.Backends, 2)
+
 			assert.Equal(s.T(), "rollout-smi-experiment-canary", ts.Spec.Backends[0].Service)
 			assert.Equal(s.T(), int64(0), ts.Spec.Backends[0].Weight.Value())
 
@@ -56,6 +59,9 @@ func (s *SMISuite) TestSMIExperimentStep() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ts := t.GetTrafficSplit()
+
+		    assert.Len(s.T(), ts.Spec.Backends, 3)
+
 			assert.Equal(s.T(), "rollout-smi-experiment-canary", ts.Spec.Backends[0].Service)
 			assert.Equal(s.T(), int64(5), ts.Spec.Backends[0].Weight.Value())
 
@@ -80,6 +86,9 @@ func (s *SMISuite) TestSMIExperimentStep() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ts := t.GetTrafficSplit()
+
+		    assert.Len(s.T(), ts.Spec.Backends, 2)
+
 			assert.Equal(s.T(), "rollout-smi-experiment-canary", ts.Spec.Backends[0].Service)
 			assert.Equal(s.T(), int64(0), ts.Spec.Backends[0].Weight.Value())
 

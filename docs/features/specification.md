@@ -11,6 +11,14 @@ spec:
   # Number of desired pods.
   # Defaults to 1.
   replicas: 5
+  analysis:
+    # limits the number of successful analysis runs and experiments to be stored in a history
+    # Defaults to 5.
+    successfulRunHistoryLimit: 10
+    # limits the number of unsuccessful analysis runs and experiments to be stored in a history. 
+    # Stages for unsuccessful: "Error", "Failed", "Inconclusive"
+    # Defaults to 5.
+    unsuccessfulRunHistoryLimit: 10
 
   # Label selector for pods. Existing ReplicaSets whose pods are selected by
   # this will be the ones affected by this rollout. It must match the pod

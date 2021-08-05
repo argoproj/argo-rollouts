@@ -99,7 +99,7 @@ func newCommand() *cobra.Command {
 
 			kubeClient, err := kubernetes.NewForConfig(config)
 			checkError(err)
-			rolloutClient, err := clientset.NewForConfig(config)
+			argoprojClient, err := clientset.NewForConfig(config)
 			checkError(err)
 			dynamicClient, err := dynamic.NewForConfig(config)
 			checkError(err)
@@ -150,7 +150,7 @@ func newCommand() *cobra.Command {
 			cm := controller.NewManager(
 				namespace,
 				kubeClient,
-				rolloutClient,
+				argoprojClient,
 				dynamicClient,
 				smiClient,
 				discoveryClient,

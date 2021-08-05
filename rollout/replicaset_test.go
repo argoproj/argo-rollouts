@@ -202,12 +202,12 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 					recorder:          record.NewFakeEventRecorder(),
 					resyncPeriod:      30 * time.Second,
 				},
+				pauseContext: &pauseContext{
+					rollout: rollout,
+				},
 			}
 			roCtx.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {}
 			if test.abortScaleDownDelaySeconds > 0 {
-				roCtx.pauseContext = &pauseContext{
-					rollout: rollout,
-				}
 				rollout.Status.Abort = true
 				// rollout.Spec.ScaleDownOnAbort = true
 				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{

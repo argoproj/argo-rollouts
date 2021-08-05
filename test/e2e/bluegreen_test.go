@@ -278,3 +278,103 @@ spec:
 		Then().
 		ExpectActiveRevision("2")
 }
+
+// TestBlueGreenPreviewReplicaCount verifies the previewReplicaCount feature
+func (s *BlueGreenSuite) TestBlueGreenPreviewReplicaCount() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-preview-replicas-active")).
+		RolloutObjects(newService("bluegreen-preview-replicas-preview")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-preview-replicas
+spec:
+  replicas: 2
+  strategy:
+    blueGreen:
+      activeService: bluegreen-preview-replicas-active
+      previewService: bluegreen-preview-replicas-preview
+      previewReplicaCount: 1
+      scaleDownDelaySeconds: 5
+      autoPromotionEnabled: false
+  selector:
+    matchLabels:
+      app: bluegreen-preview-replicas
+  template:
+    metadata:
+      labels:
+        app: bluegreen-preview-replicas
+    spec:
+      containers:
+      - name: bluegreen-preview-replicas
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		ExpectRevisionPodCount("1", 2).
+		ExpectReplicaCounts(2, 3, 1, 2, 2). // desired, current, updated, ready, available
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectReplicaCounts(2, 4, 2, 2, 2)
+}
+
+// TestBlueGreenPreviewReplicaCountPromoteFull verifies promote full works with previewReplicaCount
+func (s *FunctionalSuite) TestBlueGreenPreviewReplicaCountPromoteFull() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-preview-replicas-active")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-preview-replicas-promote-full
+spec:
+  replicas: 2
+  progressDeadlineSeconds: 1   # use a very short value to cause Degraded condition frequently
+  strategy:
+    blueGreen:
+      activeService: bluegreen-preview-replicas-active
+      previewReplicaCount: 1
+      autoPromotionEnabled: false
+  selector:
+    matchLabels:
+      app: bluegreen-preview-replicas-promote-full
+  template:
+    metadata:
+      labels:
+        app: bluegreen-preview-replicas-promote-full
+    spec:
+      containers:
+      - name: bluegreen-preview-replicas-promote-full
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Sleep(2*time.Second). // sleep for longer than progressDeadlineSeconds
+		Then().
+		ExpectRolloutStatus("Paused").      // the fact that we are paused for longer than progressDeadlineSeconds, should not cause Degraded
+		ExpectReplicaCounts(2, 3, 1, 2, 2). // desired, current, updated, ready, available
+		When().
+		PromoteRolloutFull().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectReplicaCounts(2, 4, 2, 2, 2)
+}
