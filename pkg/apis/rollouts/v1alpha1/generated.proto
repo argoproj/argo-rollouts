@@ -120,6 +120,16 @@ message AnalysisRunStatus {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 4;
 }
 
+// AnalysisRunStrategy configuration for the analysis runs and experiments to retain
+message AnalysisRunStrategy {
+  // SuccessfulRunHistoryLimit limits the number of old successful analysis runs and experiments to be retained in a history
+  optional int32 successfulRunHistoryLimit = 1;
+
+  // UnsuccessfulRunHistoryLimit limits the number of old unsuccessful analysis runs and experiments to be retained in a history.
+  // Stages for unsuccessful: "Error", "Failed", "Inconclusive"
+  optional int32 unsuccessfulRunHistoryLimit = 2;
+}
+
 // AnalysisTemplate holds the template for performing canary analysis
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -1014,6 +1024,9 @@ message RolloutSpec {
 
   // RestartAt indicates when all the pods of a Rollout should be restarted
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time restartAt = 9;
+
+  // Analysis configuration for the analysis runs to retain
+  optional AnalysisRunStrategy analysis = 11;
 }
 
 // RolloutStatus is the status for a Rollout resource

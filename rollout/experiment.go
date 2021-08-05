@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -188,7 +189,9 @@ func (c *rolloutContext) reconcileExperiments() error {
 		return err
 	}
 
-	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, c.allRSs)
+	limitSuccessful := defaults.GetAnalysisRunSuccessfulHistoryLimitOrDefault(c.rollout)
+	limitUnsuccessful := defaults.GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(c.rollout)
+	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, c.allRSs, limitSuccessful, limitUnsuccessful)
 	err = c.deleteExperiments(exsToDelete)
 	if err != nil {
 		return err

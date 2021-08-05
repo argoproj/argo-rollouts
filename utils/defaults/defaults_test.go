@@ -45,6 +45,34 @@ func TestGetRevisionHistoryOrDefault(t *testing.T) {
 	assert.Equal(t, DefaultRevisionHistoryLimit, GetRevisionHistoryLimitOrDefault(rolloutDefaultValue))
 }
 
+func TestGetAnalysisRunSuccessfulHistoryLimitOrDefault(t *testing.T) {
+	succeedHistoryLimit := int32(2)
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Analysis: &v1alpha1.AnalysisRunStrategy{SuccessfulRunHistoryLimit: &succeedHistoryLimit},
+		},
+	}
+
+	assert.Equal(t, succeedHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(rolloutNonDefaultValue))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{}))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{}}))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.AnalysisRunStrategy{}}}))
+}
+
+func TestGetAnalysisRunUnsuccessfulHistoryLimitOrDefault(t *testing.T) {
+	failedHistoryLimit := int32(3)
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Analysis: &v1alpha1.AnalysisRunStrategy{UnsuccessfulRunHistoryLimit: &failedHistoryLimit},
+		},
+	}
+
+	assert.Equal(t, failedHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(rolloutNonDefaultValue))
+	assert.Equal(t, DefaultAnalysisRunUnsuccessfulHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{}))
+	assert.Equal(t, DefaultAnalysisRunUnsuccessfulHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{}}))
+	assert.Equal(t, DefaultAnalysisRunUnsuccessfulHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.AnalysisRunStrategy{}}}))
+}
+
 func TestGetMaxSurgeOrDefault(t *testing.T) {
 	maxSurge := intstr.FromInt(2)
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
