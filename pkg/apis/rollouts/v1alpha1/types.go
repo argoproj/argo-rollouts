@@ -295,6 +295,12 @@ type CanaryStrategy struct {
 	// Default is 30 seconds.
 	// +optional
 	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,13,opt,name=abortScaleDownDelaySeconds"`
+	// DynamicStableScale The scaling down of the stable version will be dynamic (the same as for basic canary).
+	// When true - each step the stable version will be scaled down respectively to the canary versions scale-up.
+	// If false - the stable version will always have 100 weight until canary will be fully upgraded.
+	// Default is false
+	// +optional
+	DynamicStableScale bool `json:"dynamicStableScale,omitempty" protobuf:"varint,14,opt,name=dynamicStableScale"`
 }
 
 // AnalysisRunStrategy configuration for the analysis runs and experiments to retain

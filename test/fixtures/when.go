@@ -34,6 +34,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/status"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
@@ -514,5 +516,49 @@ func (w *When) Then() *Then {
 func (w *When) Given() *Given {
 	return &Given{
 		Common: w.Common,
+	}
+}
+
+func (w *When) WaitForVirtualServiceCondition(test func(vsvc *istio.VirtualService) bool, condition string, timeouts ...time.Duration) *When {
+	start := time.Now()
+	w.log.Infof("Waiting for condition: %s", condition)
+	ro, err := w.rolloutClient.ArgoprojV1alpha1().Rollouts(w.namespace).Get(w.Context, w.rollout.GetName(), metav1.GetOptions{})
+	w.CheckError(err)
+	name := ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
+
+	retryWatcher, err := watchutil.NewRetryWatcher(ro.GetResourceVersion(), &cache.ListWatch{
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
+			return w.dynamicClient.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(w.namespace).Watch(w.Context, opts)
+		},
+	})
+	w.CheckError(err)
+	defer retryWatcher.Stop()
+	timeout := E2EWaitTimeout
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
+	timeoutCh := make(chan bool, 1)
+	go func() {
+		time.Sleep(timeout)
+		timeoutCh <- true
+	}()
+	for {
+		select {
+		case event := <-retryWatcher.ResultChan():
+			vsvcUn, ok := event.Object.(*unstructured.Unstructured)
+			if ok {
+				var vsvc istio.VirtualService
+				err = runtime.DefaultUnstructuredConverter.FromUnstructured(vsvcUn.Object, &vsvc)
+				if test(&vsvc) {
+					w.log.Infof("Condition '%s' met after %v", condition, time.Since(start).Truncate(time.Second))
+					return w
+				}
+			} else {
+				w.t.Fatal("not ok")
+			}
+		case <-timeoutCh:
+			w.t.Fatalf("timeout after %v waiting for condition %s", timeout, condition)
+		}
 	}
 }

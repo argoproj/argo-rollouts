@@ -10,6 +10,7 @@ import (
 	"github.com/tj/assert"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
 
@@ -146,6 +147,72 @@ spec:
 			assert.False(s.T(), ok)
 		}).
 		ExpectRevisionPodCount("1", 0) // since we moved back to basic canary, we should scale down older RSs
+}
+
+func (s *IstioSuite) TestIstioDynamicScale() {
+	s.Given().
+		RolloutObjects("@istio/istio-dynamic-scale.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectRevisionPodCount("1", 5).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+		}).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectCanaryStablePodCount(1, 4).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(80), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(20), vsvc.Spec.HTTP[0].Route[1].Weight)
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Then().
+		ExpectRevisionPodCount("1", 0).
+		ExpectRevisionPodCount("2", 5).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+		})
+}
+
+func (s *IstioSuite) TestIstioDynamicScaleAbort() {
+	s.Given().
+		RolloutObjects("@istio/istio-dynamic-scale.yaml").
+		SetSteps(`
+- setWeight: 80
+- pause: {}`).
+		When().ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectCanaryStablePodCount(4, 1). // don't scale down old replicaset since it will be within scaleDownDelay
+		When().
+		AbortRollout().
+		WaitForVirtualServiceCondition(func(vsvc *istio.VirtualService) bool {
+			return vsvc.Spec.HTTP[0].Route[0].Weight == 40
+		}, "virtual service stable weight == 40", time.Second*10).
+		Then().
+		ExpectRevisionPodCount("1", 2).
+		When().
+		WaitForVirtualServiceCondition(func(vsvc *istio.VirtualService) bool {
+			return vsvc.Spec.HTTP[0].Route[0].Weight == 100
+		}, "virtual service stable weight == 100", time.Second*10).
+		Then().
+		ExpectRevisionPodCount("1", 5)
 }
 
 func (s *IstioSuite) TestIstioSubsetSplitSingleRoute() {

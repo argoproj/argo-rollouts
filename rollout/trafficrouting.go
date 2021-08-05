@@ -100,6 +100,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		// when we are fully promoted. desired canary weight should be 0
 	} else if c.pauseContext.IsAborted() {
 		// when promote aborted. desired canary weight should be 0
+		// for dynamic stable scale we will set the weight based on available replicas
+		if c.rollout.Spec.Strategy.Canary.DynamicStableScale && *c.rollout.Spec.Replicas != 0 {
+			desiredWeight = 100 - 100*c.stableRS.Status.AvailableReplicas/(*c.rollout.Spec.Replicas)
+		}
 	} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 		// when newRS is not available or replicas num is 0. never weight to canary
 	} else if index != nil {
