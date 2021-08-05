@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
-
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/mitchellh/mapstructure"
 	log "github.com/sirupsen/logrus"
@@ -18,6 +16,7 @@ import (
 	"k8s.io/client-go/dynamic/dynamiclister"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
