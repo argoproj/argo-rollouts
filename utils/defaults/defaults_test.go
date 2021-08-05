@@ -2,6 +2,7 @@ package defaults
 
 import (
 	"testing"
+	"time"
 
 	"k8s.io/utils/pointer"
 
@@ -42,6 +43,34 @@ func TestGetRevisionHistoryOrDefault(t *testing.T) {
 	assert.Equal(t, revisionHistoryLimit, GetRevisionHistoryLimitOrDefault(rolloutNonDefaultValue))
 	rolloutDefaultValue := &v1alpha1.Rollout{}
 	assert.Equal(t, DefaultRevisionHistoryLimit, GetRevisionHistoryLimitOrDefault(rolloutDefaultValue))
+}
+
+func TestGetAnalysisRunSuccessfulHistoryLimitOrDefault(t *testing.T) {
+	succeedHistoryLimit := int32(2)
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Analysis: &v1alpha1.AnalysisRunStrategy{SuccessfulRunHistoryLimit: &succeedHistoryLimit},
+		},
+	}
+
+	assert.Equal(t, succeedHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(rolloutNonDefaultValue))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{}))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{}}))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.AnalysisRunStrategy{}}}))
+}
+
+func TestGetAnalysisRunUnsuccessfulHistoryLimitOrDefault(t *testing.T) {
+	failedHistoryLimit := int32(3)
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Analysis: &v1alpha1.AnalysisRunStrategy{UnsuccessfulRunHistoryLimit: &failedHistoryLimit},
+		},
+	}
+
+	assert.Equal(t, failedHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(rolloutNonDefaultValue))
+	assert.Equal(t, DefaultAnalysisRunUnsuccessfulHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{}))
+	assert.Equal(t, DefaultAnalysisRunUnsuccessfulHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{}}))
+	assert.Equal(t, DefaultAnalysisRunUnsuccessfulHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.AnalysisRunStrategy{}}}))
 }
 
 func TestGetMaxSurgeOrDefault(t *testing.T) {
@@ -136,11 +165,11 @@ func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, scaleDownDelaySeconds, GetScaleDownDelaySecondsOrDefault(blueGreenNonDefaultValue))
+		assert.Equal(t, time.Duration(scaleDownDelaySeconds)*time.Second, GetScaleDownDelaySecondsOrDefault(blueGreenNonDefaultValue))
 	}
 	{
 		rolloutNoStrategyDefaultValue := &v1alpha1.Rollout{}
-		assert.Equal(t, int32(0), GetScaleDownDelaySecondsOrDefault(rolloutNoStrategyDefaultValue))
+		assert.Equal(t, time.Duration(0), GetScaleDownDelaySecondsOrDefault(rolloutNoStrategyDefaultValue))
 	}
 	{
 		rolloutNoScaleDownDelaySeconds := &v1alpha1.Rollout{
@@ -150,7 +179,7 @@ func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, DefaultScaleDownDelaySeconds, GetScaleDownDelaySecondsOrDefault(rolloutNoScaleDownDelaySeconds))
+		assert.Equal(t, time.Duration(DefaultScaleDownDelaySeconds)*time.Second, GetScaleDownDelaySecondsOrDefault(rolloutNoScaleDownDelaySeconds))
 	}
 	{
 		scaleDownDelaySeconds := int32(60)
@@ -163,7 +192,7 @@ func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, int32(0), GetScaleDownDelaySecondsOrDefault(canaryNoTrafficRouting))
+		assert.Equal(t, time.Duration(0), GetScaleDownDelaySecondsOrDefault(canaryNoTrafficRouting))
 	}
 	{
 		scaleDownDelaySeconds := int32(60)
@@ -177,7 +206,7 @@ func TestGetScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, scaleDownDelaySeconds, GetScaleDownDelaySecondsOrDefault(canaryWithTrafficRouting))
+		assert.Equal(t, time.Duration(scaleDownDelaySeconds)*time.Second, GetScaleDownDelaySecondsOrDefault(canaryWithTrafficRouting))
 	}
 }
 
@@ -193,7 +222,21 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, abortScaleDownDelaySeconds, GetAbortScaleDownDelaySecondsOrDefault(blueGreenNonDefaultValue))
+		assert.Equal(t, time.Duration(abortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(blueGreenNonDefaultValue))
+	}
+	{
+		// dont scale down preview
+		abortScaleDownDelaySeconds := int32(0)
+		blueGreenZeroValue := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					BlueGreen: &v1alpha1.BlueGreenStrategy{
+						AbortScaleDownDelaySeconds: &abortScaleDownDelaySeconds,
+					},
+				},
+			},
+		}
+		assert.Nil(t, GetAbortScaleDownDelaySecondsOrDefault(blueGreenZeroValue))
 	}
 	{
 		blueGreenDefaultValue := &v1alpha1.Rollout{
@@ -203,7 +246,7 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, DefaultAbortScaleDownDelaySeconds, GetAbortScaleDownDelaySecondsOrDefault(blueGreenDefaultValue))
+		assert.Equal(t, time.Duration(DefaultAbortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(blueGreenDefaultValue))
 	}
 	{
 		abortScaleDownDelaySeconds := int32(60)
@@ -217,11 +260,26 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, abortScaleDownDelaySeconds, GetAbortScaleDownDelaySecondsOrDefault(canaryNonDefaultValue))
+		assert.Equal(t, time.Duration(abortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(canaryNonDefaultValue))
+	}
+	{
+		// dont scale down canary
+		abortScaleDownDelaySeconds := int32(0)
+		canaryZeroValue := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{
+						AbortScaleDownDelaySeconds: &abortScaleDownDelaySeconds,
+						TrafficRouting:             &v1alpha1.RolloutTrafficRouting{},
+					},
+				},
+			},
+		}
+		assert.Nil(t, GetAbortScaleDownDelaySecondsOrDefault(canaryZeroValue))
 	}
 	{
 		rolloutNoStrategyDefaultValue := &v1alpha1.Rollout{}
-		assert.Equal(t, int32(0), GetAbortScaleDownDelaySecondsOrDefault(rolloutNoStrategyDefaultValue))
+		assert.Equal(t, time.Duration(0), *GetAbortScaleDownDelaySecondsOrDefault(rolloutNoStrategyDefaultValue))
 	}
 	{
 		canaryDefaultValue := &v1alpha1.Rollout{
@@ -233,8 +291,20 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, DefaultAbortScaleDownDelaySeconds, GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue))
+		assert.Equal(t, time.Duration(DefaultAbortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue))
 	}
+	{
+		// basic canary should not have scaledown delay seconds
+		canaryDefaultValue := &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{},
+				},
+			},
+		}
+		assert.Equal(t, time.Duration(0), *GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue))
+	}
+
 }
 
 func TestGetAutoPromotionEnabledOrDefault(t *testing.T) {

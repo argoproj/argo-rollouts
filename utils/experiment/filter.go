@@ -1,6 +1,8 @@
 package experiment
 
 import (
+	"sort"
+
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -70,7 +72,7 @@ func SortExperimentsByPodHash(exs []*v1alpha1.Experiment) map[string][]*v1alpha1
 // Note: It is okay to use pod hash for filtering since the experiments's pod hash is originally derived from the new RS.
 // Even if there is a library change during the lifetime of the experiments, the ReplicaSet's pod hash that the
 // experiments references does not change.
-func FilterExperimentsToDelete(exs []*v1alpha1.Experiment, olderRSs []*appsv1.ReplicaSet) []*v1alpha1.Experiment {
+func FilterExperimentsToDelete(exs []*v1alpha1.Experiment, olderRSs []*appsv1.ReplicaSet, limitSuccessful int32, limitUnsuccessful int32) []*v1alpha1.Experiment {
 	olderRsPodHashes := map[string]bool{}
 	for i := range olderRSs {
 		rs := olderRSs[i]
@@ -78,6 +80,10 @@ func FilterExperimentsToDelete(exs []*v1alpha1.Experiment, olderRSs []*appsv1.Re
 			olderRsPodHashes[podHash] = rs.DeletionTimestamp != nil
 		}
 	}
+	sort.Sort(sort.Reverse(ExperimentByCreationTimestamp(exs)))
+
+	var retainedSuccessful int32 = 0
+	var retainedUnsuccessful int32 = 0
 	exsToDelete := []*v1alpha1.Experiment{}
 	for i := range exs {
 		ex := exs[i]
@@ -99,6 +105,22 @@ func FilterExperimentsToDelete(exs []*v1alpha1.Experiment, olderRSs []*appsv1.Re
 		if ok && hasDeletionTimeStamp {
 			exsToDelete = append(exsToDelete, ex)
 			continue
+		}
+
+		if ex.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
+			if retainedSuccessful < limitSuccessful {
+				retainedSuccessful++
+			} else {
+				exsToDelete = append(exsToDelete, ex)
+			}
+		} else if ex.Status.Phase == v1alpha1.AnalysisPhaseFailed ||
+			ex.Status.Phase == v1alpha1.AnalysisPhaseError ||
+			ex.Status.Phase == v1alpha1.AnalysisPhaseInconclusive {
+			if retainedUnsuccessful < limitUnsuccessful {
+				retainedUnsuccessful++
+			} else {
+				exsToDelete = append(exsToDelete, ex)
+			}
 		}
 	}
 	return exsToDelete

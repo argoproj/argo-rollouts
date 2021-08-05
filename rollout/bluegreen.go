@@ -162,22 +162,24 @@ func (c *rolloutContext) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.S
 		return
 	}
 	pauseCond := getPauseCondition(c.rollout, v1alpha1.PauseReasonBlueGreenPause)
-	if pauseCond == nil && !c.rollout.Status.ControllerPause {
-		if pauseCond == nil {
-			c.log.Info("pausing")
-		}
-		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonBlueGreenPause)
-		return
-	}
-
-	if !c.pauseContext.CompletedBlueGreenPause() {
-		c.log.Info("pause incomplete")
-		if c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds > 0 {
-			c.checkEnqueueRolloutDuringWait(pauseCond.StartTime, c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds)
+	if pauseCond != nil {
+		// We are currently paused. Check if we completed our pause duration
+		if !c.pauseContext.CompletedBlueGreenPause() {
+			c.log.Info("pause incomplete")
+			if c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds > 0 {
+				c.checkEnqueueRolloutDuringWait(pauseCond.StartTime, c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds)
+			}
+		} else {
+			c.log.Infof("pause completed")
+			c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
 		}
 	} else {
-		c.log.Infof("pause completed")
-		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+		// no pause condition exists. If Status.ControllerPause is true, the user manually resumed
+		// the rollout. e.g. `kubectl argo rollouts promote ROLLOUT`
+		if !c.rollout.Status.ControllerPause {
+			c.log.Info("pausing")
+			c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+		}
 	}
 }
 
