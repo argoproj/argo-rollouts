@@ -188,7 +188,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 			}
 		}
 	}
-	return numVerifiedWeights == 1 + len(additionalDestinations), nil
+	return numVerifiedWeights == 1+len(additionalDestinations), nil
 }
 
 func calculatePatch(current *extensionsv1beta1.Ingress, desiredAnnotations map[string]string) ([]byte, bool, error) {

@@ -416,3 +416,113 @@ func TestSetWeightWithMultipleBackends(t *testing.T) {
 	assert.Equal(t, expectedAction, patchedI.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"])
 
 }
+
+func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
+	weightDestinations := []trafficrouting.WeightDestination{
+		{
+			ServiceName:     "ex-svc-1",
+			PodTemplateHash: "",
+			Weight:          2,
+		},
+		{
+			ServiceName:     "ex-svc-2",
+			PodTemplateHash: "",
+			Weight:          3,
+		},
+	}
+	newFakeReconciler := func() (*Reconciler, *fakeAWSClient) {
+		ro := fakeRollout("stable-svc", "canary-svc", "ingress", 443)
+		i := ingress("ingress", "stable-svc", "canary-svc", 443, 0, ro.Name)
+		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, "canary-svc", 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, "stable-svc", 443, 85)
+
+		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
+			Ingress: []corev1.LoadBalancerIngress{
+				{
+					Hostname: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
+				},
+			},
+		}
+
+		client := fake.NewSimpleClientset(i)
+		k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+			IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+			VerifyWeight:   pointer.BoolPtr(true),
+		})
+		assert.NoError(t, err)
+		fakeAWS := fakeAWSClient{}
+		r.aws = &fakeAWS
+		return r, &fakeAWS
+	}
+
+	// LoadBalancer found, but experiment weights not present
+	{
+		r, fakeClient := newFakeReconciler()
+		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
+			LoadBalancerArn: pointer.StringPtr("lb-abc123"),
+			DNSName:         pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+		}
+		fakeClient.targetGroups = []aws.TargetGroupMeta{
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				},
+				Weight: pointer.Int32Ptr(10),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+				},
+			},
+		}
+
+		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
+		assert.NoError(t, err)
+		assert.False(t, weightVerified)
+	}
+
+	// LoadBalancer found, with all necessary weights
+	{
+		r, fakeClient := newFakeReconciler()
+		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
+			LoadBalancerArn: pointer.StringPtr("lb-abc123"),
+			DNSName:         pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+		}
+		fakeClient.targetGroups = []aws.TargetGroupMeta{
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				},
+				Weight: pointer.Int32Ptr(10),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+				},
+			},
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				},
+				Weight: &weightDestinations[0].Weight,
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-1:443",
+				},
+			},
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				},
+				Weight: &weightDestinations[1].Weight,
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
+				},
+			},
+		}
+
+		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
+		assert.NoError(t, err)
+		assert.True(t, weightVerified)
+	}
+}
