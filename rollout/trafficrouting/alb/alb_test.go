@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -66,6 +68,8 @@ const actionTemplate = `{
 		]
 	}
 }`
+
+const actionTemplateWithExperiments = `{"Type":"forward","ForwardConfig":{"TargetGroups":[{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d}]}}`
 
 func albActionAnnotation(stable string) string {
 	return fmt.Sprintf("%s%s%s", ingressutil.ALBIngressAnnotation, ingressutil.ALBActionPrefix, stable)
@@ -367,4 +371,48 @@ func TestVerifyWeight(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, weightVerified)
 	}
+}
+
+func TestSetWeightWithMultipleBackends(t *testing.T) {
+	ro := fakeRollout("stable-svc", "canary-svc", "ingress", 443)
+	i := ingress("ingress", "stable-svc", "canary-svc", 443, 0, ro.Name)
+	client := fake.NewSimpleClientset(i)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+	})
+	assert.NoError(t, err)
+
+	weightDestinations := []trafficrouting.WeightDestination{
+		{
+			ServiceName:     "ex-svc-1",
+			PodTemplateHash: "",
+			Weight:          2,
+		},
+		{
+			ServiceName:     "ex-svc-2",
+			PodTemplateHash: "",
+			Weight:          3,
+		},
+	}
+	err = r.SetWeight(10, weightDestinations...)
+	assert.Nil(t, err)
+
+	actions := client.Actions()
+	assert.Len(t, client.Actions(), 1)
+	assert.Equal(t, "patch", actions[0].GetVerb())
+
+	patchedI := extensionsv1beta1.Ingress{}
+	err = json.Unmarshal(actions[0].(k8stesting.PatchAction).GetPatch(), &patchedI)
+	assert.Nil(t, err)
+
+	servicePort := 443
+	expectedAction := fmt.Sprintf(actionTemplateWithExperiments, "canary-svc", servicePort, 10, weightDestinations[0].ServiceName, servicePort, weightDestinations[0].Weight, weightDestinations[1].ServiceName, servicePort, weightDestinations[1].Weight, "stable-svc", servicePort, 85)
+	assert.Equal(t, expectedAction, patchedI.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"])
+
 }
