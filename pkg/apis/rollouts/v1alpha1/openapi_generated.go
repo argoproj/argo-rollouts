@@ -1027,6 +1027,13 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Format:      "int32",
 						},
 					},
+					"dynamicStableScale": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DynamicStableScale The scaling down of the stable version will be dynamic (the same as for basic canary). When true - each step the stable version will be scaled down respectively to the canary versions scale-up. If false - the stable version will always have 100 weight until canary will be fully upgraded. Default is false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

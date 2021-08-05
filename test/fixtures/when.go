@@ -549,7 +549,8 @@ func (w *When) WaitForVirtualServiceCondition(test func(vsvc *istio.VirtualServi
 			vsvcUn, ok := event.Object.(*unstructured.Unstructured)
 			if ok {
 				var vsvc istio.VirtualService
-				err = runtime.DefaultUnstructuredConverter.FromUnstructured(vsvcUn.Object, &vsvc)
+				err := runtime.DefaultUnstructuredConverter.FromUnstructured(vsvcUn.Object, &vsvc)
+				w.CheckError(err)
 				if test(&vsvc) {
 					w.log.Infof("Condition '%s' met after %v", condition, time.Since(start).Truncate(time.Second))
 					return w

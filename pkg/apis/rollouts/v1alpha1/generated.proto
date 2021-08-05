@@ -391,6 +391,13 @@ message CanaryStrategy {
   // Default is 30 seconds.
   // +optional
   optional int32 abortScaleDownDelaySeconds = 13;
+
+  // DynamicStableScale The scaling down of the stable version will be dynamic (the same as for basic canary).
+  // When true - each step the stable version will be scaled down respectively to the canary versions scale-up.
+  // If false - the stable version will always have 100 weight until canary will be fully upgraded.
+  // Default is false
+  // +optional
+  optional bool dynamicStableScale = 14;
 }
 
 // ClusterAnalysisTemplate holds the template for performing canary analysis

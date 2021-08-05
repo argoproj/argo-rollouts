@@ -792,6 +792,10 @@
           "type": "integer",
           "format": "int32",
           "title": "AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update\nis aborted for canary strategy with traffic routing (not applicable for basic canary).\n0 means canary pods are not scaled down.\nDefault is 30 seconds.\n+optional"
+        },
+        "dynamicStableScale": {
+          "type": "boolean",
+          "title": "DynamicStableScale The scaling down of the stable version will be dynamic (the same as for basic canary).\nWhen true - each step the stable version will be scaled down respectively to the canary versions scale-up.\nIf false - the stable version will always have 100 weight until canary will be fully upgraded.\nDefault is false\n+optional"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
