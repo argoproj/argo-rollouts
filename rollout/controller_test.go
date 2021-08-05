@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
-
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	"github.com/ghodss/yaml"
@@ -48,6 +46,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
