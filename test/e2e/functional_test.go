@@ -90,10 +90,12 @@ spec:
 		ExpectRevisionPodCount("2", 1).
 		ExpectRolloutEvents([]string{
 			"RolloutUpdated",       // Rollout updated to revision 1
-			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) with size 1
+			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-698fbfb9dc (revision 1)
+			"ScalingReplicaSet",    // Scaled up ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) from 0 to 1
 			"RolloutCompleted",     // Rollout completed update to revision 1 (698fbfb9dc): Initial deploy
 			"RolloutUpdated",       // Rollout updated to revision 2
-			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) with size 1
+			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2)
+			"ScalingReplicaSet",    // Scaled up ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) from 0 to 1
 			"RolloutStepCompleted", // Rollout step 1/2 completed (setWeight: 50)
 			"RolloutPaused",        // Rollout is paused (CanaryPauseStep)
 			"ScalingReplicaSet",    // Scaled down ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) from 1 to 0
@@ -696,11 +698,13 @@ func (s *FunctionalSuite) TestBlueGreenUpdate() {
 		ExpectReplicaCounts(3, 6, 3, 3, 3).
 		ExpectRolloutEvents([]string{
 			"RolloutUpdated",       // Rollout updated to revision 1
-			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-7dcd8f8869 (revision 1) with size 3
+			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-7dcd8f8869 (revision 1)
+			"ScalingReplicaSet",    // Scaled up ReplicaSet bluegreen-7dcd8f8869 (revision 1) from 0 to 3
 			"RolloutCompleted",     // Rollout completed update to revision 1 (7dcd8f8869): Initial deploy
 			"SwitchService",        // Switched selector for service 'bluegreen' from '' to '7dcd8f8869'
 			"RolloutUpdated",       // Rollout updated to revision 2
-			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-5498785cd6 (revision 2) with size 3
+			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-5498785cd6 (revision 2)
+			"ScalingReplicaSet",    // Scaled up ReplicaSet bluegreen-5498785cd6 (revision 2) from 0 to 3
 			"SwitchService",        // Switched selector for service 'bluegreen' from '7dcd8f8869' to '6c779b88b6'
 			"RolloutCompleted",     // Rollout completed update to revision 2 (6c779b88b6): Completed blue-green update
 		})
