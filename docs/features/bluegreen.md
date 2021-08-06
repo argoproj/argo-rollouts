@@ -68,6 +68,25 @@ spec:
       scaleDownDelayRevisionLimit: *int32
 ```
 
+## Sequence of Events
+
+The following describes the sequence of events that happen during a blue-green update.
+
+1. Beginning at a fully promoted, steady-state, a revision 1 ReplicaSet is pointed to by both the `activeService` and `previewService`.
+1. A user initiates an update by modifying the pod template (`spec.template.spec`).
+1. The revision 2 ReplicaSet is created with size 0.
+1. The preview service is modified to point to the revision 2 ReplicaSet. The `activeService` remains pointing to revision 1.
+1. The revision 2 ReplicaSet is scaled to either `spec.replicas` or `previewReplicaCount` if set.
+1. Once revision 2 ReplicaSet Pods are fully available, `prePromotionAnalysis` begins.
+1. Upon success of `prePromotionAnalysis`, the blue/green pauses if `autoPromotionEnabled` is false, or `autoPromotionSeconds` is non-zero.
+1. The rollout is resumed either manually by a user, or automatically by surpassing `autoPromotionSeconds`.
+1. The revision 2 ReplicaSet is scaled to the `spec.replicas`, if the `previewReplicaCount` feature was used.
+1. The rollout "promotes" the revision 2 ReplicaSet by updating the `activeService` to point to it. At this point, there are no services pointing to revision 1
+1. `postPromotionAnalysis` analysis begins
+1. Once `postPromotionAnalysis` completes successfully, the update is successful and the revision 2 ReplicaSet is marked as stable. The rollout is considered fully-promoted.
+1. After waiting `scaleDownDelaySeconds` (default 30 seconds), the revision 1 ReplicaSet is scaled down 
+
+
 ### autoPromotionEnabled
 The AutoPromotionEnabled will make the rollout automatically promote the new ReplicaSet to the active service once the new ReplicaSet is healthy. This field is defaulted to true if it is not specified.
 
@@ -111,15 +130,6 @@ This feature is used to provide an endpoint that can be used to test a new versi
 
 Defaults to an empty string
 
-Here is a timeline of how the active and preview services work (if you use a preview service):
-
-1. During the Initial deployment there is only one ReplicaSet. Both active and preview services point to it. This is the **old** version of the application.
-1. A change happens in the Rollout resource. A new ReplicaSet is created. This is the **new** version of the application. The preview service is modified to point to the new ReplicaSet. The active service still points to the old version.
-1. The blue/green deployment is "promoted". Both active and preview services are pointing to the new version. The old version is still there but no service is pointing at it.
-1. Once the the blue/green deployment is scaled down (see the `scaleDownDelaySeconds` field) the old ReplicaSet is has 0 replicas and we are back to the initial state. Both active and preview services point to the new version (which is the only one present anyway)
-
-
-
 ### previewReplicaCount
 The PreviewReplicaCount field will indicate the number of replicas that the new version of an application should run.  Once the application is ready to promote to the active service, the controller will scale the new ReplicaSet to the value of the `spec.replicas`. The rollout will not switch over the active service to the new ReplicaSet until it matches the `spec.replicas` count.
 
@@ -136,3 +146,4 @@ Defaults to 30
 The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. 
 
 If omitted, all ReplicaSets will be retained for the specified scaleDownDelay
+

@@ -159,13 +159,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 			Template:        newRSTemplate,
 		},
 	}
-	allRSs := append(c.allRSs, newRS)
-	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, allRSs, newRS)
-	if err != nil {
-		return nil, err
-	}
-
-	newRS.Spec.Replicas = pointer.Int32Ptr(newReplicasCount)
+	newRS.Spec.Replicas = pointer.Int32Ptr(0)
 	// Set new replica set's annotation
 	annotations.SetNewReplicaSetAnnotations(c.rollout, newRS, newRevision, false)
 
@@ -250,12 +244,10 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		return nil, err
 	}
 
-	if !alreadyExists && newReplicasCount > 0 {
-		revision, _ := replicasetutil.Revision(createdRS)
-		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.NewReplicaSetReason}, conditions.NewReplicaSetDetailedMessage, createdRS.Name, revision, newReplicasCount)
-	}
-
 	if !alreadyExists {
+		revision, _ := replicasetutil.Revision(createdRS)
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.NewReplicaSetReason}, conditions.NewReplicaSetDetailedMessage, createdRS.Name, revision)
+
 		msg := fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name)
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewReplicaSetReason, msg)
 		conditions.SetRolloutCondition(&c.rollout.Status, *condition)
