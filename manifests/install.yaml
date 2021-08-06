@@ -9745,8 +9745,6 @@ spec:
             type: object
           spec:
             properties:
-              abortExceedProgressDeadline:
-                type: boolean
               analysis:
                 properties:
                   successfulRunHistoryLimit:
@@ -9760,6 +9758,8 @@ spec:
                 format: int32
                 type: integer
               paused:
+                type: boolean
+              progressDeadlineAbort:
                 type: boolean
               progressDeadlineSeconds:
                 format: int32

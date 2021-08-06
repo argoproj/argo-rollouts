@@ -118,13 +118,6 @@ func GetExperimentProgressDeadlineSecondsOrDefault(e *v1alpha1.Experiment) int32
 	return DefaultProgressDeadlineSeconds
 }
 
-func GetAbortExceedProgressDeadlineOrDefault(rollout *v1alpha1.Rollout) bool {
-	if rollout.Spec.AbortExceedProgressDeadline != nil {
-		return *rollout.Spec.AbortExceedProgressDeadline
-	}
-	return DefaultAbortExceedProgressDeadline
-}
-
 func GetExperimentScaleDownDelaySecondsOrDefault(e *v1alpha1.Experiment) int32 {
 	if e.Spec.ScaleDownDelaySeconds != nil {
 		return *e.Spec.ScaleDownDelaySeconds

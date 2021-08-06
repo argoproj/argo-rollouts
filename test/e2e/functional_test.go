@@ -925,7 +925,7 @@ spec:
 		WaitForRolloutStatus("Healthy").
 		PatchSpec(`
 spec:
-  abortExceedProgressDeadline: false
+  progressDeadlineAbort: false
   progressDeadlineSeconds: 1
   template:
     spec:
@@ -940,7 +940,7 @@ spec:
 		When().
 		PatchSpec(`
 spec:
-  abortExceedProgressDeadline: true
+  progressDeadlineAbort: true
   progressDeadlineSeconds: 1
   template:
     spec:
