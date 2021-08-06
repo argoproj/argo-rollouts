@@ -25,6 +25,12 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return err
 	}
 
+	// This must happen right after the new replicaset is created
+	err = c.reconcilePreviewService(previewSvc)
+	if err != nil {
+		return err
+	}
+
 	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) {
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 	}
@@ -35,11 +41,6 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 	}
 
 	err = c.reconcileBlueGreenReplicaSets(activeSvc)
-	if err != nil {
-		return err
-	}
-
-	err = c.reconcilePreviewService(previewSvc)
 	if err != nil {
 		return err
 	}

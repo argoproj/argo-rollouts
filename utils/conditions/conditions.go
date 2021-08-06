@@ -52,7 +52,7 @@ const (
 	//NewReplicaSetMessage is added in a rollout when it creates a new replicas set.
 	NewReplicaSetMessage = "Created new replica set %q"
 	// NewReplicaSetDetailedMessage is a more detailed format message
-	NewReplicaSetDetailedMessage = "Created ReplicaSet %s (revision %d) with size %d"
+	NewReplicaSetDetailedMessage = "Created ReplicaSet %s (revision %d)"
 
 	// FoundNewRSReason is added in a rollout when it adopts an existing replica set.
 	FoundNewRSReason = "FoundNewReplicaSet"
