@@ -1811,6 +1811,10 @@ kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/rele
 <p>This will create a new namespace, <code>argo-rollouts</code>, where Argo Rollouts controller will run.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
+<p>If you are using another namspace name, please update <code>install.yall</code> clusterrolebinding's serviceaccount namespace name.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
 <p>When installing Argo Rollouts on Kubernetes v1.14 or lower, the CRD manifests must be kubectl applied with the --validate=false option. This is caused by use of new CRD fields introduced in v1.15, which are rejected by default in lower API servers.</p>
 </div>
 <div class="admonition tip">
