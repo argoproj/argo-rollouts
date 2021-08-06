@@ -116,7 +116,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		// Checks for experiment step
 		// If current experiment exists, then create WeightDestinations for each experiment template
 		exStep := replicasetutil.GetCurrentExperimentStep(c.rollout)
-		if exStep != nil && c.currentEx != nil && c.currentEx.Status.Phase == v1alpha1.AnalysisPhaseSuccessful {
+		if exStep != nil && c.currentEx != nil && c.currentEx.Status.Phase == v1alpha1.AnalysisPhaseRunning {
 			getTemplateWeight := func(name string) *int32 {
 				for _, tmpl := range exStep.Templates {
 					if tmpl.Name == name {
@@ -127,13 +127,11 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 			for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
 				templateWeight := getTemplateWeight(templateStatus.Name)
-				if templateStatus.Status == v1alpha1.TemplateStatusRunning  {
-					weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
-						ServiceName:     templateStatus.ServiceName,
-						PodTemplateHash: templateStatus.PodTemplateHash,
-						Weight:          *templateWeight,
-					})
-				}
+				weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
+					ServiceName:     templateStatus.ServiceName,
+					PodTemplateHash: templateStatus.PodTemplateHash,
+					Weight:          *templateWeight,
+				})
 			}
 		}
 	}
