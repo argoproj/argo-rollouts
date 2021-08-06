@@ -29,12 +29,12 @@ type VirtualServiceTLSRoute struct {
 
 // TLSMatchAttributes is the route matcher for a TLS route in a VirtualService
 type TLSMatchAttributes struct {
-	SNI                []string          `json:"sni_hosts,omitempty"`
-	DestinationSubnets []string          `json:"destination_subnets,omitempty"`
+	SNI                []string          `json:"sniHosts,omitempty"`
+	DestinationSubnets []string          `json:"destinationSubnets,omitempty"`
 	Port               int64             `json:"port,omitempty"`
-	SourceLabels       map[string]string `json:"source_labels,omitempty"`
+	SourceLabels       map[string]string `json:"sourceLabels,omitempty"`
 	Gateways           []string          `json:"gateways,omitempty"`
-	SourceNamespace    string            `json:"source_namespace,omitempty"`
+	SourceNamespace    string            `json:"sourceNamespace,omitempty"`
 }
 
 // VirtualServiceRouteDestination is a destination within

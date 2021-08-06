@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/dynamic/dynamiclister"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	evalUtils "github.com/argoproj/argo-rollouts/utils/evaluate"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -112,7 +113,7 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHT
 
 	// err can be ignored because we already called ValidateHTTPRoutes earlier
 	httpRouteIndexesToPatch, _ := getHttpRouteIndexesToPatch(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes, httpRoutes)
-	tlsRouteIndexesToPatch, _ := getTlsRouteIndexesToPatch(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TlsRoutes, tlsRoutes)
+	tlsRouteIndexesToPatch, _ := getTlsRouteIndexesToPatch(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes, tlsRoutes)
 
 	patches := virtualServicePatches{}
 	svcSubsets := svcSubsets{
@@ -572,7 +573,7 @@ func getHttpRouteIndexesToPatch(routeNames []string, httpRoutes []VirtualService
 		routeIndex := searchHttpRoute(routeName, httpRoutes)
 		if routeIndex > -1 {
 			routeIndexesToPatch = append(routeIndexesToPatch, routeIndex)
-		} else if routeIndex < 0 {
+		} else {
 			return nil, fmt.Errorf("HTTP Route '%s' is not found in the defined Virtual Service.", routeName)
 		}
 	}
@@ -591,37 +592,60 @@ func searchHttpRoute(routeName string, httpRoutes []VirtualServiceHTTPRoute) int
 }
 
 // getTlsRouteIndexesToPatch returns array indices of the tlsRoutes which need to be patched when updating weights
-func getTlsRouteIndexesToPatch(routePorts []int64, tlsRoutes []VirtualServiceTLSRoute) ([]int, error) {
-	if len(routePorts) == 0 {
+func getTlsRouteIndexesToPatch(tlsRoutes []v1alpha1.TLSRoute, istioTlsRoutes []VirtualServiceTLSRoute) ([]int, error) {
+	if len(tlsRoutes) == 0 {
 		return []int{0}, nil
 	}
 
 	var routeIndexesToPatch []int
-	for _, routePort := range routePorts {
-		routeIndex := searchTlsRoute(routePort, tlsRoutes)
-		if routeIndex > -1 {
-			routeIndexesToPatch = append(routeIndexesToPatch, routeIndex)
-		} else if routeIndex < 0 {
-			return nil, fmt.Errorf("TLS Route '%d' is not found in the defined Virtual Service.", routePort)
+	for _, tlsRoute := range tlsRoutes {
+		routeIndices := searchTlsRoute(tlsRoute, istioTlsRoutes)
+		if len(routeIndices) > 0 {
+			for _, routeIndex := range routeIndices {
+				routeIndexesToPatch = append(routeIndexesToPatch, routeIndex)
+			}
+		} else {
+			return nil, fmt.Errorf("No matching TLS routes found in the defined Virtual Service.")
 		}
 	}
 	return routeIndexesToPatch, nil
 }
 
-func searchTlsRoute(routePort int64, tlsRoutes []VirtualServiceTLSRoute) int {
-	routeIndex := -1
-	for i, route := range tlsRoutes {
+func searchTlsRoute(tlsRoute v1alpha1.TLSRoute, istioTlsRoutes []VirtualServiceTLSRoute) []int {
+	routeIndices := []int{}
+	for i, route := range istioTlsRoutes {
+		portsMap := make(map[int64]bool)
+		sniHostsMap := make(map[string]bool)
 		for _, routeMatch := range route.Match {
-			if routeMatch.Port == routePort {
-				routeIndex = i
-				break
+			portsMap[routeMatch.Port] = true
+			for _, sniHost := range routeMatch.SNI {
+				sniHostsMap[sniHost] = true
 			}
 		}
-		if routeIndex > -1 {
-			break
+		// If there are multiple ports defined then this rules is never gonna match.
+		if len(portsMap) > 1 {
+			continue
+		}
+		// Extract the first port number from the `portsMap` if it has more than
+		// zero ports in it.
+		var port int64 = 0
+		for portNumber := range portsMap {
+			port = portNumber
+		}
+		sniHosts := []string{}
+		for sniHostName := range sniHostsMap {
+			sniHosts = append(sniHosts, sniHostName)
+		}
+		// To find a match for TLS Routes in Istio VS, we'll have to verify that:
+		// 1. There is exactly one port present in the `ports`;
+		// 2. The single port in `ports` matches with the `tlsRoute.Port`;
+		// 3. All the SNI hosts from a single match block in the VirtualService,
+		//    matches exactly with what the user have defined in `tlsRoute.SNIHosts`
+		if port == tlsRoute.Port && evalUtils.Equal(tlsRoute.SNIHosts, sniHosts) {
+			routeIndices = append(routeIndices, i)
 		}
 	}
-	return routeIndex
+	return routeIndices
 }
 
 // validateHTTPRoutes ensures that all the routes in the rollout exist and they only have two destinations
@@ -651,7 +675,7 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, tlsRoutes []VirtualServiceTLSRoute) 
 	stableSvc := r.Spec.Strategy.Canary.StableService
 	canarySvc := r.Spec.Strategy.Canary.CanaryService
 
-	routeIndexesToPatch, err := getTlsRouteIndexesToPatch(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TlsRoutes, tlsRoutes)
+	routeIndexesToPatch, err := getTlsRouteIndexesToPatch(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes, tlsRoutes)
 	if err != nil {
 		return err
 	}
@@ -662,7 +686,7 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, tlsRoutes []VirtualServiceTLSRoute) 
 			return err
 		}
 	}
-	if len(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TlsRoutes) == 0 && len(tlsRoutes) > 1 {
+	if len(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes) == 0 && len(tlsRoutes) > 1 {
 		return fmt.Errorf("spec.tls[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes")
 	}
 	return nil

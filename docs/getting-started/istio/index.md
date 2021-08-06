@@ -38,14 +38,21 @@ spec:
             - http-primary
             # Optional if there is a single HTTPS/TLS route in the VirtualService, otherwise required
             tlsRoutes:
-            - 3000
+            # Below fields are optional but if defined, they should match exactly with at least one of the TLS route match rules in your VirtualService
+            - port: 443 # Only required if you want to match any rule in your VirtualService which contains this port
+              # Only required if you want to match any rule in your VirtualService which contain all these SNI hosts
+              sniHosts:
+              - reviews.bookinfo.com
+              - localhost
 ...
 ```
 
 The VirtualService and route referenced in `trafficRouting.istio.virtualService` is required
 to have either an HTTP or a TLS route spec that splits between the stable and the canary services,
-referenced in the rollout. If the route is of type HTTPS/TLS, then we specify its port number
-as the unique identifier.
+referenced in the rollout. If the route is of type HTTPS/TLS, then we can match it based on the
+given port number and/or SNI hosts. Note that both of them are optional and only needed if you
+want to match any rule in your VirtualService which contain these.
+
 In this guide, the two services are named: `rollouts-demo-stable` and `rollouts-demo-canary`
 respectively. The weight values for these services used should be initially set to 100% stable,
 and 0% on the canary. During an update, these values will be modified by the controller.
@@ -72,6 +79,9 @@ spec:
   tls:
   - match:
     - port: 3000  # Should match the port number of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
+      sniHosts: # Should match all the SNI hosts of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
+      - reviews.bookinfo.com
+      - localhost
     route:
     - destination:
         host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
@@ -163,6 +173,9 @@ spec:
   tls:
   - match:
     - port: 3000
+      sniHosts:
+      - reviews.bookinfo.com
+      - localhost
     route:
     - destination:
         host: rollouts-demo-stable

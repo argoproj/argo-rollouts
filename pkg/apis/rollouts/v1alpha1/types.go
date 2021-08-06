@@ -374,10 +374,18 @@ type IstioTrafficRouting struct {
 type IstioVirtualService struct {
 	// Name holds the name of the VirtualService
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	// A list of HTTP routes within VirtualService to edit. If omitted, VirtualService must have a single route of any type.
+	// A list of HTTP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
 	Routes []string `json:"routes,omitempty" protobuf:"bytes,2,rep,name=routes"`
-	// A list of TLS/HTTPS routes (port numbers) within VirtualService to edit. If omitted, VirtualService must have a single route of any type.
-	TlsRoutes []int64 `json:"tlsRoutes,omitempty" protobuf:"bytes,3,rep,name=tlsRoutes"`
+	// A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
+	TLSRoutes []TLSRoute `json:"tlsRoutes,omitempty" protobuf:"bytes,3,rep,name=tlsRoutes"`
+}
+
+// TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.
+type TLSRoute struct {
+	// Port number of the TLS Route desired to be matched in the given Istio VirtualService.
+	Port int64 `json:"port,omitempty" protobuf:"bytes,1,opt,name=port"`
+	// A list of all the SNI Hosts of the TLS Route desired to be matched in the given Istio VirtualService.
+	SNIHosts []string `json:"sniHosts,omitempty" protobuf:"bytes,2,rep,name=sniHosts"`
 }
 
 // IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic
