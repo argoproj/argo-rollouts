@@ -48,6 +48,7 @@ func TestQuery(t *testing.T) {
 		expectedResult *float64
 		expectedErr    error
 		body           string
+		responseCode   int
 	}{{
 		"ok",
 		"target=sumSeries(app.http.*.*.count)&from=-2min",
@@ -82,6 +83,7 @@ func TestQuery(t *testing.T) {
 				}
 			}
 		]`,
+		200,
 	}, {
 		"graphite response body with invalid JSON",
 		"target=sumSeries(app.http.*.*.count)&from=-2min",
@@ -90,30 +92,53 @@ func TestQuery(t *testing.T) {
 		nil,
 		errors.New("invalid character 'i' looking for beginning of value"),
 		"invalid JSON",
+		200,
+	}, {
+		"400 graphite response status",
+		"target=sumSeries(app.http.*.*.count)&from=-2min",
+		"sumSeries(app.http.*.*.count)",
+		"-2min",
+		nil,
+		errors.New("error response: foo"),
+		"foo",
+		400,
+	}, {
+		"500 graphite response status",
+		"target=sumSeries(app.http.*.*.count)&from=-2min",
+		"sumSeries(app.http.*.*.count)",
+		"-2min",
+		nil,
+		errors.New("error response: bar"),
+		"bar",
+		500,
 	}}
 
 	for _, test := range tests {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			target := r.URL.Query().Get("target")
-			assert.Equal(t, test.expectedTarget, target)
+		t.Run(test.name, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				target := r.URL.Query().Get("target")
+				assert.Equal(t, test.expectedTarget, target)
 
-			from := r.URL.Query().Get("from")
-			assert.Equal(t, test.expectedFrom, from)
+				from := r.URL.Query().Get("from")
+				assert.Equal(t, test.expectedFrom, from)
 
-			json := test.body
-			w.Write([]byte(json))
-		}))
-		defer ts.Close()
+				w.WriteHeader(test.responseCode)
 
-		g, err := NewAPIClient(testGraphiteMetric(ts.URL), log.Entry{})
-		assert.Nil(t, err)
+				json := test.body
+				w.Write([]byte(json))
+			}))
+			defer ts.Close()
 
-		val, err := g.Query(test.query)
-		if test.expectedErr != nil {
-			assert.Equal(t, err.Error(), test.expectedErr.Error())
-		} else {
+			g, err := NewAPIClient(testGraphiteMetric(ts.URL), log.Entry{})
 			assert.Nil(t, err)
-		}
-		assert.Equal(t, test.expectedResult, val)
+
+			val, err := g.Query(test.query)
+			if test.expectedErr != nil {
+				assert.Equal(t, err.Error(), test.expectedErr.Error())
+			} else {
+				assert.Nil(t, err)
+			}
+			assert.Equal(t, test.expectedResult, val)
+		})
 	}
 }
