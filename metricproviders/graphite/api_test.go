@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -38,19 +39,22 @@ func TestNewAPIWithInvalidURL(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
+	goodResult := float64(100)
 	tests := []struct {
 		name           string
 		query          string
 		expectedTarget string
 		expectedFrom   string
-		expectedResult float64
+		expectedResult *float64
+		expectedErr    error
 		body           string
 	}{{
 		"ok",
 		"target=sumSeries(app.http.*.*.count)&from=-2min",
 		"sumSeries(app.http.*.*.count)",
 		"-2min",
-		float64(100),
+		&goodResult,
+		nil,
 		`[
 			{
 				"datapoints": [
@@ -78,6 +82,14 @@ func TestQuery(t *testing.T) {
 				}
 			}
 		]`,
+	}, {
+		"graphite response body with invalid JSON",
+		"target=sumSeries(app.http.*.*.count)&from=-2min",
+		"sumSeries(app.http.*.*.count)",
+		"-2min",
+		nil,
+		errors.New("invalid character 'i' looking for beginning of value"),
+		"invalid JSON",
 	}}
 
 	for _, test := range tests {
@@ -97,7 +109,11 @@ func TestQuery(t *testing.T) {
 		assert.Nil(t, err)
 
 		val, err := g.Query(test.query)
-		assert.Nil(t, err)
-		assert.Equal(t, &test.expectedResult, val)
+		if test.expectedErr != nil {
+			assert.Equal(t, err.Error(), test.expectedErr.Error())
+		} else {
+			assert.Nil(t, err)
+		}
+		assert.Equal(t, test.expectedResult, val)
 	}
 }
