@@ -56,6 +56,10 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 
 	value, err := p.api.Query(metric.Provider.Graphite.Query)
+	if err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	}
+
 	if value == nil {
 		return metricutil.MarkMeasurementError(newMeasurement, errors.New("no values found"))
 	}
