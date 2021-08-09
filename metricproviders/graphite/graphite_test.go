@@ -78,6 +78,28 @@ func TestRunErrorEvaluationFromErrorQueryResponse(t *testing.T) {
 	assert.Equal(t, "some err", measurement.Message)
 }
 
+func TestResume(t *testing.T) {
+	response := 1.000
+	e := log.NewEntry(log.New())
+	g := NewGraphiteProvider(newMockAPI(&response, nil), *e)
+	metric := newTestingMetric()
+	analysisRun := &v1alpha1.AnalysisRun{}
+	measurement := g.Run(analysisRun, metric)
+	m := g.Resume(nil, metric, measurement)
+	assert.Equal(t, m, measurement)
+}
+
+func TestTerminate(t *testing.T) {
+	response := 1.000
+	e := log.NewEntry(log.New())
+	g := NewGraphiteProvider(newMockAPI(&response, nil), *e)
+	metric := newTestingMetric()
+	analysisRun := &v1alpha1.AnalysisRun{}
+	measurement := g.Run(analysisRun, metric)
+	m := g.Terminate(nil, metric, measurement)
+	assert.Equal(t, m, measurement)
+}
+
 func TestGarbageCollect(t *testing.T) {
 	response := 1.000
 	g := NewGraphiteProvider(newMockAPI(&response, nil), log.Entry{})
