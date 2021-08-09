@@ -57,6 +57,29 @@ func TestRunFailedEvaluation(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, measurement.Phase)
 }
 
+func TestRunMeasurementError(t *testing.T) {
+	metric := v1alpha1.Metric{
+		Name: "foo",
+		// Malformed Success and Failure Conditions
+		SuccessCondition: "result 10.000",
+		FailureCondition: "result 10.000",
+		Provider: v1alpha1.MetricProvider{
+			Graphite: &v1alpha1.GraphiteMetric{
+				Address: "http://some-graphite.foo",
+				Query:   "foo=1",
+			},
+		},
+	}
+	response := 10.000
+	g := NewGraphiteProvider(newMockAPI(&response, nil), log.Entry{})
+	measurement := g.Run(&v1alpha1.AnalysisRun{}, metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "10.000", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
+	assert.Equal(t, "unexpected token Number(\"10.000\")", measurement.Message)
+}
+
 func TestRunErrorEvaluationFromNilQueryResponse(t *testing.T) {
 	g := NewGraphiteProvider(newMockAPI(nil, nil), log.Entry{})
 	measurement := g.Run(&v1alpha1.AnalysisRun{}, newTestingMetric())
