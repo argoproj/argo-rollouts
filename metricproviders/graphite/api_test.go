@@ -121,7 +121,7 @@ func TestQuery(t *testing.T) {
 		"",
 		200,
 	}, {
-		"graphite returns data point JSON with only one item",
+		"graphite response data point JSON with only one item",
 		"target=sumSeries(app.http.*.*.count)&from=-2min",
 		"sumSeries(app.http.*.*.count)",
 		"-2min",
@@ -139,6 +139,101 @@ func TestQuery(t *testing.T) {
 					"aggregatedBy": "sum",
 					"name": "sumSeries(app.http.*.*.count)"
 				}
+			}
+		]`,
+		200,
+	}, {
+		"graphite response data point JSON with an invalid timestamp",
+		"target=sumSeries(app.http.*.*.count)&from=-2min",
+		"sumSeries(app.http.*.*.count)",
+		"-2min",
+		nil,
+		errors.New("strconv.ParseInt: parsing \"f\": invalid syntax"),
+		`[
+			{
+				"datapoints": [
+					[
+						100,
+						"f"
+					]
+				],
+				"target": "sumSeries(app.http.*.*.count)"
+			}
+		]`,
+		200,
+	}, {
+		"graphite response data point JSON with a string value",
+		"target=sumSeries(app.http.*.*.count)&from=-2min",
+		"sumSeries(app.http.*.*.count)",
+		"-2min",
+		&goodResult,
+		nil,
+		`[
+			{
+				"datapoints": [
+					[
+						"100",
+						1621348420
+					]
+				],
+				"target": "sumSeries(app.http.*.*.count)"
+			}
+		]`,
+		200,
+	}, {
+		"graphite response data point JSON triggers unmarshaling error",
+		"target=sumSeries(app.http.*.*.count)&from=-2min",
+		"sumSeries(app.http.*.*.count)",
+		"-2min",
+		nil,
+		errors.New("error unmarshaling value: []"),
+		`[
+			{
+				"datapoints": [
+					[
+						[],
+						1621348420
+					]
+				],
+				"target": "sumSeries(app.http.*.*.count)"
+			}
+		]`,
+		200,
+	}, {
+		"graphite response data point JSON with a string timestamp",
+		"target=sumSeries(app.http.*.*.count)&from=-2min",
+		"sumSeries(app.http.*.*.count)",
+		"-2min",
+		&goodResult,
+		nil,
+		`[
+			{
+				"datapoints": [
+					[
+						100,
+						"1621348420"
+					]
+				],
+				"target": "sumSeries(app.http.*.*.count)"
+			}
+		]`,
+		200,
+	}, {
+		"graphite response data point timestamp JSON triggers unmarshaling error",
+		"target=sumSeries(app.http.*.*.count)&from=-2min",
+		"sumSeries(app.http.*.*.count)",
+		"-2min",
+		nil,
+		errors.New("error unmarshaling timestamp: 100"),
+		`[
+			{
+				"datapoints": [
+					[
+						100,
+						[]
+					]
+				],
+				"target": "sumSeries(app.http.*.*.count)"
 			}
 		]`,
 		200,
