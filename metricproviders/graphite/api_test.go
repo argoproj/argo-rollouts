@@ -120,6 +120,28 @@ func TestQuery(t *testing.T) {
 		errors.New("parse \"./render?target=#$%^&*(proper$#$%%^(password&from=-2min\": invalid URL escape \"%^&\""),
 		"",
 		200,
+	}, {
+		"graphite returns data point JSON with only one item",
+		"target=sumSeries(app.http.*.*.count)&from=-2min",
+		"sumSeries(app.http.*.*.count)",
+		"-2min",
+		nil,
+		errors.New("error unmarshaling data point: [10]"),
+		`[
+			{
+				"datapoints": [
+					[
+						10
+					]
+				],
+				"target": "sumSeries(app.http.*.*.count)",
+				"tags": {
+					"aggregatedBy": "sum",
+					"name": "sumSeries(app.http.*.*.count)"
+				}
+			}
+		]`,
+		200,
 	}}
 
 	for _, test := range tests {
