@@ -111,6 +111,15 @@ func TestQuery(t *testing.T) {
 		errors.New("error response: bar"),
 		"bar",
 		500,
+	}, {
+		"invalid query",
+		"target=#$%^&*(proper$#$%%^(password&from=-2min",
+		"#$%^&*(proper$#$%%^(password",
+		"-2min",
+		nil,
+		errors.New("parse \"./render?target=#$%^&*(proper$#$%%^(password&from=-2min\": invalid URL escape \"%^&\""),
+		"",
+		200,
 	}}
 
 	for _, test := range tests {
