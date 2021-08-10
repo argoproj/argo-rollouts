@@ -3,6 +3,7 @@ package metricproviders
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
 	"github.com/argoproj/argo-rollouts/metricproviders/newrelic"
 	"github.com/argoproj/argo-rollouts/metricproviders/wavefront"
 
@@ -77,6 +78,12 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 			return nil, err
 		}
 		return newrelic.NewNewRelicProvider(client, logCtx), nil
+	case graphite.ProviderType:
+		client, err := graphite.NewAPIClient(metric, logCtx)
+		if err != nil {
+			return nil, err
+		}
+		return graphite.NewGraphiteProvider(client, logCtx), nil
 	default:
 		return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
 	}
