@@ -7,13 +7,11 @@ spec:
     canary:
       steps:
       - setWeight: 10
-      - analysis:
-          templates:
-          - templateName: sleep-job
       - pause: {}
       - analysis:
           templates:
           - templateName: sleep-job
+      - pause: {}
       - analysis:
           templates:
           - templateName: sleep-job

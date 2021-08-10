@@ -74,14 +74,18 @@ func (s *AnalysisSuite) TestCanaryInlineAnalysis() {
 		When().
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
+		PromoteRollout().
+		Sleep(5 * time.Second).
 		Then().
 		ExpectAnalysisRunCount(1).
+		ExpectInlineAnalysisRunPhase("Running").
 		When().
 		WaitForInlineAnalysisRunPhase("Successful").
+		WaitForRolloutStatus("Paused").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectAnalysisRunCount(3)
+		ExpectAnalysisRunCount(2)
 }
 
 // TestBlueGreenAnalysis tests blue-green with pre/post analysis and then fast-tracked rollback
