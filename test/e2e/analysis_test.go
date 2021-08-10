@@ -25,6 +25,7 @@ func (s *AnalysisSuite) SetupSuite() {
 	// shared analysis templates for suite
 	s.ApplyManifests("@functional/analysistemplate-web-background.yaml")
 	s.ApplyManifests("@functional/analysistemplate-sleep-job.yaml")
+	s.ApplyManifests("@functional/analysistemplate-multiple-job.yaml")
 }
 
 // convenience to generate a new service with a given name
@@ -74,6 +75,27 @@ func (s *AnalysisSuite) TestCanaryInlineAnalysis() {
 		When().
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectAnalysisRunCount(1).
+		When().
+		WaitForInlineAnalysisRunPhase("Successful").
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(3)
+}
+
+func (s *AnalysisSuite) TestCanaryInlineMultipleAnalysis() {
+	s.Given().
+		RolloutObjects("@functional/rollout-inline-multiple-analysis.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
 		PromoteRollout().
 		Sleep(5 * time.Second).
 		Then().
@@ -81,13 +103,10 @@ func (s *AnalysisSuite) TestCanaryInlineAnalysis() {
 		ExpectInlineAnalysisRunPhase("Running").
 		When().
 		WaitForInlineAnalysisRunPhase("Successful").
-		WaitForRolloutStatus("Paused").
-		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectAnalysisRunCount(2)
+		ExpectAnalysisRunCount(1)
 }
-
 // TestBlueGreenAnalysis tests blue-green with pre/post analysis and then fast-tracked rollback
 func (s *AnalysisSuite) TestBlueGreenAnalysis() {
 	original := `
