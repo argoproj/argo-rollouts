@@ -81,10 +81,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	for _, message := range result.Messages {
 		p.logCtx.Warnf("CloudWatch returned the following messages: %+v", message)
 	}
-
-	status, err := evaluate.EvaluateResult(result.MetricDataResults, metric, p.logCtx)
-	if err != nil {
-		return metricutil.MarkMeasurementError(measurement, err)
+	if len(result.Messages) > 0 {
+		measurement.Metadata["messages"] = fmt.Sprintf("%+v", result.Messages)
 	}
 
 	value := [][]float64{}
@@ -92,6 +90,12 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		value = append(value, result.Values)
 	}
 	measurement.Value = fmt.Sprintf("%+v", value)
+
+	status, err := evaluate.EvaluateResult(result.MetricDataResults, metric, p.logCtx)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
+
 	measurement.Phase = status
 	finishedTime := metav1.Now()
 	measurement.FinishedAt = &finishedTime
