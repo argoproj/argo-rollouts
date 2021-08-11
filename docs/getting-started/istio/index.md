@@ -149,3 +149,8 @@ spec:
 
 As the Rollout progresses through steps, the HTTP route destination weights will be adjusted to
 match the current setWeight of the steps.
+
+
+!!! tip
+  Unlike the ReplicaSet based weighted canary, a service mesh/ingress based canary leaves the
+  stable as 100% scaled until the rollout completes.
