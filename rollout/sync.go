@@ -649,14 +649,12 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 				msg = fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, c.newRS.Name)
 			}
 
-			var condition *v1alpha1.RolloutCondition
 			// When ProgressDeadlineAbort is set, abort the update
 			if c.rollout.Spec.ProgressDeadlineAbort {
 				c.pauseContext.AddAbort(msg)
-				condition = conditions.NewRolloutCondition(v1alpha1.RolloutPaused, corev1.ConditionTrue, conditions.TimedOutReason, msg)
-			} else {
-				condition = conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
 			}
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *condition)
 		}
 	}

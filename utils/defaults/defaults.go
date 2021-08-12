@@ -26,8 +26,6 @@ const (
 	DefaultMaxUnavailable = "25"
 	// DefaultProgressDeadlineSeconds default number of seconds for the rollout to be making progress
 	DefaultProgressDeadlineSeconds = int32(600)
-	// DefaultAbortExceedProgressDeadline
-	DefaultAbortExceedProgressDeadline = false
 	// DefaultScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services
 	DefaultScaleDownDelaySeconds = int32(30)
 	// DefaultAbortScaleDownDelaySeconds default seconds before scaling down old replicaset after switching services

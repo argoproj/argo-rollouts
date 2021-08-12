@@ -890,7 +890,7 @@ spec:
 }
 
 // TestBlueGreenAbortExceedProgressDeadline verifies the AbortExceedProgressDeadline feature
-func (s *FunctionalSuite) TestBlueGreenAbortExceedProgressDeadline() {
+func (s *FunctionalSuite) TestBlueGreenExceedProgressDeadlineAbort() {
 	s.Given().
 		RolloutObjects(newService("bluegreen-scaledowndelay-active")).
 		RolloutObjects(`
