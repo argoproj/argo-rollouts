@@ -4,10 +4,12 @@ package e2e
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/tj/assert"
 
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
@@ -602,7 +604,7 @@ spec:
 }
 
 func (s *AnalysisSuite) TestAnalysisWithSecret() {
-	(s.Given().
+	s.Given().
 		RolloutObjects("@functional/rollout-secret.yaml").
 		When().
 		ApplyManifests().
@@ -613,11 +615,21 @@ func (s *AnalysisSuite) TestAnalysisWithSecret() {
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
 		Then().
-		ExpectAnalysisRunCount(1).
+		Assert(func(t *fixtures.Then) {
+			ar := t.GetRolloutAnalysisRuns().Items[0]
+			assert.Equal(s.T(), v1alpha1.AnalysisPhaseSuccessful, ar.Status.Phase)
+
+			metric := ar.Spec.Metrics[0]
+			assert.Equal(s.T(), 2, metric.Count)
+			assert.Equal(s.T(), "5s", metric.Interval)
+			assert.Equal(s.T(), 1, metric.FailureLimit)
+			assert.Equal(s.T(), 1, metric.InconclusiveLimit)
+		}).
+		ExpectAnalysisRunCount(3).
 		When().
 		WaitForInlineAnalysisRunPhase("Successful").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectStableRevision("2"))
+		ExpectStableRevision("2")
 }
