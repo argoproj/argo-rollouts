@@ -132,6 +132,17 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 	log := logutil.WithAnalysisRun(run)
 	var tasks []metricTask
 	terminating := analysisutil.IsTerminating(run)
+
+	validationArgs := make([]v1alpha1.Argument, 0)
+	for _, arg := range run.Spec.Args {
+		validationArg := arg.DeepCopy()
+		if validationArg.ValueFrom != nil && validationArg.ValueFrom.SecretKeyRef != nil {
+			validationArg.ValueFrom = nil
+			validationArg.Value = pointer.StringPtr("temp-val-for-validation")
+		}
+		validationArgs = append(validationArgs, *validationArg)
+	}
+
 	for _, metric := range run.Spec.Metrics {
 		if analysisutil.MetricCompleted(run, metric.Name) {
 			continue
@@ -176,7 +187,10 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 			continue
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)
-		effectiveCount := metric.EffectiveCount()
+
+		validationMetric, _ := analysisutil.ResolveMetricArgs(metric, validationArgs)
+
+		effectiveCount := validationMetric.EffectiveCount()
 		if effectiveCount != nil && metricResult.Count >= int32(effectiveCount.IntValue()) {
 			// we have reached desired count
 			continue
@@ -187,8 +201,8 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		interval := DefaultErrorRetryInterval
 		if lastMeasurement.Phase == v1alpha1.AnalysisPhaseError {
 			interval = DefaultErrorRetryInterval
-		} else if metric.Interval != "" {
-			metricInterval, err := metric.Interval.Duration()
+		} else if validationMetric.Interval != "" {
+			metricInterval, err := validationMetric.Interval.Duration()
 			if err != nil {
 				logCtx.Warnf("failed to parse interval: %v", err)
 				continue
@@ -381,11 +395,22 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha1.Analys
 		worstMessage = "run terminated"
 	}
 
+	validationArgs := make([]v1alpha1.Argument, 0)
+	for _, arg := range run.Spec.Args {
+		validationArg := arg.DeepCopy()
+		if validationArg.ValueFrom != nil && validationArg.ValueFrom.SecretKeyRef != nil {
+			validationArg.ValueFrom = nil
+			validationArg.Value = pointer.StringPtr("temp-val-for-validation")
+		}
+		validationArgs = append(validationArgs, *validationArg)
+	}
+
 	// Iterate all metrics and update MetricResult.Phase fields based on latest measurement(s)
 	for _, metric := range run.Spec.Metrics {
+		validationMetric, _ := analysisutil.ResolveMetricArgs(metric, validationArgs)
 		if result := analysisutil.GetResult(run, metric.Name); result != nil {
 			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
-			metricStatus := assessMetricStatus(metric, *result, terminating)
+			metricStatus := assessMetricStatus(*validationMetric, *result, terminating)
 			if result.Phase != metricStatus {
 				log.Infof("metric transitioned from %s -> %s", result.Phase, metricStatus)
 				if metricStatus.Completed() {
