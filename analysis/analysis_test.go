@@ -1083,8 +1083,8 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 		},
 	}
 	newRun := c.reconcileAnalysisRun(run)
-	assert.Equal(t, newRun.Status.Phase, v1alpha1.AnalysisPhaseError)
-	assert.Equal(t, newRun.Status.Message, "unable to resolve metric arguments: failed to resolve {{args.metric-name}}")
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
+	assert.Equal(t, "analysis spec invalid: failed to resolve {{args.metric-name}}", newRun.Status.Message)
 }
 
 // TestSecretContentReferenceSuccess verifies that secret arguments are properly resolved
