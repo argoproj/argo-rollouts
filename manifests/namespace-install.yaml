@@ -10236,6 +10236,18 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                  tlsRoutes:
+                                    items:
+                                      properties:
+                                        port:
+                                          format: int64
+                                          type: integer
+                                        sniHosts:
+                                          items:
+                                            type: string
+                                          type: array
+                                      type: object
+                                    type: array
                                 required:
                                 - name
                                 type: object

@@ -849,7 +849,14 @@
           "items": {
             "type": "string"
           },
-          "title": "Routes are list of routes within VirtualService to edit. If omitted, VirtualService must have a single route"
+          "description": "A list of HTTP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
+        },
+        "tlsRoutes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute"
+          },
+          "description": "A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
         }
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
@@ -1377,6 +1384,24 @@
         }
       },
       "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "string",
+          "format": "int64",
+          "description": "Port number of the TLS Route desired to be matched in the given Istio VirtualService."
+        },
+        "sniHosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of all the SNI Hosts of the TLS Route desired to be matched in the given Istio VirtualService."
+        }
+      },
+      "description": "TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights."
     },
     "google.protobuf.Any": {
       "type": "object",
