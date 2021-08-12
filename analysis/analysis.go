@@ -98,7 +98,7 @@ func (c *Controller) validateMetrics(metrics []v1alpha1.Metric, args []v1alpha1.
 	validationArgs := make([]v1alpha1.Argument, 0)
 	for _, arg := range args {
 		validationArg := arg.DeepCopy()
-		if validationArg.ValueFrom.SecretKeyRef != nil {
+		if validationArg.ValueFrom != nil && validationArg.ValueFrom.SecretKeyRef != nil {
 			validationArg.ValueFrom = nil
 			validationArg.Value = pointer.StringPtr("temp-val-for-validation")
 		}
