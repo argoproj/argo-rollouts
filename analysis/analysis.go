@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -43,7 +44,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 
 	if run.Status.MetricResults == nil {
 		run.Status.MetricResults = make([]v1alpha1.MetricResult, 0)
-		err := analysisutil.ValidateMetrics(run.Spec.Metrics)
+		err := c.validateMetrics(run.Spec.Metrics, run.Spec.Args)
 		if err != nil {
 			message := fmt.Sprintf("analysis spec invalid: %v", err)
 			log.Warn(message)
@@ -91,6 +92,27 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		c.enqueueAnalysisAfter(run, enqueueSeconds)
 	}
 	return run
+}
+
+func (c *Controller) validateMetrics(metrics []v1alpha1.Metric, args []v1alpha1.Argument) error {
+	validationArgs := make([]v1alpha1.Argument, 0)
+	for _, arg := range args {
+		validationArg := arg.DeepCopy()
+		if validationArg.ValueFrom.SecretKeyRef != nil {
+			validationArg.ValueFrom = nil
+			validationArg.Value = pointer.StringPtr("temp-val-for-validation")
+		}
+		validationArgs = append(validationArgs, *validationArg)
+	}
+	validationMetrics := make([]v1alpha1.Metric, 0)
+	for _, metric := range metrics {
+		validationMetric, err := analysisutil.ResolveMetricArgs(metric, validationArgs)
+		if err != nil {
+			return err
+		}
+		validationMetrics = append(validationMetrics, *validationMetric)
+	}
+	return analysisutil.ValidateMetrics(validationMetrics)
 }
 
 func (c *Controller) recordAnalysisRunCompletionEvent(run *v1alpha1.AnalysisRun) {
