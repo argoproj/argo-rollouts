@@ -855,17 +855,12 @@ func TestMultipleVirtualServiceReconcileInferredSingleRoute(t *testing.T) {
 	assert.Equal(t, "update", actions[1].GetVerb())
 
 	// Verify we actually made the correct change
-	vsvcUn1, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), "vsvc1", metav1.GetOptions{})
-	assert.NoError(t, err)
-	routes1, _, _ := unstructured.NestedSlice(vsvcUn1.Object, "spec", "http")
-	route1 := routes1[0].(map[string]interface{})
-	checkDestination(t, route1, "stable", 90)
-	checkDestination(t, route1, "canary", 10)
-
-	vsvcUn2, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), "vsvc2", metav1.GetOptions{})
-	assert.NoError(t, err)
-	routes2, _, _ := unstructured.NestedSlice(vsvcUn2.Object, "spec", "http")
-	route2 := routes2[0].(map[string]interface{})
-	checkDestination(t, route2, "stable", 90)
-	checkDestination(t, route2, "canary", 10)
+	for _, vsvName := range []string{"vsvc1", "vsvc2"} {
+		vsvcUn, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(ro.Namespace).Get(context.TODO(), vsvName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		routes, _, _ := unstructured.NestedSlice(vsvcUn.Object, "spec", "http")
+		route := routes[0].(map[string]interface{})
+		checkDestination(t, route, "stable", 90)
+		checkDestination(t, route, "canary", 10)
+	}
 }

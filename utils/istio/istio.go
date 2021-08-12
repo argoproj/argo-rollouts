@@ -80,9 +80,6 @@ func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
 	}
 
 	if MultipleVirtualServiceConfigured(ro) {
-		if canary.TrafficRouting.Istio.VirtualService.Name != "" {
-			return []string{}
-		}
 		virtualServices = ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
 	} else {
 		virtualServices = []v1alpha1.IstioVirtualService{ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
