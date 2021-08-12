@@ -176,7 +176,6 @@ func (c *IstioController) EnqueueRolloutFromIstioVirtualService(vsvc interface{}
 
 func (c *IstioController) GetReferencedVirtualServices(ro *v1alpha1.Rollout) (*[]unstructured.Unstructured, error) {
 	var fldPath *field.Path
-	fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
 	ctx := context.TODO()
 	virtualServices := []unstructured.Unstructured{}
 	if ro.Spec.Strategy.Canary != nil {
