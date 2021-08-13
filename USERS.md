@@ -18,3 +18,4 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Skillz](https://www.skillz.com)
 1. [PayPal](https://www.paypal.com/)
 1. [Shipt](https://www.shipt.com/)
+1. [BetssonGroup](https://www.betssongroup.com) 
