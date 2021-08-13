@@ -78,10 +78,9 @@ spec:
       weight: 0
   tls:
   - match:
-    - port: 3000  # Should match the port number of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
+    - port: 443  # Should match the port number of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
       sniHosts: # Should match all the SNI hosts of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
       - reviews.bookinfo.com
-      - localhost
     route:
     - destination:
         host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
@@ -175,7 +174,6 @@ spec:
     - port: 3000
       sniHosts:
       - reviews.bookinfo.com
-      - localhost
     route:
     - destination:
         host: rollouts-demo-stable
