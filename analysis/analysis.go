@@ -273,7 +273,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 	var resultsLock sync.Mutex
 	terminating := analysisutil.IsTerminating(run)
 
-	// resolve secret references for metric tasks
+	// resolve args for metric tasks
 	// get list of secret values for log redaction
 	tasks, secrets, err := c.resolveArgs(tasks, run.Spec.Args, run.Namespace)
 	if err != nil {
