@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"fmt"
+	"k8s.io/utils/pointer"
 	"strings"
 	"sync"
 	"time"
@@ -10,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -44,20 +44,9 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 
 	if run.Status.MetricResults == nil {
 		run.Status.MetricResults = make([]v1alpha1.MetricResult, 0)
-		err := c.validateMetrics(run.Spec.Metrics, run.Spec.Args)
-		if err != nil {
-			message := fmt.Sprintf("analysis spec invalid: %v", err)
-			log.Warn(message)
-			run.Status.Phase = v1alpha1.AnalysisPhaseError
-			run.Status.Message = message
-			c.recordAnalysisRunCompletionEvent(run)
-			return run
-		}
 	}
 
-	tasks := generateMetricTasks(run)
-	log.Infof("taking %d measurements", len(tasks))
-	err := c.runMeasurements(run, tasks)
+	resolvedMetrics, err := getResolvedMetricsWithoutSecrets(run.Spec.Metrics, run.Spec.Args)
 	if err != nil {
 		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
 		log.Warn(message)
@@ -67,7 +56,29 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		return run
 	}
 
-	newStatus, newMessage := c.assessRunStatus(run)
+	err = analysisutil.ValidateMetrics(resolvedMetrics)
+	if err != nil {
+		message := fmt.Sprintf("analysis spec invalid: %v", err)
+		log.Warn(message)
+		run.Status.Phase = v1alpha1.AnalysisPhaseError
+		run.Status.Message = message
+		c.recordAnalysisRunCompletionEvent(run)
+		return run
+	}
+
+	tasks := generateMetricTasks(run, resolvedMetrics)
+	log.Infof("taking %d measurements", len(tasks))
+	err = c.runMeasurements(run, tasks)
+	if err != nil {
+		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
+		log.Warn(message)
+		run.Status.Phase = v1alpha1.AnalysisPhaseError
+		run.Status.Message = message
+		c.recordAnalysisRunCompletionEvent(run)
+		return run
+	}
+
+	newStatus, newMessage := c.assessRunStatus(run, resolvedMetrics)
 	if newStatus != run.Status.Phase {
 		run.Status.Phase = newStatus
 		run.Status.Message = newMessage
@@ -82,7 +93,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		log.Warnf("Failed to garbage collect measurements: %v", err)
 	}
 
-	nextReconcileTime := calculateNextReconcileTime(run)
+	nextReconcileTime := calculateNextReconcileTime(run, resolvedMetrics)
 	if nextReconcileTime != nil {
 		enqueueSeconds := nextReconcileTime.Sub(time.Now())
 		if enqueueSeconds < 0 {
@@ -94,25 +105,25 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 	return run
 }
 
-func (c *Controller) validateMetrics(metrics []v1alpha1.Metric, args []v1alpha1.Argument) error {
-	validationArgs := make([]v1alpha1.Argument, 0)
+func getResolvedMetricsWithoutSecrets(metrics []v1alpha1.Metric, args []v1alpha1.Argument) ([]v1alpha1.Metric, error) {
+	newArgs := make([]v1alpha1.Argument, 0)
 	for _, arg := range args {
-		validationArg := arg.DeepCopy()
-		if validationArg.ValueFrom != nil && validationArg.ValueFrom.SecretKeyRef != nil {
-			validationArg.ValueFrom = nil
-			validationArg.Value = pointer.StringPtr("temp-val-for-validation")
+		newArg := arg.DeepCopy()
+		if newArg.ValueFrom != nil && newArg.ValueFrom.SecretKeyRef != nil {
+			newArg.ValueFrom = nil
+			newArg.Value = pointer.StringPtr("temp-for-secret")
 		}
-		validationArgs = append(validationArgs, *validationArg)
+		newArgs = append(newArgs, *newArg)
 	}
-	validationMetrics := make([]v1alpha1.Metric, 0)
+	resolvedMetrics := make([]v1alpha1.Metric, 0)
 	for _, metric := range metrics {
-		validationMetric, err := analysisutil.ResolveMetricArgs(metric, validationArgs)
+		resolvedMetric, err := analysisutil.ResolveMetricArgs(metric, newArgs)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		validationMetrics = append(validationMetrics, *validationMetric)
+		resolvedMetrics = append(resolvedMetrics, *resolvedMetric)
 	}
-	return analysisutil.ValidateMetrics(validationMetrics)
+	return resolvedMetrics, nil
 }
 
 func (c *Controller) recordAnalysisRunCompletionEvent(run *v1alpha1.AnalysisRun) {
@@ -128,22 +139,12 @@ func (c *Controller) recordAnalysisRunCompletionEvent(run *v1alpha1.AnalysisRun)
 // sync, based on the last completion times that metric was measured (if ever). If the run is
 // terminating (e.g. due to manual termination or failing metric), will not schedule further
 // measurements other than to resume any in-flight measurements.
-func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
+func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) []metricTask {
 	log := logutil.WithAnalysisRun(run)
 	var tasks []metricTask
 	terminating := analysisutil.IsTerminating(run)
 
-	validationArgs := make([]v1alpha1.Argument, 0)
-	for _, arg := range run.Spec.Args {
-		validationArg := arg.DeepCopy()
-		if validationArg.ValueFrom != nil && validationArg.ValueFrom.SecretKeyRef != nil {
-			validationArg.ValueFrom = nil
-			validationArg.Value = pointer.StringPtr("temp-val-for-validation")
-		}
-		validationArgs = append(validationArgs, *validationArg)
-	}
-
-	for _, metric := range run.Spec.Metrics {
+	for i, metric := range metrics {
 		if analysisutil.MetricCompleted(run, metric.Name) {
 			continue
 		}
@@ -157,7 +158,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 			// last measurement is still in-progress. need to complete it
 			logCtx.Infof("resuming in-progress measurement")
 			tasks = append(tasks, metricTask{
-				metric:                metric,
+				metric:                run.Spec.Metrics[i],
 				incompleteMeasurement: lastMeasurement,
 			})
 			continue
@@ -182,15 +183,13 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 				}
 			}
 			// measurement never taken
-			tasks = append(tasks, metricTask{metric: metric})
+			tasks = append(tasks, metricTask{metric: run.Spec.Metrics[i]})
 			logCtx.Infof("running initial measurement")
 			continue
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)
 
-		validationMetric, _ := analysisutil.ResolveMetricArgs(metric, validationArgs)
-
-		effectiveCount := validationMetric.EffectiveCount()
+		effectiveCount := metric.EffectiveCount()
 		if effectiveCount != nil && metricResult.Count >= int32(effectiveCount.IntValue()) {
 			// we have reached desired count
 			continue
@@ -201,8 +200,8 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 		interval := DefaultErrorRetryInterval
 		if lastMeasurement.Phase == v1alpha1.AnalysisPhaseError {
 			interval = DefaultErrorRetryInterval
-		} else if validationMetric.Interval != "" {
-			metricInterval, err := validationMetric.Interval.Duration()
+		} else if metric.Interval != "" {
+			metricInterval, err := metric.Interval.Duration()
 			if err != nil {
 				logCtx.Warnf("failed to parse interval: %v", err)
 				continue
@@ -210,7 +209,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 			interval = metricInterval
 		}
 		if time.Now().After(lastMeasurement.FinishedAt.Add(interval)) {
-			tasks = append(tasks, metricTask{metric: metric})
+			tasks = append(tasks, metricTask{metric: run.Spec.Metrics[i]})
 			logCtx.Infof("running overdue measurement")
 			continue
 		}
@@ -220,7 +219,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun) []metricTask {
 
 // resolveArgs resolves args for metricTasks, including secret references
 // returns resolved metricTasks and secrets for log redaction
-func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
+func (c *Controller) resolveSecretReferences(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
 	//create set of secret values for redaction
 	secretSet := map[string]bool{}
 	for i, arg := range args {
@@ -274,9 +273,9 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 	var resultsLock sync.Mutex
 	terminating := analysisutil.IsTerminating(run)
 
-	// resolve args for metricTasks
+	// resolve secret references for metric tasks
 	// get list of secret values for log redaction
-	tasks, secrets, err := c.resolveArgs(tasks, run.Spec.Args, run.Namespace)
+	tasks, secrets, err := c.resolveSecretReferences(tasks, run.Spec.Args, run.Namespace)
 	if err != nil {
 		return err
 	}
@@ -381,7 +380,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 // assessRunStatus assesses the overall status of this AnalysisRun
 // If any metric is not yet completed, the AnalysisRun is still considered Running
 // Once all metrics are complete, the worst status is used as the overall AnalysisRun status
-func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha1.AnalysisPhase, string) {
+func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) (v1alpha1.AnalysisPhase, string) {
 	var worstStatus v1alpha1.AnalysisPhase
 	var worstMessage string
 	terminating := analysisutil.IsTerminating(run)
@@ -395,22 +394,11 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun) (v1alpha1.Analys
 		worstMessage = "run terminated"
 	}
 
-	validationArgs := make([]v1alpha1.Argument, 0)
-	for _, arg := range run.Spec.Args {
-		validationArg := arg.DeepCopy()
-		if validationArg.ValueFrom != nil && validationArg.ValueFrom.SecretKeyRef != nil {
-			validationArg.ValueFrom = nil
-			validationArg.Value = pointer.StringPtr("temp-val-for-validation")
-		}
-		validationArgs = append(validationArgs, *validationArg)
-	}
-
 	// Iterate all metrics and update MetricResult.Phase fields based on latest measurement(s)
-	for _, metric := range run.Spec.Metrics {
-		validationMetric, _ := analysisutil.ResolveMetricArgs(metric, validationArgs)
+	for _, metric := range metrics {
 		if result := analysisutil.GetResult(run, metric.Name); result != nil {
 			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
-			metricStatus := assessMetricStatus(*validationMetric, *result, terminating)
+			metricStatus := assessMetricStatus(metric, *result, terminating)
 			if result.Phase != metricStatus {
 				log.Infof("metric transitioned from %s -> %s", result.Phase, metricStatus)
 				if metricStatus.Completed() {
@@ -536,9 +524,9 @@ func assessMetricFailureInconclusiveOrError(metric v1alpha1.Metric, result v1alp
 
 // calculateNextReconcileTime calculates the next time that this AnalysisRun should be reconciled,
 // based on the earliest time of all metrics intervals, counts, and their finishedAt timestamps
-func calculateNextReconcileTime(run *v1alpha1.AnalysisRun) *time.Time {
+func calculateNextReconcileTime(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) *time.Time {
 	var reconcileTime *time.Time
-	for _, metric := range run.Spec.Metrics {
+	for _, metric := range metrics {
 		if analysisutil.MetricCompleted(run, metric.Name) {
 			// NOTE: this also covers the case where metric.Count is reached
 			continue
