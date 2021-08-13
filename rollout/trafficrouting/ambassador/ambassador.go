@@ -240,8 +240,22 @@ func buildCanaryMapping(baseMapping *unstructured.Unstructured, canarySvc string
 	return canaryMapping
 }
 
+func getCanaryNamespace(curSvc string) string {
+	// trim port
+	svcNoPort := strings.Split(curSvc, ":")
+	parts := strings.Split(svcNoPort[0], ".")
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	return ""
+}
+
 func buildCanaryService(baseMapping *unstructured.Unstructured, canarySvc string) string {
 	curSvc := GetMappingService(baseMapping)
+	namespace := getCanaryNamespace(curSvc)
+	if namespace != "" {
+		canarySvc = fmt.Sprintf("%s.%s", canarySvc, namespace)
+	}
 	parts := strings.Split(curSvc, ":")
 	if len(parts) < 2 {
 		return canarySvc
