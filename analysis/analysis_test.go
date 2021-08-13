@@ -1281,7 +1281,7 @@ func TestSecretNotFound(t *testing.T) {
 		},
 		incompleteMeasurement: nil,
 	}}
-	_, _, err := c.resolveSecretReferences(tasks, args, metav1.NamespaceDefault)
+	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
 	assert.Equal(t, "secrets \"secret-does-not-exist\" not found", err.Error())
 }
 
@@ -1313,7 +1313,7 @@ func TestKeyNotInSecret(t *testing.T) {
 		},
 		incompleteMeasurement: nil,
 	}}
-	_, _, err := c.resolveSecretReferences(tasks, args, metav1.NamespaceDefault)
+	_, _, err := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
 	assert.Equal(t, "key 'key-name' does not exist in secret 'secret-name'", err.Error())
 }
 
@@ -1349,7 +1349,7 @@ func TestSecretResolution(t *testing.T) {
 		},
 		incompleteMeasurement: nil,
 	}}
-	metricTaskList, secretList, _ := c.resolveSecretReferences(tasks, args, metav1.NamespaceDefault)
+	metricTaskList, secretList, _ := c.resolveArgs(tasks, args, metav1.NamespaceDefault)
 
 	assert.Equal(t, secretData, metricTaskList[0].metric.SuccessCondition)
 	assert.Contains(t, secretList, secretData)

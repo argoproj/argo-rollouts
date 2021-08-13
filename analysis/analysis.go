@@ -189,7 +189,6 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 			continue
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)
-
 		effectiveCount := metric.EffectiveCount()
 		if effectiveCount != nil && metricResult.Count >= int32(effectiveCount.IntValue()) {
 			// we have reached desired count
@@ -220,7 +219,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 
 // resolveArgs resolves args for metricTasks, including secret references
 // returns resolved metricTasks and secrets for log redaction
-func (c *Controller) resolveSecretReferences(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
+func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
 	//create set of secret values for redaction
 	secretSet := map[string]bool{}
 	for i, arg := range args {
@@ -276,7 +275,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 
 	// resolve secret references for metric tasks
 	// get list of secret values for log redaction
-	tasks, secrets, err := c.resolveSecretReferences(tasks, run.Spec.Args, run.Namespace)
+	tasks, secrets, err := c.resolveArgs(tasks, run.Spec.Args, run.Namespace)
 	if err != nil {
 		return err
 	}
