@@ -618,14 +618,9 @@ func (s *AnalysisSuite) TestAnalysisWithSecret() {
 		Assert(func(t *fixtures.Then) {
 			ar := t.GetRolloutAnalysisRuns().Items[0]
 			assert.Equal(s.T(), v1alpha1.AnalysisPhaseSuccessful, ar.Status.Phase)
-
-			metric := ar.Spec.Metrics[0]
-			assert.Equal(s.T(), 2, metric.Count.IntValue())
-			assert.Equal(s.T(), "5s", metric.Interval)
-			assert.Equal(s.T(), 1, metric.FailureLimit.IntValue())
-			assert.Equal(s.T(), 1, metric.InconclusiveLimit.IntValue())
+			metricResult := ar.Status.MetricResults[0]
+			assert.Equal(s.T(), int32(2), metricResult.Count)
 		}).
-		ExpectAnalysisRunCount(3).
 		When().
 		WaitForInlineAnalysisRunPhase("Successful").
 		PromoteRollout().

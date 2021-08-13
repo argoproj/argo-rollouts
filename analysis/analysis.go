@@ -3,10 +3,11 @@ package analysis
 import (
 	"context"
 	"fmt"
-	"k8s.io/utils/pointer"
 	"strings"
 	"sync"
 	"time"
+
+	"k8s.io/utils/pointer"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
