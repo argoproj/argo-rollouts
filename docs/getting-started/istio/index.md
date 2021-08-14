@@ -33,6 +33,8 @@ spec:
           virtualService:
             # Reference to a VirtualService which the controller updates with canary weights
             name: rollouts-demo-vsvc
+            # Optional if there are only two destinations in your routes or if you want to split 100% traffic between stable and canary services. If specified, this will be used as an upper bound for traffic between canary + stable services.
+            maxWeight: 80
             # Optional if there is a single HTTP route in the VirtualService, otherwise required
             routes:
             - http-primary
@@ -71,11 +73,14 @@ spec:
   - name: http-primary  # Should match spec.strategy.canary.trafficRouting.istio.virtualService.routes
     route:
     - destination:
-        host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
-      weight: 100
+        host: rollouts-demo-stable  # Should match rollout.spec.strategy.canary.stableService
+      weight: 80
     - destination:
         host: rollouts-demo-canary  # Should match spec.strategy.canary.canaryService
       weight: 0
+    - destination:
+        host: rollouts-demo-legacy
+      weight: 20
   tls:
   - match:
     - port: 3000  # Should match the port number of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
@@ -84,11 +89,14 @@ spec:
       - localhost
     route:
     - destination:
-        host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
-      weight: 100
+        host: rollouts-demo-stable  # Should match rollout.spec.strategy.canary.stableService
+      weight: 80
     - destination:
         host: rollouts-demo-canary  # Should match spec.strategy.canary.canaryService
       weight: 0
+    - destination:
+        host: rollouts-demo-legacy
+      weight: 20
 ```
 
 Run the following commands to deploy:

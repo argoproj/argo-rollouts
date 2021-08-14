@@ -833,6 +833,11 @@
         "destinationRule": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IstioDestinationRule",
           "title": "DestinationRule references an Istio DestinationRule to modify to shape traffic"
+        },
+        "maxWeight": {
+          "type": "string",
+          "format": "int64",
+          "description": "Max weight that will be split between canary and stable services. If unset, it defaults to 100."
         }
       },
       "title": "IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration"

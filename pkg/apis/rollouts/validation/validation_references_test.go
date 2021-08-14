@@ -379,7 +379,7 @@ func TestValidateVirtualService(t *testing.T) {
 		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseVsvc)
 		allErrs := ValidateVirtualService(ro, *vsvc)
 		assert.Len(t, allErrs, 1)
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "Istio VirtualService has invalid HTTP routes. Error: Stable Service 'stable' not found in route")
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "Istio VirtualService has invalid HTTP routes. Error: Stable Service 'stable' not found in the route.")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 
 	})
