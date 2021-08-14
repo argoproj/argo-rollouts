@@ -937,6 +937,9 @@ spec:
 		Sleep(3*time.Second).
 		Then().
 		ExpectRevisionPodCount("2", 1).
+		ExpectRollout("Abort=False", func(r *v1alpha1.Rollout) bool {
+			return r.Status.Abort == false
+		}).
 		When().
 		PatchSpec(`
 spec:
@@ -951,7 +954,10 @@ spec:
 		WaitForRolloutStatus("Degraded").
 		Sleep(3*time.Second).
 		Then().
-		ExpectRevisionPodCount("2", 0)
+		ExpectRevisionPodCount("2", 0).
+		ExpectRollout("Abort=True", func(r *v1alpha1.Rollout) bool {
+			return r.Status.Abort == true && len(r.Status.Conditions) == 3
+		})
 }
 
 // TestBlueGreenScaleDownOnAbort verifies the scaleDownOnAbort feature
