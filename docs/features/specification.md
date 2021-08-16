@@ -238,11 +238,12 @@ spec:
       # Pauses indefinitely until manually resumed
       - pause: {}
 
-      # set canary scale to a explicit count (supported only with trafficRouting)
+      # set canary scale to a explicit count without changing traffic weight
+      # (supported only with trafficRouting)
       - setCanaryScale:
           replicas: 3
 
-      # set canary scale to a percentage of spec.replicas
+      # set canary scale to a percentage of spec.replicas without changing traffic weight
       # (supported only with trafficRouting)
       - setCanaryScale:
           weight: 25
