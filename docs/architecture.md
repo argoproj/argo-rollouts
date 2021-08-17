@@ -40,7 +40,7 @@ Specifically for Canary deployments, Argo Rollouts supports several [service mes
 
 Analysis is the capability to connect a Rollout to your metrics provider and define specific thresholds for certain metrics that will decide if an update is successful or not. For each analysis you can define one or more metric queries along with their expected results. A Rollout will progress on its own if metric queries are good, rollback automatically if metrics show failure and pause the rollout if metrics cannot provide a success/failure answer.
 
-For performing an analysis, Argo Rollouts includes two custom Kubernetes resources: `AnalysisTemplate` and `AnalysisResult`.
+For performing an analysis, Argo Rollouts includes two custom Kubernetes resources: `AnalysisTemplate` and `AnalysisRun`.
 
 `AnalysisTemplate` contains instructions on what metrics to query. The actual result that is attached to a Rollout is the `AnalysisRun` custom resource. You can define an `AnalysisTemplate` on a specific Rollout or globally on the cluster to be shared by multiple rollouts as a `ClusterAnalysisTemplate`. The `AnalysisRun` resource is scoped on a specific rollout.
 
