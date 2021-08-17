@@ -1974,11 +1974,12 @@
       <span class="c1"># Pauses indefinitely until manually resumed</span>
       <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
 
-      <span class="c1"># set canary scale to a explicit count (supported only with trafficRouting)</span>
+      <span class="c1"># set canary scale to a explicit count without changing traffic weight</span>
+      <span class="c1"># (supported only with trafficRouting)</span>
       <span class="p p-Indicator">-</span> <span class="nt">setCanaryScale</span><span class="p">:</span>
           <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
 
-      <span class="c1"># set canary scale to a percentage of spec.replicas</span>
+      <span class="c1"># set canary scale to a percentage of spec.replicas without changing traffic weight</span>
       <span class="c1"># (supported only with trafficRouting)</span>
       <span class="p p-Indicator">-</span> <span class="nt">setCanaryScale</span><span class="p">:</span>
           <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">25</span>
