@@ -1838,10 +1838,9 @@ and 0% on the canary. During an update, these values will be modified by the con
       <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">0</span>
   <span class="nt">tls</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">match</span><span class="p">:</span>
-    <span class="p p-Indicator">-</span> <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3000</span>  <span class="c1"># Should match the port number of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes</span>
+    <span class="p p-Indicator">-</span> <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">443</span>  <span class="c1"># Should match the port number of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes</span>
       <span class="nt">sniHosts</span><span class="p">:</span> <span class="c1"># Should match all the SNI hosts of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes</span>
       <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">reviews.bookinfo.com</span>
-      <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">localhost</span>
     <span class="nt">route</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="nt">destination</span><span class="p">:</span>
         <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>  <span class="c1"># Should match spec.strategy.canary.stableService</span>
@@ -1918,7 +1917,6 @@ weights have been modified by the controller to reflect the current weight of th
     <span class="p p-Indicator">-</span> <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3000</span>
       <span class="nt">sniHosts</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">reviews.bookinfo.com</span>
-      <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">localhost</span>
     <span class="nt">route</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="nt">destination</span><span class="p">:</span>
         <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
