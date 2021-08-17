@@ -131,10 +131,6 @@ const (
 	// ReplicaSetCompletedMessage is added when the rollout is completed
 	ReplicaSetCompletedMessage = "ReplicaSet %q has successfully progressed."
 
-	// ServiceNotFoundReason is added in a rollout when the service defined in the spec is not found
-	ServiceNotFoundReason = "ServiceNotFound"
-	// ServiceNotFoundMessage is added in a rollout when the service defined in the spec is not found
-	ServiceNotFoundMessage = "Service %q is not found"
 	// ServiceReferenceReason is added to a Rollout when there is an error with a Service reference
 	ServiceReferenceReason = "ServiceReferenceError"
 	// ServiceReferencingManagedService is added in a rollout when the multiple rollouts reference a Rollout

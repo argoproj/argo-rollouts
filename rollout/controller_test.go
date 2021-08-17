@@ -254,11 +254,6 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 			msg = conditions.RolloutRetryMessage
 			status = corev1.ConditionUnknown
 		}
-	case *corev1.Service:
-		if reason == conditions.ServiceNotFoundReason {
-			msg = fmt.Sprintf(conditions.ServiceNotFoundMessage, resource.Name)
-			status = corev1.ConditionFalse
-		}
 	}
 
 	if reason == conditions.RolloutPausedReason {
