@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-inline-analysis
+spec:
+  strategy:
+    canary:
+      steps:
+      - setWeight: 10
+      - pause: {}
+      - analysis:
+          templates:
+          - templateName: multiple-job
+  selector:
+    matchLabels:
+      app: rollout-inline-analysis
+  template:
+    metadata:
+      labels:
+        app: rollout-inline-analysis
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
