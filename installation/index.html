@@ -1823,6 +1823,8 @@ kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/rele
 <div class="highlight"><pre><span></span><code>kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole<span class="o">=</span>cluster-admin --user<span class="o">=</span>YOUREMAIL@gmail.com
 </code></pre></div>
 </div>
+<p>You can find released container images of the controller at <a href="https://quay.io/repository/argoproj/argo-rollouts?tab=tags">Quay.io</a>. There are also old releases
+at Dockerhub, but since the introduction of rate limiting, the Argo project has moved to Quay.</p>
 <h2 id="kubectl-plugin-installation">Kubectl Plugin Installation<a class="headerlink" href="#kubectl-plugin-installation" title="Permanent link">&para;</a></h2>
 <p>The kubectl plugin is optional, but is convenient for managing and visualizing rollouts from the 
 command line.</p>
