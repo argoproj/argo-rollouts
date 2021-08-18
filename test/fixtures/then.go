@@ -257,6 +257,26 @@ func (t *Then) ExpectBackgroundAnalysisRunPhase(phase string) *Then {
 	)
 }
 
+func (t *Then) ExpectInlineAnalysisRun(expectation string, expectFunc AnalysisRunExpectation) *Then {
+	t.t.Helper()
+	bgArun := t.GetInlineAnalysisRun()
+	if !expectFunc(bgArun) {
+		t.log.Errorf("Inline AnalysisRun expectation '%s' failed", expectation)
+		t.t.FailNow()
+	}
+	t.log.Infof("Inline AnalysisRun expectation '%s' met", expectation)
+	return t
+}
+
+func (t *Then) ExpectInlineAnalysisRunPhase(phase string) *Then {
+	t.t.Helper()
+	return t.ExpectInlineAnalysisRun(fmt.Sprintf("inline analysis phase == %s", phase),
+		func(run *rov1.AnalysisRun) bool {
+			return string(run.Status.Phase) == phase
+		},
+	)
+}
+
 // ExpectStableRevision verifies the ReplicaSet with the specified revision is marked stable
 func (t *Then) ExpectStableRevision(revision string) *Then {
 	t.t.Helper()
