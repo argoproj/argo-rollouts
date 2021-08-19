@@ -192,7 +192,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 
 	scaleDownCount := replicasToScaleDown - minAvailableReplicaCount
 	log.Warnf("scaled count that is calculated: %d", scaleDownCount)
-	if newRS != nil && *newRS.Spec.Replicas > desiredNewRSReplicaCount {
+	if !isIncreasing && newRS != nil && *newRS.Spec.Replicas > desiredNewRSReplicaCount {
 		// if the controller doesn't have to use every replica to achieve the desired count, it only scales down to the
 		// desired count.
 		if *newRS.Spec.Replicas-scaleDownCount < desiredNewRSReplicaCount {
