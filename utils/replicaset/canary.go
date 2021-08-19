@@ -250,7 +250,6 @@ func GetReplicasForScaleDown(rs *appsv1.ReplicaSet, ignoreAvailability bool) int
 	if rs == nil {
 		return int32(0)
 	}
-	log.Warnf("Specreplica: %d, available: %d, ignoreAvailability: %t", *rs.Spec.Replicas, rs.Status.AvailableReplicas, ignoreAvailability)
 	if *rs.Spec.Replicas < rs.Status.AvailableReplicas {
 		// The ReplicaSet is already going to scale down replicas since the availableReplica count is bigger
 		// than the spec count. The controller uses the .Spec.Replicas to prevent the controller from
