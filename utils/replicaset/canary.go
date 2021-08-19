@@ -186,6 +186,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	}
 
 	scaleDownCount := replicasToScaleDown - minAvailableReplicaCount
+	// Skip scalingDown canary replicaSet when StableSet availability is not taken into calculation for scaleDown
 	if !isIncreasing && newRS != nil && *newRS.Spec.Replicas > desiredNewRSReplicaCount {
 		// if the controller doesn't have to use every replica to achieve the desired count, it only scales down to the
 		// desired count.
@@ -200,6 +201,7 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 		}
 	}
 
+	// Skip scalingDown Stable replicaSet when CanarySet availability is not taken into calculation for scaleDown
 	if isIncreasing && scaleStableRS && *stableRS.Spec.Replicas > desiredStableRSReplicaCount {
 		// This follows the same logic as scaling down the newRS except with the stableRS and it does not need to
 		// set the scaleDownCount again since it's not used again
