@@ -149,19 +149,19 @@ spec:
       containers:
       - name: updatescaling
         command: [/bad-command]`).
-		WaitForRolloutReplicas(6).
+		WaitForRolloutReplicas(7).
 		Then().
-		ExpectCanaryStablePodCount(2, 4).
+		ExpectCanaryStablePodCount(4, 3).
 		When().
 		ScaleRollout(8).
-		WaitForRolloutReplicas(10).
+		WaitForRolloutReplicas(11).
 		Then().
-		ExpectCanaryStablePodCount(6, 4).
+		ExpectCanaryStablePodCount(8, 3).
 		When().
 		ScaleRollout(4).
-		WaitForRolloutReplicas(4).
+		WaitForRolloutReplicas(7).
 		Then().
-		ExpectCanaryStablePodCount(6, 4)
+		ExpectCanaryStablePodCount(4, 3)
 }
 
 // TestRolloutScalingDuringUpdate verifies behavior when scaling a rollout up/down in middle of update
