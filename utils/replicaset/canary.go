@@ -179,8 +179,8 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	// If so, we can ignore pod availability of the stableRS. Otherwise, if we are reducing our
 	// weight (e.g. we are aborting), then we can ignore pod availability of the canaryRS.
 	isIncreasing := newRS == nil || desiredNewRSReplicaCount >= *newRS.Spec.Replicas
-	replicasToScaleDown := GetReplicasForScaleDown(newRS, !isIncreasing) + GetReplicasForScaleDown(stableRS, isIncreasing)
-
+	replicasToScaleDown := GetReplicasForScaleDown(newRS, !isIncreasing && desiredNewRSReplicaCount == 0) + GetReplicasForScaleDown(stableRS, isIncreasing)
+	
 	if replicasToScaleDown <= minAvailableReplicaCount {
 		// Cannot scale down stableRS or newRS without going below min available replica count
 		return newRSReplicaCount, stableRSReplicaCount
