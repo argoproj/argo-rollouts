@@ -112,7 +112,6 @@ func (s *CanarySuite) TestRolloutScalingWhenPaused() {
 		ExpectCanaryStablePodCount(1, 3)
 }
 
-
 // TestRolloutWithMaxSurgeScalingDuringUpdate verifies behavior when scaling a rollout up/down in middle of update and with maxSurge 100%
 func (s *CanarySuite) TestRolloutWithMaxSurgeScalingDuringUpdate() {
 	s.Given().
@@ -213,7 +212,7 @@ spec:
 		ExpectCanaryStablePodCount(6, 4).
 		When().
 		ScaleRollout(4).
-	    WaitForRolloutReplicas(6).
+		WaitForRolloutReplicas(6).
 		Then().
 		ExpectCanaryStablePodCount(2, 4)
 }
@@ -555,4 +554,28 @@ func (s *CanarySuite) TestCanaryUnScaleDownOnAbort() {
 		Then().
 		ExpectRevisionPodCount("2", 1).
 		ExpectRevisionScaleDown("2", false)
+}
+
+func (s *CanarySuite) TestCanaryDynamicStableScale() {
+	s.Given().
+		HealthyRollout(`@functional/canary-dynamic-stable-scale.yaml`).
+		When().
+		UpdateSpec(). // update to revision 2
+		WaitForRolloutStatus("Paused").
+		Sleep(2*time.Second).
+		Then().
+		ExpectRevisionPodCount("1", 3).
+		ExpectRevisionPodCount("2", 1).
+		When().
+		PromoteRollout().
+		WaitForRolloutCanaryStepIndex(3).
+		Sleep(2*time.Second).
+		Then().
+		ExpectRevisionPodCount("1", 1).
+		ExpectRevisionPodCount("2", 3).
+		// TODO: test abort
+		When().
+		AbortRollout()
+	// Then().
+	// ExpectRevisionPodCount("1", 4)
 }

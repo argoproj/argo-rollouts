@@ -151,17 +151,19 @@ func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) time.Duration 
 	return time.Duration(delaySeconds) * time.Second
 }
 
-// GetAbortScaleDownDelaySecondsOrDefault returns the duration seconds to delay the scale down of
-// the canary/preview ReplicaSet in a abort situation. A nil value indicates it should not
+// GetAbortScaleDownDelaySecondsOrDefault returns the duration to delay the scale down of
+// the canary/preview ReplicaSet in an abort situation. A nil value indicates it should not
 // scale down at all (abortScaleDownDelaySeconds: 0). A value of 0 indicates it should scale down
-// immediately.
-func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) *time.Duration {
+// immediately. Also returns a boolean to indicate if the value was explicitly set.
+func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) (*time.Duration, bool) {
 	var delaySeconds int32
+	wasSet := false
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		delaySeconds = DefaultAbortScaleDownDelaySeconds
 		if rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds != nil {
+			wasSet = true
 			if *rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds == 0 {
-				return nil
+				return nil, wasSet
 			}
 			delaySeconds = *rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds
 		}
@@ -169,15 +171,16 @@ func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) *time.Dur
 		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
 			delaySeconds = DefaultAbortScaleDownDelaySeconds
 			if rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds != nil {
+				wasSet = true
 				if *rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds == 0 {
-					return nil
+					return nil, wasSet
 				}
 				delaySeconds = *rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds
 			}
 		}
 	}
 	dur := time.Duration(delaySeconds) * time.Second
-	return &dur
+	return &dur, wasSet
 }
 
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {

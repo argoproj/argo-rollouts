@@ -66,7 +66,7 @@ If no `duration` is specified for a pause step, the rollout will be paused indef
 kubectl argo rollouts promote <rollout>
 ```
 
-## Controlling Canary Scale
+## Dynamic Canary Scale (with Traffic Routing)
 
 By default, the rollout controller will scale the canary to match the current trafficWeight of the
 current step. For example, if the current weight is 25%, and there are four replicas, then the
@@ -114,6 +114,38 @@ If no `duration` is specified for a pause step, the rollout will be paused indef
 ```shell
 # promote to the next step
 kubectl argo rollouts promote <rollout>
+```
+
+## Dynamic Stable Scale (with Traffic Routing)
+
+!!! important
+    Available since v1.1
+
+When using traffic routing, the stable ReplicaSet is left scaled to 100% during the update by default.
+This has the advantage that if an abort occurs, traffic can be immediately shifted back to the
+stable ReplicaSet without delay.
+
+It is possible to reduce the scale of the stable ReplicaSet during update such that it scales down as
+the traffic weight increases to canary. This would be desirable in scenarios where many pods
+are run.
+
+```yaml
+spec:
+  strategy:
+    canary:
+      dynamicStableScale: true
+```
+
+NOTE: that if `dynamicStableScale` is set, and the rollout is aborted, the canary ReplicaSet will
+scale down as traffic shifts back to stable. If you wish to leave the canary ReplicaSet scaled
+up while aborting, then an explicit value for `abortScaleDownDelay` should be set
+
+```yaml
+spec:
+  strategy:
+    canary:
+      dynamicStableScale: true
+      abortScaleDownDelay: 30
 ```
 
 

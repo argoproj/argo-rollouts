@@ -68,6 +68,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		return err
 	}
 	if reconciler == nil {
+		// Not using traffic routing
+		c.newStatus.Canary.Weights = nil
 		return nil
 	}
 	c.log.Infof("Reconciling TrafficRouting with type '%s'", reconciler.Type())
@@ -90,11 +92,16 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	if rolloututil.IsFullyPromoted(c.rollout) {
 		// when we are fully promoted. desired canary weight should be 0
 	} else if c.pauseContext.IsAborted() {
-		// when promote aborted. desired canary weight should be 0
+		// when aborted, desired canary weight should be 0 (100% to stable), *unless* we
+		// are using dynamic stable scaling. In that case, we can only decrease canary weight
+		// according to available replica counts of the stable.
+		if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+			desiredWeight = 100 - ((100 * c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas)
+		}
 	} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 		// when newRS is not available or replicas num is 0. never weight to canary
 	} else if index != nil {
-		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, nil)
 		if !atDesiredReplicaCount {
 			// Use the previous weight since the new RS is not ready for a new weight
 			for i := *index - 1; i >= 0; i-- {
@@ -142,6 +149,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
 		return err
 	}
+	c.newStatus.Canary.Weights = calculateWeightStatus(desiredWeight, weightDestinations...)
 
 	// If we are in the middle of an update at a setWeight step, also perform weight verification.
 	// Note that we don't do this every reconciliation because weight verification typically involves
@@ -165,4 +173,18 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	}
 
 	return nil
+}
+
+func calculateWeightStatus(desiredWeight int32, weightDestinations ...trafficrouting.WeightDestination) *v1alpha1.TrafficWeights {
+	weights := v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			Weight: desiredWeight,
+		},
+	}
+	stableWeight := 100 - desiredWeight
+	for _, weightDest := range weightDestinations {
+		stableWeight -= weightDest.Weight
+	}
+	weights.Stable.Weight = stableWeight
+	return &weights
 }

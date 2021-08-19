@@ -91,8 +91,15 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		c.log.Info("No StableRS exists to reconcile or matches newRS")
 		return false, nil
 	}
-	_, stableRSReplicaCount := replicasetutil.CalculateReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
-	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, stableRSReplicaCount)
+	var desiredStableRSReplicaCount int32
+	if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForBasicCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+	} else {
+		// note the use of c.newStatus instead of c.rollout.Status. We want to factor the weights
+		// that we previously just set into our scaling
+		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.newStatus.Canary.Weights)
+	}
+	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	return scaled, err
 }
 
@@ -287,9 +294,9 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	case currentStep.Pause != nil:
 		return c.pauseContext.CompletedCanaryPauseStep(*currentStep.Pause)
 	case currentStep.SetCanaryScale != nil:
-		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.newStatus.Canary.Weights)
 	case currentStep.SetWeight != nil:
-		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
+		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.newStatus.Canary.Weights) {
 			return false
 		}
 		if !c.areTargetsVerified() {

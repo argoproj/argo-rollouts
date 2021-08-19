@@ -701,6 +701,10 @@
         "currentExperiment": {
           "type": "string",
           "title": "CurrentExperiment indicates the running experiment"
+        },
+        "weights": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TrafficWeights",
+          "title": "Weights records the weights which have been set on traffic provider. Only valid when using traffic routing"
         }
       },
       "title": "CanaryStatus status fields that only pertain to the canary rollout"
@@ -792,6 +796,10 @@
           "type": "integer",
           "format": "int32",
           "title": "AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update\nis aborted for canary strategy with traffic routing (not applicable for basic canary).\n0 means canary pods are not scaled down.\nDefault is 30 seconds.\n+optional"
+        },
+        "dynamicStableScale": {
+          "type": "boolean",
+          "description": "DynamicStableScale is a traffic routing feature which dynamically scales the stable\nReplicaSet to minimize total pods which are running during an update. This is calculated by\nscaling down the stable as traffic is increased to canary. When disabled (the default behavior)\nthe stable ReplicaSet remains fully scaled to support instantaneous aborts."
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
@@ -1418,6 +1426,39 @@
         }
       },
       "description": "TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TrafficWeights": {
+      "type": "object",
+      "properties": {
+        "canary": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination"
+        },
+        "stable": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination"
+        },
+        "additional": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination"
+          }
+        }
+      },
+      "title": "TrafficWeights describes the current status of how traffic has been split"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination": {
+      "type": "object",
+      "properties": {
+        "weight": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "serviceName": {
+          "type": "string"
+        },
+        "podTemplateHash": {
+          "type": "string"
+        }
+      }
     },
     "google.protobuf.Any": {
       "type": "object",
