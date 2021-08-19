@@ -180,18 +180,12 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	// weight (e.g. we are aborting), then we can ignore pod availability of the canaryRS.
 	isIncreasing := newRS == nil || desiredNewRSReplicaCount >= *newRS.Spec.Replicas
 	replicasToScaleDown := GetReplicasForScaleDown(newRS, !isIncreasing) + GetReplicasForScaleDown(stableRS, isIncreasing)
-	log.Warnf("newRSReplicaCount: %d, stableRSReplicaCount: %d, minAvailableReplicaCount:%d, rolloutSpecReplica:%d, replicasToScaleDown: %d, desiredNewRSReplicaCount: %d, newSpec: %d", newRSReplicaCount, stableRSReplicaCount, minAvailableReplicaCount, rolloutSpecReplica, replicasToScaleDown, desiredNewRSReplicaCount, *newRS.Spec.Replicas)
-	if scaleStableRS {
-		log.Warnf("desiredStableRSReplicaCount:: %d, stableRS.Spec.Replicas: %d", desiredStableRSReplicaCount, *stableRS.Spec.Replicas)
-	}
 	if replicasToScaleDown <= minAvailableReplicaCount {
 		// Cannot scale down stableRS or newRS without going below min available replica count
 		return newRSReplicaCount, stableRSReplicaCount
 	}
 
-
 	scaleDownCount := replicasToScaleDown - minAvailableReplicaCount
-	log.Warnf("scaled count that is calculated: %d", scaleDownCount)
 	if !isIncreasing && newRS != nil && *newRS.Spec.Replicas > desiredNewRSReplicaCount {
 		// if the controller doesn't have to use every replica to achieve the desired count, it only scales down to the
 		// desired count.
@@ -215,7 +209,6 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 			stableRSReplicaCount = *stableRS.Spec.Replicas - scaleDownCount
 		}
 	}
-	log.Warnf("replicas count desired: %d, desiredStableRSReplicaCount: %d, stable: %d and stablersspec: %d, scale down count : %d", newRSReplicaCount, desiredStableRSReplicaCount, stableRSReplicaCount, *stableRS.Spec.Replicas, scaleDownCount)
 	return newRSReplicaCount, stableRSReplicaCount
 }
 
@@ -257,7 +250,7 @@ func GetReplicasForScaleDown(rs *appsv1.ReplicaSet, ignoreAvailability bool) int
 	if rs == nil {
 		return int32(0)
 	}
-	log.Warnf("Specreplica: %d, available: %d, ignoreAvailability: %t",*rs.Spec.Replicas, rs.Status.AvailableReplicas, ignoreAvailability)
+	log.Warnf("Specreplica: %d, available: %d, ignoreAvailability: %t", *rs.Spec.Replicas, rs.Status.AvailableReplicas, ignoreAvailability)
 	if *rs.Spec.Replicas < rs.Status.AvailableReplicas {
 		// The ReplicaSet is already going to scale down replicas since the availableReplica count is bigger
 		// than the spec count. The controller uses the .Spec.Replicas to prevent the controller from
