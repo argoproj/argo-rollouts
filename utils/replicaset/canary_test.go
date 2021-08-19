@@ -336,7 +336,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			canarySpecReplica:      4,
 			canaryAvailableReplica: 4,
 
-			expectedStableReplicaCount: 7,
+			expectedStableReplicaCount: 8,
 			expectedCanaryReplicaCount: 3,
 		},
 		{
@@ -622,7 +622,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = test.abortScaleDownDelaySeconds
 			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
 			assert.Equal(t, test.expectedCanaryReplicaCount, newRSReplicaCount, "check canary replica count")
-			assert.Equal(t, test.expectedStableReplicaCount, stableRSReplicaCount, "check stable replica count")
+			assert.Equal(t, test.expectedStableReplicaCount, stableRSReplicaCount, test.name)
 		})
 	}
 }
