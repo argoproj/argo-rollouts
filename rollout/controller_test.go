@@ -166,7 +166,7 @@ func newReplicaSetWithStatus(r *v1alpha1.Rollout, replicas int, availableReplica
 	return rs
 }
 
-func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
+func newPausedCondition(isPaused bool, reason string, msg string) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	if !isPaused {
 		status = corev1.ConditionFalse
@@ -174,10 +174,14 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 	condition := v1alpha1.RolloutCondition{
 		LastTransitionTime: metav1.Now(),
 		LastUpdateTime:     metav1.Now(),
-		Message:            conditions.RolloutPausedMessage,
-		Reason:             conditions.RolloutPausedReason,
-		Status:             status,
-		Type:               v1alpha1.RolloutPaused,
+		/*
+			Message:            conditions.RolloutPausedMessage,
+			Reason:             conditions.RolloutPausedReason,
+		*/
+		Message: msg,
+		Reason:  reason,
+		Status:  status,
+		Type:    v1alpha1.RolloutPaused,
 	}
 	conditionBytes, err := json.Marshal(condition)
 	if err != nil {
@@ -186,7 +190,7 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-func newCompletedCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
+func newCompletedCondition(isCompleted bool, reason string) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	if !isCompleted {
 		status = corev1.ConditionFalse
@@ -194,10 +198,14 @@ func newCompletedCondition(isCompleted bool) (v1alpha1.RolloutCondition, string)
 	condition := v1alpha1.RolloutCondition{
 		LastTransitionTime: metav1.Now(),
 		LastUpdateTime:     metav1.Now(),
-		Message:            conditions.RolloutCompletedReason,
-		Reason:             conditions.RolloutCompletedReason,
-		Status:             status,
-		Type:               v1alpha1.RolloutCompleted,
+		/*
+			Message:            conditions.RolloutCompletedReason,
+			Reason:             conditions.RolloutCompletedReason,
+		*/
+		Message: reason,
+		Reason:  reason,
+		Status:  status,
+		Type:    v1alpha1.RolloutCompleted,
 	}
 	conditionBytes, err := json.Marshal(condition)
 	if err != nil {
@@ -253,6 +261,9 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 		if reason == conditions.RolloutRetryReason {
 			msg = conditions.RolloutRetryMessage
 			status = corev1.ConditionUnknown
+		}
+		if reason == conditions.InvalidSpecReason {
+			status = corev1.ConditionFalse
 		}
 	}
 
@@ -317,7 +328,7 @@ func generateConditionsPatch(available bool, progressingReason string, progressi
 func generateConditionsPatchWithPause(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isPaused bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
-	_, pauseCondition := newPausedCondition(isPaused)
+	_, pauseCondition := newPausedCondition(isPaused, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	if availableConditionFirst {
 		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, pauseCondition)
 	}
@@ -327,7 +338,7 @@ func generateConditionsPatchWithPause(available bool, progressingReason string, 
 func generateConditionsPatchWithComplete(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
-	_, completeCondition := newCompletedCondition(isCompleted)
+	_, completeCondition := newCompletedCondition(isCompleted, conditions.RolloutCompletedReason)
 	if availableConditionFirst {
 		return fmt.Sprintf("[%s, %s, %s]", availableCondition, completeCondition, progressingCondition)
 	}
@@ -1065,6 +1076,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.objects = append(f.objects, r)
 
 	f.expectPatchRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)
 	f.run(getKey(r, t))
 }
 
@@ -1215,19 +1227,22 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	f.objects = append(f.objects, r)
 
 	patchIndex := f.expectPatchRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)
 	f.run(getKey(r, t))
 
 	expectedPatchWithoutSub := `{
 		"status": {
-			"conditions": [%s,%s],
+			"conditions": [%s,%s,%s,%s],
 			"message": "%s: %s"
 		}
 	}`
 	errmsg := "The Rollout \"foo\" is invalid: spec.selector: Required value: Rollout has missing field '.spec.selector'"
-	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	_, progressingCond := newProgressingCondition(conditions.InvalidSpecReason, r, conditions.InvalidSpecReason)
+	_, completedCond := newCompletedCondition(false, conditions.InvalidSpecReason)
+	_, pausedCond := newPausedCondition(false, conditions.InvalidSpecReason, conditions.InvalidSpecReason)
 	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, completedCond, pausedCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
