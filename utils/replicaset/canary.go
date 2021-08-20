@@ -188,17 +188,18 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	scaleDownCount := replicasToScaleDown - minAvailableReplicaCount
 	// default to any value, will be calculated in later steps --> maxAllowed value - updated RS (to be within maxSurge)
 	allowedAvailableReplicaCount := int32(0)
-	// Skip scalingDown canary replicaSet when StableSet availability is not taken into calculation for scaleDown
 	if !isIncreasing {
+		// Skip scalingDown Stable replicaSet when Canary availability is not taken into calculation for scaleDown
 		newRSReplicaCount, allowedAvailableReplicaCount = calculateScaleDownReplicaCount(newRS, desiredNewRSReplicaCount, maxReplicaCountAllowed, scaleDownCount, newRSReplicaCount)
 		if allowedAvailableReplicaCount < stableRSReplicaCount {
 			// ScaleDown stableAvailableSet to allowed value to adhere to maxSurge
 			stableRSReplicaCount = allowedAvailableReplicaCount
 		}
 	} else {
+		// Skip scalingDown canary replicaSet when StableSet availability is not taken into calculation for scaleDown
 		stableRSReplicaCount, allowedAvailableReplicaCount = calculateScaleDownReplicaCount(stableRS, desiredStableRSReplicaCount, maxReplicaCountAllowed, scaleDownCount, stableRSReplicaCount)
 		if allowedAvailableReplicaCount < newRSReplicaCount {
-			// ScaleDown canarySet to allowed value to adhere to maxSurge
+			// ScaleDown canaryAllowedSet to allowed value to adhere to maxSurge
 			newRSReplicaCount = allowedAvailableReplicaCount
 		}
 	}
