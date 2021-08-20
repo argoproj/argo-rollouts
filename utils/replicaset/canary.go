@@ -206,6 +206,10 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	return newRSReplicaCount, stableRSReplicaCount
 }
 
+// calculateScaleDownReplicaCount calculates updatedReplicaCount and allowedReplicaCount
+// calculates updatedReplicaCount based on scaleDownCount and function called only once either to update canaryRS or stableRS.
+// allowedReplicaCount is calculated based on updated updatedReplicaCount, so the limit can be used to update either canaryRS/stableRS
+// maxReplicaCountAllowed is calculated value considering maxSurge
 func calculateScaleDownReplicaCount(replicaSet *appsv1.ReplicaSet, desireRSReplicaCount int32, maxReplicaCountAllowed int32, scaleDownCount int32, updatedReplicaCount int32) (int32, int32) {
 	if replicaSet != nil && *replicaSet.Spec.Replicas > desireRSReplicaCount {
 		// if the controller doesn't have to use every replica to achieve the desired count, it only scales down to the

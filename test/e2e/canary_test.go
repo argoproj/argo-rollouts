@@ -125,7 +125,7 @@ spec:
   replicas: 4
   strategy:
     canary:
-      maxSurge: 100
+      maxSurge: 100%
   selector:
     matchLabels:
       app: updatescaling
