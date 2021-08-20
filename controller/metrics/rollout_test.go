@@ -100,7 +100,7 @@ func TestCollectRollouts(t *testing.T) {
 	}{
 		{
 			fakeRollout,
-			conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, "Progressing", ""),
+			conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, "Progressing", ""),
 			`
 # HELP rollout_info Information about rollout.
 # TYPE rollout_info gauge
@@ -115,10 +115,9 @@ rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
 # TYPE rollout_info_replicas_unavailable gauge
 rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
 		},
-
 		{
 			fakeRollout,
-			conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.FailedRSCreateReason, "test"),
+			conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.FailedRSCreateReason, "test"),
 			`
 # HELP rollout_info Information about rollout.
 # TYPE rollout_info gauge
@@ -134,8 +133,25 @@ rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
 rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
 		},
 		{
+			fakeRollout,
+			conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, "test"),
+			`
+# HELP rollout_info Information about rollout.
+# TYPE rollout_info gauge
+rollout_info{name="guestbook-bluegreen",namespace="default",phase="InvalidSpec",strategy="blueGreen",traffic_router=""} 1
+# HELP rollout_info_replicas_available The number of available replicas per rollout.
+# TYPE rollout_info_replicas_available gauge
+rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 1
+# HELP rollout_info_replicas_desired The number of desired replicas per rollout.
+# TYPE rollout_info_replicas_desired gauge
+rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
+		},
+		{
 			fakeCanaryRollout,
-			conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, "Progressing", "test"),
+			conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, "Progressing", "test"),
 			`
 # HELP rollout_info Information about rollout.
 # TYPE rollout_info gauge

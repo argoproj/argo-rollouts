@@ -3,6 +3,7 @@ package metrics
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -64,7 +65,7 @@ func (c *rolloutCollector) Collect(ch chan<- prometheus.Metric) {
 func calculatePhase(rollout *v1alpha1.Rollout) RolloutPhase {
 	phase := RolloutProgressing
 	progressing := conditions.GetRolloutCondition(rollout.Status, v1alpha1.RolloutProgressing)
-	if progressing != nil {
+	if progressing != nil && progressing.Status == corev1.ConditionTrue {
 		if progressing.Reason == conditions.NewRSAvailableReason {
 			phase = RolloutCompleted
 		}
@@ -82,7 +83,7 @@ func calculatePhase(rollout *v1alpha1.Rollout) RolloutPhase {
 		}
 	}
 	invalidSpec := conditions.GetRolloutCondition(rollout.Status, v1alpha1.InvalidSpec)
-	if invalidSpec != nil {
+	if invalidSpec != nil && invalidSpec.Status == corev1.ConditionTrue {
 		phase = RolloutInvalidSpec
 	}
 	return phase

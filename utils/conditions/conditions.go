@@ -194,6 +194,26 @@ func filterOutCondition(conditions []v1alpha1.RolloutCondition, condType v1alpha
 	return newConditions
 }
 
+// UnprogressRolloutConditions sets all existing progressing conditions to false
+func UnprogressRolloutConditions(status *v1alpha1.RolloutStatus) bool {
+	var unprogressCond func(condType v1alpha1.RolloutConditionType) bool
+	unprogressCond = func(condType v1alpha1.RolloutConditionType) bool {
+		cond := GetRolloutCondition(*status, v1alpha1.RolloutProgressing)
+		updated := false
+		if cond != nil {
+			newCond := NewRolloutCondition(condType, corev1.ConditionFalse, InvalidSpecReason, InvalidSpecReason)
+			updated = SetRolloutCondition(status, *newCond)
+		}
+		return updated
+	}
+
+	progressUpdated := unprogressCond(v1alpha1.RolloutProgressing)
+	completedUpdated := unprogressCond(v1alpha1.RolloutCompleted)
+	pausedUpdated := unprogressCond(v1alpha1.RolloutPaused)
+
+	return progressUpdated || completedUpdated || pausedUpdated
+}
+
 // RolloutProgressing reports progress for a rollout. Progress is estimated by comparing the
 // current with the new status of the rollout that the controller is observing. More specifically,
 // when new pods are scaled up, become ready or available, old pods are scaled down, or we modify the
