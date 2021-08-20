@@ -1,7 +1,4 @@
-import {faCheckCircle, faPauseCircle, faQuestionCircle, faTimesCircle} from '@fortawesome/free-regular-svg-icons';
-import {faArrowAltCircleDown, faCircleNotch} from '@fortawesome/free-solid-svg-icons';
-import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {Tooltip} from 'argo-ux';
+import {Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
 import './status-icon.scss';
 
@@ -18,32 +15,32 @@ export const StatusIcon = (props: {status: RolloutStatus}): JSX.Element => {
     const {status} = props;
     switch (status) {
         case 'Progressing': {
-            icon = faCircleNotch;
+            icon = 'fa-circle-notch';
             className = 'progressing';
             spin = true;
             break;
         }
         case 'Healthy': {
-            icon = faCheckCircle;
+            icon = 'fa-check-circle';
             className = 'healthy';
             break;
         }
         case 'Paused': {
-            icon = faPauseCircle;
+            icon = 'fa-pause-circle';
             className = 'paused';
             break;
         }
         case 'Degraded': {
-            icon = faTimesCircle;
+            icon = 'fa-times-circle';
             className = 'degraded';
             break;
         }
         default: {
-            icon = faQuestionCircle;
+            icon = 'fa-question-circle';
             className = 'unknown';
         }
     }
-    return <FontAwesomeIcon icon={icon} className={`status-icon--${className}`} spin={spin} />;
+    return <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />;
 };
 
 export enum ReplicaSetStatus {
@@ -61,34 +58,34 @@ export const ReplicaSetStatusIcon = (props: {status: ReplicaSetStatus}) => {
     switch (status) {
         case 'Healthy':
         case 'Running': {
-            icon = faCheckCircle;
+            icon = 'fa-check-circle';
             className = 'healthy';
             break;
         }
         case 'ScaledDown': {
-            icon = faArrowAltCircleDown;
+            icon = 'fa-arrow-alt-circle-down';
             className = 'paused';
             break;
         }
         case 'Degraded': {
-            icon = faTimesCircle;
+            icon = 'fa-times-circle';
             className = 'degraded';
             break;
         }
         case 'Progressing': {
-            icon = faCircleNotch;
+            icon = 'fa-circle-notch';
             spin = true;
             className = 'progressing';
             break;
         }
         default: {
-            icon = faQuestionCircle;
+            icon = 'fa-question-circle';
             className = 'unknown';
         }
     }
     return (
         <Tooltip content={status}>
-            <FontAwesomeIcon icon={icon} className={`status-icon--${className}`} spin={spin} />
+            <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />
         </Tooltip>
     );
 };
