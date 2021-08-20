@@ -63,7 +63,7 @@ spec:
   # Whether to abort the update when ProgressDeadlineSeconds
   # is exceeded if analysis or experiment is not used.
   # Optional and default is false.
-  ProgressDeadlineAbort: false
+  progressDeadlineAbort: false
 
   # UTC timestamp in which a Rollout should sequentially restart all of
   # its pods. Used by the `kubectl argo rollouts restart ROLLOUT` command.
