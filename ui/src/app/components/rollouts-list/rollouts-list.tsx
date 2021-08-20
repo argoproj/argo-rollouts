@@ -1,6 +1,4 @@
-import {faCircleNotch, faDove, faPalette, faRedoAlt, faSearch, faWeight} from '@fortawesome/free-solid-svg-icons';
-import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {Autocomplete, EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, useAutocomplete, WaitFor} from 'argo-ux';
+import {Autocomplete, EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, useAutocomplete, WaitFor} from 'argo-ui/v2';
 import * as React from 'react';
 import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import {Link, useHistory} from 'react-router-dom';
@@ -100,7 +98,7 @@ export const RolloutsList = () => {
                                     placeholder='Search...'
                                     style={{marginBottom: '1.5em'}}
                                     onItemClick={(item) => history.push(`/rollout/${item}`)}
-                                    icon={faSearch}
+                                    icon='fa-search'
                                     {...searchInput}
                                 />
                             </div>
@@ -191,9 +189,9 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; deselect: () => void
                 <ThemeDiv className='rollouts-list__widget__body'>
                     <InfoItemRow
                         label={'Strategy'}
-                        items={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? faPalette : faDove, kind: rollout.strategy.toLowerCase() as InfoItemKind}}
+                        items={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? 'fa-palette' : 'fa-dove', kind: rollout.strategy.toLowerCase() as InfoItemKind}}
                     />
-                    {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: faWeight}} />}
+                    {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: 'fa-weight'}} />}
                 </ThemeDiv>
                 <WaitFor loading={(rollout.replicaSets || []).length < 1} loader={<Spinner />}>
                     <ReplicaSets replicaSets={rollout.replicaSets} showRevisions />
@@ -217,16 +215,14 @@ const WidgetHeader = (props: {rollout: RolloutInfo; refresh: () => void}) => {
         <header>
             {rollout.objectMeta?.name}
             <span style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
-                <FontAwesomeIcon
-                    icon={loading ? faCircleNotch : faRedoAlt}
+                <i
+                    className={`rollouts-list__widget__refresh fa ${loading ? 'fa-circle-notch' : 'fa-redo-alt'} ${loading ? 'fa-spin' : ''}`}
                     style={{marginRight: '10px', fontSize: '14px'}}
-                    className='rollouts-list__widget__refresh'
                     onClick={(e) => {
                         props.refresh();
                         setLoading(true);
                         e.preventDefault();
                     }}
-                    spin={loading}
                 />
                 <StatusIcon status={rollout.status as RolloutStatus} />
             </span>
