@@ -336,7 +336,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			canarySpecReplica:      4,
 			canaryAvailableReplica: 4,
 
-			expectedStableReplicaCount: 8,
+			expectedStableReplicaCount: 7,
 			expectedCanaryReplicaCount: 3,
 		},
 		{
