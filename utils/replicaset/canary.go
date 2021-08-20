@@ -190,13 +190,13 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	allowedAvailableReplicaCount := int32(0)
 	// Skip scalingDown canary replicaSet when StableSet availability is not taken into calculation for scaleDown
 	if !isIncreasing {
-		newRSReplicaCount, scaleDownCount, allowedAvailableReplicaCount = calculateScaleDownReplicaCount(newRS, desiredNewRSReplicaCount, maxReplicaCountAllowed, scaleDownCount, newRSReplicaCount)
-	    if allowedAvailableReplicaCount < stableRSReplicaCount {
-	    	// ScaleDown stableAvailableSet to allowed value to adhere to maxSurge
+		newRSReplicaCount, allowedAvailableReplicaCount = calculateScaleDownReplicaCount(newRS, desiredNewRSReplicaCount, maxReplicaCountAllowed, scaleDownCount, newRSReplicaCount)
+		if allowedAvailableReplicaCount < stableRSReplicaCount {
+			// ScaleDown stableAvailableSet to allowed value to adhere to maxSurge
 			stableRSReplicaCount = allowedAvailableReplicaCount
 		}
 	} else {
-		stableRSReplicaCount, scaleDownCount, allowedAvailableReplicaCount = calculateScaleDownReplicaCount(stableRS, desiredStableRSReplicaCount, maxReplicaCountAllowed, scaleDownCount, stableRSReplicaCount)
+		stableRSReplicaCount, allowedAvailableReplicaCount = calculateScaleDownReplicaCount(stableRS, desiredStableRSReplicaCount, maxReplicaCountAllowed, scaleDownCount, stableRSReplicaCount)
 		if allowedAvailableReplicaCount < newRSReplicaCount {
 			// ScaleDown canarySet to allowed value to adhere to maxSurge
 			newRSReplicaCount = allowedAvailableReplicaCount
@@ -205,21 +205,18 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	return newRSReplicaCount, stableRSReplicaCount
 }
 
-func calculateScaleDownReplicaCount(replicaSet *appsv1.ReplicaSet, desireRSReplicaCount int32, maxReplicaCountAllowed int32, scaleDownCount int32, updatedReplicaCount int32) (int32, int32, int32) {
+func calculateScaleDownReplicaCount(replicaSet *appsv1.ReplicaSet, desireRSReplicaCount int32, maxReplicaCountAllowed int32, scaleDownCount int32, updatedReplicaCount int32) (int32, int32) {
 	if replicaSet != nil && *replicaSet.Spec.Replicas > desireRSReplicaCount {
 		// if the controller doesn't have to use every replica to achieve the desired count, it only scales down to the
 		// desired count.
 		if *replicaSet.Spec.Replicas-scaleDownCount < desireRSReplicaCount {
 			updatedReplicaCount = desireRSReplicaCount
-			// Calculating how many replicas were used to scale down to the desired count
-			scaleDownCount = scaleDownCount - (*replicaSet.Spec.Replicas - desireRSReplicaCount)
 		} else {
 			// The controller is using every replica it can to get closer to desired state.
 			updatedReplicaCount = *replicaSet.Spec.Replicas - scaleDownCount
-			scaleDownCount = 0
 		}
 	}
-	return updatedReplicaCount, scaleDownCount, maxReplicaCountAllowed - updatedReplicaCount
+	return updatedReplicaCount, maxReplicaCountAllowed - updatedReplicaCount
 }
 
 // BeforeStartingStep checks if canary rollout is at the starting step
