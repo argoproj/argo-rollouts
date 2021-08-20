@@ -208,6 +208,8 @@ spec:
 		ScaleRollout(8).
 		WaitForRolloutReplicas(10).
 		Then().
+		// NOTE: the numbers below may change in the future.
+		// See: https://github.com/argoproj/argo-rollouts/issues/738
 		ExpectCanaryStablePodCount(6, 4).
 		When().
 		ScaleRollout(4).
