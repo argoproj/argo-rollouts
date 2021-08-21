@@ -215,7 +215,7 @@ spec:
 		ScaleRollout(4).
 	    WaitForRolloutReplicas(6).
 		Then().
-		ExpectCanaryStablePodCount(4, 2)
+		ExpectCanaryStablePodCount(2, 4)
 }
 
 // TestReduceWeightAndHonorMaxUnavailable verifies we honor maxUnavailable when decreasing weight or aborting
