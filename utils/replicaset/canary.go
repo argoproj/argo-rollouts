@@ -175,7 +175,6 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	}
 
 	minAvailableReplicaCount := rolloutSpecReplica - MaxUnavailable(rollout)
-	log.Warnf("rolloutSpecReplica:%d, unavailable:%d", rolloutSpecReplica, MaxUnavailable(rollout))
 
 	// isIncreasing indicates if we are supposed to be increasing our canary replica count.
 	// If so, we can ignore pod availability of the stableRS. Otherwise, if we are reducing our
@@ -204,11 +203,11 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 // calculateScaleDownReplicaCount calculates drainRSReplicaCount
 // drainRSReplicaCount can be either stableRS count or canaryRS count
 // drainRSReplicaCount corresponds to RS whose availability is not considered in calculating replicasToScaleDown
-func calculateScaleDownReplicaCount(replicaSet *appsv1.ReplicaSet, desireRSReplicaCount int32, scaleDownCount int32, drainRSReplicaCount int32) int32 {
-	if replicaSet != nil && *replicaSet.Spec.Replicas > desireRSReplicaCount {
+func calculateScaleDownReplicaCount(drainRS *appsv1.ReplicaSet, desireRSReplicaCount int32, scaleDownCount int32, drainRSReplicaCount int32) int32 {
+	if drainRS != nil && *drainRS.Spec.Replicas > desireRSReplicaCount {
 		// if the controller doesn't have to use every replica to achieve the desired count,
 		// it can scales down to the desired count or get closer to desired state.
-		drainRSReplicaCount = maxValue(desireRSReplicaCount, *replicaSet.Spec.Replicas-scaleDownCount)
+		drainRSReplicaCount = maxValue(desireRSReplicaCount, *drainRS.Spec.Replicas-scaleDownCount)
 	}
 	return drainRSReplicaCount
 }
