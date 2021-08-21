@@ -877,6 +877,21 @@ func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy s
 	assert.Equal(f.t, patch, string(patchAction.GetPatch()))
 }
 
+func (f *fixture) verifyPatchedRolloutAborted(index int, rsName string) {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	_, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+
+	ro := f.getPatchedRolloutAsObject(index)
+	assert.NotNil(f.t, ro)
+	assert.True(f.t, ro.Status.Abort)
+	assert.Equal(f.t, v1alpha1.RolloutPhaseDegraded, ro.Status.Phase)
+	expectedMsg := fmt.Sprintf("ProgressDeadlineExceeded: ReplicaSet %q has timed out progressing.", rsName)
+	assert.Equal(f.t, expectedMsg, ro.Status.Message)
+}
+
 func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) bool {
 	action := filterInformerActions(f.client.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)

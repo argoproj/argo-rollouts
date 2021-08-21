@@ -114,6 +114,88 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.verifyPatchedService(servicePatch, rsPodHash, "")
 }
 
+func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	progressDeadlineSeconds := int32(1)
+	r.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r.Spec.ProgressDeadlineAbort = true
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	rs := newReplicaSetWithStatus(r, 1, 1)
+	r.Status.UpdatedReplicas = 1
+	r.Status.ReadyReplicas = 1
+	r.Status.AvailableReplicas = 1
+
+	progressingTimeoutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.TimedOutReason, conditions.TimedOutReason)
+	conditions.SetRolloutCondition(&r.Status, *progressingTimeoutCond)
+
+	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r.Status.BlueGreen.ActiveSelector = rsPodHash
+	r.Status.BlueGreen.PreviewSelector = rsPodHash
+
+	previewSvc := newService("preview", 80, nil, r)
+	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsPodHash}
+	activeSvc := newService("active", 80, selector, r)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
+	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
+
+	f.kubeobjects = append(f.kubeobjects, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	f.expectPatchServiceAction(previewSvc, rsPodHash)
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	f.verifyPatchedRolloutAborted(patchIndex, "foo-"+rsPodHash)
+}
+
+func TestBlueGreenProgressDeadlineAbortAfterDegraded(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
+	progressDeadlineSeconds := int32(1)
+	r.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
+	r.Spec.ProgressDeadlineAbort = true
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+
+	rs := newReplicaSetWithStatus(r, 1, 1)
+	r.Status.UpdatedReplicas = 1
+	r.Status.ReadyReplicas = 1
+	r.Status.AvailableReplicas = 1
+
+	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	msg := fmt.Sprintf("ReplicaSet %q has timed out progressing.", "foo-"+rsPodHash)
+	progressingTimeoutCond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
+	conditions.SetRolloutCondition(&r.Status, *progressingTimeoutCond)
+
+	r.Status.BlueGreen.ActiveSelector = rsPodHash
+	r.Status.BlueGreen.PreviewSelector = rsPodHash
+
+	previewSvc := newService("preview", 80, nil, r)
+	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rsPodHash}
+	activeSvc := newService("active", 80, selector, r)
+	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
+	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
+
+	f.kubeobjects = append(f.kubeobjects, rs)
+	f.replicaSetLister = append(f.replicaSetLister, rs)
+
+	f.expectPatchServiceAction(previewSvc, rsPodHash)
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	f.verifyPatchedRolloutAborted(patchIndex, "foo-"+rsPodHash)
+}
+
 //TestSetServiceManagedBy ensures the managed by annotation is set in the service is set
 func TestSetServiceManagedBy(t *testing.T) {
 	f := newFixture(t)
