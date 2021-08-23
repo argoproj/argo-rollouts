@@ -13,12 +13,10 @@ import (
 	"text/tabwriter"
 	"time"
 
+
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
-
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
-
 	"github.com/ghodss/yaml"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
