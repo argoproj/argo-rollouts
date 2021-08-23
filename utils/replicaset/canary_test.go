@@ -337,6 +337,22 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 3,
 		},
 		{
+			name:                "Scale down stable and canary available",
+			rolloutSpecReplicas: 10,
+			setWeight:           100,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      10,
+			stableAvailableReplica: 2,
+
+			canarySpecReplica:      10,
+			canaryAvailableReplica: 8,
+
+			expectedStableReplicaCount: 2,
+			expectedCanaryReplicaCount: 9,
+		},
+		{
 			name:                "Do not scale down newRS or stable when older RS count >= scaleDownCount",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
