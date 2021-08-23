@@ -168,3 +168,20 @@ func asFloat(in interface{}) float64 {
 	}
 	panic(fmt.Sprintf("asFloat() not supported on %v %v", reflect.TypeOf(in), in))
 }
+
+// Check whether two slices of type string are equal or not.
+func Equal(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	left := make(map[string]bool)
+	for _, x := range a {
+		left[x] = true
+	}
+	for _, x := range b {
+		if !left[x] {
+			return false
+		}
+	}
+	return true
+}

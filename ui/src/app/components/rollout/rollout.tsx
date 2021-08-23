@@ -1,25 +1,4 @@
-import {faChartBar} from '@fortawesome/free-regular-svg-icons';
-import {
-    faBalanceScale,
-    faBalanceScaleRight,
-    faBoxes,
-    faChevronCircleDown,
-    faChevronCircleUp,
-    faDove,
-    faExclamationCircle,
-    faFlask,
-    faPalette,
-    faPauseCircle,
-    faPencilAlt,
-    faSave,
-    faShoePrints,
-    faTimes,
-    faUndoAlt,
-    faWeight,
-    IconDefinition,
-} from '@fortawesome/free-solid-svg-icons';
-import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {ActionButton, Autocomplete, EffectDiv, InfoItem, InfoItemKind, InfoItemProps, InfoItemRow, Spinner, ThemeDiv, Tooltip, useInput, WaitFor} from 'argo-ux';
+import {ActionButton, Autocomplete, EffectDiv, InfoItem, InfoItemKind, InfoItemProps, InfoItemRow, Spinner, ThemeDiv, Tooltip, useInput, WaitFor} from 'argo-ui/v2';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Key, KeybindingContext} from 'react-keyhooks';
@@ -162,9 +141,9 @@ export const Rollout = () => {
                             <ThemeDiv className='rollout__info__section'>
                                 {rollout.strategy === Strategy.Canary && (
                                     <React.Fragment>
-                                        <InfoItemRow items={{content: rollout.step, icon: faShoePrints}} label='Step' />
-                                        <InfoItemRow items={{content: rollout.setWeight, icon: faBalanceScaleRight}} label='Set Weight' />
-                                        <InfoItemRow items={{content: rollout.actualWeight, icon: faBalanceScale}} label='Actual Weight' />{' '}
+                                        <InfoItemRow items={{content: rollout.step, icon: 'fa-shoe-prints'}} label='Step' />
+                                        <InfoItemRow items={{content: rollout.setWeight, icon: 'fa-balance-scale-right'}} label='Set Weight' />
+                                        <InfoItemRow items={{content: rollout.actualWeight, icon: 'fa-balance-scale'}} label='Actual Weight' />{' '}
                                     </React.Fragment>
                                 )}
                             </ThemeDiv>
@@ -219,9 +198,9 @@ export const Rollout = () => {
 const iconForStrategy = (s: Strategy) => {
     switch (s) {
         case Strategy.Canary:
-            return faDove;
+            return 'fa-dove';
         case Strategy.BlueGreen:
-            return faPalette;
+            return 'fa-palette';
     }
 };
 
@@ -229,11 +208,11 @@ const ImageItems = (props: {images: ImageInfo[]}) => {
     return (
         <div>
             {props.images.map((img) => {
-                let imageItems = img.tags.map((t) => {
+                let imageItems = img?.tags?.map((t) => {
                     return {content: t, icon: IconForTag(t)} as InfoItemProps;
                 });
                 if (imageItems.length === 0) {
-                    imageItems = null;
+                    imageItems = [];
                 }
                 return <InfoItemRow key={img.image} label={<ThemeDiv className={`image image--${img.color || 'unknown'}`}>{img.image}</ThemeDiv>} items={imageItems} />;
             })}
@@ -289,7 +268,7 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
 const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean; rollback: (revision: number) => void; current: boolean}) => {
     const {revision, initCollapsed} = props;
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
-    const icon = collapsed ? faChevronCircleDown : faChevronCircleUp;
+    const icon = collapsed ? 'fa-chevron-circle-down' : 'fa-chevron-circle-up';
     const images = parseImages(revision.replicaSets);
     return (
         <EffectDiv key={revision.number} className='revision'>
@@ -297,10 +276,10 @@ const RevisionWidget = (props: {revision: Revision; initCollapsed?: boolean; rol
                 Revision {revision.number}
                 <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
                     {!props.current && (
-                        <ActionButton action={() => props.rollback(revision.number)} label='ROLLBACK' icon={faUndoAlt} style={{fontSize: '13px'}} indicateLoading shouldConfirm />
+                        <ActionButton action={() => props.rollback(revision.number)} label='ROLLBACK' icon='fa-undo-alt' style={{fontSize: '13px'}} indicateLoading shouldConfirm />
                     )}
                     <ThemeDiv className='revision__header__button' onClick={() => setCollapsed(!collapsed)}>
-                        <FontAwesomeIcon icon={icon} />
+                        <i className={`fa ${icon}`} />
                     </ThemeDiv>
                 </div>
             </ThemeDiv>
@@ -371,7 +350,7 @@ const ContainersWidget = (props: {
                 {editing ? (
                     <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
                         <ActionButton
-                            icon={faTimes}
+                            icon='fa-times'
                             action={() => {
                                 setEditing(false);
                                 setError(false);
@@ -380,7 +359,7 @@ const ContainersWidget = (props: {
                         <ActionButton
                             label={error ? 'ERROR' : 'SAVE'}
                             style={{marginRight: 0}}
-                            icon={error ? faExclamationCircle : faSave}
+                            icon={error ? 'fa-exclamation-circle' : 'fa-save'}
                             action={() => {
                                 for (const container of Object.keys(inputs)) {
                                     const split = inputs[container].split(':');
@@ -401,7 +380,7 @@ const ContainersWidget = (props: {
                         />
                     </div>
                 ) : (
-                    <FontAwesomeIcon icon={faPencilAlt} onClick={() => setEditing(true)} style={{cursor: 'pointer', marginLeft: 'auto'}} />
+                    <i className='fa fa-pencil-alt' onClick={() => setEditing(true)} style={{cursor: 'pointer', marginLeft: 'auto'}} />
                 )}
             </div>
             {containers.map((c, i) => (
@@ -420,7 +399,7 @@ const ContainersWidget = (props: {
             {containers.length < 2 && (
                 <ThemeDiv className='containers__few'>
                     <span style={{marginRight: '5px'}}>
-                        <FontAwesomeIcon icon={faBoxes} />
+                        <i className='fa-boxes' />
                     </span>
                     Add more containers to fill this space!
                 </ThemeDiv>
@@ -452,16 +431,16 @@ const parseDuration = (duration: string): string => {
 };
 
 const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
-    let icon: IconDefinition;
+    let icon: string;
     let content = '';
     let unit = '';
     if (props.step.setWeight) {
-        icon = faWeight;
+        icon = 'fa-weight';
         content = `Set Weight: ${props.step.setWeight}`;
         unit = '%';
     }
     if (props.step.pause) {
-        icon = faPauseCircle;
+        icon = 'fa-pause-circle';
         if (props.step.pause.duration) {
             content = `Pause: ${parseDuration(`${props.step.pause.duration}`)}`;
         } else {
@@ -470,20 +449,20 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     }
     if (props.step.analysis) {
         content = 'Analysis';
-        icon = faChartBar;
+        icon = 'fa-chart-bar';
     }
     if (props.step.setCanaryScale) {
         content = 'Canary Scale';
     }
     if (props.step.experiment) {
         content = 'Experiment';
-        icon = faFlask;
+        icon = 'fa-flask';
     }
 
     return (
         <React.Fragment>
             <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-                <FontAwesomeIcon icon={icon} /> {content}
+                <i className={`fa ${icon}`} /> {content}
                 {unit}
             </EffectDiv>
             {!props.last && <ThemeDiv className='steps__connector' />}

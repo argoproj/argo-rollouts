@@ -1,5 +1,4 @@
-import {faArrowDown, faArrowLeft, faArrowRight, faArrowUp} from '@fortawesome/free-solid-svg-icons';
-import {ThemeDiv} from 'argo-ux';
+import {ThemeDiv, ThemeProvider} from 'argo-ui/v2';
 import {Header} from './components/header/header';
 import {createBrowserHistory} from 'history';
 import * as React from 'react';
@@ -11,13 +10,12 @@ import {Modal} from './components/modal/modal';
 import {Rollout} from './components/rollout/rollout';
 import {RolloutsList} from './components/rollouts-list/rollouts-list';
 import {Shortcut, Shortcuts} from './components/shortcuts/shortcuts';
-import {ThemeProvider} from 'argo-ux';
 
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 
-const Page = (props: {path: string; component: React.ReactNode; exact?: boolean; shortcuts?: Shortcut[], changeNamespace: (val: string) => void}) => {
+const Page = (props: {path: string; component: React.ReactNode; exact?: boolean; shortcuts?: Shortcut[]; changeNamespace: (val: string) => void}) => {
     const {useKeybinding} = React.useContext(KeybindingContext);
     const [showShortcuts, setShowShortcuts] = React.useState(false);
     useKeybinding(
@@ -90,7 +88,7 @@ const App = () => {
                                     shortcuts={[
                                         {key: '/', description: 'Search'},
                                         {key: 'TAB', description: 'Search, navigate search items'},
-                                        {key: [faArrowLeft, faArrowRight, faArrowUp, faArrowDown], description: 'Navigate rollouts list'},
+                                        {key: ['fa-arrow-left', 'fa-arrow-right', 'fa-arrow-up', 'fa-arrow-down'], description: 'Navigate rollouts list', icon: true},
                                         {key: ['SHIFT', 'H'], description: 'Show help menu', combo: true},
                                     ]}
                                     changeNamespace={changeNamespace}

@@ -304,14 +304,17 @@ func TestCanaryPromoteFull(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
-	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // create new ReplicaSet (surge to 10)
+	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // create new ReplicaSet (size 0)
 	f.expectUpdateRolloutAction(r2)                        // update rollout revision
 	f.expectUpdateRolloutStatusAction(r2)                  // update rollout conditions
+	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // scale new ReplicaSet to 10
 	patchedRolloutIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
-	assert.Equal(t, int32(10), *createdRS2.Spec.Replicas) // verify we ignored steps
+	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
+	updatedRS2 := f.getUpdatedReplicaSet(updatedRS2Index)
+	assert.Equal(t, int32(10), *updatedRS2.Spec.Replicas) // verify we ignored steps and fully scaled it
 
 	patchedRollout := f.getPatchedRolloutAsObject(patchedRolloutIndex)
 	assert.Equal(t, int32(2), *patchedRollout.Status.CurrentStepIndex) // verify we updated to last step
