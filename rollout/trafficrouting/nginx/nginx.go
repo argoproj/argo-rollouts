@@ -17,6 +17,7 @@ import (
 	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"

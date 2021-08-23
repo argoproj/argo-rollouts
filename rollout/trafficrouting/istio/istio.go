@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/dynamic/dynamiclister"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	evalUtils "github.com/argoproj/argo-rollouts/utils/evaluate"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"

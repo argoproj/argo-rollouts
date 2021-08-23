@@ -7,9 +7,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
-	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -17,6 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 const (

@@ -17,6 +17,7 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
