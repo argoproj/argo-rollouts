@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
-
 	"github.com/sirupsen/logrus"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"

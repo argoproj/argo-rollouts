@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
-
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/mitchellh/mapstructure"
 	log "github.com/sirupsen/logrus"
