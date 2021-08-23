@@ -648,8 +648,24 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			if c.newRS != nil {
 				msg = fmt.Sprintf(conditions.ReplicaSetTimeOutMessage, c.newRS.Name)
 			}
+
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.TimedOutReason, msg)
-			conditions.SetRolloutCondition(&newStatus, *condition)
+			condChanged := conditions.SetRolloutCondition(&newStatus, *condition)
+
+			// If condition is changed and ProgressDeadlineAbort is set, abort the update
+			if condChanged {
+				if c.rollout.Spec.ProgressDeadlineAbort {
+					c.pauseContext.AddAbort(msg)
+					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
+				}
+			} else {
+				// Although condition is unchanged, ProgressDeadlineAbort can be set after
+				// an existing update timeout. In this case if update is not aborted, we need to abort.
+				if c.rollout.Spec.ProgressDeadlineAbort && c.pauseContext != nil && !c.pauseContext.IsAborted() {
+					c.pauseContext.AddAbort(msg)
+					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, msg)
+				}
+			}
 		}
 	}
 

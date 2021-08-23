@@ -9759,6 +9759,8 @@ spec:
                 type: integer
               paused:
                 type: boolean
+              progressDeadlineAbort:
+                type: boolean
               progressDeadlineSeconds:
                 format: int32
                 type: integer

@@ -161,8 +161,8 @@ func GetRolloutCondition(status v1alpha1.RolloutStatus, condType v1alpha1.Rollou
 }
 
 // SetRolloutCondition updates the rollout to include the provided condition. If the condition that
-// we are about to add already exists and has the same status and reason then we are not going to update.
-// Returns true if the condition was updated
+// we are about to add already exists and has the same status and reason, then we are not going to update
+// by returning false. Returns true if the condition was updated
 func SetRolloutCondition(status *v1alpha1.RolloutStatus, condition v1alpha1.RolloutCondition) bool {
 	currentCond := GetRolloutCondition(*status, condition.Type)
 	if currentCond != nil && currentCond.Status == condition.Status && currentCond.Reason == condition.Reason {
