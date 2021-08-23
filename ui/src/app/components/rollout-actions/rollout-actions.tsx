@@ -1,9 +1,8 @@
-import {faArrowCircleUp, faChevronCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
 import * as React from 'react';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {formatTimestamp} from '../../shared/utils/utils';
-import {ActionButton, ActionButtonProps} from 'argo-ux';
+import {ActionButton, ActionButtonProps} from 'argo-ui/v2';
 import {RolloutStatus} from '../status-icon/status-icon';
 
 export enum RolloutAction {
@@ -25,7 +24,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             RolloutAction.Restart,
             {
                 label: 'RESTART',
-                icon: faSync,
+                icon: 'fa-sync',
                 action: api.rolloutServiceRestartRollout,
                 tooltip: restartedAt === 'Never' ? 'Never restarted' : `Last restarted ${restartedAt}`,
                 shouldConfirm: true,
@@ -35,7 +34,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             RolloutAction.Retry,
             {
                 label: 'RETRY',
-                icon: faRedoAlt,
+                icon: 'fa-redo-alt',
                 action: api.rolloutServiceRetryRollout,
                 shouldConfirm: true,
             },
@@ -44,7 +43,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             RolloutAction.Abort,
             {
                 label: 'ABORT',
-                icon: faExclamationCircle,
+                icon: 'fa-exclamation-circle',
                 action: api.rolloutServiceAbortRollout,
                 shouldConfirm: true,
             },
@@ -53,7 +52,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             RolloutAction.Promote,
             {
                 label: 'PROMOTE',
-                icon: faChevronCircleUp,
+                icon: 'fa-chevron-circle-up',
                 action: api.rolloutServicePromoteRollout,
                 body: {full: false},
                 disabled: props.rollout.status !== RolloutStatus.Paused,
@@ -64,7 +63,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             RolloutAction.PromoteFull,
             {
                 label: 'PROMOTE-FULL',
-                icon: faArrowCircleUp,
+                icon: 'fa-arrow-circle-up',
                 body: {full: true},
                 action: api.rolloutServicePromoteRollout,
                 disabled: props.rollout.status !== RolloutStatus.Paused,

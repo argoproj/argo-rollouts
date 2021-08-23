@@ -90,10 +90,12 @@ spec:
 		ExpectRevisionPodCount("2", 1).
 		ExpectRolloutEvents([]string{
 			"RolloutUpdated",       // Rollout updated to revision 1
-			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) with size 1
+			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-698fbfb9dc (revision 1)
+			"ScalingReplicaSet",    // Scaled up ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) from 0 to 1
 			"RolloutCompleted",     // Rollout completed update to revision 1 (698fbfb9dc): Initial deploy
 			"RolloutUpdated",       // Rollout updated to revision 2
-			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) with size 1
+			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2)
+			"ScalingReplicaSet",    // Scaled up ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) from 0 to 1
 			"RolloutStepCompleted", // Rollout step 1/2 completed (setWeight: 50)
 			"RolloutPaused",        // Rollout is paused (CanaryPauseStep)
 			"ScalingReplicaSet",    // Scaled down ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) from 1 to 0
@@ -696,11 +698,13 @@ func (s *FunctionalSuite) TestBlueGreenUpdate() {
 		ExpectReplicaCounts(3, 6, 3, 3, 3).
 		ExpectRolloutEvents([]string{
 			"RolloutUpdated",       // Rollout updated to revision 1
-			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-7dcd8f8869 (revision 1) with size 3
+			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-7dcd8f8869 (revision 1)
+			"ScalingReplicaSet",    // Scaled up ReplicaSet bluegreen-7dcd8f8869 (revision 1) from 0 to 3
 			"RolloutCompleted",     // Rollout completed update to revision 1 (7dcd8f8869): Initial deploy
 			"SwitchService",        // Switched selector for service 'bluegreen' from '' to '7dcd8f8869'
 			"RolloutUpdated",       // Rollout updated to revision 2
-			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-5498785cd6 (revision 2) with size 3
+			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-5498785cd6 (revision 2)
+			"ScalingReplicaSet",    // Scaled up ReplicaSet bluegreen-5498785cd6 (revision 2) from 0 to 3
 			"SwitchService",        // Switched selector for service 'bluegreen' from '7dcd8f8869' to '6c779b88b6'
 			"RolloutCompleted",     // Rollout completed update to revision 2 (6c779b88b6): Completed blue-green update
 		})
@@ -883,6 +887,77 @@ spec:
 		ExpectRevisionPodCount("2", 0).
 		ExpectRevisionPodCount("1", 0).
 		ExpectReplicaCounts(1, 2, 1, 1, 1)
+}
+
+// TestBlueGreenAbortExceedProgressDeadline verifies the AbortExceedProgressDeadline feature
+func (s *FunctionalSuite) TestBlueGreenExceedProgressDeadlineAbort() {
+	s.Given().
+		RolloutObjects(newService("bluegreen-scaledowndelay-active")).
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: bluegreen-scaledowndelay
+spec:
+  replicas: 1
+  strategy:
+    blueGreen:
+      activeService: bluegreen-scaledowndelay-active
+      abortScaleDownDelaySeconds: 2
+  selector:
+    matchLabels:
+      app: bluegreen-scaledowndelay
+  template:
+    metadata:
+      labels:
+        app: bluegreen-scaledowndelay
+    spec:
+      containers:
+      - name: bluegreen-scaledowndelay
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		PatchSpec(`
+spec:
+  progressDeadlineAbort: false
+  progressDeadlineSeconds: 1
+  template:
+    spec:
+      containers:
+      - name: bad2good
+        image: nginx:1.19-alpine-argo-error
+        command: null`).
+		WaitForRolloutStatus("Degraded").
+		Sleep(3*time.Second).
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		ExpectRollout("Abort=False", func(r *v1alpha1.Rollout) bool {
+			return r.Status.Abort == false
+		}).
+		When().
+		PatchSpec(`
+spec:
+  progressDeadlineAbort: true
+  progressDeadlineSeconds: 1
+  template:
+    spec:
+      containers:
+      - name: bad2good
+        image: nginx:1.19-alpine-argo-error
+        command: null`).
+		WaitForRolloutStatus("Degraded").
+		Sleep(3*time.Second).
+		Then().
+		ExpectRevisionPodCount("2", 0).
+		ExpectRollout("Abort=True", func(r *v1alpha1.Rollout) bool {
+			return r.Status.Abort == true && len(r.Status.Conditions) == 3
+		})
 }
 
 // TestBlueGreenScaleDownOnAbort verifies the scaleDownOnAbort feature

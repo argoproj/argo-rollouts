@@ -1,4 +1,13 @@
-@import 'node_modules/argo-ux/styles/colors';
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+$argo-icon-fonts-root: 'assets/fonts/';
+$fa-font-path: 'assets/fonts';
+
+@import 'node_modules/argo-ui/src/styles/argo-icon';
+
+@import 'node_modules/@fortawesome/fontawesome-free/scss/fontawesome';
+@import 'node_modules/@fortawesome/fontawesome-free/scss/solid';
+@import 'node_modules/@fortawesome/fontawesome-free/scss/brands';
 
 body,
 html {

@@ -1,16 +1,12 @@
-import {IconDefinition} from '@fortawesome/fontawesome-common-types';
-import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 
 import './shortcuts.scss';
 
-type StringOrIcon = string | IconDefinition;
-type StringsOrIcons = (string | IconDefinition)[];
-
 export interface Shortcut {
-    key?: StringOrIcon | StringsOrIcons;
+    key?: string | string[];
     description: string;
     combo?: boolean;
+    icon?: boolean;
 }
 
 export const Shortcuts = (props: {shortcuts: Shortcut[]}) => {
@@ -21,19 +17,19 @@ export const Shortcuts = (props: {shortcuts: Shortcut[]}) => {
         <div>
             {props.shortcuts.map((sc, i) => {
                 if (!Array.isArray(sc.key)) {
-                    sc.key = [sc.key as StringOrIcon];
+                    sc.key = [sc.key];
                 }
                 return (
                     <div className='shortcuts__shortcut' key={i}>
-                        {(sc.key as StringsOrIcons).map((k, i) => {
+                        {(sc.key || []).map((k, i) => {
                             let contents: any = k;
-                            if (typeof k !== 'string') {
-                                contents = <FontAwesomeIcon icon={k} />;
+                            if (sc.icon) {
+                                contents = <i className={`fa ${k}`} />;
                             }
                             return (
                                 <React.Fragment key={i}>
                                     <div className='shortcuts__key'>{contents}</div>
-                                    {sc.combo && i !== (sc.key as StringsOrIcons).length - 1 && <div style={{marginRight: '5px'}}>+</div>}
+                                    {sc.combo && i !== sc.key?.length - 1 && <div style={{marginRight: '5px'}}>+</div>}
                                 </React.Fragment>
                             );
                         })}

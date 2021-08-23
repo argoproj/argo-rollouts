@@ -12,16 +12,34 @@ type VirtualService struct {
 
 type VirtualServiceSpec struct {
 	HTTP []VirtualServiceHTTPRoute `json:"http,omitempty"`
+	TLS  []VirtualServiceTLSRoute  `json:"tls,omitempty"`
 }
 
-// VirtualServiceHTTPRoute is a route in a VirtualService
+// VirtualServiceHTTPRoute is a HTTP route in a VirtualService
 type VirtualServiceHTTPRoute struct {
-	Name  string                               `json:"name,omitempty"`
-	Route []VirtualServiceHTTPRouteDestination `json:"route,omitempty"`
+	Name  string                           `json:"name,omitempty"`
+	Route []VirtualServiceRouteDestination `json:"route,omitempty"`
 }
 
-// VirtualServiceHTTPRouteDestination is a destination within an VirtualServiceHTTPRoute
-type VirtualServiceHTTPRouteDestination struct {
+// VirtualServiceTLSRoute is a TLS route in a VirtualService
+type VirtualServiceTLSRoute struct {
+	Match []TLSMatchAttributes             `json:"match,omitempty"`
+	Route []VirtualServiceRouteDestination `json:"route,omitempty"`
+}
+
+// TLSMatchAttributes is the route matcher for a TLS route in a VirtualService
+type TLSMatchAttributes struct {
+	SNI                []string          `json:"sniHosts,omitempty"`
+	DestinationSubnets []string          `json:"destinationSubnets,omitempty"`
+	Port               int64             `json:"port,omitempty"`
+	SourceLabels       map[string]string `json:"sourceLabels,omitempty"`
+	Gateways           []string          `json:"gateways,omitempty"`
+	SourceNamespace    string            `json:"sourceNamespace,omitempty"`
+}
+
+// VirtualServiceRouteDestination is a destination within
+// { VirtualServiceHTTPRoute, VirtualServiceTLSRoute }
+type VirtualServiceRouteDestination struct {
 	// Destination holds the destination struct of the virtual service
 	Destination VirtualServiceDestination `json:"destination,omitempty"`
 	// Weight holds the destination struct of the virtual service

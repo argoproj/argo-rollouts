@@ -60,6 +60,11 @@ spec:
   # Defaults to 600s
   progressDeadlineSeconds: 600
 
+  # Whether to abort the update when ProgressDeadlineSeconds
+  # is exceeded if analysis or experiment is not used.
+  # Optional and default is false.
+  progressDeadlineAbort: false
+
   # UTC timestamp in which a Rollout should sequentially restart all of
   # its pods. Used by the `kubectl argo rollouts restart ROLLOUT` command.
   # The controller will ensure all pods have a creationTimestamp greater
@@ -238,11 +243,12 @@ spec:
       # Pauses indefinitely until manually resumed
       - pause: {}
 
-      # set canary scale to a explicit count (supported only with trafficRouting)
+      # set canary scale to a explicit count without changing traffic weight
+      # (supported only with trafficRouting)
       - setCanaryScale:
           replicas: 3
 
-      # set canary scale to a percentage of spec.replicas
+      # set canary scale to a percentage of spec.replicas without changing traffic weight
       # (supported only with trafficRouting)
       - setCanaryScale:
           weight: 25
