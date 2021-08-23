@@ -1796,6 +1796,11 @@
   <span class="c1"># Defaults to 600s</span>
   <span class="nt">progressDeadlineSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">600</span>
 
+  <span class="c1"># Whether to abort the update when ProgressDeadlineSeconds</span>
+  <span class="c1"># is exceeded if analysis or experiment is not used.</span>
+  <span class="c1"># Optional and default is false.</span>
+  <span class="nt">progressDeadlineAbort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+
   <span class="c1"># UTC timestamp in which a Rollout should sequentially restart all of</span>
   <span class="c1"># its pods. Used by the `kubectl argo rollouts restart ROLLOUT` command.</span>
   <span class="c1"># The controller will ensure all pods have a creationTimestamp greater</span>
