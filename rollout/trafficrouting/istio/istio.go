@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/dynamic/dynamiclister"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	evalUtils "github.com/argoproj/argo-rollouts/utils/evaluate"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -522,7 +523,7 @@ func (r *Reconciler) Type() string {
 }
 
 // SetWeight modifies Istio resources to reach desired state
-func (r *Reconciler) SetWeight(desiredWeight int32) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
 	ctx := context.TODO()
 	var vsvc *unstructured.Unstructured
 	var err error

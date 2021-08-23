@@ -1553,6 +1553,11 @@ func (in *RolloutExperimentTemplate) DeepCopyInto(out *RolloutExperimentTemplate
 		*out = new(v1.LabelSelector)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Weight != nil {
+		in, out := &in.Weight, &out.Weight
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
