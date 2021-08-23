@@ -48,7 +48,7 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled}}
       - name: Run e2e tests
         run: make test-e2e
-        if: ${{ github.event_name == 'workflow_dispatch' && !github.event.inputs.debug_enabled}}
+        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled) }}
       - name: Upload e2e-controller logs
         uses: actions/upload-artifact@v2
         with:
