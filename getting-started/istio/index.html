@@ -1810,14 +1810,16 @@ mandatory fields:</p>
               <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">localhost</span>
 <span class="nn">...</span>
 </code></pre></div>
-<p>The VirtualService and route referenced in <code>trafficRouting.istio.virtualService</code> is required
-to have either an HTTP or a TLS route spec that splits between the stable and the canary services,
-referenced in the rollout. If the route is of type HTTPS/TLS, then we can match it based on the
+<p>The VirtualService and route referenced in <code>trafficRouting.istio.virtualService</code> are required
+to have either HTTP or TLS, or both route specs that splits between the stable and the canary
+services referenced in the rollout. If the route is HTTPS/TLS, we can match it based on the
 given port number and/or SNI hosts. Note that both of them are optional and only needed if you
-want to match any rule in your VirtualService which contain these.</p>
-<p>In this guide, the two services are named: <code>rollouts-demo-stable</code> and <code>rollouts-demo-canary</code>
-respectively. The weight values for these services used should be initially set to 100% stable,
-and 0% on the canary. During an update, these values will be modified by the controller.</p>
+want to match any rule in your VirtualService which contains these.</p>
+<p>In this guide, the two services are: <code>rollouts-demo-stable</code> and <code>rollouts-demo-canary</code> respectively.
+The weights for these two services should initially be set to 100% on the stable service and 0% on
+the canary service. During an update, these values will get modified by the controller.</p>
+<p>Note that since we have both the HTTP and HTTPS routes in our rollout spec and they match the
+VirtualService specs, weights will get modified for both these routes.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.istio.io/v1alpha3</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">VirtualService</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1828,25 +1830,25 @@ and 0% on the canary. During an update, these values will be modified by the con
   <span class="nt">hosts</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo.local</span>
   <span class="nt">http</span><span class="p">:</span>
-  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http-primary</span>  <span class="c1"># Should match spec.strategy.canary.trafficRouting.istio.virtualService.routes</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http-primary</span>  <span class="c1"># Should match rollout.spec.strategy.canary.trafficRouting.istio.virtualService.routes</span>
     <span class="nt">route</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="nt">destination</span><span class="p">:</span>
-        <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>  <span class="c1"># Should match spec.strategy.canary.stableService</span>
+        <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>  <span class="c1"># Should match rollout.spec.strategy.canary.stableService</span>
       <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">100</span>
     <span class="p p-Indicator">-</span> <span class="nt">destination</span><span class="p">:</span>
-        <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>  <span class="c1"># Should match spec.strategy.canary.canaryService</span>
+        <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>  <span class="c1"># Should match rollout.spec.strategy.canary.canaryService</span>
       <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">0</span>
   <span class="nt">tls</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">match</span><span class="p">:</span>
-    <span class="p p-Indicator">-</span> <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">443</span>  <span class="c1"># Should match the port number of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes</span>
-      <span class="nt">sniHosts</span><span class="p">:</span> <span class="c1"># Should match all the SNI hosts of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes</span>
+    <span class="p p-Indicator">-</span> <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">443</span>  <span class="c1"># Should match the port number of the route defined in rollout.spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes</span>
+      <span class="nt">sniHosts</span><span class="p">:</span> <span class="c1"># Should match all the SNI hosts of the route defined in rollout.spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes</span>
       <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">reviews.bookinfo.com</span>
     <span class="nt">route</span><span class="p">:</span>
     <span class="p p-Indicator">-</span> <span class="nt">destination</span><span class="p">:</span>
-        <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>  <span class="c1"># Should match spec.strategy.canary.stableService</span>
+        <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>  <span class="c1"># Should match rollout.spec.strategy.canary.stableService</span>
       <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">100</span>
     <span class="p p-Indicator">-</span> <span class="nt">destination</span><span class="p">:</span>
-        <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>  <span class="c1"># Should match spec.strategy.canary.canaryService</span>
+        <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>  <span class="c1"># Should match rollout.spec.strategy.canary.canaryService</span>
       <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">0</span>
 </code></pre></div>
 <p>Run the following commands to deploy:</p>
@@ -1914,7 +1916,7 @@ weights have been modified by the controller to reflect the current weight of th
       <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
   <span class="nt">tls</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">match</span><span class="p">:</span>
-    <span class="p p-Indicator">-</span> <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3000</span>
+    <span class="p p-Indicator">-</span> <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">443</span>
       <span class="nt">sniHosts</span><span class="p">:</span>
       <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">reviews.bookinfo.com</span>
     <span class="nt">route</span><span class="p">:</span>
