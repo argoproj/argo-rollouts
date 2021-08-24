@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +28,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	smiutil "github.com/argoproj/argo-rollouts/utils/smi"
 )
 
 const (
@@ -115,6 +117,7 @@ type E2ESuite struct {
 	Common
 
 	IstioEnabled bool
+	SMIEnabled   bool
 }
 
 func (s *E2ESuite) SetupSuite() {
@@ -142,10 +145,16 @@ func (s *E2ESuite) SetupSuite() {
 	s.CheckError(err)
 	s.rolloutClient, err = clientset.NewForConfig(restConfig)
 	s.CheckError(err)
+	s.smiClient, err = smiclientset.NewForConfig(restConfig)
+	s.CheckError(err)
 	s.log = log.NewEntry(log.StandardLogger())
 
 	if istioutil.DoesIstioExist(s.dynamicClient, s.namespace) {
 		s.IstioEnabled = true
+	}
+
+	if smiutil.DoesSMIExist(s.smiClient, s.namespace) {
+		s.SMIEnabled = true
 	}
 }
 

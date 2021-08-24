@@ -61,6 +61,8 @@ spec:
                 type: integer
               paused:
                 type: boolean
+              progressDeadlineAbort:
+                type: boolean
               progressDeadlineSeconds:
                 format: int32
                 type: integer
@@ -457,6 +459,9 @@ spec:
                                         type: object
                                       specRef:
                                         type: string
+                                      weight:
+                                        format: int32
+                                        type: integer
                                     required:
                                     - name
                                     - specRef
@@ -537,6 +542,18 @@ spec:
                                   routes:
                                     items:
                                       type: string
+                                    type: array
+                                  tlsRoutes:
+                                    items:
+                                      properties:
+                                        port:
+                                          format: int64
+                                          type: integer
+                                        sniHosts:
+                                          items:
+                                            type: string
+                                          type: array
+                                      type: object
                                     type: array
                                 required:
                                 - name

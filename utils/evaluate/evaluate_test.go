@@ -256,3 +256,9 @@ func TestIsInf(t *testing.T) {
 	assert.True(t, isInf(inf))
 	assert.False(t, isInf(notInf))
 }
+
+func TestEqual(t *testing.T) {
+	assert.True(t, Equal([]string{"a", "b"}, []string{"b", "a"}))
+	assert.False(t, Equal([]string{"a"}, []string{"a", "b"}))
+	assert.False(t, Equal([]string{"a", "b"}, []string{}))
+}

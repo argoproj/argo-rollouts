@@ -431,6 +431,14 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 					}
 				}
 			}
+		} else {
+			// metric hasn't started running. possible cases where some of the metrics starts with delay
+			everythingCompleted = false
+			if terminating {
+				// we have yet to take a single measurement, but have already been instructed to stop
+				log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisPhaseSuccessful)
+				return v1alpha1.AnalysisPhaseSuccessful, worstMessage
+			}
 		}
 	}
 	if !everythingCompleted {

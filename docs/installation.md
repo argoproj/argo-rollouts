@@ -23,6 +23,9 @@ This will create a new namespace, `argo-rollouts`, where Argo Rollouts controlle
     kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
     ```
 
+You can find released container images of the controller at [Quay.io](https://quay.io/repository/argoproj/argo-rollouts?tab=tags). There are also old releases
+at Dockerhub, but since the introduction of rate limiting, the Argo project has moved to Quay.
+
 ## Kubectl Plugin Installation
 
 The kubectl plugin is optional, but is convenient for managing and visualizing rollouts from the 

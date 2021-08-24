@@ -1,6 +1,5 @@
 import * as React from 'react';
 import * as moment from 'moment';
-import {faDove, faQuestion, faRunning, faSearch, faThumbsUp} from '@fortawesome/free-solid-svg-icons';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 
 export function useServerData<T>(getData: () => Promise<T>) {
@@ -35,15 +34,15 @@ export enum ImageTag {
 export const IconForTag = (t?: ImageTag) => {
     switch (t) {
         case ImageTag.Canary:
-            return faDove;
+            return 'fa-dove';
         case ImageTag.Stable:
-            return faThumbsUp;
+            return 'fa-thumbs-up';
         case ImageTag.Preview:
-            return faSearch;
+            return 'fa-search';
         case ImageTag.Active:
-            return faRunning;
+            return 'fa-running';
         default:
-            return faQuestion;
+            return 'fa-question';
     }
 };
 
