@@ -12572,11 +12572,11 @@ metadata:
   name: argo-rollouts
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   labels:
     app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-clusterrole
+    app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts
 rules:
@@ -12833,7 +12833,7 @@ kind: RoleBinding
 metadata:
   labels:
     app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-role-binding
+    app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts
 roleRef:

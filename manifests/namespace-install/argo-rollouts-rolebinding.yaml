@@ -4,7 +4,7 @@ metadata:
   name: argo-rollouts
   labels:
     app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-role-binding
+    app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
 roleRef:
   apiGroup: rbac.authorization.k8s.io

@@ -12576,7 +12576,7 @@ kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-clusterrole
+    app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts
 rules:
@@ -12833,7 +12833,7 @@ kind: ClusterRoleBinding
 metadata:
   labels:
     app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-clusterrolebinding
+    app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts
 roleRef:
