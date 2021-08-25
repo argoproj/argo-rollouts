@@ -1,17 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: rollout-secret
+  name: rollout-bg-analysis
 spec:
   replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      app: rollout-secret
+      app: rollout-bg-analysis
   template:
     metadata:
       labels:
-        app: rollout-secret
+        app: rollout-bg-analysis
     spec:
       containers:
       - name: rollouts-demo
@@ -21,22 +21,21 @@ spec:
         - containerPort: 8080
   strategy:
     canary:
+      analysis:
+        templates:
+          - templateName: analysis-secret
+        startingStep: 1
+        args:
+          - name: failure-limit
+            value: "2"
+          - name: analysis-interval
+            value: "10s"
+          - name: inconclusive-limit
+            value: "2"
+          - name: success-condition
+            value: "It worked!"
       steps:
       - setWeight: 25
-      - analysis:
-          templates:
-          - templateName: analysis-secret-args
-          args:
-            - name: failure-limit
-              value: "2"
-            - name: analysis-interval
-              value: "5s"
-            - name: analysis-runs
-              value: "3"
-            - name: inconclusive-limit
-              value: "2"
-            - name: success-condition
-              value: "It worked!"
       - pause: {}
 ---
 apiVersion: v1
@@ -50,16 +49,14 @@ data:
 kind: AnalysisTemplate
 apiVersion: argoproj.io/v1alpha1
 metadata:
-  name: analysis-secret-args
+  name: analysis-secret
 spec:
   args:
   - name: analysis-interval
-    value: "100s"
-  - name: analysis-runs
-    value: "10"
   - name: failure-limit
   - name: inconclusive-limit
   - name: success-condition
+    value: "replace"
   - name: secret-url
     valueFrom:
       secretKeyRef:
@@ -67,7 +64,6 @@ spec:
         key: secretUrl
   metrics:
   - name: webmetric
-    count: "{{args.analysis-runs}}"
     interval: "{{args.analysis-interval}}"
     initialDelay: "{{args.analysis-interval}}"
     failureLimit: "{{args.failure-limit}}"

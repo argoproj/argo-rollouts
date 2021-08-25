@@ -669,7 +669,7 @@ func (s *AnalysisSuite) TestAnalysisWithArgs() {
 			ar := t.GetRolloutAnalysisRuns().Items[0]
 			assert.Equal(s.T(), v1alpha1.AnalysisPhaseSuccessful, ar.Status.Phase)
 			metricResult := ar.Status.MetricResults[0]
-			assert.Equal(s.T(), int32(2), metricResult.Count)
+			assert.Equal(s.T(), int32(3), metricResult.Count)
 		}).
 		When().
 		WaitForInlineAnalysisRunPhase("Successful").
@@ -677,4 +677,24 @@ func (s *AnalysisSuite) TestAnalysisWithArgs() {
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectStableRevision("2")
+}
+
+func (s *AnalysisSuite) TestBackgroundAnalysisWithArgs() {
+	s.Given().
+		RolloutObjects("@functional/rollout-bg-analysis-withArgs.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectAnalysisRunCount(1).
+		ExpectBackgroundAnalysisRunPhase("Running").
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		WaitForBackgroundAnalysisRunPhase("Successful")
 }
