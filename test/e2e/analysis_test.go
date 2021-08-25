@@ -4,10 +4,12 @@ package e2e
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/tj/assert"
 
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
@@ -623,7 +625,7 @@ spec:
 }
 
 func (s *AnalysisSuite) TestAnalysisWithSecret() {
-	(s.Given().
+	s.Given().
 		RolloutObjects("@functional/rollout-secret.yaml").
 		When().
 		ApplyManifests().
@@ -634,11 +636,63 @@ func (s *AnalysisSuite) TestAnalysisWithSecret() {
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
 		Then().
-		ExpectAnalysisRunCount(1).
+		Assert(func(t *fixtures.Then) {
+			ar := t.GetRolloutAnalysisRuns().Items[0]
+			assert.Equal(s.T(), v1alpha1.AnalysisPhaseSuccessful, ar.Status.Phase)
+			metricResult := ar.Status.MetricResults[0]
+			assert.Equal(s.T(), int32(2), metricResult.Count)
+		}).
 		When().
 		WaitForInlineAnalysisRunPhase("Successful").
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectStableRevision("2"))
+		ExpectStableRevision("2")
+}
+
+
+func (s *AnalysisSuite) TestAnalysisWithArgs() {
+	s.Given().
+		RolloutObjects("@functional/rollout-secret-withArgs.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			ar := t.GetRolloutAnalysisRuns().Items[0]
+			assert.Equal(s.T(), v1alpha1.AnalysisPhaseSuccessful, ar.Status.Phase)
+			metricResult := ar.Status.MetricResults[0]
+			assert.Equal(s.T(), int32(3), metricResult.Count)
+		}).
+		When().
+		WaitForInlineAnalysisRunPhase("Successful").
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectStableRevision("2")
+}
+
+func (s *AnalysisSuite) TestBackgroundAnalysisWithArgs() {
+	s.Given().
+		RolloutObjects("@functional/rollout-bg-analysis-withArgs.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectAnalysisRunCount(1).
+		ExpectBackgroundAnalysisRunPhase("Running").
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		WaitForBackgroundAnalysisRunPhase("Successful")
 }
