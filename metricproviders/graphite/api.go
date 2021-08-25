@@ -1,7 +1,6 @@
 package graphite
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -23,10 +22,9 @@ type API interface {
 
 // GraphiteAPI is a Graphite API client
 type APIClient struct {
-	url     url.URL
-	client  *http.Client
-	timeout time.Duration
-	logCTX  log.Entry
+	url    url.URL
+	client *http.Client
+	logCTX log.Entry
 }
 
 // Query performs a Graphite API query with the query it's passed
@@ -49,10 +47,7 @@ func (api APIClient) Query(quer string) (*float64, error) {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(req.Context(), api.timeout)
-	defer cancel()
-
-	r, err := api.client.Do(req.WithContext(ctx))
+	r, err := api.client.Do(req)
 	if err != nil {
 		return nil, err
 	}

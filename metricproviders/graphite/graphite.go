@@ -29,10 +29,11 @@ func NewAPIClient(metric v1alpha1.Metric, logCTX log.Entry) (*APIClient, error) 
 	}
 
 	return &APIClient{
-		logCTX:  logCTX,
-		client:  http.DefaultClient,
-		url:     *graphiteURL,
-		timeout: 5 * time.Second,
+		logCTX: logCTX,
+		client: &http.Client{
+			Timeout: time.Duration(10) * time.Second,
+		},
+		url: *graphiteURL,
 	}, nil
 }
 
