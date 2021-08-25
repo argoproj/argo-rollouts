@@ -90,7 +90,7 @@ func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, 
 	return measurement
 }
 
-// GarbageCollect is a no-op for the prometheus provider
+// GarbageCollect is a no-op for the Graphite provider
 func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, limit int) error {
 	return nil
 }
