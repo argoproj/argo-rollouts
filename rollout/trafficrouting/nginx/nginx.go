@@ -73,6 +73,14 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, nam
 		},
 	}
 
+	// Preserve ingressClassName from stable ingress
+	if stableIngress.Spec.IngressClassName != nil {
+		desiredCanaryIngress.Spec.IngressClassName = stableIngress.Spec.IngressClassName
+	}
+
+	desiredCanaryIngress.Spec.Rules = make([]extensionsv1beta1.IngressRule, 0)  // We have no way of knowing yet how many rules there will be
+
+
 	// Must preserve ingress.class on canary ingress, no other annotations matter
 	// See: https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#canary
 	if val, ok := stableIngress.Annotations["kubernetes.io/ingress.class"]; ok {
