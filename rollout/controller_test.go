@@ -46,6 +46,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -253,11 +254,6 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 		if reason == conditions.RolloutRetryReason {
 			msg = conditions.RolloutRetryMessage
 			status = corev1.ConditionUnknown
-		}
-	case *corev1.Service:
-		if reason == conditions.ServiceNotFoundReason {
-			msg = fmt.Sprintf(conditions.ServiceNotFoundMessage, resource.Name)
-			status = corev1.ConditionFalse
 		}
 	}
 
@@ -544,7 +540,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		c.enqueueRollout(obj)
 	}
 
-	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (TrafficRoutingReconciler, error) {
+	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
 		return f.fakeTrafficRouting, nil
 	}
 
@@ -875,6 +871,21 @@ func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy s
 		patch = fmt.Sprintf(switchSelectorAndAddManagedByPatch, managedBy, newPodHash)
 	}
 	assert.Equal(f.t, patch, string(patchAction.GetPatch()))
+}
+
+func (f *fixture) verifyPatchedRolloutAborted(index int, rsName string) {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	_, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+
+	ro := f.getPatchedRolloutAsObject(index)
+	assert.NotNil(f.t, ro)
+	assert.True(f.t, ro.Status.Abort)
+	assert.Equal(f.t, v1alpha1.RolloutPhaseDegraded, ro.Status.Phase)
+	expectedMsg := fmt.Sprintf("ProgressDeadlineExceeded: ReplicaSet %q has timed out progressing.", rsName)
+	assert.Equal(f.t, expectedMsg, ro.Status.Message)
 }
 
 func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) bool {

@@ -13,6 +13,10 @@ import (
 	"text/tabwriter"
 	"time"
 
+	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
+
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
+
 	"github.com/ghodss/yaml"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
@@ -51,6 +55,7 @@ type Common struct {
 	kubeClient     kubernetes.Interface
 	dynamicClient  dynamic.Interface
 	rolloutClient  clientset.Interface
+	smiClient      smiclientset.Interface
 
 	rollout *unstructured.Unstructured
 	objects []*unstructured.Unstructured
@@ -476,6 +481,14 @@ func (c *Common) GetServices() (*corev1.Service, *corev1.Service) {
 		c.CheckError(err)
 	}
 	return desiredSvc, stableSvc
+}
+
+func (c *Common) GetTrafficSplit() *smiv1alpha1.TrafficSplit {
+	ro := c.Rollout()
+	name := ro.Spec.Strategy.Canary.TrafficRouting.SMI.TrafficSplitName
+	ts, err := c.smiClient.SplitV1alpha1().TrafficSplits(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ts
 }
 
 func (c *Common) GetVirtualService() *istio.VirtualService {

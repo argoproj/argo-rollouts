@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -88,7 +89,7 @@ func NewReconciler(r *v1alpha1.Rollout, c ClientInterface, rec record.EventRecor
 // in the ambassador configuration in the traffic routing section of the rollout. If
 // the canary ambassador mapping is already present, it will be updated to the given
 // desiredWeight.
-func (r *Reconciler) SetWeight(desiredWeight int32) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
 	r.sendNormalEvent(CanaryMappingWeightUpdate, fmt.Sprintf("Set canary mapping weight to %d", desiredWeight))
 	ctx := context.TODO()
 	baseMappingNameList := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings

@@ -849,7 +849,14 @@
           "items": {
             "type": "string"
           },
-          "title": "Routes are list of routes within VirtualService to edit. If omitted, VirtualService must have a single route"
+          "description": "A list of HTTP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
+        },
+        "tlsRoutes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute"
+          },
+          "description": "A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
         }
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
@@ -1121,6 +1128,11 @@
         "selector": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector",
           "title": "Selector overrides the selector to be used for the template's ReplicaSet. If omitted, will\nuse the same selector as the Rollout\n+optional"
+        },
+        "weight": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Weight sets the percentage of traffic the template's replicas should receive"
         }
       },
       "title": "RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step"
@@ -1177,6 +1189,10 @@
           "type": "integer",
           "format": "int32",
           "description": "ProgressDeadlineSeconds The maximum time in seconds for a rollout to\nmake progress before it is considered to be failed. Argo Rollouts will\ncontinue to process failed rollouts and a condition with a\nProgressDeadlineExceeded reason will be surfaced in the rollout status.\nNote that progress will not be estimated during the time a rollout is paused.\nDefaults to 600s."
+        },
+        "progressDeadlineAbort": {
+          "type": "boolean",
+          "title": "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds\nis exceeded if analysis is not used. Default is false.\n+optional"
         },
         "restartAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
@@ -1377,6 +1393,24 @@
         }
       },
       "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "string",
+          "format": "int64",
+          "description": "Port number of the TLS Route desired to be matched in the given Istio VirtualService."
+        },
+        "sniHosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of all the SNI Hosts of the TLS Route desired to be matched in the given Istio VirtualService."
+        }
+      },
+      "description": "TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights."
     },
     "google.protobuf.Any": {
       "type": "object",

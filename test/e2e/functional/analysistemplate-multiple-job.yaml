@@ -2,7 +2,7 @@
 kind: AnalysisTemplate
 apiVersion: argoproj.io/v1alpha1
 metadata:
-  name: sleep-job
+  name: multiple-job
 spec:
   args:
   - name: duration
@@ -13,7 +13,22 @@ spec:
     value: "1"
   metrics:
   - name: sleep-job
-    count: "{{args.count}}"
+    initialDelay: 10s
+    count: 1
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep-job
+                image: nginx:1.19-alpine
+                command: [sh, -c, -x]
+                args: ["sleep {{args.duration}} && exit {{args.exit-code}}"]
+              restartPolicy: Never
+          backoffLimit: 0
+  - name: sleep-job-rep
+    count: 1
     provider:
       job:
         spec:

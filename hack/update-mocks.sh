@@ -18,6 +18,6 @@ mockery \
     --output "${PROJECT_ROOT}"/utils/aws/mocks
 
 mockery \
-    --dir "${PROJECT_ROOT}"/rollout \
+    --dir "${PROJECT_ROOT}"/rollout/trafficrouting \
     --name TrafficRoutingReconciler \
     --output "${PROJECT_ROOT}"/rollout/mocks

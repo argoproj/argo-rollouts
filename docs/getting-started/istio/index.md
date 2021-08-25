@@ -1,7 +1,7 @@
 # Getting Started - Istio
 
-This guide covers how Argo Rollouts integrates with the [Istio Service Mesh](https://istio.io/) 
-for traffic shaping. 
+This guide covers how Argo Rollouts integrates with the [Istio Service Mesh](https://istio.io/)
+for traffic shaping.
 This guide builds upon the concepts of the [basic getting started guide](../../getting-started.md).
 
 ## Requirements
@@ -33,16 +33,32 @@ spec:
           virtualService:
             # Reference to a VirtualService which the controller updates with canary weights
             name: rollouts-demo-vsvc
+            # Optional if there is a single HTTP route in the VirtualService, otherwise required
             routes:
-            - primary # optional if there is a single route in VirtualService, required otherwise
+            - http-primary
+            # Optional if there is a single HTTPS/TLS route in the VirtualService, otherwise required
+            tlsRoutes:
+            # Below fields are optional but if defined, they should match exactly with at least one of the TLS route match rules in your VirtualService
+            - port: 443 # Only required if you want to match any rule in your VirtualService which contains this port
+              # Only required if you want to match any rule in your VirtualService which contain all these SNI hosts
+              sniHosts:
+              - reviews.bookinfo.com
+              - localhost
 ...
 ```
 
-The VirtualService and route referenced in `trafficRouting.istio.virtualService` is required
-to have a HTTP route which splits between the stable and canary Services, referenced in the rollout.
-In this guide, those Services are named: `rollouts-demo-stable` and `rollouts-demo-canary` 
-respectively. The weight values for these services used should be initially set to 100% stable, 
-and 0% on the canary. During an update, these values will be modified by the controller.
+The VirtualService and route referenced in `trafficRouting.istio.virtualService` are required
+to have either HTTP or TLS, or both route specs that splits between the stable and the canary
+services referenced in the rollout. If the route is HTTPS/TLS, we can match it based on the
+given port number and/or SNI hosts. Note that both of them are optional and only needed if you
+want to match any rule in your VirtualService which contains these.
+
+In this guide, the two services are: `rollouts-demo-stable` and `rollouts-demo-canary` respectively.
+The weights for these two services should initially be set to 100% on the stable service and 0% on
+the canary service. During an update, these values will get modified by the controller.
+
+Note that since we have both the HTTP and HTTPS routes in our rollout spec and they match the
+VirtualService specs, weights will get modified for both these routes.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -55,15 +71,26 @@ spec:
   hosts:
   - rollouts-demo.local
   http:
-  - name: primary  # Should match spec.strategy.canary.trafficRouting.istio.virtualService.routes
+  - name: http-primary  # Should match rollout.spec.strategy.canary.trafficRouting.istio.virtualService.routes
     route:
     - destination:
-        host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
+        host: rollouts-demo-stable  # Should match rollout.spec.strategy.canary.stableService
       weight: 100
     - destination:
-        host: rollouts-demo-canary  # Should match spec.strategy.canary.canaryService
+        host: rollouts-demo-canary  # Should match rollout.spec.strategy.canary.canaryService
       weight: 0
-
+  tls:
+  - match:
+    - port: 443  # Should match the port number of the route defined in rollout.spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
+      sniHosts: # Should match all the SNI hosts of the route defined in rollout.spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
+      - reviews.bookinfo.com
+    route:
+    - destination:
+        host: rollouts-demo-stable  # Should match rollout.spec.strategy.canary.stableService
+      weight: 100
+    - destination:
+        host: rollouts-demo-canary  # Should match rollout.spec.strategy.canary.canaryService
+      weight: 0
 ```
 
 Run the following commands to deploy:
@@ -80,7 +107,7 @@ kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/istio/gateway.yaml
 ```
 
-After applying the manifests you should see the following rollout, services, virtualservices, 
+After applying the manifests you should see the following rollout, services, virtualservices,
 and gateway resources in the cluster:
 
 ```shell
@@ -137,7 +164,19 @@ spec:
   hosts:
   - rollouts-demo.local
   http:
-  - name: primary
+  - name: http-primary
+    route:
+    - destination:
+        host: rollouts-demo-stable
+      weight: 95
+    - destination:
+        host: rollouts-demo-canary
+      weight: 5
+  tls:
+  - match:
+    - port: 443
+      sniHosts:
+      - reviews.bookinfo.com
     route:
     - destination:
         host: rollouts-demo-stable
@@ -147,5 +186,5 @@ spec:
       weight: 5
 ```
 
-As the Rollout progresses through steps, the HTTP route destination weights will be adjusted to
-match the current setWeight of the steps.
+As the Rollout progresses through steps, the HTTP and/or TLS route(s) destination weights will be
+adjusted to match the current `setWeight` of the steps.

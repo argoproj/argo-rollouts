@@ -244,6 +244,7 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
+			createOptions.DynamicClientset()
 			froms := 0
 			if createOptions.From != "" {
 				froms++
