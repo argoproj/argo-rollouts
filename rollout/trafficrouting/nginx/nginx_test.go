@@ -2,8 +2,9 @@ package nginx
 
 import (
 	"fmt"
-	"k8s.io/utils/pointer"
 	"testing"
+
+	"k8s.io/utils/pointer"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
