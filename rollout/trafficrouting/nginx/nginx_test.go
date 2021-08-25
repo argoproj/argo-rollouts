@@ -2,6 +2,7 @@ package nginx
 
 import (
 	"fmt"
+	"k8s.io/utils/pointer"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -94,6 +95,7 @@ func TestCanaryIngressCreate(t *testing.T) {
 		},
 	}
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
+	stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
 
 	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout), 10)
 	assert.Nil(t, err, "No error returned when calling canaryIngress")
@@ -101,6 +103,8 @@ func TestCanaryIngressCreate(t *testing.T) {
 	checkBackendService(t, desiredCanaryIngress, "canary-service")
 	assert.Equal(t, "true", desiredCanaryIngress.Annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
 	assert.Equal(t, "10", desiredCanaryIngress.Annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
+	assert.NotNil(t, desiredCanaryIngress.Spec.IngressClassName)
+	assert.Equal(t, "nginx-ext", *desiredCanaryIngress.Spec.IngressClassName)
 }
 
 func TestCanaryIngressPatchWeight(t *testing.T) {
