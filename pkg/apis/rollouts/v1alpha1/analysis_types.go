@@ -140,7 +140,7 @@ type MetricProvider struct {
 	// Job specifies the job metric run
 	Job *JobMetric `json:"job,omitempty" protobuf:"bytes,7,opt,name=job"`
 	// Graphite specifies the Graphite metric to query
-	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,1,opt,name=graphite"`
+	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,8,opt,name=graphite"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
