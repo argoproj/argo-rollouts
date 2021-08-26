@@ -173,12 +173,11 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 						r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight, *tg.Weight)
 					}
 				}
-			}
-			if dest, ok := resourceIDToDest[tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID]]; ok {
+			} else if dest, ok := resourceIDToDest[tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID]]; ok {
 				if tg.Weight != nil {
 					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 					logCtx.Infof("%s weight of %s (desired: %d, current: %d)", dest.ServiceName, tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID], dest.Weight, *tg.Weight)
-					verified := *tg.Weight == desiredWeight
+					verified := *tg.Weight == dest.Weight
 					if verified {
 						numVerifiedWeights += 1
 						r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedWeightsMessage, dest.ServiceName, *tg.TargetGroupArn, dest.Weight)

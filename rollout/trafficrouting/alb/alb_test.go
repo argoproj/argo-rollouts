@@ -489,7 +489,49 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		assert.False(t, weightVerified)
 	}
 
-	// LoadBalancer found, with all necessary weights
+	// LoadBalancer found, with incorrect weights
+	{
+		r, fakeClient := newFakeReconciler()
+		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
+			LoadBalancerArn: pointer.StringPtr("lb-abc123"),
+			DNSName:         pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+		}
+		fakeClient.targetGroups = []aws.TargetGroupMeta{
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				},
+				Weight: pointer.Int32Ptr(10),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+				},
+			},
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				},
+				Weight: pointer.Int32Ptr(100),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-1:443",
+				},
+			},
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				},
+				Weight: pointer.Int32Ptr(100),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
+				},
+			},
+		}
+
+		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
+		assert.NoError(t, err)
+		assert.False(t, weightVerified)
+	}
+
+	// LoadBalancer found, with all correct weights
 	{
 		r, fakeClient := newFakeReconciler()
 		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
