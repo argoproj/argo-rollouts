@@ -17,6 +17,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/aws"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
@@ -44,15 +46,6 @@ type Reconciler struct {
 	cfg ReconcilerConfig
 	log *logrus.Entry
 	aws aws.Client
-}
-
-var (
-	defaultVerifyWeight = false
-)
-
-// SetDefaultVerifyWeight sets the default setWeight verification when instantiating the reconciler
-func SetDefaultVerifyWeight(b bool) {
-	defaultVerifyWeight = b
 }
 
 // NewReconciler returns a reconciler struct that brings the ALB Ingress into the desired state
@@ -120,7 +113,7 @@ func (r *Reconciler) shouldVerifyWeight() bool {
 	if r.cfg.VerifyWeight != nil {
 		return *r.cfg.VerifyWeight
 	}
-	return defaultVerifyWeight
+	return defaults.VerifyTargetGroup()
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
@@ -135,7 +128,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 		return false, err
 	}
 	canaryService := rollout.Spec.Strategy.Canary.CanaryService
-	resourceID := aws.BuildV2TargetGroupID(rollout.Namespace, ingress.Name, canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+	resourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.Name, canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 	if len(ingress.Status.LoadBalancer.Ingress) == 0 {
 		r.log.Infof("LoadBalancer not yet allocated")
 	}
@@ -145,6 +138,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 		}
 		lb, err := r.aws.FindLoadBalancerByDNSName(ctx, lbIngress.Hostname)
 		if err != nil {
+			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
 			return false, err
 		}
 		if lb == nil || lb.LoadBalancerArn == nil {
@@ -153,6 +147,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 		}
 		lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 		if err != nil {
+			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
 			return false, err
 		}
 		logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
@@ -161,7 +156,13 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
 				if tg.Weight != nil {
 					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 					logCtx.Infof("canary weight of %s (desired: %d, current: %d)", resourceID, desiredWeight, *tg.Weight)
-					return *tg.Weight == desiredWeight, nil
+					verified := *tg.Weight == desiredWeight
+					if verified {
+						r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight)
+					} else {
+						r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight, *tg.Weight)
+					}
+					return verified, nil
 				}
 			}
 		}

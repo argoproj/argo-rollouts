@@ -40,7 +40,7 @@ func (c *Controller) syncALBIngress(ingress *extensionsv1beta1.Ingress, rollouts
 			delete(managedActions, roName)
 			resetALBAction, err := getResetALBActionStr(ingress, actionKey)
 			if err != nil {
-				log.WithField(logutil.IngressKey, ingress.Name).WithField(logutil.NamespaceKey, ingress.Namespace).Error(err)
+				log.WithField(logutil.RolloutKey, roName).WithField(logutil.IngressKey, ingress.Name).WithField(logutil.NamespaceKey, ingress.Namespace).Error(err)
 				return nil
 			}
 			newIngress.Annotations[actionKey] = resetALBAction

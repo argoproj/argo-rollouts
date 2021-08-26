@@ -57,7 +57,7 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
-		c.log.Infof("Set '%s' annotation on '%s' to %s (%ds)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
+		c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
 	}
 	return err
 }
@@ -229,4 +229,40 @@ func (c *rolloutContext) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet) (
 		oldRSs[i] = updatedOldRS
 	}
 	return oldRSs, totalScaledDown, nil
+}
+
+func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotationedRSs int32, rolloutReplicas int32) (int32, int32, error) {
+	desiredReplicaCount := int32(0)
+	scaleDownRevisionLimit := GetScaleDownRevisionLimit(c.rollout)
+	if !replicasetutil.HasScaleDownDeadline(rs) && *rs.Spec.Replicas > 0 {
+		// This ReplicaSet is scaled up but does not have a scale down deadline. Add one.
+		if annotationedRSs < scaleDownRevisionLimit {
+			annotationedRSs++
+			desiredReplicaCount = *rs.Spec.Replicas
+			scaleDownDelaySeconds := defaults.GetScaleDownDelaySecondsOrDefault(c.rollout)
+			err := c.addScaleDownDelay(rs, scaleDownDelaySeconds)
+			if err != nil {
+				return annotationedRSs, desiredReplicaCount, err
+			}
+			c.enqueueRolloutAfter(c.rollout, scaleDownDelaySeconds)
+		}
+	} else if replicasetutil.HasScaleDownDeadline(rs) {
+		annotationedRSs++
+		if annotationedRSs > scaleDownRevisionLimit {
+			c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
+		} else {
+			remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
+			if err != nil {
+				c.log.Warnf("%v", err)
+			} else if remainingTime != nil {
+				c.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
+				if *remainingTime < c.resyncPeriod {
+					c.enqueueRolloutAfter(c.rollout, *remainingTime)
+				}
+				desiredReplicaCount = rolloutReplicas
+			}
+		}
+	}
+
+	return annotationedRSs, desiredReplicaCount, nil
 }

@@ -20,17 +20,28 @@ func TestAWSSuite(t *testing.T) {
 }
 
 // TestALBUpdate is a simple integration test which verifies the controller can work in a real AWS
-// environment. It is intended to be run with the `--alb-verify-weight` controller flag. Success of
+// environment. It is intended to be run with the `--aws-verify-target-group` controller flag. Success of
 // this test against a controller using that flag, indicates that the controller was able to perform
 // weight verification using AWS APIs.
 // This test will be skipped unless E2E_ALB_INGESS_ANNOTATIONS is set (can be an empty struct). e.g.:
-// make test-e2e E2E_INSTANCE_ID= E2E_TEST_OPTIONS="-testify.m TestALBUpdate$" E2E_ALB_INGESS_ANNOTATIONS='{"kubernetes.io/ingress.class": "aws-alb", "alb.ingress.kubernetes.io/security-groups": "iks-intuit-cidr-ingress-tcp-443"}'
-func (s *AWSSuite) TestALBUpdate() {
+// make test-e2e E2E_TEST_OPTIONS="-testify.m TestALBCanaryUpdate$" E2E_IMAGE_PREFIX="docker.intuit.com/docker-rmt/" E2E_INSTANCE_ID= E2E_ALB_INGESS_ANNOTATIONS='{"kubernetes.io/ingress.class": "aws-alb", "alb.ingress.kubernetes.io/security-groups": "iks-intuit-cidr-ingress-tcp-443"}'
+func (s *AWSSuite) TestALBCanaryUpdate() {
 	if val, _ := os.LookupEnv(fixtures.EnvVarE2EALBIngressAnnotations); val == "" {
 		s.T().SkipNow()
 	}
 	s.Given().
-		HealthyRollout(`@functional/alb-rollout.yaml`).
+		HealthyRollout(`@functional/alb-canary-rollout.yaml`).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Healthy")
+}
+
+func (s *AWSSuite) TestALBBlueGreenUpdate() {
+	if val, _ := os.LookupEnv(fixtures.EnvVarE2EALBIngressAnnotations); val == "" {
+		s.T().SkipNow()
+	}
+	s.Given().
+		HealthyRollout(`@functional/alb-bluegreen-rollout.yaml`).
 		When().
 		UpdateSpec().
 		WaitForRolloutStatus("Healthy")
