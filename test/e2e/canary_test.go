@@ -477,6 +477,7 @@ spec:
       annotations:
         rev: two`). // update to revision 2
 		WaitForRolloutStatus("Healthy").
+		Sleep(2 * time.Second). // sleep is necessary since scale down delay annotation happens in s subsequent reconciliation
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rs1 := t.GetReplicaSetByRevision("1")

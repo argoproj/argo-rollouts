@@ -643,6 +643,15 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 	}
 }
 
+func TestCalculateReplicaCountsForNewDeployment(t *testing.T) {
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
+	stableRS := newRS("stable", 10, 0)
+	newRS := newRS("stable", 10, 0)
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, nil)
+	assert.Equal(t, int32(10), newRSReplicaCount)
+	assert.Equal(t, int32(0), stableRSReplicaCount)
+}
+
 func TestCalculateReplicaCountsForCanaryTrafficRouting(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
 	rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}

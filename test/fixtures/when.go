@@ -53,8 +53,9 @@ func (w *When) ApplyManifests(yaml ...string) *When {
 		objects = w.parseTextToObjects(yaml[0])
 	}
 	for _, obj := range objects {
-		if obj.GetKind() == "Rollout" && E2EPodDelay > 0 {
+		if obj.GetKind() == "Rollout" {
 			w.injectDelays(obj)
+			w.injectImagePrefix(obj)
 		}
 		if obj.GetKind() == "Ingress" {
 			w.injectIngressAnnotations(obj)
@@ -72,6 +73,9 @@ func (w *When) DeleteObject(kind, name string) *When {
 // injectDelays adds postStart/preStop handlers to slow down readiness/termination by adding a
 // preStart and postStart handlers which sleeps for the specified duration.
 func (w *When) injectDelays(un *unstructured.Unstructured) {
+	if E2EPodDelay == 0 {
+		return
+	}
 	sleepHandler := corev1.Handler{
 		Exec: &corev1.ExecAction{
 			Command: []string{"sleep", strconv.Itoa(E2EPodDelay)},
@@ -87,6 +91,21 @@ func (w *When) injectDelays(un *unstructured.Unstructured) {
 	w.CheckError(err)
 	container := containersIf[0].(map[string]interface{})
 	container["lifecycle"] = lifecycleObj
+	containersIf[0] = container
+	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
+	w.CheckError(err)
+}
+
+// injectImagePrefix prefixes images used in tests with a prefix. Useful if container registries are blocked
+func (w *When) injectImagePrefix(un *unstructured.Unstructured) {
+	imagePrefix := os.Getenv(EnvVarE2EImagePrefix)
+	if imagePrefix == "" {
+		return
+	}
+	containersIf, _, err := unstructured.NestedSlice(un.Object, "spec", "template", "spec", "containers")
+	w.CheckError(err)
+	container := containersIf[0].(map[string]interface{})
+	container["image"] = imagePrefix + container["image"].(string)
 	containersIf[0] = container
 	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
 	w.CheckError(err)

@@ -52,6 +52,11 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return err
 	}
 
+	err = c.awsVerifyTargetGroups(activeSvc)
+	if err != nil {
+		return err
+	}
+
 	err = c.reconcileAnalysisRuns()
 	if err != nil {
 		return err
@@ -219,16 +224,23 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 			c.log.Warnf("Prevented inadvertent scaleDown of RS '%s'", targetRS.Name)
 			continue
 		}
-
+		if *targetRS.Spec.Replicas == 0 {
+			// cannot scale down this ReplicaSet.
+			continue
+		}
 		var desiredReplicaCount int32
-		annotationedRSs, desiredReplicaCount = c.ScaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
+		var err error
+		annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
+		if err != nil {
+			return false, err
+		}
 
-		if *(targetRS.Spec.Replicas) == desiredReplicaCount {
-			// at desired account
+		if *targetRS.Spec.Replicas == desiredReplicaCount {
+			// already at desired account, nothing to do
 			continue
 		}
 		// Scale down.
-		_, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
+		_, _, err = c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
 		if err != nil {
 			return false, err
 		}
@@ -236,30 +248,6 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 	}
 
 	return hasScaled, nil
-}
-
-func (c *rolloutContext) ScaleDownDelayHelper(rs *appsv1.ReplicaSet, annotationedRSs int32, rolloutReplicas int32) (int32, int32) {
-	desiredReplicaCount := int32(0)
-	scaleDownRevisionLimit := GetScaleDownRevisionLimit(c.rollout)
-	if replicasetutil.HasScaleDownDeadline(rs) {
-		annotationedRSs++
-		if annotationedRSs > scaleDownRevisionLimit {
-			c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
-		} else {
-			remainingTime, err := replicasetutil.GetTimeRemainingBeforeScaleDownDeadline(rs)
-			if err != nil {
-				c.log.Warnf("%v", err)
-			} else if remainingTime != nil {
-				c.log.Infof("RS '%s' has not reached the scaleDownTime", rs.Name)
-				if *remainingTime < c.resyncPeriod {
-					c.enqueueRolloutAfter(c.rollout, *remainingTime)
-				}
-				desiredReplicaCount = rolloutReplicas
-			}
-		}
-	}
-
-	return annotationedRSs, desiredReplicaCount
 }
 
 func GetScaleDownRevisionLimit(ro *v1alpha1.Rollout) int32 {

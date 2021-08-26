@@ -10,6 +10,12 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
+// IsFullyPromoted returns whether or not the given rollout is in a fully promoted state.
+// (versus being in the middle of an update). This is determined by checking if stable hash == desired hash
+func IsFullyPromoted(ro *v1alpha1.Rollout) bool {
+	return ro.Status.StableRS == ro.Status.CurrentPodHash
+}
+
 // GetRolloutPhase returns a status and message for a rollout. Takes into consideration whether
 // or not metadata.generation was observed in status.observedGeneration
 // use this instead of CalculateRolloutPhase
@@ -95,8 +101,15 @@ func CalculateRolloutPhase(spec v1alpha1.RolloutSpec, status v1alpha1.RolloutSta
 		if ro.Status.BlueGreen.ActiveSelector == "" || ro.Status.BlueGreen.ActiveSelector != ro.Status.CurrentPodHash {
 			return v1alpha1.RolloutPhaseProgressing, "active service cutover pending"
 		}
-		if ro.Status.StableRS == "" || ro.Status.StableRS != ro.Status.CurrentPodHash {
-			return v1alpha1.RolloutPhaseProgressing, "waiting for analysis to complete"
+		if ro.Status.StableRS == "" || !IsFullyPromoted(&ro) {
+			// we switched the active selector to the desired ReplicaSet, but we have yet to mark it
+			// as stable. This could be caused by one of two things:
+			// 1. post-promotion analysis has yet to complete successfully
+			// 2. post-promotion verification (i.e. target group verification)
+			if waitingForBlueGreenPostPromotionAnalysis(&ro) {
+				return v1alpha1.RolloutPhaseProgressing, "waiting for analysis to complete"
+			}
+			return v1alpha1.RolloutPhaseProgressing, "waiting for post-promotion verification to complete"
 		}
 	} else if ro.Spec.Strategy.Canary != nil {
 		if ro.Spec.Strategy.Canary.TrafficRouting == nil {
@@ -107,11 +120,21 @@ func CalculateRolloutPhase(spec v1alpha1.RolloutSpec, status v1alpha1.RolloutSta
 				return v1alpha1.RolloutPhaseProgressing, "old replicas are pending termination"
 			}
 		}
-		if ro.Status.StableRS == "" || ro.Status.StableRS != ro.Status.CurrentPodHash {
+		if ro.Status.StableRS == "" || !IsFullyPromoted(&ro) {
 			return v1alpha1.RolloutPhaseProgressing, "waiting for all steps to complete"
 		}
 	}
 	return v1alpha1.RolloutPhaseHealthy, ""
+}
+
+// waitingForBlueGreenPostPromotionAnalysis returns we are waiting for blue-green post promotion to complete
+func waitingForBlueGreenPostPromotionAnalysis(ro *v1alpha1.Rollout) bool {
+	if ro.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
+		if ro.Status.BlueGreen.PostPromotionAnalysisRunStatus == nil || !ro.Status.BlueGreen.PostPromotionAnalysisRunStatus.Status.Completed() {
+			return true
+		}
+	}
+	return false
 }
 
 // CanaryStepString returns a string representation of a canary step

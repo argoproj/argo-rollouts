@@ -47,15 +47,18 @@ spec:
 ...
 ```
 
-The VirtualService and route referenced in `trafficRouting.istio.virtualService` is required
-to have either an HTTP or a TLS route spec that splits between the stable and the canary services,
-referenced in the rollout. If the route is of type HTTPS/TLS, then we can match it based on the
+The VirtualService and route referenced in `trafficRouting.istio.virtualService` are required
+to have either HTTP or TLS, or both route specs that splits between the stable and the canary
+services referenced in the rollout. If the route is HTTPS/TLS, we can match it based on the
 given port number and/or SNI hosts. Note that both of them are optional and only needed if you
-want to match any rule in your VirtualService which contain these.
+want to match any rule in your VirtualService which contains these.
 
-In this guide, the two services are named: `rollouts-demo-stable` and `rollouts-demo-canary`
-respectively. The weight values for these services used should be initially set to 100% stable,
-and 0% on the canary. During an update, these values will be modified by the controller.
+In this guide, the two services are: `rollouts-demo-stable` and `rollouts-demo-canary` respectively.
+The weights for these two services should initially be set to 100% on the stable service and 0% on
+the canary service. During an update, these values will get modified by the controller.
+
+Note that since we have both the HTTP and HTTPS routes in our rollout spec and they match the
+VirtualService specs, weights will get modified for both these routes.
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -68,25 +71,25 @@ spec:
   hosts:
   - rollouts-demo.local
   http:
-  - name: http-primary  # Should match spec.strategy.canary.trafficRouting.istio.virtualService.routes
+  - name: http-primary  # Should match rollout.spec.strategy.canary.trafficRouting.istio.virtualService.routes
     route:
     - destination:
-        host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
+        host: rollouts-demo-stable  # Should match rollout.spec.strategy.canary.stableService
       weight: 100
     - destination:
-        host: rollouts-demo-canary  # Should match spec.strategy.canary.canaryService
+        host: rollouts-demo-canary  # Should match rollout.spec.strategy.canary.canaryService
       weight: 0
   tls:
   - match:
-    - port: 443  # Should match the port number of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
-      sniHosts: # Should match all the SNI hosts of the route defined in spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
+    - port: 443  # Should match the port number of the route defined in rollout.spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
+      sniHosts: # Should match all the SNI hosts of the route defined in rollout.spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes
       - reviews.bookinfo.com
     route:
     - destination:
-        host: rollouts-demo-stable  # Should match spec.strategy.canary.stableService
+        host: rollouts-demo-stable  # Should match rollout.spec.strategy.canary.stableService
       weight: 100
     - destination:
-        host: rollouts-demo-canary  # Should match spec.strategy.canary.canaryService
+        host: rollouts-demo-canary  # Should match rollout.spec.strategy.canary.canaryService
       weight: 0
 ```
 
@@ -171,7 +174,7 @@ spec:
       weight: 5
   tls:
   - match:
-    - port: 3000
+    - port: 443
       sniHosts:
       - reviews.bookinfo.com
     route:

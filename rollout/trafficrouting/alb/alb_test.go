@@ -275,8 +275,9 @@ func TestErrorPatching(t *testing.T) {
 }
 
 type fakeAWSClient struct {
-	targetGroups []aws.TargetGroupMeta
-	loadBalancer *elbv2types.LoadBalancer
+	targetGroups             []aws.TargetGroupMeta
+	loadBalancer             *elbv2types.LoadBalancer
+	targetHealthDescriptions []elbv2types.TargetHealthDescription
 }
 
 func (f *fakeAWSClient) GetTargetGroupMetadata(ctx context.Context, loadBalancerARN string) ([]aws.TargetGroupMeta, error) {
@@ -285,6 +286,10 @@ func (f *fakeAWSClient) GetTargetGroupMetadata(ctx context.Context, loadBalancer
 
 func (f *fakeAWSClient) FindLoadBalancerByDNSName(ctx context.Context, dnsName string) (*elbv2types.LoadBalancer, error) {
 	return f.loadBalancer, nil
+}
+
+func (f *fakeAWSClient) GetTargetGroupHealth(ctx context.Context, targetGroupARN string) ([]elbv2types.TargetHealthDescription, error) {
+	return f.targetHealthDescriptions, nil
 }
 
 func TestVerifyWeight(t *testing.T) {

@@ -157,6 +157,10 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 
 	sort.Sort(sort.Reverse(replicasetutil.ReplicaSetsByRevisionNumber(oldRSs)))
 
+	if canProceed, err := c.canProceedWithScaleDownAnnotation(oldRSs); !canProceed || err != nil {
+		return 0, err
+	}
+
 	annotationedRSs := int32(0)
 	rolloutReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
 	for _, targetRS := range oldRSs {
@@ -169,7 +173,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 		if maxScaleDown <= 0 {
 			break
 		}
-		if *(targetRS.Spec.Replicas) == 0 {
+		if *targetRS.Spec.Replicas == 0 {
 			// cannot scale down this ReplicaSet.
 			continue
 		}
@@ -177,15 +181,18 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 		if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 			// For basic canary, we must scale down all other ReplicaSets because existence of
 			// those pods will cause traffic to be served by them
-			if *(targetRS.Spec.Replicas) > maxScaleDown {
-				desiredReplicaCount = *(targetRS.Spec.Replicas) - maxScaleDown
+			if *targetRS.Spec.Replicas > maxScaleDown {
+				desiredReplicaCount = *targetRS.Spec.Replicas - maxScaleDown
 			}
 		} else {
 			// For traffic shaped canary, we leave the old ReplicaSets up until scaleDownDelaySeconds
-			annotationedRSs, desiredReplicaCount = c.ScaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
+			annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
+			if err != nil {
+				return totalScaledDown, err
+			}
 		}
-		if *(targetRS.Spec.Replicas) == desiredReplicaCount {
-			// at desired account
+		if *targetRS.Spec.Replicas == desiredReplicaCount {
+			// already at desired account, nothing to do
 			continue
 		}
 		// Scale down.
@@ -199,6 +206,50 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 	}
 
 	return totalScaledDown, nil
+}
+
+// canProceedWithScaleDownAnnotation returns whether or not it is safe to proceed with annotating
+// old replicasets with the scale-down-deadline in the traffic-routed canary strategy.
+// This method only matters with ALB canary + the target group verification feature.
+// The safety guarantees we provide are that we will not scale down *anything* unless we can verify
+// stable target group endpoints are registered properly.
+// NOTE: this method was written in a way which avoids AWS API calls.
+func (c *rolloutContext) canProceedWithScaleDownAnnotation(oldRSs []*appsv1.ReplicaSet) (bool, error) {
+	isALBCanary := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil
+	if !isALBCanary {
+		// Only ALB
+		return true, nil
+	}
+
+	needToVerifyTargetGroups := false
+	for _, targetRS := range oldRSs {
+		if *targetRS.Spec.Replicas > 0 && !replicasetutil.HasScaleDownDeadline(targetRS) {
+			// We encountered an old ReplicaSet that is not yet scaled down, and is not annotated
+			// We only verify target groups if there is something to scale down.
+			needToVerifyTargetGroups = true
+			break
+		}
+	}
+	if !needToVerifyTargetGroups {
+		// All ReplicaSets are either scaled down, or have a scale-down-deadline annotation.
+		// The presence of the scale-down-deadline on all oldRSs, implies we can proceed with
+		// scale down, because we only add that annotation when target groups have been verified.
+		// Therefore, we return true to avoid performing verification again and making unnecessary
+		// AWS API calls.
+		return true, nil
+	}
+	stableSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.StableService)
+	if err != nil {
+		return false, err
+	}
+	err = c.awsVerifyTargetGroups(stableSvc)
+	if err != nil {
+		return false, err
+	}
+
+	canProceed := c.areTargetsVerified()
+	c.log.Infof("Proceed with scaledown: %v", canProceed)
+	return canProceed, nil
 }
 
 func (c *rolloutContext) completedCurrentCanaryStep() bool {
@@ -218,7 +269,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
 			return false
 		}
-		if c.weightVerified != nil && !*c.weightVerified {
+		if !c.areTargetsVerified() {
 			return false
 		}
 		return true

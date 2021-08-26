@@ -17,6 +17,8 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/aws"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
@@ -44,15 +46,6 @@ type Reconciler struct {
 	cfg ReconcilerConfig
 	log *logrus.Entry
 	aws aws.Client
-}
-
-var (
-	defaultVerifyWeight = false
-)
-
-// SetDefaultVerifyWeight sets the default setWeight verification when instantiating the reconciler
-func SetDefaultVerifyWeight(b bool) {
-	defaultVerifyWeight = b
 }
 
 // NewReconciler returns a reconciler struct that brings the ALB Ingress into the desired state
@@ -119,7 +112,7 @@ func (r *Reconciler) shouldVerifyWeight() bool {
 	if r.cfg.VerifyWeight != nil {
 		return *r.cfg.VerifyWeight
 	}
-	return defaultVerifyWeight
+	return defaults.VerifyTargetGroup()
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
@@ -136,10 +129,10 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	resourceIDToDest := map[string]trafficrouting.WeightDestination{}
 
 	canaryService := rollout.Spec.Strategy.Canary.CanaryService
-	canaryResourceID := aws.BuildV2TargetGroupID(rollout.Namespace, ingress.Name, canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+	canaryResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.Name, canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 
 	for _, dest := range additionalDestinations {
-		resourceID := aws.BuildV2TargetGroupID(rollout.Namespace, ingress.Name, dest.ServiceName, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+		resourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.Name, dest.ServiceName, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 		resourceIDToDest[resourceID] = dest
 	}
 
@@ -154,6 +147,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		}
 		lb, err := r.aws.FindLoadBalancerByDNSName(ctx, lbIngress.Hostname)
 		if err != nil {
+			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
 			return false, err
 		}
 		if lb == nil || lb.LoadBalancerArn == nil {
@@ -162,6 +156,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		}
 		lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 		if err != nil {
+			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
 			return false, err
 		}
 		logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
@@ -170,19 +165,25 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 				if tg.Weight != nil {
 					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 					logCtx.Infof("canary weight of %s (desired: %d, current: %d)", canaryResourceID, desiredWeight, *tg.Weight)
-					if *tg.Weight == desiredWeight {
+					verified := *tg.Weight == desiredWeight
+					if verified {
 						numVerifiedWeights += 1
+						r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight)
+					} else {
+						r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight, *tg.Weight)
 					}
 				}
-
 			}
-
 			if dest, ok := resourceIDToDest[tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID]]; ok {
 				if tg.Weight != nil {
 					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 					logCtx.Infof("%s weight of %s (desired: %d, current: %d)", dest.ServiceName, tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID], dest.Weight, *tg.Weight)
-					if *tg.Weight == dest.Weight {
+					verified := *tg.Weight == desiredWeight
+					if verified {
 						numVerifiedWeights += 1
+						r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedWeightsMessage, dest.ServiceName, *tg.TargetGroupArn, dest.Weight)
+					} else {
+						r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, dest.ServiceName, *tg.TargetGroupArn, dest.Weight, *tg.Weight)
 					}
 				}
 			}

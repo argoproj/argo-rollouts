@@ -38,10 +38,19 @@ const (
 )
 
 const (
-	DefaultAmbassadorAPIGroup     = "getambassador.io"
-	DefaultAmbassadorVersion      = "getambassador.io/v2"
-	DefaultIstioVersion           = "v1alpha3"
-	DefaultSMITrafficSplitVersion = "v1alpha1"
+	DefaultAmbassadorAPIGroup           = "getambassador.io"
+	DefaultAmbassadorVersion            = "getambassador.io/v2"
+	DefaultIstioVersion                 = "v1alpha3"
+	DefaultSMITrafficSplitVersion       = "v1alpha1"
+	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
+)
+
+var (
+	defaultVerifyTargetGroup     = false
+	istioAPIVersion              = DefaultIstioVersion
+	ambassadorAPIVersion         = DefaultAmbassadorVersion
+	smiAPIVersion                = DefaultSMITrafficSplitVersion
+	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
 )
 
 // GetReplicasOrDefault returns the deferenced number of replicas or the default number
@@ -201,4 +210,46 @@ func Namespace() string {
 		}
 	}
 	return "argo-rollouts"
+}
+
+// SetDefaultVerifyTargetGroup sets the default setWeight verification when instantiating the reconciler
+func SetVerifyTargetGroup(b bool) {
+	defaultVerifyTargetGroup = b
+}
+
+// VerifyTargetGroup returns whether or not we should verify target groups
+func VerifyTargetGroup() bool {
+	return defaultVerifyTargetGroup
+}
+
+func SetIstioAPIVersion(apiVersion string) {
+	istioAPIVersion = apiVersion
+}
+
+func GetIstioAPIVersion() string {
+	return istioAPIVersion
+}
+
+func SetAmbassadorAPIVersion(apiVersion string) {
+	ambassadorAPIVersion = apiVersion
+}
+
+func GetAmbassadorAPIVersion() string {
+	return ambassadorAPIVersion
+}
+
+func SetSMIAPIVersion(apiVersion string) {
+	smiAPIVersion = apiVersion
+}
+
+func GetSMIAPIVersion() string {
+	return smiAPIVersion
+}
+
+func SetTargetGroupBindingAPIVersion(apiVersion string) {
+	targetGroupBindingAPIVersion = apiVersion
+}
+
+func GetTargetGroupBindingAPIVersion() string {
+	return targetGroupBindingAPIVersion
 }

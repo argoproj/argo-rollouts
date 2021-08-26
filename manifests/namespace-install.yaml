@@ -12579,9 +12579,9 @@ kind: Role
 metadata:
   labels:
     app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-role
+    app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
-  name: argo-rollouts-role
+  name: argo-rollouts
 rules:
 - apiGroups:
   - argoproj.io
@@ -12726,18 +12726,9 @@ rules:
   - patch
 - apiGroups:
   - getambassador.io
-  resources:
-  - mappings
-  verbs:
-  - create
-  - watch
-  - get
-  - update
-  - list
-  - delete
-- apiGroups:
   - x.getambassador.io
   resources:
+  - mappings
   - ambassadormappings
   verbs:
   - create
@@ -12746,6 +12737,19 @@ rules:
   - update
   - list
   - delete
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+- apiGroups:
+  - elbv2.k8s.aws
+  resources:
+  - targetgroupbindings
+  verbs:
+  - list
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -12836,13 +12840,13 @@ kind: RoleBinding
 metadata:
   labels:
     app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-role-binding
+    app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
-  name: argo-rollouts-role-binding
+  name: argo-rollouts
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: argo-rollouts-role
+  name: argo-rollouts
 subjects:
 - kind: ServiceAccount
   name: argo-rollouts
