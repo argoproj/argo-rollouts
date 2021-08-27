@@ -158,24 +158,107 @@ spec:
 ...
 ```
 
-### Weight verification
+### Zero-Downtime Updates with AWS TargetGroup Verification
+
+Argo Rollouts contains two features to help ensure zero-downtime updates when used with the AWS 
+LoadBalancer controller: TargetGroup IP verification and TargetGroup weight verification. Both
+features involve the Rollout controller performing additional safety checks to AWS, to verify
+the changes made to the Ingress object are reflected in the underlying AWS TargetGroup.
+
+#### TargetGroup IP Verification
 
 !!! note
 
-    Since Argo Rollouts v1.0
+    Target Group IP verification available since Argo Rollouts v1.1
 
-When Argo Rollouts adjusts a canary weight by updating the Ingress annotation, it assumes that
-the new weight immediately takes effect and moves on to the next step. However, due to external
-factors (e.g. AWS rate limiting, AWS load balancer controller downtime) it is possible that the
-ingress modification may take a long time to take effect (or possibly never even made). This is
-potentially dangerous when the rollout completes its steps, it will scale down the old stack. If
-the ALB Rules/Actions were still directing traffic to the old stack (because the weights never took
-effect), then this would cause downtime to the service when the old stack was scaled down.
+The AWS LoadBalancer controller can run in one of two modes:
+* [Instance mode](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#instance-mode)
+* [IP mode](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#ip-mode)
 
-To mitigate this, the rollout controller has a feature to additionally *verify* the canary weight 
-after a `setWeight` canary step. It accomplishes this by querying AWS LoadBalancer APIs directly,
-to confirm that the Rules, Actions, and TargetGroups reflect the desire of Ingress annotation.
-To enable ALB weight verification, add `--alb-verify-weight` flag to the rollout-controller flags:
+TargetGroup IP Verification is only applicable when the AWS LoadBalancer controller in IP mode.
+When using the AWS LoadBalancer controller in IP mode (e.g. using the AWS CNI), the ALB LoadBalancer
+targets individual Pod IPs, as opposed to K8s node instances. Targeting Pod IPs comes with an
+increased risk of downtime during an update, because the Pod IPs behind the underlying AWS TargetGroup
+can more easily become outdated from the *_actual_* availability and status of pods, causing HTTP 502
+errors when the TargetGroup points to pods which have already been scaled down.
+
+To mitigate this risk, AWS recommends the use of
+[pod readiness gate injection](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/)
+when running the AWS LoadBalancer in IP mode. Readiness gates allow for the AWS LoadBalancer 
+controller to verify that TargetGroups are accurate before marking newly created Pods as "ready",
+preventing premature scale down of the older ReplicaSet.
+
+Pod readiness gate injection uses a mutating webhook which decides to inject readiness gates when a
+pod is created based on the following conditions:
+* There exists a service matching the pod labels in the same namespace
+* There exists at least one target group binding that refers to the matching service
+
+Another way to describe this is: the AWS LoadBalancer controller injects readiness gates onto Pods
+only if they are "reachable"  from an ALB Ingress at the time of pod creation. A pod is considered
+reachable if an (ALB) Ingress references a Service which matches the pod labels. It ignores all other Pods.
+
+One challenge with this manner of pod readiness gate injection, is that modifications to the Service
+selector labels (`spec.selector`) do not allow for the AWS LoadBalancer controller to inject the
+readiness gates, because by that time the Pod was already created (and readiness gates are immutable).
+Note that this is an issue when you change Service selectors of *_any_* ALB Service, not just ones
+involved in Argo Rollouts.
+
+Because Argo Rollout's blue-green strategy works by modifying the activeService selector to the new
+ReplicaSet labels during promotion, it suffers from the issue where readiness gates for the
+`spec.strategy.blueGreen.activeService` fail to be injected. This means there is a possibility of
+downtime in the following problematic scenario during an update from V1 to V2:
+
+1. Update is triggered and V2 ReplicaSet stack is scaled up
+2. V2 ReplicaSet pods become fully available and ready to be promoted
+3. Rollout promotes V2 by updating the label selectors of the active service to point to the V2 stack (from V1)
+4. Due to unknown issues (e.g. AWS load balancer controller downtime, AWS rate limiting), registration
+   of the V2 Pod IPs to the TargetGroup does not happen or is delayed.
+5. V1 ReplicaSet is scaled down to complete the update
+
+After step 5, when the V1 ReplicaSet is scaled down, the outdated TargetGroup would still be pointing
+to the V1 Pods IPs which no longer exist, causing downtime. 
+
+To allow for zero-downtime updates, Argo Rollouts has the ability to perform TargetGroup IP
+verification as an additional safety measure during an update. When this feature is enabled, whenever
+a service selector modification is made, the Rollout controller blocks progression of the update
+until it can verify the TargetGroup is accurately targeting the new Pod IPs of the
+`bluegreen.activeService`. Verification is achieved by querying AWS APIs to describe the underlying
+TargetGroup, iterating its registered IPs, and ensuring all Pod IPs of the activeService's
+`Endpoints` list are registered in the TargetGroup. Verification must succeed before running
+postPromotionAnalysis or scaling down the old ReplicaSet.
+
+Similarly for the canary strategy, after updating the `canary.stableService` selector labels to
+point to the new ReplicaSet, the TargetGroup IP verification feature allows the controller to block
+the scale down of the old ReplicaSet until it verifies the Pods IP behind the stableService
+TargetGroup are accurate.
+
+#### TargetGroup Weight Verification
+
+!!! note
+
+    TargetGroup weight verification available since Argo Rollouts v1.0
+
+TargetGroup weight verification addresses a similar problem to TargetGroup IP verification, but
+instead of verifying that the Pod IPs of a service are reflected accurately in the TargetGroup, the
+controller verifies that the traffic *_weights_* are accurate from what was set in the ingress
+annotations. Weight verification is applicable to AWS LoadBalancer controllers which are running
+either in IP mode or Instance mode.
+
+After Argo Rollouts adjusts a canary weight by updating the Ingress annotation, it moves on to the
+next step. However, due to external factors (e.g. AWS rate limiting, AWS load balancer controller
+downtime) it is possible that the weight modifications made to the Ingress, did not take effect in
+the underlying TargetGroup. This is potentially dangerous as the controller will believe it is safe
+to scale down the old stable stack when in reality, the outdated TargetGroup may still be pointing
+to it.
+
+Using the TargetGroup weight verification feature, the rollout controller will additionally *verify*
+the canary weight after a `setWeight` canary step. It accomplishes this by querying AWS LoadBalancer
+APIs directly, to confirm that the Rules, Actions, and TargetGroups reflect the desire of Ingress
+annotation.
+
+#### Usage
+
+To enable AWS target group verification, add `--aws-verify-target-group` flag to the rollout-controller flags:
 
 ```yaml
 apiVersion: apps/v1
@@ -187,7 +270,8 @@ spec:
     spec:
       containers:
       - name: argo-rollouts
-        args: [--alb-verify-weight]
+        args: [--aws-verify-target-group]
+        # NOTE: in v1.0, the --alb-verify-weight flag should be used instead
 ```
 
 For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
@@ -198,6 +282,7 @@ under the [Elastic Load Balancing API](https://docs.aws.amazon.com/elasticloadba
 * `DescribeListeners`
 * `DescribeRules`
 * `DescribeTags`
+* `DescribeTargetHealth`
 
 There are various ways of granting AWS privileges to the argo-rollouts pods, which is highly
 dependent to your cluster's AWS environment, and out-of-scope of this documentation. Some solutions

@@ -36,13 +36,15 @@ This is the mechanism that traffic from live users enters your cluster and is re
 Argo Rollouts is very flexible on networking options. First of all you can have different services during a Rollout, that go only to the new version, only to the old version or both.
 Specifically for Canary deployments, Argo Rollouts supports several [service mesh and ingress solutions](../features/traffic-management/) for splitting traffic with specific percentages instead of simple balancing based on pod counts.
 
-## Analysis and AnalysisRun
+## AnalysisTemplate and AnalysisRun
 
-Analysis is a custom Kubernetes resource that connects a Rollout to your metrics provider and defines specific thresholds for certain metrics that will decide if a rollout is successful or not. For each Analysis you can define one or more metric queries along with their expected results. A Rollout will progress on its own if metric queries are good, rollback automatically if metrics show failure and pause the rollout if metrics cannot provide a success/failure answer.
+Analysis is the capability to connect a Rollout to your metrics provider and define specific thresholds for certain metrics that will decide if an update is successful or not. For each analysis you can define one or more metric queries along with their expected results. A Rollout will progress on its own if metric queries are good, rollback automatically if metrics show failure and pause the rollout if metrics cannot provide a success/failure answer.
 
-Analysis is just a template on what metrics to query. The actual result that is attached to a Rollout is the `AnalysisRun` custom resource. You can define an Analysis on a specific Rollout or globally on the cluster to be shared by multiple rollouts. The AnalysisRun resources is scoped on a specific rollout.
+For performing an analysis, Argo Rollouts includes two custom Kubernetes resources: `AnalysisTemplate` and `AnalysisRun`.
 
-Note that using Analysis and metrics in a Rollout is completely optional. You can manually pause and promote a rollout or use other external methods (e.g. smoke tests) via the API or the CLI. You don't need a metric solution just to use Argo Rollouts. You can also mix both automated (i.e. analysis based) and manual steps in a Rollout.
+`AnalysisTemplate` contains instructions on what metrics to query. The actual result that is attached to a Rollout is the `AnalysisRun` custom resource. You can define an `AnalysisTemplate` on a specific Rollout or globally on the cluster to be shared by multiple rollouts as a `ClusterAnalysisTemplate`. The `AnalysisRun` resource is scoped on a specific rollout.
+
+Note that using an analysis and metrics in a Rollout is completely optional. You can manually pause and promote a rollout or use other external methods (e.g. smoke tests) via the API or the CLI. You don't need a metric solution just to use Argo Rollouts. You can also mix both automated (i.e. analysis based) and manual steps in a Rollout.
 
 Apart from metrics, you can also decide the success of a rollout by running a [Kubernetes job](../analysis/job/) or running [a webhook](../analysis/web/).
 

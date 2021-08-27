@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alb-bluegreen-desired
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: alb-bluegreen
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alb-bluegreen-stable
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: alb-bluegreen
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: alb-bluegreen-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /*
+        backend:
+          serviceName: alb-bluegreen-stable
+          servicePort: 80
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: alb-bluegreen
+spec:
+  selector:
+    matchLabels:
+      app: alb-bluegreen
+  template:
+    metadata:
+      labels:
+        app: alb-bluegreen
+    spec:
+      containers:
+      - name: alb-bluegreen
+        image: nginx:1.19-alpine
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
+  strategy:
+    blueGreen:
+      previewService: alb-bluegreen-desired
+      activeService: alb-bluegreen-stable

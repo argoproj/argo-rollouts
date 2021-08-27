@@ -7,7 +7,8 @@ require (
 	github.com/argoproj/notifications-engine v0.2.1-0.20210525191332-e8e293898477
 	github.com/argoproj/pkg v0.9.0
 	github.com/aws/aws-sdk-go-v2/config v1.0.0
-	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.0.0
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.2.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.6.1
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/evanphx/json-patch/v5 v5.2.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32

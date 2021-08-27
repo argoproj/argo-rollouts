@@ -173,7 +173,7 @@ func TestGenerateMetricTasksInterval(t *testing.T) {
 	}
 	{
 		// ensure we don't take measurements when within the interval
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 0, len(tasks))
 	}
 	{
@@ -182,7 +182,7 @@ func TestGenerateMetricTasksInterval(t *testing.T) {
 		successRate.Measurements[0].StartedAt = timePtr(metav1.NewTime(time.Now().Add(-61 * time.Second)))
 		successRate.Measurements[0].FinishedAt = timePtr(metav1.NewTime(time.Now().Add(-61 * time.Second)))
 		run.Status.MetricResults[0] = successRate
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 1, len(tasks))
 	}
 }
@@ -208,11 +208,11 @@ func TestGenerateMetricTasksFailing(t *testing.T) {
 		},
 	}
 	// ensure we don't perform more measurements when one result already failed
-	tasks := generateMetricTasks(run)
+	tasks := generateMetricTasks(run, run.Spec.Metrics)
 	assert.Equal(t, 0, len(tasks))
 	run.Status.MetricResults = nil
 	// ensure we schedule tasks when no results are failed
-	tasks = generateMetricTasks(run)
+	tasks = generateMetricTasks(run, run.Spec.Metrics)
 	assert.Equal(t, 2, len(tasks))
 }
 
@@ -239,7 +239,7 @@ func TestGenerateMetricTasksNoIntervalOrCount(t *testing.T) {
 	}
 	{
 		// ensure we don't take measurement when result count indicates we completed
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 0, len(tasks))
 	}
 	{
@@ -248,7 +248,7 @@ func TestGenerateMetricTasksNoIntervalOrCount(t *testing.T) {
 		successRate.Measurements = nil
 		successRate.Count = 0
 		run.Status.MetricResults[0] = successRate
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 1, len(tasks))
 	}
 }
@@ -275,7 +275,7 @@ func TestGenerateMetricTasksIncomplete(t *testing.T) {
 	}
 	{
 		// ensure we don't take measurement when interval is not specified and we already took measurement
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 1, len(tasks))
 		assert.NotNil(t, tasks[0].incompleteMeasurement)
 	}
@@ -300,25 +300,25 @@ func TestGenerateMetricTasksHonorInitialDelay(t *testing.T) {
 	}
 	{
 		// ensure we don't take measurement for metrics with start delays when no startAt is set
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 0, len(tasks))
 	}
 	{
 		run.Status.StartedAt = &nowMinus10
 		// ensure we don't take measurement for metrics with start delays where we haven't waited the start delay
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 0, len(tasks))
 	}
 	{
 		run.Status.StartedAt = &nowMinus20
 		// ensure we do take measurement for metrics with start delays where we have waited the start delay
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 1, len(tasks))
 	}
 	{
 		run.Spec.Metrics[0].InitialDelay = "invalid-start-delay"
 		// ensure we don't take measurement for metrics with invalid start delays
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 0, len(tasks))
 	}
 }
@@ -366,7 +366,7 @@ func TestGenerateMetricTasksHonorResumeAt(t *testing.T) {
 	}
 	{
 		// ensure we don't take measurement when resumeAt has not passed
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 1, len(tasks))
 		assert.Equal(t, "success-rate2", tasks[0].metric.Name)
 	}
@@ -397,13 +397,13 @@ func TestGenerateMetricTasksError(t *testing.T) {
 	}
 	{
 		run := run.DeepCopy()
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 1, len(tasks))
 	}
 	{
 		run := run.DeepCopy()
 		run.Spec.Metrics[0].Interval = "5m"
-		tasks := generateMetricTasks(run)
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
 		assert.Equal(t, 1, len(tasks))
 	}
 }
@@ -439,7 +439,7 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		status, message := c.assessRunStatus(run)
+		status, message := c.assessRunStatus(run, run.Spec.Metrics)
 		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 		assert.Equal(t, "", message)
 	}
@@ -458,7 +458,7 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		status, message := c.assessRunStatus(run)
+		status, message := c.assessRunStatus(run, run.Spec.Metrics)
 		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 		assert.Equal(t, "", message)
 	}
@@ -512,7 +512,7 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 			},
 		},
 	}
-	status, message := c.assessRunStatus(run)
+	status, message := c.assessRunStatus(run, run.Spec.Metrics)
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 	assert.Equal(t, "", message)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, run.Status.MetricResults[1].Phase)
@@ -671,11 +671,11 @@ func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 		},
 	}
 	// ensure we requeue at correct interval
-	assert.Equal(t, now.Add(time.Second*30), *calculateNextReconcileTime(run))
+	assert.Equal(t, now.Add(time.Second*30), *calculateNextReconcileTime(run, run.Spec.Metrics))
 	// when in-flight is not set, we do not requeue
 	run.Status.MetricResults[0].Measurements[0].FinishedAt = nil
 	run.Status.MetricResults[0].Measurements[0].Phase = v1alpha1.AnalysisPhaseRunning
-	assert.Nil(t, calculateNextReconcileTime(run))
+	assert.Nil(t, calculateNextReconcileTime(run, run.Spec.Metrics))
 	// do not queue completed metrics
 	nowMinus120 := metav1.NewTime(now.Add(time.Second * -120))
 	run.Status.MetricResults[0] = v1alpha1.MetricResult{
@@ -687,7 +687,7 @@ func TestCalculateNextReconcileTimeInterval(t *testing.T) {
 			FinishedAt: &nowMinus120,
 		}},
 	}
-	assert.Nil(t, calculateNextReconcileTime(run))
+	assert.Nil(t, calculateNextReconcileTime(run, run.Spec.Metrics))
 }
 
 func TestCalculateNextReconcileTimeInitialDelay(t *testing.T) {
@@ -723,10 +723,10 @@ func TestCalculateNextReconcileTimeInitialDelay(t *testing.T) {
 		},
 	}
 	// ensure we requeue after start delay
-	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run))
+	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run, run.Spec.Metrics))
 	run.Spec.Metrics[1].InitialDelay = "not-valid-start-delay"
 	// skip invalid start delay and use the other metrics next reconcile time
-	assert.Equal(t, now.Add(time.Second*30), *calculateNextReconcileTime(run))
+	assert.Equal(t, now.Add(time.Second*30), *calculateNextReconcileTime(run, run.Spec.Metrics))
 
 }
 
@@ -754,7 +754,7 @@ func TestCalculateNextReconcileTimeNoInterval(t *testing.T) {
 			}},
 		},
 	}
-	assert.Nil(t, calculateNextReconcileTime(run))
+	assert.Nil(t, calculateNextReconcileTime(run, run.Spec.Metrics))
 }
 
 func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
@@ -801,7 +801,7 @@ func TestCalculateNextReconcileEarliestMetric(t *testing.T) {
 		},
 	}
 	// ensure we requeue at correct interval
-	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run))
+	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run, run.Spec.Metrics))
 }
 
 func TestCalculateNextReconcileHonorResumeAt(t *testing.T) {
@@ -830,7 +830,7 @@ func TestCalculateNextReconcileHonorResumeAt(t *testing.T) {
 		},
 	}
 	// ensure we requeue at correct interval
-	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run))
+	assert.Equal(t, now.Add(time.Second*10), *calculateNextReconcileTime(run, run.Spec.Metrics))
 }
 
 // TestCalculateNextReconcileUponError ensure we requeue at error interval when we error
@@ -860,12 +860,12 @@ func TestCalculateNextReconcileUponError(t *testing.T) {
 	}
 	{
 		run := run.DeepCopy()
-		assert.Equal(t, now.Add(DefaultErrorRetryInterval), *calculateNextReconcileTime(run))
+		assert.Equal(t, now.Add(DefaultErrorRetryInterval), *calculateNextReconcileTime(run, run.Spec.Metrics))
 	}
 	{
 		run := run.DeepCopy()
 		run.Spec.Metrics[0].Interval = "5m"
-		assert.Equal(t, now.Add(DefaultErrorRetryInterval), *calculateNextReconcileTime(run))
+		assert.Equal(t, now.Add(DefaultErrorRetryInterval), *calculateNextReconcileTime(run, run.Spec.Metrics))
 	}
 }
 
@@ -1083,8 +1083,8 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 		},
 	}
 	newRun := c.reconcileAnalysisRun(run)
-	assert.Equal(t, newRun.Status.Phase, v1alpha1.AnalysisPhaseError)
-	assert.Equal(t, newRun.Status.Message, "unable to resolve metric arguments: failed to resolve {{args.metric-name}}")
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
+	assert.Equal(t, "unable to resolve metric arguments: failed to resolve {{args.metric-name}}", newRun.Status.Message)
 }
 
 // TestSecretContentReferenceSuccess verifies that secret arguments are properly resolved
@@ -1403,7 +1403,7 @@ func TestAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T) {
 
 	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed)
 	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseSuccessful
-	status, message := c.assessRunStatus(run)
+	status, message := c.assessRunStatus(run, run.Spec.Metrics)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 	assert.Equal(t, "metric \"failed-metric\" assessed Failed due to failed (1) > failureLimit (0)", message)
 }
@@ -1421,7 +1421,7 @@ func TestAssessRunStatusErrorMessageFromProvider(t *testing.T) {
 	providerMessage := "Provider error"
 	run.Status.MetricResults[1].Message = providerMessage
 
-	status, message := c.assessRunStatus(run)
+	status, message := c.assessRunStatus(run, run.Spec.Metrics)
 	expectedMessage := fmt.Sprintf("metric \"failed-metric\" assessed Failed due to failed (1) > failureLimit (0): \"Error Message: %s\"", providerMessage)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 	assert.Equal(t, expectedMessage, message)
@@ -1438,7 +1438,7 @@ func TestAssessRunStatusMultipleFailures(t *testing.T) {
 	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseFailed
 	run.Status.MetricResults[0].Failed = 1
 
-	status, message := c.assessRunStatus(run)
+	status, message := c.assessRunStatus(run, run.Spec.Metrics)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 	assert.Equal(t, "metric \"run-forever\" assessed Failed due to failed (1) > failureLimit (0)", message)
 }

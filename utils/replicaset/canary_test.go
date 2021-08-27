@@ -340,6 +340,22 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 3,
 		},
 		{
+			name:                "Scale down stable and canary available",
+			rolloutSpecReplicas: 10,
+			setWeight:           100,
+			maxSurge:            intstr.FromInt(1),
+			maxUnavailable:      intstr.FromInt(0),
+
+			stableSpecReplica:      10,
+			stableAvailableReplica: 2,
+
+			canarySpecReplica:      10,
+			canaryAvailableReplica: 8,
+
+			expectedStableReplicaCount: 2,
+			expectedCanaryReplicaCount: 9,
+		},
+		{
 			name:                "Do not scale down newRS or stable when older RS count >= scaleDownCount",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
@@ -625,6 +641,15 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			assert.Equal(t, test.expectedStableReplicaCount, stableRSReplicaCount, "check stable replica count")
 		})
 	}
+}
+
+func TestCalculateReplicaCountsForNewDeployment(t *testing.T) {
+	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
+	stableRS := newRS("stable", 10, 0)
+	newRS := newRS("stable", 10, 0)
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, nil)
+	assert.Equal(t, int32(10), newRSReplicaCount)
+	assert.Equal(t, int32(0), stableRSReplicaCount)
 }
 
 func TestCalculateReplicaCountsForCanaryTrafficRouting(t *testing.T) {

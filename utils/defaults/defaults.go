@@ -16,6 +16,10 @@ const (
 	DefaultReplicas = int32(1)
 	// DefaultRevisionHistoryLimit default number of revisions to keep if .Spec.RevisionHistoryLimit is nil
 	DefaultRevisionHistoryLimit = int32(10)
+	// DefaultAnalysisRunSuccessfulHistoryLimit default number of successful AnalysisRuns to keep if .Spec.Analysis.SuccessfulRunHistoryLimit is nil
+	DefaultAnalysisRunSuccessfulHistoryLimit = int32(5)
+	// DefaultAnalysisRunUnsuccessfulHistoryLimit default number of unsuccessful AnalysisRuns to keep if .Spec.Analysis.UnsuccessfulRunHistoryLimit is nil
+	DefaultAnalysisRunUnsuccessfulHistoryLimit = int32(5)
 	// DefaultMaxSurge default number for the max number of additional pods that can be brought up during a rollout
 	DefaultMaxSurge = "25"
 	// DefaultMaxUnavailable default number for the max number of unavailable pods during a rollout
@@ -34,10 +38,19 @@ const (
 )
 
 const (
-	DefaultAmbassadorAPIGroup     = "getambassador.io"
-	DefaultAmbassadorVersion      = "getambassador.io/v2"
-	DefaultIstioVersion           = "v1alpha3"
-	DefaultSMITrafficSplitVersion = "v1alpha1"
+	DefaultAmbassadorAPIGroup           = "getambassador.io"
+	DefaultAmbassadorVersion            = "getambassador.io/v2"
+	DefaultIstioVersion                 = "v1alpha3"
+	DefaultSMITrafficSplitVersion       = "v1alpha1"
+	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
+)
+
+var (
+	defaultVerifyTargetGroup     = false
+	istioAPIVersion              = DefaultIstioVersion
+	ambassadorAPIVersion         = DefaultAmbassadorVersion
+	smiAPIVersion                = DefaultSMITrafficSplitVersion
+	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
 )
 
 // GetReplicasOrDefault returns the deferenced number of replicas or the default number
@@ -54,6 +67,22 @@ func GetRevisionHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
 		return DefaultRevisionHistoryLimit
 	}
 	return *rollout.Spec.RevisionHistoryLimit
+}
+
+// GetAnalysisRunSuccessfulHistoryLimitOrDefault returns the specified number of succeed AnalysisRuns to keep or the default number
+func GetAnalysisRunSuccessfulHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
+	if rollout.Spec.Analysis == nil || rollout.Spec.Analysis.SuccessfulRunHistoryLimit == nil {
+		return DefaultAnalysisRunSuccessfulHistoryLimit
+	}
+	return *rollout.Spec.Analysis.SuccessfulRunHistoryLimit
+}
+
+// GetAnalysisRunUnsuccessfulHistoryLimitOrDefault returns the specified number of failed AnalysisRuns to keep or the default number
+func GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(rollout *v1alpha1.Rollout) int32 {
+	if rollout.Spec.Analysis == nil || rollout.Spec.Analysis.UnsuccessfulRunHistoryLimit == nil {
+		return DefaultAnalysisRunUnsuccessfulHistoryLimit
+	}
+	return *rollout.Spec.Analysis.UnsuccessfulRunHistoryLimit
 }
 
 func GetMaxSurgeOrDefault(rollout *v1alpha1.Rollout) *intstr.IntOrString {
@@ -181,4 +210,46 @@ func Namespace() string {
 		}
 	}
 	return "argo-rollouts"
+}
+
+// SetDefaultVerifyTargetGroup sets the default setWeight verification when instantiating the reconciler
+func SetVerifyTargetGroup(b bool) {
+	defaultVerifyTargetGroup = b
+}
+
+// VerifyTargetGroup returns whether or not we should verify target groups
+func VerifyTargetGroup() bool {
+	return defaultVerifyTargetGroup
+}
+
+func SetIstioAPIVersion(apiVersion string) {
+	istioAPIVersion = apiVersion
+}
+
+func GetIstioAPIVersion() string {
+	return istioAPIVersion
+}
+
+func SetAmbassadorAPIVersion(apiVersion string) {
+	ambassadorAPIVersion = apiVersion
+}
+
+func GetAmbassadorAPIVersion() string {
+	return ambassadorAPIVersion
+}
+
+func SetSMIAPIVersion(apiVersion string) {
+	smiAPIVersion = apiVersion
+}
+
+func GetSMIAPIVersion() string {
+	return smiAPIVersion
+}
+
+func SetTargetGroupBindingAPIVersion(apiVersion string) {
+	targetGroupBindingAPIVersion = apiVersion
+}
+
+func GetTargetGroupBindingAPIVersion() string {
+	return targetGroupBindingAPIVersion
 }

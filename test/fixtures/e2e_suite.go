@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +28,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	smiutil "github.com/argoproj/argo-rollouts/utils/smi"
 )
 
 const (
@@ -37,6 +39,8 @@ const (
 	// E2E_POD_DELAY slows down pod startup and shutdown by the value in seconds (default: 0)
 	// Used humans slow down rollout activity during a test
 	EnvVarE2EPodDelay = "E2E_POD_DELAY"
+	// EnvVarE2EImagePrefix is a prefix that will be prefixed to images used by the e2e tests
+	EnvVarE2EImagePrefix = "E2E_IMAGE_PREFIX"
 	// E2E_DEBUG makes e2e testing easier to debug by not tearing down the suite
 	EnvVarE2EDebug = "E2E_DEBUG"
 	// E2E_ALB_INGESS_ANNOTATIONS is a map of annotations to apply to ingress for AWS Load Balancer Controller
@@ -115,6 +119,7 @@ type E2ESuite struct {
 	Common
 
 	IstioEnabled bool
+	SMIEnabled   bool
 }
 
 func (s *E2ESuite) SetupSuite() {
@@ -142,10 +147,16 @@ func (s *E2ESuite) SetupSuite() {
 	s.CheckError(err)
 	s.rolloutClient, err = clientset.NewForConfig(restConfig)
 	s.CheckError(err)
+	s.smiClient, err = smiclientset.NewForConfig(restConfig)
+	s.CheckError(err)
 	s.log = log.NewEntry(log.StandardLogger())
 
 	if istioutil.DoesIstioExist(s.dynamicClient, s.namespace) {
 		s.IstioEnabled = true
+	}
+
+	if smiutil.DoesSMIExist(s.smiClient, s.namespace) {
+		s.SMIEnabled = true
 	}
 }
 

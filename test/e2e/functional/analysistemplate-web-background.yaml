@@ -4,11 +4,14 @@ kind: AnalysisTemplate
 metadata:
   name: web-background
 spec:
+  args:
+    - name: url-val
+      value: "https://kubernetes.default.svc/version"
   metrics:
   - name: web
     interval: 5s
     successCondition: result.major == '1'
     provider:
       web:
-        url: https://kubernetes.default.svc/version
+        url: "{{args.url-val}}"
         insecure: true

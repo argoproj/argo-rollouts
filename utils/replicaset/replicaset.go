@@ -234,22 +234,32 @@ func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) 
 // 2) Max number of pods allowed is reached: deployment's replicas + maxSurge == all RSs' replicas
 func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) (int32, error) {
 	if rollout.Spec.Strategy.BlueGreen != nil {
+		desiredReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 		if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil {
 			activeRS, _ := GetReplicaSetByTemplateHash(allRSs, rollout.Status.BlueGreen.ActiveSelector)
 			if activeRS == nil || activeRS.Name == newRS.Name {
-				return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
+				// the active RS is our desired RS. we are already past the blue-green promote step
+				return desiredReplicas, nil
+			}
+			if rollout.Status.PromoteFull {
+				// we are doing a full promotion. ignore previewReplicaCount
+				return desiredReplicas, nil
 			}
 			if newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] != rollout.Status.CurrentPodHash {
+				// the desired RS is not equal to our previously recorded current RS.
+				// This must be a new update, so return previewReplicaCount
 				return *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount, nil
 			}
 			isNotPaused := !rollout.Spec.Paused && len(rollout.Status.PauseConditions) == 0
 			if isNotPaused && rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
-				return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
+				// We are not paused, but we are already past our preview scale up checkpoint.
+				// If we get here, we were resumed after the pause, but haven't yet flipped the
+				// active service switch to the desired RS.
+				return desiredReplicas, nil
 			}
 			return *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount, nil
 		}
-
-		return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
+		return desiredReplicas, nil
 	}
 	if rollout.Spec.Strategy.Canary != nil {
 		stableRS := GetStableRS(rollout, newRS, allRSs)

@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -35,20 +36,11 @@ const (
 )
 
 var (
-	ambassadorAPIVersion = defaults.DefaultAmbassadorVersion
-	apiGroupToResource   = map[string]string{
+	apiGroupToResource = map[string]string{
 		"getambassador.io":   "mappings",
 		"x.getambassador.io": "ambassadormappings",
 	}
 )
-
-func SetAPIVersion(apiVersion string) {
-	ambassadorAPIVersion = apiVersion
-}
-
-func GetAPIVersion() string {
-	return ambassadorAPIVersion
-}
 
 // Reconciler implements a TrafficRoutingReconciler for Ambassador.
 type Reconciler struct {
@@ -88,7 +80,7 @@ func NewReconciler(r *v1alpha1.Rollout, c ClientInterface, rec record.EventRecor
 // in the ambassador configuration in the traffic routing section of the rollout. If
 // the canary ambassador mapping is already present, it will be updated to the given
 // desiredWeight.
-func (r *Reconciler) SetWeight(desiredWeight int32) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
 	r.sendNormalEvent(CanaryMappingWeightUpdate, fmt.Sprintf("Set canary mapping weight to %d", desiredWeight))
 	ctx := context.TODO()
 	baseMappingNameList := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings
@@ -259,7 +251,7 @@ func buildCanaryService(baseMapping *unstructured.Unstructured, canarySvc string
 	return fmt.Sprintf("%s:%s", canarySvc, port)
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
 	return true, nil
 }
 
@@ -299,7 +291,7 @@ func buildCanaryMappingName(name string) string {
 // ambassadorAPIVersion variable that is set with a default value. The default value can be
 // changed by invoking the SetAPIVersion function.
 func GetMappingGVR() schema.GroupVersionResource {
-	return toMappingGVR(ambassadorAPIVersion)
+	return toMappingGVR(defaults.GetAmbassadorAPIVersion())
 }
 
 func toMappingGVR(apiVersion string) schema.GroupVersionResource {

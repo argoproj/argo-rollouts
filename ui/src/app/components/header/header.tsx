@@ -1,18 +1,8 @@
 import * as React from 'react';
 
-import {
-    ActionButton,
-    Brand,
-    InfoItemRow,
-    ThemeToggle,
-    Tooltip,
-    Header as GenericHeader,
-    Autocomplete,
-    ThemeDiv,
-} from 'argo-ux';
+import {ActionButton, Brand, InfoItemRow, ThemeToggle, Tooltip, Header as GenericHeader, Autocomplete, ThemeDiv} from 'argo-ui/v2';
 import {useParams} from 'react-router';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
-import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
 
 import './header.scss';
 import {Link, useHistory} from 'react-router-dom';
@@ -41,12 +31,12 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
             <div className='rollouts-header__info'>
                 {props.pageHasShortcuts && (
                     <Tooltip content='Keyboard Shortcuts' inverted={true}>
-                        <ActionButton icon={faKeyboard} action={props.showHelp} dark={true} />
+                        <ActionButton icon={'fa-keyboard'} action={props.showHelp} dark={true} />
                     </Tooltip>
                 )}
                 <Tooltip content='Documentation' inverted={true}>
                     <a href='https://argoproj.github.io/argo-rollouts/' target='_blank' rel='noreferrer'>
-                        <ActionButton icon={faBook} dark={true} />
+                        <ActionButton icon='fa-book' dark={true} />
                     </a>
                 </Tooltip>
                 <span style={{marginRight: '7px'}}>
@@ -59,11 +49,15 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                 ) : (
                     <ThemeDiv className='rollouts-header__namespace'>
                         <div className='rollouts-header__label'>NS:</div>
-                        <Autocomplete items={namespaceInfo.availableNamespaces || []}
-                                    placeholder='Namespace'
-                                    onChange={(el) => setNsInput(el.target.value)}
-                                    onItemClick={(val) => { props.changeNamespace(val ? val : nsInput); history.push(`/rollouts`) } }
-                                    value={nsInput}
+                        <Autocomplete
+                            items={namespaceInfo.availableNamespaces || []}
+                            placeholder='Namespace'
+                            onChange={(el) => setNsInput(el.target.value)}
+                            onItemClick={(val) => {
+                                props.changeNamespace(val ? val : nsInput);
+                                history.push(`/rollouts`);
+                            }}
+                            value={nsInput}
                         />
                     </ThemeDiv>
                 )}

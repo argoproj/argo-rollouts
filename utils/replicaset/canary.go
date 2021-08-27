@@ -175,44 +175,92 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	}
 
 	minAvailableReplicaCount := rolloutSpecReplica - MaxUnavailable(rollout)
+
 	// isIncreasing indicates if we are supposed to be increasing our canary replica count.
 	// If so, we can ignore pod availability of the stableRS. Otherwise, if we are reducing our
 	// weight (e.g. we are aborting), then we can ignore pod availability of the canaryRS.
 	isIncreasing := newRS == nil || desiredNewRSReplicaCount >= *newRS.Spec.Replicas
 	replicasToScaleDown := GetReplicasForScaleDown(newRS, !isIncreasing) + GetReplicasForScaleDown(stableRS, isIncreasing)
-
 	if replicasToScaleDown <= minAvailableReplicaCount {
 		// Cannot scale down stableRS or newRS without going below min available replica count
 		return newRSReplicaCount, stableRSReplicaCount
 	}
 
 	scaleDownCount := replicasToScaleDown - minAvailableReplicaCount
-
-	if newRS != nil && *newRS.Spec.Replicas > desiredNewRSReplicaCount {
-		// if the controller doesn't have to use every replica to achieve the desired count, it only scales down to the
-		// desired count.
-		if *newRS.Spec.Replicas-scaleDownCount < desiredNewRSReplicaCount {
-			newRSReplicaCount = desiredNewRSReplicaCount
-			// Calculating how many replicas were used to scale down to the desired count
-			scaleDownCount = scaleDownCount - (*newRS.Spec.Replicas - desiredNewRSReplicaCount)
-		} else {
-			// The controller is using every replica it can to get closer to desired state.
-			newRSReplicaCount = *newRS.Spec.Replicas - scaleDownCount
-			scaleDownCount = 0
-		}
+	if !isIncreasing {
+		// Skip scalingDown Stable replicaSet when Canary availability is not taken into calculation for scaleDown
+		newRSReplicaCount = calculateScaleDownReplicaCount(newRS, desiredNewRSReplicaCount, scaleDownCount, newRSReplicaCount)
+		newRSReplicaCount, stableRSReplicaCount = adjustReplicaWithinLimits(newRS, stableRS, newRSReplicaCount, stableRSReplicaCount, maxReplicaCountAllowed, minAvailableReplicaCount)
+	} else if scaleStableRS {
+		// Skip scalingDown canary replicaSet when StableSet availability is not taken into calculation for scaleDown
+		stableRSReplicaCount = calculateScaleDownReplicaCount(stableRS, desiredStableRSReplicaCount, scaleDownCount, stableRSReplicaCount)
+		stableRSReplicaCount, newRSReplicaCount = adjustReplicaWithinLimits(stableRS, newRS, stableRSReplicaCount, newRSReplicaCount, maxReplicaCountAllowed, minAvailableReplicaCount)
 	}
-
-	if scaleStableRS && *stableRS.Spec.Replicas > desiredStableRSReplicaCount {
-		// This follows the same logic as scaling down the newRS except with the stableRS and it does not need to
-		// set the scaleDownCount again since it's not used again
-		if *stableRS.Spec.Replicas-scaleDownCount < desiredStableRSReplicaCount {
-			stableRSReplicaCount = desiredStableRSReplicaCount
-		} else {
-			stableRSReplicaCount = *stableRS.Spec.Replicas - scaleDownCount
-		}
-	}
-
 	return newRSReplicaCount, stableRSReplicaCount
+}
+
+// calculateScaleDownReplicaCount calculates drainRSReplicaCount
+// drainRSReplicaCount can be either stableRS count or canaryRS count
+// drainRSReplicaCount corresponds to RS whose availability is not considered in calculating replicasToScaleDown
+func calculateScaleDownReplicaCount(drainRS *appsv1.ReplicaSet, desireRSReplicaCount int32, scaleDownCount int32, drainRSReplicaCount int32) int32 {
+	if drainRS != nil && *drainRS.Spec.Replicas > desireRSReplicaCount {
+		// if the controller doesn't have to use every replica to achieve the desired count,
+		// it can scales down to the desired count or get closer to desired state.
+		drainRSReplicaCount = maxValue(desireRSReplicaCount, *drainRS.Spec.Replicas-scaleDownCount)
+	}
+	return drainRSReplicaCount
+}
+
+// adjustReplicaWithinLimits adjusts replicaCounters to be within maxSurge & maxUnavailable limits
+// drainRSReplicaCount corresponds to RS whose availability is not considered in calculating replicasToScaleDown
+// adjustRSReplicaCount corresponds to RS whose availability is to taken account while adjusting maxUnavailable limit
+func adjustReplicaWithinLimits(drainRS *appsv1.ReplicaSet, adjustRS *appsv1.ReplicaSet, drainRSReplicaCount int32, adjustRSReplicaCount int32, maxReplicaCountAllowed int32, minAvailableReplicaCount int32) (int32, int32) {
+	extraAvailableAdjustRS := int32(0)
+	totalAvailableReplicas := int32(0)
+	// calculates current limit over the allowed value
+	overTheLimitVal := maxValue(0, adjustRSReplicaCount+drainRSReplicaCount-maxReplicaCountAllowed)
+	if drainRS != nil {
+		totalAvailableReplicas = totalAvailableReplicas + minValue(drainRS.Status.AvailableReplicas, drainRSReplicaCount)
+	}
+	if adjustRS != nil {
+		// 1. adjust adjustRSReplicaCount to be within maxSurge
+		adjustRSReplicaCount = adjustRSReplicaCount - overTheLimitVal
+		// 2. Calculate availability corresponding to adjusted count
+		totalAvailableReplicas = totalAvailableReplicas + minValue(adjustRS.Status.AvailableReplicas, adjustRSReplicaCount)
+		// 3. Calculate decrease in availability of adjustRS because of (1)
+		extraAvailableAdjustRS = maxValue(0, adjustRS.Status.AvailableReplicas-adjustRSReplicaCount)
+
+		// 4. Now calculate how far count is from maxUnavailable limit
+		moreToNeedAvailableReplicas := maxValue(0, minAvailableReplicaCount-totalAvailableReplicas)
+		// 5. From (3), we got the count for decrease in availability because of (1),
+		// take the min of (3) & (4) and add it back to adjustRS
+		// remaining of moreToNeedAvailableReplicas can be ignored as it is part of drainRS,
+		// there is no case of deviating from maxUnavailable limit from drainRS as in the event of said case,
+		// scaleDown calculation wont even occur as we are checking
+		// replicasToScaleDown <= minAvailableReplicaCount in caller function
+		adjustRSReplicaCount = adjustRSReplicaCount + minValue(extraAvailableAdjustRS, moreToNeedAvailableReplicas)
+		// 6. Calculate final overTheLimit because of adjustment
+		overTheLimitVal = maxValue(0, adjustRSReplicaCount+drainRSReplicaCount-maxReplicaCountAllowed)
+		// 7. we can safely subtract from drainRS and other cases like deviation from maxUnavailable limit
+		// wont occur as said in (5)
+		drainRSReplicaCount = drainRSReplicaCount - overTheLimitVal
+	}
+
+	return drainRSReplicaCount, adjustRSReplicaCount
+}
+
+func minValue(countA int32, countB int32) int32 {
+	if countA > countB {
+		return countB
+	}
+	return countA
+}
+
+func maxValue(countA int32, countB int32) int32 {
+	if countA < countB {
+		return countB
+	}
+	return countA
 }
 
 // BeforeStartingStep checks if canary rollout is at the starting step

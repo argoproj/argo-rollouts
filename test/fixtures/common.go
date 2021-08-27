@@ -14,11 +14,14 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -51,6 +54,7 @@ type Common struct {
 	kubeClient     kubernetes.Interface
 	dynamicClient  dynamic.Interface
 	rolloutClient  clientset.Interface
+	smiClient      smiclientset.Interface
 
 	rollout *unstructured.Unstructured
 	objects []*unstructured.Unstructured
@@ -476,6 +480,22 @@ func (c *Common) GetServices() (*corev1.Service, *corev1.Service) {
 		c.CheckError(err)
 	}
 	return desiredSvc, stableSvc
+}
+
+func (c *Common) GetALBIngress() *extensionsv1beta1.Ingress {
+	ro := c.Rollout()
+	name := ro.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
+	ingress, err := c.kubeClient.ExtensionsV1beta1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ingress
+}
+
+func (c *Common) GetTrafficSplit() *smiv1alpha1.TrafficSplit {
+	ro := c.Rollout()
+	name := ro.Spec.Strategy.Canary.TrafficRouting.SMI.TrafficSplitName
+	ts, err := c.smiClient.SplitV1alpha1().TrafficSplits(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ts
 }
 
 func (c *Common) GetVirtualService() *istio.VirtualService {

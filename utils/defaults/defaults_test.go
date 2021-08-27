@@ -45,6 +45,34 @@ func TestGetRevisionHistoryOrDefault(t *testing.T) {
 	assert.Equal(t, DefaultRevisionHistoryLimit, GetRevisionHistoryLimitOrDefault(rolloutDefaultValue))
 }
 
+func TestGetAnalysisRunSuccessfulHistoryLimitOrDefault(t *testing.T) {
+	succeedHistoryLimit := int32(2)
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Analysis: &v1alpha1.AnalysisRunStrategy{SuccessfulRunHistoryLimit: &succeedHistoryLimit},
+		},
+	}
+
+	assert.Equal(t, succeedHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(rolloutNonDefaultValue))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{}))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{}}))
+	assert.Equal(t, DefaultAnalysisRunSuccessfulHistoryLimit, GetAnalysisRunSuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.AnalysisRunStrategy{}}}))
+}
+
+func TestGetAnalysisRunUnsuccessfulHistoryLimitOrDefault(t *testing.T) {
+	failedHistoryLimit := int32(3)
+	rolloutNonDefaultValue := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Analysis: &v1alpha1.AnalysisRunStrategy{UnsuccessfulRunHistoryLimit: &failedHistoryLimit},
+		},
+	}
+
+	assert.Equal(t, failedHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(rolloutNonDefaultValue))
+	assert.Equal(t, DefaultAnalysisRunUnsuccessfulHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{}))
+	assert.Equal(t, DefaultAnalysisRunUnsuccessfulHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{}}))
+	assert.Equal(t, DefaultAnalysisRunUnsuccessfulHistoryLimit, GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(&v1alpha1.Rollout{Spec: v1alpha1.RolloutSpec{Analysis: &v1alpha1.AnalysisRunStrategy{}}}))
+}
+
 func TestGetMaxSurgeOrDefault(t *testing.T) {
 	maxSurge := intstr.FromInt(2)
 	rolloutNonDefaultValue := &v1alpha1.Rollout{
@@ -326,4 +354,31 @@ func TestGetConsecutiveErrorLimitOrDefault(t *testing.T) {
 
 	metricDefaultValue := &v1alpha1.Metric{}
 	assert.Equal(t, DefaultConsecutiveErrorLimit, GetConsecutiveErrorLimitOrDefault(metricDefaultValue))
+}
+
+func TestSetDefaults(t *testing.T) {
+	SetVerifyTargetGroup(true)
+	assert.True(t, VerifyTargetGroup())
+	SetVerifyTargetGroup(false)
+	assert.False(t, VerifyTargetGroup())
+
+	SetIstioAPIVersion("v1alpha9")
+	assert.Equal(t, "v1alpha9", GetIstioAPIVersion())
+	SetIstioAPIVersion(DefaultIstioVersion)
+	assert.Equal(t, DefaultIstioVersion, GetIstioAPIVersion())
+
+	SetAmbassadorAPIVersion("v1alpha9")
+	assert.Equal(t, "v1alpha9", GetAmbassadorAPIVersion())
+	SetAmbassadorAPIVersion(DefaultAmbassadorVersion)
+	assert.Equal(t, DefaultAmbassadorVersion, GetAmbassadorAPIVersion())
+
+	SetSMIAPIVersion("v1alpha9")
+	assert.Equal(t, "v1alpha9", GetSMIAPIVersion())
+	SetSMIAPIVersion(DefaultSMITrafficSplitVersion)
+	assert.Equal(t, DefaultSMITrafficSplitVersion, GetSMIAPIVersion())
+
+	SetTargetGroupBindingAPIVersion("v1alpha9")
+	assert.Equal(t, "v1alpha9", GetTargetGroupBindingAPIVersion())
+	SetTargetGroupBindingAPIVersion(DefaultTargetGroupBindingAPIVersion)
+	assert.Equal(t, DefaultTargetGroupBindingAPIVersion, GetTargetGroupBindingAPIVersion())
 }

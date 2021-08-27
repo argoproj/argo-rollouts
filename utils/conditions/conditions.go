@@ -52,7 +52,7 @@ const (
 	//NewReplicaSetMessage is added in a rollout when it creates a new replicas set.
 	NewReplicaSetMessage = "Created new replica set %q"
 	// NewReplicaSetDetailedMessage is a more detailed format message
-	NewReplicaSetDetailedMessage = "Created ReplicaSet %s (revision %d) with size %d"
+	NewReplicaSetDetailedMessage = "Created ReplicaSet %s (revision %d)"
 
 	// FoundNewRSReason is added in a rollout when it adopts an existing replica set.
 	FoundNewRSReason = "FoundNewReplicaSet"
@@ -131,14 +131,22 @@ const (
 	// ReplicaSetCompletedMessage is added when the rollout is completed
 	ReplicaSetCompletedMessage = "ReplicaSet %q has successfully progressed."
 
-	// ServiceNotFoundReason is added in a rollout when the service defined in the spec is not found
-	ServiceNotFoundReason = "ServiceNotFound"
-	// ServiceNotFoundMessage is added in a rollout when the service defined in the spec is not found
-	ServiceNotFoundMessage = "Service %q is not found"
 	// ServiceReferenceReason is added to a Rollout when there is an error with a Service reference
 	ServiceReferenceReason = "ServiceReferenceError"
 	// ServiceReferencingManagedService is added in a rollout when the multiple rollouts reference a Rollout
 	ServiceReferencingManagedService = "Service %q is managed by another Rollout"
+
+	// TargetGroupHealthyReason is emitted when target group has been verified
+	TargetGroupVerifiedReason              = "TargetGroupVerified"
+	TargetGroupVerifiedRegistrationMessage = "Service %s (TargetGroup %s) verified: %d endpoints registered"
+	TargetGroupVerifiedWeightsMessage      = "Service %s (TargetGroup %s) verified: canary weight %d set"
+	// TargetGroupHealthyReason is emitted when target group has not been verified
+	TargetGroupUnverifiedReason              = "TargetGroupUnverified"
+	TargetGroupUnverifiedRegistrationMessage = "Service %s (TargetGroup %s) not verified: %d/%d endpoints registered"
+	TargetGroupUnverifiedWeightsMessage      = "Service %s (TargetGroup %s) not verified: canary weight %d not yet set (current: %d)"
+	// TargetGroupVerifyErrorReason is emitted when we fail to verify the health of a target group due to error
+	TargetGroupVerifyErrorReason  = "TargetGroupVerifyError"
+	TargetGroupVerifyErrorMessage = "Failed to verify Service %s (TargetGroup %s): %s"
 )
 
 // NewRolloutCondition creates a new rollout condition.
@@ -165,8 +173,8 @@ func GetRolloutCondition(status v1alpha1.RolloutStatus, condType v1alpha1.Rollou
 }
 
 // SetRolloutCondition updates the rollout to include the provided condition. If the condition that
-// we are about to add already exists and has the same status and reason then we are not going to update.
-// Returns true if the condition was updated
+// we are about to add already exists and has the same status and reason, then we are not going to update
+// by returning false. Returns true if the condition was updated
 func SetRolloutCondition(status *v1alpha1.RolloutStatus, condition v1alpha1.RolloutCondition) bool {
 	currentCond := GetRolloutCondition(*status, condition.Type)
 	if currentCond != nil && currentCond.Status == condition.Status && currentCond.Reason == condition.Reason {

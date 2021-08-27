@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/queue"
-
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -28,6 +26,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/queue"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 

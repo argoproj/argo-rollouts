@@ -40,6 +40,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -138,9 +139,9 @@ type reconcilerBase struct {
 	podRestarter RolloutPodRestarter
 
 	// used for unit testing
-	enqueueRollout              func(obj interface{})                                         //nolint:structcheck
-	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                 //nolint:structcheck
-	newTrafficRoutingReconciler func(roCtx *rolloutContext) (TrafficRoutingReconciler, error) //nolint:structcheck
+	enqueueRollout              func(obj interface{})                                                        //nolint:structcheck
+	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                                //nolint:structcheck
+	newTrafficRoutingReconciler func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
 
 	// recorder is an event recorder for recording Event resources to the Kubernetes API.
 	recorder     record.EventRecorder

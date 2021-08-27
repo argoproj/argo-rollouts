@@ -10,24 +10,14 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
-// TrafficRoutingReconciler common function across all TrafficRouting implementation
-type TrafficRoutingReconciler interface {
-	// UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-	UpdateHash(canaryHash, stableHash string) error
-	// SetWeight sets the canary weight to the desired weight
-	SetWeight(desiredWeight int32) error
-	// VerifyWeight returns true if the canary is at the desired weight
-	VerifyWeight(desiredWeight int32) (bool, error)
-	// Type returns the type of the traffic routing reconciler
-	Type() string
-}
-
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
-func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (TrafficRoutingReconciler, error) {
+func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
 	rollout := roCtx.rollout
 	if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		return nil, nil
@@ -96,7 +86,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 	currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	desiredWeight := int32(0)
-	if c.rollout.Status.StableRS == c.rollout.Status.CurrentPodHash {
+	weightDestinations := make([]trafficrouting.WeightDestination, 0)
+	if rolloututil.IsFullyPromoted(c.rollout) {
 		// when we are fully promoted. desired canary weight should be 0
 	} else if c.pauseContext.IsAborted() {
 		// when promote aborted. desired canary weight should be 0
@@ -122,19 +113,45 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// last setWeight step, which is set by GetCurrentSetWeight.
 			desiredWeight = replicasetutil.GetCurrentSetWeight(c.rollout)
 		}
+
+		// Checks for experiment step
+		// If current experiment exists, then create WeightDestinations for each experiment template
+		exStep := replicasetutil.GetCurrentExperimentStep(c.rollout)
+		if exStep != nil && c.currentEx != nil && c.currentEx.Status.Phase == v1alpha1.AnalysisPhaseRunning {
+			getTemplateWeight := func(name string) *int32 {
+				for _, tmpl := range exStep.Templates {
+					if tmpl.Name == name {
+						return tmpl.Weight
+					}
+				}
+				return nil
+			}
+			for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
+				templateWeight := getTemplateWeight(templateStatus.Name)
+				weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
+					ServiceName:     templateStatus.ServiceName,
+					PodTemplateHash: templateStatus.PodTemplateHash,
+					Weight:          *templateWeight,
+				})
+			}
+		}
 	}
 
-	err = reconciler.SetWeight(desiredWeight)
+	err = reconciler.SetWeight(desiredWeight, weightDestinations...)
 	if err != nil {
 		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
 		return err
 	}
 
-	// If we are at a setWeight step, also perform weight verification. Note that we don't do this
-	// every reconciliation because weight verification typically involves API calls to the cloud
-	// provider which could incur rate limiting
-	if currentStep != nil && currentStep.SetWeight != nil {
-		weightVerified, err := reconciler.VerifyWeight(desiredWeight)
+	// If we are in the middle of an update at a setWeight step, also perform weight verification.
+	// Note that we don't do this every reconciliation because weight verification typically involves
+	// API calls to the cloud provider which could incur rate limiting
+	shouldVerifyWeight := c.rollout.Status.StableRS != "" &&
+		c.rollout.Status.CurrentPodHash != c.rollout.Status.StableRS &&
+		currentStep != nil && currentStep.SetWeight != nil
+
+	if shouldVerifyWeight {
+		weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
 		if err != nil {
 			return err
 		}
@@ -144,7 +161,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		} else {
 			c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
 		}
-		c.weightVerified = &weightVerified
+		c.targetsVerified = &weightVerified
 	}
 
 	return nil
