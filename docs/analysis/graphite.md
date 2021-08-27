@@ -13,8 +13,8 @@ spec:
   metrics:
   - name: success-rate
     interval: 5m
-    # Note that the Argo Rollouts Graphite metrics provider returns results as float64s with 6 decimal places.
-    successCondition: result >= 90.000000
+    # Note that the Argo Rollouts Graphite metrics provider returns results as an array of float64s with 6 decimal places.
+    successCondition: results[0] >= 90.000000
     failureLimit: 3
     provider:
       graphite:

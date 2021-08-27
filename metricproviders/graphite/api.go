@@ -17,10 +17,10 @@ import (
 
 // API represents a Graphite API client
 type API interface {
-	Query(query string) (*float64, error)
+	Query(query string) ([]dataPoint, error)
 }
 
-// GraphiteAPI is a Graphite API client
+// APIClient is a Graphite API client
 type APIClient struct {
 	url    url.URL
 	client *http.Client
@@ -28,11 +28,11 @@ type APIClient struct {
 }
 
 // Query performs a Graphite API query with the query it's passed
-func (api APIClient) Query(quer string) (*float64, error) {
+func (api APIClient) Query(quer string) ([]dataPoint, error) {
 	query := api.trimQuery(quer)
 	u, err := url.Parse(fmt.Sprintf("./render?%s", query))
 	if err != nil {
-		return nil, err
+		return []dataPoint{}, err
 	}
 
 	q := u.Query()
@@ -44,40 +44,31 @@ func (api APIClient) Query(quer string) (*float64, error) {
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, err
+		return []dataPoint{}, err
 	}
 
 	r, err := api.client.Do(req)
 	if err != nil {
-		return nil, err
+		return []dataPoint{}, err
 	}
 	defer r.Body.Close()
 
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return nil, err
+		return []dataPoint{}, err
 	}
 
 	if 400 <= r.StatusCode {
-		return nil, fmt.Errorf("error response: %s", string(b))
+		return []dataPoint{}, fmt.Errorf("error response: %s", string(b))
 	}
 
 	var result graphiteResponse
 	err = json.Unmarshal(b, &result)
 	if err != nil {
-		return nil, err
+		return []dataPoint{}, err
 	}
 
-	var value *float64
-	for _, tr := range result {
-		for _, dp := range tr.DataPoints {
-			if dp.Value != nil {
-				value = dp.Value
-			}
-		}
-	}
-
-	return value, nil
+	return result[0].DataPoints, nil
 }
 
 func (api APIClient) trimQuery(q string) string {
@@ -85,12 +76,12 @@ func (api APIClient) trimQuery(q string) string {
 	return space.ReplaceAllString(q, " ")
 }
 
-type graphiteDataPoint struct {
+type dataPoint struct {
 	Value     *float64
 	TimeStamp time.Time
 }
 
-func (gdp *graphiteDataPoint) UnmarshalJSON(data []byte) error {
+func (gdp *dataPoint) UnmarshalJSON(data []byte) error {
 	var v []interface{}
 	if err := json.Unmarshal(data, &v); err != nil {
 		return err
@@ -144,8 +135,8 @@ func (gdp *graphiteDataPoint) UnmarshalJSON(data []byte) error {
 }
 
 type graphiteTargetResp struct {
-	Target     string              `json:"target"`
-	DataPoints []graphiteDataPoint `json:"datapoints"`
+	Target     string      `json:"target"`
+	DataPoints []dataPoint `json:"datapoints"`
 }
 
 type graphiteResponse []graphiteTargetResp

@@ -56,18 +56,17 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	value, err := p.api.Query(metric.Provider.Graphite.Query)
+	result, err := p.api.Query(metric.Provider.Graphite.Query)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
 
-	if value == nil {
+	if len(result) == 0 {
 		return metricutil.MarkMeasurementError(newMeasurement, errors.New("no values found"))
 	}
 
-	newMeasurement.Value = fmt.Sprintf("%f", *value)
-
-	newStatus, err := evaluate.EvaluateResult(*value, metric, p.logCtx)
+	newValue, newStatus, err := p.processResponse(metric, result)
+	newMeasurement.Value = newValue
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -94,6 +93,28 @@ func (p *Provider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, 
 // GarbageCollect is a no-op for the Graphite provider
 func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, limit int) error {
 	return nil
+}
+
+func (p *Provider) processResponse(metric v1alpha1.Metric, dataPoints []dataPoint) (string, v1alpha1.AnalysisPhase, error) {
+	results := make([]float64, 0, len(dataPoints))
+	valueStr := "["
+
+	for _, dp := range dataPoints {
+		if dp.Value != nil {
+			valueStr = valueStr + fmt.Sprintf("%f,", *dp.Value)
+			results = append(results, *dp.Value)
+		}
+	}
+
+	// remove the last comma on the '[dp.Value,dp.Value,' string
+	if len(valueStr) > 1 {
+		valueStr = valueStr[:len(valueStr)-1]
+	}
+
+	valueStr = valueStr + "]"
+	newStatus, err := evaluate.EvaluateResult(results, metric, p.logCtx)
+
+	return valueStr, newStatus, err
 }
 
 // NewGraphiteProvider returns a new Graphite provider

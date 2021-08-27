@@ -1,11 +1,11 @@
 package graphite
 
 type mockAPI struct {
-	response *float64
+	response []dataPoint
 	err      error
 }
 
-func (m mockAPI) Query(query string) (*float64, error) {
+func (m mockAPI) Query(query string) ([]dataPoint, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

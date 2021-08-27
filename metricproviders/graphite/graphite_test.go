@@ -3,6 +3,7 @@ package graphite
 import (
 	"errors"
 	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -11,8 +12,17 @@ import (
 )
 
 func newMockAPI(response *float64, err error) mockAPI {
+	dps := []dataPoint{{
+		Value:     response,
+		TimeStamp: time.Now(),
+	}}
+
+	if response == nil {
+		dps = []dataPoint{}
+	}
+
 	return mockAPI{
-		response: response,
+		response: dps,
 		err:      err,
 	}
 }
@@ -20,8 +30,8 @@ func newMockAPI(response *float64, err error) mockAPI {
 func newTestingMetric() v1alpha1.Metric {
 	return v1alpha1.Metric{
 		Name:             "foo",
-		SuccessCondition: "result == 10.000000",
-		FailureCondition: "result != 10.000000",
+		SuccessCondition: "10.000000 in result",
+		FailureCondition: "10.000000 not in result",
 		Provider: v1alpha1.MetricProvider{
 			Graphite: &v1alpha1.GraphiteMetric{
 				Address: "http://some-graphite.foo",
@@ -42,7 +52,7 @@ func TestRunSuccessfulEvaluation(t *testing.T) {
 	g := NewGraphiteProvider(newMockAPI(&response, nil), log.Entry{})
 	measurement := g.Run(&v1alpha1.AnalysisRun{}, newTestingMetric())
 	assert.NotNil(t, measurement.StartedAt)
-	assert.Equal(t, "10.000000", measurement.Value)
+	assert.Equal(t, "[10.000000]", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
 }
@@ -52,7 +62,7 @@ func TestRunFailedEvaluation(t *testing.T) {
 	g := NewGraphiteProvider(newMockAPI(&response, nil), log.Entry{})
 	measurement := g.Run(&v1alpha1.AnalysisRun{}, newTestingMetric())
 	assert.NotNil(t, measurement.StartedAt)
-	assert.Equal(t, "5.000000", measurement.Value)
+	assert.Equal(t, "[5.000000]", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, measurement.Phase)
 }
@@ -61,8 +71,8 @@ func TestRunMeasurementError(t *testing.T) {
 	metric := v1alpha1.Metric{
 		Name: "foo",
 		// Malformed Success and Failure Conditions
-		SuccessCondition: "result 10.000000",
-		FailureCondition: "result 10.000000",
+		SuccessCondition: "result[0] 10.000000",
+		FailureCondition: "result[0] 10.000000",
 		Provider: v1alpha1.MetricProvider{
 			Graphite: &v1alpha1.GraphiteMetric{
 				Address: "http://some-graphite.foo",
@@ -74,7 +84,7 @@ func TestRunMeasurementError(t *testing.T) {
 	g := NewGraphiteProvider(newMockAPI(&response, nil), log.Entry{})
 	measurement := g.Run(&v1alpha1.AnalysisRun{}, metric)
 	assert.NotNil(t, measurement.StartedAt)
-	assert.Equal(t, "10.000000", measurement.Value)
+	assert.Equal(t, "[10.000000]", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 	assert.Equal(t, "unexpected token Number(\"10.000000\")", measurement.Message)

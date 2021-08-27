@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
@@ -42,14 +43,19 @@ func TestQuery(t *testing.T) {
 	query := "target=sumSeries(app.http.*.*.count)&from=-2min"
 	targetQuery := "sumSeries(app.http.*.*.count)"
 	fromQuery := "-2min"
-	goodResult := float64(100)
+	value := float64(100)
+	timestamp := int64(1621348430)
+	goodResult := []dataPoint{{
+		Value:     &value,
+		TimeStamp: time.Unix(timestamp, 0),
+	}}
 
 	tests := []struct {
 		name           string
 		query          string
 		expectedTarget string
 		expectedFrom   string
-		expectedResult *float64
+		expectedResult []dataPoint
 		expectedErr    error
 		body           string
 		responseCode   int
@@ -58,26 +64,14 @@ func TestQuery(t *testing.T) {
 		query,
 		targetQuery,
 		fromQuery,
-		&goodResult,
+		goodResult,
 		nil,
-		`[
+		fmt.Sprintf(`[
 			{
 				"datapoints": [
 					[
-						10,
-						1621348400
-					],
-					[
-						75,
-						1621348410
-					],
-					[
-						25,
-						1621348420
-					],
-					[
-						100,
-						1621348430
+						%f,
+						%d
 					]
 				],
 				"target": "sumSeries(app.http.*.*.count)",
@@ -86,14 +80,14 @@ func TestQuery(t *testing.T) {
 					"name": "sumSeries(app.http.*.*.count)"
 				}
 			}
-		]`,
+		]`, value, timestamp),
 		200,
 	}, {
 		"graphite response body with invalid JSON",
 		query,
 		targetQuery,
 		fromQuery,
-		nil,
+		[]dataPoint{},
 		errors.New("invalid character 'i' looking for beginning of value"),
 		"invalid JSON",
 		200,
@@ -102,7 +96,7 @@ func TestQuery(t *testing.T) {
 		query,
 		targetQuery,
 		fromQuery,
-		nil,
+		[]dataPoint{},
 		errors.New("error response: foo"),
 		"foo",
 		400,
@@ -111,7 +105,7 @@ func TestQuery(t *testing.T) {
 		query,
 		targetQuery,
 		fromQuery,
-		nil,
+		[]dataPoint{},
 		errors.New("error response: bar"),
 		"bar",
 		500,
@@ -120,7 +114,7 @@ func TestQuery(t *testing.T) {
 		"target=#$%^&*(proper$#$%%^(password&from=-2min",
 		"#$%^&*(proper$#$%%^(password",
 		"-2min",
-		nil,
+		[]dataPoint{},
 		errors.New("parse \"./render?target=#$%^&*(proper$#$%%^(password&from=-2min\": invalid URL escape \"%^&\""),
 		"",
 		200,
@@ -129,7 +123,7 @@ func TestQuery(t *testing.T) {
 		query,
 		targetQuery,
 		fromQuery,
-		nil,
+		[]dataPoint{},
 		errors.New("error unmarshaling data point: [10]"),
 		`[
 			{
@@ -151,7 +145,7 @@ func TestQuery(t *testing.T) {
 		query,
 		targetQuery,
 		fromQuery,
-		nil,
+		[]dataPoint{},
 		errors.New("strconv.ParseInt: parsing \"f\": invalid syntax"),
 		`[
 			{
@@ -170,26 +164,26 @@ func TestQuery(t *testing.T) {
 		query,
 		targetQuery,
 		fromQuery,
-		&goodResult,
+		goodResult,
 		nil,
-		`[
+		fmt.Sprintf(`[
 			{
 				"datapoints": [
 					[
-						"100",
-						1621348420
+						"%f",
+						%d
 					]
 				],
 				"target": "sumSeries(app.http.*.*.count)"
 			}
-		]`,
+		]`, value, timestamp),
 		200,
 	}, {
 		"graphite response data point JSON triggers unmarshaling error",
 		query,
 		targetQuery,
 		fromQuery,
-		nil,
+		[]dataPoint{},
 		errors.New("error unmarshaling value: []"),
 		`[
 			{
@@ -208,26 +202,26 @@ func TestQuery(t *testing.T) {
 		query,
 		targetQuery,
 		fromQuery,
-		&goodResult,
+		goodResult,
 		nil,
-		`[
+		fmt.Sprintf(`[
 			{
 				"datapoints": [
 					[
-						100,
-						"1621348420"
+						%f,
+						"%d"
 					]
 				],
 				"target": "sumSeries(app.http.*.*.count)"
 			}
-		]`,
+		]`, value, timestamp),
 		200,
 	}, {
 		"graphite response data point timestamp JSON triggers unmarshaling error",
 		query,
 		targetQuery,
 		fromQuery,
-		nil,
+		[]dataPoint{},
 		errors.New("error unmarshaling timestamp: 100"),
 		`[
 			{
@@ -268,6 +262,7 @@ func TestQuery(t *testing.T) {
 			} else {
 				assert.Nil(t, err)
 			}
+
 			assert.Equal(t, test.expectedResult, val)
 		})
 	}
