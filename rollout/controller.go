@@ -472,7 +472,6 @@ func (c *rolloutContext) getRolloutValidationErrors() error {
 		return rolloutValidationErrors[0]
 	}
 
-
 	refResources, err := c.getRolloutReferencedResources()
 	if err != nil {
 		return err

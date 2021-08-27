@@ -213,9 +213,10 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.E
 	return allErrs
 }
 
+// ValidateRolloutVirtualServicesConfig checks either VirtualService or VirtualServices configured
+// It returns an error if both VirtualService and VirtualServices are configured.
+// Also, returns an error if both are not configured.
 func ValidateRolloutVirtualServicesConfig(r *v1alpha1.Rollout) error {
-	//Either VirtualService or VirtualServices must be configured.
-	//If both configured then it is an invalid configuration
 	var fldPath *field.Path
 	fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
 	errorString := "either VirtualService or VirtualServices must be configured"

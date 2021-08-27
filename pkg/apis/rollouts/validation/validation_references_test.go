@@ -420,7 +420,7 @@ func TestValidateVirtualServices(t *testing.T) {
 	})
 }
 
-func TestValidateMultipleVirtualServicesInvalidConfig(t *testing.T) {
+func TestValidateRolloutVirtualServicesConfig(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
@@ -450,11 +450,25 @@ func TestValidateMultipleVirtualServicesInvalidConfig(t *testing.T) {
 	}
 
 	// Test when both virtualService and  virtualServices are  configured
-	t.Run("get referenced virtualService - fail", func(t *testing.T) {
+	t.Run("validate both virtualService configured - fail", func(t *testing.T) {
 		err := ValidateRolloutVirtualServicesConfig(&ro)
 		fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
 		expected := fmt.Sprintf("%s: Internal error: either VirtualService or VirtualServices must be configured", fldPath)
 		assert.Equal(t, expected, err.Error())
+	})
+
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: v1alpha1.IstioVirtualService{
+				Name: "istio-vsvc1-name",
+			},
+		},
+	}
+
+	// Successful case where either virtualService or  virtualServices configured
+	t.Run("validate either virtualService or  virtualServices configured - pass", func(t *testing.T) {
+		err := ValidateRolloutVirtualServicesConfig(&ro)
+		assert.Empty(t, err)
 	})
 }
 

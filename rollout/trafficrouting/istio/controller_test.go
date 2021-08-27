@@ -96,14 +96,6 @@ spec:
       weight: 100
     - destination:
         host: canary
-      weight: 0
-  - name: secondary
-    route:
-    - destination:
-        host: 'stable'
-      weight: 100
-    - destination:
-        host: canary
       weight: 0`
 
 func TestGetReferencedMultipleVirtualServices(t *testing.T) {
