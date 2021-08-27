@@ -75,7 +75,8 @@ func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
 	canary := ro.Spec.Strategy.Canary
 
 	if canary == nil || canary.TrafficRouting == nil || canary.TrafficRouting.Istio == nil ||
-		(canary.TrafficRouting.Istio.VirtualServices == nil && canary.TrafficRouting.Istio.VirtualService.Name == "") {
+		(canary.TrafficRouting.Istio.VirtualServices == nil && canary.TrafficRouting.Istio.VirtualService.Name == "") ||
+		(canary.TrafficRouting.Istio.VirtualServices != nil && canary.TrafficRouting.Istio.VirtualService.Name != "") {
 		return []string{}
 	}
 
