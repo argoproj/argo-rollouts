@@ -251,7 +251,7 @@ func buildCanaryService(baseMapping *unstructured.Unstructured, canarySvc string
 	return fmt.Sprintf("%s:%s", canarySvc, port)
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
 	return true, nil
 }
 

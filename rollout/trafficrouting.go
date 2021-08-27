@@ -151,7 +151,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		currentStep != nil && currentStep.SetWeight != nil
 
 	if shouldVerifyWeight {
-		weightVerified, err := reconciler.VerifyWeight(desiredWeight)
+		weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
 		if err != nil {
 			return err
 		}

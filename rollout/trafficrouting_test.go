@@ -308,7 +308,8 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 		assert.Equal(t, int32(10), desiredWeight)
 		return nil
 	})
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(true, nil)
+	f.fakeTrafficRouting.On("error patching alb ingress", mock.Anything, mock.Anything).Return(true, nil)
 	f.run(getKey(r2, t))
 }
 
