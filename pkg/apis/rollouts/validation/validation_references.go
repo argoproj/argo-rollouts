@@ -218,21 +218,40 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 	newObj := obj.DeepCopy()
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
 	vsvcName := rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
-	httpRoutesI, err := istio.GetHttpRoutesI(newObj)
-	if err != nil {
-		msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
+	httpRoutesI, errHttp := istio.GetHttpRoutesI(newObj)
+	tlsRoutesI, errTls := istio.GetTlsRoutesI(newObj)
+	// None of the HTTP/TLS routes exist.
+	if errHttp != nil && errTls != nil {
+		msg := fmt.Sprintf("Unable to get HTTP and/or TLS routes for Istio VirtualService")
 		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
 	}
-	httpRoutes, err := istio.GetHttpRoutes(newObj, httpRoutesI)
-	if err != nil {
-		msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
-		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+	// Validate HTTP Routes
+	if errHttp == nil {
+		httpRoutes, err := istio.GetHttpRoutes(newObj, httpRoutesI)
+		if err != nil {
+			msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
+			allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+		}
+		err = istio.ValidateHTTPRoutes(rollout, httpRoutes)
+		if err != nil {
+			msg := fmt.Sprintf("Istio VirtualService has invalid HTTP routes. Error: %s", err.Error())
+			allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+		}
 	}
-	err = istio.ValidateHTTPRoutes(rollout, httpRoutes)
-	if err != nil {
-		msg := fmt.Sprintf("Istio VirtualService has invalid HTTP routes. Error: %s", err.Error())
-		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+	// Validate TLS Routes
+	if errTls == nil {
+		tlsRoutes, err := istio.GetTlsRoutes(newObj, tlsRoutesI)
+		if err != nil {
+			msg := fmt.Sprintf("Unable to get TLS routes for Istio VirtualService")
+			allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+		}
+		err = istio.ValidateTlsRoutes(rollout, tlsRoutes)
+		if err != nil {
+			msg := fmt.Sprintf("Istio VirtualService has invalid TLS routes. Error: %s", err.Error())
+			allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+		}
 	}
+	// Return all errors
 	return allErrs
 }
 
