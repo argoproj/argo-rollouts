@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -48,7 +49,7 @@ func TestRunSuccessfully(t *testing.T) {
 		FailureCondition: "result[0].Values[0] != 0.1",
 		Provider: v1alpha1.MetricProvider{
 			CloudWatch: &v1alpha1.CloudWatchMetric{
-				MetricDataQueries: "[]",
+				MetricDataQueries: []v1alpha1.CloudWatchMetricDataQuery{},
 			},
 		},
 	}
@@ -72,7 +73,7 @@ func TestRunWithQueryError(t *testing.T) {
 		FailureCondition: "result[0].Values[0] != 0.1",
 		Provider: v1alpha1.MetricProvider{
 			CloudWatch: &v1alpha1.CloudWatchMetric{
-				MetricDataQueries: "[]",
+				MetricDataQueries: []v1alpha1.CloudWatchMetricDataQuery{},
 			},
 		},
 	}
@@ -97,7 +98,7 @@ func TestRunWithResolveArgsError(t *testing.T) {
 		FailureCondition: "result[0].Values[0] != 0.1",
 		Provider: v1alpha1.MetricProvider{
 			CloudWatch: &v1alpha1.CloudWatchMetric{
-				MetricDataQueries: "[]",
+				MetricDataQueries: []v1alpha1.CloudWatchMetricDataQuery{},
 			},
 		},
 	}
@@ -125,7 +126,7 @@ constraint: Member must not be null'`)
 		FailureCondition: "result[0].Values[0] != 0.1",
 		Provider: v1alpha1.MetricProvider{
 			CloudWatch: &v1alpha1.CloudWatchMetric{
-				MetricDataQueries: "[]",
+				MetricDataQueries: []v1alpha1.CloudWatchMetricDataQuery{},
 			},
 		},
 	}
@@ -147,7 +148,7 @@ func TestResume(t *testing.T) {
 		FailureCondition: "result[0].Values[0] != 0.1",
 		Provider: v1alpha1.MetricProvider{
 			CloudWatch: &v1alpha1.CloudWatchMetric{
-				MetricDataQueries: "[]",
+				MetricDataQueries: []v1alpha1.CloudWatchMetricDataQuery{},
 			},
 		},
 	}
@@ -219,4 +220,72 @@ func TestNewCloudWatchAPIClient(t *testing.T) {
 		_, err := NewCloudWatchAPIClient(metric, checkEnvs)
 		assert.Nil(t, err)
 	})
+}
+
+func TestConvertType(t *testing.T) {
+	query := []v1alpha1.CloudWatchMetricDataQuery{
+		{
+			Id:         pointer.StringPtr("rate"),
+			Expression: pointer.StringPtr("errors / requests"),
+		},
+		{
+			Id: pointer.StringPtr("errors"),
+			MetricStat: &v1alpha1.CloudWatchMetricStat{
+				Metric: &v1alpha1.CloudWatchMetricStatMetric{
+					Namespace:  pointer.StringPtr("app"),
+					MetricName: pointer.StringPtr("errors"),
+				},
+				Period: pointer.Int32Ptr(300),
+				Stat:   pointer.StringPtr("Sum"),
+				Unit:   "Count",
+			},
+			ReturnData: pointer.BoolPtr(false),
+		},
+		{
+			Id: pointer.StringPtr("requests"),
+			MetricStat: &v1alpha1.CloudWatchMetricStat{
+				Metric: &v1alpha1.CloudWatchMetricStatMetric{
+					Namespace:  pointer.StringPtr("app"),
+					MetricName: pointer.StringPtr("requests"),
+				},
+				Period: pointer.Int32Ptr(300),
+				Stat:   pointer.StringPtr("Sum"),
+				Unit:   "Count",
+			},
+			ReturnData: pointer.BoolPtr(false),
+		},
+	}
+	result := convertType(query)
+	assert.Equal(t, []types.MetricDataQuery{
+		{
+			Id:         pointer.StringPtr("rate"),
+			Expression: pointer.StringPtr("errors / requests"),
+		},
+		{
+			Id: pointer.StringPtr("errors"),
+			MetricStat: &types.MetricStat{
+				Metric: &types.Metric{
+					Namespace:  pointer.StringPtr("app"),
+					MetricName: pointer.StringPtr("errors"),
+				},
+				Period: pointer.Int32Ptr(300),
+				Stat:   pointer.StringPtr("Sum"),
+				Unit:   types.StandardUnitCount,
+			},
+			ReturnData: pointer.BoolPtr(false),
+		},
+		{
+			Id: pointer.StringPtr("requests"),
+			MetricStat: &types.MetricStat{
+				Metric: &types.Metric{
+					Namespace:  pointer.StringPtr("app"),
+					MetricName: pointer.StringPtr("requests"),
+				},
+				Period: pointer.Int32Ptr(300),
+				Stat:   pointer.StringPtr("Sum"),
+				Unit:   types.StandardUnitCount,
+			},
+			ReturnData: pointer.BoolPtr(false),
+		},
+	}, result)
 }

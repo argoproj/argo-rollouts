@@ -97,7 +97,47 @@ spec:
                             interval:
                               type: string
                             metricDataQueries:
-                              type: string
+                              items:
+                                properties:
+                                  Expression:
+                                    type: string
+                                  Id:
+                                    type: string
+                                  Label:
+                                    type: string
+                                  MetricStat:
+                                    properties:
+                                      Metric:
+                                        properties:
+                                          Dimensions:
+                                            items:
+                                              properties:
+                                                Name:
+                                                  type: string
+                                                Value:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          MetricName:
+                                            type: string
+                                          Namespace:
+                                            type: string
+                                        type: object
+                                      Period:
+                                        format: int32
+                                        type: integer
+                                      Stat:
+                                        type: string
+                                      Unit:
+                                        type: string
+                                    type: object
+                                  Period:
+                                    format: int32
+                                    type: integer
+                                  ReturnData:
+                                    type: boolean
+                                type: object
+                              type: array
                           required:
                           - metricDataQueries
                           type: object

@@ -77,39 +77,37 @@ spec:
     provider:
       cloudWatch:
         interval: 15m
-        metricDataQueries: |
-          [
-            {
-              "Id": "rate",
-              "Expression": "errors / requests"
-            },
-            {
-              "Id": "errors",
-              "MetricStat": {
-                "Metric": {
-                  "Namespace": "app",
-                  "MetricName": "errors"
-                },
-                "Period": 300,
-                "Stat": "Sum",
-                "Unit": "Count"
+        metricDataQueries:
+        - {
+            "Id": "rate",
+            "Expression": "errors / requests"
+          }
+        - {
+            "Id": "errors",
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "app",
+                "MetricName": "errors"
               },
-              "ReturnData": false
+              "Period": 300,
+              "Stat": "Sum",
+              "Unit": "Count"
             },
-            {
-              "Id": "requests",
-              "MetricStat": {
-                "Metric": {
-                  "Namespace": "app",
-                  "MetricName": "requests"
-                },
-                "Period": 300,
-                "Stat": "Sum",
-                "Unit": "Count"
+            "ReturnData": false
+          }
+        - {
+            "Id": "requests",
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "app",
+                "MetricName": "requests"
               },
-              "ReturnData": false
-            }
-          ]
+              "Period": 300,
+              "Stat": "Sum",
+              "Unit": "Count"
+            },
+            "ReturnData": false
+          }
 ```
 
 ## debug

@@ -2,7 +2,6 @@ package cloudwatch
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -68,11 +67,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		interval = d
 	}
 
-	query := []types.MetricDataQuery{}
-	if err := json.Unmarshal([]byte(metric.Provider.CloudWatch.MetricDataQueries), &query); err != nil {
-		return metricutil.MarkMeasurementError(measurement, err)
-	}
-
+	query := convertType(metric.Provider.CloudWatch.MetricDataQueries)
 	result, err := p.api.Query(interval, query)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
@@ -132,4 +127,48 @@ func NewCloudWatchAPIClient(metric v1alpha1.Metric, opts ...func(*cloudwatch.Opt
 	return &CloudWatchClient{
 		client: cloudwatch.NewFromConfig(cfg, opts...),
 	}, nil
+}
+
+func convertType(data []v1alpha1.CloudWatchMetricDataQuery) []types.MetricDataQuery {
+	result := make([]types.MetricDataQuery, len(data))
+	for i, v := range data {
+		var metricStat *types.MetricStat
+		if v.MetricStat != nil {
+			metricStat = &types.MetricStat{
+				Metric: nil,
+				Period: v.MetricStat.Period,
+				Stat:   v.MetricStat.Stat,
+				Unit:   types.StandardUnit(v.MetricStat.Unit),
+			}
+
+			if v.MetricStat.Metric != nil {
+				metricStat.Metric = &types.Metric{
+					Dimensions: nil,
+					MetricName: v.MetricStat.Metric.MetricName,
+					Namespace:  v.MetricStat.Metric.Namespace,
+				}
+
+				if v.MetricStat.Metric.Dimensions != nil {
+					metricStat.Metric.Dimensions = make([]types.Dimension, len(v.MetricStat.Metric.Dimensions))
+					for j, d := range v.MetricStat.Metric.Dimensions {
+						metricStat.Metric.Dimensions[j] = types.Dimension{
+							Name:  d.Name,
+							Value: d.Value,
+						}
+					}
+				}
+			}
+		}
+
+		result[i] = types.MetricDataQuery{
+			Id:         v.Id,
+			Expression: v.Expression,
+			Label:      v.Label,
+			MetricStat: metricStat,
+			Period:     v.Period,
+			ReturnData: v.ReturnData,
+		}
+	}
+
+	return result
 }
