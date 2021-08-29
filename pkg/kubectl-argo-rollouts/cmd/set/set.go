@@ -9,7 +9,7 @@ import (
 const (
 	setExample = `
   # Set rollout image
-  %[1]s set image my-rollout argoproj/rollouts-demo:yellow`
+  %[1]s set image my-rollout demo=argoproj/rollouts-demo:yellow`
 )
 
 // NewCmdSet returns a new instance of an `rollouts set` command
