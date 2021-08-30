@@ -179,6 +179,28 @@ func TestQuery(t *testing.T) {
 		]`, value, timestamp),
 		200,
 	}, {
+		"graphite response data point JSON with a null value",
+		query,
+		targetQuery,
+		fromQuery,
+		[]dataPoint{{
+			Value:     nil,
+			TimeStamp: time.Unix(timestamp, 0),
+		}},
+		nil,
+		fmt.Sprintf(`[
+			{
+				"datapoints": [
+					[
+						null,
+						%d
+					]
+				],
+				"target": "sumSeries(app.http.*.*.count)"
+			}
+		]`, timestamp),
+		200,
+	}, {
 		"graphite response data point JSON triggers unmarshaling error",
 		query,
 		targetQuery,
