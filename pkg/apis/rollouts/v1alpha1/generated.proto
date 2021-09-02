@@ -590,8 +590,11 @@ message IstioVirtualService {
   // Name holds the name of the VirtualService
   optional string name = 1;
 
-  // Routes are list of routes within VirtualService to edit. If omitted, VirtualService must have a single route
+  // A list of HTTP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
   repeated string routes = 2;
+
+  // A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
+  repeated TLSRoute tlsRoutes = 3;
 }
 
 // JobMetric defines a job to run which acts as a metric
@@ -1025,6 +1028,11 @@ message RolloutSpec {
   // Defaults to 600s.
   optional int32 progressDeadlineSeconds = 8;
 
+  // ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds
+  // is exceeded if analysis is not used. Default is false.
+  // +optional
+  optional bool progressDeadlineAbort = 12;
+
   // RestartAt indicates when all the pods of a Rollout should be restarted
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time restartAt = 9;
 
@@ -1205,6 +1213,15 @@ message SetCanaryScale {
   // MatchTrafficWeight cancels out previously set Replicas or Weight, effectively activating SetWeight
   // +optional
   optional bool matchTrafficWeight = 3;
+}
+
+// TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.
+message TLSRoute {
+  // Port number of the TLS Route desired to be matched in the given Istio VirtualService.
+  optional int64 port = 1;
+
+  // A list of all the SNI Hosts of the TLS Route desired to be matched in the given Istio VirtualService.
+  repeated string sniHosts = 2;
 }
 
 message TemplateService {

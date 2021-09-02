@@ -12650,6 +12650,7 @@ rules:
   - list
   - watch
   - patch
+  - create
 - apiGroups:
   - ""
   resources:
