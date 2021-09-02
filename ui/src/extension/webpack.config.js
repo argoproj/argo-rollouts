@@ -24,15 +24,15 @@ const config = {
         options: {
           allowTsInNodeModules: true,
           configFile: path.resolve("./src/extension/tsconfig.json")
-        }
+        },
       },
       {
         test: /\.scss$/,
-        loader: "style-loader!raw-loader!sass-loader",
+        use: ["style-loader", "raw-loader", "sass-loader"],
       },
       {
         test: /\.css$/,
-        loader: "style-loader!raw-loader",
+        use: ["style-loader", "raw-loader"],
       },
     ],
   },
