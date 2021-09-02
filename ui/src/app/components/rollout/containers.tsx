@@ -81,7 +81,7 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
             {containers.length < 2 && (
                 <ThemeDiv className='containers__few'>
                     <span style={{marginRight: '5px'}}>
-                        <i className='fa-boxes' />
+                        <i className='fa fa-boxes' />
                     </span>
                     Add more containers to fill this space!
                 </ThemeDiv>
