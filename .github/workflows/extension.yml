@@ -13,4 +13,5 @@ jobs:
       - name: build
         run: |
           cd ui
+          yarn install
           yarn build-extension
