@@ -187,11 +187,12 @@ func CalculateReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS *appsv1.Re
 	}
 
 	scaleDownCount := replicasToScaleDown - minAvailableReplicaCount
+
 	if !isIncreasing {
 		// Skip scalingDown Stable replicaSet when Canary availability is not taken into calculation for scaleDown
 		newRSReplicaCount = calculateScaleDownReplicaCount(newRS, desiredNewRSReplicaCount, scaleDownCount, newRSReplicaCount)
 		newRSReplicaCount, stableRSReplicaCount = adjustReplicaWithinLimits(newRS, stableRS, newRSReplicaCount, stableRSReplicaCount, maxReplicaCountAllowed, minAvailableReplicaCount)
-	} else if scaleStableRS {
+	} else {
 		// Skip scalingDown canary replicaSet when StableSet availability is not taken into calculation for scaleDown
 		stableRSReplicaCount = calculateScaleDownReplicaCount(stableRS, desiredStableRSReplicaCount, scaleDownCount, stableRSReplicaCount)
 		stableRSReplicaCount, newRSReplicaCount = adjustReplicaWithinLimits(stableRS, newRS, stableRSReplicaCount, newRSReplicaCount, maxReplicaCountAllowed, minAvailableReplicaCount)
