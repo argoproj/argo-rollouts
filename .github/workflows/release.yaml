@@ -64,7 +64,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1 
+        uses: docker/login-action@v1
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -121,6 +121,11 @@ jobs:
           make release-plugins
           make manifests IMAGE_TAG=${{ github.event.inputs.tag }}
 
+      - name: Build extension
+        run: |
+          cd ui
+          yarn build-extension
+
       - name: Draft release
         uses: softprops/action-gh-release@v1
         with:
@@ -131,5 +136,6 @@ jobs:
             dist/kubectl-argo-rollouts-darwin-amd64
             manifests/install.yaml
             manifests/namespace-install.yaml
+            ui/src/extension/dist/extensions.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
