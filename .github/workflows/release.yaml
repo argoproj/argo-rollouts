@@ -124,6 +124,7 @@ jobs:
       - name: Build extension
         run: |
           cd ui
+          yarn install
           yarn build-extension
 
       - name: Draft release
