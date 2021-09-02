@@ -20,10 +20,11 @@ const config = {
     rules: [
       {
         test: /\.tsx?$/,
-        loader: 
-          `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve(
-            "./src/extension/tsconfig.json"
-          )}`
+        loader: 'ts-loader',
+        options: {
+          allowTsInNodeModules: true,
+          configFile: path.resolve("./src/extension/tsconfig.json")
+        }
       },
       {
         test: /\.scss$/,

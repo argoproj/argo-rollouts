@@ -29,41 +29,42 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
                     Containers
                 </ThemeDiv>
 
-                {interactive?.editState[0] ? (
-                    <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
-                        <ActionButton
-                            icon='fa-times'
-                            action={() => {
-                                setEditing(false);
-                                setError(false);
-                            }}
-                        />
-                        <ActionButton
-                            label={error ? 'ERROR' : 'SAVE'}
-                            style={{marginRight: 0}}
-                            icon={error ? 'fa-exclamation-circle' : 'fa-save'}
-                            action={() => {
-                                for (const container of Object.keys(inputs)) {
-                                    const split = inputs[container].split(':');
-                                    if (split.length > 1) {
-                                        const image = split[0];
-                                        const tag = split[1];
-                                        interactive.setImage(container, image, tag);
-                                        setTimeout(() => {
-                                            setEditing(false);
-                                        }, 350);
-                                    } else {
-                                        setError(true);
+                {interactive &&
+                    (interactive?.editState[0] ? (
+                        <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
+                            <ActionButton
+                                icon='fa-times'
+                                action={() => {
+                                    setEditing(false);
+                                    setError(false);
+                                }}
+                            />
+                            <ActionButton
+                                label={error ? 'ERROR' : 'SAVE'}
+                                style={{marginRight: 0}}
+                                icon={error ? 'fa-exclamation-circle' : 'fa-save'}
+                                action={() => {
+                                    for (const container of Object.keys(inputs)) {
+                                        const split = inputs[container].split(':');
+                                        if (split.length > 1) {
+                                            const image = split[0];
+                                            const tag = split[1];
+                                            interactive.setImage(container, image, tag);
+                                            setTimeout(() => {
+                                                setEditing(false);
+                                            }, 350);
+                                        } else {
+                                            setError(true);
+                                        }
                                     }
-                                }
-                            }}
-                            shouldConfirm
-                            indicateLoading={!error}
-                        />
-                    </div>
-                ) : (
-                    <i className='fa fa-pencil-alt' onClick={() => setEditing(true)} style={{cursor: 'pointer', marginLeft: 'auto'}} />
-                )}
+                                }}
+                                shouldConfirm
+                                indicateLoading={!error}
+                            />
+                        </div>
+                    ) : (
+                        <i className='fa fa-pencil-alt' onClick={() => setEditing(true)} style={{cursor: 'pointer', marginLeft: 'auto'}} />
+                    ))}
             </div>
             {containers.map((c, i) => (
                 <ContainerWidget
