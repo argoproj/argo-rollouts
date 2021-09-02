@@ -114,7 +114,7 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                 <ThemeDiv className='pods__container'>
                     <WaitFor loading={(props.rs.pods || []).length < 1}>
                         {props.rs.pods.map((pod, i) => (
-                            <PodWidget key={pod.objectMeta.uid} pod={pod} />
+                            <PodWidget key={pod.objectMeta?.uid} pod={pod} />
                         ))}
                     </WaitFor>
                 </ThemeDiv>
