@@ -20,7 +20,7 @@ const config = {
     rules: [
       {
         test: /\.tsx?$/,
-        loaders: [
+        rules: [
           `ts-loader?allowTsInNodeModules=true&configFile=${path.resolve(
             "./src/extension/tsconfig.json"
           )}`,
