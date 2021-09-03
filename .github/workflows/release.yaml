@@ -121,12 +121,6 @@ jobs:
           make release-plugins
           make manifests IMAGE_TAG=${{ github.event.inputs.tag }}
 
-      - name: Build extension
-        run: |
-          cd ui
-          yarn install
-          yarn build-extension
-
       - name: Draft release
         uses: softprops/action-gh-release@v1
         with:
