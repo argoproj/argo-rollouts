@@ -33,8 +33,6 @@
         "build": "rm -rf dist && webpack --config ./src/app/webpack.prod.js",
         "test": "react-scripts test",
         "eject": "react-scripts eject",
-        "build-extension": "webpack --config ./src/extension/webpack.config.js",
-        "install-extension": "mv ./src/extension/dist/extensions.js /tmp/extensions/argoproj.io/Rollout/ui/",
         "protogen": "swagger-codegen generate -i ../pkg/apiclient/rollout/rollout.swagger.json -l typescript-fetch -o src/models/rollout/generated"
     },
     "eslintConfig": {

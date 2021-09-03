@@ -131,6 +131,5 @@ jobs:
             dist/kubectl-argo-rollouts-darwin-amd64
             manifests/install.yaml
             manifests/namespace-install.yaml
-            ui/src/extension/dist/extensions.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

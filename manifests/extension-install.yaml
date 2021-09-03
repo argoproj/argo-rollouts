@@ -1,9 +1,0 @@
-apiVersion: extension.argoproj.io/v1
-kind: ArgoCDExtension
-metadata:
-  name: rollout
-spec:
-  repository: https://github.com/argoproj-labs/rollout-extension
-  revision: HEAD
-  targetGroup: argoproj.io
-  targetKind: Rollout
