@@ -24,9 +24,6 @@ import (
 	jobprovider "github.com/argoproj/argo-rollouts/metricproviders/job"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
@@ -43,25 +40,25 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
-		clientConfig        clientcmd.ClientConfig
-		rolloutResyncPeriod int64
-		logLevel            string
-		klogLevel           int
-		metricsPort         int
-		instanceID          string
-		rolloutThreads      int
-		experimentThreads   int
-		analysisThreads     int
-		serviceThreads      int
-		ingressThreads      int
-		istioVersion        string
-		trafficSplitVersion string
-		ambassadorVersion   string
-		albIngressClasses   []string
-		nginxIngressClasses []string
-		albVerifyWeight     bool
-		namespaced          bool
-		printVersion        bool
+		clientConfig         clientcmd.ClientConfig
+		rolloutResyncPeriod  int64
+		logLevel             string
+		klogLevel            int
+		metricsPort          int
+		instanceID           string
+		rolloutThreads       int
+		experimentThreads    int
+		analysisThreads      int
+		serviceThreads       int
+		ingressThreads       int
+		istioVersion         string
+		trafficSplitVersion  string
+		ambassadorVersion    string
+		albIngressClasses    []string
+		nginxIngressClasses  []string
+		awsVerifyTargetGroup bool
+		namespaced           bool
+		printVersion         bool
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -82,10 +79,10 @@ func newCommand() *cobra.Command {
 			// set up signals so we handle the first shutdown signal gracefully
 			stopCh := signals.SetupSignalHandler()
 
-			alb.SetDefaultVerifyWeight(albVerifyWeight)
-			istioutil.SetIstioAPIVersion(istioVersion)
-			ambassador.SetAPIVersion(ambassadorVersion)
-			smi.SetSMIAPIVersion(trafficSplitVersion)
+			defaults.SetVerifyTargetGroup(awsVerifyTargetGroup)
+			defaults.SetIstioAPIVersion(istioVersion)
+			defaults.SetAmbassadorAPIVersion(ambassadorVersion)
+			defaults.SetSMIAPIVersion(trafficSplitVersion)
 
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
@@ -216,7 +213,9 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
 	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on. Defaults to nginx")
-	command.Flags().BoolVar(&albVerifyWeight, "alb-verify-weight", false, "Verify ALB target group weights before progressing through steps (requires AWS privileges)")
+	command.Flags().BoolVar(&awsVerifyTargetGroup, "alb-verify-weight", false, "Verify ALB target group weights before progressing through steps (requires AWS privileges)")
+	command.Flags().MarkDeprecated("alb-verify-weight", "Use --aws-verify-target-group instead")
+	command.Flags().BoolVar(&awsVerifyTargetGroup, "aws-verify-target-group", false, "Verify ALB target group before progressing through steps (requires AWS privileges)")
 	command.Flags().BoolVar(&printVersion, "version", false, "Print version")
 	return &command
 }

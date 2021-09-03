@@ -36,20 +36,11 @@ const (
 )
 
 var (
-	ambassadorAPIVersion = defaults.DefaultAmbassadorVersion
-	apiGroupToResource   = map[string]string{
+	apiGroupToResource = map[string]string{
 		"getambassador.io":   "mappings",
 		"x.getambassador.io": "ambassadormappings",
 	}
 )
-
-func SetAPIVersion(apiVersion string) {
-	ambassadorAPIVersion = apiVersion
-}
-
-func GetAPIVersion() string {
-	return ambassadorAPIVersion
-}
 
 // Reconciler implements a TrafficRoutingReconciler for Ambassador.
 type Reconciler struct {
@@ -260,7 +251,7 @@ func buildCanaryService(baseMapping *unstructured.Unstructured, canarySvc string
 	return fmt.Sprintf("%s:%s", canarySvc, port)
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
 	return true, nil
 }
 
@@ -300,7 +291,7 @@ func buildCanaryMappingName(name string) string {
 // ambassadorAPIVersion variable that is set with a default value. The default value can be
 // changed by invoking the SetAPIVersion function.
 func GetMappingGVR() schema.GroupVersionResource {
-	return toMappingGVR(ambassadorAPIVersion)
+	return toMappingGVR(defaults.GetAmbassadorAPIVersion())
 }
 
 func toMappingGVR(apiVersion string) schema.GroupVersionResource {

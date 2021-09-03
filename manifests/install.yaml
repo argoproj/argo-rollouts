@@ -12671,6 +12671,7 @@ rules:
   - list
   - watch
   - patch
+  - create
 - apiGroups:
   - ""
   resources:
@@ -12747,18 +12748,9 @@ rules:
   - patch
 - apiGroups:
   - getambassador.io
-  resources:
-  - mappings
-  verbs:
-  - create
-  - watch
-  - get
-  - update
-  - list
-  - delete
-- apiGroups:
   - x.getambassador.io
   resources:
+  - mappings
   - ambassadormappings
   verbs:
   - create
@@ -12767,6 +12759,19 @@ rules:
   - update
   - list
   - delete
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+- apiGroups:
+  - elbv2.k8s.aws
+  resources:
+  - targetgroupbindings
+  verbs:
+  - list
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

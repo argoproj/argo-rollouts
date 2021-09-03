@@ -21,6 +21,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 const (
@@ -176,7 +177,7 @@ func needsNewAnalysisRun(currentAr *v1alpha1.AnalysisRun, rollout *v1alpha1.Roll
 
 // emitAnalysisRunStatusChanges emits a Kubernetes event if the analysis run of that type has changed status
 func (c *rolloutContext) emitAnalysisRunStatusChanges(prevStatus *v1alpha1.RolloutAnalysisRunStatus, ar *v1alpha1.AnalysisRun, arType string) {
-	if ar != nil {
+	if ar != nil && ar.Status.Phase != "" {
 		if prevStatus == nil || prevStatus.Name == ar.Name && prevStatus.Status != ar.Status.Phase {
 			prevStatusStr := "NoPreviousStatus"
 			if prevStatus != nil {
@@ -287,7 +288,8 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 	}
 
 	c.log.Info("Reconciling Post Promotion Analysis")
-	if skipPostPromotionAnalysisRun(c.rollout, c.newRS) {
+	// don't start post-promotion if we are not ready to, or we are still waiting for target verification
+	if skipPostPromotionAnalysisRun(c.rollout, c.newRS) || !c.areTargetsVerified() {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return currentAr, err
 	}
@@ -317,7 +319,7 @@ func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun
 	}
 
 	// Do not create a background run if the rollout is completely rolled out, just created, before the starting step
-	if c.rollout.Status.StableRS == c.rollout.Status.CurrentPodHash || c.rollout.Status.StableRS == "" || c.rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(c.rollout) {
+	if rolloututil.IsFullyPromoted(c.rollout) || c.rollout.Status.StableRS == "" || c.rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(c.rollout) {
 		return nil, nil
 	}
 

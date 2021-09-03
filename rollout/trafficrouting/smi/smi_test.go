@@ -65,8 +65,8 @@ func TestType(t *testing.T) {
 func TestUnsupportedTrafficSplitApiVersionError(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
 	client := fake.NewSimpleClientset()
-	SetSMIAPIVersion("does-not-exist")
-	defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+	defaults.SetSMIAPIVersion("does-not-exist")
+	defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 	_, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
@@ -114,8 +114,8 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 	t.Run("v1alpha2", func(t *testing.T) {
 		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
 		client := fake.NewSimpleClientset()
-		SetSMIAPIVersion("v1alpha2")
-		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		defaults.SetSMIAPIVersion("v1alpha2")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -145,8 +145,8 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 	t.Run("v1alpha3", func(t *testing.T) {
 		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
 		client := fake.NewSimpleClientset()
-		SetSMIAPIVersion("v1alpha3")
-		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		defaults.SetSMIAPIVersion("v1alpha3")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -215,8 +215,8 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 	t.Run("v1alpha2", func(t *testing.T) {
 		ts2 := trafficSplitV1Alpha2(ro, objectMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts2)
-		SetSMIAPIVersion("v1alpha2")
-		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		defaults.SetSMIAPIVersion("v1alpha2")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -247,8 +247,8 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 	t.Run("v1alpha3", func(t *testing.T) {
 		ts3 := trafficSplitV1Alpha3(ro, objectMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts3)
-		SetSMIAPIVersion("v1alpha3")
-		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		defaults.SetSMIAPIVersion("v1alpha3")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -307,8 +307,8 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		objMeta := objectMeta("traffic-split-v1alpha2", ro, schema.GroupVersionKind{})
 		ts2 := trafficSplitV1Alpha2(ro, objMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts2)
-		SetSMIAPIVersion("v1alpha2")
-		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		defaults.SetSMIAPIVersion("v1alpha2")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -332,8 +332,8 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		objMeta := objectMeta("traffic-split-v1alpha3", ro, schema.GroupVersionKind{})
 		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts3)
-		SetSMIAPIVersion("v1alpha3")
-		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		defaults.SetSMIAPIVersion("v1alpha3")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -397,8 +397,8 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 	t.Run("v1alpha2", func(t *testing.T) {
 		ts2 := trafficSplitV1Alpha2(ro, objMeta, "root-service", int32(10))
 		ts2.OwnerReferences = nil
-		SetSMIAPIVersion("v1alpha2")
-		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		defaults.SetSMIAPIVersion("v1alpha2")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset(ts2)
 		r, err := NewReconciler(ReconcilerConfig{
@@ -416,8 +416,8 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 	t.Run("v1alpha3", func(t *testing.T) {
 		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10))
 		ts3.OwnerReferences = nil
-		SetSMIAPIVersion("v1alpha3")
-		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		defaults.SetSMIAPIVersion("v1alpha3")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset(ts3)
 		r, err := NewReconciler(ReconcilerConfig{
@@ -490,8 +490,8 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 	})
 
 	t.Run("v1alpha2", func(t *testing.T) {
-		SetSMIAPIVersion("v1alpha2")
-		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		defaults.SetSMIAPIVersion("v1alpha2")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset()
 		r, err := NewReconciler(ReconcilerConfig{
@@ -534,8 +534,8 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 	})
 
 	t.Run("v1alpha3", func(t *testing.T) {
-		SetSMIAPIVersion("v1alpha3")
-		defer SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+		defaults.SetSMIAPIVersion("v1alpha3")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset()
 		r, err := NewReconciler(ReconcilerConfig{

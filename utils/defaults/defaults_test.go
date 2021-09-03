@@ -355,3 +355,30 @@ func TestGetConsecutiveErrorLimitOrDefault(t *testing.T) {
 	metricDefaultValue := &v1alpha1.Metric{}
 	assert.Equal(t, DefaultConsecutiveErrorLimit, GetConsecutiveErrorLimitOrDefault(metricDefaultValue))
 }
+
+func TestSetDefaults(t *testing.T) {
+	SetVerifyTargetGroup(true)
+	assert.True(t, VerifyTargetGroup())
+	SetVerifyTargetGroup(false)
+	assert.False(t, VerifyTargetGroup())
+
+	SetIstioAPIVersion("v1alpha9")
+	assert.Equal(t, "v1alpha9", GetIstioAPIVersion())
+	SetIstioAPIVersion(DefaultIstioVersion)
+	assert.Equal(t, DefaultIstioVersion, GetIstioAPIVersion())
+
+	SetAmbassadorAPIVersion("v1alpha9")
+	assert.Equal(t, "v1alpha9", GetAmbassadorAPIVersion())
+	SetAmbassadorAPIVersion(DefaultAmbassadorVersion)
+	assert.Equal(t, DefaultAmbassadorVersion, GetAmbassadorAPIVersion())
+
+	SetSMIAPIVersion("v1alpha9")
+	assert.Equal(t, "v1alpha9", GetSMIAPIVersion())
+	SetSMIAPIVersion(DefaultSMITrafficSplitVersion)
+	assert.Equal(t, DefaultSMITrafficSplitVersion, GetSMIAPIVersion())
+
+	SetTargetGroupBindingAPIVersion("v1alpha9")
+	assert.Equal(t, "v1alpha9", GetTargetGroupBindingAPIVersion())
+	SetTargetGroupBindingAPIVersion(DefaultTargetGroupBindingAPIVersion)
+	assert.Equal(t, DefaultTargetGroupBindingAPIVersion, GetTargetGroupBindingAPIVersion())
+}

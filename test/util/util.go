@@ -40,15 +40,21 @@ func NewFakeDynamicClient(objects ...runtime.Object) *dynamicfake.FakeDynamicCli
 	scheme := runtime.NewScheme()
 	vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
 	druleGVR := istioutil.GetIstioDestinationRuleGVR()
+	tgbGVR := schema.GroupVersionResource{
+		Group:    "elbv2.k8s.aws",
+		Version:  "v1beta1",
+		Resource: "targetgroupbindings",
+	}
 
 	listMapping := map[schema.GroupVersionResource]string{
-		vsvcGVR:                             vsvcGVR.Resource + "List",
-		druleGVR:                            druleGVR.Resource + "List",
+		vsvcGVR:                             "VirtualServiceList",
+		druleGVR:                            "DestinationRuleList",
 		v1alpha1.RolloutGVR:                 rollouts.RolloutKind + "List",
 		v1alpha1.AnalysisTemplateGVR:        rollouts.AnalysisTemplateKind + "List",
 		v1alpha1.AnalysisRunGVR:             rollouts.AnalysisRunKind + "List",
 		v1alpha1.ExperimentGVR:              rollouts.ExperimentKind + "List",
 		v1alpha1.ClusterAnalysisTemplateGVR: rollouts.ClusterAnalysisTemplateKind + "List",
+		tgbGVR:                              "TargetGroupBindingList",
 	}
 	return dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, objects...)
 }

@@ -365,7 +365,6 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash) // update active to rs2
-	f.expectPatchReplicaSetAction(rs1)                // set scaledown delay on rs1
 	patchRolloutIdx := f.expectPatchRolloutAction(r2) // update rollout status
 	f.run(getKey(r2, t))
 

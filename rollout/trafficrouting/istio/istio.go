@@ -559,7 +559,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...tr
 	return err
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
 	return true, nil
 }
 

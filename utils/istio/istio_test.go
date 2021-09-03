@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
@@ -39,12 +40,12 @@ func TestGetIstioVirtualServiceGVR(t *testing.T) {
 }
 
 func TestGetIstioDestinationRuleGVR(t *testing.T) {
-	SetIstioAPIVersion("v1alpha4")
+	defaults.SetIstioAPIVersion("v1alpha4")
 	gvr := GetIstioDestinationRuleGVR()
 	assert.Equal(t, "networking.istio.io", gvr.Group)
 	assert.Equal(t, "v1alpha4", gvr.Version)
 	assert.Equal(t, "destinationrules", gvr.Resource)
-	SetIstioAPIVersion("v1alpha3")
+	defaults.SetIstioAPIVersion("v1alpha3")
 }
 
 func TestGetRolloutVirtualServiceKeys(t *testing.T) {
