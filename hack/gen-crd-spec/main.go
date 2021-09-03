@@ -9,11 +9,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/blang/semver"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
+	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	"github.com/go-openapi/spec"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -78,7 +77,7 @@ func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[stri
 
 func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
-		"dist/controller-gen",
+		"controller-gen",
 		"paths=./pkg/apis/rollouts/...",
 		"crd:trivialVersions=true",
 		// The only possible value is 'false' since 'apiextensions.k8s.io/v1'
@@ -291,7 +290,7 @@ func checkErr(err error) {
 // loadK8SDefinitions loads K8S types API schema definitions
 func loadK8SDefinitions() (spec.Definitions, error) {
 	// detects minor version of k8s client
-	k8sVersionCmd := exec.Command("sh", "-c", "go list -m all | grep k8s.io/client-go | awk '{print $2}'")
+	k8sVersionCmd := exec.Command("sh", "-c", "cat go.mod | grep \"k8s.io/client-go\" |  head -n 1 | cut -d' ' -f2")
 	versionData, err := k8sVersionCmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine k8s client version: %v", err)
