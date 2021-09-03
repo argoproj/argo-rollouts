@@ -79,7 +79,7 @@ patchesStrategicMerge:
           image: nginx
 ```
 
-The OpenAPI data is defined in a [file](https://github.com/argoproj/argo-rollouts/blob/master/docs/features/kustomize/rollout_cr_schema.json).
+The OpenAPI data is auto-generated and defined in this [file](https://github.com/argoproj/argo-rollouts/blob/master/docs/features/kustomize/rollout_cr_schema.json).
 
 An example kustomize app demonstrating the ability to use OpenAPI data with Rollouts can be seen
 [here](https://github.com/argoproj/argo-rollouts/blob/master/test/kustomize/rollout).

@@ -294,7 +294,7 @@ func loadK8SDefinitions() (spec.Definitions, error) {
 	k8sVersionCmd := exec.Command("sh", "-c", "go list -m all | grep k8s.io/client-go | awk '{print $2}'")
 	versionData, err := k8sVersionCmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to determine k8s client verison: %v", err)
+		return nil, fmt.Errorf("failed to determine k8s client version: %v", err)
 	}
 	v, err := semver.Parse(strings.TrimSpace(strings.Replace(string(versionData), "v", "", 1)))
 	if err != nil {
@@ -386,7 +386,7 @@ const (
 	rolloutsDefinitionsPrefix = "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 )
 
-// generateKustomizeSchema generates open api schema that has properies with patch annotations only
+// generateKustomizeSchema generates open api schema that has properties with patch annotations only
 func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, outputPath string) error {
 	k8sDefinitions, err := loadK8SDefinitions()
 	if err != nil {
