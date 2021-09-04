@@ -52,9 +52,8 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 		})
 		if err != nil {
 			return trafficReconcilers, err
-		} else {
-			trafficReconcilers = append(trafficReconcilers, alb_reconcilier)
 		}
+		trafficReconcilers = append(trafficReconcilers, alb_reconcilier)
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
 		smi_reconcilier, err := smi.NewReconciler(smi.ReconcilerConfig{
@@ -65,9 +64,8 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 		})
 		if err != nil {
 			return trafficReconcilers, err
-		} else {
-			trafficReconcilers = append(trafficReconcilers, smi_reconcilier)
 		}
+		trafficReconcilers = append(trafficReconcilers, smi_reconcilier)
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador != nil {
 		ac := ambassador.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
