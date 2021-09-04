@@ -44,7 +44,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -103,7 +102,7 @@ type fixture struct {
 
 	// events holds all the K8s Event Reasons emitted during the run
 	events             []string
-	fakeTrafficRouting *mocks.TrafficRoutingReconciler
+	fakeTrafficRouting *[]mocks.TrafficRoutingReconciler
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -549,10 +548,6 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	}
 	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		c.enqueueRollout(obj)
-	}
-
-	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
-		return f.fakeTrafficRouting, nil
 	}
 
 	for _, r := range f.rolloutLister {

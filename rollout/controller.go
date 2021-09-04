@@ -139,9 +139,9 @@ type reconcilerBase struct {
 	podRestarter RolloutPodRestarter
 
 	// used for unit testing
-	enqueueRollout              func(obj interface{})                                                        //nolint:structcheck
-	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                                //nolint:structcheck
-	newTrafficRoutingReconciler func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
+	enqueueRollout              func(obj interface{})                                                          //nolint:structcheck
+	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                                  //nolint:structcheck
+	newTrafficRoutingReconciler func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
 
 	// recorder is an event recorder for recording Event resources to the Kubernetes API.
 	recorder     record.EventRecorder
@@ -211,7 +211,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		VirtualServiceInformer:  cfg.IstioVirtualServiceInformer,
 		DestinationRuleInformer: cfg.IstioDestinationRuleInformer,
 	})
-
 	controller.newTrafficRoutingReconciler = controller.NewTrafficRoutingReconciler
 
 	log.Info("Setting up event handlers")
