@@ -19,30 +19,22 @@ import (
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
 func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
 	rollout := roCtx.rollout
-	traffic_reconciliers := []trafficrouting.TrafficRoutingReconciler{}
+	// define an empty list of trafficReconcilers to be populated
+	// by the ones declared in the rolloutContext
+	trafficReconcilers := []trafficrouting.TrafficRoutingReconciler{}
+
 	if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		return nil, nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio != nil {
 		if c.IstioController.VirtualServiceInformer.HasSynced() {
-			// return istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, c.IstioController.VirtualServiceLister, c.IstioController.DestinationRuleLister), nil
-			traffic_reconciliers = append(traffic_reconciliers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, c.IstioController.VirtualServiceLister, c.IstioController.DestinationRuleLister))
+			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, c.IstioController.VirtualServiceLister, c.IstioController.DestinationRuleLister))
 		} else {
-			traffic_reconciliers = append(traffic_reconciliers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, nil, nil))
-			// return istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, nil, nil), nil
+			trafficReconcilers = append(trafficReconcilers, istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, nil, nil))
 		}
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
-		/*
-			return nginx.NewReconciler(nginx.ReconcilerConfig{
-				Rollout:        rollout,
-				Client:         c.kubeclientset,
-				Recorder:       c.recorder,
-				ControllerKind: controllerKind,
-				IngressLister:  c.ingressesLister,
-			}), nil
-		*/
-		traffic_reconciliers = append(traffic_reconciliers, nginx.NewReconciler(nginx.ReconcilerConfig{
+		trafficReconcilers = append(trafficReconcilers, nginx.NewReconciler(nginx.ReconcilerConfig{
 			Rollout:        rollout,
 			Client:         c.kubeclientset,
 			Recorder:       c.recorder,
@@ -51,15 +43,6 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 		}))
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
-		/*
-			return alb.NewReconciler(alb.ReconcilerConfig{
-				Rollout:        rollout,
-				Client:         c.kubeclientset,
-				Recorder:       c.recorder,
-				ControllerKind: controllerKind,
-				IngressLister:  c.ingressesLister,
-			})
-		*/
 		alb_reconcilier, err := alb.NewReconciler(alb.ReconcilerConfig{
 			Rollout:        rollout,
 			Client:         c.kubeclientset,
@@ -68,18 +51,12 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 			IngressLister:  c.ingressesLister,
 		})
 		if err != nil {
-			traffic_reconciliers = append(traffic_reconciliers, alb_reconcilier)
+			return trafficReconcilers, err
+		} else {
+			trafficReconcilers = append(trafficReconcilers, alb_reconcilier)
 		}
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
-		/*
-			return smi.NewReconciler(smi.ReconcilerConfig{
-				Rollout:        rollout,
-				Client:         c.smiclientset,
-				Recorder:       c.recorder,
-				ControllerKind: controllerKind,
-			})
-		*/
 		smi_reconcilier, err := smi.NewReconciler(smi.ReconcilerConfig{
 			Rollout:        rollout,
 			Client:         c.smiclientset,
@@ -87,19 +64,19 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 			ControllerKind: controllerKind,
 		})
 		if err != nil {
-			traffic_reconciliers = append(traffic_reconciliers, smi_reconcilier)
+			return trafficReconcilers, err
+		} else {
+			trafficReconcilers = append(trafficReconcilers, smi_reconcilier)
 		}
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador != nil {
 		ac := ambassador.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
-		/*
-			return ambassador.NewReconciler(rollout, ac, c.recorder), nil
-		*/
-		traffic_reconciliers = append(traffic_reconciliers, ambassador.NewReconciler(rollout, ac, c.recorder))
+		trafficReconcilers = append(trafficReconcilers, ambassador.NewReconciler(rollout, ac, c.recorder))
 	}
 
-	if len(traffic_reconciliers) > 0 {
-		return traffic_reconciliers, nil
+	// ensure that the trafficReconcilers is a healthy list and its not empty
+	if len(trafficReconcilers) > 0 {
+		return trafficReconcilers, nil
 	}
 
 	return nil, nil
@@ -107,13 +84,18 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 
 func (c *rolloutContext) reconcileTrafficRouting() error {
 	reconcilers, err := c.newTrafficRoutingReconciler(c)
+	// a return here does ensure that all trafficReconcilers are healthy
+	// and sane in syntax
 	if err != nil {
 		return err
 	}
-	if len(reconcilers) < 1 {
+	// ensure that trafficReconcilers list is healthy
+	if len(reconcilers) == 0 {
+		c.log.Info("No TrafficRouting Reconcilers found")
 		return nil
 	}
-
+	c.log.Infof("Found %d TrafficRouting Reconcilers", len(reconcilers))
+	// iterate over the list of trafficReconcilers
 	for _, reconciler := range reconcilers {
 		c.log.Infof("Reconciling TrafficRouting with type '%s'", reconciler.Type())
 

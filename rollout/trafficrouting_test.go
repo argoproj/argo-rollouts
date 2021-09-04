@@ -29,24 +29,24 @@ import (
 
 // newFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with mocked success return values
 func newFakeTrafficRoutingReconciler() *[]mocks.TrafficRoutingReconciler {
-	r_list := []mocks.TrafficRoutingReconciler{}
-	for _, r := range r_list {
-		r.On("Type").Return("fake")
-		r.On("SetWeight", mock.Anything).Return(nil)
-		r.On("VerifyWeight", mock.Anything).Return(true, nil)
-		r.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+	reconcilerList := []mocks.TrafficRoutingReconciler{}
+	for _, trafficRoutingReconciler := range reconcilerList {
+		trafficRoutingReconciler.On("Type").Return("fake")
+		trafficRoutingReconciler.On("SetWeight", mock.Anything).Return(nil)
+		trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(true, nil)
+		trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	}
-	return &r_list
+	return &reconcilerList
 }
 
 // newUnmockedFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with unmocked
 // methods (except Type() mocked)
 func newUnmockedFakeTrafficRoutingReconciler() *[]mocks.TrafficRoutingReconciler {
-	r_list := []mocks.TrafficRoutingReconciler{}
-	for _, r := range r_list {
-		r.On("Type").Return("fake")
+	reconcilerList := []mocks.TrafficRoutingReconciler{}
+	for _, trafficRoutingReconciler := range reconcilerList {
+		trafficRoutingReconciler.On("Type").Return("fake")
 	}
-	return &r_list
+	return &reconcilerList
 }
 
 func newTrafficWeightFixture(t *testing.T) (*fixture, *v1alpha1.Rollout) {
