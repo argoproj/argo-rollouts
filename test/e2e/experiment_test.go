@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -15,7 +16,6 @@ import (
 type ExperimentSuite struct {
 	fixtures.E2ESuite
 }
-
 // TestRolloutWithExperimentAndAnalysis this tests the ability for a rollout to launch an experiment,
 // and use self-referencing features/pass metadata arguments to the experiment and analysis, such as:
 //  * specRef: stable
@@ -78,6 +78,23 @@ func (s *ExperimentSuite) TestRolloutWithExperimentAndAnalysis() {
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy")
+}
+
+func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-with-service.yaml")
+	g.When().
+		WaitForExperimentPhase("experiment-with-service", "Running").
+		Sleep(time.Second*5).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service", "test", 1).
+		ExpectExperimentServiceCount("experiment-with-service", 1).
+		When().
+		WaitForExperimentPhase("experiment-with-service", "Successful").
+		Sleep(time.Second*15).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service", "test", 0).
+		ExpectExperimentServiceCount("experiment-with-service", 0)
 }
 
 func TestExperimentSuite(t *testing.T) {

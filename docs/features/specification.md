@@ -11,6 +11,14 @@ spec:
   # Number of desired pods.
   # Defaults to 1.
   replicas: 5
+  analysis:
+    # limits the number of successful analysis runs and experiments to be stored in a history
+    # Defaults to 5.
+    successfulRunHistoryLimit: 10
+    # limits the number of unsuccessful analysis runs and experiments to be stored in a history. 
+    # Stages for unsuccessful: "Error", "Failed", "Inconclusive"
+    # Defaults to 5.
+    unsuccessfulRunHistoryLimit: 10
 
   # Label selector for pods. Existing ReplicaSets whose pods are selected by
   # this will be the ones affected by this rollout. It must match the pod
@@ -51,6 +59,11 @@ spec:
   # paused.
   # Defaults to 600s
   progressDeadlineSeconds: 600
+
+  # Whether to abort the update when ProgressDeadlineSeconds
+  # is exceeded if analysis or experiment is not used.
+  # Optional and default is false.
+  progressDeadlineAbort: false
 
   # UTC timestamp in which a Rollout should sequentially restart all of
   # its pods. Used by the `kubectl argo rollouts restart ROLLOUT` command.
@@ -230,11 +243,12 @@ spec:
       # Pauses indefinitely until manually resumed
       - pause: {}
 
-      # set canary scale to a explicit count (supported only with trafficRouting)
+      # set canary scale to a explicit count without changing traffic weight
+      # (supported only with trafficRouting)
       - setCanaryScale:
           replicas: 3
 
-      # set canary scale to a percentage of spec.replicas
+      # set canary scale to a percentage of spec.replicas without changing traffic weight
       # (supported only with trafficRouting)
       - setCanaryScale:
           weight: 25

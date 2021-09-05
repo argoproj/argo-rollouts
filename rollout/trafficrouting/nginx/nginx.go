@@ -15,6 +15,7 @@ import (
 	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -70,6 +71,11 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, nam
 		Spec: extensionsv1beta1.IngressSpec{
 			Rules: make([]extensionsv1beta1.IngressRule, 0), // We have no way of knowing yet how many rules there will be
 		},
+	}
+
+	// Preserve ingressClassName from stable ingress
+	if stableIngress.Spec.IngressClassName != nil {
+		desiredCanaryIngress.Spec.IngressClassName = stableIngress.Spec.IngressClassName
 	}
 
 	// Must preserve ingress.class on canary ingress, no other annotations matter
@@ -140,7 +146,7 @@ func compareCanaryIngresses(current *extensionsv1beta1.Ingress, desired *extensi
 }
 
 // SetWeight modifies Nginx Ingress resources to reach desired state
-func (r *Reconciler) SetWeight(desiredWeight int32) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
 	ctx := context.TODO()
 	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	canaryIngressName := ingressutil.GetCanaryIngressName(r.cfg.Rollout)
@@ -225,7 +231,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32) error {
 	return nil
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32) (bool, error) {
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
 	return true, nil
 }
 

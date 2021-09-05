@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-bg-analysis
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-bg-analysis
+  template:
+    metadata:
+      labels:
+        app: rollout-bg-analysis
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+  strategy:
+    canary:
+      analysis:
+        templates:
+          - templateName: analysis-secret
+        startingStep: 1
+        args:
+          - name: failure-limit
+            value: "2"
+          - name: analysis-interval
+            value: "10s"
+          - name: inconclusive-limit
+            value: "2"
+          - name: success-condition
+            value: "It worked!"
+      steps:
+      - setWeight: 25
+      - pause: {}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: example-secret
+type: Opaque
+data:
+  secretUrl: aHR0cHM6Ly9naXN0LmdpdGh1YnVzZXJjb250ZW50LmNvbS9raGhpcmFuaS8yYWIxMTIzMjQwMjUxOGQ1Mjc3YWYwMzBkZDg5MTZkNy9yYXcvZDI3MmY1NTFmMmQxODA2YTAzOTc0ZGJhZWYxMWRmZDU1MTAyZmVlYS9leGFtcGxlLmpzb24=
+---
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: analysis-secret
+spec:
+  args:
+  - name: analysis-interval
+  - name: failure-limit
+  - name: inconclusive-limit
+  - name: success-condition
+    value: "replace"
+  - name: secret-url
+    valueFrom:
+      secretKeyRef:
+        name: example-secret
+        key: secretUrl
+  metrics:
+  - name: webmetric
+    interval: "{{args.analysis-interval}}"
+    initialDelay: "{{args.analysis-interval}}"
+    failureLimit: "{{args.failure-limit}}"
+    successCondition: result == "{{args.success-condition}}"
+    provider:
+      web:
+        url: "{{args.secret-url}}"
+        jsonPath: "{$.message}"

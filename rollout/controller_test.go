@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/queue"
-
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -46,10 +44,12 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+	"github.com/argoproj/argo-rollouts/utils/queue"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
@@ -101,6 +101,8 @@ type fixture struct {
 	enqueuedObjects map[string]int
 	unfreezeTime    func() error
 
+	// events holds all the K8s Event Reasons emitted during the run
+	events             []string
 	fakeTrafficRouting *mocks.TrafficRoutingReconciler
 }
 
@@ -253,11 +255,6 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 		if reason == conditions.RolloutRetryReason {
 			msg = conditions.RolloutRetryMessage
 			status = corev1.ConditionUnknown
-		}
-	case *corev1.Service:
-		if reason == conditions.ServiceNotFoundReason {
-			msg = fmt.Sprintf(conditions.ServiceNotFoundMessage, resource.Name)
-			status = corev1.ConditionFalse
 		}
 	}
 
@@ -484,7 +481,17 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
 	// Pass in objects to to dynamicClient
-	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	scheme := runtime.NewScheme()
+	v1alpha1.AddToScheme(scheme)
+	tgbGVR := schema.GroupVersionResource{
+		Group:    "elbv2.k8s.aws",
+		Version:  "v1beta1",
+		Resource: "targetgroupbindings",
+	}
+	listMapping := map[schema.GroupVersionResource]string{
+		tgbGVR: "TargetGroupBindingList",
+	}
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, f.objects...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
 	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
@@ -544,7 +551,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		c.enqueueRollout(obj)
 	}
 
-	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (TrafficRoutingReconciler, error) {
+	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
 		return f.fakeTrafficRouting, nil
 	}
 
@@ -636,6 +643,8 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 	if len(f.kubeactions) > len(k8sActions) {
 		f.t.Errorf("%d expected actions did not happen:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	}
+	fakeRecorder := c.recorder.(*record.FakeEventRecorder)
+	f.events = fakeRecorder.Events
 	return c
 }
 
@@ -825,6 +834,12 @@ func (f *fixture) expectPatchRolloutActionWithPatch(rollout *v1alpha1.Rollout, p
 	return len
 }
 
+func (f *fixture) expectGetEndpointsAction(ep *corev1.Endpoints) int {
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "endpoints"}, ep.Namespace, ep.Name))
+	return len
+}
+
 func (f *fixture) getCreatedReplicaSet(index int) *appsv1.ReplicaSet {
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	createAction, ok := action.(core.CreateAction)
@@ -875,6 +890,21 @@ func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy s
 		patch = fmt.Sprintf(switchSelectorAndAddManagedByPatch, managedBy, newPodHash)
 	}
 	assert.Equal(f.t, patch, string(patchAction.GetPatch()))
+}
+
+func (f *fixture) verifyPatchedRolloutAborted(index int, rsName string) {
+	action := filterInformerActions(f.kubeclient.Actions())[index]
+	_, ok := action.(core.PatchAction)
+	if !ok {
+		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+	}
+
+	ro := f.getPatchedRolloutAsObject(index)
+	assert.NotNil(f.t, ro)
+	assert.True(f.t, ro.Status.Abort)
+	assert.Equal(f.t, v1alpha1.RolloutPhaseDegraded, ro.Status.Phase)
+	expectedMsg := fmt.Sprintf("ProgressDeadlineExceeded: ReplicaSet %q has timed out progressing.", rsName)
+	assert.Equal(f.t, expectedMsg, ro.Status.Message)
 }
 
 func (f *fixture) verifyPatchedAnalysisRun(index int, ar *v1alpha1.AnalysisRun) bool {
@@ -1059,6 +1089,11 @@ func (f *fixture) getUpdatedPod(index int) *corev1.Pod {
 	objMap, _ := converter.ToUnstructured(obj)
 	runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, pod)
 	return pod
+}
+
+func (f *fixture) assertEvents(events []string) {
+	f.t.Helper()
+	assert.Equal(f.t, events, f.events)
 }
 
 func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {

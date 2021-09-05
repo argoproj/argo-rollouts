@@ -14,11 +14,14 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
+	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -51,6 +54,7 @@ type Common struct {
 	kubeClient     kubernetes.Interface
 	dynamicClient  dynamic.Interface
 	rolloutClient  clientset.Interface
+	smiClient      smiclientset.Interface
 
 	rollout *unstructured.Unstructured
 	objects []*unstructured.Unstructured
@@ -92,6 +96,30 @@ func (c *Common) PrintRolloutYAML(ro *rov1.Rollout) {
 	delete(ro.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 	ro.ManagedFields = nil
 	yamlBytes, err := yaml.Marshal(ro)
+	c.CheckError(err)
+	fmt.Fprintf(logrus.StandardLogger().Out, "\n---\n%s\n", string(yamlBytes))
+}
+
+func (c *Common) PrintExperiment(name string) {
+	streams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	o := options.NewArgoRolloutsOptions(streams)
+	getOptions := get.GetOptions{
+		ArgoRolloutsOptions: *o,
+	}
+	controller := viewcontroller.NewExperimentViewController(c.namespace, name, c.kubeClient, c.rolloutClient)
+	ctx := context.Background()
+	controller.Start(ctx)
+	ei, err := controller.GetExperimentInfo()
+	c.CheckError(err)
+	getOptions.PrintExperiment(ei)
+}
+
+func (c *Common) PrintExperimentYAML(ex *rov1.Experiment) {
+	ex = ex.DeepCopy()
+	// declutter the output
+	delete(ex.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	ex.ManagedFields = nil
+	yamlBytes, err := yaml.Marshal(ex)
 	c.CheckError(err)
 	fmt.Fprintf(logrus.StandardLogger().Out, "\n---\n%s\n", string(yamlBytes))
 }
@@ -172,6 +200,12 @@ func (c *Common) GetBackgroundAnalysisRun() *rov1.AnalysisRun {
 		c.t.FailNow()
 	}
 	return found
+}
+
+func (c *Common) GetExperimentByName(name string) *rov1.Experiment {
+	ex, err := c.rolloutClient.ArgoprojV1alpha1().Experiments(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ex
 }
 
 // GetInlineAnalysisRun returns the latest Step analysis run. This should generally be coupled with
@@ -448,6 +482,22 @@ func (c *Common) GetServices() (*corev1.Service, *corev1.Service) {
 	return desiredSvc, stableSvc
 }
 
+func (c *Common) GetALBIngress() *extensionsv1beta1.Ingress {
+	ro := c.Rollout()
+	name := ro.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
+	ingress, err := c.kubeClient.ExtensionsV1beta1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ingress
+}
+
+func (c *Common) GetTrafficSplit() *smiv1alpha1.TrafficSplit {
+	ro := c.Rollout()
+	name := ro.Spec.Strategy.Canary.TrafficRouting.SMI.TrafficSplitName
+	ts, err := c.smiClient.SplitV1alpha1().TrafficSplits(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ts
+}
+
 func (c *Common) GetVirtualService() *istio.VirtualService {
 	ro := c.Rollout()
 	name := ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
@@ -512,10 +562,21 @@ func (c *Common) GetRolloutEventReasons() []string {
 }
 
 // PrintRolloutEvents prints all Kubernetes events associated with the given rollout.
-// Note that events may be deduplicated, or printed out-of-order from when they were emitted,
-// so this function should only be used to assist with debugging and not correctness.
 func (c *Common) PrintRolloutEvents(ro *v1alpha1.Rollout) {
 	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("involvedObject.uid=%s", ro.UID)).String()}
+	c.PrintObjectEvents(opts)
+}
+
+// PrintExperimentEvents prints all Kubernetes events associated with the given experiment.
+func (c *Common) PrintExperimentEvents(ex *v1alpha1.Experiment) {
+	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("involvedObject.uid=%s", ex.UID)).String()}
+	c.PrintObjectEvents(opts)
+}
+
+// PrintObjectEvents prints all Kubernetes events associated with the given object.
+// Note that events may be deduplicated, or printed out-of-order from when they were emitted,
+// so this function should only be used to assist with debugging and not correctness.
+func (c *Common) PrintObjectEvents(opts metav1.ListOptions) {
 	events, err := c.kubeClient.CoreV1().Events(c.namespace).List(c.Context, opts)
 	c.CheckError(err)
 	buf := bytes.NewBufferString("")

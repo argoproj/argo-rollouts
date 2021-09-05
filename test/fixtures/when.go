@@ -53,8 +53,9 @@ func (w *When) ApplyManifests(yaml ...string) *When {
 		objects = w.parseTextToObjects(yaml[0])
 	}
 	for _, obj := range objects {
-		if obj.GetKind() == "Rollout" && E2EPodDelay > 0 {
+		if obj.GetKind() == "Rollout" {
 			w.injectDelays(obj)
+			w.injectImagePrefix(obj)
 		}
 		if obj.GetKind() == "Ingress" {
 			w.injectIngressAnnotations(obj)
@@ -72,6 +73,9 @@ func (w *When) DeleteObject(kind, name string) *When {
 // injectDelays adds postStart/preStop handlers to slow down readiness/termination by adding a
 // preStart and postStart handlers which sleeps for the specified duration.
 func (w *When) injectDelays(un *unstructured.Unstructured) {
+	if E2EPodDelay == 0 {
+		return
+	}
 	sleepHandler := corev1.Handler{
 		Exec: &corev1.ExecAction{
 			Command: []string{"sleep", strconv.Itoa(E2EPodDelay)},
@@ -87,6 +91,21 @@ func (w *When) injectDelays(un *unstructured.Unstructured) {
 	w.CheckError(err)
 	container := containersIf[0].(map[string]interface{})
 	container["lifecycle"] = lifecycleObj
+	containersIf[0] = container
+	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
+	w.CheckError(err)
+}
+
+// injectImagePrefix prefixes images used in tests with a prefix. Useful if container registries are blocked
+func (w *When) injectImagePrefix(un *unstructured.Unstructured) {
+	imagePrefix := os.Getenv(EnvVarE2EImagePrefix)
+	if imagePrefix == "" {
+		return
+	}
+	containersIf, _, err := unstructured.NestedSlice(un.Object, "spec", "template", "spec", "containers")
+	w.CheckError(err)
+	container := containersIf[0].(map[string]interface{})
+	container["image"] = imagePrefix + container["image"].(string)
 	containersIf[0] = container
 	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
 	w.CheckError(err)
@@ -189,6 +208,7 @@ func (w *When) ScaleRollout(scale int) *When {
 }
 
 func (w *When) Sleep(d time.Duration) *When {
+	w.log.Infof("Sleeping %s", d)
 	time.Sleep(d)
 	return w
 }
@@ -388,7 +408,37 @@ func (w *When) DeleteRollout() *When {
 	return w
 }
 
-func (w *When) WaitForAnalysisRunCondition(name string, test func(ro *rov1.AnalysisRun) bool, condition string, timeout time.Duration) *When {
+func (w *When) WaitForExperimentCondition(name string, test func(ex *rov1.Experiment) bool, condition string, timeout time.Duration) *When {
+	start := time.Now()
+	w.log.Infof("Waiting for Experiment %s condition: %s", name, condition)
+	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
+	watch, err := w.rolloutClient.ArgoprojV1alpha1().Experiments(w.namespace).Watch(w.Context, opts)
+	w.CheckError(err)
+	defer watch.Stop()
+	timeoutCh := make(chan bool, 1)
+	go func() {
+		time.Sleep(timeout)
+		timeoutCh <- true
+	}()
+	for {
+		select {
+		case event := <-watch.ResultChan():
+			ex, ok := event.Object.(*rov1.Experiment)
+			if ok {
+				if test(ex) {
+					w.log.Infof("Condition '%s' met after %v", condition, time.Since(start).Truncate(time.Second))
+					return w
+				}
+			} else {
+				w.t.Fatal("not ok")
+			}
+		case <-timeoutCh:
+			w.t.Fatalf("timeout after %v waiting for condition %s", timeout, condition)
+		}
+	}
+}
+
+func (w *When) WaitForAnalysisRunCondition(name string, test func(ar *rov1.AnalysisRun) bool, condition string, timeout time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for AnalysisRun %s condition: %s", name, condition)
 	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
@@ -418,10 +468,20 @@ func (w *When) WaitForAnalysisRunCondition(name string, test func(ro *rov1.Analy
 	}
 }
 
+func checkExperimentPhase(phase string) func(ex *rov1.Experiment) bool {
+	return func(ex *rov1.Experiment) bool {
+		return string(ex.Status.Phase) == phase
+	}
+}
+
 func checkAnalysisRunPhase(phase string) func(ar *rov1.AnalysisRun) bool {
 	return func(ar *rov1.AnalysisRun) bool {
 		return string(ar.Status.Phase) == phase
 	}
+}
+
+func (w *When) WaitForExperimentPhase(name string, phase string) *When {
+	return w.WaitForExperimentCondition(name, checkExperimentPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
 }
 
 func (w *When) WaitForBackgroundAnalysisRunPhase(phase string) *When {

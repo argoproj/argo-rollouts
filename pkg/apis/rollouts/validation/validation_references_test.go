@@ -46,6 +46,29 @@ spec:
         host: canary
       weight: 0`
 
+const successCaseTlsVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  tls:
+  - match:
+    - port: 443
+      sniHosts:
+      - 'istio-rollout.dev.argoproj.io'
+    route:
+    - destination:
+        host: stable
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
 const failCaseVsvc = `apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -73,6 +96,40 @@ spec:
     - destination:
         host: canary
       weight: 0`
+
+const failCaseTlsVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  tls:
+  - match:
+    - port: 443
+      sniHosts:
+      - 'istio-rollout.dev.argoproj.io'
+    route:
+    - destination:
+        host: not-stable
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
+const failCaseNoRoutesVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io`
 
 func getAnalysisTemplatesWithType() AnalysisTemplatesWithType {
 	count := intstr.FromInt(1)
@@ -369,19 +426,40 @@ func TestValidateVirtualService(t *testing.T) {
 		},
 	}
 
-	t.Run("validate virtualService - success", func(t *testing.T) {
+	t.Run("validate virtualService HTTP routes - success", func(t *testing.T) {
 		vsvc := unstructured.StrToUnstructuredUnsafe(successCaseVsvc)
 		allErrs := ValidateVirtualService(ro, *vsvc)
 		assert.Empty(t, allErrs)
 	})
 
-	t.Run("validate virtualService - failure", func(t *testing.T) {
+	t.Run("validate virtualService HTTP routes - failure", func(t *testing.T) {
 		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseVsvc)
 		allErrs := ValidateVirtualService(ro, *vsvc)
 		assert.Len(t, allErrs, 1)
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "Istio VirtualService has invalid HTTP routes. Error: Stable Service 'stable' not found in route")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+	})
 
+	t.Run("validate virtualService TLS routes - success", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(successCaseTlsVsvc)
+		allErrs := ValidateVirtualService(ro, *vsvc)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("validate virtualService TLS routes - failure", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseTlsVsvc)
+		allErrs := ValidateVirtualService(ro, *vsvc)
+		assert.Len(t, allErrs, 1)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "Istio VirtualService has invalid TLS routes. Error: Stable Service 'stable' not found in route")
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+	})
+
+	t.Run("validate virtualService no routes - failure", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseNoRoutesVsvc)
+		allErrs := ValidateVirtualService(ro, *vsvc)
+		assert.Len(t, allErrs, 1)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "Unable to get HTTP and/or TLS routes for Istio VirtualService")
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
 }
 

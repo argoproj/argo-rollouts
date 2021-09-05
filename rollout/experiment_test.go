@@ -519,6 +519,7 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	f.expectCreateReplicaSetAction(rs2)
 	f.expectUpdateRolloutAction(r2)       // update revision
 	f.expectUpdateRolloutStatusAction(r2) // update progressing condition
+	f.expectUpdateReplicaSetAction(rs2)   // scale replicaset
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r2, t))
 }
@@ -748,4 +749,47 @@ func TestRolloutCreateExperimentWithInstanceID(t *testing.T) {
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, createdEx.Name, ex.Name)
 	assert.Equal(t, "instance-id-test", createdEx.Labels[v1alpha1.LabelKeyControllerInstanceID])
+}
+
+// TestRolloutCreateExperimentWithService verifies the controller sets CreateService for Experiment Template as expected.
+// CreateService is true when Weight is set in RolloutExperimentStep for template, otherwise false.
+func TestRolloutCreateExperimentWithService(t *testing.T) {
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{
+				// Service should be created for "stable-template"
+				{
+					Name:     "stable-template",
+					SpecRef:  v1alpha1.StableSpecRef,
+					Replicas: pointer.Int32Ptr(1),
+					Weight:   pointer.Int32Ptr(5),
+				},
+				// Service should NOT be created for "canary-template"
+				{
+					Name:     "canary-template",
+					SpecRef:  v1alpha1.CanarySpecRef,
+					Replicas: pointer.Int32Ptr(1),
+				},
+			},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.StableRS = rs1PodHash
+
+	ex, err := GetExperimentFromTemplate(r2, rs1, rs2)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "stable-template", ex.Spec.Templates[0].Name)
+	assert.NotNil(t, ex.Spec.Templates[0].Service)
+
+	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Name)
+	assert.Nil(t, ex.Spec.Templates[1].Service)
 }

@@ -7,9 +7,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
-	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -17,6 +14,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 const (
@@ -543,7 +545,7 @@ func TestGetMappingGVR(t *testing.T) {
 	})
 	t.Run("will get gvr successfully", func(t *testing.T) {
 		// given
-		ambassador.SetAPIVersion("v1")
+		defaults.SetAmbassadorAPIVersion("v1")
 
 		// when
 		gvr := ambassador.GetMappingGVR()
@@ -556,7 +558,7 @@ func TestGetMappingGVR(t *testing.T) {
 	t.Run("will get valid gvr even if apiVersion has the wrong domain", func(t *testing.T) {
 		// given
 		apiVersion := "invalid.com/v1alpha1"
-		ambassador.SetAPIVersion(apiVersion)
+		defaults.SetAmbassadorAPIVersion(apiVersion)
 
 		// when
 		gvr := ambassador.GetMappingGVR()
@@ -565,12 +567,12 @@ func TestGetMappingGVR(t *testing.T) {
 		assert.Equal(t, "invalid.com", gvr.Group)
 		assert.Equal(t, "v1alpha1", gvr.Version)
 		assert.Equal(t, "mappings", gvr.Resource)
-		assert.Equal(t, apiVersion, ambassador.GetAPIVersion())
+		assert.Equal(t, apiVersion, defaults.GetAmbassadorAPIVersion())
 	})
 	t.Run("will get correct gvr for x.getambassador.io api group", func(t *testing.T) {
 		// given
 		apiVersion := "x.getambassador.io/v3alpha1"
-		ambassador.SetAPIVersion(apiVersion)
+		defaults.SetAmbassadorAPIVersion(apiVersion)
 
 		// when
 		gvr := ambassador.GetMappingGVR()
@@ -579,7 +581,7 @@ func TestGetMappingGVR(t *testing.T) {
 		assert.Equal(t, "x.getambassador.io", gvr.Group)
 		assert.Equal(t, "v3alpha1", gvr.Version)
 		assert.Equal(t, "ambassadormappings", gvr.Resource)
-		assert.Equal(t, apiVersion, ambassador.GetAPIVersion())
+		assert.Equal(t, apiVersion, defaults.GetAmbassadorAPIVersion())
 	})
 }
 

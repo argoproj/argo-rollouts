@@ -3,7 +3,6 @@ package rollout
 import (
 	"math"
 	"sort"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +25,12 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return err
 	}
 
+	// This must happen right after the new replicaset is created
+	err = c.reconcilePreviewService(previewSvc)
+	if err != nil {
+		return err
+	}
+
 	if replicasetutil.CheckPodSpecChange(c.rollout, c.newRS) {
 		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
 	}
@@ -40,14 +45,14 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return err
 	}
 
-	err = c.reconcilePreviewService(previewSvc)
+	c.reconcileBlueGreenPause(activeSvc, previewSvc)
+
+	err = c.reconcileActiveService(activeSvc)
 	if err != nil {
 		return err
 	}
 
-	c.reconcileBlueGreenPause(activeSvc, previewSvc)
-
-	err = c.reconcileActiveService(activeSvc)
+	err = c.awsVerifyTargetGroups(activeSvc)
 	if err != nil {
 		return err
 	}
@@ -163,22 +168,24 @@ func (c *rolloutContext) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.S
 		return
 	}
 	pauseCond := getPauseCondition(c.rollout, v1alpha1.PauseReasonBlueGreenPause)
-	if pauseCond == nil && !c.rollout.Status.ControllerPause {
-		if pauseCond == nil {
-			c.log.Info("pausing")
-		}
-		c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonBlueGreenPause)
-		return
-	}
-
-	if !c.pauseContext.CompletedBlueGreenPause() {
-		c.log.Info("pause incomplete")
-		if c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds > 0 {
-			c.checkEnqueueRolloutDuringWait(pauseCond.StartTime, c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds)
+	if pauseCond != nil {
+		// We are currently paused. Check if we completed our pause duration
+		if !c.pauseContext.CompletedBlueGreenPause() {
+			c.log.Info("pause incomplete")
+			if c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds > 0 {
+				c.checkEnqueueRolloutDuringWait(pauseCond.StartTime, c.rollout.Spec.Strategy.BlueGreen.AutoPromotionSeconds)
+			}
+		} else {
+			c.log.Infof("pause completed")
+			c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
 		}
 	} else {
-		c.log.Infof("pause completed")
-		c.pauseContext.RemovePauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+		// no pause condition exists. If Status.ControllerPause is true, the user manually resumed
+		// the rollout. e.g. `kubectl argo rollouts promote ROLLOUT`
+		if !c.rollout.Status.ControllerPause {
+			c.log.Info("pausing")
+			c.pauseContext.AddPauseCondition(v1alpha1.PauseReasonBlueGreenPause)
+		}
 	}
 }
 
@@ -217,35 +224,23 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 			c.log.Warnf("Prevented inadvertent scaleDown of RS '%s'", targetRS.Name)
 			continue
 		}
-
-		desiredReplicaCount := int32(0)
-		if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
-			annotationedRSs++
-			scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
-			scaleDownRevisionLimit := getScaleDownRevisionLimit(c.rollout)
-			if err != nil {
-				c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", targetRS.Name)
-			} else if annotationedRSs > scaleDownRevisionLimit {
-				c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
-			} else {
-				now := metav1.Now()
-				scaleDownAt := metav1.NewTime(scaleDownAtTime)
-				if scaleDownAt.After(now.Time) {
-					c.log.Infof("RS '%s' has not reached the scaleDownTime", targetRS.Name)
-					remainingTime := scaleDownAt.Sub(now.Time)
-					if remainingTime < c.resyncPeriod {
-						c.enqueueRolloutAfter(c.rollout, remainingTime)
-					}
-					desiredReplicaCount = rolloutReplicas
-				}
-			}
+		if *targetRS.Spec.Replicas == 0 {
+			// cannot scale down this ReplicaSet.
+			continue
 		}
-		if *(targetRS.Spec.Replicas) == desiredReplicaCount {
-			// at desired account
+		var desiredReplicaCount int32
+		var err error
+		annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
+		if err != nil {
+			return false, err
+		}
+
+		if *targetRS.Spec.Replicas == desiredReplicaCount {
+			// already at desired account, nothing to do
 			continue
 		}
 		// Scale down.
-		_, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
+		_, _, err = c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
 		if err != nil {
 			return false, err
 		}
@@ -255,7 +250,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 	return hasScaled, nil
 }
 
-func getScaleDownRevisionLimit(ro *v1alpha1.Rollout) int32 {
+func GetScaleDownRevisionLimit(ro *v1alpha1.Rollout) int32 {
 	if ro.Spec.Strategy.BlueGreen != nil {
 		if ro.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit != nil {
 			return *ro.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit

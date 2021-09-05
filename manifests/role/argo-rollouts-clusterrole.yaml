@@ -1,10 +1,10 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: argo-rollouts-clusterrole
+  name: argo-rollouts
   labels:
     app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-clusterrole
+    app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
 rules:
 - apiGroups:
@@ -56,18 +56,19 @@ rules:
   - update
   - patch
   - delete
-  # deployments and podtemplates read access needed for workload reference support
+# deployments and podtemplates read access needed for workload reference support
 - apiGroups:
-    - ""
-    - apps
+  - ""
+  - apps
   resources:
-    - deployments
-    - podtemplates
+  - deployments
+  - podtemplates
   verbs:
-    - get
-    - list
-    - watch
+  - get
+  - list
+  - watch
 # services patch needed to update selector of canary/stable/active/preview services
+# services create needed to create services for experiments
 - apiGroups:
   - ""
   resources:
@@ -77,6 +78,7 @@ rules:
   - list
   - watch
   - patch
+  - create
 # secret read access to run analysis templates which reference secrets
 - apiGroups:
   - ""
@@ -159,20 +161,12 @@ rules:
   - get
   - update
   - patch
+# ambassador access needed for Ambassador provider
 - apiGroups:
   - getambassador.io
-  resources:
-  - mappings
-  verbs:
-  - create
-  - watch
-  - get
-  - update
-  - list
-  - delete
-- apiGroups:
   - x.getambassador.io
   resources:
+  - mappings
   - ambassadormappings
   verbs:
   - create
@@ -181,3 +175,17 @@ rules:
   - update
   - list
   - delete
+# Endpoints and TargetGroupBindings needed for ALB target group verification
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+- apiGroups:
+  - elbv2.k8s.aws
+  resources:
+  - targetgroupbindings
+  verbs:
+  - list
+  - get

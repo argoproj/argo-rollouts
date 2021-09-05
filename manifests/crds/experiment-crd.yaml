@@ -85,6 +85,9 @@ spec:
               progressDeadlineSeconds:
                 format: int32
                 type: integer
+              scaleDownDelaySeconds:
+                format: int32
+                type: integer
               templates:
                 items:
                   properties:
@@ -118,6 +121,8 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                      type: object
+                    service:
                       type: object
                     template:
                       properties:
@@ -2306,12 +2311,16 @@ spec:
                       type: string
                     name:
                       type: string
+                    podTemplateHash:
+                      type: string
                     readyReplicas:
                       format: int32
                       type: integer
                     replicas:
                       format: int32
                       type: integer
+                    serviceName:
+                      type: string
                     status:
                       type: string
                     updatedReplicas:

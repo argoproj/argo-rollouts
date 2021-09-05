@@ -17,6 +17,10 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag }}
 
+      - name: Get SHA
+        id: get-sha
+        run: echo "::set-output name=sha::$(git log -1 --format='%H')"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 
@@ -27,9 +31,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
+          key: ${{ runner.os }}-buildx-${{ steps.get-sha.outputs.sha }}
 
       - name: Print Disk Usage
         run: |
@@ -45,6 +47,8 @@ jobs:
             ghcr.io/argoproj/argo-rollouts
           tags: |
             type=semver,pattern={{version}},prefix=v,value=${{ github.event.inputs.tag }}
+          flavor: |
+            latest=false
 
       - name: Docker meta (plugin)
         id: plugin-meta
@@ -55,6 +59,8 @@ jobs:
             ghcr.io/argoproj/kubectl-argo-rollouts
           tags: |
             type=semver,pattern={{version}},prefix=v,value=${{ github.event.inputs.tag }}
+          flavor: |
+            latest=false
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -75,6 +81,7 @@ jobs:
       - name: Build and push (controller-image)
         uses: docker/build-push-action@v2
         with:
+          context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.controller-meta.outputs.tags }}
@@ -84,6 +91,7 @@ jobs:
       - name: Build and push (plugin-image)
         uses: docker/build-push-action@v2
         with:
+          context: .
           target: kubectl-argo-rollouts
           platforms: linux/amd64,linux/arm64
           push: true
