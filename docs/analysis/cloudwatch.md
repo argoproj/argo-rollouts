@@ -61,7 +61,7 @@ spec:
 ## Configuration
 
 - `metricDataQueries` - GetMetricData query: [MetricDataQuery](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_MetricDataQuery.html)
-- `interval` - optional interval, e.g. 15m, default: 5m
+- `interval` - optional interval, e.g. 30m, default: 5m
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -72,41 +72,41 @@ spec:
   metrics:
   - name: success-rate
     interval: 1m
-    successCondition: "all(result[0].Values, {# <= 0.01})"
+    successCondition: "len(result[0].Values) >= 5 and all(result[0].Values, {# <= 0.01})"
     failureLimit: 3
     provider:
       cloudWatch:
-        interval: 15m
+        interval: 30m
         metricDataQueries:
         - {
-            "Id": "rate",
-            "Expression": "errors / requests"
+            "id": "rate",
+            "expression": "errors / requests"
           }
         - {
-            "Id": "errors",
-            "MetricStat": {
-              "Metric": {
-                "Namespace": "app",
-                "MetricName": "errors"
+            "id": "errors",
+            "metricStat": {
+              "metric": {
+                "namespace": "app",
+                "metricName": "errors"
               },
-              "Period": 300,
-              "Stat": "Sum",
-              "Unit": "Count"
+              "period": 300,
+              "stat": "Sum",
+              "unit": "Count"
             },
-            "ReturnData": false
+            "returnData": false
           }
         - {
-            "Id": "requests",
-            "MetricStat": {
-              "Metric": {
-                "Namespace": "app",
-                "MetricName": "requests"
+            "id": "requests",
+            "metricStat": {
+              "metric": {
+                "namespace": "app",
+                "metricName": "requests"
               },
-              "Period": 300,
-              "Stat": "Sum",
-              "Unit": "Count"
+              "period": 300,
+              "stat": "Sum",
+              "unit": "Count"
             },
-            "ReturnData": false
+            "returnData": false
           }
 ```
 
@@ -115,5 +115,26 @@ spec:
 You can confirm the results value in `AnalysisRun`.
 
 ```bash
-kubectl get analysisrun/rollouts-name-xxxxxxxxxx-xx -o json | jq ".status.metricResults"
+$ kubectl get analysisrun/rollouts-name-xxxxxxxxxx-xx -o yaml
+(snip)
+status:
+  metricResults:
+  - count: 2
+    failed: 1
+    measurements:
+    - finishedAt: "2021-09-08T17:29:14Z"
+      phase: Failed
+      startedAt: "2021-09-08T17:29:13Z"
+      value: '[[0.0029476787030213707 0.006100422336931018 0.01020408163265306 0.007932573128408527
+        0.00589622641509434 0.006339144215530904]]'
+    - finishedAt: "2021-09-08T17:30:14Z"
+      phase: Successful
+      startedAt: "2021-09-08T17:30:14Z"
+      value: '[[0.004484304932735426 0.0058374494836102376 0.006736068585425597 0.008444444444444444
+        0.006859756097560976 0.0045385779122541605]]'
+    name: success-rate
+    phase: Running
+    successful: 1
+  phase: Running
+  startedAt: "2021-09-08T17:29:14Z"
 ```

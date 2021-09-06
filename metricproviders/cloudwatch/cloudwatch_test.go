@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -223,69 +224,159 @@ func TestNewCloudWatchAPIClient(t *testing.T) {
 }
 
 func TestConvertType(t *testing.T) {
-	query := []v1alpha1.CloudWatchMetricDataQuery{
+	period := intstr.FromInt(300)
+	tests := []struct {
+		query    []v1alpha1.CloudWatchMetricDataQuery
+		expected []types.MetricDataQuery
+	}{
 		{
-			Id:         pointer.StringPtr("rate"),
-			Expression: pointer.StringPtr("errors / requests"),
+			query: []v1alpha1.CloudWatchMetricDataQuery{
+				{
+					Id:         "rate",
+					Expression: pointer.StringPtr("errors / requests"),
+				},
+				{
+					Id: "errors",
+					MetricStat: &v1alpha1.CloudWatchMetricStat{
+						Metric: v1alpha1.CloudWatchMetricStatMetric{
+							Namespace:  pointer.StringPtr("app"),
+							MetricName: "errors",
+						},
+						Period: period,
+						Stat:   "Sum",
+						Unit:   "Count",
+					},
+					ReturnData: pointer.BoolPtr(false),
+				},
+				{
+					Id: "requests",
+					MetricStat: &v1alpha1.CloudWatchMetricStat{
+						Metric: v1alpha1.CloudWatchMetricStatMetric{
+							Namespace:  pointer.StringPtr("app"),
+							MetricName: "requests",
+						},
+						Period: period,
+						Stat:   "Sum",
+						Unit:   "Count",
+					},
+					ReturnData: pointer.BoolPtr(false),
+				},
+			},
+			expected: []types.MetricDataQuery{
+				{
+					Id:         pointer.StringPtr("rate"),
+					Expression: pointer.StringPtr("errors / requests"),
+				},
+				{
+					Id: pointer.StringPtr("errors"),
+					MetricStat: &types.MetricStat{
+						Metric: &types.Metric{
+							Namespace:  pointer.StringPtr("app"),
+							MetricName: pointer.StringPtr("errors"),
+						},
+						Period: pointer.Int32Ptr(300),
+						Stat:   pointer.StringPtr("Sum"),
+						Unit:   types.StandardUnitCount,
+					},
+					ReturnData: pointer.BoolPtr(false),
+				},
+				{
+					Id: pointer.StringPtr("requests"),
+					MetricStat: &types.MetricStat{
+						Metric: &types.Metric{
+							Namespace:  pointer.StringPtr("app"),
+							MetricName: pointer.StringPtr("requests"),
+						},
+						Period: pointer.Int32Ptr(300),
+						Stat:   pointer.StringPtr("Sum"),
+						Unit:   types.StandardUnitCount,
+					},
+					ReturnData: pointer.BoolPtr(false),
+				},
+			},
 		},
 		{
-			Id: pointer.StringPtr("errors"),
-			MetricStat: &v1alpha1.CloudWatchMetricStat{
-				Metric: &v1alpha1.CloudWatchMetricStatMetric{
-					Namespace:  pointer.StringPtr("app"),
-					MetricName: pointer.StringPtr("errors"),
+			query: []v1alpha1.CloudWatchMetricDataQuery{
+				{
+					Id:         "rate",
+					Expression: pointer.StringPtr("errors / requests"),
 				},
-				Period: pointer.Int32Ptr(300),
-				Stat:   pointer.StringPtr("Sum"),
-				Unit:   "Count",
-			},
-			ReturnData: pointer.BoolPtr(false),
-		},
-		{
-			Id: pointer.StringPtr("requests"),
-			MetricStat: &v1alpha1.CloudWatchMetricStat{
-				Metric: &v1alpha1.CloudWatchMetricStatMetric{
-					Namespace:  pointer.StringPtr("app"),
-					MetricName: pointer.StringPtr("requests"),
+				{
+					Id: "errors",
+					MetricStat: &v1alpha1.CloudWatchMetricStat{
+						Metric: v1alpha1.CloudWatchMetricStatMetric{
+							Dimensions: []v1alpha1.CloudWatchMetricStatMetricDimension{
+								{
+									Name:  "hoge",
+									Value: "fuga",
+								},
+							},
+							Namespace:  pointer.StringPtr("app1"),
+							MetricName: "errors",
+						},
+						Period: period,
+						Stat:   "Max",
+						Unit:   "Count",
+					},
+					ReturnData: pointer.BoolPtr(false),
 				},
-				Period: pointer.Int32Ptr(300),
-				Stat:   pointer.StringPtr("Sum"),
-				Unit:   "Count",
+				{
+					Id: "requests",
+					MetricStat: &v1alpha1.CloudWatchMetricStat{
+						Metric: v1alpha1.CloudWatchMetricStatMetric{
+							Namespace:  pointer.StringPtr("app2"),
+							MetricName: "requests",
+						},
+						Period: period,
+						Stat:   "Sum",
+						Unit:   "Bytes/Second",
+					},
+					ReturnData: pointer.BoolPtr(true),
+				},
 			},
-			ReturnData: pointer.BoolPtr(false),
+			expected: []types.MetricDataQuery{
+				{
+					Id:         pointer.StringPtr("rate"),
+					Expression: pointer.StringPtr("errors / requests"),
+				},
+				{
+					Id: pointer.StringPtr("errors"),
+					MetricStat: &types.MetricStat{
+						Metric: &types.Metric{
+							Namespace:  pointer.StringPtr("app1"),
+							MetricName: pointer.StringPtr("errors"),
+							Dimensions: []types.Dimension{
+								{
+									Name:  pointer.StringPtr("hoge"),
+									Value: pointer.StringPtr("fuga"),
+								},
+							},
+						},
+						Period: pointer.Int32Ptr(300),
+						Stat:   pointer.StringPtr("Max"),
+						Unit:   types.StandardUnitCount,
+					},
+					ReturnData: pointer.BoolPtr(false),
+				},
+				{
+					Id: pointer.StringPtr("requests"),
+					MetricStat: &types.MetricStat{
+						Metric: &types.Metric{
+							Namespace:  pointer.StringPtr("app2"),
+							MetricName: pointer.StringPtr("requests"),
+						},
+						Period: pointer.Int32Ptr(300),
+						Stat:   pointer.StringPtr("Sum"),
+						Unit:   types.StandardUnitBytesSecond,
+					},
+					ReturnData: pointer.BoolPtr(true),
+				},
+			},
 		},
 	}
-	result := convertType(query)
-	assert.Equal(t, []types.MetricDataQuery{
-		{
-			Id:         pointer.StringPtr("rate"),
-			Expression: pointer.StringPtr("errors / requests"),
-		},
-		{
-			Id: pointer.StringPtr("errors"),
-			MetricStat: &types.MetricStat{
-				Metric: &types.Metric{
-					Namespace:  pointer.StringPtr("app"),
-					MetricName: pointer.StringPtr("errors"),
-				},
-				Period: pointer.Int32Ptr(300),
-				Stat:   pointer.StringPtr("Sum"),
-				Unit:   types.StandardUnitCount,
-			},
-			ReturnData: pointer.BoolPtr(false),
-		},
-		{
-			Id: pointer.StringPtr("requests"),
-			MetricStat: &types.MetricStat{
-				Metric: &types.Metric{
-					Namespace:  pointer.StringPtr("app"),
-					MetricName: pointer.StringPtr("requests"),
-				},
-				Period: pointer.Int32Ptr(300),
-				Stat:   pointer.StringPtr("Sum"),
-				Unit:   types.StandardUnitCount,
-			},
-			ReturnData: pointer.BoolPtr(false),
-		},
-	}, result)
+
+	for _, tt := range tests {
+		result := convertType(tt.query)
+		assert.Equal(t, tt.expected, result)
+	}
 }

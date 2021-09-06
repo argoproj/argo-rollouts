@@ -198,35 +198,35 @@ type JobMetric struct {
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
 type CloudWatchMetric struct {
 	Interval          DurationString              `json:"interval,omitempty" protobuf:"bytes,1,opt,name=interval,casttype=DurationString"`
-	MetricDataQueries []CloudWatchMetricDataQuery `json:"metricDataQueries" protobuf:"bytes,2,opt,name=metricDataQueries"`
+	MetricDataQueries []CloudWatchMetricDataQuery `json:"metricDataQueries" protobuf:"bytes,2,rep,name=metricDataQueries"`
 }
 
 // CloudWatchMetricDataQuery defines the cloudwatch query
 type CloudWatchMetricDataQuery struct {
-	Id         *string               `json:"Id,omitempty" protobuf:"bytes,1,opt,name=Id"`
-	Expression *string               `json:"Expression,omitempty" protobuf:"bytes,2,opt,name=Expression"`
-	Label      *string               `json:"Label,omitempty" protobuf:"bytes,3,opt,name=Label"`
-	MetricStat *CloudWatchMetricStat `json:"MetricStat,omitempty" protobuf:"bytes,4,opt,name=MetricStat"`
-	Period     *int32                `json:"Period,omitempty" protobuf:"varint,5,opt,name=Period"`
-	ReturnData *bool                 `json:"ReturnData,omitempty" protobuf:"bytes,6,opt,name=ReturnData"`
+	Id         string                  `json:"id,omitempty" protobuf:"bytes,1,opt,name=id"`
+	Expression *string                 `json:"expression,omitempty" protobuf:"bytes,2,opt,name=expression"`
+	Label      *string                 `json:"label,omitempty" protobuf:"bytes,3,opt,name=label"`
+	MetricStat *CloudWatchMetricStat   `json:"metricStat,omitempty" protobuf:"bytes,4,opt,name=metricStat"`
+	Period     *intstrutil.IntOrString `json:"period,omitempty" protobuf:"varint,5,opt,name=period"`
+	ReturnData *bool                   `json:"returnData,omitempty" protobuf:"bytes,6,opt,name=returnData"`
 }
 
 type CloudWatchMetricStat struct {
-	Metric *CloudWatchMetricStatMetric `json:"Metric,omitempty" protobuf:"bytes,1,opt,name=Metric"`
-	Period *int32                      `json:"Period,omitempty" protobuf:"varint,2,opt,name=Period"`
-	Stat   *string                     `json:"Stat,omitempty" protobuf:"bytes,3,opt,name=Stat"`
-	Unit   string                      `json:"Unit,omitempty" protobuf:"bytes,4,opt,name=Unit"`
+	Metric CloudWatchMetricStatMetric `json:"metric,omitempty" protobuf:"bytes,1,opt,name=metric"`
+	Period intstrutil.IntOrString     `json:"period,omitempty" protobuf:"varint,2,opt,name=period"`
+	Stat   string                     `json:"stat,omitempty" protobuf:"bytes,3,opt,name=stat"`
+	Unit   string                     `json:"unit,omitempty" protobuf:"bytes,4,opt,name=unit"`
 }
 
 type CloudWatchMetricStatMetric struct {
-	Dimensions []CloudWatchMetricStatMetricDimension `json:"Dimensions,omitempty" protobuf:"bytes,1,opt,name=Dimensions"`
-	MetricName *string                               `json:"MetricName,omitempty" protobuf:"bytes,2,opt,name=MetricName"`
-	Namespace  *string                               `json:"Namespace,omitempty" protobuf:"bytes,3,opt,name=Namespace"`
+	Dimensions []CloudWatchMetricStatMetricDimension `json:"dimensions,omitempty" protobuf:"bytes,1,rep,name=dimensions"`
+	MetricName string                                `json:"metricName,omitempty" protobuf:"bytes,2,opt,name=metricName"`
+	Namespace  *string                               `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
 }
 
 type CloudWatchMetricStatMetricDimension struct {
-	Name  *string `json:"Name,omitempty" protobuf:"bytes,1,opt,name=Name"`
-	Value *string `json:"Value,omitempty" protobuf:"bytes,2,opt,name=Value"`
+	Name  string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 }
 
 // AnalysisRun is an instantiation of an AnalysisTemplate

@@ -99,42 +99,46 @@ spec:
                             metricDataQueries:
                               items:
                                 properties:
-                                  Expression:
+                                  expression:
                                     type: string
-                                  Id:
+                                  id:
                                     type: string
-                                  Label:
+                                  label:
                                     type: string
-                                  MetricStat:
+                                  metricStat:
                                     properties:
-                                      Metric:
+                                      metric:
                                         properties:
-                                          Dimensions:
+                                          dimensions:
                                             items:
                                               properties:
-                                                Name:
+                                                name:
                                                   type: string
-                                                Value:
+                                                value:
                                                   type: string
                                               type: object
                                             type: array
-                                          MetricName:
+                                          metricName:
                                             type: string
-                                          Namespace:
+                                          namespace:
                                             type: string
                                         type: object
-                                      Period:
-                                        format: int32
-                                        type: integer
-                                      Stat:
+                                      period:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        x-kubernetes-int-or-string: true
+                                      stat:
                                         type: string
-                                      Unit:
+                                      unit:
                                         type: string
                                     type: object
-                                  Period:
-                                    format: int32
-                                    type: integer
-                                  ReturnData:
+                                  period:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
+                                    x-kubernetes-int-or-string: true
+                                  returnData:
                                     type: boolean
                                 type: object
                               type: array

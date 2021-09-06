@@ -134,38 +134,41 @@ func convertType(data []v1alpha1.CloudWatchMetricDataQuery) []types.MetricDataQu
 	for i, v := range data {
 		var metricStat *types.MetricStat
 		if v.MetricStat != nil {
+			metricStatPeriod := int32(v.MetricStat.Period.IntValue())
 			metricStat = &types.MetricStat{
-				Metric: nil,
-				Period: v.MetricStat.Period,
-				Stat:   v.MetricStat.Stat,
+				Metric: &types.Metric{
+					Dimensions: nil,
+					MetricName: &v.MetricStat.Metric.MetricName,
+					Namespace:  v.MetricStat.Metric.Namespace,
+				},
+				Period: &metricStatPeriod,
+				Stat:   &v.MetricStat.Stat,
 				Unit:   types.StandardUnit(v.MetricStat.Unit),
 			}
 
-			if v.MetricStat.Metric != nil {
-				metricStat.Metric = &types.Metric{
-					Dimensions: nil,
-					MetricName: v.MetricStat.Metric.MetricName,
-					Namespace:  v.MetricStat.Metric.Namespace,
-				}
-
-				if v.MetricStat.Metric.Dimensions != nil {
-					metricStat.Metric.Dimensions = make([]types.Dimension, len(v.MetricStat.Metric.Dimensions))
-					for j, d := range v.MetricStat.Metric.Dimensions {
-						metricStat.Metric.Dimensions[j] = types.Dimension{
-							Name:  d.Name,
-							Value: d.Value,
-						}
+			if v.MetricStat.Metric.Dimensions != nil {
+				metricStat.Metric.Dimensions = make([]types.Dimension, len(v.MetricStat.Metric.Dimensions))
+				for j, d := range v.MetricStat.Metric.Dimensions {
+					metricStat.Metric.Dimensions[j] = types.Dimension{
+						Name:  &d.Name,
+						Value: &d.Value,
 					}
 				}
 			}
 		}
 
+		var period *int32
+		if v.Period != nil {
+			p := int32(v.Period.IntValue())
+			period = &p
+		}
+		id := v.Id
 		result[i] = types.MetricDataQuery{
-			Id:         v.Id,
+			Id:         &id,
 			Expression: v.Expression,
 			Label:      v.Label,
 			MetricStat: metricStat,
-			Period:     v.Period,
+			Period:     period,
 			ReturnData: v.ReturnData,
 		}
 	}
