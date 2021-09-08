@@ -706,6 +706,93 @@ func TestCanaryRolloutScaleDownOldRsDontScaleDownTooMuch(t *testing.T) {
 
 }
 
+// TestCanaryDontScaleDownOldRsDuringInterruptedUpdate tests when we need to prevent scale down an
+// intermediate V2 ReplicaSet when applying a V3 spec in the middle of updating a traffic routed
+// canary going from V1 -> V2 (i.e. because we haven't shifted traffic away from V2 yet).
+func TestCanaryDontScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32Ptr(100),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.StableService = "stable-svc"
+	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r1.Status.CurrentPodHash}, r1)
+	canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+	r3.Status.StableRS = r1.Status.CurrentPodHash
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5)
+	rs3 := newReplicaSetWithStatus(r3, 5, 0)
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	f.expectPatchRolloutAction(r3)
+	f.run(getKey(r3, t))
+}
+
+// TestCanaryScaleDownOldRsDuringInterruptedUpdate tests that we proceed with scale down of an
+// intermediate V2 ReplicaSet when applying a V3 spec in the middle of updating a traffic routed
+// canary going from V1 -> V2 (i.e. after we have shifted traffic away from V2). This test is the
+// same as TestCanaryDontScaleDownOldRsDuringUpdate but rs3 is fully available
+func TestCanaryScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32Ptr(100),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 5, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.StableService = "stable-svc"
+	r1.Spec.Strategy.Canary.CanaryService = "canary-svc"
+	r2 := bumpVersion(r1)
+	r3 := bumpVersion(r2)
+
+	stableSvc := newService("stable-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r1.Status.CurrentPodHash}, r1)
+	canarySvc := newService("canary-svc", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: r3.Status.CurrentPodHash}, r3)
+	r3.Status.StableRS = r1.Status.CurrentPodHash
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 5, 5)
+	rs3 := newReplicaSetWithStatus(r3, 5, 5)
+
+	f.objects = append(f.objects, r3)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	f.expectPatchRolloutAction(r3)
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
+	f.run(getKey(r3, t))
+
+	updatedRs2 := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, int32(0), *updatedRs2.Spec.Replicas)
+}
+
 func TestRollBackToStable(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

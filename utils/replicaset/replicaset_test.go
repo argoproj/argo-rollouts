@@ -1247,3 +1247,54 @@ spec:
 
 	assert.True(t, PodTemplateEqualIgnoreHash(&live, &desired))
 }
+
+func TestIsReplicaSetReady(t *testing.T) {
+	{
+		assert.False(t, IsReplicaSetReady(nil))
+	}
+	{
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(1),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas: 0,
+			},
+		}
+		assert.False(t, IsReplicaSetReady(&rs))
+	}
+	{
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(1),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas: 1,
+			},
+		}
+		assert.True(t, IsReplicaSetReady(&rs))
+	}
+	{
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(1),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas: 2,
+			},
+		}
+		assert.True(t, IsReplicaSetReady(&rs))
+	}
+	{
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(0),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas: 0,
+			},
+		}
+		// NOTE: currently consider scaled down replicas as not ready
+		assert.False(t, IsReplicaSetReady(&rs))
+	}
+}

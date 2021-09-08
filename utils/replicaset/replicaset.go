@@ -616,3 +616,13 @@ func GetPodsOwnedByReplicaSet(ctx context.Context, client kubernetes.Interface, 
 	}
 	return podOwnedByRS, nil
 }
+
+// IsReplicaSetReady returns if a ReplicaSet is scaled up and its ready count is >= desired count
+func IsReplicaSetReady(rs *appsv1.ReplicaSet) bool {
+	if rs == nil {
+		return false
+	}
+	replicas := rs.Spec.Replicas
+	readyReplicas := rs.Status.ReadyReplicas
+	return replicas != nil && *replicas != 0 && readyReplicas != 0 && *replicas <= readyReplicas
+}
