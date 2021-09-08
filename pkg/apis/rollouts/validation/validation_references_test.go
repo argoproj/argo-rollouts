@@ -413,7 +413,7 @@ func TestValidateVirtualService(t *testing.T) {
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Istio: &v1alpha1.IstioTrafficRouting{
 							VirtualService: v1alpha1.IstioVirtualService{
-								Name: "istio-vsvc-name",
+								Name: "istio-vsvc",
 								Routes: []string{
 									"primary",
 									"secondary",
@@ -436,7 +436,7 @@ func TestValidateVirtualService(t *testing.T) {
 		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseVsvc)
 		allErrs := ValidateVirtualService(ro, *vsvc)
 		assert.Len(t, allErrs, 1)
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "Istio VirtualService has invalid HTTP routes. Error: Stable Service 'stable' not found in route")
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc", "Istio VirtualService has invalid HTTP routes. Error: Stable Service 'stable' not found in route")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
 
@@ -450,7 +450,7 @@ func TestValidateVirtualService(t *testing.T) {
 		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseTlsVsvc)
 		allErrs := ValidateVirtualService(ro, *vsvc)
 		assert.Len(t, allErrs, 1)
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "Istio VirtualService has invalid TLS routes. Error: Stable Service 'stable' not found in route")
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc", "Istio VirtualService has invalid TLS routes. Error: Stable Service 'stable' not found in route")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
 
@@ -458,8 +458,95 @@ func TestValidateVirtualService(t *testing.T) {
 		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseNoRoutesVsvc)
 		allErrs := ValidateVirtualService(ro, *vsvc)
 		assert.Len(t, allErrs, 1)
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "Unable to get HTTP and/or TLS routes for Istio VirtualService")
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc", "Unable to get HTTP and/or TLS routes for Istio VirtualService")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+	})
+}
+
+func TestValidateVirtualServices(t *testing.T) {
+	multipleVirtualService := []v1alpha1.IstioVirtualService{{Name: "istio-vsvc", Routes: []string{"primary", "secondary"}}}
+
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService: "stable",
+					CanaryService: "canary",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Istio: &v1alpha1.IstioTrafficRouting{
+							VirtualServices: multipleVirtualService,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("validate virtualService - success", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(successCaseVsvc)
+		allErrs := ValidateVirtualService(ro, *vsvc)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("validate virtualService - failure", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseVsvc)
+		allErrs := ValidateVirtualService(ro, *vsvc)
+		assert.Len(t, allErrs, 1)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualServices", "name"), "istio-vsvc", "Istio VirtualService has invalid HTTP routes. Error: Stable Service 'stable' not found in route")
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+
+	})
+}
+
+func TestValidateRolloutVirtualServicesConfig(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{},
+			},
+		},
+	}
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{},
+	}
+
+	// Test when both virtualService and  virtualServices are not configured
+	t.Run("validate No virtualService configured - fail", func(t *testing.T) {
+		err := ValidateRolloutVirtualServicesConfig(&ro)
+		fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
+		expected := fmt.Sprintf("%s: Internal error: either VirtualService or VirtualServices must be configured", fldPath)
+		assert.Equal(t, expected, err.Error())
+	})
+
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: v1alpha1.IstioVirtualService{
+				Name: "istio-vsvc1-name",
+			},
+			VirtualServices: []v1alpha1.IstioVirtualService{{Name: "istio-vsvc1-name", Routes: nil}},
+		},
+	}
+
+	// Test when both virtualService and  virtualServices are  configured
+	t.Run("validate both virtualService configured - fail", func(t *testing.T) {
+		err := ValidateRolloutVirtualServicesConfig(&ro)
+		fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
+		expected := fmt.Sprintf("%s: Internal error: either VirtualService or VirtualServices must be configured", fldPath)
+		assert.Equal(t, expected, err.Error())
+	})
+
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: v1alpha1.IstioVirtualService{
+				Name: "istio-vsvc1-name",
+			},
+		},
+	}
+
+	// Successful case where either virtualService or  virtualServices configured
+	t.Run("validate either virtualService or  virtualServices configured - pass", func(t *testing.T) {
+		err := ValidateRolloutVirtualServicesConfig(&ro)
+		assert.Empty(t, err)
 	})
 }
 

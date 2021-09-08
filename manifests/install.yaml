@@ -10256,8 +10256,31 @@ spec:
                                 required:
                                 - name
                                 type: object
-                            required:
-                            - virtualService
+                              virtualServices:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    routes:
+                                      items:
+                                        type: string
+                                      type: array
+                                    tlsRoutes:
+                                      items:
+                                        properties:
+                                          port:
+                                            format: int64
+                                            type: integer
+                                          sniHosts:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
                             type: object
                           nginx:
                             properties:

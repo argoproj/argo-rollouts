@@ -947,6 +947,13 @@ func (in *IstioTrafficRouting) DeepCopyInto(out *IstioTrafficRouting) {
 		*out = new(IstioDestinationRule)
 		**out = **in
 	}
+	if in.VirtualServices != nil {
+		in, out := &in.VirtualServices, &out.VirtualServices
+		*out = make([]IstioVirtualService, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 
