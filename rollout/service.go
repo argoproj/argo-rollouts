@@ -242,7 +242,7 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		return err
 	}
 
-	if c.newRSReady() {
+	if replicasetutil.IsReplicaSetReady(c.newRS) {
 		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS)
 		if err != nil {
 			return err
@@ -266,13 +266,4 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet)
 		}
 	}
 	return nil
-}
-
-func (c *rolloutContext) newRSReady() bool {
-	if c.newRS == nil {
-		return false
-	}
-	replicas := c.newRS.Spec.Replicas
-	readyReplicas := c.newRS.Status.ReadyReplicas
-	return replicas != nil && *replicas != 0 && readyReplicas != 0 && *replicas <= readyReplicas
 }
