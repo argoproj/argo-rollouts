@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -295,17 +296,32 @@ func toTargetGroupBinding(obj map[string]interface{}) (*TargetGroupBinding, erro
 	return &tgb, nil
 }
 
-// getNumericPort resolves the numeric port which a AWS TargetGroup targets.
+// getNumericTargetPort resolves the numeric port which a AWS TargetGroup targets.
 // This is needed in case the TargetGroupBinding's spec.serviceRef.Port is a string and not a number
+// and/or the Service's targetPort is a string and not a number
 // Returns 0 if unable to find matching port in given service.
-func getNumericPort(tgb TargetGroupBinding, svc corev1.Service) int32 {
-	if portInt := tgb.Spec.ServiceRef.Port.IntValue(); portInt > 0 {
-		return int32(portInt)
+func getNumericTargetPort(tgb TargetGroupBinding, svc corev1.Service, endpoints corev1.Endpoints) int32 {
+	var servicePortNum int32
+	var servicePortName string
+	if portInt := tgb.Spec.ServiceRef.Port.IntVal; portInt > 0 {
+		servicePortNum = portInt
+	} else {
+		servicePortName = tgb.Spec.ServiceRef.Port.String()
 	}
-	// port is a string and not a num
 	for _, svcPort := range svc.Spec.Ports {
-		if tgb.Spec.ServiceRef.Port.StrVal == svcPort.Name {
-			return svcPort.Port
+		if (servicePortName != "" && servicePortName == svcPort.Name) || (servicePortNum > 0 && servicePortNum == svcPort.Port) {
+			if targetPortNum := svcPort.TargetPort.IntVal; targetPortNum > 0 {
+				return targetPortNum
+			}
+			// targetPort is a string and not a num. Must resort to looking at endpoints
+			targetPortName := svcPort.TargetPort.String()
+			for _, subset := range endpoints.Subsets {
+				for _, port := range subset.Ports {
+					if port.Name == targetPortName {
+						return port.Port
+					}
+				}
+			}
 		}
 	}
 	return 0
@@ -330,7 +346,7 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 		// We only need to verify target groups using AWS CNI (spec.targetType: ip)
 		return nil, nil
 	}
-	port := getNumericPort(tgb, *svc)
+	port := getNumericTargetPort(tgb, *svc, *endpoints)
 	if port == 0 {
 		logCtx.Warn("Unable to match TargetGroupBinding spec.serviceRef.port to Service spec.ports")
 		return nil, nil
@@ -355,6 +371,9 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 	}
 
 	logCtx.Infof("verifying %d endpoint addresses (of %d targets)", len(endpointIPs), len(targets))
+	var ignored []string
+	var verified []string
+	var unverified []string
 
 	// Iterate all registered targets in AWS TargetGroup. Mark all endpoint IPs which we see registered
 	for _, target := range targets {
@@ -365,28 +384,33 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 		targetStr := fmt.Sprintf("%s:%d", *target.Target.Id, *target.Target.Port)
 		_, isEndpointTarget := endpointIPs[targetStr]
 		if !isEndpointTarget {
+			ignored = append(ignored, targetStr)
 			// this is a target for something not in the endpoint list (e.g. old endpoint entry). Ignore it
 			continue
 		}
 		// Verify we see the endpoint IP registered to the TargetGroup
 		// NOTE: we used to check health here, but health is not relevant for verifying service label change
 		endpointIPs[targetStr] = true
+		verified = append(verified, targetStr)
 	}
 
 	tgvr := TargetGroupVerifyResult{
 		Service:             svc.Name,
 		EndpointsTotal:      len(endpointIPs),
-		EndpointsRegistered: 0,
+		EndpointsRegistered: len(verified),
 	}
 
 	// Check if any of our desired endpoints are not yet registered
 	for epIP, seen := range endpointIPs {
 		if !seen {
-			logCtx.Infof("Service endpoint IP %s not yet registered", epIP)
-		} else {
-			tgvr.EndpointsRegistered++
+			unverified = append(unverified, epIP)
 		}
 	}
+
+	logCtx.Infof("Ignored targets: %s", strings.Join(ignored, ", "))
+	logCtx.Infof("Verified targets: %s", strings.Join(verified, ", "))
+	logCtx.Infof("Unregistered targets: %s", strings.Join(unverified, ", "))
+
 	tgvr.Verified = bool(tgvr.EndpointsRegistered == tgvr.EndpointsTotal)
 	return &tgvr, nil
 }
