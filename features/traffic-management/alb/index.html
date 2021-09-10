@@ -2050,9 +2050,11 @@ the changes made to the Ingress object are reflected in the underlying AWS Targe
 <p class="admonition-title">Note</p>
 <p>Target Group IP verification available since Argo Rollouts v1.1</p>
 </div>
-<p>The AWS LoadBalancer controller can run in one of two modes:
-* <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#instance-mode">Instance mode</a>
-* <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#ip-mode">IP mode</a></p>
+<p>The AWS LoadBalancer controller can run in one of two modes:</p>
+<ul>
+<li><a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#instance-mode">Instance mode</a></li>
+<li><a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#ip-mode">IP mode</a></li>
+</ul>
 <p>TargetGroup IP Verification is only applicable when the AWS LoadBalancer controller in IP mode.
 When using the AWS LoadBalancer controller in IP mode (e.g. using the AWS CNI), the ALB LoadBalancer
 targets individual Pod IPs, as opposed to K8s node instances. Targeting Pod IPs comes with an
@@ -2138,14 +2140,24 @@ annotation.</p>
 </code></pre></div>
 <p>For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
 under the <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html">Elastic Load Balancing API</a>:</p>
-<ul>
-<li><code>DescribeTargetGroups</code></li>
-<li><code>DescribeLoadBalancers</code></li>
-<li><code>DescribeListeners</code></li>
-<li><code>DescribeRules</code></li>
-<li><code>DescribeTags</code></li>
-<li><code>DescribeTargetHealth</code></li>
-</ul>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+    <span class="nt">&quot;Version&quot;</span><span class="p">:</span> <span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;Statement&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="nt">&quot;Action&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="s2">&quot;elasticloadbalancing:DescribeTargetGroups&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;elasticloadbalancing:DescribeLoadBalancers&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;elasticloadbalancing:DescribeListeners&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;elasticloadbalancing:DescribeRules&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;elasticloadbalancing:DescribeTags&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;elasticloadbalancing:DescribeTargetHealth&quot;</span>
+            <span class="p">],</span>
+            <span class="nt">&quot;Resource&quot;</span><span class="p">:</span> <span class="s2">&quot;*&quot;</span><span class="p">,</span>
+            <span class="nt">&quot;Effect&quot;</span><span class="p">:</span> <span class="s2">&quot;Allow&quot;</span>
+        <span class="p">}</span>
+    <span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
 <p>There are various ways of granting AWS privileges to the argo-rollouts pods, which is highly
 dependent to your cluster's AWS environment, and out-of-scope of this documentation. Some solutions
 include:</p>
