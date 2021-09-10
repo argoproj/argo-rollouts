@@ -172,6 +172,7 @@ the changes made to the Ingress object are reflected in the underlying AWS Targe
     Target Group IP verification available since Argo Rollouts v1.1
 
 The AWS LoadBalancer controller can run in one of two modes:
+
 * [Instance mode](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#instance-mode)
 * [IP mode](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/how-it-works/#ip-mode)
 
@@ -277,12 +278,26 @@ spec:
 For this feature to work, the argo-rollouts deployment requires the following AWS API permissions
 under the [Elastic Load Balancing API](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/Welcome.html):
 
-* `DescribeTargetGroups`
-* `DescribeLoadBalancers`
-* `DescribeListeners`
-* `DescribeRules`
-* `DescribeTags`
-* `DescribeTargetHealth`
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "elasticloadbalancing:DescribeTargetGroups",
+                "elasticloadbalancing:DescribeLoadBalancers",
+                "elasticloadbalancing:DescribeListeners",
+                "elasticloadbalancing:DescribeRules",
+                "elasticloadbalancing:DescribeTags",
+                "elasticloadbalancing:DescribeTargetHealth"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        }
+    ]
+}
+```
 
 There are various ways of granting AWS privileges to the argo-rollouts pods, which is highly
 dependent to your cluster's AWS environment, and out-of-scope of this documentation. Some solutions

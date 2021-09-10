@@ -57,6 +57,43 @@ func TestFindLoadBalancerByDNSName(t *testing.T) {
 	}
 }
 
+func TestGetNumericTargetPort(t *testing.T) {
+	tgb := TargetGroupBinding{
+		Spec: TargetGroupBindingSpec{
+			ServiceRef: ServiceReference{
+				Port: intstr.FromString("web"),
+			},
+		},
+	}
+	svc := corev1.Service{
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "web",
+					TargetPort: intstr.FromString("http"),
+				},
+			},
+		},
+	}
+	eps := corev1.Endpoints{
+		Subsets: []corev1.EndpointSubset{
+			{
+				Ports: []corev1.EndpointPort{
+					{
+						Name: "asdf",
+						Port: 1234,
+					},
+					{
+						Name: "http",
+						Port: 4567,
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, int32(4567), getNumericTargetPort(tgb, svc, eps))
+}
+
 func TestGetTargetGroupMetadata(t *testing.T) {
 	fakeELB, c := newFakeClient()
 
