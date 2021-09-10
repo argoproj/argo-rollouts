@@ -67,7 +67,10 @@ go run ./cmd/rollouts-controller/main.go
 
 ## Running Unit Tests
 
-To run unit tests:
+Before running unit tests you need to install the kustomize
+executable following the [instructions](https://kubectl.docs.kubernetes.io/installation/kustomize/).
+
+Then, to run unit tests:
 
 ```bash
 make test
