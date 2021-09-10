@@ -155,6 +155,21 @@ func TestCreateAnalysisRunName(t *testing.T) {
 	assert.Empty(t, stderr)
 }
 
+func TestCreateAnalysisRunNameNotSpecified(t *testing.T) {
+	tf, o := options.NewFakeArgoRolloutsOptions()
+	defer tf.Cleanup()
+
+	cmd := NewCmdCreateAnalysisRun(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"--from-file", "testdata/analysis-template-no-name.yaml", "-a", "foo=bar"})
+	err := cmd.Execute()
+	assert.EqualError(t, err, "name is invalid")
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stdout)
+	assert.Equal(t, "Error: name is invalid\n", stderr)
+}
+
 func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
