@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -370,6 +371,9 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 	}
 
 	logCtx.Infof("verifying %d endpoint addresses (of %d targets)", len(endpointIPs), len(targets))
+	var ignored []string
+	var verified []string
+	var unverified []string
 
 	// Iterate all registered targets in AWS TargetGroup. Mark all endpoint IPs which we see registered
 	for _, target := range targets {
@@ -380,29 +384,33 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 		targetStr := fmt.Sprintf("%s:%d", *target.Target.Id, *target.Target.Port)
 		_, isEndpointTarget := endpointIPs[targetStr]
 		if !isEndpointTarget {
-			logCtx.Infof("Ignoring target %s", targetStr)
+			ignored = append(ignored, targetStr)
 			// this is a target for something not in the endpoint list (e.g. old endpoint entry). Ignore it
 			continue
 		}
 		// Verify we see the endpoint IP registered to the TargetGroup
 		// NOTE: we used to check health here, but health is not relevant for verifying service label change
 		endpointIPs[targetStr] = true
+		verified = append(verified, targetStr)
 	}
 
 	tgvr := TargetGroupVerifyResult{
 		Service:             svc.Name,
 		EndpointsTotal:      len(endpointIPs),
-		EndpointsRegistered: 0,
+		EndpointsRegistered: len(verified),
 	}
 
 	// Check if any of our desired endpoints are not yet registered
 	for epIP, seen := range endpointIPs {
 		if !seen {
-			logCtx.Infof("Service endpoint IP %s not yet registered", epIP)
-		} else {
-			tgvr.EndpointsRegistered++
+			unverified = append(unverified, epIP)
 		}
 	}
+
+	logCtx.Infof("Ignored targets: %s", strings.Join(ignored, ", "))
+	logCtx.Infof("Verified targets: %s", strings.Join(verified, ", "))
+	logCtx.Infof("Unregistered targets: %s", strings.Join(unverified, ", "))
+
 	tgvr.Verified = bool(tgvr.EndpointsRegistered == tgvr.EndpointsTotal)
 	return &tgvr, nil
 }
