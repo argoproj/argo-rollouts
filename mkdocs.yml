@@ -67,6 +67,7 @@ nav:
   - Commands:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard.md
