@@ -41,8 +41,8 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: |
-            quay.io/argoproj/argo-rollouts
-            ghcr.io/argoproj/argo-rollouts
+            quay.io/codefresh/argo-rollouts
+            ghcr.io/codefresh-io/argo-rollouts
           tags: |
             type=semver,pattern={{version}},prefix=v,value=${{ github.event.inputs.tag }}
 
@@ -51,14 +51,14 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: |
-            quay.io/argoproj/kubectl-argo-rollouts
-            ghcr.io/argoproj/kubectl-argo-rollouts
+            quay.io/codefresh/kubectl-argo-rollouts
+            ghcr.io/codefresh-io/kubectl-argo-rollouts
           tags: |
             type=semver,pattern={{version}},prefix=v,value=${{ github.event.inputs.tag }}
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1 
+        uses: docker/login-action@v1
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
