@@ -11,6 +11,9 @@ Install:
 * [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
+Kustomize is required for unit tests (`make test` is using it), so you [must install it](https://kubectl.docs.kubernetes.io/installation/kustomize/)
+locally if you wish to make code contributions to Argo Rollouts.
+
 Argo Rollout additionally uses the following tools
 
 * `golangci-lint` to lint the project.
@@ -67,10 +70,7 @@ go run ./cmd/rollouts-controller/main.go
 
 ## Running Unit Tests
 
-Before running unit tests you need to install the kustomize
-executable following the [instructions](https://kubectl.docs.kubernetes.io/installation/kustomize/).
-
-Then, to run unit tests:
+To run unit tests:
 
 ```bash
 make test
