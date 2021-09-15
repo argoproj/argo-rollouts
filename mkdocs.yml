@@ -27,6 +27,7 @@ nav:
   - HPA: features/hpa-support.md
   - Ephemeral Metadata: features/ephemeral-metadata.md
   - Restarting Rollouts: features/restart.md
+  - Scaledown Aborted Rollouts: features/scaledown-aborted-rs.md
   - Anti Affinity: features/anti-affinity/anti-affinity.md
   - Helm: features/helm.md
   - Kustomize: features/kustomize.md
