@@ -139,6 +139,8 @@ type MetricProvider struct {
 	NewRelic *NewRelicMetric `json:"newRelic,omitempty" protobuf:"bytes,6,opt,name=newRelic"`
 	// Job specifies the job metric run
 	Job *JobMetric `json:"job,omitempty" protobuf:"bytes,7,opt,name=job"`
+	// CloudWatch specifies the cloudWatch metric to query
+	CloudWatch *CloudWatchMetric `json:"cloudWatch,omitempty" protobuf:"bytes,8,opt,name=cloudWatch"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -191,6 +193,40 @@ type NewRelicMetric struct {
 type JobMetric struct {
 	Metadata metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Spec     batchv1.JobSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+}
+
+// CloudWatchMetric defines the cloudwatch query to perform canary analysis
+type CloudWatchMetric struct {
+	Interval          DurationString              `json:"interval,omitempty" protobuf:"bytes,1,opt,name=interval,casttype=DurationString"`
+	MetricDataQueries []CloudWatchMetricDataQuery `json:"metricDataQueries" protobuf:"bytes,2,rep,name=metricDataQueries"`
+}
+
+// CloudWatchMetricDataQuery defines the cloudwatch query
+type CloudWatchMetricDataQuery struct {
+	Id         string                  `json:"id,omitempty" protobuf:"bytes,1,opt,name=id"`
+	Expression *string                 `json:"expression,omitempty" protobuf:"bytes,2,opt,name=expression"`
+	Label      *string                 `json:"label,omitempty" protobuf:"bytes,3,opt,name=label"`
+	MetricStat *CloudWatchMetricStat   `json:"metricStat,omitempty" protobuf:"bytes,4,opt,name=metricStat"`
+	Period     *intstrutil.IntOrString `json:"period,omitempty" protobuf:"varint,5,opt,name=period"`
+	ReturnData *bool                   `json:"returnData,omitempty" protobuf:"bytes,6,opt,name=returnData"`
+}
+
+type CloudWatchMetricStat struct {
+	Metric CloudWatchMetricStatMetric `json:"metric,omitempty" protobuf:"bytes,1,opt,name=metric"`
+	Period intstrutil.IntOrString     `json:"period,omitempty" protobuf:"varint,2,opt,name=period"`
+	Stat   string                     `json:"stat,omitempty" protobuf:"bytes,3,opt,name=stat"`
+	Unit   string                     `json:"unit,omitempty" protobuf:"bytes,4,opt,name=unit"`
+}
+
+type CloudWatchMetricStatMetric struct {
+	Dimensions []CloudWatchMetricStatMetricDimension `json:"dimensions,omitempty" protobuf:"bytes,1,rep,name=dimensions"`
+	MetricName string                                `json:"metricName,omitempty" protobuf:"bytes,2,opt,name=metricName"`
+	Namespace  *string                               `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+}
+
+type CloudWatchMetricStatMetricDimension struct {
+	Name  string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 }
 
 // AnalysisRun is an instantiation of an AnalysisTemplate
