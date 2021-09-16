@@ -67,6 +67,8 @@ spec:
       labels:
         app: dynamic-stable-scale
     spec:
+      readinessGates:
+      - conditionType: argoproj.io/e2e-readiness
       containers:
       - name: dynamic-stable-scale
         image: nginx:1.19-alpine
@@ -81,7 +83,6 @@ spec:
   strategy:
     canary:
       dynamicStableScale: true
-      abortScaleDownDelaySeconds: 30
       canaryService: dynamic-stable-scale-canary
       stableService: dynamic-stable-scale-stable
       steps:

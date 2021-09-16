@@ -318,16 +318,16 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 	if weights != nil {
 		actualStableWeightReplicaCount := trafficWeightToReplicas(rolloutSpecReplica, weights.Stable.Weight)
 		stableCount = max(stableCount, actualStableWeightReplicaCount)
-	}
 
-	if rollout.Status.Abort && weights != nil {
-		// When aborting and using dynamic stable scaling, we cannot reduce canary count until
-		// traffic has shifted back to stable. Canary count is calculated from the higher of:
-		//  1. actual canary traffic weight
-		//  2. desired canary traffic weight
-		// This if block makes sure we don't scale down the canary prematurely
-		trafficWeightReplicaCount := trafficWeightToReplicas(rolloutSpecReplica, weights.Canary.Weight)
-		canaryCount = max(trafficWeightReplicaCount, canaryCount)
+		if rollout.Status.Abort {
+			// When aborting and using dynamic stable scaling, we cannot reduce canary count until
+			// traffic has shifted back to stable. Canary count is calculated from the higher of:
+			//  1. actual canary traffic weight
+			//  2. desired canary traffic weight
+			// This if block makes sure we don't scale down the canary prematurely
+			trafficWeightReplicaCount := trafficWeightToReplicas(rolloutSpecReplica, weights.Canary.Weight)
+			canaryCount = max(trafficWeightReplicaCount, canaryCount)
+		}
 	}
 	return canaryCount, stableCount
 }
