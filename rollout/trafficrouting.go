@@ -1,16 +1,17 @@
 package rollout
 
 import (
-	"time"
+	"reflect"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
-
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
@@ -88,7 +89,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 	currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	desiredWeight := int32(0)
-	weightDestinations := make([]trafficrouting.WeightDestination, 0)
+	weightDestinations := make([]v1alpha1.WeightDestination, 0)
 	if rolloututil.IsFullyPromoted(c.rollout) {
 		// when we are fully promoted. desired canary weight should be 0
 	} else if c.pauseContext.IsAborted() {
@@ -135,7 +136,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 			for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
 				templateWeight := getTemplateWeight(templateStatus.Name)
-				weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
+				weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
 					ServiceName:     templateStatus.ServiceName,
 					PodTemplateHash: templateStatus.PodTemplateHash,
 					Weight:          *templateWeight,
@@ -149,42 +150,62 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
 		return err
 	}
-	c.newStatus.Canary.Weights = calculateWeightStatus(desiredWeight, weightDestinations...)
+	if modified, newWeights := calculateWeightStatus(c.rollout, canaryHash, stableHash, desiredWeight, weightDestinations...); modified {
+		c.log.Infof("Previous weights: %v", c.rollout.Status.Canary.Weights)
+		c.log.Infof("New weights: %v", newWeights)
+		c.newStatus.Canary.Weights = newWeights
+	}
 
 	// If we are in the middle of an update at a setWeight step, also perform weight verification.
 	// Note that we don't do this every reconciliation because weight verification typically involves
 	// API calls to the cloud provider which could incur rate limiting
 	shouldVerifyWeight := c.rollout.Status.StableRS != "" &&
-		c.rollout.Status.CurrentPodHash != c.rollout.Status.StableRS &&
+		!rolloututil.IsFullyPromoted(c.rollout) &&
 		currentStep != nil && currentStep.SetWeight != nil
 
 	if shouldVerifyWeight {
 		weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
+		c.newStatus.Canary.Weights.Verified = weightVerified
 		if err != nil {
-			return err
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
+			return nil // return nil instead of error since we want to continue with normal reconciliation
 		}
-		if !weightVerified {
-			c.log.Infof("Desired weight (stepIdx: %d) %d not yet verified", *index, desiredWeight)
-			c.enqueueRolloutAfter(c.rollout, 10*time.Second)
-		} else {
-			c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
+		if weightVerified != nil {
+			if *weightVerified {
+				c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
+			} else {
+				c.log.Infof("Desired weight (stepIdx: %d) %d not yet verified", *index, desiredWeight)
+				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
+			}
 		}
-		c.targetsVerified = &weightVerified
 	}
 
 	return nil
 }
 
-func calculateWeightStatus(desiredWeight int32, weightDestinations ...trafficrouting.WeightDestination) *v1alpha1.TrafficWeights {
+// calculateWeightStatus calculates the Rollout's `status.canary.weights` values. Returns true if
+// it has changed from previous values (which indicates we should reset status.canary.weights.verified)
+func calculateWeightStatus(ro *v1alpha1.Rollout, canaryHash, stableHash string, desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) (bool, *v1alpha1.TrafficWeights) {
 	weights := v1alpha1.TrafficWeights{
 		Canary: v1alpha1.WeightDestination{
-			Weight: desiredWeight,
+			Weight:          desiredWeight,
+			PodTemplateHash: canaryHash,
+			ServiceName:     ro.Spec.Strategy.Canary.CanaryService,
 		},
 	}
 	stableWeight := 100 - desiredWeight
 	for _, weightDest := range weightDestinations {
+		weights.Additional = append(weights.Additional, weightDest)
 		stableWeight -= weightDest.Weight
 	}
 	weights.Stable.Weight = stableWeight
-	return &weights
+	weights.Stable.PodTemplateHash = stableHash
+	weights.Stable.ServiceName = ro.Spec.Strategy.Canary.StableService
+
+	prevWeights := ro.Status.Canary.Weights
+	modified := prevWeights == nil ||
+		prevWeights.Canary != weights.Canary ||
+		prevWeights.Stable != weights.Stable ||
+		!reflect.DeepEqual(prevWeights.Additional, weights.Additional)
+	return modified, &weights
 }

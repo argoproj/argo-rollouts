@@ -2134,6 +2134,11 @@ func (in *TrafficWeights) DeepCopyInto(out *TrafficWeights) {
 		*out = make([]WeightDestination, len(*in))
 		copy(*out, *in)
 	}
+	if in.Verified != nil {
+		in, out := &in.Verified, &out.Verified
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

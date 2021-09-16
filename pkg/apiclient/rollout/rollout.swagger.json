@@ -1431,16 +1431,23 @@
       "type": "object",
       "properties": {
         "canary": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination"
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination",
+          "title": "Canary is the current traffic weight split to canary ReplicaSet"
         },
         "stable": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination"
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination",
+          "title": "Stable is the current traffic weight split to stable ReplicaSet"
         },
         "additional": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination"
-          }
+          },
+          "title": "Additional holds the weights split to additional ReplicaSets such as experiment ReplicaSets"
+        },
+        "verified": {
+          "type": "boolean",
+          "title": "Verified is an optional indicator that the weight has been verified to have taken effect.\nThis is currently only applicable to ALB traffic router"
         }
       },
       "title": "TrafficWeights describes the current status of how traffic has been split"
@@ -1450,13 +1457,16 @@
       "properties": {
         "weight": {
           "type": "integer",
-          "format": "int32"
+          "format": "int32",
+          "title": "Weight is an percentage of traffic being sent to this destination"
         },
         "serviceName": {
-          "type": "string"
+          "type": "string",
+          "title": "ServiceName is the Kubernetes service name traffic is being sent to"
         },
         "podTemplateHash": {
-          "type": "string"
+          "type": "string",
+          "title": "PodTemplateHash is the pod template hash label for this destination"
         }
       }
     },

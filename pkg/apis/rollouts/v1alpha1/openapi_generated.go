@@ -3931,19 +3931,22 @@ func schema_pkg_apis_rollouts_v1alpha1_TrafficWeights(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"canary": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination"),
+							Description: "Canary is the current traffic weight split to canary ReplicaSet",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination"),
 						},
 					},
 					"stable": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination"),
+							Description: "Stable is the current traffic weight split to stable ReplicaSet",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination"),
 						},
 					},
 					"additional": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "Additional holds the weights split to additional ReplicaSets such as experiment ReplicaSets",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -3952,6 +3955,13 @@ func schema_pkg_apis_rollouts_v1alpha1_TrafficWeights(ref common.ReferenceCallba
 									},
 								},
 							},
+						},
+					},
+					"verified": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Verified is an optional indicator that the weight has been verified to have taken effect. This is currently only applicable to ALB traffic router",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
@@ -4115,21 +4125,24 @@ func schema_pkg_apis_rollouts_v1alpha1_WeightDestination(ref common.ReferenceCal
 				Properties: map[string]spec.Schema{
 					"weight": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int32",
+							Description: "Weight is an percentage of traffic being sent to this destination",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"serviceName": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "ServiceName is the Kubernetes service name traffic is being sent to",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"podTemplateHash": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "PodTemplateHash is the pod template hash label for this destination",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

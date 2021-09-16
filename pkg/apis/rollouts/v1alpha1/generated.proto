@@ -1369,11 +1369,18 @@ message TemplateStatus {
 
 // TrafficWeights describes the current status of how traffic has been split
 message TrafficWeights {
+  // Canary is the current traffic weight split to canary ReplicaSet
   optional WeightDestination canary = 1;
 
+  // Stable is the current traffic weight split to stable ReplicaSet
   optional WeightDestination stable = 2;
 
+  // Additional holds the weights split to additional ReplicaSets such as experiment ReplicaSets
   repeated WeightDestination additional = 3;
+
+  // Verified is an optional indicator that the weight has been verified to have taken effect.
+  // This is currently only applicable to ALB traffic router
+  optional bool verified = 4;
 }
 
 message ValueFrom {
@@ -1422,10 +1429,13 @@ message WebMetricHeader {
 }
 
 message WeightDestination {
+  // Weight is an percentage of traffic being sent to this destination
   optional int32 weight = 1;
 
+  // ServiceName is the Kubernetes service name traffic is being sent to
   optional string serviceName = 2;
 
+  // PodTemplateHash is the pod template hash label for this destination
   optional string podTemplateHash = 3;
 }
 

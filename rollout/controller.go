@@ -463,6 +463,8 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		},
 		reconcilerBase: c.reconcilerBase,
 	}
+	// carry over existing recorded weights
+	roCtx.newStatus.Canary.Weights = rollout.Status.Canary.Weights
 	return &roCtx, nil
 }
 

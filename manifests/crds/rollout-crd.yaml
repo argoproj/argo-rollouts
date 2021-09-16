@@ -2841,6 +2841,8 @@ spec:
                         required:
                         - weight
                         type: object
+                      verified:
+                        type: boolean
                     required:
                     - canary
                     - stable

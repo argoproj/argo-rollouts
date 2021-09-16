@@ -488,6 +488,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
@@ -580,6 +581,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
@@ -637,6 +639,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)

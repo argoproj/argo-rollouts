@@ -771,14 +771,23 @@ type CanaryStatus struct {
 
 // TrafficWeights describes the current status of how traffic has been split
 type TrafficWeights struct {
-	Canary     WeightDestination   `json:"canary" protobuf:"bytes,1,opt,name=canary"`
-	Stable     WeightDestination   `json:"stable" protobuf:"bytes,2,opt,name=stable"`
+	// Canary is the current traffic weight split to canary ReplicaSet
+	Canary WeightDestination `json:"canary" protobuf:"bytes,1,opt,name=canary"`
+	// Stable is the current traffic weight split to stable ReplicaSet
+	Stable WeightDestination `json:"stable" protobuf:"bytes,2,opt,name=stable"`
+	// Additional holds the weights split to additional ReplicaSets such as experiment ReplicaSets
 	Additional []WeightDestination `json:"additional,omitempty" protobuf:"bytes,3,rep,name=additional"`
+	// Verified is an optional indicator that the weight has been verified to have taken effect.
+	// This is currently only applicable to ALB traffic router
+	Verified *bool `json:"verified,omitempty" protobuf:"bytes,4,opt,name=verified"`
 }
 
 type WeightDestination struct {
-	Weight          int32  `json:"weight" protobuf:"varint,1,opt,name=weight"`
-	ServiceName     string `json:"serviceName,omitempty" protobuf:"bytes,2,opt,name=serviceName"`
+	// Weight is an percentage of traffic being sent to this destination
+	Weight int32 `json:"weight" protobuf:"varint,1,opt,name=weight"`
+	// ServiceName is the Kubernetes service name traffic is being sent to
+	ServiceName string `json:"serviceName,omitempty" protobuf:"bytes,2,opt,name=serviceName"`
+	// PodTemplateHash is the pod template hash label for this destination
 	PodTemplateHash string `json:"podTemplateHash,omitempty" protobuf:"bytes,3,opt,name=podTemplateHash"`
 }
 

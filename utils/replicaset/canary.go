@@ -313,7 +313,7 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 	// Case 1 occurs when we are going from low to high canary weight. The stable scale must remain
 	// high, until we reduce traffic to it.
 	// Case 2 occurs when we are going from high to low canary weight. In this scenario,
-	// we need to increase the stable scale in preparation for increasing the traffic to stable.
+	// we need to increase the stable scale in preparation for increase of traffic to stable.
 	stableCount = trafficWeightToReplicas(rolloutSpecReplica, 100-desiredWeight)
 	if weights != nil {
 		actualStableWeightReplicaCount := trafficWeightToReplicas(rolloutSpecReplica, weights.Stable.Weight)

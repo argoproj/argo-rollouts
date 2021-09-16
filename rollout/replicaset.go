@@ -168,6 +168,10 @@ func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
 		// only applicable to aborted rollouts
 		return false
 	}
+	if c.stableRS == nil {
+		// if there is no stable, don't scale down
+		return false
+	}
 	if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		// basic canary should not use this
 		return false
@@ -179,7 +183,7 @@ func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
 	}
 	usesDynamicStableScaling := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.DynamicStableScale
 	if usesDynamicStableScaling && !abortDelayWasSet {
-		// we are using dynamic stable/canary scaling and so abortScaleDownDelay does not matter
+		// we are using dynamic stable/canary scaling and user did not explicitly set abortScaleDownDelay
 		return false
 	}
 	return true

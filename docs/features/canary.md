@@ -121,13 +121,16 @@ kubectl argo rollouts promote <rollout>
 !!! important
     Available since v1.1
 
-When using traffic routing, the stable ReplicaSet is left scaled to 100% during the update by default.
+When using traffic routing, by default the stable ReplicaSet is left scaled to 100% during the update.
 This has the advantage that if an abort occurs, traffic can be immediately shifted back to the
-stable ReplicaSet without delay.
+stable ReplicaSet without delay. However, it has the disadvantage that during the update, there will
+eventually be double the number of replica pods running (similar to in blue-green deployment) since
+the stable ReplicaSet is left scaled up for the full duration of the update.
 
-It is possible to reduce the scale of the stable ReplicaSet during update such that it scales down as
-the traffic weight increases to canary. This would be desirable in scenarios where many pods
-are run.
+It is possible to reduce the scale of the stable ReplicaSet during an update such that it scales down
+as the traffic weight increases to canary. This would be desirable in scenarios where the Rollout has
+a high replica count and resource cost is a concern, or in bare-metal situations where it is not
+possible to create additional node capacity to accommodate double t
 
 ```yaml
 spec:
@@ -137,8 +140,8 @@ spec:
 ```
 
 NOTE: that if `dynamicStableScale` is set, and the rollout is aborted, the canary ReplicaSet will
-scale down as traffic shifts back to stable. If you wish to leave the canary ReplicaSet scaled
-up while aborting, then an explicit value for `abortScaleDownDelay` should be set
+automatically scale down as traffic shifts back to stable. If you wish to leave the canary ReplicaSet
+scaled up while aborting, an explicit value for `abortScaleDownDelay` can be set:
 
 ```yaml
 spec:
