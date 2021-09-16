@@ -310,6 +310,7 @@ func NewManager(
 		notificationsController:       notificationsController,
 		refResolver:                   refResolver,
 		namespace:                     namespace,
+		kubeClientSet:                 kubeclientset,
 	}
 
 	return cm
@@ -348,14 +349,19 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		// id used to distinguish between multiple controller manager instances
 		id, err := os.Hostname()
 		if err != nil {
-			log.Fatal("error getting hostname so that the rollouts controllers can't elect a leader")
+			log.Fatalf("Error getting hostname for leader election %v", err)
 		}
+
+		if electOpts.LeaderElectionNamespace == "" {
+			log.Fatalf("Error LeaderElectionNamespace is empty")
+		}
+
 		// add a uniquifier so that two processes on the same host don't accidentally both become active
 		id = id + "_" + string(uuid.NewUUID())
-		log.Infof("leaderelection get id %s", id)
+		log.Infof("Leaderelection get id %s", id)
 		go leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock: &resourcelock.LeaseLock{
-				LeaseMeta: metav1.ObjectMeta{Name: "rollouts-controller", Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
+				LeaseMeta: metav1.ObjectMeta{Name: "argo-rollouts-controller-lock", Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
 				LockConfig: resourcelock.ResourceLockConfig{Identity: id},
 			},
 			ReleaseOnCancel: true,
@@ -367,10 +373,13 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 					c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
 				},
 				OnStoppedLeading: func() {
-					log.Info("Stopped controller")
-					os.Exit(1)
+					log.Infof("Stopped leading controller: %s", id)
+					os.Exit(0)
 				},
 				OnNewLeader: func(identity string) {
+					if identity == id {
+						return
+					}
 					log.Infof("New leader elected: %s", identity)
 				},
 			},
@@ -387,7 +396,6 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	}()
 	<-stopCh
 	log.Info("Shutting down workers")
-	cancel()
 
 	return nil
 }
