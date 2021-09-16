@@ -1,33 +1,32 @@
 package rollout
 
 import (
-	corev1 "k8s.io/api/core/v1"
+	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
-// TrafficRoutingReconciler common function across all TrafficRouting implementation
-type TrafficRoutingReconciler interface {
-	Reconcile(desiredWeight int32) error
-	Type() string
-}
-
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
-func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (TrafficRoutingReconciler, error) {
+func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
 	rollout := roCtx.rollout
 	if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		return nil, nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio != nil {
-		if c.istioVirtualServiceInformer.HasSynced() {
-			return istio.NewReconciler(rollout, c.dynamicclientset, c.recorder, c.defaultIstioVersion, c.istioVirtualServiceLister), nil
+		if c.IstioController.VirtualServiceInformer.HasSynced() {
+			return istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, c.IstioController.VirtualServiceLister, c.IstioController.DestinationRuleLister), nil
 		} else {
-			return istio.NewReconciler(rollout, c.dynamicclientset, c.recorder, c.defaultIstioVersion, nil), nil
+			return istio.NewReconciler(rollout, c.IstioController.DynamicClientSet, c.recorder, nil, nil), nil
 		}
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
@@ -46,7 +45,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (Traffic
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
 			IngressLister:  c.ingressesLister,
-		}), nil
+		})
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
 		return smi.NewReconciler(smi.ReconcilerConfig{
@@ -54,8 +53,11 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (Traffic
 			Client:         c.smiclientset,
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
-			ApiVersion:     c.defaultTrafficSplitVersion,
 		})
+	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador != nil {
+		ac := ambassador.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
+		return ambassador.NewReconciler(rollout, ac, c.recorder), nil
 	}
 	return nil, nil
 }
@@ -70,9 +72,28 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	}
 	c.log.Infof("Reconciling TrafficRouting with type '%s'", reconciler.Type())
 
-	_, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	var canaryHash, stableHash string
+	if c.stableRS != nil {
+		stableHash = c.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	}
+	if c.newRS != nil {
+		canaryHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	}
+	err = reconciler.UpdateHash(canaryHash, stableHash)
+	if err != nil {
+		return err
+	}
+
+	currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	desiredWeight := int32(0)
-	if index != nil {
+	weightDestinations := make([]trafficrouting.WeightDestination, 0)
+	if rolloututil.IsFullyPromoted(c.rollout) {
+		// when we are fully promoted. desired canary weight should be 0
+	} else if c.pauseContext.IsAborted() {
+		// when promote aborted. desired canary weight should be 0
+	} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
+		// when newRS is not available or replicas num is 0. never weight to canary
+	} else if index != nil {
 		atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
 		if !atDesiredReplicaCount {
 			// Use the previous weight since the new RS is not ready for a new weight
@@ -92,11 +113,56 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// last setWeight step, which is set by GetCurrentSetWeight.
 			desiredWeight = replicasetutil.GetCurrentSetWeight(c.rollout)
 		}
+
+		// Checks for experiment step
+		// If current experiment exists, then create WeightDestinations for each experiment template
+		exStep := replicasetutil.GetCurrentExperimentStep(c.rollout)
+		if exStep != nil && c.currentEx != nil && c.currentEx.Status.Phase == v1alpha1.AnalysisPhaseRunning {
+			getTemplateWeight := func(name string) *int32 {
+				for _, tmpl := range exStep.Templates {
+					if tmpl.Name == name {
+						return tmpl.Weight
+					}
+				}
+				return nil
+			}
+			for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
+				templateWeight := getTemplateWeight(templateStatus.Name)
+				weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
+					ServiceName:     templateStatus.ServiceName,
+					PodTemplateHash: templateStatus.PodTemplateHash,
+					Weight:          *templateWeight,
+				})
+			}
+		}
 	}
 
-	err = reconciler.Reconcile(desiredWeight)
+	err = reconciler.SetWeight(desiredWeight, weightDestinations...)
 	if err != nil {
-		c.recorder.Event(c.rollout, corev1.EventTypeWarning, "TrafficRoutingError", err.Error())
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
+		return err
 	}
-	return err
+
+	// If we are in the middle of an update at a setWeight step, also perform weight verification.
+	// Note that we don't do this every reconciliation because weight verification typically involves
+	// API calls to the cloud provider which could incur rate limiting
+	shouldVerifyWeight := c.rollout.Status.StableRS != "" &&
+		c.rollout.Status.CurrentPodHash != c.rollout.Status.StableRS &&
+		currentStep != nil && currentStep.SetWeight != nil
+
+	if shouldVerifyWeight {
+		weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
+		if err != nil {
+			return err
+		}
+		if !weightVerified {
+			c.log.Infof("Desired weight (stepIdx: %d) %d not yet verified", *index, desiredWeight)
+			c.enqueueRolloutAfter(c.rollout, 10*time.Second)
+		} else {
+			c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
+		}
+		c.targetsVerified = &weightVerified
+	}
+
+	return nil
 }

@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	argoprojclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 )
@@ -142,11 +141,12 @@ func TerminateRun(analysisRunIf argoprojclient.AnalysisRunInterface, name string
 
 // IsSemanticallyEqual checks to see if two analysis runs are semantically equal
 func IsSemanticallyEqual(left, right v1alpha1.AnalysisRunSpec) bool {
-	leftBytes, err := json.Marshal(left)
+	// NOTE: only consider metrics & args when comparing for semantic equality
+	leftBytes, err := json.Marshal(v1alpha1.AnalysisRunSpec{Metrics: left.Metrics, Args: left.Args})
 	if err != nil {
 		panic(err)
 	}
-	rightBytes, err := json.Marshal(right)
+	rightBytes, err := json.Marshal(v1alpha1.AnalysisRunSpec{Metrics: right.Metrics, Args: right.Args})
 	if err != nil {
 		panic(err)
 	}
@@ -160,6 +160,15 @@ func findArg(name string, args []v1alpha1.Argument) int {
 		}
 	}
 	return -1
+}
+
+func ResolveArgs(args []v1alpha1.Argument) error {
+	for _, arg := range args {
+		if arg.Value == nil && arg.ValueFrom == nil {
+			return fmt.Errorf("args.%s was not resolved", arg.Name)
+		}
+	}
+	return nil
 }
 
 // MergeArgs merges two lists of arguments, the incoming and the templates. If there are any
@@ -176,10 +185,9 @@ func MergeArgs(incomingArgs, templateArgs []v1alpha1.Argument) ([]v1alpha1.Argum
 			}
 		}
 	}
-	for _, arg := range newArgs {
-		if arg.Value == nil && arg.ValueFrom == nil {
-			return nil, fmt.Errorf("args.%s was not resolved", arg.Name)
-		}
+	err := ResolveArgs(newArgs)
+	if err != nil {
+		return nil, err
 	}
 	return newArgs, nil
 }
@@ -262,71 +270,62 @@ func FlattenTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates [
 }
 
 func flattenArgs(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate) ([]v1alpha1.Argument, error) {
-	argsMap := map[string]v1alpha1.Argument{}
-
 	var combinedArgs []v1alpha1.Argument
-
-	for i := range templates {
-		combinedArgs = append(combinedArgs, templates[i].Spec.Args...)
-	}
-
-	for i := range clusterTemplates {
-		combinedArgs = append(combinedArgs, clusterTemplates[i].Spec.Args...)
-	}
-
-	for j := range combinedArgs {
-		arg := combinedArgs[j]
-		if storedArg, ok := argsMap[arg.Name]; ok {
-			if arg.Value != nil && storedArg.Value != nil && *arg.Value != *storedArg.Value {
-				return nil, fmt.Errorf("two args with the same name have the different values: arg %s", arg.Name)
-			}
-			// If the controller have a storedArg with a non-nul value, the storedArg should not be replaced by
-			// the arg with a nil value
-			if storedArg.Value != nil {
-				continue
+	appendOrUpdate := func(newArg v1alpha1.Argument) error {
+		for i, prevArg := range combinedArgs {
+			if prevArg.Name == newArg.Name {
+				// found two args with same name. verify they have the same value, otherwise update
+				// the combined args with the new non-nil value
+				if prevArg.Value != nil && newArg.Value != nil && *prevArg.Value != *newArg.Value {
+					return fmt.Errorf("Argument `%s` specified multiple times with different values: '%s', '%s'", prevArg.Name, *prevArg.Value, *newArg.Value)
+				}
+				// If previous arg value is already set (not nil), it should not be replaced by
+				// a new arg with a nil value
+				if prevArg.Value == nil {
+					combinedArgs[i] = newArg
+				}
+				return nil
 			}
 		}
-		argsMap[arg.Name] = arg
+		combinedArgs = append(combinedArgs, newArg)
+		return nil
 	}
 
-	if len(argsMap) == 0 {
-		return nil, nil
+	for _, template := range templates {
+		for _, arg := range template.Spec.Args {
+			if err := appendOrUpdate(arg); err != nil {
+				return nil, err
+			}
+		}
 	}
-	args := make([]v1alpha1.Argument, 0, len(argsMap))
-	for name := range argsMap {
-		arg := argsMap[name]
-		args = append(args, arg)
+	for _, template := range clusterTemplates {
+		for _, arg := range template.Spec.Args {
+			if err := appendOrUpdate(arg); err != nil {
+				return nil, err
+			}
+		}
 	}
-	return args, nil
+	return combinedArgs, nil
 }
 
 func flattenMetrics(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate) ([]v1alpha1.Metric, error) {
-	metricMap := map[string]v1alpha1.Metric{}
-
 	var combinedMetrics []v1alpha1.Metric
-
-	for i := range templates {
-		combinedMetrics = append(combinedMetrics, templates[i].Spec.Metrics...)
+	for _, template := range templates {
+		combinedMetrics = append(combinedMetrics, template.Spec.Metrics...)
 	}
 
-	for i := range clusterTemplates {
-		combinedMetrics = append(combinedMetrics, clusterTemplates[i].Spec.Metrics...)
+	for _, template := range clusterTemplates {
+		combinedMetrics = append(combinedMetrics, template.Spec.Metrics...)
 	}
 
-	for j := range combinedMetrics {
-		metric := combinedMetrics[j]
-		if _, ok := metricMap[metric.Name]; !ok {
-			metricMap[metric.Name] = metric
-		} else {
-			return nil, fmt.Errorf("two metrics have the same name %s", metric.Name)
+	metricMap := map[string]bool{}
+	for _, metric := range combinedMetrics {
+		if _, ok := metricMap[metric.Name]; ok {
+			return nil, fmt.Errorf("two metrics have the same name '%s'", metric.Name)
 		}
+		metricMap[metric.Name] = true
 	}
-	metrics := make([]v1alpha1.Metric, 0, len(metricMap))
-	for name := range metricMap {
-		metric := metricMap[name]
-		metrics = append(metrics, metric)
-	}
-	return metrics, nil
+	return combinedMetrics, nil
 }
 
 func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs []v1alpha1.Argument, name, generateName, namespace string) (*unstructured.Unstructured, error) {
@@ -373,7 +372,17 @@ func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs
 		return nil, err
 	}
 
+	// Remove resourceVersion if exists
+	_, found, err := unstructured.NestedString(obj.Object, "metadata", "resourceVersion")
+	if err != nil {
+		return nil, err
+	}
+	if found {
+		unstructured.RemoveNestedField(obj.Object, "metadata", "resourceVersion")
+	}
+
 	// Set args
+	newArgVals := []interface{}{}
 	for i := 0; i < len(newArgs); i++ {
 		var newArgInterface map[string]interface{}
 		newArgBytes, err := json.Marshal(newArgs[i])
@@ -384,7 +393,10 @@ func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs
 		if err != nil {
 			return nil, err
 		}
-		err = unstructured.SetNestedMap(obj.Object, newArgInterface, field.NewPath("spec", "args").Index(i).String())
+		newArgVals = append(newArgVals, newArgInterface)
+	}
+	if len(newArgVals) > 0 {
+		err = unstructured.SetNestedSlice(obj.Object, newArgVals, "spec", "args")
 		if err != nil {
 			return nil, err
 		}

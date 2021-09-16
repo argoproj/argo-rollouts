@@ -95,8 +95,9 @@ Tree view icons
 )
 
 type GetOptions struct {
-	Watch   bool
-	NoColor bool
+	Watch          bool
+	NoColor        bool
+	TimeoutSeconds int
 
 	options.ArgoRolloutsOptions
 }

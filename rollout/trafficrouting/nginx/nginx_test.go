@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/utils/pointer"
+
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -15,10 +17,10 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	fake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func ingress(name string, port int, serviceName string) *extensionsv1beta1.Ingress {
@@ -94,6 +96,7 @@ func TestCanaryIngressCreate(t *testing.T) {
 		},
 	}
 	stableIngress := ingress("stable-ingress", 80, "stable-service")
+	stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
 
 	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout), 10)
 	assert.Nil(t, err, "No error returned when calling canaryIngress")
@@ -101,6 +104,8 @@ func TestCanaryIngressCreate(t *testing.T) {
 	checkBackendService(t, desiredCanaryIngress, "canary-service")
 	assert.Equal(t, "true", desiredCanaryIngress.Annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
 	assert.Equal(t, "10", desiredCanaryIngress.Annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
+	assert.NotNil(t, desiredCanaryIngress.Spec.IngressClassName)
+	assert.Equal(t, "nginx-ext", *desiredCanaryIngress.Spec.IngressClassName)
 }
 
 func TestCanaryIngressPatchWeight(t *testing.T) {
@@ -201,7 +206,7 @@ func TestType(t *testing.T) {
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 	})
 	assert.Equal(t, Type, r.Type())
@@ -214,12 +219,12 @@ func TestReconcileStableIngressNotFound(t *testing.T) {
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 }
 
@@ -233,12 +238,12 @@ func TestReconcileStableIngressFound(t *testing.T) {
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -259,12 +264,12 @@ func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 	assert.Contains(t, err.Error(), "has no rules using service", "correct error is returned")
 }
@@ -281,12 +286,12 @@ func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 }
 
@@ -305,12 +310,12 @@ func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 }
 
@@ -330,12 +335,12 @@ func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -363,12 +368,12 @@ func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 0)
@@ -388,7 +393,7 @@ func TestReconcileCanaryCreateError(t *testing.T) {
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
@@ -398,7 +403,7 @@ func TestReconcileCanaryCreateError(t *testing.T) {
 		return true, nil, errors.New("fake error")
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 	assert.Equal(t, "error creating canary ingress `rollout-stable-ingress-canary`: fake error", err.Error())
 	actions := client.Actions()
@@ -430,7 +435,7 @@ func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
 		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
 	})
@@ -448,7 +453,7 @@ func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
 		return true, canaryIngress, nil
 	})
 
-	err := r.Reconcile(10)
+	err := r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 3)

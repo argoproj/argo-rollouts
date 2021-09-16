@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
@@ -56,13 +57,13 @@ func clusterAnalysisRun(cat *v1alpha1.ClusterAnalysisTemplate, analysisRunType s
 		name = fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, "2", cat.Name)
 	} else if analysisRunType == v1alpha1.RolloutTypeBackgroundRunLabel {
 		labels = analysisutil.BackgroundLabels(podHash, "")
-		name = fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, "2", cat.Name)
+		name = fmt.Sprintf("%s-%s-%s", r.Name, podHash, "2")
 	} else if analysisRunType == v1alpha1.RolloutTypePrePromotionLabel {
 		labels = analysisutil.PrePromotionLabels(podHash, "")
-		name = fmt.Sprintf("%s-%s-%s", r.Name, podHash, "2")
+		name = fmt.Sprintf("%s-%s-%s-pre", r.Name, podHash, "2")
 	} else if analysisRunType == v1alpha1.RolloutTypePostPromotionLabel {
 		labels = analysisutil.PostPromotionLabels(podHash, "")
-		name = fmt.Sprintf("%s-%s-%s", r.Name, podHash, "2")
+		name = fmt.Sprintf("%s-%s-%s-post", r.Name, podHash, "2")
 	}
 	return &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -87,7 +88,7 @@ func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alp
 		name = fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, "2", at.Name)
 	} else if analysisRunType == v1alpha1.RolloutTypeBackgroundRunLabel {
 		labels = analysisutil.BackgroundLabels(podHash, "")
-		name = fmt.Sprintf("%s-%s-%s-%s", r.Name, podHash, "2", at.Name)
+		name = fmt.Sprintf("%s-%s-%s", r.Name, podHash, "2")
 	} else if analysisRunType == v1alpha1.RolloutTypePrePromotionLabel {
 		labels = analysisutil.PrePromotionLabels(podHash, "")
 		name = fmt.Sprintf("%s-%s-%s-pre", r.Name, podHash, "2")
@@ -122,7 +123,11 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}
 
@@ -149,14 +154,13 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	createdAr := f.getCreatedAnalysisRun(createdIndex)
-	expectedArName := fmt.Sprintf("%s-%s-%s-%s", r2.Name, rs2PodHash, "2", at.Name)
+	expectedArName := fmt.Sprintf("%s-%s-%s", r2.Name, rs2PodHash, "2")
 	assert.Equal(t, expectedArName, createdAr.Name)
 
 	patch := f.getPatchedRollout(index)
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentBackgroundAnalysisRun": "%s",
 				"currentBackgroundAnalysisRunStatus": {
 					"name": "%s",
 					"status": ""
@@ -164,7 +168,7 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName, expectedArName)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
 func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
@@ -216,7 +220,6 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentBackgroundAnalysisRun": "%s",
 				"currentBackgroundAnalysisRunStatus": {
 					"name": "%s",
 					"status": ""
@@ -224,7 +227,7 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName, expectedArName)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
 func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
@@ -277,7 +280,6 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentBackgroundAnalysisRun": "%s",
 				"currentBackgroundAnalysisRunStatus": {
 					"name": "%s",
 					"status": ""
@@ -285,7 +287,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName, expectedArName)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
 func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
@@ -309,13 +311,16 @@ func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 
 	expectedPatchWithoutSub := `{
 		"status": {
-			"conditions": [%s,%s]
+			"conditions": [%s,%s],
+			"phase": "Degraded",
+			"message": "InvalidSpec: %s"
 		}
 	}`
+	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"missing\": ClusterAnalysisTemplate 'missing' not found"
 	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
-	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates[0].templateName: Invalid value: \"missing\": clusteranalysistemplate.argoproj.io \"missing\" not found")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
@@ -386,7 +391,6 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentBackgroundAnalysisRun": "%s",
 				"currentBackgroundAnalysisRunStatus": {
 					"name": "%s",
 					"status": ""
@@ -394,7 +398,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName, expectedArName)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
 // TestCreateAnalysisRunWithCollision ensures we will create an new analysis run with a new name
@@ -412,7 +416,11 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}
 
@@ -452,7 +460,6 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentBackgroundAnalysisRun": "%s",
 				"currentBackgroundAnalysisRunStatus": {
 					"name": "%s",
 					"status": ""
@@ -460,7 +467,7 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedAR.Name, expectedAR.Name)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedAR.Name)), patch)
 }
 
 // TestCreateAnalysisRunWithCollisionAndSemanticEquality will ensure we do not create an extra
@@ -478,7 +485,11 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}
 
@@ -510,7 +521,6 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentBackgroundAnalysisRun": "%s",
 				"currentBackgroundAnalysisRunStatus": {
 					"name": "%s",
 					"status": ""
@@ -518,7 +528,7 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ar.Name, ar.Name)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ar.Name)), patch)
 }
 
 func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
@@ -528,7 +538,11 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}}
 
@@ -559,14 +573,13 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	createdAr := f.getCreatedAnalysisRun(createdIndex)
-	expectedArName := fmt.Sprintf("%s-%s-%s-%s-%s", r2.Name, rs2PodHash, "2", "0", at.Name)
+	expectedArName := fmt.Sprintf("%s-%s-%s-%s", r2.Name, rs2PodHash, "2", "0")
 	assert.Equal(t, expectedArName, createdAr.Name)
 
 	patch := f.getPatchedRollout(index)
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentStepAnalysisRun": "%s",
 				"currentStepAnalysisRunStatus": {
 					"name": "%s",
 					"status": ""
@@ -574,7 +587,7 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 			}
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName, expectedArName)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
 func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
@@ -583,29 +596,40 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			TemplateName: "invalid-template-ref",
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: "bad-template",
+				},
+			},
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r2 := bumpVersion(r1)
+	at := analysisTemplate("bad-template")
+	at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 
-	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs2 := newReplicaSetWithStatus(r2, 0, 0)
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r, at)
 
-	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
-	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
-	availableCondition, _ := newAvailableCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
 
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s],
+			"phase": "Degraded",
+			"message": "InvalidSpec: %s"
+		}
+	}`
+	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [bad-template]\": two metrics have the same name 'example'"
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
-	f.runExpectError(getKey(r2, t), true)
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
@@ -616,31 +640,41 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 		SetWeight: pointer.Int32Ptr(10),
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+	at := analysisTemplate("bad-template")
+	at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+
+	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: "invalid-template-ref",
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: "bad-template",
+				},
+			},
 		},
 	}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r, at)
 
-	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs2 := newReplicaSetWithStatus(r2, 0, 0)
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
 
-	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s],
+			"phase": "Degraded",
+			"message": "InvalidSpec: %s"
+		}
+	}`
+	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"templateNames: [bad-template]\": two metrics have the same name 'example'"
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
-	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
-	availableCondition, _ := newAvailableCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2)
-
-	f.runExpectError(getKey(r2, t), true)
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
@@ -651,10 +685,12 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 		SetWeight: pointer.Int32Ptr(10),
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-	r2 := bumpVersion(r1)
-	at := analysisTemplate("bar")
-	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+	at := analysisTemplate("bad-template")
+	at.Spec.Metrics = append(at.Spec.Metrics, at.Spec.Metrics[0])
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+
+	r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
 			Templates: []v1alpha1.RolloutAnalysisTemplate{
 				{
@@ -665,25 +701,27 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 			},
 		},
 	}
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r, at)
 
-	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs2 := newReplicaSetWithStatus(r2, 0, 0)
-	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
-	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
 
-	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s],
+			"phase": "Degraded",
+			"message": "InvalidSpec: %s"
+		}
+	}`
+	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"templateNames: [bad-template bad-template]\": two metrics have the same name 'example'"
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
-	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
-	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
-	availableCondition, _ := newAvailableCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
-	f.objects = append(f.objects, r2, at)
-
-	f.runExpectError(getKey(r2, t), true)
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T) {
@@ -699,7 +737,11 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
@@ -716,7 +758,6 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	r2.Status.Canary.CurrentBackgroundAnalysisRun = ar.Name
 	r2.Status.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
@@ -741,7 +782,11 @@ func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}}
 
@@ -761,7 +806,6 @@ func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
 	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
@@ -785,7 +829,11 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}}
 
@@ -808,12 +856,10 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
 	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: "",
 	}
-	r2.Status.Canary.CurrentBackgroundAnalysisRun = oldBackgroundAr.Name
 	r2.Status.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   oldBackgroundAr.Name,
 		Status: "",
@@ -835,7 +881,6 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentBackgroundAnalysisRun": null,
 				"currentBackgroundAnalysisRunStatus":null
 			}
 		}
@@ -850,7 +895,11 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}}
 
@@ -874,7 +923,6 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
 	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name: ar.Name,
 	}
@@ -901,7 +949,11 @@ func TestDeleteAnalysisRunsAfterRSDelete(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}}
 
@@ -929,7 +981,9 @@ func TestDeleteAnalysisRunsAfterRSDelete(t *testing.T) {
 	arAlreadyDeleted.DeletionTimestamp = &now
 
 	r3 = updateCanaryRolloutStatus(r3, rs2PodHash, 1, 0, 1, false)
-	r3.Status.Canary.CurrentStepAnalysisRun = ar.Name
+	r3.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name: ar.Name,
+	}
 
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -952,7 +1006,11 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}}
 
@@ -970,7 +1028,9 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
+	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name: ar.Name,
+	}
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -983,7 +1043,7 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"canary": {
-				"currentStepAnalysisRun": null
+				"currentStepAnalysisRunStatus": null
 			},
 			"currentStepIndex": 1,
 			"conditions": %s
@@ -1010,7 +1070,11 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}
 	ar.Status = v1alpha1.AnalysisRunStatus{
@@ -1024,7 +1088,9 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	r2.Status.Canary.CurrentBackgroundAnalysisRun = ar.Name
+	r2.Status.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name: ar.Name,
+	}
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -1040,7 +1106,6 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 			"conditions": %s,
 			"canary": {
 				"currentBackgroundAnalysisRunStatus": {
-					"name": "%s",
 					"status": "Inconclusive"
 				}
 			},
@@ -1048,12 +1113,14 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 					"reason": "%s",
 					"startTime": "%s"
 			}],
-			"controllerPause": true
+			"controllerPause": true,
+			"phase": "Paused",
+			"message": "%s"
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
 
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, ar.Name, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
 }
 
 func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
@@ -1063,7 +1130,11 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}}
 
@@ -1081,7 +1152,9 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
+	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name: ar.Name,
+	}
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -1097,7 +1170,6 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 			"conditions": %s,
 			"canary": {
 				"currentStepAnalysisRunStatus": {
-					"name": "%s",
 					"status": "Inconclusive"
 				}
 			},
@@ -1105,11 +1177,13 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 					"reason": "%s",
 					"startTime": "%s"
 			}],
-			"controllerPause": true
+			"controllerPause": true,
+			"phase": "Paused",
+			"message": "%s"
 		}
 	}`
 	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, ar.Name, v1alpha1.PauseReasonInconclusiveAnalysis, now)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
 }
 
 func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
@@ -1119,7 +1193,11 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}}
 
@@ -1141,7 +1219,9 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
-	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
+	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name: ar.Name,
+	}
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -1155,20 +1235,22 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 		"status": {
 			"canary":{
 				"currentStepAnalysisRunStatus": {
-					"name": "%s",
 					"status": "Error",
 					"message": "Error"
 				}
 			},
 			"conditions": %s,
 			"abort": true,
-			"abortedAt": "%s"
+			"abortedAt": "%s",
+			"phase": "Degraded",
+			"message": "RolloutAborted: %s"
 		}
 	}`
 	now := metav1.Now().UTC().Format(time.RFC3339)
-	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, ar.Status.Message)
-
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ar.Name, condition, now)), patch)
+	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": " + ar.Status.Message
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, errmsg)
+	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, errmsg)
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
@@ -1186,7 +1268,11 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}
 
@@ -1210,7 +1296,9 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
-	r2.Status.Canary.CurrentBackgroundAnalysisRun = ar.Name
+	r2.Status.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name: ar.Name,
+	}
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -1229,13 +1317,16 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 			},
 			"conditions": %s,
 			"abortedAt": "%s",
-			"abort": true
+			"abort": true,
+			"phase": "Degraded",
+			"message": "RolloutAborted: %s"
 		}
 	}`
+	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
 
 	now := metav1.Now().UTC().Format(time.RFC3339)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg)), patch)
 }
 
 func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
@@ -1245,7 +1336,11 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	at := analysisTemplate("bar")
 	steps := []v1alpha1.CanaryStep{{
 		Analysis: &v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}}
 
@@ -1263,7 +1358,6 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	r2.Status.Abort = true
-	r2.Status.Canary.CurrentStepAnalysisRun = ar.Name
 	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: "",
@@ -1286,11 +1380,14 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	expectedPatch := `{
 		"status": {
 			"conditions": %s,
-			"abortedAt": "%s"
+			"abortedAt": "%s",
+			"phase": "Degraded",
+			"message": "RolloutAborted: %s"
 		}
 	}`
+	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
 	now := metav1.Now().UTC().Format(time.RFC3339)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now)), patch)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now, errmsg)), patch)
 }
 
 func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
@@ -1306,7 +1403,11 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
@@ -1319,7 +1420,9 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 
 	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 1, 1, 1, false)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
-	r2.Status.Canary.CurrentBackgroundAnalysisRun = ar.Name
+	r2.Status.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name: ar.Name,
+	}
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -1330,7 +1433,7 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Contains(t, patch, `"currentBackgroundAnalysisRun":null`)
+	assert.Contains(t, patch, `"currentBackgroundAnalysisRunStatus":null`)
 }
 
 func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
@@ -1346,7 +1449,11 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}
 
@@ -1356,13 +1463,20 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 		StartTime: metav1.Now(),
 	}}
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -1387,7 +1501,11 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}
 	r1.Status.CurrentPodHash = ""
@@ -1399,6 +1517,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 
 	f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
+	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r1, t))
 }
@@ -1417,7 +1536,11 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			TemplateName: at.Name,
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
 		},
 	}
 	r1.Status.StableRS = ""
@@ -1429,6 +1552,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 
 	f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
+	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r1, t))
 }
@@ -1453,7 +1577,10 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
@@ -1475,14 +1602,13 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
-				"prePromotionAnalysisRun": "%s",
 				"prePromotionAnalysisRunStatus": {
 					"name": "%s",
 					"status": ""
 				}
 			}
 		}
-	}`, ar.Name, ar.Name)
+	}`, ar.Name)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -1525,7 +1651,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 
 	f.run(getKey(r2, t))
 
-	newConditions := generateConditionsPatch(true, conditions.NewRSAvailableReason, rs2, true, "")
+	newConditions := generateConditionsPatchWithComplete(true, conditions.NewRSAvailableReason, rs2, true, "", true)
 	expectedPatch := fmt.Sprintf(`{
 		"status":{
 			"conditions":%s
@@ -1562,6 +1688,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 
 	f.expectCreateReplicaSetAction(rs)
 	f.expectUpdateRolloutStatusAction(r)
+	f.expectUpdateReplicaSetAction(rs) // scale RS
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 }
@@ -1630,12 +1757,14 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-	r2.Status.BlueGreen.PrePromotionAnalysisRun = ar.Name
 	r2.Status.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
 	}
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -1689,7 +1818,6 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
-	r2.Status.BlueGreen.PrePromotionAnalysisRun = ar.Name
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -1701,7 +1829,10 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
 	}
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -1716,10 +1847,9 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
-	f.expectPatchReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
-	patch := f.getPatchedRollout(patchIndex)
+	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
@@ -1729,7 +1859,9 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 			"stableRS": "%s",
 			"pauseConditions": null,
 			"controllerPause": null,
-			"selector":"foo=bar,rollouts-pod-template-hash=%s"
+			"selector":"foo=bar,rollouts-pod-template-hash=%s",
+			"phase": "Healthy",
+			"message": null
 		}
 	}`, rs2PodHash, rs2PodHash, rs2PodHash)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -1743,18 +1875,17 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 1, nil, "active", "")
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(true)
 	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.BlueGreen.AutoPromotionSeconds = pointer.Int32Ptr(10)
+	r2.Spec.Strategy.BlueGreen.AutoPromotionSeconds = 10
 	r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.RolloutAnalysisTemplate{{
 			TemplateName: at.Name,
 		}},
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
-	ar.Status.Phase = v1alpha1.AnalysisPhaseRunning
-	r2.Status.BlueGreen.PrePromotionAnalysisRun = ar.Name
+	ar.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
 	r2.Status.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
-		Status: v1alpha1.AnalysisPhaseRunning,
+		Status: v1alpha1.AnalysisPhaseSuccessful,
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -1765,7 +1896,10 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 	now := metav1.NewTime(metav1.Now().Add(-10 * time.Second))
 	r2.Status.PauseConditions[0].StartTime = now
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -1780,10 +1914,9 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
-	f.expectPatchReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
-	patch := f.getPatchedRollout(patchIndex)
+	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
@@ -1792,7 +1925,9 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 			"stableRS": "%s",
 			"pauseConditions": null,
 			"controllerPause": null,
-			"selector":"foo=bar,rollouts-pod-template-hash=%s"
+			"selector":"foo=bar,rollouts-pod-template-hash=%s",
+			"phase": "Healthy",
+			"message": null
 		}
 	}`, rs2PodHash, rs2PodHash, rs2PodHash)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -1813,7 +1948,9 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseInconclusive
-	r2.Status.BlueGreen.PrePromotionAnalysisRun = ar.Name
+	r2.Status.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name: ar.Name,
+	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -1826,8 +1963,14 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	}
 	r2.Status.PauseConditions = append(r2.Status.PauseConditions, inconclusivePauseCondition)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)
@@ -1859,7 +2002,6 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePrePromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseError
-	r2.Status.BlueGreen.PrePromotionAnalysisRun = ar.Name
 	r2.Status.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
@@ -1870,8 +2012,12 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+	r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)
@@ -1887,22 +2033,26 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	// is wrong
 	expectedPatch := `{
 		"status": {
 			"abort": true,
 			"abortedAt": "%s",
 			"pauseConditions": null,
+			"conditions": %s,
 			"controllerPause":null,
 			"blueGreen": {
 				"prePromotionAnalysisRunStatus": {
 					"status": "Error"
 				}
-			}
+			},
+			"phase": "Degraded",
+			"message": "%s: %s"
 		}
 	}`
 	now := metav1.Now().UTC().Format(time.RFC3339)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now)), patch)
+	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
+	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
 }
 
 func TestCreatePostPromotionAnalysisRun(t *testing.T) {
@@ -1919,7 +2069,6 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePostPromotionLabel, r2)
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = nowFn().Add(10 * time.Second).Format(time.RFC3339)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -1943,14 +2092,13 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
-				"postPromotionAnalysisRun": "%s",
 				"postPromotionAnalysisRunStatus":{
 					"name": "%s", 
 					"status": ""
 				}
 			}
 		}
-	}`, ar.Name, ar.Name)
+	}`, ar.Name)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -1968,7 +2116,6 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePostPromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseSuccessful
-	r2.Status.BlueGreen.PostPromotionAnalysisRun = ar.Name
 	r2.Status.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
@@ -2000,7 +2147,9 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 			"stableRS": "%s",
 			"blueGreen": {
 				"postPromotionAnalysisRunStatus":{"status":"Successful"}
-			}
+			},
+			"phase": "Healthy",
+			"message": null
 		}
 	}`, rs2PodHash)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -2022,10 +2171,11 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePostPromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseInconclusive
-	r2.Status.BlueGreen.PostPromotionAnalysisRun = ar.Name
+	r2.Status.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name: ar.Name,
+	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = nowFn().Add(-10 * time.Second).Format(time.RFC3339)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -2035,16 +2185,20 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 		StartTime: metav1.Now(),
 	}}
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)
 
-	f.objects = append(f.objects, r2, at)
+	f.objects = append(f.objects, r2, at, ar)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
@@ -2054,8 +2208,10 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	expectedPatch := fmt.Sprint(`{
 		"status": {
 			"blueGreen": {
-				"postPromotionAnalysisRun": null
-			}
+				"postPromotionAnalysisRunStatus": {"status":"Inconclusive"}
+			},
+			"phase": "Paused",
+			"message": "InconclusiveAnalysisRun"
 		}
 	}`)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -2075,20 +2231,21 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	}
 	ar := analysisRun(at, v1alpha1.RolloutTypePostPromotionLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseError
-	r2.Status.BlueGreen.PostPromotionAnalysisRun = ar.Name
 	r2.Status.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
 	}
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = nowFn().Add(10 * time.Second).Format(time.RFC3339)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-	pausedCondition, _ := newProgressingCondition(conditions.PausedRolloutReason, r2, "")
+	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
@@ -2110,14 +2267,19 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 			"abort": true,
 			"abortedAt": "%s",
 			"pauseConditions": null,
+			"conditions": %s,
 			"controllerPause":null,
 			"blueGreen": {
 				"postPromotionAnalysisRunStatus": {
 					"status": "Error"
 				}
-			}
+			},
+			"phase": "Degraded",
+			"message": "%s: %s"
 		}
 	}`
 	now := metav1.Now().UTC().Format(time.RFC3339)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now)), patch)
+	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
+	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
+	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
 }

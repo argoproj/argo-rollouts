@@ -1,0 +1,17 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+.status-icon,
+.condition-icon {
+    &--progressing {
+        color: $sky;
+    }
+    &--healthy {
+        color: $argo-success-color;
+    }
+    &--degraded {
+        color: $coral;
+    }
+    &--paused {
+        color: $peach;
+    }
+}

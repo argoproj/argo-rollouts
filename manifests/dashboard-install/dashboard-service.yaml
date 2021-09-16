@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: argo-rollouts-dashboard
+    app.kubernetes.io/name: argo-rollouts-dashboard
+    app.kubernetes.io/part-of: argo-rollouts
+  name: argo-rollouts-dashboard
+spec:
+  selector:
+    app.kubernetes.io/name: argo-rollouts-dashboard
+  ports:
+    - port: 3100
+      protocol: TCP
+      targetPort: 3100

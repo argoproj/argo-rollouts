@@ -21,7 +21,7 @@ func convertObject(object runtime.Object, typedObj interface{}) error {
 	}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, typedObj)
 	if err != nil {
-		logCtx := logutil.WithUnstructured(un)
+		logCtx := logutil.WithObject(un)
 		logCtx.Warnf("malformed object: %v", err)
 		// When DefaultUnstructuredConverter.FromUnstructured fails to convert an object, it
 		// fails fast, not bothering to unmarshal the rest of the contents.

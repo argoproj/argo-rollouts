@@ -2,7 +2,6 @@ package wavefront
 
 import (
 	"fmt"
-	"math"
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -162,34 +161,6 @@ func TestGarbageCollect(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestProcessNaNResponse(t *testing.T) {
-	logCtx := log.WithField("test", "test")
-	p := Provider{
-		logCtx: *logCtx,
-	}
-	metric := v1alpha1.Metric{
-		SuccessCondition: "true",
-		FailureCondition: "false",
-	}
-
-	mockSeries := wavefrontapi.TimeSeries{
-		DataPoints: []wavefrontapi.DataPoint{
-			[]float64{12000, math.NaN()},
-		},
-	}
-
-	response := &wavefrontapi.QueryResponse{
-		TimeSeries: []wavefrontapi.TimeSeries{mockSeries},
-	}
-
-	result, err := p.processResponse(metric, response, metav1.Unix(13000, 0))
-	assert.Nil(t, err)
-	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, result.newStatus)
-	assert.Equal(t, "NaN", result.newValue)
-	assert.Equal(t, "NaN", result.newValue)
-
-}
-
 func TestProcessMultipleTimeseriesResponse(t *testing.T) {
 	logCtx := log.WithField("test", "test")
 	p := Provider{
@@ -262,9 +233,10 @@ func TestFindDataPointValue(t *testing.T) {
 			dp(0, 1),
 			dp(5, 2),
 		}
-		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(1, 0))
+		value, epoch, drift := p.findDataPointValue(dataPoints, metav1.Unix(1, 0))
 		assert.Equal(t, float64(1), value)
-		assert.Equal(t, "0", epoch)
+		assert.Equal(t, int64(0), epoch)
+		assert.Equal(t, int64(-1), drift)
 	})
 
 	t.Run("Choose later but closer point", func(t *testing.T) {
@@ -272,9 +244,10 @@ func TestFindDataPointValue(t *testing.T) {
 			dp(0, 1),
 			dp(5, 2),
 		}
-		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(4, 0))
+		value, epoch, drift := p.findDataPointValue(dataPoints, metav1.Unix(4, 0))
 		assert.Equal(t, float64(2), value)
-		assert.Equal(t, "5", epoch)
+		assert.Equal(t, int64(5), epoch)
+		assert.Equal(t, int64(1), drift)
 	})
 
 	t.Run("Choose exact point", func(t *testing.T) {
@@ -282,8 +255,9 @@ func TestFindDataPointValue(t *testing.T) {
 			dp(0, 1),
 			dp(5, 2),
 		}
-		value, epoch := p.findDataPointValue(dataPoints, metav1.Unix(0, 0))
+		value, epoch, drift := p.findDataPointValue(dataPoints, metav1.Unix(0, 0))
 		assert.Equal(t, float64(1), value)
-		assert.Equal(t, "0", epoch)
+		assert.Equal(t, int64(0), epoch)
+		assert.Equal(t, int64(0), drift)
 	})
 }

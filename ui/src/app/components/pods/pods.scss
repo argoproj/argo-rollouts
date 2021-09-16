@@ -1,0 +1,103 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+$POD_SIZE: 30px;
+
+.pods {
+    &__header {
+        font-size: 16px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        &__tags {
+            margin-left: auto;
+            display: flex;
+        }
+    }
+    &__container {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        border-radius: 3px;
+        background-color: $argo-color-gray-3;
+        padding: 7px;
+        flex-wrap: wrap;
+
+        .pod-icon {
+            margin: 3px;
+        }
+        &--dark {
+            border-color: $silver-lining;
+            background-color: $space;
+        }
+    }
+}
+
+.pod-icon {
+    width: $POD_SIZE;
+    height: $POD_SIZE;
+    line-height: $POD_SIZE;
+    font-size: 18px;
+    text-align: center;
+    border: 1px solid $silver-lining;
+    background-color: $fog;
+    color: $shine;
+    border-radius: 3px;
+    cursor: pointer;
+
+    &--success {
+        background-color: $argo-success-color;
+        color: white;
+        border: 1px solid $argo-success-color;
+        &:hover {
+            background-color: $argo-success-color-dark;
+            border-color: $argo-success-color-dark;
+        }
+    }
+
+    &--dark#{&}--success {
+        background-color: $forest;
+        color: $lime;
+        border: 1px solid $leaf;
+        &:hover {
+            border-color: $lime;
+        }
+    }
+
+    &--failure {
+        background-color: $clay;
+        color: white;
+        border: 1px solid $clay;
+        &:hover {
+            border-color: $coral;
+            background-color: $coral;
+        }
+    }
+
+    &--dark#{&}--failure {
+        background-color: $dirt;
+        color: $coral;
+        border: 1px solid $clay;
+        &:hover {
+            border-color: $coral;
+        }
+    }
+
+    &--pending {
+        background-color: $sky;
+        color: white;
+        border: 1px solid $sky;
+        &:hover {
+            border-color: $sea;
+            background-color: $sea;
+        }
+    }
+
+    &--dark#{&}--pending {
+        background-color: $deep-sea;
+        color: $sky;
+        border: 1px solid $sea;
+        &:hover {
+            border-color: $sky;
+        }
+    }
+}

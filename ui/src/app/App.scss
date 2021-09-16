@@ -1,0 +1,47 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+$argo-icon-fonts-root: 'assets/fonts/';
+$fa-font-path: 'assets/fonts';
+
+@import 'node_modules/argo-ui/src/styles/argo-icon';
+
+@import 'node_modules/@fortawesome/fontawesome-free/scss/fontawesome';
+@import 'node_modules/@fortawesome/fontawesome-free/scss/solid';
+@import 'node_modules/@fortawesome/fontawesome-free/scss/brands';
+
+body,
+html {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    button,
+    form,
+    input,
+    textarea {
+        appearance: none;
+        -webkit-appearance: none;
+        color: inherit;
+        font: inherit;
+        margin: 0;
+    }
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+#root {
+    height: 100%;
+}
+
+.rollouts {
+    height: 100%;
+    overflow-y: auto;
+    font-family: 'Heebo', sans-serif;
+    background-color: $argo-color-gray-3;
+
+    &--dark {
+        background-color: $midnight-sky;
+    }
+}

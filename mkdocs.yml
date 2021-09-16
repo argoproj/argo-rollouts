@@ -1,15 +1,3 @@
-site_name: Argo Rollouts - Kubernetes Progressive Delivery Controller
-repo_url: https://github.com/argoproj/argo-rollouts
-theme:
-  font:
-    text: Work Sans
-  logo: assets/logo.png
-  name: material
-  palette:
-    primary: teal
-google_analytics:
-- UA-105170809-3
-- auto
 markdown_extensions:
 - codehilite
 - admonition
@@ -22,12 +10,15 @@ nav:
 - Overview: index.md
 - Installation: installation.md
 - Concepts: concepts.md
+- Architecture: architecture.md
 - Getting Started:
   - Basic Usage: getting-started.md
-  - ALB: getting-started/alb/index.md
-  - NGINX: getting-started/nginx/index.md
+  - Ambassador: getting-started/ambassador/index.md
+  - AWS ALB: getting-started/alb/index.md
   - Istio: getting-started/istio/index.md
+  - NGINX: getting-started/nginx/index.md
   - SMI: getting-started/smi/index.md
+- Dashboard: dashboard.md
 - Rollout:
   - Deployment Strategies:
     - BlueGreen: features/bluegreen.md
@@ -36,31 +27,52 @@ nav:
   - HPA: features/hpa-support.md
   - Ephemeral Metadata: features/ephemeral-metadata.md
   - Restarting Rollouts: features/restart.md
+  - Scaledown Aborted Rollouts: features/scaledown-aborted-rs.md
   - Anti Affinity: features/anti-affinity/anti-affinity.md
+  - Helm: features/helm.md
   - Kustomize: features/kustomize.md
   - Controller Metrics: features/controller-metrics.md
 - Traffic Management:
   - Overview: features/traffic-management/index.md
+  - Ambassador: features/traffic-management/ambassador.md
+  - AWS ALB: features/traffic-management/alb.md
   - Istio: features/traffic-management/istio.md
   - NGINX: features/traffic-management/nginx.md
-  - AWS ALB: features/traffic-management/alb.md
   - SMI: features/traffic-management/smi.md
 - Analysis:
   - Overview: features/analysis.md
+  - Prometheus: analysis/prometheus.md
   - DataDog: analysis/datadog.md
   - NewRelic: analysis/newrelic.md
   - Wavefront: analysis/wavefront.md
   - Job: analysis/job.md
   - Web: analysis/web.md
   - Kayenta: analysis/kayenta.md
+  - CloudWatch: analysis/cloudwatch.md
 - Experiments: features/experiment.md
+- Notifications:
+  - Overview: features/notifications.md
+  - Services:
+    - generated/notification-services/email.md
+    - generated/notification-services/github.md
+    - generated/notification-services/grafana.md
+    - generated/notification-services/mattermost.md
+    - generated/notification-services/opsgenie.md
+    - generated/notification-services/overview.md
+    - generated/notification-services/rocketchat.md
+    - generated/notification-services/slack.md
+    - generated/notification-services/teams.md
+    - generated/notification-services/telegram.md
+    - generated/notification-services/webhook.md
 - Kubectl Plugin:
   - Overview: features/kubectl-plugin.md
   - Commands:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout.md
@@ -68,6 +80,13 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart.md
@@ -76,17 +95,31 @@ nav:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version.md
+- Best Practices: best-practices.md
 - Migrating: migrating.md
 - FAQ: FAQ.md
+- Security: security.md
 - Roadmap: roadmap.md
 - Contributing:
   - Contribution Guide: CONTRIBUTING.md
   - Environment Setup: getting-started/setup/index.md
+  - Releasing: releasing.md
 - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
 - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
 - Blog ⧉: https://blog.argoproj.io/
+repo_url: https://github.com/argoproj/argo-rollouts
+site_name: Argo Rollouts - Kubernetes Progressive Delivery Controller
+site_url: https://argoproj.github.io/argo-rollouts
+theme:
+  font:
+    text: Work Sans
+  logo: assets/logo.png
+  name: material
+  palette:
+    primary: teal

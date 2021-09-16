@@ -137,6 +137,20 @@ func unmarshal(fileBytes []byte, obj interface{}) error {
 	}
 }
 
+func (c *CreateOptions) getNamespace(un unstructured.Unstructured) string {
+	ns := c.ArgoRolloutsOptions.Namespace()
+	if md, ok := un.Object["metadata"]; ok {
+		if md == nil {
+			return ns
+		}
+		metadata := md.(map[string]interface{})
+		if internalns, ok := metadata["namespace"]; ok {
+			ns = internalns.(string)
+		}
+	}
+	return ns
+}
+
 func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 	ctx := context.TODO()
 	fileBytes, err := ioutil.ReadFile(path)
@@ -149,7 +163,7 @@ func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 		return nil, err
 	}
 	gvk := un.GroupVersionKind()
-	ns := c.ArgoRolloutsOptions.Namespace()
+	ns := c.getNamespace(un)
 	switch {
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.ExperimentKind:
 		var exp v1alpha1.Experiment
@@ -230,6 +244,7 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
+			createOptions.DynamicClientset()
 			froms := 0
 			if createOptions.From != "" {
 				froms++
@@ -259,11 +274,11 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 				}
 			}
 
-			objName, notFound, err := unstructured.NestedString(obj.Object, "metadata", "name")
+			objName, found, err := unstructured.NestedString(obj.Object, "metadata", "name")
 			if err != nil {
 				return err
 			}
-			if !notFound {
+			if found {
 				templateName = objName
 			}
 
@@ -276,6 +291,10 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 				generateName = templateName + "-"
 			}
 			ns := o.Namespace()
+
+			if name == "" && generateName == "-" {
+				return fmt.Errorf("name is invalid")
+			}
 
 			obj, err = analysisutil.NewAnalysisRunFromUnstructured(obj, templateArgs, name, generateName, ns)
 			if err != nil {

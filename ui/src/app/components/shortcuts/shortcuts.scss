@@ -1,0 +1,32 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+.shortcuts {
+    position: absolute;
+    top: 50%;
+    &__shortcut {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1em;
+    }
+
+    &__shortcut:last-child {
+        margin-bottom: 0;
+    }
+
+    &__key {
+        font-weight: 600;
+        margin-right: 5px;
+        $padding: 3px;
+        padding: 0 $padding;
+        $size: 30px;
+        min-width: $size - (2 * $padding);
+        height: $size;
+        line-height: $size;
+        background-color: $argo-color-gray-4;
+        border-radius: 3px;
+        text-align: center;
+    }
+    &__description {
+        margin-left: auto;
+    }
+}

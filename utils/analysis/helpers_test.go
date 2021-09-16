@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -8,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kubetesting "k8s.io/client-go/testing"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 func TestIsWorst(t *testing.T) {
@@ -218,6 +221,7 @@ func TestIsSemanticallyEqual(t *testing.T) {
 		},
 	}
 	right := left.DeepCopy()
+	right.Terminate = true
 	assert.True(t, IsSemanticallyEqual(*left, *right))
 	right.Metrics[0].Name = "foo"
 	assert.False(t, IsSemanticallyEqual(*left, *right))
@@ -355,8 +359,8 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Nil(t, template.Spec.Args)
 		assert.Len(t, template.Spec.Metrics, 2)
-		assert.Contains(t, template.Spec.Metrics, fooMetric)
-		assert.Contains(t, template.Spec.Metrics, barMetric)
+		assert.Equal(t, fooMetric, template.Spec.Metrics[0])
+		assert.Equal(t, barMetric, template.Spec.Metrics[1])
 	})
 	t.Run("Merge analysis templates and cluster templates successfully", func(t *testing.T) {
 		fooMetric := metric("foo", "true")
@@ -379,8 +383,8 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Nil(t, template.Spec.Args)
 		assert.Len(t, template.Spec.Metrics, 2)
-		assert.Contains(t, template.Spec.Metrics, fooMetric)
-		assert.Contains(t, template.Spec.Metrics, barMetric)
+		assert.Equal(t, fooMetric, template.Spec.Metrics[0])
+		assert.Equal(t, barMetric, template.Spec.Metrics[1])
 	})
 	t.Run(" Merge fail with name collision", func(t *testing.T) {
 		fooMetric := metric("foo", "true")
@@ -398,7 +402,7 @@ func TestFlattenTemplates(t *testing.T) {
 			},
 		}, []*v1alpha1.ClusterAnalysisTemplate{})
 		assert.Nil(t, template)
-		assert.Equal(t, err, fmt.Errorf("two metrics have the same name foo"))
+		assert.Equal(t, err, fmt.Errorf("two metrics have the same name 'foo'"))
 	})
 	t.Run("Merge multiple args successfully", func(t *testing.T) {
 		fooArgs := arg("foo", pointer.StringPtr("true"))
@@ -418,8 +422,8 @@ func TestFlattenTemplates(t *testing.T) {
 		}, []*v1alpha1.ClusterAnalysisTemplate{})
 		assert.Nil(t, err)
 		assert.Len(t, template.Spec.Args, 2)
-		assert.Contains(t, template.Spec.Args, fooArgs)
-		assert.Contains(t, template.Spec.Args, barArgs)
+		assert.Equal(t, fooArgs, template.Spec.Args[0])
+		assert.Equal(t, barArgs, template.Spec.Args[1])
 	})
 	t.Run(" Merge args with same name but only one has value", func(t *testing.T) {
 		fooArgsValue := arg("foo", pointer.StringPtr("true"))
@@ -457,7 +461,7 @@ func TestFlattenTemplates(t *testing.T) {
 				},
 			},
 		}, []*v1alpha1.ClusterAnalysisTemplate{})
-		assert.Equal(t, fmt.Errorf("two args with the same name have the different values: arg foo"), err)
+		assert.Equal(t, fmt.Errorf("Argument `foo` specified multiple times with different values: 'true', 'false'"), err)
 		assert.Nil(t, template)
 	})
 }
@@ -530,7 +534,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	templates = append(templates, matchingMetric)
 	run, err = NewAnalysisRunFromTemplates(templates, clustertemplates, args, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
-	assert.Equal(t, fmt.Errorf("two metrics have the same name success-rate"), err)
+	assert.Equal(t, fmt.Errorf("two metrics have the same name 'success-rate'"), err)
 }
 
 func TestMergeArgs(t *testing.T) {
@@ -626,6 +630,60 @@ func TestMergeArgs(t *testing.T) {
 		assert.Len(t, args, 1)
 		assert.Equal(t, "foo", args[0].Name)
 		assert.Equal(t, "my-value", *args[0].Value)
+	}
+}
+
+func TestNewAnalysisRunFromUnstructured(t *testing.T) {
+	template := v1alpha1.AnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "foo",
+			Namespace:       metav1.NamespaceDefault,
+			ResourceVersion: "12345",
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-rate",
+				},
+			},
+			Args: []v1alpha1.Argument{
+				{
+					Name: "my-arg-1",
+				},
+				{
+					Name: "my-arg-2",
+				},
+			},
+		},
+	}
+	args := []v1alpha1.Argument{
+		{
+			Name:  "my-arg-1",
+			Value: pointer.StringPtr("my-val-1"),
+		},
+		{
+			Name:  "my-arg-2",
+			Value: pointer.StringPtr("my-val-2"),
+		},
+	}
+
+	jsonStr, err := json.Marshal(template)
+	assert.NoError(t, err)
+	obj, err := unstructured.StrToUnstructured(string(jsonStr))
+	assert.NoError(t, err)
+
+	obj, err = NewAnalysisRunFromUnstructured(obj, args, "foo-run", "foo-run-generate-", "my-ns")
+	assert.NoError(t, err)
+	_, found, err := kunstructured.NestedString(obj.Object, "metadata", "resourceVersion")
+	assert.NoError(t, err)
+	assert.False(t, found)
+	arArgs, _, err := kunstructured.NestedSlice(obj.Object, "spec", "args")
+	assert.NoError(t, err)
+	assert.Equal(t, len(args), len(arArgs))
+
+	for i, arg := range arArgs {
+		argnv := arg.(map[string]interface{})
+		assert.Equal(t, *args[i].Value, argnv["value"])
 	}
 }
 

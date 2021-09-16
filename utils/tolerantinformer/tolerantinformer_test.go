@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
@@ -19,7 +18,7 @@ const (
 )
 
 func newFakeDynamicInformer(objs ...runtime.Object) dynamicinformer.DynamicSharedInformerFactory {
-	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), objs...)
+	dynamicClient := testutil.NewFakeDynamicClient(objs...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 
 	// The dynamic informer factory relies on calling ForResource on any GVR which wish to be
@@ -72,6 +71,47 @@ func TestMalformedRollout(t *testing.T) {
 
 	// test namespaced scoped get
 	obj, err := informer.Lister().Rollouts(dummyNamespace).Get("malformed-rollout")
+	assert.NoError(t, err)
+	verify(obj)
+
+	// test namespaced scoped list
+	list, err = informer.Lister().Rollouts(dummyNamespace).List(labels.NewSelector())
+	assert.NoError(t, err)
+	assert.Len(t, list, 1)
+	verify(list[0])
+}
+
+func TestMalformedRolloutEphemeralCtr(t *testing.T) {
+	good := testutil.ObjectFromPath("examples/rollout-canary.yaml")
+	good.SetNamespace("default")
+	bad := testutil.ObjectFromPath("test/e2e/expectedfailures/malformed-rollout-ephemeral.yaml")
+	bad.SetNamespace(dummyNamespace)
+	dynInformerFactory := newFakeDynamicInformer(good, bad)
+	informer := NewTolerantRolloutInformer(dynInformerFactory)
+
+	verify := func(ro *v1alpha1.Rollout) {
+		assert.True(t, ro.Spec.Strategy.Canary != nil)
+		assert.Len(t, ro.Spec.Template.Spec.Containers[0].Resources.Requests, 0)
+
+		// NOTE: kubernetes drops the ephemeral containers list completely when one fails to unmarshal
+		// (e.g. when one has an invalid resource quantity). The following assertion is just to detect
+		// if this assumption continues to hold true over the course of time (as we update k8s libraries)
+		assert.Len(t, ro.Spec.Template.Spec.EphemeralContainers, 0)
+		// assert.Len(t, ro.Spec.Template.Spec.EphemeralContainers[0].Resources.Requests, 0)
+	}
+
+	// test cluster scoped list
+	list, err := informer.Lister().List(labels.NewSelector())
+	assert.NoError(t, err)
+	assert.Len(t, list, 2)
+	for _, obj := range list {
+		if obj.Name == "malformed-rollout-ephemeral" {
+			verify(obj)
+		}
+	}
+
+	// test namespaced scoped get
+	obj, err := informer.Lister().Rollouts(dummyNamespace).Get("malformed-rollout-ephemeral")
 	assert.NoError(t, err)
 	verify(obj)
 

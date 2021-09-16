@@ -27,7 +27,7 @@ type rolloutContext struct {
 	stableRS *appsv1.ReplicaSet
 	// allRSs are all the ReplicaSets associated with the Rollout
 	allRSs []*appsv1.ReplicaSet
-	// olderRSs are "older" ReplicaSets -- anything which is not the new
+	// olderRSs are "older" ReplicaSets -- anything which is not the newRS
 	// this includes the stableRS (when in the middle of an update)
 	olderRSs []*appsv1.ReplicaSet
 	// otherRSs are ReplicaSets which are neither new or stable (allRSs - newRS - stableRS)
@@ -41,6 +41,14 @@ type rolloutContext struct {
 
 	newStatus    v1alpha1.RolloutStatus
 	pauseContext *pauseContext
+
+	// targetsVerified indicates if the pods targets have been verified with underlying LoadBalancer.
+	// This is used in pod-aware flat networks where LoadBalancers target Pods and not Nodes.
+	// nil indicates the check was unnecessary or not performed.
+	// NOTE: we only perform target verification when we are at specific points in time
+	// (e.g. a setWeight step, after a blue-green active switch, after stable service switch),
+	// since we do not want to continually verify weight in case it could incur rate-limiting or other expenses.
+	targetsVerified *bool
 }
 
 func (c *rolloutContext) reconcile() error {
@@ -100,7 +108,6 @@ func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnal
 	if c.rollout.Spec.Strategy.Canary != nil {
 		currBackgroundAr := currARs.CanaryBackground
 		if currBackgroundAr != nil {
-			c.newStatus.Canary.CurrentBackgroundAnalysisRun = currBackgroundAr.Name
 			c.newStatus.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 				Name:    currBackgroundAr.Name,
 				Status:  currBackgroundAr.Status.Phase,
@@ -109,7 +116,6 @@ func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnal
 		}
 		currStepAr := currARs.CanaryStep
 		if currStepAr != nil {
-			c.newStatus.Canary.CurrentStepAnalysisRun = currStepAr.Name
 			c.newStatus.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 				Name:    currStepAr.Name,
 				Status:  currStepAr.Status.Phase,
@@ -119,7 +125,6 @@ func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnal
 	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
 		currPrePromoAr := currARs.BlueGreenPrePromotion
 		if currPrePromoAr != nil {
-			c.newStatus.BlueGreen.PrePromotionAnalysisRun = currPrePromoAr.Name
 			c.newStatus.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 				Name:    currPrePromoAr.Name,
 				Status:  currPrePromoAr.Status.Phase,
@@ -128,7 +133,6 @@ func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnal
 		}
 		currPostPromoAr := currARs.BlueGreenPostPromotion
 		if currPostPromoAr != nil {
-			c.newStatus.BlueGreen.PostPromotionAnalysisRun = currPostPromoAr.Name
 			c.newStatus.BlueGreen.PostPromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 				Name:    currPostPromoAr.Name,
 				Status:  currPostPromoAr.Status.Phase,

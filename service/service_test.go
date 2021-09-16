@@ -3,6 +3,8 @@ package service
 import (
 	"testing"
 
+	"github.com/argoproj/argo-rollouts/utils/queue"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +40,14 @@ func newService(name string, port int, selector map[string]string) *corev1.Servi
 
 func TestGenerateRemovePatch(t *testing.T) {
 	svc := &corev1.Service{}
+	assert.Equal(t, "", generateRemovePatch(svc))
+	svc = &corev1.Service{
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{
+				v1alpha1.DefaultRolloutUniqueLabelKey: "abc123",
+			},
+		},
+	}
 	assert.Equal(t, removeSelectorPatch, generateRemovePatch(svc))
 	svc.Annotations = map[string]string{
 		v1alpha1.ManagedByRolloutsKey: "test",
@@ -57,8 +67,8 @@ func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*
 	i := informers.NewSharedInformerFactory(client, 0)
 	k8sI := kubeinformers.NewSharedInformerFactory(kubeclient, 0)
 
-	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Rollouts")
-	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Services")
+	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
+	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Services")
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},

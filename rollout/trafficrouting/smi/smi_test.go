@@ -19,9 +19,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	core "k8s.io/client-go/testing"
 	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func fakeRollout(stableSvc, canarySvc, rootSvc string, trafficSplitName string) *v1alpha1.Rollout {
@@ -53,9 +55,8 @@ func TestType(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{},
-		ApiVersion:     "v1alpha1",
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, Type, r.Type())
@@ -64,12 +65,13 @@ func TestType(t *testing.T) {
 func TestUnsupportedTrafficSplitApiVersionError(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
 	client := fake.NewSimpleClientset()
+	defaults.SetSMIAPIVersion("does-not-exist")
+	defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 	_, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{},
-		ApiVersion:     "does-not-exist",
 	})
 	assert.EqualError(t, err, "Unsupported TrafficSplit API version `does-not-exist`")
 }
@@ -83,13 +85,12 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha1",
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(desiredWeight)
+		err = r.SetWeight(desiredWeight)
 		assert.Nil(t, err)
 		actions := client.Actions()
 		assert.Len(t, actions, 2)
@@ -113,16 +114,17 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 	t.Run("v1alpha2", func(t *testing.T) {
 		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
 		client := fake.NewSimpleClientset()
+		defaults.SetSMIAPIVersion("v1alpha2")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha2",
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(desiredWeight)
+		err = r.SetWeight(desiredWeight)
 		assert.Nil(t, err)
 		actions := client.Actions()
 		assert.Len(t, actions, 2)
@@ -143,16 +145,17 @@ func TestReconcileCreateNewTrafficSplit(t *testing.T) {
 	t.Run("v1alpha3", func(t *testing.T) {
 		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
 		client := fake.NewSimpleClientset()
+		defaults.SetSMIAPIVersion("v1alpha3")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha3",
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(desiredWeight)
+		err = r.SetWeight(desiredWeight)
 		assert.Nil(t, err)
 		actions := client.Actions()
 		assert.Len(t, actions, 2)
@@ -181,13 +184,12 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha1",
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(50)
+		err = r.SetWeight(50)
 		assert.Nil(t, err)
 
 		actions := client.Actions()
@@ -213,16 +215,17 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 	t.Run("v1alpha2", func(t *testing.T) {
 		ts2 := trafficSplitV1Alpha2(ro, objectMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts2)
+		defaults.SetSMIAPIVersion("v1alpha2")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha2",
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(50)
+		err = r.SetWeight(50)
 		assert.Nil(t, err)
 
 		actions := client.Actions()
@@ -244,16 +247,17 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 	t.Run("v1alpha3", func(t *testing.T) {
 		ts3 := trafficSplitV1Alpha3(ro, objectMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts3)
+		defaults.SetSMIAPIVersion("v1alpha3")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha3",
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(50)
+		err = r.SetWeight(50)
 		assert.Nil(t, err)
 
 		actions := client.Actions()
@@ -274,7 +278,6 @@ func TestReconcilePatchExistingTrafficSplit(t *testing.T) {
 }
 
 func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
-
 	t.Run("v1alpha1", func(t *testing.T) {
 		ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-v1alpha1")
 		objMeta := objectMeta("traffic-split-v1alpha1", ro, schema.GroupVersionKind{})
@@ -283,9 +286,8 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha1",
 		})
 		assert.Nil(t, err)
 
@@ -293,7 +295,7 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		logger := log.New()
 		logger.SetOutput(buf)
 		r.log.Logger = logger
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.Nil(t, err)
 		logMessage := buf.String()
 		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha1` was not modified"))
@@ -305,12 +307,13 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		objMeta := objectMeta("traffic-split-v1alpha2", ro, schema.GroupVersionKind{})
 		ts2 := trafficSplitV1Alpha2(ro, objMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts2)
+		defaults.SetSMIAPIVersion("v1alpha2")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha2",
 		})
 		assert.Nil(t, err)
 
@@ -318,7 +321,7 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		logger := log.New()
 		logger.SetOutput(buf)
 		r.log.Logger = logger
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.Nil(t, err)
 		logMessage := buf.String()
 		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha2` was not modified"))
@@ -329,12 +332,13 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		objMeta := objectMeta("traffic-split-v1alpha3", ro, schema.GroupVersionKind{})
 		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10))
 		client := fake.NewSimpleClientset(ts3)
+		defaults.SetSMIAPIVersion("v1alpha3")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha3",
 		})
 		assert.Nil(t, err)
 
@@ -342,7 +346,7 @@ func TestReconcilePatchExistingTrafficSplitNoChange(t *testing.T) {
 		logger := log.New()
 		logger.SetOutput(buf)
 		r.log.Logger = logger
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.Nil(t, err)
 		logMessage := buf.String()
 		assert.True(t, strings.Contains(logMessage, "Traffic Split `traffic-split-v1alpha3` was not modified"))
@@ -355,9 +359,8 @@ func TestReconcileGetTrafficSplitError(t *testing.T) {
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
-		Recorder:       &record.FakeRecorder{},
+		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{},
-		ApiVersion:     "v1alpha1",
 	})
 	assert.Nil(t, err)
 	//Throw error when client tries to get TrafficSplit
@@ -365,7 +368,7 @@ func TestReconcileGetTrafficSplitError(t *testing.T) {
 	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("get", "trafficsplits", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, k8serrors.NewServerTimeout(schema.GroupResource{Group: "split.smi-spec.io", Resource: "trafficsplits"}, "get", 0)
 	})
-	err = r.Reconcile(10)
+	err = r.SetWeight(10)
 	assert.NotNil(t, err)
 	assert.True(t, k8serrors.IsServerTimeout(err))
 }
@@ -382,49 +385,195 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha1",
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
 	})
 
 	t.Run("v1alpha2", func(t *testing.T) {
 		ts2 := trafficSplitV1Alpha2(ro, objMeta, "root-service", int32(10))
 		ts2.OwnerReferences = nil
+		defaults.SetSMIAPIVersion("v1alpha2")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset(ts2)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha2",
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
 	})
 
 	t.Run("v1alpha3", func(t *testing.T) {
 		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10))
 		ts3.OwnerReferences = nil
+		defaults.SetSMIAPIVersion("v1alpha3")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset(ts3)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
-			Recorder:       &record.FakeRecorder{},
+			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{},
-			ApiVersion:     "v1alpha3",
 		})
 		assert.Nil(t, err)
 
-		err = r.Reconcile(10)
+		err = r.SetWeight(10)
 		assert.EqualError(t, err, "Rollout does not own TrafficSplit `traffic-split-name`")
+	})
+}
+
+func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
+	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
+	weightDestinations := []trafficrouting.WeightDestination{
+		{
+			ServiceName:     "ex-svc-1",
+			PodTemplateHash: "",
+			Weight:          5,
+		},
+		{
+			ServiceName:     "ex-svc-2",
+			PodTemplateHash: "",
+			Weight:          5,
+		},
+	}
+
+	t.Run("v1alpha1", func(t *testing.T) {
+		client := fake.NewSimpleClientset()
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetWeight(10, weightDestinations...)
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
+
+		// Get newly created TrafficSplit
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts1 := &smiv1alpha1.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts1)
+
+		// check canary backend
+		assert.Equal(t, "canary-service", ts1.Spec.Backends[0].Service)
+		assert.Equal(t, int64(10), ts1.Spec.Backends[0].Weight.Value())
+
+		// check experiment service backends
+		assert.Equal(t, weightDestinations[0].ServiceName, ts1.Spec.Backends[1].Service)
+		assert.Equal(t, int64(weightDestinations[0].Weight), ts1.Spec.Backends[1].Weight.Value())
+
+		assert.Equal(t, weightDestinations[1].ServiceName, ts1.Spec.Backends[2].Service)
+		assert.Equal(t, int64(weightDestinations[1].Weight), ts1.Spec.Backends[2].Weight.Value())
+
+		// check stable backend
+		assert.Equal(t, "stable-service", ts1.Spec.Backends[3].Service)
+		assert.Equal(t, int64(80), ts1.Spec.Backends[3].Weight.Value())
+	})
+
+	t.Run("v1alpha2", func(t *testing.T) {
+		defaults.SetSMIAPIVersion("v1alpha2")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+
+		client := fake.NewSimpleClientset()
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetWeight(10, weightDestinations...)
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
+
+		// Get newly created TrafficSplit
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts2 := &smiv1alpha2.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts2)
+
+		// check canary backend
+		assert.Equal(t, "canary-service", ts2.Spec.Backends[0].Service)
+		assert.Equal(t, 10, ts2.Spec.Backends[0].Weight)
+
+		// check experiment service backends
+		assert.Equal(t, weightDestinations[0].ServiceName, ts2.Spec.Backends[1].Service)
+		assert.Equal(t, int(weightDestinations[0].Weight), ts2.Spec.Backends[1].Weight)
+
+		assert.Equal(t, weightDestinations[1].ServiceName, ts2.Spec.Backends[2].Service)
+		assert.Equal(t, int(weightDestinations[1].Weight), ts2.Spec.Backends[2].Weight)
+
+		// check stable backend
+		assert.Equal(t, "stable-service", ts2.Spec.Backends[3].Service)
+		assert.Equal(t, 80, ts2.Spec.Backends[3].Weight)
+	})
+
+	t.Run("v1alpha3", func(t *testing.T) {
+		defaults.SetSMIAPIVersion("v1alpha3")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
+
+		client := fake.NewSimpleClientset()
+		r, err := NewReconciler(ReconcilerConfig{
+			Rollout:        ro,
+			Client:         client,
+			Recorder:       record.NewFakeEventRecorder(),
+			ControllerKind: schema.GroupVersionKind{},
+		})
+		assert.Nil(t, err)
+
+		err = r.SetWeight(10, weightDestinations...)
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 2)
+		assert.Equal(t, "get", actions[0].GetVerb())
+		assert.Equal(t, "create", actions[1].GetVerb())
+
+		// Get newly created TrafficSplit
+		obj := actions[1].(core.CreateAction).GetObject()
+		ts3 := &smiv1alpha3.TrafficSplit{}
+		converter := runtime.NewTestUnstructuredConverter(equality.Semantic)
+		objMap, _ := converter.ToUnstructured(obj)
+		runtime.NewTestUnstructuredConverter(equality.Semantic).FromUnstructured(objMap, ts3)
+
+		// check canary backend
+		assert.Equal(t, "canary-service", ts3.Spec.Backends[0].Service)
+		assert.Equal(t, 10, ts3.Spec.Backends[0].Weight)
+
+		// check experiment service backends
+		assert.Equal(t, weightDestinations[0].ServiceName, ts3.Spec.Backends[1].Service)
+		assert.Equal(t, int(weightDestinations[0].Weight), ts3.Spec.Backends[1].Weight)
+
+		assert.Equal(t, weightDestinations[1].ServiceName, ts3.Spec.Backends[2].Service)
+		assert.Equal(t, int(weightDestinations[1].Weight), ts3.Spec.Backends[2].Weight)
+
+		// check stable backend
+		assert.Equal(t, "stable-service", ts3.Spec.Backends[3].Service)
+		assert.Equal(t, 80, ts3.Spec.Backends[3].Weight)
 	})
 }

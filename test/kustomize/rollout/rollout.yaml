@@ -1,8 +1,13 @@
+# NOTE: this rollout is invalid and is only used to test kustomize transformers
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   name: guestbook
 spec:
+  workloadRef:
+    kind: Deployment
+    apiVersion: apps/v1
+    name: deployment
   selector:
     matchLabels:
       app: guestbook
@@ -60,11 +65,16 @@ spec:
           virtualService:
             name: guestbook-vsvc
             routes:
-              - primary
+            - primary
+          destinationRule:
+            name: guestbook-destrule
         nginx:
           stableIngress: extensions-ingress
         alb:
           ingress: networking-ingress
+        ambassador:
+          mappings:
+          - mapping
       analysis:
         templates:
         - templateName: random-fail
@@ -129,6 +139,21 @@ spec:
     - destination:
         host: guestbook-canary-svc
       weight: 0
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: guestbook-destrule
+spec:
+  host: guestbook
+  subsets:
+  - name: canary
+    labels:
+      app: guestbook
+  - name: stable
+    labels:
+      app: guestbook
 
 ---
 apiVersion: v1
@@ -237,4 +262,33 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: robot
-  
+
+---
+apiVersion: getambassador.io/v2
+kind:  Mapping
+metadata:
+  name: mapping
+spec:
+  prefix: /someapp
+  rewrite: /
+  service: someapp-stable:80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80

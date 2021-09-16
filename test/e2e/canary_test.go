@@ -3,12 +3,15 @@
 package e2e
 
 import (
+	"log"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
 
@@ -31,15 +34,15 @@ func (s *CanarySuite) TestCanarySetCanaryScale() {
 - pause: {}
 - setCanaryScale:
     weight: 25
-- pause: {}
+- pause: {duration: 100s}
 - setWeight: 50
-- pause: {}
+- pause: {duration: 10s}
 - setCanaryScale:
     replicas: 3
 - pause: {}
 - setCanaryScale:
     matchTrafficWeight: true
-- pause: {}
+- pause: {duration: 5s}
 `
 	s.Given().
 		RolloutTemplate("@functional/nginx-template.yaml", "set-canary-scale").
@@ -84,7 +87,7 @@ func (s *CanarySuite) TestCanarySetCanaryScale() {
 }
 
 // TestRolloutScalingWhenPaused verifies behavior when scaling a rollout up/down when paused
-func (s *FunctionalSuite) TestRolloutScalingWhenPaused() {
+func (s *CanarySuite) TestRolloutScalingWhenPaused() {
 	s.Given().
 		RolloutObjects(`@functional/rollout-basic.yaml`).
 		SetSteps(`
@@ -107,6 +110,58 @@ func (s *FunctionalSuite) TestRolloutScalingWhenPaused() {
 		WaitForRolloutAvailableReplicas(4).
 		Then().
 		ExpectCanaryStablePodCount(1, 3)
+}
+
+
+// TestRolloutWithMaxSurgeScalingDuringUpdate verifies behavior when scaling a rollout up/down in middle of update and with maxSurge 100%
+func (s *CanarySuite) TestRolloutWithMaxSurgeScalingDuringUpdate() {
+	s.Given().
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: updatescaling
+spec:
+  replicas: 4
+  strategy:
+    canary:
+      maxSurge: 100%
+  selector:
+    matchLabels:
+      app: updatescaling
+  template:
+    metadata:
+      labels:
+        app: updatescaling
+    spec:
+      containers:
+      - name: updatescaling
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m`).
+		When().
+		PatchSpec(`
+spec:
+  template:
+    spec:
+      containers:
+      - name: updatescaling
+        command: [/bad-command]`).
+		WaitForRolloutReplicas(7).
+		Then().
+		ExpectCanaryStablePodCount(4, 3).
+		When().
+		ScaleRollout(8).
+		WaitForRolloutReplicas(11).
+		Then().
+		ExpectCanaryStablePodCount(8, 3).
+		When().
+		ScaleRollout(4).
+		WaitForRolloutReplicas(7).
+		Then().
+		ExpectCanaryStablePodCount(4, 3)
 }
 
 // TestRolloutScalingDuringUpdate verifies behavior when scaling a rollout up/down in middle of update
@@ -157,8 +212,10 @@ spec:
 		// See: https://github.com/argoproj/argo-rollouts/issues/738
 		ExpectCanaryStablePodCount(6, 4).
 		When().
-		ScaleRollout(4)
-	// WaitForRolloutReplicas(4) // this doesn't work yet (bug)
+		ScaleRollout(4).
+	    WaitForRolloutReplicas(6).
+		Then().
+		ExpectCanaryStablePodCount(2, 4)
 }
 
 // TestReduceWeightAndHonorMaxUnavailable verifies we honor maxUnavailable when decreasing weight or aborting
@@ -236,6 +293,7 @@ spec:
 func (s *CanarySuite) TestEphemeralMetadata() {
 	podsHaveStableMetadata := func(pods *corev1.PodList) bool {
 		for _, pod := range pods.Items {
+			log.Printf("+%v", pod.Labels)
 			if pod.Labels["role"] != "stable" {
 				return false
 			}
@@ -278,7 +336,7 @@ func (s *CanarySuite) TestEphemeralMetadata() {
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: ephemeral-metadata
+  name: ephemeral-metadata-canary
 spec:
   replicas: 2
   strategy:
@@ -294,11 +352,11 @@ spec:
       - pause: {}
   selector:
     matchLabels:
-      app: ephemeral-metadata
+      app: ephemeral-metadata-canary
   template:
     metadata:
       labels:
-        app: ephemeral-metadata
+        app: ephemeral-metadata-canary
     spec:
       containers:
       - name: ephemeral-metadata
@@ -352,4 +410,149 @@ spec:
 		Sleep(time.Second).
 		Then().
 		ExpectRevisionPods("revision 2 has stable metadata2", "2", podsHaveStableMetadata2)
+}
+
+func (s *CanarySuite) TestCanaryProgressDeadlineExceededWithPause() {
+	s.Given().
+		RolloutObjects(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-canary-with-pause
+spec:
+  replicas: 3
+  revisionHistoryLimit: 2
+  progressDeadlineSeconds: 5
+  selector:
+    matchLabels:
+      app: rollout-canary-with-pause
+  template:
+    metadata:
+      labels:
+        app: rollout-canary-with-pause
+    spec:
+      containers:
+      - name: rollouts-demo
+        image: nginx:1.19-alpine
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 30
+  strategy:
+    canary: 
+      steps:
+      - setWeight: 20
+      - pause: {}
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
+		WaitForRolloutReplicas(3).
+		UpdateSpec().
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectCanaryStablePodCount(1, 3).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy")
+}
+
+// TestCanaryScaleDownDelay verifies canary uses a scaleDownDelay when traffic routing is used,
+// and verifies the annotation is properly managed
+func (s *CanarySuite) TestCanaryScaleDownDelay() {
+	s.Given().
+		HealthyRollout(`@functional/canary-scaledowndelay.yaml`).
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        rev: two`). // update to revision 2
+		WaitForRolloutStatus("Healthy").
+		Sleep(2 * time.Second). // sleep is necessary since scale down delay annotation happens in s subsequent reconciliation
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rs1 := t.GetReplicaSetByRevision("1")
+			assert.Equal(s.T(), int32(1), *rs1.Spec.Replicas)
+			assert.NotEmpty(s.T(), rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+		}).
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        rev: three`). // update to revision 3
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			time.Sleep(time.Second)
+			// rs1 should be scaled down now because of scaleDownRevisionLimit
+			rs1 := t.GetReplicaSetByRevision("1")
+			assert.Equal(s.T(), int32(0), *rs1.Spec.Replicas)
+			assert.Empty(s.T(), rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+
+			rs2 := t.GetReplicaSetByRevision("2")
+			assert.Equal(s.T(), int32(1), *rs2.Spec.Replicas)
+			assert.NotEmpty(s.T(), rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+		}).
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        rev: two`). // go back to revision 2
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			time.Sleep(time.Second)
+			rs1 := t.GetReplicaSetByRevision("1")
+			assert.Equal(s.T(), int32(0), *rs1.Spec.Replicas)
+			assert.Empty(s.T(), rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+
+			rs4 := t.GetReplicaSetByRevision("4")
+			assert.Equal(s.T(), int32(1), *rs4.Spec.Replicas)
+			assert.Empty(s.T(), rs4.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+
+			rs3 := t.GetReplicaSetByRevision("3")
+			assert.Equal(s.T(), int32(1), *rs3.Spec.Replicas)
+			assert.NotEmpty(s.T(), rs3.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
+		})
+}
+
+// TestCanaryScaleDownOnAbort verifies scaledownOnAbort feature for canary
+func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
+	s.Given().
+		HealthyRollout(`@functional/canary-scaledownonabort.yaml`).
+		When().
+		UpdateSpec(). // update to revision 2
+		WaitForRolloutStatus("Paused").
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Sleep(3*time.Second).
+		Then().
+		ExpectRevisionPodCount("2", 0)
+}
+
+func (s *CanarySuite) TestCanaryUnScaleDownOnAbort() {
+	s.Given().
+		HealthyRollout(`@functional/canary-unscaledownonabort.yaml`).
+		When().
+		UpdateSpec(). // update to revision 2
+		WaitForRolloutStatus("Paused").
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Sleep(3*time.Second).
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		ExpectRevisionScaleDown("2", false)
 }

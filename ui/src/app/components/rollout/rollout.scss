@@ -1,0 +1,283 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+.revision {
+    padding: 15px;
+    margin-bottom: 1em;
+    background: none;
+
+    &__background {
+        background: $argo-color-gray-2;
+        border: 1px solid $argo-color-gray-4;
+        border-radius: 5px;
+    }
+
+    &--dark > &__background {
+        border: none;
+        background: $slate;
+    }
+
+    &:hover > &__background {
+        transform: scale(1.02);
+        box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    &__header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1em;
+        font-size: 18px;
+        font-weight: 500;
+        &__button {
+            cursor: pointer;
+            &:hover {
+                color: $sea;
+            }
+            &--dark:hover {
+                color: $sky;
+            }
+        }
+    }
+}
+
+.steps {
+    width: 250px;
+    flex-shrink: 0;
+    max-height: 500px;
+    overflow-y: auto;
+
+    &__step {
+        padding: 15px 18px;
+
+        &__background {
+            border-radius: 10px;
+            border: 1px solid $argo-color-gray-4;
+            &--dark {
+                border: 1px solid $silver-lining;
+            }
+        }
+
+        &:hover > &__background {
+            border: 1px solid $sherbert;
+        }
+
+        &--complete > &__background {
+            border: 2px solid $argo-success-color;
+        }
+
+        &--complete:hover > &__background {
+            border: 2px solid $argo-success-color;
+        }
+
+        &--current > &__background {
+            border: 2px solid $sherbert;
+        }
+
+        &--current:hover > &__background {
+            border: 2px solid $sherbert;
+        }
+
+        &:hover > &__background {
+            transform: scale(1.02);
+        }
+    }
+
+    &__connector {
+        height: 1em;
+        width: 2px;
+        background-color: $argo-color-gray-4;
+        margin: 0 auto;
+        &--dark {
+            background-color: $silver-lining;
+        }
+    }
+}
+
+.image {
+    &--red {
+        color: $clay;
+    }
+    &--blue {
+        color: $sea;
+    }
+    &--orange {
+        color: $spray-tan;
+    }
+
+    &--red#{&}--dark {
+        color: $coral;
+    }
+    &--blue#{&}--dark {
+        color: $sky;
+    }
+    &--orange#{&}--dark {
+        color: $sherbert;
+    }
+}
+
+.info {
+    border: 1px solid $argo-color-gray-4;
+    border-radius: 5px;
+    padding: 20px;
+    background-color: white;
+    height: max-content;
+    box-sizing: border-box;
+
+    &__section {
+        margin-bottom: 0.5em;
+        padding-bottom: 0.5em;
+        border-bottom: 1px solid $argo-color-gray-4;
+
+        &--dark {
+            border-bottom: 1px solid $silver-lining;
+        }
+    }
+
+    &__title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 0.5em;
+    }
+
+    &--dark {
+        background-color: $space;
+        border-color: $silver-lining;
+    }
+}
+
+.analysis {
+    padding-top: 1em;
+    border-top: 1px solid $argo-color-gray-4;
+    &__runs {
+        margin-top: 1em;
+        display: flex;
+    }
+    &--dark {
+        border-top: 1px solid $silver-lining;
+    }
+    &__run {
+        width: 40px;
+        margin-right: 5px;
+        height: 10px;
+        border-radius: 3px;
+        background-color: $argo-color-gray-4;
+        &--successful {
+            background-color: $argo-success-color;
+        }
+
+        &--failed {
+            background-color: $coral;
+        }
+
+        &--running {
+            background-color: $sky;
+        }
+    }
+}
+
+.containers {
+    &__few {
+        box-sizing: border-box;
+        font-size: 18px;
+        text-align: center;
+        color: $argo-color-gray-5;
+        margin-top: 2em;
+        i {
+            margin-right: 5px;
+        }
+        &--dark {
+            color: $dull-shine;
+        }
+    }
+}
+
+.rollout {
+    padding-bottom: 5em;
+    &__row {
+        display: flex;
+        width: 100%;
+        margin-bottom: 1.5em;
+        justify-content: center;
+
+        .info {
+            height: auto;
+        }
+
+        &--bottom {
+            .info {
+                height: max-content;
+            }
+        }
+    }
+
+    &__info {
+        width: 400px;
+        margin-right: 15px;
+
+        &:last-child {
+            margin-right: 0;
+        }
+    }
+
+    &__header {
+        color: $argo-color-gray-8;
+        font-size: 22px;
+        margin-left: 12px;
+        margin-right: auto;
+        flex-shrink: 0;
+        height: 2em;
+        display: flex;
+        align-items: center;
+        &--dark {
+            color: $shine;
+        }
+    }
+    &__toolbar {
+        box-sizing: border-box;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        padding-bottom: 1em;
+        margin-bottom: 1.5em;
+        border-bottom: 1px solid $argo-color-gray-4;
+        background-color: white;
+        padding-top: 1em;
+        flex-wrap: wrap;
+        &--dark {
+            background-color: $space;
+            border-bottom: 1px solid $silver-lining;
+        }
+
+        &__actions {
+            @media screen and (max-width: 750px) {
+                width: 100%;
+                margin-top: 1em;
+                margin-left: 7px;
+            }
+        }
+    }
+
+    &__revisions {
+        width: 550px;
+    }
+
+    &__body {
+        padding: 0 20px;
+        color: $argo-color-gray-8;
+        display: flex;
+        flex-wrap: wrap;
+        h3 {
+            margin-bottom: 0px;
+            font-size: 12px;
+            font-weight: 500;
+            color: $argo-color-gray-6;
+        }
+
+        &--dark {
+            color: $shine;
+            h3 {
+                color: $dull-shine;
+            }
+        }
+    }
+}

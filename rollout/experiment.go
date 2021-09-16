@@ -7,10 +7,11 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,6 +62,9 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		template := v1alpha1.TemplateSpec{
 			Name:     templateStep.Name,
 			Replicas: templateStep.Replicas,
+		}
+		if templateStep.Weight != nil {
+			template.Service = &v1alpha1.TemplateService{}
 		}
 		templateRS := &appsv1.ReplicaSet{}
 		switch templateStep.SpecRef {
@@ -165,10 +169,7 @@ func (c *rolloutContext) reconcileExperiments() error {
 			if err != nil {
 				return err
 			}
-
-			msg := fmt.Sprintf("Created Experiment '%s'", currentEx.Name)
-			c.log.Info(msg)
-			c.recorder.Event(c.rollout, corev1.EventTypeNormal, "CreateExperiment", msg)
+			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "ExperimentCreated"}, "Created Experiment '%s'", currentEx.Name)
 		}
 		switch currentEx.Status.Phase {
 		case v1alpha1.AnalysisPhaseInconclusive:
@@ -191,7 +192,9 @@ func (c *rolloutContext) reconcileExperiments() error {
 		return err
 	}
 
-	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, c.allRSs)
+	limitSuccessful := defaults.GetAnalysisRunSuccessfulHistoryLimitOrDefault(c.rollout)
+	limitUnsuccessful := defaults.GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(c.rollout)
+	exsToDelete := experimentutil.FilterExperimentsToDelete(otherExs, c.allRSs, limitSuccessful, limitUnsuccessful)
 	err = c.deleteExperiments(exsToDelete)
 	if err != nil {
 		return err

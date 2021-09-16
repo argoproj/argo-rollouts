@@ -25,11 +25,30 @@ const (
 	// in its replica sets. Helps in separating scaling events from the rollout process and for
 	// determining if the new replica set for a rollout is really saturated.
 	DesiredReplicasAnnotation = RolloutLabel + "/desired-replicas"
+	// WorkloadGenerationAnnotation is the generation of the referenced workload
+	WorkloadGenerationAnnotation = RolloutLabel + "/workload-generation"
 )
 
 // GetDesiredReplicasAnnotation returns the number of desired replicas
 func GetDesiredReplicasAnnotation(rs *appsv1.ReplicaSet) (int32, bool) {
 	return getIntFromAnnotation(rs, DesiredReplicasAnnotation)
+}
+
+// GetWorkloadGenerationAnnotation returns generation of referenced workload
+func GetWorkloadGenerationAnnotation(ro *v1alpha1.Rollout) (int32, bool) {
+	if ro == nil {
+		return 0, false
+	}
+	annotationValue, ok := ro.Annotations[WorkloadGenerationAnnotation]
+	if !ok {
+		return int32(0), false
+	}
+	intValue, err := strconv.ParseInt(annotationValue, 10, 32)
+	if err != nil {
+		log.Warnf("Cannot convert the value %q with annotation key %q for the replica set %q", annotationValue, WorkloadGenerationAnnotation, ro.Name)
+		return int32(0), false
+	}
+	return int32(intValue), true
 }
 
 func getIntFromAnnotation(rs *appsv1.ReplicaSet, annotationKey string) (int32, bool) {
@@ -40,7 +59,7 @@ func getIntFromAnnotation(rs *appsv1.ReplicaSet, annotationKey string) (int32, b
 	if !ok {
 		return int32(0), false
 	}
-	intValue, err := strconv.Atoi(annotationValue)
+	intValue, err := strconv.ParseInt(annotationValue, 10, 32)
 	if err != nil {
 		log.Warnf("Cannot convert the value %q with annotation key %q for the replica set %q", annotationValue, annotationKey, rs.Name)
 		return int32(0), false
@@ -58,6 +77,26 @@ func SetRolloutRevision(rollout *v1alpha1.Rollout, revision string) bool {
 		return true
 	}
 	return false
+}
+
+// SetRolloutRevision updates the revision for a rollout.
+func SetRolloutWorkloadRefGeneration(rollout *v1alpha1.Rollout, workloadGeneration string) bool {
+	if rollout.Annotations == nil {
+		rollout.Annotations = make(map[string]string)
+	}
+	if rollout.Annotations[WorkloadGenerationAnnotation] != workloadGeneration {
+		rollout.Annotations[WorkloadGenerationAnnotation] = workloadGeneration
+		return true
+	}
+	return false
+}
+
+// RemoveRolloutWorkloadRefGeneration remove the annotation of workload ref generation
+func RemoveRolloutWorkloadRefGeneration(rollout *v1alpha1.Rollout) {
+	if rollout.Annotations == nil {
+		return
+	}
+	delete(rollout.Annotations, WorkloadGenerationAnnotation)
 }
 
 // SetReplicasAnnotations sets the desiredReplicas into the annotations
@@ -186,7 +225,7 @@ func IsSaturated(rollout *v1alpha1.Rollout, rs *appsv1.ReplicaSet) bool {
 		return false
 	}
 	desiredString := rs.Annotations[DesiredReplicasAnnotation]
-	desired, err := strconv.Atoi(desiredString)
+	desired, err := strconv.ParseInt(desiredString, 10, 32)
 	if err != nil {
 		return false
 	}

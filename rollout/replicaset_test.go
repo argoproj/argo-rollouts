@@ -10,12 +10,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 func newRolloutControllerRef(r *v1alpha1.Rollout) *metav1.OwnerReference {
@@ -121,12 +122,16 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 
 func TestReconcileNewReplicaSet(t *testing.T) {
 	tests := []struct {
-		name                string
-		rolloutReplicas     int
-		newReplicas         int
-		scaleExpected       bool
-		expectedNewReplicas int
+		name                       string
+		rolloutReplicas            int
+		newReplicas                int
+		scaleExpected              bool
+		abortScaleDownDelaySeconds int32
+		abortScaleDownAnnotated    bool
+		abortScaleDownDelayPassed  bool
+		expectedNewReplicas        int
 	}{
+
 		{
 			name:            "New Replica Set matches rollout replica: No scale",
 			rolloutReplicas: 10,
@@ -147,6 +152,38 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			scaleExpected:       true,
 			expectedNewReplicas: 10,
 		},
+
+		{
+			name:            "New Replica scaled down to 0: scale down on abort - deadline passed",
+			rolloutReplicas: 10,
+			newReplicas:     10,
+			// ScaleDownOnAbort:           true,
+			abortScaleDownDelaySeconds: 5,
+			abortScaleDownAnnotated:    true,
+			abortScaleDownDelayPassed:  true,
+			scaleExpected:              true,
+			expectedNewReplicas:        0,
+		},
+		{
+			name:            "New Replica scaled down to 0: scale down on abort - deadline not passed",
+			rolloutReplicas: 10,
+			newReplicas:     8,
+			// ScaleDownOnAbort:           true,
+			abortScaleDownDelaySeconds: 5,
+			abortScaleDownAnnotated:    true,
+			abortScaleDownDelayPassed:  false,
+			scaleExpected:              false,
+			expectedNewReplicas:        0,
+		},
+		{
+			name:                       "New Replica scaled down to 0: scale down on abort - add annotation",
+			rolloutReplicas:            10,
+			newReplicas:                10,
+			abortScaleDownDelaySeconds: 5,
+			abortScaleDownAnnotated:    false,
+			scaleExpected:              false,
+			expectedNewReplicas:        0,
+		},
 	}
 	for i := range tests {
 		test := tests[i]
@@ -163,9 +200,34 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				reconcilerBase: reconcilerBase{
 					argoprojclientset: &fake,
 					kubeclientset:     &k8sfake,
-					recorder:          &record.FakeRecorder{},
+					recorder:          record.NewFakeEventRecorder(),
+					resyncPeriod:      30 * time.Second,
+				},
+				pauseContext: &pauseContext{
+					rollout: rollout,
 				},
 			}
+			roCtx.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {}
+			if test.abortScaleDownDelaySeconds > 0 {
+				rollout.Status.Abort = true
+				// rollout.Spec.ScaleDownOnAbort = true
+				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+					BlueGreen: &v1alpha1.BlueGreenStrategy{
+						AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+					},
+				}
+
+				if test.abortScaleDownAnnotated {
+					var deadline string
+					if test.abortScaleDownDelayPassed {
+						deadline = metav1.Now().Add(-time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+					} else {
+						deadline = metav1.Now().Add(time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+					}
+					roCtx.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
+				}
+			}
+
 			scaled, err := roCtx.reconcileNewReplicaSet()
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
@@ -245,8 +307,8 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRS := rs("foo-old", test.oldReplicas, oldSelector, noTimestamp, nil)
 			oldRS.Annotations = map[string]string{annotations.DesiredReplicasAnnotation: strconv.Itoa(test.oldReplicas)}
 			oldRS.Status.AvailableReplicas = int32(test.readyPodsFromOldRS)
-			oldRSs := []*appsv1.ReplicaSet{oldRS}
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
+			rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(0)
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
 			f := newFixture(t)
 			defer f.Close()
@@ -260,7 +322,8 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			close(stopCh)
 			roCtx, err := c.newRolloutContext(rollout)
 			assert.NoError(t, err)
-			scaled, err := roCtx.reconcileOldReplicaSets(oldRSs)
+			roCtx.otherRSs = []*appsv1.ReplicaSet{oldRS}
+			scaled, err := roCtx.reconcileOtherReplicaSets()
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return

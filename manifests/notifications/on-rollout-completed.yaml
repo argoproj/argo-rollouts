@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-notification-configmap
+data:
+  trigger.on-rollout-completed: |
+    - send: [rollout-completed]
+  template.rollout-completed: |
+    message: Rollout {{.rollout.metadata.name}} has been completed.
+    email:
+      subject: Rollout {{.rollout.metadata.name}} has been completed.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#18be52",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]

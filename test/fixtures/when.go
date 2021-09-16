@@ -1,10 +1,15 @@
 package fixtures
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
 	"strconv"
 	"time"
+
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/ghodss/yaml"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/watch"
@@ -19,16 +25,21 @@ import (
 	watchutil "k8s.io/client-go/tools/watch"
 	retryutil "k8s.io/client-go/util/retry"
 
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/restart"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/retry"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/status"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 type When struct {
-	Common
+	*Common
 }
 
 func (w *When) ApplyManifests(yaml ...string) *When {
@@ -42,8 +53,12 @@ func (w *When) ApplyManifests(yaml ...string) *When {
 		objects = w.parseTextToObjects(yaml[0])
 	}
 	for _, obj := range objects {
-		if obj.GetKind() == "Rollout" && E2EPodDelay > 0 {
+		if obj.GetKind() == "Rollout" {
 			w.injectDelays(obj)
+			w.injectImagePrefix(obj)
+		}
+		if obj.GetKind() == "Ingress" {
+			w.injectIngressAnnotations(obj)
 		}
 		w.applyObject(obj)
 	}
@@ -58,6 +73,9 @@ func (w *When) DeleteObject(kind, name string) *When {
 // injectDelays adds postStart/preStop handlers to slow down readiness/termination by adding a
 // preStart and postStart handlers which sleeps for the specified duration.
 func (w *When) injectDelays(un *unstructured.Unstructured) {
+	if E2EPodDelay == 0 {
+		return
+	}
 	sleepHandler := corev1.Handler{
 		Exec: &corev1.ExecAction{
 			Command: []string{"sleep", strconv.Itoa(E2EPodDelay)},
@@ -78,13 +96,43 @@ func (w *When) injectDelays(un *unstructured.Unstructured) {
 	w.CheckError(err)
 }
 
+// injectImagePrefix prefixes images used in tests with a prefix. Useful if container registries are blocked
+func (w *When) injectImagePrefix(un *unstructured.Unstructured) {
+	imagePrefix := os.Getenv(EnvVarE2EImagePrefix)
+	if imagePrefix == "" {
+		return
+	}
+	containersIf, _, err := unstructured.NestedSlice(un.Object, "spec", "template", "spec", "containers")
+	w.CheckError(err)
+	container := containersIf[0].(map[string]interface{})
+	container["image"] = imagePrefix + container["image"].(string)
+	containersIf[0] = container
+	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
+	w.CheckError(err)
+}
+
+// injectIngressAnnotations injects ingress annotations defined in environment variables. Currently
+// E2E_ALB_INGESS_ANNOTATIONS
+func (w *When) injectIngressAnnotations(un *unstructured.Unstructured) {
+	annotations := un.GetAnnotations()
+	if len(annotations) == 0 {
+		return
+	}
+	if annotations["kubernetes.io/ingress.class"] == "alb" && len(E2EALBIngressAnnotations) > 0 {
+		for k, v := range E2EALBIngressAnnotations {
+			annotations[k] = v
+		}
+		un.SetAnnotations(annotations)
+	}
+}
+
 func (w *When) UpdateSpec(texts ...string) *When {
 	if w.rollout == nil {
 		w.t.Fatal("Rollout not set")
 	}
 	var patchBytes []byte
 	if len(texts) == 0 {
-		nowStr := time.Now().Format(time.RFC3339)
+		nowStr := time.Now().Format(time.RFC3339Nano)
 		patchBytes = []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"update":"%s"}}}}}`, nowStr))
 		w.log.Infof("Updated rollout pod spec: %s", nowStr)
 	} else {
@@ -160,7 +208,23 @@ func (w *When) ScaleRollout(scale int) *When {
 }
 
 func (w *When) Sleep(d time.Duration) *When {
+	w.log.Infof("Sleeping %s", d)
 	time.Sleep(d)
+	return w
+}
+
+// UpdateResource modifies the specified resource
+func (w *When) UpdateResource(gvr schema.GroupVersionResource, name string, update func(res *unstructured.Unstructured) error) *When {
+	err := retryutil.RetryOnConflict(retryutil.DefaultRetry, func() error {
+		client := w.dynamicClient.Resource(gvr).Namespace(w.namespace)
+		res, err := client.Get(w.Context, name, metav1.GetOptions{})
+		w.CheckError(err)
+		err = update(res)
+		w.CheckError(err)
+		_, err = client.Update(w.Context, res, metav1.UpdateOptions{})
+		return err
+	})
+	w.CheckError(err)
 	return w
 }
 
@@ -197,10 +261,58 @@ func (w *When) PatchSpec(patch string) *When {
 
 func (w *When) WaitForRolloutStatus(status string, timeout ...time.Duration) *When {
 	checkStatus := func(ro *rov1.Rollout) bool {
-		s, _ := info.RolloutStatusString(ro)
-		return s == status
+		s, _ := rolloututil.GetRolloutPhase(ro)
+		return string(s) == status
 	}
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), timeout...)
+}
+
+func (w *When) Wait(duration time.Duration) *When {
+	time.Sleep(duration)
+	return w
+}
+
+// WatchRolloutStatus returns success if Rollout becomes Healthy within timeout period
+// Returns error is Rollout becomes Degraded or times out
+func (w *When) WatchRolloutStatus(expectedStatus string, timeouts ...time.Duration) *When {
+	timeout := E2EWaitTimeout
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
+
+	iostreams, _, _, _ := genericclioptions.NewTestIOStreams()
+	statusOptions := status.StatusOptions{
+		Watch:   true,
+		Timeout: timeout,
+		ArgoRolloutsOptions: options.ArgoRolloutsOptions{
+			RolloutsClient: w.rolloutClient,
+			KubeClient:     w.kubeClient,
+			Log:            w.log.Logger,
+			IOStreams:      iostreams,
+		},
+	}
+
+	controller := viewcontroller.NewRolloutViewController(w.namespace, w.rollout.GetName(), w.kubeClient, w.rolloutClient)
+	ctx, cancel := context.WithCancel(w.Context)
+	defer cancel()
+	controller.Start(ctx)
+
+	rolloutUpdates := make(chan *rollout.RolloutInfo)
+	defer close(rolloutUpdates)
+	controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
+		rolloutUpdates <- roInfo
+	})
+
+	go controller.Run(ctx)
+	finalStatus := statusOptions.WatchStatus(ctx.Done(), rolloutUpdates)
+
+	if finalStatus == expectedStatus {
+		w.log.Infof("expected status %s", finalStatus)
+	} else {
+		w.t.Fatalf("unexpected status %s", finalStatus)
+	}
+
+	return w
 }
 
 func (w *When) WaitForRolloutCanaryStepIndex(index int32, timeout ...time.Duration) *When {
@@ -217,7 +329,7 @@ func (w *When) WaitForRolloutCanaryStepIndex(index int32, timeout ...time.Durati
 			//      WaitForRolloutCanaryStepIndex(N).
 			//      WaitForRolloutStatus("Paused").
 			// which would be annoying.
-			status, _ := info.RolloutStatusString(ro)
+			status, _ := rolloututil.GetRolloutPhase(ro)
 			return status == "Paused"
 		}
 		return true
@@ -296,7 +408,37 @@ func (w *When) DeleteRollout() *When {
 	return w
 }
 
-func (w *When) WaitForAnalysisRunCondition(name string, test func(ro *rov1.AnalysisRun) bool, condition string, timeout time.Duration) *When {
+func (w *When) WaitForExperimentCondition(name string, test func(ex *rov1.Experiment) bool, condition string, timeout time.Duration) *When {
+	start := time.Now()
+	w.log.Infof("Waiting for Experiment %s condition: %s", name, condition)
+	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
+	watch, err := w.rolloutClient.ArgoprojV1alpha1().Experiments(w.namespace).Watch(w.Context, opts)
+	w.CheckError(err)
+	defer watch.Stop()
+	timeoutCh := make(chan bool, 1)
+	go func() {
+		time.Sleep(timeout)
+		timeoutCh <- true
+	}()
+	for {
+		select {
+		case event := <-watch.ResultChan():
+			ex, ok := event.Object.(*rov1.Experiment)
+			if ok {
+				if test(ex) {
+					w.log.Infof("Condition '%s' met after %v", condition, time.Since(start).Truncate(time.Second))
+					return w
+				}
+			} else {
+				w.t.Fatal("not ok")
+			}
+		case <-timeoutCh:
+			w.t.Fatalf("timeout after %v waiting for condition %s", timeout, condition)
+		}
+	}
+}
+
+func (w *When) WaitForAnalysisRunCondition(name string, test func(ar *rov1.AnalysisRun) bool, condition string, timeout time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for AnalysisRun %s condition: %s", name, condition)
 	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
@@ -326,10 +468,20 @@ func (w *When) WaitForAnalysisRunCondition(name string, test func(ro *rov1.Analy
 	}
 }
 
+func checkExperimentPhase(phase string) func(ex *rov1.Experiment) bool {
+	return func(ex *rov1.Experiment) bool {
+		return string(ex.Status.Phase) == phase
+	}
+}
+
 func checkAnalysisRunPhase(phase string) func(ar *rov1.AnalysisRun) bool {
 	return func(ar *rov1.AnalysisRun) bool {
 		return string(ar.Status.Phase) == phase
 	}
+}
+
+func (w *When) WaitForExperimentPhase(name string, phase string) *When {
+	return w.WaitForExperimentCondition(name, checkExperimentPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
 }
 
 func (w *When) WaitForBackgroundAnalysisRunPhase(phase string) *When {
@@ -350,6 +502,26 @@ func (w *When) WaitForPrePromotionAnalysisRunPhase(phase string) *When {
 func (w *When) WaitForPostPromotionAnalysisRunPhase(phase string) *When {
 	arun := w.GetPostPromotionAnalysisRun()
 	return w.WaitForAnalysisRunCondition(arun.Name, checkAnalysisRunPhase(phase), fmt.Sprintf("phase=%s", phase), E2EWaitTimeout)
+}
+
+func (w *When) StartLoad() *When {
+	yamlBytes := w.yamlBytes("@istio/load-test-job.yaml")
+	objs, err := unstructuredutil.SplitYAML(string(yamlBytes))
+	w.CheckError(err)
+	w.applyObject(objs[0])
+	return w
+}
+
+func (w *When) StopLoad() *When {
+	cmd := exec.Command("kubectl", "exec", "job/load-test", "--", "killall", "-s", "SIGINT", "wrk")
+	cmd.Env = os.Environ()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		w.log.Errorf("kubectl exec failed: %s", out)
+		w.t.FailNow()
+	}
+	w.log.Info(string(out))
+	return w
 }
 
 func (w *When) Then() *Then {

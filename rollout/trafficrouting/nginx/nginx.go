@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,13 +13,14 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 // Type holds this controller type
@@ -71,6 +71,11 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, nam
 		Spec: extensionsv1beta1.IngressSpec{
 			Rules: make([]extensionsv1beta1.IngressRule, 0), // We have no way of knowing yet how many rules there will be
 		},
+	}
+
+	// Preserve ingressClassName from stable ingress
+	if stableIngress.Spec.IngressClassName != nil {
+		desiredCanaryIngress.Spec.IngressClassName = stableIngress.Spec.IngressClassName
 	}
 
 	// Must preserve ingress.class on canary ingress, no other annotations matter
@@ -140,8 +145,8 @@ func compareCanaryIngresses(current *extensionsv1beta1.Ingress, desired *extensi
 		}, extensionsv1beta1.Ingress{})
 }
 
-// Reconcile modifies Nginx Ingress resources to reach desired state
-func (r *Reconciler) Reconcile(desiredWeight int32) error {
+// SetWeight modifies Nginx Ingress resources to reach desired state
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
 	ctx := context.TODO()
 	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	canaryIngressName := ingressutil.GetCanaryIngressName(r.cfg.Rollout)
@@ -174,8 +179,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	}
 
 	if !canaryIngressExists {
-		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("desiredWeight", desiredWeight).Info("Creating canary Ingress")
-		r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "CreatingCanaryIngress", fmt.Sprintf("Creating canary ingress `%s` with weight `%d`", canaryIngressName, desiredWeight))
+		r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "CreatingCanaryIngress"}, "Creating canary ingress `%s` with weight `%d`", canaryIngressName, desiredWeight)
 		_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Create(ctx, desiredCanaryIngress, metav1.CreateOptions{})
 		if err == nil {
 			return nil
@@ -216,7 +220,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 
 	r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("patch", string(patch)).Debug("applying canary Ingress patch")
 	r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("desiredWeight", desiredWeight).Info("updating canary Ingress")
-	r.cfg.Recorder.Event(r.cfg.Rollout, corev1.EventTypeNormal, "PatchingCanaryIngress", fmt.Sprintf("Updating Ingress `%s` to desiredWeight '%d'", canaryIngressName, desiredWeight))
+	r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "PatchingCanaryIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", canaryIngressName, desiredWeight)
 
 	_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Patch(ctx, canaryIngressName, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
@@ -224,5 +228,14 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 		return fmt.Errorf("error patching canary ingress `%s`: %v", canaryIngressName, err)
 	}
 
+	return nil
+}
+
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
+	return true, nil
+}
+
+// UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
 	return nil
 }

@@ -3,39 +3,23 @@ package info
 import (
 	"sort"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/job"
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 )
 
-type AnalysisRunInfo struct {
-	Metadata
-	Icon         string
-	Revision     int
-	Status       string
-	Successful   int32
-	Failed       int32
-	Inconclusive int32
-	Error        int32
-	Jobs         []JobInfo
-}
-
-type JobInfo struct {
-	Metadata
-	Status string
-	Icon   string
-}
-
-func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.AnalysisRun) []AnalysisRunInfo {
-	var arInfos []AnalysisRunInfo
+func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.AnalysisRun) []*rollout.AnalysisRunInfo {
+	var arInfos []*rollout.AnalysisRunInfo
 	for _, run := range allAnalysisRuns {
 		if ownerRef(run.OwnerReferences, []types.UID{ownerUID}) == nil {
 			continue
 		}
-		arInfo := AnalysisRunInfo{
-			Metadata: Metadata{
+		arInfo := rollout.AnalysisRunInfo{
+			ObjectMeta: &v1.ObjectMeta{
 				Name:              run.Name,
 				Namespace:         run.Namespace,
 				CreationTimestamp: run.CreationTimestamp,
@@ -51,33 +35,33 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			lastMeasurement := analysisutil.LastMeasurement(run, mr.Name)
 			if lastMeasurement != nil && lastMeasurement.Metadata != nil {
 				if jobName, ok := lastMeasurement.Metadata[job.JobNameKey]; ok {
-					jobInfo := JobInfo{
-						Metadata: Metadata{
+					jobInfo := rollout.JobInfo{
+						ObjectMeta: &v1.ObjectMeta{
 							Name: jobName,
 						},
 						Icon:   analysisIcon(lastMeasurement.Phase),
 						Status: string(lastMeasurement.Phase),
 					}
 					if lastMeasurement.StartedAt != nil {
-						jobInfo.CreationTimestamp = *lastMeasurement.StartedAt
+						jobInfo.ObjectMeta.CreationTimestamp = *lastMeasurement.StartedAt
 					}
-					arInfo.Jobs = append(arInfo.Jobs, jobInfo)
+					arInfo.Jobs = append(arInfo.Jobs, &jobInfo)
 				}
 			}
 		}
 		arInfo.Icon = analysisIcon(run.Status.Phase)
-		arInfo.Revision = parseRevision(run.ObjectMeta.Annotations)
+		arInfo.Revision = int32(parseRevision(run.ObjectMeta.Annotations))
 
-		arInfos = append(arInfos, arInfo)
+		arInfos = append(arInfos, &arInfo)
 	}
 	sort.Slice(arInfos[:], func(i, j int) bool {
 		if arInfos[i].Revision != arInfos[j].Revision {
 			return arInfos[i].Revision > arInfos[j].Revision
 		}
-		if arInfos[i].CreationTimestamp != arInfos[j].CreationTimestamp {
-			return arInfos[i].CreationTimestamp.Before(&arInfos[j].CreationTimestamp)
+		if arInfos[i].ObjectMeta.CreationTimestamp != arInfos[j].ObjectMeta.CreationTimestamp {
+			return arInfos[i].ObjectMeta.CreationTimestamp.Before(&arInfos[j].ObjectMeta.CreationTimestamp)
 		}
-		return arInfos[i].Name > arInfos[j].Name
+		return arInfos[i].ObjectMeta.Name > arInfos[j].ObjectMeta.Name
 	})
 	return arInfos
 }

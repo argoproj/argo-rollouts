@@ -3,6 +3,7 @@ package lint
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"unicode"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
+	goyaml "gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -73,21 +75,12 @@ func unmarshal(fileBytes []byte, obj interface{}) error {
 	return yaml.UnmarshalStrict(fileBytes, &obj, yaml.DisallowUnknownFields)
 }
 
-func (l *LintOptions) lintResource(path string) error {
-	fileBytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	var un unstructured.Unstructured
-	err = unmarshal(fileBytes, &un)
-	if err != nil {
-		return err
-	}
+func validate(fileBytes []byte, un *unstructured.Unstructured) error {
 	gvk := un.GroupVersionKind()
 	switch {
 	case gvk.Group == rollouts.Group && gvk.Kind == rollouts.RolloutKind:
 		var ro v1alpha1.Rollout
-		err = unmarshal(fileBytes, &ro)
+		err := unmarshal(fileBytes, &ro)
 		if err != nil {
 			return err
 		}
@@ -96,5 +89,49 @@ func (l *LintOptions) lintResource(path string) error {
 			return errs[0]
 		}
 	}
+	return nil
+}
+
+func (l *LintOptions) lintResource(path string) error {
+	fileBytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var un unstructured.Unstructured
+
+	if isJSON(fileBytes) {
+		if err = unmarshal(fileBytes, un); err != nil {
+			return err
+		}
+		return validate(fileBytes, &un)
+	}
+
+	decoder := goyaml.NewDecoder(bytes.NewReader(fileBytes))
+	for {
+		var value interface{}
+		if err := decoder.Decode(&value); err != nil {
+			if err != io.EOF {
+				return err
+			}
+			break
+		}
+		if value == nil {
+			continue
+		}
+		valueBytes, err := goyaml.Marshal(value)
+		if err != nil {
+			return err
+		}
+
+		if err = yaml.UnmarshalStrict(valueBytes, &un, yaml.DisallowUnknownFields); err != nil {
+			return err
+		}
+
+		if err = validate(valueBytes, &un); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

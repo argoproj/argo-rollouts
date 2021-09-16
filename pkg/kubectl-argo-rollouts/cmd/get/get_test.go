@@ -102,6 +102,20 @@ func TestWatchRolloutNotFound(t *testing.T) {
 	assert.Equal(t, "Error: rollout.argoproj.io \"does-not-exist\" not found\n", stderr)
 }
 
+func TestWatchBlueGreenRollout(t *testing.T) {
+	rolloutObjs := testdata.NewBlueGreenRollout()
+
+	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
+	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
+	defer tf.Cleanup()
+	cmd := NewCmdGetRollout(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{rolloutObjs.Rollouts[0].Name, "--no-color", "--watch", "--timeout-seconds", "10"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	rolloutObjs = nil
+}
+
 func TestGetBlueGreenRollout(t *testing.T) {
 	rolloutObjs := testdata.NewBlueGreenRollout()
 

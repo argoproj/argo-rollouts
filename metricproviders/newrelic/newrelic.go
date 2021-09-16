@@ -5,10 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"strconv"
-	"strings"
 
 	"github.com/newrelic/newrelic-client-go/newrelic"
 	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
@@ -17,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	"github.com/argoproj/argo-rollouts/utils/version"
@@ -97,15 +95,15 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, results []nrdb.NrdbRe
 		if err != nil {
 			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("could not marshal results: %w", err)
 		}
-		newStatus := evaluate.EvaluateResult(result, metric, p.logCtx)
-		return valueStr, newStatus, nil
+		newStatus, err := evaluate.EvaluateResult(result, metric, p.logCtx)
+		return valueStr, newStatus, err
 	} else if len(results) > 1 {
 		valueStr, err := toJSONString(results)
 		if err != nil {
 			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("could not marshal results: %w", err)
 		}
-		newStatus := evaluate.EvaluateResult(results, metric, p.logCtx)
-		return valueStr, newStatus, nil
+		newStatus, err := evaluate.EvaluateResult(results, metric, p.logCtx)
+		return valueStr, newStatus, err
 	} else {
 		return "", v1alpha1.AnalysisPhaseFailed, fmt.Errorf("no results returned from NRQL query")
 	}
@@ -142,7 +140,7 @@ func NewNewRelicProvider(api NewRelicClientAPI, logCtx log.Entry) *Provider {
 
 //NewNewRelicAPIClient creates a new NewRelic API client from metric configuration
 func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (NewRelicClientAPI, error) {
-	ns := Namespace()
+	ns := defaults.Namespace()
 	profileSecret := DefaultNewRelicProfileSecretName
 	if metric.Provider.NewRelic.Profile != "" {
 		profileSecret = metric.Provider.NewRelic.Profile
@@ -154,13 +152,27 @@ func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Inter
 
 	apiKey := string(secret.Data["personal-api-key"])
 	accountID := string(secret.Data["account-id"])
+
+	newrelicOptions := []newrelic.ConfigOption{newrelic.ConfigPersonalAPIKey(apiKey), newrelic.ConfigUserAgent(userAgent)}
+
 	region := "us"
 	if _, ok := secret.Data["region"]; ok {
 		region = string(secret.Data["region"])
 	}
+	newrelicOptions = append(newrelicOptions, newrelic.ConfigRegion(region))
+
+	// base URL for the new relic REST API
+	if _, ok := secret.Data["base-url-rest"]; ok {
+		newrelicOptions = append(newrelicOptions, newrelic.ConfigBaseURL(string(secret.Data["base-url-rest"])))
+	}
+
+	// base URL for the nerdgraph (graphQL) API
+	if _, ok := secret.Data["base-url-nerdgraph"]; ok {
+		newrelicOptions = append(newrelicOptions, newrelic.ConfigNerdGraphBaseURL(string(secret.Data["base-url-nerdgraph"])))
+	}
 
 	if apiKey != "" && accountID != "" {
-		nrClient, err := newrelic.New(newrelic.ConfigPersonalAPIKey(apiKey), newrelic.ConfigRegion(region), newrelic.ConfigUserAgent(userAgent))
+		nrClient, err := newrelic.New(newrelicOptions...)
 		if err != nil {
 			return nil, err
 		}
@@ -172,19 +184,4 @@ func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Inter
 	} else {
 		return nil, errors.New("account ID or personal API key not found")
 	}
-}
-
-func Namespace() string {
-	// This way assumes you've set the POD_NAMESPACE environment variable using the downward API.
-	// This check has to be done first for backwards compatibility with the way InClusterConfig was originally set up
-	if ns, ok := os.LookupEnv("POD_NAMESPACE"); ok {
-		return ns
-	}
-	// Fall back to the namespace associated with the service account token, if available
-	if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-		if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
-			return ns
-		}
-	}
-	return "argo-rollouts"
 }

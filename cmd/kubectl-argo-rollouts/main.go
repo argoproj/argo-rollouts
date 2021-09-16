@@ -7,7 +7,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"

@@ -17,8 +17,11 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 const (
@@ -68,14 +71,11 @@ func (c *Controller) getAnalysisRunsForRollout(rollout *v1alpha1.Rollout) ([]*v1
 }
 
 func (c *rolloutContext) reconcileAnalysisRuns() error {
-	if c.pauseContext.IsAborted() || c.rollout.Status.PromoteFull {
-		allArs := append(c.currentArs.ToArray(), c.otherArs...)
-		c.SetCurrentAnalysisRuns(c.currentArs)
-		return c.cancelAnalysisRuns(allArs)
-	}
-
-	if replicasetutil.HasScaleDownDeadline(c.newRS) {
-		c.log.Infof("Skipping analysis: detected rollback to ReplicaSet '%s' within scaleDownDelay", c.newRS.Name)
+	isAborted := c.pauseContext.IsAborted()
+	rollbackToScaleDownDelay := replicasetutil.HasScaleDownDeadline(c.newRS)
+	initialDeploy := c.rollout.Status.StableRS == ""
+	if isAborted || c.rollout.Status.PromoteFull || rollbackToScaleDownDelay || initialDeploy {
+		c.log.Infof("Skipping analysis: isAborted: %v, promoteFull: %v, rollbackToScaleDownDelay: %v, initialDeploy: %v", isAborted, c.rollout.Status.PromoteFull, rollbackToScaleDownDelay, initialDeploy)
 		allArs := append(c.currentArs.ToArray(), c.otherArs...)
 		c.SetCurrentAnalysisRuns(c.currentArs)
 		return c.cancelAnalysisRuns(allArs)
@@ -133,7 +133,9 @@ func (c *rolloutContext) reconcileAnalysisRuns() error {
 		return err
 	}
 
-	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, c.allRSs)
+	limitSucceedArs := defaults.GetAnalysisRunSuccessfulHistoryLimitOrDefault(c.rollout)
+	limitFailedArs := defaults.GetAnalysisRunUnsuccessfulHistoryLimitOrDefault(c.rollout)
+	arsToDelete := analysisutil.FilterAnalysisRunsToDelete(otherArs, c.allRSs, limitSucceedArs, limitFailedArs)
 	err = c.deleteAnalysisRuns(arsToDelete)
 	if err != nil {
 		return err
@@ -175,7 +177,7 @@ func needsNewAnalysisRun(currentAr *v1alpha1.AnalysisRun, rollout *v1alpha1.Roll
 
 // emitAnalysisRunStatusChanges emits a Kubernetes event if the analysis run of that type has changed status
 func (c *rolloutContext) emitAnalysisRunStatusChanges(prevStatus *v1alpha1.RolloutAnalysisRunStatus, ar *v1alpha1.AnalysisRun, arType string) {
-	if ar != nil {
+	if ar != nil && ar.Status.Phase != "" {
 		if prevStatus == nil || prevStatus.Name == ar.Name && prevStatus.Status != ar.Status.Phase {
 			prevStatusStr := "NoPreviousStatus"
 			if prevStatus != nil {
@@ -187,7 +189,7 @@ func (c *rolloutContext) emitAnalysisRunStatusChanges(prevStatus *v1alpha1.Rollo
 				eventType = corev1.EventTypeWarning
 			}
 			msg := fmt.Sprintf("%s Analysis Run '%s' Status New: '%s' Previous: '%s'", arType, ar.Name, ar.Status.Phase, prevStatusStr)
-			c.recorder.Event(c.rollout, eventType, "AnalysisRunStatusChange", msg)
+			c.recorder.Eventf(c.rollout, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(ar.Status.Phase)}, msg)
 		}
 	}
 }
@@ -286,7 +288,8 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 	}
 
 	c.log.Info("Reconciling Post Promotion Analysis")
-	if skipPostPromotionAnalysisRun(c.rollout, c.newRS) {
+	// don't start post-promotion if we are not ready to, or we are still waiting for target verification
+	if skipPostPromotionAnalysisRun(c.rollout, c.newRS) || !c.areTargetsVerified() {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return currentAr, err
 	}
@@ -316,7 +319,7 @@ func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun
 	}
 
 	// Do not create a background run if the rollout is completely rolled out, just created, before the starting step
-	if c.rollout.Status.StableRS == c.rollout.Status.CurrentPodHash || c.rollout.Status.StableRS == "" || c.rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(c.rollout) {
+	if rolloututil.IsFullyPromoted(c.rollout) || c.rollout.Status.StableRS == "" || c.rollout.Status.CurrentPodHash == "" || replicasetutil.BeforeStartingStep(c.rollout) {
 		return nil, nil
 	}
 
@@ -418,56 +421,36 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 	if infix != "" {
 		nameParts = append(nameParts, infix)
 	}
-	if rolloutAnalysis.TemplateName != "" {
-		//TODO(dthomson) remove this code block in v0.9.0
-		nameParts = append(nameParts, rolloutAnalysis.TemplateName)
-	}
 	name := strings.Join(nameParts, "-")
 	var run *v1alpha1.AnalysisRun
 	var err error
-	if rolloutAnalysis.TemplateName != "" {
-		//TODO(dthomson) remove this code block in v0.9.0
-		template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(rolloutAnalysis.TemplateName)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				c.log.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
-			}
-			return nil, err
-		}
-		run, err = analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", c.rollout.Namespace)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		templates := make([]*v1alpha1.AnalysisTemplate, 0)
-		clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
-		for _, templateRef := range rolloutAnalysis.Templates {
-
-			if templateRef.ClusterScope {
-				template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
-				if err != nil {
-					if k8serrors.IsNotFound(err) {
-						c.log.Warnf("ClusterAnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
-					}
-					return nil, err
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	for _, templateRef := range rolloutAnalysis.Templates {
+		if templateRef.ClusterScope {
+			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					c.log.Warnf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName)
 				}
-				clusterTemplates = append(clusterTemplates, template)
-			} else {
-				template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
-				if err != nil {
-					if k8serrors.IsNotFound(err) {
-						c.log.Warnf("AnalysisTemplate '%s' not found", rolloutAnalysis.TemplateName)
-					}
-					return nil, err
-				}
-				templates = append(templates, template)
+				return nil, err
 			}
+			clusterTemplates = append(clusterTemplates, template)
+		} else {
+			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					c.log.Warnf("AnalysisTemplate '%s' not found", templateRef.TemplateName)
+				}
+				return nil, err
+			}
+			templates = append(templates, template)
+		}
 
-		}
-		run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, name, "", c.rollout.Namespace)
-		if err != nil {
-			return nil, err
-		}
+	}
+	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, name, "", c.rollout.Namespace)
+	if err != nil {
+		return nil, err
 	}
 	run.Labels = labels
 	run.Annotations = map[string]string{

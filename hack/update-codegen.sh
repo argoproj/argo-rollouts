@@ -1,5 +1,6 @@
 #! /usr/bin/env bash
 
+set -x
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -30,8 +31,3 @@ ${CODEGEN_PKG}/generate-groups.sh "deepcopy,client,informer,lister" \
 cp -r "${TEMP_DIR}/github.com/argoproj/argo-rollouts/." "${SCRIPT_ROOT}/"
 # To use your own boilerplate text use:
 #   --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
-
-CONTROLLERGEN_VERSION=$(go list -m sigs.k8s.io/controller-tools | awk '{print $2}' | head -1)
-CONTROLLERGEN_PKG=$(echo `go env GOPATH`"/pkg/mod/sigs.k8s.io/controller-tools@${CONTROLLERGEN_VERSION}")
-go build -o dist/controller-gen $CONTROLLERGEN_PKG/cmd/controller-gen/
-./dist/controller-gen --version

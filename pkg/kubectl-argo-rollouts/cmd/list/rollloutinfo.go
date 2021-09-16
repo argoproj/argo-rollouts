@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 const (
@@ -63,7 +63,8 @@ func newRolloutInfo(ro v1alpha1.Rollout) rolloutInfo {
 	} else if ro.Spec.Strategy.BlueGreen != nil {
 		ri.strategy = "BlueGreen"
 	}
-	ri.status, _ = info.RolloutStatusString(&ro)
+	phase, _ := rolloututil.GetRolloutPhase(&ro)
+	ri.status = string(phase)
 
 	ri.desired = 1
 	if ro.Spec.Replicas != nil {

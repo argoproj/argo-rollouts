@@ -233,6 +233,7 @@ in different namespaces, and avoid duplicating the same template in every namesp
     The resulting `AnalysisRun` will still run in the namespace of the `Rollout`
 
 ## Analysis with Multiple Templates
+
 A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to compose 
 analysis from multiple AnalysisTemplates. If multiple templates are referenced, then the controller will merge the
 templates together. The controller combines the `metrics` and `args` fields of all the templates.
@@ -459,9 +460,10 @@ spec:
 ```
 
 ## BlueGreen Pre Promotion Analysis
-A Rollout using the BlueGreen strategy can launch an AnalysisRun before it switches traffic to the new version. The
-AnalysisRun can be used to block the Service selector switch until the AnalysisRun finishes successful. The success or
-failure of the analysis run decides if the Rollout will switch traffic, or abort the Rollout completely.
+
+A Rollout using the BlueGreen strategy can launch an AnalysisRun *before* it switches traffic to the new version using
+pre-promotion. This can be used to block the Service selector switch until the AnalysisRun finishes successfully. The success or
+failure of the AnalysisRun decides if the Rollout switches traffic, or abort the Rollout completely.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -482,8 +484,8 @@ spec:
           value: preview-svc.default.svc.cluster.local
 ```
 
-In this example, the Rollout is creating a AnalysisRun once the new version has all the pods available. The 
-Rollout will not switch traffic to the new version until the analysis run finishes successfully. 
+In this example, the Rollout creates a pre-promotion AnalysisRun once the new ReplicaSet is fully available.
+The Rollout will not switch traffic to the new version until the analysis run finishes successfully. 
 
 Note: if the`autoPromotionSeconds` field is specified and the Rollout has waited auto promotion seconds amount of time,
 the Rollout marks the AnalysisRun successful and switches the traffic to a new version automatically. If the AnalysisRun
@@ -492,11 +494,11 @@ completes before then, the Rollout will not create another AnalysisRun and wait 
 
 ## BlueGreen Post Promotion Analysis
 
-A Rollout using a BlueGreen strategy can launch an analysis run after the traffic switch to new version. If the analysis
-run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
-If `scaleDownDelaySeconds` is specified, the controller will cancel any AnalysisRuns at time of `scaleDownDelay` to 
-scale down the ReplicaSet. If it is omitted, and post analysis is specified, it will scale down the ReplicaSet only 
-after the AnalysisRun completes (with a minimum of 30 seconds).
+A Rollout using a BlueGreen strategy can launch an analysis run *after* the traffic switch to the new version using
+post-promotion analysis. If post-promotion Analysis fails or errors, the Rollout enters an aborted state and switches traffic back to the
+previous stable Replicaset. When post-analysis is Successful, the Rollout is considered fully promoted and
+the new ReplicaSet will be marked as stable. The old ReplicaSet will then be scaled down according to 
+`scaleDownDelaySeconds` (default 30 seconds).
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -643,3 +645,159 @@ spec:
           value: "Bearer {{ args.api-token }}" 
 ```
 
+## Handling Metric Results
+
+### NaN and Infinity
+Metric providers can sometimes return values of NaN (not a number) and infinity. Users can edit the `successCondition` and `failureCondition` fields
+to handle these cases accordingly.
+
+Here are three examples where a metric result of NaN is considered successful, inconclusive and failed respectively.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    successCondition: isNaN(result) || result >= 0.95
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-02-10T00:15:26Z"
+      phase: Successful
+      startedAt: "2021-02-10T00:15:26Z"
+      value: NaN
+    name: success-rate
+    phase: Successful
+    successful: 1
+  phase: Successful
+  startedAt: "2021-02-10T00:15:26Z"
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    successCondition: result >= 0.95
+    failureCondition: result < 0.95
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-02-10T00:15:26Z"
+      phase: Inconclusive
+      startedAt: "2021-02-10T00:15:26Z"
+      value: NaN
+    name: success-rate
+    phase: Inconclusive
+    successful: 1
+  phase: Inconclusive
+  startedAt: "2021-02-10T00:15:26Z"
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    successCondition: result >= 0.95
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-02-10T00:15:26Z"
+      phase: Failed
+      startedAt: "2021-02-10T00:15:26Z"
+      value: NaN
+    name: success-rate
+    phase: Failed
+    successful: 1
+  phase: Failed
+  startedAt: "2021-02-10T00:15:26Z"
+```
+
+Here are two examples where a metric result of infinity is considered successful and failed respectively.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    successCondition: result >= 0.95
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-02-10T00:15:26Z"
+      phase: Successful
+      startedAt: "2021-02-10T00:15:26Z"
+      value: +Inf
+    name: success-rate
+    phase: Successful
+    successful: 1
+  phase: Successful
+  startedAt: "2021-02-10T00:15:26Z"
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    failureCondition: isInf(result)
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-02-10T00:15:26Z"
+      phase: Failed
+      startedAt: "2021-02-10T00:15:26Z"
+      value: +Inf
+    name: success-rate
+    phase: Failed
+    successful: 1
+  phase: Failed
+  startedAt: "2021-02-10T00:15:26Z"
+```
+
+### Empty array
+
+Metric providers can sometimes return empty array, e.g., no data returned from prometheus query.
+
+Here are two examples where a metric result of empty array is considered successful and failed respectively.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    successCondition: len(result) == 0 || result >= 0.95
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-09-08T19:15:49Z"
+      phase: Successful
+      startedAt: "2021-09-08T19:15:49Z"
+      value: '[]'
+    name: success-rate
+    phase: Successful
+    successful: 1
+  phase: Successful
+  startedAt:  "2021-09-08T19:15:49Z"
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+  ...
+    successCondition: len(result) > 0 && result >= 0.95
+status:
+  metricResults:
+  - count: 1
+    measurements:
+    - finishedAt: "2021-09-08T19:19:44Z"
+      phase: Failed
+      startedAt: "2021-09-08T19:19:44Z"
+      value: '[]'
+    name: success-rate
+    phase: Failed
+    successful: 1
+  phase: Failed
+  startedAt: "2021-09-08T19:19:44Z"
+```

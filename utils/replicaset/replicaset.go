@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -233,22 +234,32 @@ func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) 
 // 2) Max number of pods allowed is reached: deployment's replicas + maxSurge == all RSs' replicas
 func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) (int32, error) {
 	if rollout.Spec.Strategy.BlueGreen != nil {
+		desiredReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 		if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil {
 			activeRS, _ := GetReplicaSetByTemplateHash(allRSs, rollout.Status.BlueGreen.ActiveSelector)
 			if activeRS == nil || activeRS.Name == newRS.Name {
-				return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
+				// the active RS is our desired RS. we are already past the blue-green promote step
+				return desiredReplicas, nil
+			}
+			if rollout.Status.PromoteFull {
+				// we are doing a full promotion. ignore previewReplicaCount
+				return desiredReplicas, nil
 			}
 			if newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] != rollout.Status.CurrentPodHash {
+				// the desired RS is not equal to our previously recorded current RS.
+				// This must be a new update, so return previewReplicaCount
 				return *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount, nil
 			}
 			isNotPaused := !rollout.Spec.Paused && len(rollout.Status.PauseConditions) == 0
 			if isNotPaused && rollout.Status.BlueGreen.ScaleUpPreviewCheckPoint {
-				return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
+				// We are not paused, but we are already past our preview scale up checkpoint.
+				// If we get here, we were resumed after the pause, but haven't yet flipped the
+				// active service switch to the desired RS.
+				return desiredReplicas, nil
 			}
 			return *rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount, nil
 		}
-
-		return defaults.GetReplicasOrDefault(rollout.Spec.Replicas), nil
+		return desiredReplicas, nil
 	}
 	if rollout.Spec.Strategy.Canary != nil {
 		stableRS := GetStableRS(rollout, newRS, allRSs)
@@ -387,12 +398,19 @@ func resolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired
 // MaxUnavailable returns the maximum unavailable pods a rolling deployment can take.
 func MaxUnavailable(rollout *v1alpha1.Rollout) int32 {
 	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
-	if rollout.Spec.Strategy.Canary == nil || rolloutReplicas == 0 {
+	if rolloutReplicas == 0 {
 		return int32(0)
 	}
 
 	// Error caught by validation
-	_, maxUnavailable, _ := resolveFenceposts(defaults.GetMaxSurgeOrDefault(rollout), defaults.GetMaxUnavailableOrDefault(rollout), rolloutReplicas)
+	var maxUnavailable int32
+	if rollout.Spec.Strategy.Canary != nil {
+		_, maxUnavailable, _ = resolveFenceposts(defaults.GetMaxSurgeOrDefault(rollout), defaults.GetMaxUnavailableOrDefault(rollout), rolloutReplicas)
+	} else {
+		unavailable, _ := intstrutil.GetValueFromIntOrPercent(intstrutil.ValueOrDefault(defaults.GetMaxUnavailableOrDefault(rollout), intstrutil.FromInt(0)), int(rolloutReplicas), false)
+		maxUnavailable = int32(unavailable)
+	}
+
 	if maxUnavailable > rolloutReplicas {
 		return rolloutReplicas
 	}
@@ -457,7 +475,7 @@ func PodTemplateOrStepsChanged(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaS
 
 // ResetCurrentStepIndex resets the index back to zero unless there are no steps
 func ResetCurrentStepIndex(rollout *v1alpha1.Rollout) *int32 {
-	if len(rollout.Spec.Strategy.Canary.Steps) > 0 {
+	if rollout.Spec.Strategy.Canary != nil && len(rollout.Spec.Strategy.Canary.Steps) > 0 {
 		return pointer.Int32Ptr(0)
 	}
 	return nil
@@ -486,6 +504,15 @@ func PodTemplateEqualIgnoreHash(live, desired *corev1.PodTemplateSpec) bool {
 	}
 	corev1defaults.SetObjectDefaults_PodTemplate(&podTemplate)
 	desired = &podTemplate.Template
+
+	// Do not allow the deprecated spec.serviceAccount to factor into the equality check. In live
+	// ReplicaSet pod template, this field will be populated, but in the desired pod template
+	// it will be missing (even after defaulting), causing us to believe there is a diff
+	// (when there really wasn't), and hence causing an unsolicited update to be triggered.
+	// See: https://github.com/argoproj/argo-rollouts/issues/1356
+	desired.Spec.DeprecatedServiceAccount = ""
+	live.Spec.DeprecatedServiceAccount = ""
+
 	return apiequality.Semantic.DeepEqual(live, desired)
 }
 
@@ -555,6 +582,23 @@ func HasScaleDownDeadline(rs *appsv1.ReplicaSet) bool {
 	return rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] != ""
 }
 
+func GetTimeRemainingBeforeScaleDownDeadline(rs *appsv1.ReplicaSet) (*time.Duration, error) {
+	if HasScaleDownDeadline(rs) {
+		scaleDownAtStr := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+		scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read scaleDownAt label on rs '%s'", rs.Name)
+		}
+		now := metav1.Now()
+		scaleDownAt := metav1.NewTime(scaleDownAtTime)
+		if scaleDownAt.After(now.Time) {
+			remainingTime := scaleDownAt.Sub(now.Time)
+			return &remainingTime, nil
+		}
+	}
+	return nil, nil
+}
+
 // GetPodsOwnedByReplicaSet returns a list of pods owned by the given replicaset
 func GetPodsOwnedByReplicaSet(ctx context.Context, client kubernetes.Interface, rs *appsv1.ReplicaSet) ([]*corev1.Pod, error) {
 	pods, err := client.CoreV1().Pods(rs.Namespace).List(ctx, metav1.ListOptions{
@@ -571,4 +615,14 @@ func GetPodsOwnedByReplicaSet(ctx context.Context, client kubernetes.Interface, 
 		}
 	}
 	return podOwnedByRS, nil
+}
+
+// IsReplicaSetReady returns if a ReplicaSet is scaled up and its ready count is >= desired count
+func IsReplicaSetReady(rs *appsv1.ReplicaSet) bool {
+	if rs == nil {
+		return false
+	}
+	replicas := rs.Spec.Replicas
+	readyReplicas := rs.Status.ReadyReplicas
+	return replicas != nil && *replicas != 0 && readyReplicas != 0 && *replicas <= readyReplicas
 }

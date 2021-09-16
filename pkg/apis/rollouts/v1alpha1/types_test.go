@@ -21,4 +21,6 @@ func TestRolloutPauseDuration(t *testing.T) {
 	assert.Equal(t, int32(0), rp.DurationSeconds())
 	rp.Duration = DurationFromString("1z")
 	assert.Equal(t, int32(-1), rp.DurationSeconds())
+	rp.Duration = DurationFromString("20000000000") // out of int32
+	assert.Equal(t, int32(-1), rp.DurationSeconds())
 }

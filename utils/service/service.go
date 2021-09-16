@@ -20,25 +20,21 @@ func GetRolloutServiceKeys(rollout *v1alpha1.Rollout) []string {
 	if rollout == nil {
 		return nil
 	}
-	servicesSet := make(map[string]bool)
+	var services []string
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		if rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
-			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreen.ActiveService)] = true
+			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreen.ActiveService))
 		}
 		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
-			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreen.PreviewService)] = true
+			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.BlueGreen.PreviewService))
 		}
 	} else if rollout.Spec.Strategy.Canary != nil {
 		if rollout.Spec.Strategy.Canary.CanaryService != "" {
-			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.CanaryService)] = true
+			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.CanaryService))
 		}
 		if rollout.Spec.Strategy.Canary.StableService != "" {
-			servicesSet[fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.StableService)] = true
+			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.StableService))
 		}
-	}
-	var services []string
-	for svc := range servicesSet {
-		services = append(services, svc)
 	}
 	return services
 }

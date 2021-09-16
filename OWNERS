@@ -1,10 +1,12 @@
 owners:
 - alexmt
-- dthomson25
 - jessesuen
 
 approvers:
 - alexmt
-- dthomson25
 - jessesuen
 - khhirani
+
+reviewers:
+- dthomson25
+- huikang

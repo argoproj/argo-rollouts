@@ -6,30 +6,22 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
-
-type ExperimentInfo struct {
-	Metadata
-	Icon         string
-	Revision     int
-	Status       string
-	Message      string
-	ReplicaSets  []ReplicaSetInfo
-	AnalysisRuns []AnalysisRunInfo
-}
 
 func NewExperimentInfo(
 	exp *v1alpha1.Experiment,
 	allReplicaSets []*appsv1.ReplicaSet,
 	allAnalysisRuns []*v1alpha1.AnalysisRun,
 	allPods []*corev1.Pod,
-) *ExperimentInfo {
+) *rollout.ExperimentInfo {
 
-	expInfo := ExperimentInfo{
-		Metadata: Metadata{
+	expInfo := rollout.ExperimentInfo{
+		ObjectMeta: &v1.ObjectMeta{
 			Name:              exp.Name,
 			Namespace:         exp.Namespace,
 			CreationTimestamp: exp.CreationTimestamp,
@@ -39,8 +31,8 @@ func NewExperimentInfo(
 		Message: exp.Status.Message,
 	}
 	expInfo.Icon = analysisIcon(exp.Status.Phase)
-	expInfo.Revision = parseRevision(exp.ObjectMeta.Annotations)
-	expInfo.ReplicaSets = getReplicaSetInfo(exp.UID, nil, allReplicaSets, allPods)
+	expInfo.Revision = int32(parseRevision(exp.ObjectMeta.Annotations))
+	expInfo.ReplicaSets = GetReplicaSetInfo(exp.UID, nil, allReplicaSets, allPods)
 	expInfo.AnalysisRuns = getAnalysisRunInfo(exp.UID, allAnalysisRuns)
 	return &expInfo
 }
@@ -51,27 +43,27 @@ func getExperimentInfo(
 	allReplicaSets []*appsv1.ReplicaSet,
 	allAnalysisRuns []*v1alpha1.AnalysisRun,
 	allPods []*corev1.Pod,
-) []ExperimentInfo {
+) []*rollout.ExperimentInfo {
 
-	var expInfos []ExperimentInfo
+	var expInfos []*rollout.ExperimentInfo
 	for _, exp := range allExperiments {
 		if ownerRef(exp.OwnerReferences, []types.UID{ro.UID}) == nil {
 			continue
 		}
 		expInfo := NewExperimentInfo(exp, allReplicaSets, allAnalysisRuns, allPods)
-		expInfos = append(expInfos, *expInfo)
+		expInfos = append(expInfos, expInfo)
 	}
 	sort.Slice(expInfos[:], func(i, j int) bool {
 		if expInfos[i].Revision > expInfos[j].Revision {
 			return true
 		}
-		return expInfos[i].CreationTimestamp.Before(&expInfos[j].CreationTimestamp)
+		return expInfos[i].ObjectMeta.CreationTimestamp.Before(&expInfos[j].ObjectMeta.CreationTimestamp)
 	})
 	return expInfos
 }
 
 // Images returns a list of images that are currently running along with tags on which stack they belong to
-func (r *ExperimentInfo) Images() []ImageInfo {
+func ExperimentImages(r *rollout.ExperimentInfo) []ImageInfo {
 	var images []ImageInfo
 	for _, rsInfo := range r.ReplicaSets {
 		if rsInfo.Replicas > 0 {

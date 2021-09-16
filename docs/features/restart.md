@@ -33,7 +33,7 @@ creation timestamp which is newer than the `restartAt` time. For every pod older
 recreated one.
 
 To prevent too many Pods from restarting at once, the controller limits itself to deleting up to 
-`maxUnavailable` Pods at a time (for the canary strategy). Secondly, since pods are evicted
+`maxUnavailable` Pods at a time. Secondly, since pods are evicted
 and not deleted, the restart process will honor any PodDisruptionBudgets which are in place.
 The controller restarts ReplicaSets in the following order:
   1. stable ReplicaSet

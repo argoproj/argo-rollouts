@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/queue"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -16,6 +18,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	rolloutlisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
@@ -53,9 +56,9 @@ type ExperimentViewController struct {
 	*viewController
 }
 
-type RolloutInfoCallback func(*info.RolloutInfo)
+type RolloutInfoCallback func(*rollout.RolloutInfo)
 
-type ExperimentInfoCallback func(*info.ExperimentInfo)
+type ExperimentInfoCallback func(*rollout.ExperimentInfo)
 
 func NewRolloutViewController(namespace string, name string, kubeClient kubernetes.Interface, rolloutClient rolloutclientset.Interface) *RolloutViewController {
 	vc := newViewController(namespace, name, kubeClient, rolloutClient)
@@ -97,7 +100,7 @@ func newViewController(namespace string, name string, kubeClient kubernetes.Inte
 		rolloutLister:           rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace),
 		experimentLister:        rolloutsInformerFactory.Argoproj().V1alpha1().Experiments().Lister().Experiments(namespace),
 		analysisRunLister:       rolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns().Lister().AnalysisRuns(namespace),
-		workqueue:               workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		workqueue:               workqueue.NewRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter()),
 	}
 
 	controller.cacheSyncs = append(controller.cacheSyncs,
@@ -165,7 +168,7 @@ func (c *viewController) processNextWorkItem() bool {
 	return true
 }
 
-func (c *RolloutViewController) GetRolloutInfo() (*info.RolloutInfo, error) {
+func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 	ro, err := c.rolloutLister.Get(c.name)
 	if err != nil {
 		return nil, err
@@ -197,12 +200,12 @@ func (c *RolloutViewController) GetRolloutInfo() (*info.RolloutInfo, error) {
 
 func (c *RolloutViewController) RegisterCallback(callback RolloutInfoCallback) {
 	cb := func(i interface{}) {
-		callback(i.(*info.RolloutInfo))
+		callback(i.(*rollout.RolloutInfo))
 	}
 	c.callbacks = append(c.callbacks, cb)
 }
 
-func (c *ExperimentViewController) GetExperimentInfo() (*info.ExperimentInfo, error) {
+func (c *ExperimentViewController) GetExperimentInfo() (*rollout.ExperimentInfo, error) {
 	exp, err := c.experimentLister.Get(c.name)
 	if err != nil {
 		return nil, err
@@ -225,7 +228,7 @@ func (c *ExperimentViewController) GetExperimentInfo() (*info.ExperimentInfo, er
 
 func (c *ExperimentViewController) RegisterCallback(callback ExperimentInfoCallback) {
 	cb := func(i interface{}) {
-		callback(i.(*info.ExperimentInfo))
+		callback(i.(*rollout.ExperimentInfo))
 	}
 	c.callbacks = append(c.callbacks, cb)
 }

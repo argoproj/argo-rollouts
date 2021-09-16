@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/queue"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/undefinedlabs/go-mpatch"
@@ -18,7 +20,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -27,6 +28,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 var (
@@ -87,7 +89,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	i := informers.NewSharedInformerFactory(f.client, resync())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, resync())
 
-	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "AnalysisRuns")
+	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
 
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
@@ -102,7 +104,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ResyncPeriod:         resync(),
 		AnalysisRunWorkQueue: analysisRunWorkqueue,
 		MetricsServer:        metricsServer,
-		Recorder:             &record.FakeRecorder{},
+		Recorder:             record.NewFakeEventRecorder(),
 	})
 
 	c.enqueueAnalysis = func(obj interface{}) {

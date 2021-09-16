@@ -4,10 +4,13 @@
 
 ```bash
 kubectl create namespace argo-rollouts
-kubectl apply -n argo-rollouts -f https://raw.githubusercontent.com/argoproj/argo-rollouts/stable/manifests/install.yaml
+kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
 ```
 
 This will create a new namespace, `argo-rollouts`, where Argo Rollouts controller will run.
+
+!!! tip
+    If you are using another namspace name, please update `install.yaml` clusterrolebinding's serviceaccount namespace name.
 
 !!! tip
     When installing Argo Rollouts on Kubernetes v1.14 or lower, the CRD manifests must be kubectl applied with the --validate=false option. This is caused by use of new CRD fields introduced in v1.15, which are rejected by default in lower API servers.
@@ -19,6 +22,9 @@ This will create a new namespace, `argo-rollouts`, where Argo Rollouts controlle
     ```shell
     kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
     ```
+
+You can find released container images of the controller at [Quay.io](https://quay.io/repository/argoproj/argo-rollouts?tab=tags). There are also old releases
+at Dockerhub, but since the introduction of rate limiting, the Argo project has moved to Quay.
 
 ## Kubectl Plugin Installation
 
@@ -58,3 +64,14 @@ Test to ensure the version you installed is up-to-date:
 ```shell
 kubectl argo rollouts version
 ```
+
+## Using the CLI  with Docker
+
+The CLI is also available as a container image at [https://quay.io/repository/argoproj/kubectl-argo-rollouts](https://quay.io/repository/argoproj/kubectl-argo-rollouts)
+
+You can run it like any other Docker image or use it in any CI platform that supports Docker images.
+
+```shell
+docker run quay.io/argoproj/kubectl-argo-rollouts:master version
+```
+

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	unversionedvalidation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
@@ -18,6 +16,9 @@ import (
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
 	apivalidation "k8s.io/kubernetes/pkg/apis/core/validation"
 	"k8s.io/kubernetes/pkg/fieldpath"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
 const (
@@ -27,6 +28,8 @@ const (
 	MissingFieldMessage = "Rollout has missing field '%s'"
 	// InvalidSetWeightMessage indicates the setweight value needs to be between 0 and 100
 	InvalidSetWeightMessage = "SetWeight needs to be between 0 and 100"
+	// InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting indicates experiment weight cannot be set without trafficRouting
+	InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting = "Experiment template weight cannot be set unless TrafficRouting is enabled"
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetCanaryScaleTrafficPolicy = "SetCanaryScale requires TrafficRouting to be set"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
@@ -39,7 +42,7 @@ const (
 	InvalidStrategyMessage = "Multiple Strategies can not be listed"
 	// DuplicatedServicesBlueGreenMessage the message to indicate that the rollout uses the same service for the active and preview services
 	DuplicatedServicesBlueGreenMessage = "This rollout uses the same service for the active and preview services, but two different services are required."
-	// DuplicatedServicesMessage the message to indicate that the rollout uses the same service for the active and preview services
+	// DuplicatedServicesCanaryMessage indicates that the rollout uses the same service for the stable and canary services
 	DuplicatedServicesCanaryMessage = "This rollout uses the same service for the stable and canary services, but two different services are required."
 	// InvalidAntiAffinityStrategyMessage indicates that Anti-Affinity can only have one strategy listed
 	InvalidAntiAffinityStrategyMessage = "AntiAffinity must have exactly one strategy listed"
@@ -49,11 +52,11 @@ const (
 	ScaleDownLimitLargerThanRevisionLimit = "This rollout's revision history limit can not be smaller than the rollout's scale down limit"
 	// InvalidTrafficRoutingMessage indicates that both canary and stable service must be set to use Traffic Routing
 	InvalidTrafficRoutingMessage = "Canary service and Stable service must to be set to use Traffic Routing"
-	// InvalidIstioRoutesMessage indicates that rollout does not have a route specified for the istio Traffic Routing
-	InvalidIstioRoutesMessage = "Istio virtual service must have at least 1 route specified"
 	// InvalidAnalysisArgsMessage indicates that arguments provided in analysis steps are refrencing un-supported metadatafield.
 	//supported fields are "metadata.annotations", "metadata.labels", "metadata.name", "metadata.namespace", "metadata.uid"
 	InvalidAnalysisArgsMessage = "Analyses arguments must refer to valid object metadata supported by downwardAPI"
+	// InvalidCanaryScaleDownDelay indicates that canary.scaleDownDelaySeconds cannot be used
+	InvalidCanaryScaleDownDelay = "Canary scaleDownDelaySeconds can only be used with traffic routing"
 )
 
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
@@ -70,14 +73,23 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 	replicas := defaults.GetReplicasOrDefault(spec.Replicas)
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(replicas), fldPath.Child("replicas"))...)
 
-	if spec.Selector == nil {
-		message := fmt.Sprintf(MissingFieldMessage, ".spec.selector")
-		allErrs = append(allErrs, field.Required(fldPath.Child("selector"), message))
-	} else {
-		allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, fldPath.Child("selector"))...)
-		if len(spec.Selector.MatchLabels)+len(spec.Selector.MatchExpressions) == 0 {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "empty selector is invalid for deployment"))
+	if spec.WorkloadRef == nil {
+		if spec.Selector == nil {
+			message := fmt.Sprintf(MissingFieldMessage, ".spec.selector")
+			allErrs = append(allErrs, field.Required(fldPath.Child("selector"), message))
+		} else {
+			allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, fldPath.Child("selector"))...)
+			if len(spec.Selector.MatchLabels)+len(spec.Selector.MatchExpressions) == 0 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "empty selector is invalid for deployment"))
+			}
 		}
+	}
+
+	if !rollout.Spec.TemplateResolvedFromRef && (spec.WorkloadRef != nil && !spec.EmptyTemplate()) {
+		// WorkloadRef and template can not be set at the same time for lint plugin
+		// During reconciliation, TemplateResolvedFromRef is true and will not reach here
+		allErrs = append(allErrs, field.InternalError(fldPath.Child("template"),
+			fmt.Errorf("template must be empty for workload reference rollout")))
 	}
 
 	selector, err := metav1.LabelSelectorAsSelector(spec.Selector)
@@ -107,9 +119,16 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 		}
 		template.ObjectMeta = spec.Template.ObjectMeta
 		removeSecurityContextPrivileged(&template)
-		allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"))...)
-	}
+		opts := apivalidation.PodValidationOptions{
+			AllowMultipleHugePageResources: true,
+			AllowDownwardAPIHugePages:      true,
+		}
 
+		// Skip validating empty template for rollout resolved from ref
+		if rollout.Spec.TemplateResolvedFromRef || spec.WorkloadRef == nil {
+			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), opts)...)
+		}
+	}
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(spec.MinReadySeconds), fldPath.Child("minReadySeconds"))...)
 
 	revisionHistoryLimit := defaults.GetRevisionHistoryLimitOrDefault(rollout)
@@ -174,6 +193,16 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 	return allErrs
 }
 
+// requireCanaryStableServices returns true if the rollout requires canary.stableService and
+// canary.canaryService to be defined
+func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {
+	canary := rollout.Spec.Strategy.Canary
+	if canary.TrafficRouting == nil || (canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule != nil) {
+		return false
+	}
+	return true
+}
+
 func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
 	canary := rollout.Spec.Strategy.Canary
 	allErrs := field.ErrorList{}
@@ -181,7 +210,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	if canary.CanaryService != "" && canary.StableService != "" && canary.CanaryService == canary.StableService {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
 	}
-	if canary.TrafficRouting != nil {
+	if requireCanaryStableServices(rollout) {
 		if canary.StableService == "" {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, InvalidTrafficRoutingMessage))
 		}
@@ -189,10 +218,11 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("canaryService"), canary.CanaryService, InvalidTrafficRoutingMessage))
 		}
 	}
-	if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil && len(canary.TrafficRouting.Istio.VirtualService.Routes) == 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("istio").Child("virtualService").Child("routes"), "[]", InvalidIstioRoutesMessage))
 
+	if canary.ScaleDownDelaySeconds != nil && canary.TrafficRouting == nil {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleDownDelaySeconds"), *canary.ScaleDownDelaySeconds, InvalidCanaryScaleDownDelay))
 	}
+
 	for i, step := range canary.Steps {
 		stepFldPath := fldPath.Child("steps").Index(i)
 		allErrs = append(allErrs, hasMultipleStepsType(step, stepFldPath)...)
@@ -210,8 +240,17 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.TrafficRouting == nil && step.SetCanaryScale != nil {
 			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setCanaryScale"), step.SetCanaryScale, InvalidSetCanaryScaleTrafficPolicy))
 		}
-		analysisRunArgs := []v1alpha1.AnalysisRunArgument{}
+		analysisRunArgs := make([]v1alpha1.AnalysisRunArgument, 0)
 		if step.Experiment != nil {
+			for tmplIndex, template := range step.Experiment.Templates {
+				if template.Weight != nil {
+					if canary.TrafficRouting == nil {
+						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting))
+					} else if canary.TrafficRouting.ALB == nil && canary.TrafficRouting.SMI == nil {
+						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, "Experiment template weight is only available for TrafficRouting with SMI and ALB at this time"))
+					}
+				}
+			}
 			for _, analysis := range step.Experiment.Analyses {
 				for _, arg := range analysis.Args {
 					analysisRunArgs = append(analysisRunArgs, arg)

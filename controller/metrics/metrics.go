@@ -13,7 +13,6 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutlister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -36,18 +35,14 @@ const (
 	MetricsPath = "/metrics"
 )
 
-// Follow Prometheus naming practices
-// https://prometheus.io/docs/practices/naming/
-var (
-	descDefaultLabels = []string{"namespace", "name"}
-)
-
 type ServerConfig struct {
-	Addr               string
-	RolloutLister      rolloutlister.RolloutLister
-	AnalysisRunLister  rolloutlister.AnalysisRunLister
-	ExperimentLister   rolloutlister.ExperimentLister
-	K8SRequestProvider *K8sRequestsCountProvider
+	Addr                          string
+	RolloutLister                 rolloutlister.RolloutLister
+	AnalysisRunLister             rolloutlister.AnalysisRunLister
+	AnalysisTemplateLister        rolloutlister.AnalysisTemplateLister
+	ClusterAnalysisTemplateLister rolloutlister.ClusterAnalysisTemplateLister
+	ExperimentLister              rolloutlister.ExperimentLister
+	K8SRequestProvider            *K8sRequestsCountProvider
 }
 
 // NewMetricsServer returns a new prometheus server which collects rollout metrics
@@ -56,66 +51,16 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(NewRolloutCollector(cfg.RolloutLister))
-	reg.MustRegister(NewAnalysisRunCollector(cfg.AnalysisRunLister))
+	reg.MustRegister(NewAnalysisRunCollector(cfg.AnalysisRunLister, cfg.AnalysisTemplateLister, cfg.ClusterAnalysisTemplateLister))
 	reg.MustRegister(NewExperimentCollector(cfg.ExperimentLister))
 	cfg.K8SRequestProvider.MustRegister(reg)
-
-	reconcileRolloutHistogram := prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "rollout_reconcile",
-			Help:    "Rollout reconciliation performance.",
-			Buckets: []float64{0.01, 0.15, .25, .5, 1},
-		},
-		append(descRolloutWithStrategyLabels),
-	)
-	reg.MustRegister(reconcileRolloutHistogram)
-
-	errorRolloutCounter := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "rollout_reconcile_error",
-			Help: "Error occurring during the rollout",
-		},
-		append(descDefaultLabels),
-	)
-	reg.MustRegister(errorRolloutCounter)
-
-	reconcileExperimentHistogram := prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "experiment_reconcile",
-			Help:    "Experiments reconciliation performance.",
-			Buckets: []float64{0.01, 0.15, .25, .5, 1},
-		},
-		append(descDefaultLabels),
-	)
-	reg.MustRegister(reconcileExperimentHistogram)
-
-	errorExperimentCounter := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "experiment_reconcile_error",
-			Help: "Error occurring during the experiment",
-		},
-		append(descDefaultLabels),
-	)
-	reg.MustRegister(errorExperimentCounter)
-
-	reconcileAnalysisRunHistogram := prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "analysis_run_reconcile",
-			Help:    "Analysis Run reconciliation performance.",
-			Buckets: []float64{0.01, 0.15, .25, .5, 1},
-		},
-		append(descDefaultLabels),
-	)
-	reg.MustRegister(reconcileAnalysisRunHistogram)
-
-	errorAnalysisRunCounter := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "analysis_run_reconcile_error",
-			Help: "Error occurring during the analysis run",
-		},
-		append(descDefaultLabels),
-	)
-	reg.MustRegister(errorAnalysisRunCounter)
+	reg.MustRegister(MetricRolloutReconcile)
+	reg.MustRegister(MetricRolloutReconcileError)
+	reg.MustRegister(MetricRolloutEventsTotal)
+	reg.MustRegister(MetricExperimentReconcile)
+	reg.MustRegister(MetricExperimentReconcileError)
+	reg.MustRegister(MetricAnalysisRunReconcile)
+	reg.MustRegister(MetricAnalysisRunReconcileError)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -128,14 +73,14 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 			Addr:    cfg.Addr,
 			Handler: mux,
 		},
-		reconcileRolloutHistogram: reconcileRolloutHistogram,
-		errorRolloutCounter:       errorRolloutCounter,
+		reconcileRolloutHistogram: MetricRolloutReconcile,
+		errorRolloutCounter:       MetricRolloutReconcileError,
 
-		reconcileExperimentHistogram: reconcileExperimentHistogram,
-		errorExperimentCounter:       errorExperimentCounter,
+		reconcileExperimentHistogram: MetricExperimentReconcile,
+		errorExperimentCounter:       MetricExperimentReconcileError,
 
-		reconcileAnalysisRunHistogram: reconcileAnalysisRunHistogram,
-		errorAnalysisRunCounter:       errorAnalysisRunCounter,
+		reconcileAnalysisRunHistogram: MetricAnalysisRunReconcile,
+		errorAnalysisRunCounter:       MetricAnalysisRunReconcileError,
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
 	}
@@ -143,7 +88,7 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 // IncRolloutReconcile increments the reconcile counter for a Rollout
 func (m *MetricsServer) IncRolloutReconcile(rollout *v1alpha1.Rollout, duration time.Duration) {
-	m.reconcileRolloutHistogram.WithLabelValues(rollout.Namespace, rollout.Name, defaults.GetStrategyType(rollout)).Observe(duration.Seconds())
+	m.reconcileRolloutHistogram.WithLabelValues(rollout.Namespace, rollout.Name).Observe(duration.Seconds())
 }
 
 // IncExperimentReconcile increments the reconcile counter for an Experiment

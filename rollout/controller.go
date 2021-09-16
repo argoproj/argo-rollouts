@@ -14,14 +14,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamiclister"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
@@ -30,9 +28,8 @@ import (
 	v1 "k8s.io/client-go/listers/core/v1"
 	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util"
+	"k8s.io/kubectl/pkg/util/slice"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
@@ -43,6 +40,8 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -51,14 +50,15 @@ import (
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
-const (
-	virtualServiceIndexName = "byVirtualService"
-)
+type TemplateRefResolver interface {
+	Resolve(r *v1alpha1.Rollout) error
+}
 
 // Controller is the controller implementation for Rollout resources
 type Controller struct {
@@ -87,6 +87,7 @@ type ControllerConfig struct {
 	KubeClientSet                   kubernetes.Interface
 	ArgoProjClientset               clientset.Interface
 	DynamicClientSet                dynamic.Interface
+	RefResolver                     TemplateRefResolver
 	SmiClientSet                    smiclientset.Interface
 	ExperimentInformer              informers.ExperimentInformer
 	AnalysisRunInformer             informers.AnalysisRunInformer
@@ -96,15 +97,15 @@ type ControllerConfig struct {
 	ServicesInformer                coreinformers.ServiceInformer
 	IngressInformer                 extensionsinformers.IngressInformer
 	RolloutsInformer                informers.RolloutInformer
+	IstioPrimaryDynamicClient       dynamic.Interface
 	IstioVirtualServiceInformer     cache.SharedIndexInformer
+	IstioDestinationRuleInformer    cache.SharedIndexInformer
 	ResyncPeriod                    time.Duration
 	RolloutWorkQueue                workqueue.RateLimitingInterface
 	ServiceWorkQueue                workqueue.RateLimitingInterface
 	IngressWorkQueue                workqueue.RateLimitingInterface
 	MetricsServer                   *metrics.MetricsServer
 	Recorder                        record.EventRecorder
-	DefaultIstioVersion             string
-	DefaultTrafficSplitVersion      string
 }
 
 // reconcilerBase is a shared datastructure containing all clients and configuration necessary to
@@ -116,10 +117,10 @@ type reconcilerBase struct {
 	argoprojclientset clientset.Interface
 	// dynamicclientset is a dynamic clientset for interacting with unstructured resources.
 	// It is used to interact with TrafficRouting resources
-	dynamicclientset           dynamic.Interface
-	smiclientset               smiclientset.Interface
-	defaultIstioVersion        string
-	defaultTrafficSplitVersion string
+	dynamicclientset dynamic.Interface
+	smiclientset     smiclientset.Interface
+
+	refResolver TemplateRefResolver
 
 	replicaSetLister              appslisters.ReplicaSetLister
 	replicaSetSynced              cache.InformerSynced
@@ -133,17 +134,14 @@ type reconcilerBase struct {
 	analysisRunLister             listers.AnalysisRunLister
 	analysisTemplateLister        listers.AnalysisTemplateLister
 	clusterAnalysisTemplateLister listers.ClusterAnalysisTemplateLister
-	// Include istioVirtualServiceInformer in Controller struct. If Istio does not exist and is
-	// later added, then controller will auto-detect change and start istioVirtualServiceInformer
-	istioVirtualServiceInformer cache.SharedIndexInformer
-	istioVirtualServiceLister   dynamiclister.Lister
+	IstioController               *istio.IstioController
 
 	podRestarter RolloutPodRestarter
 
 	// used for unit testing
-	enqueueRollout              func(obj interface{})                                         //nolint:structcheck
-	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                 //nolint:structcheck
-	newTrafficRoutingReconciler func(roCtx *rolloutContext) (TrafficRoutingReconciler, error) //nolint:structcheck
+	enqueueRollout              func(obj interface{})                                                        //nolint:structcheck
+	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                                //nolint:structcheck
+	newTrafficRoutingReconciler func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
 
 	// recorder is an event recorder for recording Event resources to the Kubernetes API.
 	recorder     record.EventRecorder
@@ -155,7 +153,7 @@ func NewController(cfg ControllerConfig) *Controller {
 
 	replicaSetControl := controller.RealRSControl{
 		KubeClient: cfg.KubeClientSet,
-		Recorder:   cfg.Recorder,
+		Recorder:   cfg.Recorder.K8sRecorder(),
 	}
 
 	podRestarter := RolloutPodRestarter{
@@ -171,8 +169,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		argoprojclientset:             cfg.ArgoProjClientset,
 		dynamicclientset:              cfg.DynamicClientSet,
 		smiclientset:                  cfg.SmiClientSet,
-		defaultIstioVersion:           cfg.DefaultIstioVersion,
-		defaultTrafficSplitVersion:    cfg.DefaultTrafficSplitVersion,
 		replicaSetLister:              cfg.ReplicaSetInformer.Lister(),
 		replicaSetSynced:              cfg.ReplicaSetInformer.Informer().HasSynced,
 		rolloutsInformer:              cfg.RolloutsInformer.Informer(),
@@ -185,11 +181,10 @@ func NewController(cfg ControllerConfig) *Controller {
 		analysisRunLister:             cfg.AnalysisRunInformer.Lister(),
 		analysisTemplateLister:        cfg.AnalysisTemplateInformer.Lister(),
 		clusterAnalysisTemplateLister: cfg.ClusterAnalysisTemplateInformer.Lister(),
-		istioVirtualServiceLister:     dynamiclister.New(cfg.IstioVirtualServiceInformer.GetIndexer(), istioutil.GetIstioGVR(cfg.DefaultIstioVersion)),
-		istioVirtualServiceInformer:   cfg.IstioVirtualServiceInformer,
 		recorder:                      cfg.Recorder,
 		resyncPeriod:                  cfg.ResyncPeriod,
 		podRestarter:                  podRestarter,
+		refResolver:                   cfg.RefResolver,
 	}
 
 	controller := &Controller{
@@ -208,6 +203,15 @@ func NewController(cfg ControllerConfig) *Controller {
 		controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 	}
 
+	controller.IstioController = istio.NewIstioController(istio.IstioControllerConfig{
+		ArgoprojClientSet:       cfg.ArgoProjClientset,
+		DynamicClientSet:        cfg.IstioPrimaryDynamicClient,
+		EnqueueRollout:          controller.enqueueRollout,
+		RolloutsInformer:        cfg.RolloutsInformer,
+		VirtualServiceInformer:  cfg.IstioVirtualServiceInformer,
+		DestinationRuleInformer: cfg.IstioDestinationRuleInformer,
+	})
+
 	controller.newTrafficRoutingReconciler = controller.NewTrafficRoutingReconciler
 
 	log.Info("Setting up event handlers")
@@ -217,32 +221,34 @@ func NewController(cfg ControllerConfig) *Controller {
 		UpdateFunc: func(old, new interface{}) {
 			oldRollout := unstructuredutil.ObjectToRollout(old)
 			newRollout := unstructuredutil.ObjectToRollout(new)
-			if old == nil || new == nil {
-				return
+			if oldRollout != nil && newRollout != nil {
+				// Check if rollout services/destinationrules were modified, if so we enqueue the
+				// removed Service and/or DestinationRules so that the rollouts-pod-template-hash
+				// can be cleared from each
+				for _, key := range removedKeys("Service", oldRollout, newRollout, serviceutil.GetRolloutServiceKeys) {
+					controller.serviceWorkqueue.AddRateLimited(key)
+				}
+				for _, key := range removedKeys("DestinationRule", oldRollout, newRollout, istioutil.GetRolloutDesinationRuleKeys) {
+					controller.IstioController.EnqueueDestinationRule(key)
+				}
 			}
-			for _, s := range serviceutil.GetRolloutServiceKeys(oldRollout) {
-				controller.serviceWorkqueue.AddRateLimited(s)
-			}
-			controller.enqueueRollout(newRollout)
+			controller.enqueueRollout(new)
 		},
 		DeleteFunc: func(obj interface{}) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
+				logCtx := logutil.WithRollout(ro)
+				logCtx.Info("rollout deleted")
+				// Rollout is deleted, queue up the referenced Service and/or DestinationRules so
+				// that the rollouts-pod-template-hash can be cleared from each
 				for _, s := range serviceutil.GetRolloutServiceKeys(ro) {
 					controller.serviceWorkqueue.AddRateLimited(s)
+				}
+				for _, key := range istioutil.GetRolloutDesinationRuleKeys(ro) {
+					controller.IstioController.EnqueueDestinationRule(key)
 				}
 			}
 		},
 	})
-
-	// Indexer to frequently check/enqueue Rollouts that reference virtualServices
-	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		virtualServiceIndexName: func(obj interface{}) (strings []string, e error) {
-			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
-				return istio.GetRolloutVirtualServiceKeys(ro), nil
-			}
-			return
-		},
-	}))
 
 	cfg.ReplicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -284,20 +290,24 @@ func NewController(cfg ControllerConfig) *Controller {
 		},
 	})
 
-	cfg.IstioVirtualServiceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			controller.EnqueueIstioVsvc(obj)
-		},
-		// TODO: DeepEquals on httpRoutes
-		UpdateFunc: func(old, new interface{}) {
-			controller.EnqueueIstioVsvc(new)
-		},
-		DeleteFunc: func(obj interface{}) {
-			controller.EnqueueIstioVsvc(obj)
-		},
-	})
-
 	return controller
+}
+
+// removedKeys returns list of indexer keys which have been removed from the old rollout
+func removedKeys(name string, old, new *v1alpha1.Rollout, keyFunc func(ro *v1alpha1.Rollout) []string) []string {
+	oldKeys := keyFunc(old)
+	newKeys := keyFunc(new)
+	var removedKeys []string
+	for _, oldKey := range oldKeys {
+		if !slice.ContainsString(newKeys, oldKey, nil) {
+			removedKeys = append(removedKeys, oldKey)
+		}
+	}
+	if len(removedKeys) > 0 {
+		logCtx := logutil.WithRollout(old)
+		logCtx.Infof("%s index keys removed: %v", name, removedKeys)
+	}
+	return removedKeys
 }
 
 // Run will set up the event handlers for types we are interested in, as well
@@ -313,48 +323,12 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	}
 	log.Info("Started Rollout workers")
 
-	// Auto-detect whether user adds Istio Virtual Service to cluster
-	// If it is added, then run the istioVirtualServiceInformer so that we can use istioVirtualServiceLister
-	go c.runVirtualServiceInformer(stopCh)
+	go c.IstioController.Run(stopCh)
 
 	<-stopCh
 	log.Info("Shutting down workers")
 
 	return nil
-}
-
-func (c *Controller) runVirtualServiceInformer(stopCh <-chan struct{}) {
-	ticker := time.NewTicker(10 * time.Minute)
-	for !istioutil.DoesIstioExist(c.dynamicclientset, c.namespace, c.defaultIstioVersion) {
-		// Should only execute if Istio is not installed on cluster
-		select {
-		case <-stopCh:
-			ticker.Stop()
-			return
-		case <-ticker.C:
-		}
-	}
-	ticker.Stop()
-	if !c.istioVirtualServiceInformer.HasSynced() {
-		// Should only execute if Istio was installed after Rollout Controller was started
-		c.istioVirtualServiceInformer.Run(stopCh)
-	}
-}
-
-func (c *Controller) EnqueueIstioVsvc(vsvc interface{}) {
-	acc, err := meta.Accessor(vsvc)
-	if err != nil {
-		log.Errorf("Error processing istio vsvc from watch: %v: %v", err, vsvc)
-		return
-	}
-	rolloutToEnqueue, err := c.rolloutsIndexer.ByIndex(virtualServiceIndexName, fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
-	if err != nil {
-		log.Errorf("Cannot process indexer: %s", err.Error())
-		return
-	}
-	for i := range rolloutToEnqueue {
-		c.enqueueRollout(rolloutToEnqueue[i])
-	}
 }
 
 // syncHandler compares the actual state with the desired, and attempts to
@@ -374,40 +348,52 @@ func (c *Controller) syncHandler(key string) error {
 	if err != nil {
 		return err
 	}
-	log.WithField(logutil.RolloutKey, name).WithField(logutil.NamespaceKey, namespace).Infof("Started syncing rollout at (%v)", startTime)
 
 	// Remarshal the rollout to normalize all fields so that when we calculate hashes against the
 	// rollout spec and pod template spec, the hash will be consistent. See issue #70
 	// This also returns a copy of the rollout to prevent mutation of the informer cache.
 	r := remarshalRollout(rollout)
 	logCtx := logutil.WithRollout(r)
+	logCtx = logutil.WithVersionFields(logCtx, r)
+	logCtx.Info("Started syncing rollout")
 
 	if r.ObjectMeta.DeletionTimestamp != nil {
 		logCtx.Info("No reconciliation as rollout marked for deletion")
 		return nil
 	}
 
-	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
-	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
-	if rollout.Spec.Replicas == nil {
-		logCtx.Info("Setting .Spec.Replica to 1 from nil")
-		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
-		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
-		return err
-	}
 	defer func() {
 		duration := time.Since(startTime)
 		c.metricsServer.IncRolloutReconcile(r, duration)
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
+	resolveErr := c.refResolver.Resolve(r)
 	roCtx, err := c.newRolloutContext(r)
 	if err != nil {
+		logCtx.Errorf("newRolloutContext err %v", err)
 		return err
 	}
+	if resolveErr != nil {
+		roCtx.createInvalidRolloutCondition(resolveErr, r)
+		return resolveErr
+	}
+
+	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
+	// the rollout to have the replicas field set to the default value. see https://github.com/argoproj/argo-rollouts/issues/119
+	if rollout.Spec.Replicas == nil {
+		logCtx.Info("Defaulting .spec.replica to 1")
+		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
+		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
+		return err
+	}
+
 	err = roCtx.reconcile()
 	if roCtx.newRollout != nil {
 		c.writeBackToInformer(roCtx.newRollout)
+	}
+	if err != nil {
+		logCtx.Errorf("roCtx.reconcile err %v", err)
 	}
 	return err
 }
@@ -416,6 +402,7 @@ func (c *Controller) syncHandler(key string) error {
 // This prevents the situation where the controller operates on a stale rollout and repeats work
 func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 	logCtx := logutil.WithRollout(ro)
+	logCtx = logutil.WithVersionFields(logCtx, ro)
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ro)
 	if err != nil {
 		logCtx.Errorf("failed to convert rollout to unstructured: %v", err)
@@ -427,6 +414,7 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 		logCtx.Errorf("failed to update informer store: %v", err)
 		return
 	}
+	logCtx.Info("persisted to informer")
 }
 
 func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutContext, error) {
@@ -438,7 +426,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
 	olderRSs := replicasetutil.FindOldReplicaSets(rollout, rsList)
 	stableRS := replicasetutil.GetStableRS(rollout, newRS, olderRSs)
-	otherRSs := replicasetutil.GetOtherRSs(rollout, newRS, stableRS, olderRSs)
+	otherRSs := replicasetutil.GetOtherRSs(rollout, newRS, stableRS, rsList)
 
 	exList, err := c.getExperimentsForRollout(rollout)
 	if err != nil {
@@ -531,7 +519,7 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 	if err != nil {
 		return nil, err
 	}
-	refResources.AnalysisTemplateWithType = *analysisTemplates
+	refResources.AnalysisTemplatesWithType = *analysisTemplates
 
 	ingresses, err := c.getReferencedIngresses()
 	if err != nil {
@@ -539,13 +527,52 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 	}
 	refResources.Ingresses = *ingresses
 
-	virtualServices, err := c.getReferencedVirtualServices()
+	// Validate Rollout virtualServices before referencing
+	err = validation.ValidateRolloutVirtualServicesConfig(c.rollout)
+	if err != nil {
+		return nil, err
+	}
+
+	virtualServices, err := c.IstioController.GetReferencedVirtualServices(c.rollout)
 	if err != nil {
 		return nil, err
 	}
 	refResources.VirtualServices = *virtualServices
 
+	ambassadorMappings, err := c.getAmbassadorMappings()
+	if err != nil {
+		return nil, err
+	}
+	refResources.AmbassadorMappings = ambassadorMappings
+
 	return &refResources, nil
+}
+
+func (c *rolloutContext) getAmbassadorMappings() ([]unstructured.Unstructured, error) {
+	mappings := []unstructured.Unstructured{}
+	if c.rollout.Spec.Strategy.Canary != nil {
+		canary := c.rollout.Spec.Strategy.Canary
+		if canary.TrafficRouting != nil && canary.TrafficRouting.Ambassador != nil {
+			a := canary.TrafficRouting.Ambassador
+			fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "ambassador", "mappings")
+			if len(a.Mappings) == 0 {
+				return nil, field.Invalid(fldPath, nil, "must provide at least one mapping")
+			}
+			for _, mappingName := range a.Mappings {
+				mapping, err := c.dynamicclientset.Resource(ambassador.GetMappingGVR()).
+					Namespace(c.rollout.Namespace).
+					Get(context.Background(), mappingName, metav1.GetOptions{})
+				if err != nil {
+					if k8serrors.IsNotFound(err) {
+						return nil, field.Invalid(fldPath, mappingName, err.Error())
+					}
+					return nil, err
+				}
+				mappings = append(mappings, *mapping)
+			}
+		}
+	}
+	return mappings, nil
 }
 
 func (c *rolloutContext) getReferencedServices() (*[]validation.ServiceWithType, error) {
@@ -612,8 +639,8 @@ func (c *rolloutContext) getReferencedServices() (*[]validation.ServiceWithType,
 	return &services, nil
 }
 
-func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisTemplateWithType, error) {
-	analysisTemplates := []validation.AnalysisTemplateWithType{}
+func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisTemplatesWithType, error) {
+	analysisTemplates := make([]validation.AnalysisTemplatesWithType, 0)
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
 		blueGreen := c.rollout.Spec.Strategy.BlueGreen
 		if blueGreen.PrePromotionAnalysis != nil {
@@ -622,7 +649,8 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			if err != nil {
 				return nil, err
 			}
-			analysisTemplates = append(analysisTemplates, templates...)
+			templates.Args = blueGreen.PrePromotionAnalysis.Args
+			analysisTemplates = append(analysisTemplates, *templates)
 		}
 
 		if blueGreen.PostPromotionAnalysis != nil {
@@ -631,7 +659,8 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			if err != nil {
 				return nil, err
 			}
-			analysisTemplates = append(analysisTemplates, templates...)
+			templates.Args = blueGreen.PostPromotionAnalysis.Args
+			analysisTemplates = append(analysisTemplates, *templates)
 		}
 	} else if c.rollout.Spec.Strategy.Canary != nil {
 		canary := c.rollout.Spec.Strategy.Canary
@@ -641,7 +670,8 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 				if err != nil {
 					return nil, err
 				}
-				analysisTemplates = append(analysisTemplates, templates...)
+				templates.Args = step.Analysis.Args
+				analysisTemplates = append(analysisTemplates, *templates)
 			}
 		}
 		if canary.Analysis != nil {
@@ -649,54 +679,45 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 			if err != nil {
 				return nil, err
 			}
-			analysisTemplates = append(analysisTemplates, templates...)
+			templates.Args = canary.Analysis.Args
+			analysisTemplates = append(analysisTemplates, *templates)
 		}
 	}
 	return &analysisTemplates, nil
 }
 
-func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType, canaryStepIndex int) ([]validation.AnalysisTemplateWithType, error) {
-	analysisTemplates := []validation.AnalysisTemplateWithType{}
-	if rolloutAnalysis.Templates != nil {
-		for i, template := range rolloutAnalysis.Templates {
-			analysisTemplate, err := c.getReferencedAnalysisTemplate(template, templateType, i, canaryStepIndex)
+func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType, canaryStepIndex int) (*validation.AnalysisTemplatesWithType, error) {
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, canaryStepIndex)
+
+	for _, templateRef := range rolloutAnalysis.Templates {
+		if templateRef.ClusterScope {
+			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
 			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, field.Invalid(fldPath, templateRef.TemplateName, fmt.Sprintf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName))
+				}
 				return nil, err
 			}
-			if analysisTemplate != nil {
-				analysisTemplates = append(analysisTemplates, *analysisTemplate)
+			clusterTemplates = append(clusterTemplates, template)
+		} else {
+			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, field.Invalid(fldPath, templateRef.TemplateName, fmt.Sprintf("AnalysisTemplate '%s' not found", templateRef.TemplateName))
+				}
+				return nil, err
 			}
+			templates = append(templates, template)
 		}
 	}
-	return analysisTemplates, nil
-}
 
-func (c *rolloutContext) getReferencedAnalysisTemplate(template v1alpha1.RolloutAnalysisTemplate, templateType validation.AnalysisTemplateType, analysisIndex int, canaryStepIndex int) (*validation.AnalysisTemplateWithType, error) {
-	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, analysisIndex, canaryStepIndex)
-	if template.ClusterScope {
-		clusterAnalysisTemplate, err := c.clusterAnalysisTemplateLister.Get(template.TemplateName)
-		if k8serrors.IsNotFound(err) {
-			return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
-		}
-		if err != nil {
-			return nil, err
-		}
-		return &validation.AnalysisTemplateWithType{
-			ClusterAnalysisTemplate: clusterAnalysisTemplate,
-			TemplateType:            templateType,
-			AnalysisIndex:           analysisIndex,
-		}, nil
-	}
-	analysisTemplate, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(template.TemplateName)
-	if k8serrors.IsNotFound(err) {
-		return nil, field.Invalid(fldPath, template.TemplateName, err.Error())
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &validation.AnalysisTemplateWithType{
-		AnalysisTemplate: analysisTemplate,
-		TemplateType:     templateType,
+	return &validation.AnalysisTemplatesWithType{
+		AnalysisTemplates:        templates,
+		ClusterAnalysisTemplates: clusterTemplates,
+		TemplateType:             templateType,
+		CanaryStepIndex:          canaryStepIndex,
 	}, nil
 }
 
@@ -726,34 +747,6 @@ func (c *rolloutContext) getReferencedIngresses() (*[]v1beta1.Ingress, error) {
 		}
 	}
 	return &ingresses, nil
-}
-
-func (c *rolloutContext) getReferencedVirtualServices() (*[]unstructured.Unstructured, error) {
-	ctx := context.TODO()
-	virtualServices := []unstructured.Unstructured{}
-	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
-	if c.rollout.Spec.Strategy.Canary != nil {
-		canary := c.rollout.Spec.Strategy.Canary
-		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
-			var vsvc *unstructured.Unstructured
-			var err error
-			vsvcName := canary.TrafficRouting.Istio.VirtualService.Name
-			if c.istioVirtualServiceInformer.HasSynced() {
-				vsvc, err = c.istioVirtualServiceLister.Namespace(c.rollout.Namespace).Get(vsvcName)
-			} else {
-				vsvc, err = c.dynamicclientset.Resource(istioutil.GetIstioGVR(c.defaultIstioVersion)).Namespace(c.rollout.Namespace).Get(ctx, vsvcName, metav1.GetOptions{})
-			}
-
-			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath, vsvcName, err.Error())
-			}
-			if err != nil {
-				return nil, err
-			}
-			virtualServices = append(virtualServices, *vsvc)
-		}
-	}
-	return &virtualServices, nil
 }
 
 func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {

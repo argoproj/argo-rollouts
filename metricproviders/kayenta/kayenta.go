@@ -209,7 +209,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 	if ok {
 		score := int(result)
 		measurement.Value = fmt.Sprintf("%v", score)
-		measurement.Phase = evaluateResult(score, metric.Provider.Kayenta.Threshold.Pass, metric.Provider.Kayenta.Threshold.Marginal)
+		measurement.Phase = evaluateResult(score, int(metric.Provider.Kayenta.Threshold.Pass), int(metric.Provider.Kayenta.Threshold.Marginal))
 	} else {
 		if err == nil {
 			err = errors.New("Missing Score")

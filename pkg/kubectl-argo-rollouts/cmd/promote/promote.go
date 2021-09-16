@@ -21,10 +21,7 @@ const (
 	%[1]s promote guestbook
 
 	# Fully promote a rollout to desired version, skipping analysis, pauses, and steps
-	%[1]s promote guestbook --full
-	
-	# Skip currently running canary step of a rollout
-	%[1]s promote guestbook --skip-current-step`
+	%[1]s promote guestbook --full`
 
 	promoteUsage = `Promote a rollout
 
@@ -33,11 +30,13 @@ To skip analysis, pauses and steps entirely, use '--full' to fully promote the r
 )
 
 const (
-	setCurrentStepIndex                 = `{"status":{"currentStepIndex":%d}}`
-	unpausePatch                        = `{"spec":{"paused":false}}`
-	clearPauseConditionsPatch           = `{"status":{"pauseConditions":null}}`
-	unpauseAndClearPauseConditionsPatch = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
-	promoteFullPatch                    = `{"status":{"promoteFull":true}}`
+	setCurrentStepIndex                         = `{"status":{"currentStepIndex":%d}}`
+	unpausePatch                                = `{"spec":{"paused":false}}`
+	clearPauseConditionsPatch                   = `{"status":{"pauseConditions":null}}`
+	unpauseAndClearPauseConditionsPatch         = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
+	promoteFullPatch                            = `{"status":{"promoteFull":true}}`
+	clearPauseConditionsPatchWithStep           = `{"status":{"pauseConditions":null, "currentStepIndex":%d}}`
+	unpauseAndClearPauseConditionsPatchWithStep = `{"spec":{"paused":false},"status":{"pauseConditions":null, "currentStepIndex":%d}}`
 
 	useBothSkipFlagsError         = "Cannot use skip-current-step and skip-all-steps flags at the same time"
 	skipFlagsWithBlueGreenError   = "Cannot skip steps of a bluegreen rollout. Run without a flags"
@@ -81,6 +80,8 @@ func NewCmdPromote(o *options.ArgoRolloutsOptions) *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&skipCurrentStep, "skip-current-step", "c", false, "Skip currently running canary step")
 	cmd.Flags().BoolVarP(&skipAllSteps, "skip-all-steps", "a", false, "Skip remaining steps")
+	cmd.Flags().MarkDeprecated("skip-current-step", "use without the flag instead ex: promote ROLLOUT_NAME")
+	cmd.Flags().MarkShorthandDeprecated("c", "use without the flag instead ex: promote ROLLOUT_NAME")
 	cmd.Flags().MarkDeprecated("skip-all-steps", "use --full instead")
 	cmd.Flags().MarkShorthandDeprecated("a", "use --full instead")
 	cmd.Flags().BoolVar(&full, "full", false, "Perform a full promotion, skipping analysis, pauses, and steps")
@@ -137,11 +138,14 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 		_, index := replicasetutil.GetCurrentCanaryStep(rollout)
 		// At this point, the controller knows that the rollout is a canary with steps and GetCurrentCanaryStep returns 0 if
 		// the index is not set in the rollout
-		if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
-			*index++
+		if index != nil {
+			if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
+				*index++
+			}
+			statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, *index))
+			unifiedPatch = statusPatch
 		}
-		statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, *index))
-		unifiedPatch = statusPatch
+
 	case skipAllStep:
 		statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, len(rollout.Spec.Strategy.Canary.Steps)))
 		unifiedPatch = statusPatch
@@ -150,13 +154,28 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 			statusPatch = []byte(promoteFullPatch)
 		}
 	default:
+		unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
 		if rollout.Spec.Paused {
 			specPatch = []byte(unpausePatch)
 		}
 		if len(rollout.Status.PauseConditions) > 0 {
 			statusPatch = []byte(clearPauseConditionsPatch)
+		} else if rollout.Spec.Strategy.Canary != nil {
+			// we only want to clear pause conditions, or increment step index (never both)
+			// this else block covers the case of promoting a rollout when it is in the middle of
+			// running analysis/experiment
+			// TODO: we currently do not handle promotion of two analysis steps in a row properly
+			_, index := replicasetutil.GetCurrentCanaryStep(rollout)
+			// At this point, the controller knows that the rollout is a canary with steps and GetCurrentCanaryStep returns 0 if
+			// the index is not set in the rollout
+			if index != nil {
+				if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
+					*index++
+				}
+				statusPatch = []byte(fmt.Sprintf(clearPauseConditionsPatchWithStep, *index))
+				unifiedPatch = []byte(fmt.Sprintf(unpauseAndClearPauseConditionsPatchWithStep, *index))
+			}
 		}
-		unifiedPatch = []byte(unpauseAndClearPauseConditionsPatch)
 	}
 	return specPatch, statusPatch, unifiedPatch
 }
