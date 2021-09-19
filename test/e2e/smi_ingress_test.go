@@ -29,6 +29,12 @@ func (s *SMIIngressSuite) SetupSuite() {
 }
 
 func (s *SMIIngressSuite) TestSMIIngressCanaryStep() {
+	const (
+		canaryService          = "rollout-smi-ingress-canary-canary"
+		stableService          = "rollout-smi-ingress-canary-stable"
+		canaryAnnotation       = "nginx.ingress.kubernetes.io/canary"
+		canaryWeightAnnotation = "nginx.ingress.kubernetes.io/canary-weight"
+	)
 	s.Given().
 		RolloutObjects("@smi_ingress/rollout-smi-ingress-canary.yaml").
 		When().
@@ -39,11 +45,11 @@ func (s *SMIIngressSuite) TestSMIIngressCanaryStep() {
 			ts := t.GetTrafficSplit()
 
 			assert.Len(s.T(), ts.Spec.Backends, 2)
-			assert.Equal(s.T(), "rollout-smi-ingress-canary-canary", ts.Spec.Backends[0].Service)
+			assert.Equal(s.T(), canaryService, ts.Spec.Backends[0].Service)
 			assert.Equal(s.T(), int64(0), ts.Spec.Backends[0].Weight.Value())
 
-			ingress_stable := t.GetNginxIngressStable()
-			_, ko := ingress_stable.Annotations["nginx.ingress.kubernetes.io/canary"]
+			ingressStable := t.GetNginxIngressStable()
+			_, ko := ingressStable.Annotations[canaryAnnotation]
 			assert.False(s.T(), ko)
 
 			desired, stable := t.GetServices()
@@ -62,21 +68,21 @@ func (s *SMIIngressSuite) TestSMIIngressCanaryStep() {
 
 			assert.Len(s.T(), ts.Spec.Backends, 2)
 
-			assert.Equal(s.T(), "rollout-smi-ingress-canary-canary", ts.Spec.Backends[0].Service)
+			assert.Equal(s.T(), canaryService, ts.Spec.Backends[0].Service)
 			assert.Equal(s.T(), int64(5), ts.Spec.Backends[0].Weight.Value())
 
-			ingress_canary := t.GetNginxIngressCanary()
-			_, ok := ingress_canary.Annotations["nginx.ingress.kubernetes.io/canary"]
+			ingressCanary := t.GetNginxIngressCanary()
+			_, ok := ingressCanary.Annotations[canaryAnnotation]
 			assert.True(s.T(), ok)
-			assert.Equal(s.T(), string("5"), ingress_canary.Annotations["nginx.ingress.kubernetes.io/canary-weight"])
+			assert.Equal(s.T(), string("5"), ingressCanary.Annotations[canaryWeightAnnotation])
 
 			assert.Equal(s.T(), int64(5), ts.Spec.Backends[0].Weight.Value())
 
-			ingress_stable := t.GetNginxIngressStable()
-			_, ko := ingress_stable.Annotations["nginx.ingress.kubernetes.io/canary"]
+			ingressStable := t.GetNginxIngressStable()
+			_, ko := ingressStable.Annotations[canaryAnnotation]
 			assert.False(s.T(), ko)
 
-			assert.Equal(s.T(), "rollout-smi-ingress-canary-stable", ts.Spec.Backends[1].Service)
+			assert.Equal(s.T(), stableService, ts.Spec.Backends[1].Service)
 			assert.Equal(s.T(), int64(95), ts.Spec.Backends[1].Weight.Value())
 
 			desired, stable := t.GetServices()
@@ -95,21 +101,21 @@ func (s *SMIIngressSuite) TestSMIIngressCanaryStep() {
 
 			assert.Len(s.T(), ts.Spec.Backends, 2)
 
-			assert.Equal(s.T(), "rollout-smi-ingress-canary-canary", ts.Spec.Backends[0].Service)
+			assert.Equal(s.T(), canaryService, ts.Spec.Backends[0].Service)
 			assert.Equal(s.T(), int64(50), ts.Spec.Backends[0].Weight.Value())
 
-			ingress_canary := t.GetNginxIngressCanary()
-			_, ok := ingress_canary.Annotations["nginx.ingress.kubernetes.io/canary"]
+			ingressCanary := t.GetNginxIngressCanary()
+			_, ok := ingressCanary.Annotations[canaryAnnotation]
 			assert.True(s.T(), ok)
-			assert.Equal(s.T(), string("50"), ingress_canary.Annotations["nginx.ingress.kubernetes.io/canary-weight"])
+			assert.Equal(s.T(), string("50"), ingressCanary.Annotations[canaryWeightAnnotation])
 
 			assert.Equal(s.T(), int64(50), ts.Spec.Backends[0].Weight.Value())
 
-			ingress_stable := t.GetNginxIngressStable()
-			_, ko := ingress_stable.Annotations["nginx.ingress.kubernetes.io/canary"]
+			ingressStable := t.GetNginxIngressStable()
+			_, ko := ingressStable.Annotations[canaryAnnotation]
 			assert.False(s.T(), ko)
 
-			assert.Equal(s.T(), "rollout-smi-ingress-canary-stable", ts.Spec.Backends[1].Service)
+			assert.Equal(s.T(), stableService, ts.Spec.Backends[1].Service)
 			assert.Equal(s.T(), int64(50), ts.Spec.Backends[1].Weight.Value())
 
 			desired, stable := t.GetServices()
@@ -128,15 +134,15 @@ func (s *SMIIngressSuite) TestSMIIngressCanaryStep() {
 
 			assert.Len(s.T(), ts.Spec.Backends, 2)
 
-			ingress_canary := t.GetNginxIngressCanary()
-			_, ko := ingress_canary.Annotations["nginx.ingress.kubernetes.io/canary"]
+			ingressCanary := t.GetNginxIngressCanary()
+			_, ko := ingressCanary.Annotations[canaryAnnotation]
 			assert.True(s.T(), ko)
-			assert.Equal(s.T(), string("0"), ingress_canary.Annotations["nginx.ingress.kubernetes.io/canary-weight"])
+			assert.Equal(s.T(), string("0"), ingressCanary.Annotations[canaryWeightAnnotation])
 
-			assert.Equal(s.T(), "rollout-smi-ingress-canary-canary", ts.Spec.Backends[0].Service)
+			assert.Equal(s.T(), canaryService, ts.Spec.Backends[0].Service)
 			assert.Equal(s.T(), int64(0), ts.Spec.Backends[0].Weight.Value())
 
-			assert.Equal(s.T(), "rollout-smi-ingress-canary-stable", ts.Spec.Backends[1].Service)
+			assert.Equal(s.T(), stableService, ts.Spec.Backends[1].Service)
 			assert.Equal(s.T(), int64(100), ts.Spec.Backends[1].Weight.Value())
 
 			desired, stable := t.GetServices()
