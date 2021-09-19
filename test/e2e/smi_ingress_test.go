@@ -76,8 +76,6 @@ func (s *SMIIngressSuite) TestSMIIngressCanaryStep() {
 			assert.True(s.T(), ok)
 			assert.Equal(s.T(), string("5"), ingressCanary.Annotations[canaryWeightAnnotation])
 
-			assert.Equal(s.T(), int64(5), ts.Spec.Backends[0].Weight.Value())
-
 			ingressStable := t.GetNginxIngressStable()
 			_, ko := ingressStable.Annotations[canaryAnnotation]
 			assert.False(s.T(), ko)
@@ -108,8 +106,6 @@ func (s *SMIIngressSuite) TestSMIIngressCanaryStep() {
 			_, ok := ingressCanary.Annotations[canaryAnnotation]
 			assert.True(s.T(), ok)
 			assert.Equal(s.T(), string("50"), ingressCanary.Annotations[canaryWeightAnnotation])
-
-			assert.Equal(s.T(), int64(50), ts.Spec.Backends[0].Weight.Value())
 
 			ingressStable := t.GetNginxIngressStable()
 			_, ko := ingressStable.Annotations[canaryAnnotation]
