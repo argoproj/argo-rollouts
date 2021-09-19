@@ -508,6 +508,55 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			assert.Equal(t, smi.Type, networkReconciler.Type())
 		}
 	}
+	{
+		// (2) Multiple Reconcilers (Nginx + SMI)
+		tsController := Controller{}
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Nginx: &v1alpha1.NginxTrafficRouting{},
+			SMI:   &v1alpha1.SMITrafficRouting{},
+		}
+		roCtx := &rolloutContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
+		for position, networkReconciler := range networkReconcilerList {
+			if position == 0 {
+				assert.Equal(t, nginx.Type, networkReconciler.Type())
+			} else if position == 1 {
+				assert.Equal(t, smi.Type, networkReconciler.Type())
+			}
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+		}
+	}
+	{
+		// (3) Multiple Reconcilers (ALB + Nginx + SMI)
+		tsController := Controller{}
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			ALB:   &v1alpha1.ALBTrafficRouting{},
+			Nginx: &v1alpha1.NginxTrafficRouting{},
+			SMI:   &v1alpha1.SMITrafficRouting{},
+		}
+		roCtx := &rolloutContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
+		for position, networkReconciler := range networkReconcilerList {
+			if position == 0 {
+				assert.Equal(t, nginx.Type, networkReconciler.Type())
+			} else if position == 1 {
+				assert.Equal(t, alb.Type, networkReconciler.Type())
+			} else if position == 2 {
+				assert.Equal(t, smi.Type, networkReconciler.Type())
+			}
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+		}
+	}
 }
 
 // Verifies with a canary using traffic routing, we add a scaledown delay to the old ReplicaSet
