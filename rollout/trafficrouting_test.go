@@ -39,6 +39,16 @@ func newFakeTrafficRoutingReconciler() *[]mocks.TrafficRoutingReconciler {
 	return &reconcilerList
 }
 
+// newFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with mocked success return values
+func newFakeSingleTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
+	trafficRoutingReconciler := mocks.TrafficRoutingReconciler{}
+	trafficRoutingReconciler.On("Type").Return("fake")
+	trafficRoutingReconciler.On("SetWeight", mock.Anything).Return(nil)
+	trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(true, nil)
+	trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+	return &trafficRoutingReconciler
+}
+
 // newUnmockedFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with unmocked
 // methods (except Type() mocked)
 func newUnmockedFakeTrafficRoutingReconciler() *[]mocks.TrafficRoutingReconciler {
