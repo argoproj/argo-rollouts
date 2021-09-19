@@ -103,7 +103,7 @@ type fixture struct {
 
 	// events holds all the K8s Event Reasons emitted during the run
 	events                   []string
-	fakeTrafficRouting       *[]mocks.TrafficRoutingReconciler
+	fakeTrafficRouting       []*mocks.TrafficRoutingReconciler
 	fakeSingleTrafficRouting *mocks.TrafficRoutingReconciler
 }
 
@@ -117,6 +117,7 @@ func newFixture(t *testing.T) *fixture {
 	patch, err := mpatch.PatchMethod(time.Now, func() time.Time { return now })
 	assert.NoError(t, err)
 	f.unfreezeTime = patch.Unpatch
+
 	f.fakeTrafficRouting = newFakeTrafficRoutingReconciler()
 	f.fakeSingleTrafficRouting = newFakeSingleTrafficRoutingReconciler()
 	return f
