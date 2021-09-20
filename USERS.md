@@ -8,6 +8,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Bucketplace](https://www.bucketplace.co.kr/)
 1. [Databricks](https://github.com/databricks)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
+1. [Farfetch](https://www.farfetch.com/)
 1. [Intuit](https://www.intuit.com/)
 1. [New Relic](https://newrelic.com/)
 1. [Nitro](https://www.gonitro.com)
