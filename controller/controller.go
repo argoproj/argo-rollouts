@@ -409,5 +409,6 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	go wait.Until(func() { c.ingressController.Run(ingressThreadiness, ctx.Done()) }, time.Second, ctx.Done())
 	go wait.Until(func() { c.experimentController.Run(experimentThreadiness, ctx.Done()) }, time.Second, ctx.Done())
 	go wait.Until(func() { c.analysisController.Run(analysisThreadiness, ctx.Done()) }, time.Second, ctx.Done())
+	go wait.Until(func() { c.notificationsController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done())
 	log.Info("Started controller")
 }

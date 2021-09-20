@@ -13142,6 +13142,7 @@ metadata:
     app.kubernetes.io/part-of: argo-rollouts
   name: argo-rollouts
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: argo-rollouts
