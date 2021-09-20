@@ -129,6 +129,7 @@ jobs:
           files: |
             dist/kubectl-argo-rollouts-linux-amd64
             dist/kubectl-argo-rollouts-darwin-amd64
+            dist/kubectl-argo-rollouts-windows-amd64
             manifests/install.yaml
             manifests/namespace-install.yaml
         env:
