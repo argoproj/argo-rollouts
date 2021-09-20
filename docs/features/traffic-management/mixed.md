@@ -7,20 +7,31 @@ The usage of multiple providers tries to cover scenarios where, for some reason,
 different providers on North-South and West-East traffic routing or any other hybrid architecture that
 requires the use of multiple providers.
 
-## When to use multiple providers
+## Examples of when you can use multiple providers
 
-When you do not want:
+### Avoid injecting sidecars on your Ingress controller
 
-* Inject sidecars on your Ingress controller, a common requirement of the service mesh.
-* Manipulate the host header as result of introducing the ingress controller into the service mesh.
-* Replace your ingress controller with VirtualGateways or similars.
-* Change provider with [big-bang-adoption](https://en.wikipedia.org/wiki/Big_bang_adoption)
+This is a common requirement of the service mesh and with multiple trafficRoutings you can leverage North-South traffic shifting to NGiNX 
+and West-East traffic shifting to SMI, avoiding the need of adding the Ingress controller inside the mesh.
 
-When you want:
+### Avoid manipulation of the host header at the Ingress
 
-* Perform North-South traffic routing with NGiNX and West-East traffic routing with SMI simultaneously
-* Gradually shift between provider A to provider B on a hybrid architecture, NGiNX to Istio
-* Adopt canary gradually on a hybrid architecture with both North-South and West-East traffic routing, for example NGiNX and SMI.
+Another common side effect of adding some of the Ingress controllers into the mesh, and is caused by the usage of those 
+mesh host headers to be pointing into a mesh hostname in order to be routed.
+
+### Avoid Big-Bang
+
+This takes place on existing fleets where downtime is very reduced or nearly impossible.
+To avoid [big-bang-adoption](https://en.wikipedia.org/wiki/Big_bang_adoption) the use of multiple providers can ease
+how teams can implement gradually new technologies. An example, where an existing fleet that is using a provider
+such as Ambassador and is already performing canary in a North-South fashion as part of their rollouts can gradually 
+implement more providers such as Istio, SMI, etc.
+
+### Hybrid Scenarios
+
+In this case, its very similar to avoiding the Big-Bang, either if it is part of the platform roadmap or a new redesign
+of the architecture, there are multiple scenarios where having the capacity of using multiple trafficRoutings is very 
+much in need: gradual implementation, eased rollback of architecture or even for a fallback.
 
 ## Requirements
 
