@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
+	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
+	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
+	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
 	"github.com/argoproj/argo-rollouts/metricproviders/newrelic"
 	"github.com/argoproj/argo-rollouts/metricproviders/wavefront"
-
-	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
-	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
 	"github.com/argoproj/argo-rollouts/metricproviders/webmetric"
 
 	log "github.com/sirupsen/logrus"
@@ -78,6 +78,12 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 			return nil, err
 		}
 		return newrelic.NewNewRelicProvider(client, logCtx), nil
+	case graphite.ProviderType:
+		client, err := graphite.NewAPIClient(metric, logCtx)
+		if err != nil {
+			return nil, err
+		}
+		return graphite.NewGraphiteProvider(client, logCtx), nil
 	case cloudwatch.ProviderType:
 		clinet, err := cloudwatch.NewCloudWatchAPIClient(metric)
 		if err != nil {

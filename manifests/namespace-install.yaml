@@ -160,6 +160,13 @@ spec:
                           required:
                           - query
                           type: object
+                        graphite:
+                          properties:
+                            address:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         job:
                           properties:
                             metadata:
@@ -2711,6 +2718,13 @@ spec:
                           required:
                           - query
                           type: object
+                        graphite:
+                          properties:
+                            address:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         job:
                           properties:
                             metadata:
@@ -5188,6 +5202,13 @@ spec:
                               type: string
                           required:
                           - query
+                          type: object
+                        graphite:
+                          properties:
+                            address:
+                              type: string
+                            query:
+                              type: string
                           type: object
                         job:
                           properties:

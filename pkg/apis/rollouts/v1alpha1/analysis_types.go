@@ -141,6 +141,8 @@ type MetricProvider struct {
 	Job *JobMetric `json:"job,omitempty" protobuf:"bytes,7,opt,name=job"`
 	// CloudWatch specifies the cloudWatch metric to query
 	CloudWatch *CloudWatchMetric `json:"cloudWatch,omitempty" protobuf:"bytes,8,opt,name=cloudWatch"`
+	// Graphite specifies the Graphite metric to query
+	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,9,opt,name=graphite"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -193,6 +195,14 @@ type NewRelicMetric struct {
 type JobMetric struct {
 	Metadata metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Spec     batchv1.JobSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+}
+
+// GraphiteMetric defines the Graphite query to perform canary analysis
+type GraphiteMetric struct {
+	// Address is the HTTP address and port of the Graphite server
+	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
+	// Query is a raw Graphite query to perform
+	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
