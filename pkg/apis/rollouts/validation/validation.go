@@ -57,6 +57,10 @@ const (
 	InvalidAnalysisArgsMessage = "Analyses arguments must refer to valid object metadata supported by downwardAPI"
 	// InvalidCanaryScaleDownDelay indicates that canary.scaleDownDelaySeconds cannot be used
 	InvalidCanaryScaleDownDelay = "Canary scaleDownDelaySeconds can only be used with traffic routing"
+	// InvalidCanaryDynamicStableScale indicates that canary.dynamicStableScale cannot be used
+	InvalidCanaryDynamicStableScale = "Canary dynamicStableScale can only be used with traffic routing"
+	// InvalidCanaryDynamicStableScaleWithScaleDownDelay indicates that canary.dynamicStableScale cannot be used with scaleDownDelaySeconds
+	InvalidCanaryDynamicStableScaleWithScaleDownDelay = "Canary dynamicStableScale cannot be used with scaleDownDelaySeconds"
 )
 
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
@@ -219,8 +223,17 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		}
 	}
 
-	if canary.ScaleDownDelaySeconds != nil && canary.TrafficRouting == nil {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleDownDelaySeconds"), *canary.ScaleDownDelaySeconds, InvalidCanaryScaleDownDelay))
+	if canary.TrafficRouting == nil {
+		if canary.ScaleDownDelaySeconds != nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleDownDelaySeconds"), *canary.ScaleDownDelaySeconds, InvalidCanaryScaleDownDelay))
+		}
+		if canary.DynamicStableScale {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("dynamicStableScale"), canary.DynamicStableScale, InvalidCanaryDynamicStableScale))
+		}
+	} else {
+		if canary.ScaleDownDelaySeconds != nil && canary.DynamicStableScale {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("dynamicStableScale"), canary.DynamicStableScale, InvalidCanaryDynamicStableScaleWithScaleDownDelay))
+		}
 	}
 
 	for i, step := range canary.Steps {
