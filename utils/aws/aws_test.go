@@ -57,6 +57,43 @@ func TestFindLoadBalancerByDNSName(t *testing.T) {
 	}
 }
 
+func TestGetNumericTargetPort(t *testing.T) {
+	tgb := TargetGroupBinding{
+		Spec: TargetGroupBindingSpec{
+			ServiceRef: ServiceReference{
+				Port: intstr.FromString("web"),
+			},
+		},
+	}
+	svc := corev1.Service{
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "web",
+					TargetPort: intstr.FromString("http"),
+				},
+			},
+		},
+	}
+	eps := corev1.Endpoints{
+		Subsets: []corev1.EndpointSubset{
+			{
+				Ports: []corev1.EndpointPort{
+					{
+						Name: "asdf",
+						Port: 1234,
+					},
+					{
+						Name: "http",
+						Port: 4567,
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, int32(4567), getNumericTargetPort(tgb, svc, eps))
+}
+
 func TestGetTargetGroupMetadata(t *testing.T) {
 	fakeELB, c := newFakeClient()
 
@@ -254,6 +291,10 @@ func TestVerifyTargetGroupBinding(t *testing.T) {
 		Spec: TargetGroupBindingSpec{
 			TargetType:     (*TargetType)(pointer.StringPtr("ip")),
 			TargetGroupARN: "arn::1234",
+			ServiceRef: ServiceReference{
+				Name: "active",
+				Port: intstr.FromInt(80),
+			},
 		},
 	}
 	ep := corev1.Endpoints{
@@ -274,6 +315,12 @@ func TestVerifyTargetGroupBinding(t *testing.T) {
 						IP: "2.4.6.8", // not registered
 					},
 				},
+				Ports: []corev1.EndpointPort{
+					{
+						Port:     8080,
+						Protocol: "TCP",
+					},
+				},
 			},
 		},
 	}
@@ -287,7 +334,7 @@ func TestVerifyTargetGroupBinding(t *testing.T) {
 			Ports: []corev1.ServicePort{{
 				Protocol:   "TCP",
 				Port:       int32(80),
-				TargetPort: intstr.FromInt(80),
+				TargetPort: intstr.FromInt(8080),
 			}},
 		},
 	}
@@ -297,25 +344,25 @@ func TestVerifyTargetGroupBinding(t *testing.T) {
 			{
 				Target: &elbv2types.TargetDescription{
 					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Port: pointer.Int32Ptr(8080),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
 					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Port: pointer.Int32Ptr(8080),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
 					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(81),         // wrong port
+					Port: pointer.Int32Ptr(8081),       // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
 					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Port: pointer.Int32Ptr(8080),
 				},
 			},
 		},

@@ -185,10 +185,33 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 				desiredReplicaCount = *targetRS.Spec.Replicas - maxScaleDown
 			}
 		} else {
-			// For traffic shaped canary, we leave the old ReplicaSets up until scaleDownDelaySeconds
-			annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
-			if err != nil {
-				return totalScaledDown, err
+			if rolloututil.IsFullyPromoted(c.rollout) || replicasetutil.HasScaleDownDeadline(targetRS) {
+				// If we are fully promoted and we encounter an old ReplicaSet, we can infer that
+				// this ReplicaSet is likely the previous stable and should follow scaleDownDelaySeconds
+				annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
+				if err != nil {
+					return totalScaledDown, err
+				}
+			} else {
+				// If we get here, we are *not* fully promoted and are in the middle of an update.
+				// We just encountered a scaled up ReplicaSet which is neither the stable or canary
+				// and doesn't yet have scale down deadline. This happens when a user changes their
+				// mind in the middle of an V1 -> V2 update, and then applies a V3. We are deciding
+				// what to do with the defunct, intermediate V2 ReplicaSet right now.
+				if replicasetutil.IsReplicaSetReady(c.newRS) && replicasetutil.IsReplicaSetReady(c.stableRS) {
+					// If the both new and old RS are available, we can infer that it is safe to
+					// scale down this ReplicaSet, since traffic should have shifted away from this RS.
+					// TODO: instead of checking availability of canary/stable, a better way to determine
+					// if it is safe to scale this down, is to check if traffic is directed to the RS.
+					// But to do so, we need the new status.canary.weights field in PR:
+					// https://github.com/argoproj/argo-rollouts/pull/1430
+					c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
+				} else {
+					// The current and stable ReplicaSets have not reached readiness. This implies
+					// we might not have shifted traffic away from this ReplicaSet so we need to
+					// keep this scaled up.
+					continue
+				}
 			}
 		}
 		if *targetRS.Spec.Replicas == desiredReplicaCount {

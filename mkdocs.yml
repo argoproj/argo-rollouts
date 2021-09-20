@@ -47,6 +47,7 @@ nav:
   - Job: analysis/job.md
   - Web: analysis/web.md
   - Kayenta: analysis/kayenta.md
+  - CloudWatch: analysis/cloudwatch.md
 - Experiments: features/experiment.md
 - Notifications:
   - Overview: features/notifications.md
@@ -67,6 +68,7 @@ nav:
   - Commands:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard.md

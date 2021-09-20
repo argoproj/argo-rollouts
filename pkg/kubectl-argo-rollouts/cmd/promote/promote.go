@@ -138,11 +138,14 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 		_, index := replicasetutil.GetCurrentCanaryStep(rollout)
 		// At this point, the controller knows that the rollout is a canary with steps and GetCurrentCanaryStep returns 0 if
 		// the index is not set in the rollout
-		if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
-			*index++
+		if index != nil {
+			if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
+				*index++
+			}
+			statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, *index))
+			unifiedPatch = statusPatch
 		}
-		statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, *index))
-		unifiedPatch = statusPatch
+
 	case skipAllStep:
 		statusPatch = []byte(fmt.Sprintf(setCurrentStepIndex, len(rollout.Spec.Strategy.Canary.Steps)))
 		unifiedPatch = statusPatch
@@ -165,11 +168,13 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 			_, index := replicasetutil.GetCurrentCanaryStep(rollout)
 			// At this point, the controller knows that the rollout is a canary with steps and GetCurrentCanaryStep returns 0 if
 			// the index is not set in the rollout
-			if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
-				*index++
+			if index != nil {
+				if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
+					*index++
+				}
+				statusPatch = []byte(fmt.Sprintf(clearPauseConditionsPatchWithStep, *index))
+				unifiedPatch = []byte(fmt.Sprintf(unpauseAndClearPauseConditionsPatchWithStep, *index))
 			}
-			statusPatch = []byte(fmt.Sprintf(clearPauseConditionsPatchWithStep, *index))
-			unifiedPatch = []byte(fmt.Sprintf(unpauseAndClearPauseConditionsPatchWithStep, *index))
 		}
 	}
 	return specPatch, statusPatch, unifiedPatch
