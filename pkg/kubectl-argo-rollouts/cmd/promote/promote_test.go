@@ -94,6 +94,31 @@ func TestPromoteSkipFlagOnNoStepCanaryError(t *testing.T) {
 	assert.Contains(t, stderr, skipFlagWithNoStepCanaryError)
 }
 
+func TestPromoteNoStepCanary(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{},
+			},
+		},
+	}
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+	defer tf.Cleanup()
+	cmd := NewCmdPromote(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"guestbook"})
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	stdout := o.Out.(*bytes.Buffer).String()
+	assert.NotEmpty(t, stdout)
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Empty(t, stderr)
+}
+
 func TestPromoteCmdSuccesSkipAllSteps(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -144,7 +169,7 @@ func TestPromoteCmdSuccesSkipAllSteps(t *testing.T) {
 	assert.Empty(t, stderr)
 }
 
-func TestPromoteCmdSuccesFirstStep(t *testing.T) {
+func TestPromoteCmdSuccesFirstStepWithSkipFirstStep(t *testing.T) {
 	ro := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "guestbook",
@@ -184,6 +209,56 @@ func TestPromoteCmdSuccesFirstStep(t *testing.T) {
 	cmd := NewCmdPromote(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"guestbook", "-c"})
+
+	err := cmd.Execute()
+	assert.Nil(t, err)
+	assert.Equal(t, int32(1), *ro.Status.CurrentStepIndex)
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, stdout, "rollout 'guestbook' promoted\n")
+	assert.Empty(t, stderr)
+}
+
+func TestPromoteCmdSuccesFirstStep(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{
+						{
+							SetWeight: pointer.Int32Ptr(1),
+						},
+						{
+							SetWeight: pointer.Int32Ptr(2),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+	defer tf.Cleanup()
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			patchRo := v1alpha1.Rollout{}
+			err := json.Unmarshal(patchAction.GetPatch(), &patchRo)
+			if err != nil {
+				panic(err)
+			}
+			ro.Status.CurrentStepIndex = patchRo.Status.CurrentStepIndex
+		}
+		return true, &ro, nil
+	})
+
+	cmd := NewCmdPromote(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"guestbook"})
 
 	err := cmd.Execute()
 	assert.Nil(t, err)

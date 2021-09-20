@@ -274,11 +274,11 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 				}
 			}
 
-			objName, notFound, err := unstructured.NestedString(obj.Object, "metadata", "name")
+			objName, found, err := unstructured.NestedString(obj.Object, "metadata", "name")
 			if err != nil {
 				return err
 			}
-			if !notFound {
+			if found {
 				templateName = objName
 			}
 
@@ -291,6 +291,10 @@ func NewCmdCreateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 				generateName = templateName + "-"
 			}
 			ns := o.Namespace()
+
+			if name == "" && generateName == "-" {
+				return fmt.Errorf("name is invalid")
+			}
 
 			obj, err = analysisutil.NewAnalysisRunFromUnstructured(obj, templateArgs, name, generateName, ns)
 			if err != nil {

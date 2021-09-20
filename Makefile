@@ -197,6 +197,11 @@ plugin-darwin: ui/dist
 	cp -r ui/dist/app/* server/static
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-amd64 ./cmd/kubectl-argo-rollouts
 
+.PHONY: plugin-windows
+plugin-windows: ui/dist
+	cp -r ui/dist/app/* server/static
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-windows-amd64 ./cmd/kubectl-argo-rollouts
+
 .PHONY: docs
 docs:
 	go run ./hack/gen-docs/main.go

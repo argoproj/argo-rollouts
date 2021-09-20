@@ -102,7 +102,7 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 	return nil
 }
 
-func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHTTPRoute, tlsRoutes []VirtualServiceTLSRoute, desiredWeight int64) virtualServicePatches {
+func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []string, httpRoutes []VirtualServiceHTTPRoute, rolloutVsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute, desiredWeight int64) virtualServicePatches {
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	stableSvc := r.rollout.Spec.Strategy.Canary.StableService
 	canarySubset := ""
@@ -113,8 +113,8 @@ func (r *Reconciler) generateVirtualServicePatches(httpRoutes []VirtualServiceHT
 	}
 
 	// err can be ignored because we already called ValidateHTTPRoutes earlier
-	httpRouteIndexesToPatch, _ := getHttpRouteIndexesToPatch(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes, httpRoutes)
-	tlsRouteIndexesToPatch, _ := getTlsRouteIndexesToPatch(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes, tlsRoutes)
+	httpRouteIndexesToPatch, _ := getHttpRouteIndexesToPatch(rolloutVsvcRouteNames, httpRoutes)
+	tlsRouteIndexesToPatch, _ := getTlsRouteIndexesToPatch(rolloutVsvcTLSRoutes, tlsRoutes)
 
 	patches := virtualServicePatches{}
 	svcSubsets := svcSubsets{
@@ -178,7 +178,7 @@ func appendPatch(routeIdx int, routeType string, weight int64, desiredWeight int
 	return patches
 }
 
-func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, desiredWeight int32) (*unstructured.Unstructured, bool, error) {
+func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsvcRouteNames []string, vsvcTLSRoutes []v1alpha1.TLSRoute, desiredWeight int32) (*unstructured.Unstructured, bool, error) {
 	newObj := obj.DeepCopy()
 
 	// HTTP Routes
@@ -190,7 +190,7 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, des
 		if err != nil {
 			return nil, false, err
 		}
-		if err := ValidateHTTPRoutes(r.rollout, httpRoutes); err != nil {
+		if err := ValidateHTTPRoutes(r.rollout, vsvcRouteNames, httpRoutes); err != nil {
 			return nil, false, err
 		}
 	}
@@ -204,12 +204,12 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, des
 		if err != nil {
 			return nil, false, err
 		}
-		if err := ValidateTlsRoutes(r.rollout, tlsRoutes); err != nil {
+		if err := ValidateTlsRoutes(r.rollout, vsvcTLSRoutes, tlsRoutes); err != nil {
 			return nil, false, err
 		}
 	}
 
-	patches := r.generateVirtualServicePatches(httpRoutes, tlsRoutes, int64(desiredWeight))
+	patches := r.generateVirtualServicePatches(vsvcRouteNames, httpRoutes, vsvcTLSRoutes, tlsRoutes, int64(desiredWeight))
 	err = patches.patchVirtualService(httpRoutesI, tlsRoutesI)
 	if err != nil {
 		return nil, false, err
@@ -527,34 +527,45 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...tr
 	ctx := context.TODO()
 	var vsvc *unstructured.Unstructured
 	var err error
+	var virtualServices []v1alpha1.IstioVirtualService
 
-	namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name)
-	if namespace == "" {
-		namespace = r.rollout.Namespace
-	}
-	client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
-	if r.virtualServiceLister != nil {
-		vsvc, err = r.virtualServiceLister.Namespace(namespace).Get(vsvcName)
+	if istioutil.MultipleVirtualServiceConfigured(r.rollout) {
+		virtualServices = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
 	} else {
-		vsvc, err = client.Get(ctx, vsvcName, metav1.GetOptions{})
+		virtualServices = []v1alpha1.IstioVirtualService{r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
 	}
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			r.recorder.Warnf(r.rollout, record.EventOptions{EventReason: "VirtualServiceNotFound"}, "VirtualService `%s` not found", vsvcName)
+
+	for _, virtualService := range virtualServices {
+		name := virtualService.Name
+		namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(name)
+		if namespace == "" {
+			namespace = r.rollout.Namespace
 		}
-		return err
-	}
-	modifiedVsvc, modified, err := r.reconcileVirtualService(vsvc, desiredWeight)
-	if err != nil {
-		return err
-	}
-	if !modified {
-		return nil
-	}
-	_, err = client.Update(ctx, modifiedVsvc, metav1.UpdateOptions{})
-	if err == nil {
-		r.log.Debugf("UpdatedVirtualService: %s", modifiedVsvc)
-		r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "UpdatedVirtualService"}, "VirtualService `%s` set to desiredWeight '%d'", vsvcName, desiredWeight)
+
+		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
+		if r.virtualServiceLister != nil {
+			vsvc, err = r.virtualServiceLister.Namespace(namespace).Get(vsvcName)
+		} else {
+			vsvc, err = client.Get(ctx, vsvcName, metav1.GetOptions{})
+		}
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				r.recorder.Warnf(r.rollout, record.EventOptions{EventReason: "VirtualServiceNotFound"}, "VirtualService `%s` not found", vsvcName)
+			}
+			return err
+		}
+		modifiedVirtualService, modified, err := r.reconcileVirtualService(vsvc, virtualService.Routes, virtualService.TLSRoutes, desiredWeight)
+		if err != nil {
+			return err
+		}
+		if !modified {
+			continue
+		}
+		_, err = client.Update(ctx, modifiedVirtualService, metav1.UpdateOptions{})
+		if err == nil {
+			r.log.Debugf("Updated VirtualService: %s", modifiedVirtualService)
+			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set to desiredWeight '%d'", vsvcName, desiredWeight)
+		}
 	}
 	return err
 }
@@ -650,11 +661,11 @@ func searchTlsRoute(tlsRoute v1alpha1.TLSRoute, istioTlsRoutes []VirtualServiceT
 }
 
 // validateHTTPRoutes ensures that all the routes in the rollout exist and they only have two destinations
-func ValidateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []VirtualServiceHTTPRoute) error {
+func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []VirtualServiceHTTPRoute) error {
 	stableSvc := r.Spec.Strategy.Canary.StableService
 	canarySvc := r.Spec.Strategy.Canary.CanaryService
 
-	routeIndexesToPatch, err := getHttpRouteIndexesToPatch(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes, httpRoutes)
+	routeIndexesToPatch, err := getHttpRouteIndexesToPatch(routeNames, httpRoutes)
 	if err != nil {
 		return err
 	}
@@ -665,18 +676,18 @@ func ValidateHTTPRoutes(r *v1alpha1.Rollout, httpRoutes []VirtualServiceHTTPRout
 			return err
 		}
 	}
-	if len(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes) == 0 && len(httpRoutes) > 1 {
+	if len(routeNames) == 0 && len(httpRoutes) > 1 {
 		return fmt.Errorf("spec.http[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes")
 	}
 	return nil
 }
 
 // ValidateTlsRoutes ensures that all the routes in the rollout exist and they only have two destinations
-func ValidateTlsRoutes(r *v1alpha1.Rollout, tlsRoutes []VirtualServiceTLSRoute) error {
+func ValidateTlsRoutes(r *v1alpha1.Rollout, vsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute) error {
 	stableSvc := r.Spec.Strategy.Canary.StableService
 	canarySvc := r.Spec.Strategy.Canary.CanaryService
 
-	routeIndexesToPatch, err := getTlsRouteIndexesToPatch(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes, tlsRoutes)
+	routeIndexesToPatch, err := getTlsRouteIndexesToPatch(vsvcTLSRoutes, tlsRoutes)
 	if err != nil {
 		return err
 	}
@@ -687,7 +698,7 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, tlsRoutes []VirtualServiceTLSRoute) 
 			return err
 		}
 	}
-	if len(r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes) == 0 && len(tlsRoutes) > 1 {
+	if len(vsvcTLSRoutes) == 0 && len(tlsRoutes) > 1 {
 		return fmt.Errorf("spec.tls[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes")
 	}
 	return nil

@@ -393,6 +393,52 @@ message CanaryStrategy {
   optional int32 abortScaleDownDelaySeconds = 13;
 }
 
+// CloudWatchMetric defines the cloudwatch query to perform canary analysis
+message CloudWatchMetric {
+  optional string interval = 1;
+
+  repeated CloudWatchMetricDataQuery metricDataQueries = 2;
+}
+
+// CloudWatchMetricDataQuery defines the cloudwatch query
+message CloudWatchMetricDataQuery {
+  optional string id = 1;
+
+  optional string expression = 2;
+
+  optional string label = 3;
+
+  optional CloudWatchMetricStat metricStat = 4;
+
+  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString period = 5;
+
+  optional bool returnData = 6;
+}
+
+message CloudWatchMetricStat {
+  optional CloudWatchMetricStatMetric metric = 1;
+
+  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString period = 2;
+
+  optional string stat = 3;
+
+  optional string unit = 4;
+}
+
+message CloudWatchMetricStatMetric {
+  repeated CloudWatchMetricStatMetricDimension dimensions = 1;
+
+  optional string metricName = 2;
+
+  optional string namespace = 3;
+}
+
+message CloudWatchMetricStatMetricDimension {
+  optional string name = 1;
+
+  optional string value = 2;
+}
+
 // ClusterAnalysisTemplate holds the template for performing canary analysis
 // +genclient
 // +genclient:nonNamespaced
@@ -564,6 +610,15 @@ message FieldRef {
   optional string fieldPath = 1;
 }
 
+// GraphiteMetric defines the Graphite query to perform canary analysis
+message GraphiteMetric {
+  // Address is the HTTP address and port of the Graphite server
+  optional string address = 1;
+
+  // Query is a raw Graphite query to perform
+  optional string query = 2;
+}
+
 // IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic
 message IstioDestinationRule {
   // Name holds the name of the DestinationRule
@@ -583,6 +638,9 @@ message IstioTrafficRouting {
 
   // DestinationRule references an Istio DestinationRule to modify to shape traffic
   optional IstioDestinationRule destinationRule = 2;
+
+  // VirtualServices references a list of Istio VirtualService to modify to shape traffic
+  repeated IstioVirtualService virtualServices = 3;
 }
 
 // IstioVirtualService holds information on the virtual service the rollout needs to modify
@@ -730,6 +788,12 @@ message MetricProvider {
 
   // Job specifies the job metric run
   optional JobMetric job = 7;
+
+  // CloudWatch specifies the cloudWatch metric to query
+  optional CloudWatchMetric cloudWatch = 8;
+
+  // Graphite specifies the Graphite metric to query
+  optional GraphiteMetric graphite = 9;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with

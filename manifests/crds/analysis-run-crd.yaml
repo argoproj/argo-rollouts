@@ -97,6 +97,59 @@ spec:
                       type: string
                     provider:
                       properties:
+                        cloudWatch:
+                          properties:
+                            interval:
+                              type: string
+                            metricDataQueries:
+                              items:
+                                properties:
+                                  expression:
+                                    type: string
+                                  id:
+                                    type: string
+                                  label:
+                                    type: string
+                                  metricStat:
+                                    properties:
+                                      metric:
+                                        properties:
+                                          dimensions:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          metricName:
+                                            type: string
+                                          namespace:
+                                            type: string
+                                        type: object
+                                      period:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        x-kubernetes-int-or-string: true
+                                      stat:
+                                        type: string
+                                      unit:
+                                        type: string
+                                    type: object
+                                  period:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
+                                    x-kubernetes-int-or-string: true
+                                  returnData:
+                                    type: boolean
+                                type: object
+                              type: array
+                          required:
+                          - metricDataQueries
+                          type: object
                         datadog:
                           properties:
                             interval:
@@ -105,6 +158,13 @@ spec:
                               type: string
                           required:
                           - query
+                          type: object
+                        graphite:
+                          properties:
+                            address:
+                              type: string
+                            query:
+                              type: string
                           type: object
                         job:
                           properties:
