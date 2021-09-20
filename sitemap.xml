@@ -76,6 +76,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://argoproj.github.io/argo-rollouts/analysis/graphite/</loc>
+         <lastmod>2021-09-20</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://argoproj.github.io/argo-rollouts/analysis/job/</loc>
          <lastmod>2021-09-20</lastmod>
          <changefreq>daily</changefreq>
