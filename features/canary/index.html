@@ -494,8 +494,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#controlling-canary-scale" class="md-nav__link">
-    Controlling Canary Scale
+  <a href="#dynamic-canary-scale-with-traffic-routing" class="md-nav__link">
+    Dynamic Canary Scale (with Traffic Routing)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dynamic-stable-scale-with-traffic-routing" class="md-nav__link">
+    Dynamic Stable Scale (with Traffic Routing)
   </a>
   
 </li>
@@ -1863,8 +1870,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#controlling-canary-scale" class="md-nav__link">
-    Controlling Canary Scale
+  <a href="#dynamic-canary-scale-with-traffic-routing" class="md-nav__link">
+    Dynamic Canary Scale (with Traffic Routing)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dynamic-stable-scale-with-traffic-routing" class="md-nav__link">
+    Dynamic Stable Scale (with Traffic Routing)
   </a>
   
 </li>
@@ -2013,7 +2027,7 @@
 <div class="highlight"><pre><span></span><code><span class="c1"># promote to the next step</span>
 kubectl argo rollouts promote &lt;rollout&gt;
 </code></pre></div>
-<h2 id="controlling-canary-scale">Controlling Canary Scale<a class="headerlink" href="#controlling-canary-scale" title="Permanent link">&para;</a></h2>
+<h2 id="dynamic-canary-scale-with-traffic-routing">Dynamic Canary Scale (with Traffic Routing)<a class="headerlink" href="#dynamic-canary-scale-with-traffic-routing" title="Permanent link">&para;</a></h2>
 <p>By default, the rollout controller will scale the canary to match the current trafficWeight of the
 current step. For example, if the current weight is 25%, and there are four replicas, then the
 canary will be scaled to 1, to match the traffic weight.</p>
@@ -2052,9 +2066,49 @@ the canary should use:</p>
       <span class="p p-Indicator">-</span> <span class="nt">setCanaryScale</span><span class="p">:</span>
           <span class="nt">matchTrafficWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
 </code></pre></div>
-<p>If no <code>duration</code> is specified for a pause step, the rollout will be paused indefinitely. To unpause, use the <a href="../kubectl-plugin/">argo kubectl plugin</a> <code>promote</code> command. </p>
-<div class="highlight"><pre><span></span><code><span class="c1"># promote to the next step</span>
-kubectl argo rollouts promote &lt;rollout&gt;
+<p>When using <code>setCanaryScale</code> with explicit values for either replicas or weight, one must be careful
+if used in conjunction with the <code>setWeight</code> step. If done incorrectly, an imbalanced amount of traffic
+may be directed to the canary (in proportion to the Rollout's scale). For example, the following set
+of steps would cause 90% of traffic to only be served by 10% of pods:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">steps</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">setCanaryScale</span><span class="p">:</span>
+          <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10</span>
+      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">90</span>
+      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
+</code></pre></div>
+<h2 id="dynamic-stable-scale-with-traffic-routing">Dynamic Stable Scale (with Traffic Routing)<a class="headerlink" href="#dynamic-stable-scale-with-traffic-routing" title="Permanent link">&para;</a></h2>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Available since v1.1</p>
+</div>
+<p>When using traffic routing, by default the stable ReplicaSet is left scaled to 100% during the update.
+This has the advantage that if an abort occurs, traffic can be immediately shifted back to the
+stable ReplicaSet without delay. However, it has the disadvantage that during the update, there will
+eventually exist double the number of replica pods running (similar to in a blue-green deployment),
+since the stable ReplicaSet is left scaled up for the full duration of the update.</p>
+<p>It is possible to dynamically reduce the scale of the stable ReplicaSet during an update such that
+it scales down as the traffic weight increases to canary. This would be desirable in scenarios where
+the Rollout has a high replica count and resource cost is a concern, or in bare-metal situations
+where it is not possible to create additional node capacity to accommodate double the replicas.</p>
+<p>The ability to dynamically scale the stable ReplicaSet can be enabled by setting the
+<code>canary.dynamicStableScale</code> flag to true:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">dynamicStableScale</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<p>NOTE: that if <code>dynamicStableScale</code> is set, and the rollout is aborted, the canary ReplicaSet will
+dynamically scale down as traffic shifts back to stable. If you wish to leave the canary ReplicaSet
+scaled up while aborting, an explicit value for <code>abortScaleDownDelaySeconds</code> can be set:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+      <span class="nt">dynamicStableScale</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+      <span class="nt">abortScaleDownDelaySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">600</span>
 </code></pre></div>
 <h2 id="mimicking-rolling-update">Mimicking Rolling Update<a class="headerlink" href="#mimicking-rolling-update" title="Permanent link">&para;</a></h2>
 <p>If the <code>steps</code> field is omitted, the canary strategy will mimic the rolling update behavior. Similar to the deployment, the canary strategy has the <code>maxSurge</code> and <code>maxUnavailable</code> fields to configure how the Rollout should progress to the new version.</p>
