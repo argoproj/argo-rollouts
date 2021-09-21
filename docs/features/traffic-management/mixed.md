@@ -36,7 +36,7 @@ much in need: gradual implementation, eased rollback of architecture or even for
 ## Requirements
 
 The use of multiple providers requires that both providers comply with its minimum requirements independently.
-By example, if you wan't to use NGiNX and SMI you would need to have both SMI and NGiNX in place and produce the rollout configuration
+By example, if you want to use NGiNX and SMI you would need to have both SMI and NGiNX in place and produce the rollout configuration
 for both.
 
 ```yaml
