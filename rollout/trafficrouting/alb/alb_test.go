@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
-
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -326,7 +324,7 @@ func TestVerifyWeight(t *testing.T) {
 		r, _ := newFakeReconciler()
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
-		assert.False(t, weightVerified)
+		assert.False(t, *weightVerified)
 	}
 
 	// LoadBalancer found, not at weight
@@ -350,7 +348,7 @@ func TestVerifyWeight(t *testing.T) {
 
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
-		assert.False(t, weightVerified)
+		assert.False(t, *weightVerified)
 	}
 
 	// LoadBalancer found, at weight
@@ -374,7 +372,7 @@ func TestVerifyWeight(t *testing.T) {
 
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
-		assert.True(t, weightVerified)
+		assert.True(t, *weightVerified)
 	}
 }
 
@@ -393,7 +391,7 @@ func TestSetWeightWithMultipleBackends(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	weightDestinations := []trafficrouting.WeightDestination{
+	weightDestinations := []v1alpha1.WeightDestination{
 		{
 			ServiceName:     "ex-svc-1",
 			PodTemplateHash: "",
@@ -423,7 +421,7 @@ func TestSetWeightWithMultipleBackends(t *testing.T) {
 }
 
 func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
-	weightDestinations := []trafficrouting.WeightDestination{
+	weightDestinations := []v1alpha1.WeightDestination{
 		{
 			ServiceName:     "ex-svc-1",
 			PodTemplateHash: "",
@@ -486,7 +484,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
-		assert.False(t, weightVerified)
+		assert.False(t, *weightVerified)
 	}
 
 	// LoadBalancer found, with incorrect weights
@@ -528,7 +526,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
-		assert.False(t, weightVerified)
+		assert.False(t, *weightVerified)
 	}
 
 	// LoadBalancer found, with all correct weights
@@ -570,6 +568,6 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
-		assert.True(t, weightVerified)
+		assert.True(t, *weightVerified)
 	}
 }

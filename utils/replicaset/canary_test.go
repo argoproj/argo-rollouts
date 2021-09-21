@@ -636,7 +636,12 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
 			rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = test.abortScaleDownDelaySeconds
-			newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
+			var newRSReplicaCount, stableRSReplicaCount int32
+			if test.trafficRouting != nil {
+				newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(rollout, nil)
+			} else {
+				newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForBasicCanary(rollout, canaryRS, stableRS, []*appsv1.ReplicaSet{test.olderRS})
+			}
 			assert.Equal(t, test.expectedCanaryReplicaCount, newRSReplicaCount, "check canary replica count")
 			assert.Equal(t, test.expectedStableReplicaCount, stableRSReplicaCount, "check stable replica count")
 		})
@@ -647,7 +652,7 @@ func TestCalculateReplicaCountsForNewDeployment(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
 	stableRS := newRS("stable", 10, 0)
 	newRS := newRS("stable", 10, 0)
-	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, nil)
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForBasicCanary(rollout, newRS, stableRS, nil)
 	assert.Equal(t, int32(10), newRSReplicaCount)
 	assert.Equal(t, int32(0), stableRSReplicaCount)
 }
@@ -655,23 +660,103 @@ func TestCalculateReplicaCountsForNewDeployment(t *testing.T) {
 func TestCalculateReplicaCountsForCanaryTrafficRouting(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
 	rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
-	stableRS := newRS("stable", 10, 10)
-	newRS := newRS("canary", 0, 0)
-	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, nil)
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, rollout.Status.Canary.Weights)
 	assert.Equal(t, int32(1), newRSReplicaCount)
 	assert.Equal(t, int32(10), stableRSReplicaCount)
+}
+
+func TestCalculateReplicaCountsForCanaryTrafficRoutingDynamicScale(t *testing.T) {
+	{
+		// verify we scale down stable
+		rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
+		rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+		rollout.Spec.Strategy.Canary.DynamicStableScale = true
+		weights := v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 10,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 90,
+			},
+		}
+		newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, &weights)
+		assert.Equal(t, int32(1), newRSReplicaCount)
+		assert.Equal(t, int32(9), stableRSReplicaCount)
+	}
+	{
+		// verify we take max of desired canary (20) > actual (10)
+		rollout := newRollout(10, 20, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
+		rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+		rollout.Spec.Strategy.Canary.DynamicStableScale = true
+		weights := v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 10,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 90,
+			},
+		}
+		newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, &weights)
+		assert.Equal(t, int32(2), newRSReplicaCount)
+		assert.Equal(t, int32(9), stableRSReplicaCount)
+	}
+	{
+		// verify when we abort, we leave canary scaled up if there is still traffic to it
+		rollout := newRollout(10, 20, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
+		rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+		rollout.Spec.Strategy.Canary.DynamicStableScale = true
+		rollout.Status.Abort = true
+		weights := v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 20,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 80,
+			},
+		}
+		newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, &weights)
+		assert.Equal(t, int32(2), newRSReplicaCount)
+		assert.Equal(t, int32(10), stableRSReplicaCount)
+	}
+	{
+		// verify when we abort, we reduce canary when there is less traffic to it
+		rollout := newRollout(10, 20, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
+		rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+		rollout.Spec.Strategy.Canary.DynamicStableScale = true
+		rollout.Status.Abort = true
+		weights := v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 10,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 90,
+			},
+		}
+		newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, &weights)
+		assert.Equal(t, int32(1), newRSReplicaCount)
+		assert.Equal(t, int32(10), stableRSReplicaCount)
+	}
 }
 
 func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "", nil, nil)
 	newRS := newRS("stable", 9, 9)
-	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForCanary(rollout, newRS, nil, []*appsv1.ReplicaSet{})
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForBasicCanary(rollout, newRS, nil, []*appsv1.ReplicaSet{})
 	assert.Equal(t, int32(10), newRSReplicaCount)
 	assert.Equal(t, int32(0), stableRSReplicaCount)
 
-	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForCanary(rollout, newRS, newRS, []*appsv1.ReplicaSet{})
+	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForBasicCanary(rollout, newRS, newRS, []*appsv1.ReplicaSet{})
 	assert.Equal(t, int32(10), newRSReplicaCount)
 	assert.Equal(t, int32(0), stableRSReplicaCount)
+}
+
+func TestTrafficWeightToReplicas(t *testing.T) {
+	assert.Equal(t, int32(0), trafficWeightToReplicas(10, 0))
+	assert.Equal(t, int32(2), trafficWeightToReplicas(10, 20))
+	assert.Equal(t, int32(3), trafficWeightToReplicas(10, 25))
+	assert.Equal(t, int32(4), trafficWeightToReplicas(10, 33))
+	assert.Equal(t, int32(10), trafficWeightToReplicas(10, 99))
+	assert.Equal(t, int32(10), trafficWeightToReplicas(10, 100))
 }
 
 func TestGetOtherRSs(t *testing.T) {

@@ -16,7 +16,6 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -175,8 +174,8 @@ func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 	return r, nil
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
-	return true, nil
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
+	return nil, nil
 }
 
 // Type indicates this reconciler is an SMI reconciler
@@ -185,7 +184,7 @@ func (r *Reconciler) Type() string {
 }
 
 // SetWeight creates and modifies traffic splits based on the desired weight
-func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	// If TrafficSplitName not set, then set to Rollout name
 	trafficSplitName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.SMI.TrafficSplitName
 	if trafficSplitName == "" {
@@ -223,7 +222,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...tr
 	return err
 }
 
-func (r *Reconciler) generateTrafficSplits(trafficSplitName string, desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) VersionedTrafficSplits {
+func (r *Reconciler) generateTrafficSplits(trafficSplitName string, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) VersionedTrafficSplits {
 	// If root service not set, then set root service to be stable service
 	rootSvc := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.SMI.RootService
 	if rootSvc == "" {
@@ -255,7 +254,7 @@ func objectMeta(trafficSplitName string, ro *v1alpha1.Rollout, controllerKind sc
 	}
 }
 
-func trafficSplitV1Alpha1(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) *smiv1alpha1.TrafficSplit {
+func trafficSplitV1Alpha1(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) *smiv1alpha1.TrafficSplit {
 	backends := []smiv1alpha1.TrafficSplitBackend{{
 		Service: ro.Spec.Strategy.Canary.CanaryService,
 		Weight:  resource.NewQuantity(int64(desiredWeight), resource.DecimalExponent),
@@ -286,7 +285,7 @@ func trafficSplitV1Alpha1(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, ro
 	}
 }
 
-func trafficSplitV1Alpha2(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) *smiv1alpha2.TrafficSplit {
+func trafficSplitV1Alpha2(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) *smiv1alpha2.TrafficSplit {
 	backends := []smiv1alpha2.TrafficSplitBackend{{
 		Service: ro.Spec.Strategy.Canary.CanaryService,
 		Weight:  int(desiredWeight),
@@ -317,7 +316,7 @@ func trafficSplitV1Alpha2(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, ro
 	}
 }
 
-func trafficSplitV1Alpha3(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) *smiv1alpha3.TrafficSplit {
+func trafficSplitV1Alpha3(ro *v1alpha1.Rollout, objectMeta metav1.ObjectMeta, rootSvc string, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) *smiv1alpha3.TrafficSplit {
 	backends := []smiv1alpha3.TrafficSplitBackend{{
 		Service: ro.Spec.Strategy.Canary.CanaryService,
 		Weight:  int(desiredWeight),

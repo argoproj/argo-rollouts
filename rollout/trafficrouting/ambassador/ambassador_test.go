@@ -491,7 +491,7 @@ func TestReconciler_SetWeight(t *testing.T) {
 		})
 	})
 	t.Run("VerifyWeight", func(t *testing.T) {
-		t.Run("verify weight will always return true", func(t *testing.T) {
+		t.Run("verify weight will always return nil", func(t *testing.T) {
 			// given
 			t.Parallel()
 			f := setup()
@@ -501,7 +501,7 @@ func TestReconciler_SetWeight(t *testing.T) {
 
 			// then
 			assert.Nil(t, err)
-			assert.True(t, verified)
+			assert.Nil(t, verified)
 		})
 	})
 	t.Run("UpdateHash", func(t *testing.T) {

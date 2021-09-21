@@ -317,6 +317,50 @@ func TestCanaryScaleDownDelaySeconds(t *testing.T) {
 		allErrs := ValidateRollout(ro)
 		assert.Empty(t, allErrs)
 	})
+}
+
+func TestCanaryDynamicStableScale(t *testing.T) {
+	selector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{"key": "value"},
+	}
+	ro := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Selector: selector,
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService:      "stable",
+					CanaryService:      "canary",
+					DynamicStableScale: true,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: selector.MatchLabels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Resources: corev1.ResourceRequirements{},
+						Image:     "foo",
+						Name:      "image-name",
+					}},
+				},
+			},
+		},
+	}
+	t.Run("dynamicStableScale with basic canary", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		allErrs := ValidateRollout(ro)
+		assert.EqualError(t, allErrs[0], fmt.Sprintf("spec.strategy.dynamicStableScale: Invalid value: true: %s", InvalidCanaryDynamicStableScale))
+	})
+	t.Run("dynamicStableScale with scaleDownDelaySeconds", func(t *testing.T) {
+		ro := ro.DeepCopy()
+		ro.Spec.Strategy.Canary.ScaleDownDelaySeconds = pointer.Int32Ptr(60)
+		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			SMI: &v1alpha1.SMITrafficRouting{},
+		}
+		allErrs := ValidateRollout(ro)
+		assert.EqualError(t, allErrs[0], fmt.Sprintf("spec.strategy.dynamicStableScale: Invalid value: true: %s", InvalidCanaryDynamicStableScaleWithScaleDownDelay))
+	})
 
 }
 

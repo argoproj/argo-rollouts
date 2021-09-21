@@ -22,6 +22,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -166,6 +167,50 @@ func (c *Common) GetPodsByRevision(revision string) *corev1.PodList {
 		podList.Items = append(podList.Items, *pod)
 	}
 	return &podList
+}
+
+// MarkPodsReady is a helper to mark the readiness gates of pods of a particular revision as ready.
+func (c *Common) MarkPodsReady(revision string, quantity int) int {
+	rs := c.GetReplicaSetByRevision(revision)
+	pods, err := replicasetutil.GetPodsOwnedByReplicaSet(c.Context, c.kubeClient, rs)
+	c.CheckError(err)
+	podIf := c.kubeClient.CoreV1().Pods(rs.Namespace)
+	marked := 0
+	// c.log.Infof("Marking %d pods as ready", quantity)
+	for _, pod := range pods {
+		if marked < quantity {
+			foundIdx := -1
+			for i, cond := range pod.Status.Conditions {
+				if cond.Type == "argoproj.io/e2e-readiness" {
+					foundIdx = i
+				}
+			}
+			if foundIdx >= 0 {
+				continue
+			}
+			// retry multiple times to deal with resource conflicts
+			for i := 0; i < 5; i++ {
+				pod, err = podIf.Get(c.Context, pod.Name, metav1.GetOptions{})
+				c.CheckError(err)
+				pod.Status.Conditions = append(pod.Status.Conditions, corev1.PodCondition{
+					Type:   "argoproj.io/e2e-readiness",
+					Status: "True",
+				})
+				_, err := podIf.UpdateStatus(c.Context, pod, metav1.UpdateOptions{})
+				if err == nil {
+					break
+				}
+				if !k8serrors.IsConflict(err) {
+					c.t.Fatalf("Could not set readiness on pod: %v", err)
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+			//c.log.Infof("Conditions: %v", pod.Status.Conditions)
+			marked += 1
+		}
+	}
+	c.log.Infof("Marked %d revision %s pods as ready", marked, revision)
+	return marked
 }
 
 func (c *Common) GetRolloutAnalysisRuns() rov1.AnalysisRunList {

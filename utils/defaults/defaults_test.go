@@ -222,7 +222,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, time.Duration(abortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(blueGreenNonDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(blueGreenNonDefaultValue)
+		assert.Equal(t, time.Duration(abortScaleDownDelaySeconds)*time.Second, *abortDelay)
+		assert.True(t, wasSet)
 	}
 	{
 		// dont scale down preview
@@ -236,7 +238,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Nil(t, GetAbortScaleDownDelaySecondsOrDefault(blueGreenZeroValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(blueGreenZeroValue)
+		assert.Nil(t, abortDelay)
+		assert.True(t, wasSet)
 	}
 	{
 		blueGreenDefaultValue := &v1alpha1.Rollout{
@@ -246,7 +250,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, time.Duration(DefaultAbortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(blueGreenDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(blueGreenDefaultValue)
+		assert.Equal(t, time.Duration(DefaultAbortScaleDownDelaySeconds)*time.Second, *abortDelay)
+		assert.False(t, wasSet)
 	}
 	{
 		abortScaleDownDelaySeconds := int32(60)
@@ -260,7 +266,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, time.Duration(abortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(canaryNonDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(canaryNonDefaultValue)
+		assert.Equal(t, time.Duration(abortScaleDownDelaySeconds)*time.Second, *abortDelay)
+		assert.True(t, wasSet)
 	}
 	{
 		// dont scale down canary
@@ -275,11 +283,15 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Nil(t, GetAbortScaleDownDelaySecondsOrDefault(canaryZeroValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(canaryZeroValue)
+		assert.Nil(t, abortDelay)
+		assert.True(t, wasSet)
 	}
 	{
 		rolloutNoStrategyDefaultValue := &v1alpha1.Rollout{}
-		assert.Equal(t, time.Duration(0), *GetAbortScaleDownDelaySecondsOrDefault(rolloutNoStrategyDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(rolloutNoStrategyDefaultValue)
+		assert.Equal(t, time.Duration(0), *abortDelay)
+		assert.False(t, wasSet)
 	}
 	{
 		canaryDefaultValue := &v1alpha1.Rollout{
@@ -291,7 +303,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, time.Duration(DefaultAbortScaleDownDelaySeconds)*time.Second, *GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue)
+		assert.Equal(t, time.Duration(DefaultAbortScaleDownDelaySeconds)*time.Second, *abortDelay)
+		assert.False(t, wasSet)
 	}
 	{
 		// basic canary should not have scaledown delay seconds
@@ -302,7 +316,9 @@ func TestGetAbortScaleDownDelaySecondsOrDefault(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, time.Duration(0), *GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue))
+		abortDelay, wasSet := GetAbortScaleDownDelaySecondsOrDefault(canaryDefaultValue)
+		assert.Equal(t, time.Duration(0), *abortDelay)
+		assert.False(t, wasSet)
 	}
 
 }

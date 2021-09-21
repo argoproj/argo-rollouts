@@ -107,10 +107,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateService":                                 schema_pkg_apis_rollouts_v1alpha1_TemplateService(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateSpec":                                    schema_pkg_apis_rollouts_v1alpha1_TemplateSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":                                  schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TrafficWeights":                                  schema_pkg_apis_rollouts_v1alpha1_TrafficWeights(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ValueFrom":                                       schema_pkg_apis_rollouts_v1alpha1_ValueFrom(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric":                                 schema_pkg_apis_rollouts_v1alpha1_WavefrontMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric":                                       schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader":                                 schema_pkg_apis_rollouts_v1alpha1_WebMetricHeader(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination":                               schema_pkg_apis_rollouts_v1alpha1_WeightDestination(ref),
 	}
 }
 
@@ -882,11 +884,17 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"weights": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Weights records the weights which have been set on traffic provider. Only valid when using traffic routing",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TrafficWeights"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisRunStatus", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TrafficWeights"},
 	}
 }
 
@@ -1032,6 +1040,13 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Description: "AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update is aborted for canary strategy with traffic routing (not applicable for basic canary). 0 means canary pods are not scaled down. Default is 30 seconds.",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"dynamicStableScale": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DynamicStableScale is a traffic routing feature which dynamically scales the stable ReplicaSet to minimize total pods which are running during an update. This is calculated by scaling down the stable as traffic is increased to canary. When disabled (the default behavior) the stable ReplicaSet remains fully scaled to support instantaneous aborts.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
@@ -3907,6 +3922,57 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref common.ReferenceCallba
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_TrafficWeights(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TrafficWeights describes the current status of how traffic has been split",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"canary": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Canary is the current traffic weight split to canary ReplicaSet",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination"),
+						},
+					},
+					"stable": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Stable is the current traffic weight split to stable ReplicaSet",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination"),
+						},
+					},
+					"additional": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Additional holds the weights split to additional ReplicaSets such as experiment ReplicaSets",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination"),
+									},
+								},
+							},
+						},
+					},
+					"verified": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Verified is an optional indicator that the weight has been verified to have taken effect. This is currently only applicable to ALB traffic router",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"canary", "stable"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination"},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_ValueFrom(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4046,6 +4112,41 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetricHeader(ref common.ReferenceCallb
 					},
 				},
 				Required: []string{"key", "value"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_WeightDestination(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"weight": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Weight is an percentage of traffic being sent to this destination",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"serviceName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceName is the Kubernetes service name traffic is being sent to",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"podTemplateHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodTemplateHash is the pod template hash label for this destination",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"weight"},
 			},
 		},
 	}
