@@ -64,13 +64,14 @@ func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.
 	}
 	i := informers.NewSharedInformerFactory(client, 0)
 	k8sI := kubeinformers.NewSharedInformerFactory(kubeclient, 0)
+	ingressWrap := NewIngressWrapper(IngressModeExtensions, kubeclient, k8sI)
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
 	c := NewController(ControllerConfig{
 		Client:           kubeclient,
-		IngressInformer:  k8sI.Extensions().V1beta1().Ingresses(),
+		IngressWrap:      ingressWrap,
 		IngressWorkQueue: ingressWorkqueue,
 
 		RolloutsInformer: i.Argoproj().V1alpha1().Rollouts(),
