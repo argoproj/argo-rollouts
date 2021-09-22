@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -89,7 +90,32 @@ func GetCanaryIngressName(rollout *v1alpha1.Rollout) string {
 }
 
 // HasRuleWithService check if an Ingress has a service in one of it's rules
-func HasRuleWithService(ingress *extensionsv1beta1.Ingress, svc string) bool {
+func HasRuleWithService(i *Ingress, svc string) bool {
+	switch i.mode {
+	case IngressModeNetworking:
+		return hasIngressRuleWithService(i.ingress, svc)
+	case IngressModeExtensions:
+		return hasLegacyIngressRuleWithService(i.legacyIngress, svc)
+	default:
+		return false
+	}
+
+}
+
+func hasIngressRuleWithService(ingress *networkingv1.Ingress, svc string) bool {
+	for _, rule := range ingress.Spec.Rules {
+		if rule.HTTP != nil {
+			for _, path := range rule.HTTP.Paths {
+				if path.Backend.Service.Name == svc {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func hasLegacyIngressRuleWithService(ingress *extensionsv1beta1.Ingress, svc string) bool {
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP != nil {
 			for _, path := range rule.HTTP.Paths {

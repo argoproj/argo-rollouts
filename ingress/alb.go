@@ -15,7 +15,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-func (c *Controller) syncALBIngress(ingress *Ingress, rollouts []*v1alpha1.Rollout) error {
+func (c *Controller) syncALBIngress(ingress *ingressutil.Ingress, rollouts []*v1alpha1.Rollout) error {
 	ctx := context.TODO()
 	annotations := ingress.GetAnnotations()
 	managedActions, err := ingressutil.NewManagedALBActions(annotations[ingressutil.ManagedActionsAnnotation])
@@ -64,7 +64,7 @@ func (c *Controller) syncALBIngress(ingress *Ingress, rollouts []*v1alpha1.Rollo
 	return err
 }
 
-func getResetALBActionStr(ingress *Ingress, action string) (string, error) {
+func getResetALBActionStr(ingress *ingressutil.Ingress, action string) (string, error) {
 	parts := strings.Split(action, ingressutil.ALBActionPrefix)
 	if len(parts) != 2 {
 		return "", fmt.Errorf("unable to parse action to get the service %s", action)

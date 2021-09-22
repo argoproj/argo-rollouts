@@ -2,11 +2,14 @@ package ingress
 
 import (
 	"context"
+	"errors"
 	"sync"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	v1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
 	extensionsv1beta1 "k8s.io/client-go/informers/extensions/v1beta1"
 	networkingv1 "k8s.io/client-go/informers/networking/v1"
@@ -97,6 +100,21 @@ func (i *Ingress) GetNamespace() string {
 	}
 }
 
+func (i *Ingress) GetLoadBalancerStatus() corev1.LoadBalancerStatus {
+	switch i.mode {
+	case IngressModeNetworking:
+		return i.ingress.Status.LoadBalancer
+	case IngressModeExtensions:
+		return i.legacyIngress.Status.LoadBalancer
+	default:
+		return corev1.LoadBalancerStatus{}
+	}
+}
+
+func (i *Ingress) Mode() IngressMode {
+	return i.mode
+}
+
 // IngressWrap wraps the two ingress informers provided by the client-go. This is used
 // to centralize the ingress informer operations to allow Rollouts to interact with
 // both versions.
@@ -135,6 +153,34 @@ func (w *IngressWrap) Informer() cache.SharedIndexInformer {
 		return w.legacyIngressInformer.Informer()
 	}
 	return w.ingressInformer.Informer()
+}
+
+func (w *IngressWrap) Patch(ctx context.Context, namespace, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*Ingress, error) {
+	switch w.mode {
+	case IngressModeNetworking:
+		return w.patch(ctx, namespace, name, pt, data, opts, subresources...)
+	case IngressModeExtensions:
+		return w.patchLegacy(ctx, namespace, name, pt, data, opts, subresources...)
+	default:
+		return nil, errors.New("undefined ingress mode")
+
+	}
+}
+
+func (w *IngressWrap) patch(ctx context.Context, namespace, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*Ingress, error) {
+	i, err := w.client.NetworkingV1().Ingresses(namespace).Patch(ctx, name, pt, data, opts, subresources...)
+	if err != nil {
+		return nil, err
+	}
+	return NewIngress(i), nil
+}
+
+func (w *IngressWrap) patchLegacy(ctx context.Context, namespace, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*Ingress, error) {
+	li, err := w.client.ExtensionsV1beta1().Ingresses(namespace).Patch(ctx, name, pt, data, opts, subresources...)
+	if err != nil {
+		return nil, err
+	}
+	return NewLegacyIngress(li), nil
 }
 
 func (w *IngressWrap) Update(ctx context.Context, namespace string, ingress *Ingress) (*Ingress, error) {

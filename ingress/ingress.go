@@ -31,7 +31,7 @@ const (
 // ControllerConfig describes the data required to instantiate a new ingress controller
 type ControllerConfig struct {
 	Client           kubernetes.Interface
-	IngressWrap      *IngressWrap
+	IngressWrap      *ingressutil.IngressWrap
 	IngressWorkQueue workqueue.RateLimitingInterface
 
 	RolloutsInformer informers.RolloutInformer
@@ -56,8 +56,8 @@ type Controller struct {
 }
 
 type IngressWrapper interface {
-	Get(namespace, name string) (*Ingress, error)
-	Update(ctx context.Context, namespace string, ingress *Ingress) (*Ingress, error)
+	Get(namespace, name string) (*ingressutil.Ingress, error)
+	Update(ctx context.Context, namespace string, ingress *ingressutil.Ingress) (*ingressutil.Ingress, error)
 }
 
 // NewController returns a new ingress controller
