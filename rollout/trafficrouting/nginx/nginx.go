@@ -72,6 +72,11 @@ func (r *Reconciler) canaryIngress(stableIngress *extensionsv1beta1.Ingress, nam
 		},
 	}
 
+	// Preserve ingressClassName from stable ingress
+	if stableIngress.Spec.IngressClassName != nil {
+		desiredCanaryIngress.Spec.IngressClassName = stableIngress.Spec.IngressClassName
+	}
+
 	// Must preserve ingress.class on canary ingress, no other annotations matter
 	// See: https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#canary
 	if val, ok := stableIngress.Annotations["kubernetes.io/ingress.class"]; ok {

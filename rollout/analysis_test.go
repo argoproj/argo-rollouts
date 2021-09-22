@@ -1517,6 +1517,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 
 	f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
+	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r1, t))
 }
@@ -1551,6 +1552,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 
 	f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
+	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
 	f.expectPatchRolloutAction(r1)
 	f.run(getKey(r1, t))
 }
@@ -1686,6 +1688,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 
 	f.expectCreateReplicaSetAction(rs)
 	f.expectUpdateRolloutStatusAction(r)
+	f.expectUpdateReplicaSetAction(rs) // scale RS
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 }
