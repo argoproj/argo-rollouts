@@ -132,5 +132,7 @@ jobs:
             dist/kubectl-argo-rollouts-windows-amd64
             manifests/install.yaml
             manifests/namespace-install.yaml
+            manifests/notifications-install.yaml
+            docs/features/kustomize/rollout_cr_schema.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
