@@ -1,5 +1,127 @@
 # Changelog
 
+# v1.1.0
+
+## Notable Features
+* Rollout Notifications
+* Dynamic scaling of stable ReplicaSet (dynamicStableScale)
+* Automated rollbacks without analysis (progressDeadlineAbort)
+* Kustomize Open API Schema
+* Rollout Dashboard as a Service
+* Controlling Scaledown Behavior During Aborts (abortScaleDownDelaySeconds)
+* Analysis: AWS CloudWatch Metric Provider
+* AWS TargetGroup IP Verification
+* Weighted Experiment Canary Steps
+* Istio: Multicluster Support
+* Istio: TLS Route Support
+* Istio: Multiple VirtualServices
+* AnalysisRun GC
+* Analysis: Graphite Metric Provider
+
+## Changes since v1.0
+
+### Controller
+* feat: support dynamic scaling of stable ReplicaSet as inverse of canary weight (#1430)
+* fix: promote nil pointer error when there are no steps (#1510)
+* feat: support management of multiple Istio VirtualService objects (#1381)
+* feat: verify AWS TargetGroup after updating active/stable services (#1348)
+* feat: ALB TrafficRouting with experiment step
+* feat: TrafficRouting SMI with Experiment Step in Canary (#1351)
+* feat: ability to abort an update when exceeding progressDeadlineSeconds (#1397)
+* feat: add support for Istio VirtualService spec.tls[] (#1380)
+* feat: configurable and more aggressive cleanup of old AnalysisRuns and Experiments (#1342)
+* feat: ability to auto-create Services for each template in an Experiment (#1158)
+* feat: introduce abortScaleDownDelaySeconds to control scale down of preview/canary upon abort (#1160)
+* feat: argo rollout compatibility with emissary and edge stack v2.0 (#1330)
+* feat: Add support for Istio multicluster (#1274)
+* feat: add workload-ref/generation to rollout (#1198)
+* feat: support notifications on rollout events using notifications-engine (#1175)
+* chore: add liveness and readiness probe to the install manifests (#1324)
+* fix: Nginx ingressClassName passed to canary ingress (#1448)
+* fix: canary scaledown event could violate maxUnavailable (#1429)
+* fix: analysis runs to wait for all metrics to complete (#1407)
+* fix: Promote full did not work against BlueGreen with previewReplicaCount (#1384)
+* fix: retarget blue-green previewService before scaling up preview ReplicaSet (#1368)
+* fix: zero-value abortScaleDownDelay was not honored with setCanaryScale (#1375)
+* fix: abort scaledown stable RS for canary with traffic routing (#1331)
+
+### Analysis
+* feat: add support for Graphite metrics provider (#1406)
+* feat: Support CloudWatch as a metric provider (#1338)
+* fix: Analysis argument validation (#1412)
+
+### Plugin
+* feat: create windows version for CLI (#1517)
+* feat: provide shell completion. Closes #619 (#1478)
+* fix: create analysisrun cmd using template generated name (#1471)
+* fix: nil pointer in create analysisrun cmd (#1399)
+* fix: lint subcommand for workload ref rollout (#1328)
+* fix: undo referenced object for workloadRef rollout (#1275)
+
+### Dashboard
+* feat: allow selection of namespace in rollout dashboard (#1291)
+* fix(ui): UI crashes on rollout view due to undefined status (#1287)
+
+### Misc
+* feat: kustomize rollout: add openapi to doc and examples (#1371)
+* feat: add rollout stat row to grafana dashboard (#1343)
+
+## Upgrade Notes
+### Difference in scale down behavior during aborts
+
+The v1.1 `abortScaleDownDelaySeconds` feature now allows users full control over the scaling
+behavior of the canary/preview ReplicaSet during an abort. Previously in v1.0, it was not possible
+to affect this behavior. As part of this feature, v1.1 also fixes some inconsistencies in behavior
+with respect to abort scale down.
+
+The most notable change is that upon an abort, the blue-green preview ReplicaSet in v1.1 will now
+scale down 30 seconds after the abort, whereas in v1.0 the preview ReplicaSet was left running
+indefinitely (without any option to scale it down). If you prefer the v1.0 behavior, you can set
+`abortScaleDownDelaySeconds: 0`, which will leave the preview ReplicaSet running indefinitely
+on abort:
+
+```yaml
+spec:
+  strategy:
+     blueGreen:
+       abortScaleDownDelaySeconds: 0
+```
+
+Please read the full
+[documentation](https://argoproj.github.io/argo-rollouts/features/scaledown-aborted-rs/) to understand
+the differences in canary/preview scaling behavior for aborted Rollouts from v1.0 to v1.1.
+
+# v1.0.6
+## Changes since v1.0.4
+
+### Bug Fixes
+
+- fix: replica count for new deployment (#1449)
+- fix: Nginx ingressClassName passed to canary ingress (#1448)
+- fix: Analysis argument validation (#1412)
+- fix: retarget blue-green previewService before scaling up preview ReplicaSet (#1368)
+- fix: analysis runs to wait for all metrics to complete (#1407)
+- fix: canary scaledown event could violate maxUnavailable (#1429)
+- chore: release workflow docker build context should use local path and not git context (#1388)
+- chore: github release action was using incorect docker cache (#1387)
+
+# v1.0.4
+## Changes since v1.0.3
+
+### Controller
+* fix: Promote full did not work against BlueGreen with previewReplicaCount
+
+# v1.0.3
+
+## Changes since v1.0.2
+
+### Controller
+
+* fix: nil pointer dereference when reconciling paused blue-green rollout (#1378)
+* fix: Abort rollout doesn't remove all canary pods for setCanaryScale (#1352)
+* fix: unsolicited rollout after upgrade from v0.10->v1.0 when pod was using service account (#1367)
+* fix: default replica before resolving workloadRef (#1304)
+
 # v1.0.2
 
 ## Changes since v1.0.1
