@@ -176,17 +176,8 @@ func TestRunSuite(t *testing.T) {
 
 		// Error if server address is faulty
 		{
-			serverURL: "://wrong.schema",
-			metric: v1alpha1.Metric{
-				Name:             "foo",
-				SuccessCondition: "result < 0.001",
-				FailureCondition: "result >= 0.001",
-				Provider: v1alpha1.MetricProvider{
-					Datadog: &v1alpha1.DatadogMetric{
-						Query: "avg:kubernetes.cpu.user.total{*}",
-					},
-				},
-			},
+			serverURL:            "://wrong.schema",
+			metric:               v1alpha1.Metric{},
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage: "parse \"://wrong.schema/api/v1/query\": missing protocol scheme",
 			useEnvVarForKeys:     false,
