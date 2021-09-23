@@ -1,0 +1,45 @@
+# AnalysisTemplate which sleeps for a specified duration and exits with a specified exit-code
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: multiple-job-fail
+spec:
+  args:
+  - name: duration
+    value: 0s
+  - name: exit-code
+    value: "0"
+  - name: count
+    value: "1"
+  metrics:
+  - name: sleep-job
+    initialDelay: 10000s
+    count: 1
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep-job
+                image: nginx:1.19-alpine
+                command: [sh, -c, -x]
+                args: ["sleep {{args.duration}} && exit {{args.exit-code}}"]
+              restartPolicy: Never
+          backoffLimit: 0
+  - name: sleep-job-rep
+    count: 2
+    interval: 1s
+    failureLimit: 1
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep-job
+                image: nginx:1.19-alpine
+                command: [sh, -c, -x]
+                args: ["sleep {{args.duration}} && exit 1"]
+              restartPolicy: Never
+          backoffLimit: 0
