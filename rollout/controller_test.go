@@ -48,6 +48,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"github.com/argoproj/argo-rollouts/utils/queue"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -91,7 +92,7 @@ type fixture struct {
 	analysisTemplateLister        []*v1alpha1.AnalysisTemplate
 	replicaSetLister              []*appsv1.ReplicaSet
 	serviceLister                 []*corev1.Service
-	ingressLister                 []*extensionsv1beta1.Ingress
+	ingressLister                 []*ingressutil.Ingress
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -505,6 +506,8 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
 	})
 
+	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, f.kubeclient, k8sI)
+
 	c := NewController(ControllerConfig{
 		Namespace:                       metav1.NamespaceAll,
 		KubeClientSet:                   f.kubeclient,
@@ -516,7 +519,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
 		ReplicaSetInformer:              k8sI.Apps().V1().ReplicaSets(),
 		ServicesInformer:                k8sI.Core().V1().Services(),
-		IngressInformer:                 k8sI.Extensions().V1beta1().Ingresses(),
+		IngressWrapper:                  ingressWrapper,
 		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
 		IstioPrimaryDynamicClient:       dynamicClient,
 		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
@@ -573,7 +576,11 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		k8sI.Core().V1().Services().Informer().GetIndexer().Add(s)
 	}
 	for _, i := range f.ingressLister {
-		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+		ing, err := i.GetExtensionsIngress()
+		if err != nil {
+			log.Fatal(err)
+		}
+		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(ing)
 	}
 	for _, at := range f.analysisTemplateLister {
 		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(at)
@@ -1618,12 +1625,13 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 		}
-		f.ingressLister = append(f.ingressLister, ingress)
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
-		_, err = roCtx.getReferencedIngresses()
+		i, err := roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
+		assert.NotNil(t, i)
 	})
 }
 
@@ -1655,7 +1663,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 		}
-		f.ingressLister = append(f.ingressLister, ingress)
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)

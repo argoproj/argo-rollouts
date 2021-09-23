@@ -56,7 +56,7 @@ type Controller struct {
 }
 
 type IngressWrapper interface {
-	Get(namespace, name string) (*ingressutil.Ingress, error)
+	GetCached(namespace, name string) (*ingressutil.Ingress, error)
 	Update(ctx context.Context, namespace string, ingress *ingressutil.Ingress) (*ingressutil.Ingress, error)
 }
 
@@ -123,7 +123,7 @@ func (c *Controller) syncIngress(key string) error {
 	if err != nil {
 		return err
 	}
-	ingress, err := c.ingressWrapper.Get(namespace, name)
+	ingress, err := c.ingressWrapper.GetCached(namespace, name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			// Unknown error occurred

@@ -36,7 +36,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (traffic
 			Client:         c.kubeclientset,
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
-			IngressLister:  c.ingressesLister,
+			IngressWrapper: c.ingressWrapper,
 		}), nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
@@ -45,7 +45,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) (traffic
 			Client:         c.kubeclientset,
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
-			IngressLister:  c.ingressesLister,
+			IngressWrapper: c.ingressWrapper,
 		})
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {

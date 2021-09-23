@@ -2,13 +2,10 @@ package alb
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -19,7 +16,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/aws"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	"github.com/argoproj/argo-rollouts/utils/diff"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -42,7 +38,7 @@ type ReconcilerConfig struct {
 }
 
 type IngressWrapper interface {
-	Get(namespace, name string) (*ingressutil.Ingress, error)
+	GetCached(namespace, name string) (*ingressutil.Ingress, error)
 	Patch(ctx context.Context, namespace, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*ingressutil.Ingress, error)
 }
 
@@ -77,7 +73,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	ctx := context.TODO()
 	rollout := r.cfg.Rollout
 	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
-	ingress, err := r.cfg.IngressWrapper.Get(rollout.Namespace, ingressName)
+	ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
 	if err != nil {
 		return err
 	}
@@ -90,11 +86,12 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 		return fmt.Errorf("ingress does not have service `%s` in rules", actionService)
 	}
 
-	desired, err := getDesiredAnnotations(ingress, rollout, port, desiredWeight, additionalDestinations...)
+	desiredAnnotations, err := getDesiredAnnotations(ingress, rollout, port, desiredWeight, additionalDestinations...)
 	if err != nil {
 		return err
 	}
-	patch, modified, err := calculatePatch(ingress, desired)
+	desiredIngress := ingressutil.NewIngressWithAnnotations(ingress.Mode(), desiredAnnotations)
+	patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations())
 	if err != nil {
 		return nil
 	}
@@ -128,8 +125,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	ctx := context.TODO()
 	rollout := r.cfg.Rollout
 	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
-	//ingress, err := r.cfg.IngressLister.Ingresses(rollout.Namespace).Get(ingressName)
-	ingress, err := r.cfg.IngressWrapper.Get(rollout.Namespace, ingressName)
+	ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
 	if err != nil {
 		return pointer.BoolPtr(false), err
 	}
@@ -197,48 +193,6 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		}
 	}
 	return pointer.BoolPtr(numVerifiedWeights == 1+len(additionalDestinations)), nil
-}
-
-func calculatePatch(current *ingressutil.Ingress, desiredAnnotations map[string]string) ([]byte, bool, error) {
-	currentAnnotations := current.GetAnnotations()
-	switch current.Mode() {
-	case ingressutil.IngressModeNetworking:
-		return calculateIngressPatch(currentAnnotations, desiredAnnotations)
-	case ingressutil.IngressModeExtensions:
-		return calculateLegacyIngressPatch(currentAnnotations, desiredAnnotations)
-	default:
-		return nil, false, errors.New("undefined ingress mode")
-	}
-}
-
-func calculateIngressPatch(currentAnnotations, desiredAnnotations map[string]string) ([]byte, bool, error) {
-	// only compare Annotations
-	return diff.CreateTwoWayMergePatch(
-		&networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: currentAnnotations,
-			},
-		},
-		&networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: desiredAnnotations,
-			},
-		}, networkingv1.Ingress{})
-}
-
-func calculateLegacyIngressPatch(currentAnnotations, desiredAnnotations map[string]string) ([]byte, bool, error) {
-	// only compare Annotations
-	return diff.CreateTwoWayMergePatch(
-		&extensionsv1beta1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: currentAnnotations,
-			},
-		},
-		&extensionsv1beta1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: desiredAnnotations,
-			},
-		}, extensionsv1beta1.Ingress{})
 }
 
 func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) string {

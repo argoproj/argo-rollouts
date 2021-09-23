@@ -109,8 +109,9 @@ func TestHasRuleWithService(t *testing.T) {
 			}},
 		},
 	}
-	assert.False(t, HasRuleWithService(ingress, "not-found"))
-	assert.True(t, HasRuleWithService(ingress, "test"))
+	i := NewLegacyIngress(ingress)
+	assert.False(t, HasRuleWithService(i, "not-found"))
+	assert.True(t, HasRuleWithService(i, "test"))
 }
 
 func TestManagedALBActions(t *testing.T) {

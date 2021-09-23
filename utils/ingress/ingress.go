@@ -1,6 +1,7 @@
 package ingress
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/diff"
 )
 
 const (
@@ -171,4 +173,82 @@ func ALBActionAnnotationKey(r *v1alpha1.Rollout) string {
 		actionService = r.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
 	}
 	return fmt.Sprintf("%s%s%s", prefix, ALBActionPrefix, actionService)
+}
+
+type patchConfig struct {
+	withAnnotations bool
+	withLabels      bool
+	withSpec        bool
+}
+
+type PatchOption func(p *patchConfig)
+
+func WithAnnotations() PatchOption {
+	return func(p *patchConfig) {
+		p.withAnnotations = true
+	}
+}
+
+func WithLabels() PatchOption {
+	return func(p *patchConfig) {
+		p.withLabels = true
+	}
+}
+
+func WithSpec() PatchOption {
+	return func(p *patchConfig) {
+		p.withSpec = true
+	}
+}
+
+func BuildIngressPatch(mode IngressMode, current, desired *Ingress, opts ...PatchOption) ([]byte, bool, error) {
+	cfg := &patchConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	switch mode {
+	case IngressModeNetworking:
+		return buildIngressPatch(current.ingress, desired.ingress, cfg)
+	case IngressModeExtensions:
+		return buildIngressPatchLegacy(current.legacyIngress, desired.legacyIngress, cfg)
+	default:
+		return nil, false, errors.New("error building annotations patch: undefined ingress mode")
+	}
+}
+
+func buildIngressPatch(current, desired *networkingv1.Ingress, cfg *patchConfig) ([]byte, bool, error) {
+	cur := &networkingv1.Ingress{}
+	des := &networkingv1.Ingress{}
+	if cfg.withAnnotations {
+		cur.Annotations = current.Annotations
+		des.Annotations = desired.Annotations
+	}
+	if cfg.withLabels {
+		cur.Labels = current.Labels
+		des.Labels = desired.Labels
+	}
+	if cfg.withSpec {
+		cur.Spec = current.Spec
+		des.Spec = desired.Spec
+	}
+	return diff.CreateTwoWayMergePatch(cur, des, networkingv1.Ingress{})
+}
+
+func buildIngressPatchLegacy(current, desired *extensionsv1beta1.Ingress, cfg *patchConfig) ([]byte, bool, error) {
+	cur := &extensionsv1beta1.Ingress{}
+	des := &extensionsv1beta1.Ingress{}
+	if cfg.withAnnotations {
+		cur.Annotations = current.Annotations
+		des.Annotations = desired.Annotations
+	}
+	if cfg.withLabels {
+		cur.Labels = current.Labels
+		des.Labels = desired.Labels
+	}
+	if cfg.withSpec {
+		cur.Spec = current.Spec
+		des.Spec = desired.Spec
+	}
+	return diff.CreateTwoWayMergePatch(cur, des, extensionsv1beta1.Ingress{})
 }

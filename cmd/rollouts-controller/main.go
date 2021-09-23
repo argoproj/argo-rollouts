@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/signals"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/tolerantinformer"
@@ -143,6 +144,7 @@ func newCommand() *cobra.Command {
 
 			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
 			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
+			ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, kubeClient, kubeInformerFactory)
 
 			cm := controller.NewManager(
 				namespace,
@@ -153,7 +155,7 @@ func newCommand() *cobra.Command {
 				discoveryClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),
-				kubeInformerFactory.Extensions().V1beta1().Ingresses(),
+				ingressWrapper,
 				jobInformerFactory.Batch().V1().Jobs(),
 				tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory),
 				tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory),
