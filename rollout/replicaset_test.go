@@ -189,14 +189,16 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			test := tests[i]
+			oldRS := rs("foo-v1", test.newReplicas, nil, noTimestamp, nil)
 			newRS := rs("foo-v2", test.newReplicas, nil, noTimestamp, nil)
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			roCtx := rolloutContext{
-				log:     logutil.WithRollout(rollout),
-				rollout: rollout,
-				newRS:   newRS,
+				log:      logutil.WithRollout(rollout),
+				rollout:  rollout,
+				newRS:    newRS,
+				stableRS: oldRS,
 				reconcilerBase: reconcilerBase{
 					argoprojclientset: &fake,
 					kubeclientset:     &k8sfake,
@@ -210,7 +212,6 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			roCtx.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {}
 			if test.abortScaleDownDelaySeconds > 0 {
 				rollout.Status.Abort = true
-				// rollout.Spec.ScaleDownOnAbort = true
 				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
 					BlueGreen: &v1alpha1.BlueGreenStrategy{
 						AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,

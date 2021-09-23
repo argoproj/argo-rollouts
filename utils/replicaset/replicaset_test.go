@@ -193,12 +193,12 @@ func TestGetReplicaCountForReplicaSets(t *testing.T) {
 func TestNewRSNewReplicas(t *testing.T) {
 	ro := generateRollout("test")
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
-	blueGreenNewRSCount, err := NewRSNewReplicas(&ro, nil, nil)
+	blueGreenNewRSCount, err := NewRSNewReplicas(&ro, nil, nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, blueGreenNewRSCount, *ro.Spec.Replicas)
 
 	ro.Spec.Strategy.BlueGreen = nil
-	_, err = NewRSNewReplicas(&ro, nil, nil)
+	_, err = NewRSNewReplicas(&ro, nil, nil, nil)
 	assert.Error(t, err, "no rollout strategy provided")
 }
 
@@ -285,7 +285,7 @@ func TestNewRSNewReplicasWitPreviewReplicaCount(t *testing.T) {
 			if test.overrideCurrentPodHash != "" {
 				r.Status.CurrentPodHash = test.overrideCurrentPodHash
 			}
-			count, err := NewRSNewReplicas(r, []*appsv1.ReplicaSet{rs, rs2}, rs)
+			count, err := NewRSNewReplicas(r, []*appsv1.ReplicaSet{rs, rs2}, rs, nil)
 			assert.Nil(t, err)
 			assert.Equal(t, test.expectReplicaCount, count)
 		})

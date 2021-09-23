@@ -7,6 +7,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Ant Group](https://www.antgroup.com/)
 1. [Bucketplace](https://www.bucketplace.co.kr/)
 1. [BukuKas](https://bukukas.co.id/)
+1. [Codefresh](https://codefresh.io/)
 1. [Databricks](https://github.com/databricks)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
 1. [Intuit](https://www.intuit.com/)

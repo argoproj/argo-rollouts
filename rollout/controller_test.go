@@ -552,6 +552,9 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	}
 
 	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
+		if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+			return nil, nil
+		}
 		return f.fakeTrafficRouting, nil
 	}
 

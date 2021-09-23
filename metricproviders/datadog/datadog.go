@@ -70,7 +70,10 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		endpoint = p.config.Address + "/api/v1/query"
 	}
 
-	url, _ := url.Parse(endpoint)
+	url, err := url.Parse(endpoint)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
 
 	now := unixNow()
 	var interval int64 = 300

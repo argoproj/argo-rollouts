@@ -300,6 +300,11 @@ type CanaryStrategy struct {
 	// Default is 30 seconds.
 	// +optional
 	AbortScaleDownDelaySeconds *int32 `json:"abortScaleDownDelaySeconds,omitempty" protobuf:"varint,13,opt,name=abortScaleDownDelaySeconds"`
+	// DynamicStableScale is a traffic routing feature which dynamically scales the stable
+	// ReplicaSet to minimize total pods which are running during an update. This is calculated by
+	// scaling down the stable as traffic is increased to canary. When disabled (the default behavior)
+	// the stable ReplicaSet remains fully scaled to support instantaneous aborts.
+	DynamicStableScale bool `json:"dynamicStableScale,omitempty" protobuf:"varint,14,opt,name=dynamicStableScale"`
 }
 
 // AnalysisRunStrategy configuration for the analysis runs and experiments to retain
@@ -761,6 +766,30 @@ type CanaryStatus struct {
 	CurrentBackgroundAnalysisRunStatus *RolloutAnalysisRunStatus `json:"currentBackgroundAnalysisRunStatus,omitempty" protobuf:"bytes,2,opt,name=currentBackgroundAnalysisRunStatus"`
 	// CurrentExperiment indicates the running experiment
 	CurrentExperiment string `json:"currentExperiment,omitempty" protobuf:"bytes,3,opt,name=currentExperiment"`
+	// Weights records the weights which have been set on traffic provider. Only valid when using traffic routing
+	Weights *TrafficWeights `json:"weights,omitempty" protobuf:"bytes,4,opt,name=weights"`
+}
+
+// TrafficWeights describes the current status of how traffic has been split
+type TrafficWeights struct {
+	// Canary is the current traffic weight split to canary ReplicaSet
+	Canary WeightDestination `json:"canary" protobuf:"bytes,1,opt,name=canary"`
+	// Stable is the current traffic weight split to stable ReplicaSet
+	Stable WeightDestination `json:"stable" protobuf:"bytes,2,opt,name=stable"`
+	// Additional holds the weights split to additional ReplicaSets such as experiment ReplicaSets
+	Additional []WeightDestination `json:"additional,omitempty" protobuf:"bytes,3,rep,name=additional"`
+	// Verified is an optional indicator that the weight has been verified to have taken effect.
+	// This is currently only applicable to ALB traffic router
+	Verified *bool `json:"verified,omitempty" protobuf:"bytes,4,opt,name=verified"`
+}
+
+type WeightDestination struct {
+	// Weight is an percentage of traffic being sent to this destination
+	Weight int32 `json:"weight" protobuf:"varint,1,opt,name=weight"`
+	// ServiceName is the Kubernetes service name traffic is being sent to
+	ServiceName string `json:"serviceName,omitempty" protobuf:"bytes,2,opt,name=serviceName"`
+	// PodTemplateHash is the pod template hash label for this destination
+	PodTemplateHash string `json:"podTemplateHash,omitempty" protobuf:"bytes,3,opt,name=podTemplateHash"`
 }
 
 type RolloutAnalysisRunStatus struct {

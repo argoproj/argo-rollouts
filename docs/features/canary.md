@@ -66,7 +66,7 @@ If no `duration` is specified for a pause step, the rollout will be paused indef
 kubectl argo rollouts promote <rollout>
 ```
 
-## Controlling Canary Scale
+## Dynamic Canary Scale (with Traffic Routing)
 
 By default, the rollout controller will scale the canary to match the current trafficWeight of the
 current step. For example, if the current weight is 25%, and there are four replicas, then the
@@ -109,11 +109,59 @@ spec:
           matchTrafficWeight: true
 ```
 
-If no `duration` is specified for a pause step, the rollout will be paused indefinitely. To unpause, use the [argo kubectl plugin](kubectl-plugin.md) `promote` command. 
+When using `setCanaryScale` with explicit values for either replicas or weight, one must be careful
+if used in conjunction with the `setWeight` step. If done incorrectly, an imbalanced amount of traffic
+may be directed to the canary (in proportion to the Rollout's scale). For example, the following set
+of steps would cause 90% of traffic to only be served by 10% of pods:
 
-```shell
-# promote to the next step
-kubectl argo rollouts promote <rollout>
+```yaml
+spec:
+  replicas: 10
+  strategy:
+    canary:
+      steps:
+      - setCanaryScale:
+          weight: 10
+      - setWeight: 90
+      - pause: {}
+```
+
+## Dynamic Stable Scale (with Traffic Routing)
+
+!!! important
+    Available since v1.1
+
+When using traffic routing, by default the stable ReplicaSet is left scaled to 100% during the update.
+This has the advantage that if an abort occurs, traffic can be immediately shifted back to the
+stable ReplicaSet without delay. However, it has the disadvantage that during the update, there will
+eventually exist double the number of replica pods running (similar to in a blue-green deployment),
+since the stable ReplicaSet is left scaled up for the full duration of the update.
+
+It is possible to dynamically reduce the scale of the stable ReplicaSet during an update such that
+it scales down as the traffic weight increases to canary. This would be desirable in scenarios where
+the Rollout has a high replica count and resource cost is a concern, or in bare-metal situations
+where it is not possible to create additional node capacity to accommodate double the replicas.
+
+The ability to dynamically scale the stable ReplicaSet can be enabled by setting the
+`canary.dynamicStableScale` flag to true:
+
+```yaml
+spec:
+  strategy:
+    canary:
+      dynamicStableScale: true
+```
+
+NOTE: that if `dynamicStableScale` is set, and the rollout is aborted, the canary ReplicaSet will
+dynamically scale down as traffic shifts back to stable. If you wish to leave the canary ReplicaSet
+scaled up while aborting, an explicit value for `abortScaleDownDelaySeconds` can be set:
+
+```yaml
+spec:
+  strategy:
+    canary:
+      dynamicStableScale: true
+      abortScaleDownDelaySeconds: 600
 ```
 
 

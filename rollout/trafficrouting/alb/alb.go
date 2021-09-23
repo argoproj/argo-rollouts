@@ -15,7 +15,6 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/aws"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -68,7 +67,7 @@ func (r *Reconciler) Type() string {
 }
 
 // SetWeight modifies ALB Ingress resources to reach desired state
-func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	ctx := context.TODO()
 	rollout := r.cfg.Rollout
 	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
@@ -115,18 +114,18 @@ func (r *Reconciler) shouldVerifyWeight() bool {
 	return defaults.VerifyTargetGroup()
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
 	if !r.shouldVerifyWeight() {
-		return true, nil
+		return nil, nil
 	}
 	ctx := context.TODO()
 	rollout := r.cfg.Rollout
 	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
 	ingress, err := r.cfg.IngressLister.Ingresses(rollout.Namespace).Get(ingressName)
 	if err != nil {
-		return false, err
+		return pointer.BoolPtr(false), err
 	}
-	resourceIDToDest := map[string]trafficrouting.WeightDestination{}
+	resourceIDToDest := map[string]v1alpha1.WeightDestination{}
 
 	canaryService := rollout.Spec.Strategy.Canary.CanaryService
 	canaryResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.Name, canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
@@ -148,16 +147,16 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		lb, err := r.aws.FindLoadBalancerByDNSName(ctx, lbIngress.Hostname)
 		if err != nil {
 			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-			return false, err
+			return pointer.BoolPtr(false), err
 		}
 		if lb == nil || lb.LoadBalancerArn == nil {
 			r.log.Infof("LoadBalancer %s not found", lbIngress.Hostname)
-			return false, nil
+			return pointer.BoolPtr(false), nil
 		}
 		lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 		if err != nil {
 			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-			return false, err
+			return pointer.BoolPtr(false), err
 		}
 		logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
 		for _, tg := range lbTargetGroups {
@@ -188,7 +187,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 			}
 		}
 	}
-	return numVerifiedWeights == 1+len(additionalDestinations), nil
+	return pointer.BoolPtr(numVerifiedWeights == 1+len(additionalDestinations)), nil
 }
 
 func calculatePatch(current *extensionsv1beta1.Ingress, desiredAnnotations map[string]string) ([]byte, bool, error) {
@@ -206,7 +205,7 @@ func calculatePatch(current *extensionsv1beta1.Ingress, desiredAnnotations map[s
 		}, extensionsv1beta1.Ingress{})
 }
 
-func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) string {
+func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) string {
 	stableService := r.Spec.Strategy.Canary.StableService
 	canaryService := r.Spec.Strategy.Canary.CanaryService
 	portStr := strconv.Itoa(int(port))
@@ -248,7 +247,7 @@ func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32
 	return string(bytes)
 }
 
-func getDesiredAnnotations(current *extensionsv1beta1.Ingress, r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (map[string]string, error) {
+func getDesiredAnnotations(current *extensionsv1beta1.Ingress, r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (map[string]string, error) {
 	desired := current.DeepCopy().Annotations
 	key := ingressutil.ALBActionAnnotationKey(r)
 	desired[key] = getForwardActionString(r, port, desiredWeight, additionalDestinations...)
