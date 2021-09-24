@@ -147,6 +147,9 @@ const (
 	// TargetGroupVerifyErrorReason is emitted when we fail to verify the health of a target group due to error
 	TargetGroupVerifyErrorReason  = "TargetGroupVerifyError"
 	TargetGroupVerifyErrorMessage = "Failed to verify Service %s (TargetGroup %s): %s"
+	// WeightVerifyErrorReason is emitted when there is an error verifying the set weight
+	WeightVerifyErrorReason  = "WeightVerifyError"
+	WeightVerifyErrorMessage = "Failed to verify weight: %s"
 )
 
 // NewRolloutCondition creates a new rollout condition.

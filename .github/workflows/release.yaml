@@ -44,7 +44,7 @@ jobs:
         with:
           images: |
             quay.io/argoproj/argo-rollouts
-            ghcr.io/argoproj/argo-rollouts
+          # ghcr.io/argoproj/argo-rollouts
           tags: |
             type=semver,pattern={{version}},prefix=v,value=${{ github.event.inputs.tag }}
           flavor: |
@@ -56,19 +56,19 @@ jobs:
         with:
           images: |
             quay.io/argoproj/kubectl-argo-rollouts
-            ghcr.io/argoproj/kubectl-argo-rollouts
+          #  ghcr.io/argoproj/kubectl-argo-rollouts
           tags: |
             type=semver,pattern={{version}},prefix=v,value=${{ github.event.inputs.tag }}
           flavor: |
             latest=false
 
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Login to GitHub Container Registry
+      #   if: github.event_name != 'pull_request'
+      #   uses: docker/login-action@v1
+      #   with:
+      #     registry: ghcr.io
+      #     username: ${{ github.repository_owner }}
+      #     password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to Quay.io
         if: github.event_name != 'pull_request'
@@ -132,5 +132,7 @@ jobs:
             dist/kubectl-argo-rollouts-windows-amd64
             manifests/install.yaml
             manifests/namespace-install.yaml
+            manifests/notifications-install.yaml
+            docs/features/kustomize/rollout_cr_schema.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

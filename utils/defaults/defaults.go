@@ -3,6 +3,7 @@ package defaults
 import (
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -52,6 +53,23 @@ var (
 	smiAPIVersion                = DefaultSMITrafficSplitVersion
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
 )
+
+const (
+	// EnvVarRolloutVerifyRetryInterval is the interval duration in seconds to requeue a rollout upon errors
+	EnvVarRolloutVerifyRetryInterval = "ROLLOUT_VERIFY_RETRY_INTERVAL"
+)
+
+var (
+	rolloutVerifyRetryInterval time.Duration = 10 * time.Second
+)
+
+func init() {
+	if rolloutVerifyInterval, ok := os.LookupEnv(EnvVarRolloutVerifyRetryInterval); ok {
+		if interval, err := strconv.ParseInt(rolloutVerifyInterval, 10, 32); err != nil {
+			rolloutVerifyRetryInterval = time.Duration(interval) * time.Second
+		}
+	}
+}
 
 // GetReplicasOrDefault returns the deferenced number of replicas or the default number
 func GetReplicasOrDefault(replicas *int32) int32 {
@@ -135,14 +153,14 @@ func GetExperimentScaleDownDelaySecondsOrDefault(e *v1alpha1.Experiment) int32 {
 func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) time.Duration {
 	var delaySeconds int32
 	if rollout.Spec.Strategy.BlueGreen != nil {
-		delaySeconds = DefaultAbortScaleDownDelaySeconds
+		delaySeconds = DefaultScaleDownDelaySeconds
 		if rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds != nil {
 			delaySeconds = *rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds
 		}
 	}
 	if rollout.Spec.Strategy.Canary != nil {
 		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
-			delaySeconds = DefaultAbortScaleDownDelaySeconds
+			delaySeconds = DefaultScaleDownDelaySeconds
 			if rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds != nil {
 				delaySeconds = *rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds
 			}
@@ -151,17 +169,19 @@ func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) time.Duration 
 	return time.Duration(delaySeconds) * time.Second
 }
 
-// GetAbortScaleDownDelaySecondsOrDefault returns the duration seconds to delay the scale down of
-// the canary/preview ReplicaSet in a abort situation. A nil value indicates it should not
+// GetAbortScaleDownDelaySecondsOrDefault returns the duration to delay the scale down of
+// the canary/preview ReplicaSet in an abort situation. A nil value indicates it should not
 // scale down at all (abortScaleDownDelaySeconds: 0). A value of 0 indicates it should scale down
-// immediately.
-func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) *time.Duration {
+// immediately. Also returns a boolean to indicate if the value was explicitly set.
+func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) (*time.Duration, bool) {
 	var delaySeconds int32
+	wasSet := false
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		delaySeconds = DefaultAbortScaleDownDelaySeconds
 		if rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds != nil {
+			wasSet = true
 			if *rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds == 0 {
-				return nil
+				return nil, wasSet
 			}
 			delaySeconds = *rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds
 		}
@@ -169,15 +189,16 @@ func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) *time.Dur
 		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
 			delaySeconds = DefaultAbortScaleDownDelaySeconds
 			if rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds != nil {
+				wasSet = true
 				if *rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds == 0 {
-					return nil
+					return nil, wasSet
 				}
 				delaySeconds = *rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds
 			}
 		}
 	}
 	dur := time.Duration(delaySeconds) * time.Second
-	return &dur
+	return &dur, wasSet
 }
 
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
@@ -252,4 +273,8 @@ func SetTargetGroupBindingAPIVersion(apiVersion string) {
 
 func GetTargetGroupBindingAPIVersion() string {
 	return targetGroupBindingAPIVersion
+}
+
+func GetRolloutVerifyRetryInterval() time.Duration {
+	return rolloutVerifyRetryInterval
 }

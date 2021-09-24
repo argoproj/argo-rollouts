@@ -15,7 +15,6 @@ import (
 	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -146,7 +145,7 @@ func compareCanaryIngresses(current *extensionsv1beta1.Ingress, desired *extensi
 }
 
 // SetWeight modifies Nginx Ingress resources to reach desired state
-func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	ctx := context.TODO()
 	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	canaryIngressName := ingressutil.GetCanaryIngressName(r.cfg.Rollout)
@@ -231,8 +230,8 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...tr
 	return nil
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
-	return true, nil
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
+	return nil, nil
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes

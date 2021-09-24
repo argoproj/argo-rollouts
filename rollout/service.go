@@ -3,7 +3,6 @@ package rollout
 import (
 	"context"
 	"fmt"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -164,7 +163,7 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 		}
 		if !verifyRes.Verified {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered, verifyRes.EndpointsTotal)
-			c.enqueueRolloutAfter(c.rollout, 10*time.Second)
+			c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 			return nil
 		}
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered)

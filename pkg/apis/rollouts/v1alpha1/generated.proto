@@ -292,6 +292,9 @@ message CanaryStatus {
 
   // CurrentExperiment indicates the running experiment
   optional string currentExperiment = 3;
+
+  // Weights records the weights which have been set on traffic provider. Only valid when using traffic routing
+  optional TrafficWeights weights = 4;
 }
 
 // CanaryStep defines a step of a canary deployment.
@@ -391,6 +394,12 @@ message CanaryStrategy {
   // Default is 30 seconds.
   // +optional
   optional int32 abortScaleDownDelaySeconds = 13;
+
+  // DynamicStableScale is a traffic routing feature which dynamically scales the stable
+  // ReplicaSet to minimize total pods which are running during an update. This is calculated by
+  // scaling down the stable as traffic is increased to canary. When disabled (the default behavior)
+  // the stable ReplicaSet remains fully scaled to support instantaneous aborts.
+  optional bool dynamicStableScale = 14;
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
@@ -1358,6 +1367,22 @@ message TemplateStatus {
   optional string podTemplateHash = 11;
 }
 
+// TrafficWeights describes the current status of how traffic has been split
+message TrafficWeights {
+  // Canary is the current traffic weight split to canary ReplicaSet
+  optional WeightDestination canary = 1;
+
+  // Stable is the current traffic weight split to stable ReplicaSet
+  optional WeightDestination stable = 2;
+
+  // Additional holds the weights split to additional ReplicaSets such as experiment ReplicaSets
+  repeated WeightDestination additional = 3;
+
+  // Verified is an optional indicator that the weight has been verified to have taken effect.
+  // This is currently only applicable to ALB traffic router
+  optional bool verified = 4;
+}
+
 message ValueFrom {
   // Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom
   // +optional
@@ -1401,5 +1426,16 @@ message WebMetricHeader {
   optional string key = 1;
 
   optional string value = 2;
+}
+
+message WeightDestination {
+  // Weight is an percentage of traffic being sent to this destination
+  optional int32 weight = 1;
+
+  // ServiceName is the Kubernetes service name traffic is being sent to
+  optional string serviceName = 2;
+
+  // PodTemplateHash is the pod template hash label for this destination
+  optional string podTemplateHash = 3;
 }
 

@@ -115,13 +115,13 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	if c.newRS == nil {
 		return false, nil
 	}
-	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, c.allRSs, c.newRS)
+	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, c.allRSs, c.newRS, c.newStatus.Canary.Weights)
 	if err != nil {
 		return false, err
 	}
 
 	if c.shouldDelayScaleDownOnAbort() {
-		abortScaleDownDelaySeconds := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
+		abortScaleDownDelaySeconds, _ := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
 		c.log.Infof("Scale down new rs '%s' on abort (%v)", c.newRS.Name, abortScaleDownDelaySeconds)
 
 		// if the newRS has scale down annotation, check if it should be scaled down now
@@ -146,10 +146,15 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				}
 			}
 		} else if abortScaleDownDelaySeconds != nil {
-			err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
-			if err != nil {
-				return false, err
+			// Don't annotate until need to ensure the stable RS is fully scaled
+			if c.stableRS.Status.AvailableReplicas == *c.rollout.Spec.Replicas {
+				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
+				if err != nil {
+					return false, err
+				}
 			}
+			// leave newRS scaled up until we annotate
+			return false, nil
 		}
 	}
 
@@ -157,9 +162,31 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	return scaled, err
 }
 
-// shouldDelayScaleDownOnAbort returns if we are aborted and we should delay scaledown of canary/preview
+// shouldDelayScaleDownOnAbort returns if we are aborted and we should delay scaledown of canary or preview
 func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
-	return c.pauseContext.IsAborted() && defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout) != nil
+	if !c.pauseContext.IsAborted() {
+		// only applicable to aborted rollouts
+		return false
+	}
+	if c.stableRS == nil {
+		// if there is no stable, don't scale down
+		return false
+	}
+	if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		// basic canary should not use this
+		return false
+	}
+	abortDelay, abortDelayWasSet := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
+	if abortDelay == nil {
+		// user explicitly set abortScaleDownDelaySeconds: 0, and wishes to leave canary/preview up indefinitely
+		return false
+	}
+	usesDynamicStableScaling := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.DynamicStableScale
+	if usesDynamicStableScaling && !abortDelayWasSet {
+		// we are using dynamic stable/canary scaling and user did not explicitly set abortScaleDownDelay
+		return false
+	}
+	return true
 }
 
 // reconcileOtherReplicaSets reconciles "other" ReplicaSets.

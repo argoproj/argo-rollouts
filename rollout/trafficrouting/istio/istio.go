@@ -16,7 +16,6 @@ import (
 	"k8s.io/client-go/dynamic/dynamiclister"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	evalUtils "github.com/argoproj/argo-rollouts/utils/evaluate"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
@@ -523,7 +522,7 @@ func (r *Reconciler) Type() string {
 }
 
 // SetWeight modifies Istio resources to reach desired state
-func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	ctx := context.TODO()
 	var vsvc *unstructured.Unstructured
 	var err error
@@ -570,8 +569,8 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...tr
 	return err
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
-	return true, nil
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
+	return nil, nil
 }
 
 // getHttpRouteIndexesToPatch returns array indices of the httpRoutes which need to be patched when updating weights
