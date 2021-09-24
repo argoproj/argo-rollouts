@@ -27,6 +27,8 @@ type Ingress struct {
 	mux           *sync.Mutex
 }
 
+// NewIngress will instantiate and return an Ingress with the given
+// Ingress from networking/v1 package
 func NewIngress(i *v1.Ingress) *Ingress {
 	return &Ingress{
 		ingress: i,
@@ -35,6 +37,8 @@ func NewIngress(i *v1.Ingress) *Ingress {
 	}
 }
 
+// NewLegacyIngress will instantiate and return an Ingress with the given
+// Ingress from extensions/v1beta1 package
 func NewLegacyIngress(li *v1beta1.Ingress) *Ingress {
 	return &Ingress{
 		legacyIngress: li,
