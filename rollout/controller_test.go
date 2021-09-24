@@ -554,7 +554,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		c.enqueueRollout(obj)
 	}
 	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
-    if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 			return nil, nil
 		}
 		var reconcilers = []trafficrouting.TrafficRoutingReconciler{}

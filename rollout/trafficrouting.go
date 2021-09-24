@@ -92,9 +92,9 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	if len(reconcilers) == 0 {
 		c.log.Info("No TrafficRouting Reconcilers found")
 		c.newStatus.Canary.Weights = nil
-    return nil
-  }
-	if reconciler == nil {
+		return nil
+	}
+	if reconcilers == nil {
 		// Not using traffic routing
 		c.newStatus.Canary.Weights = nil
 		return nil
@@ -116,30 +116,30 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			return err
 		}
 
-    currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
-    desiredWeight := int32(0)
-    weightDestinations := make([]v1alpha1.WeightDestination, 0)
-    if rolloututil.IsFullyPromoted(c.rollout) {
-      // when we are fully promoted. desired canary weight should be 0
-    } else if c.pauseContext.IsAborted() {
-      // when aborted, desired canary weight should be 0 (100% to stable), *unless* we
-      // are using dynamic stable scaling. In that case, we can only decrease canary weight
-      // according to available replica counts of the stable.
-      if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-        desiredWeight = 100 - ((100 * c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas)
-      }
-    } else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
-      // when newRS is not available or replicas num is 0. never weight to canary
-    } else if index != nil {
-      atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, nil)
-      if !atDesiredReplicaCount {
-        // Use the previous weight since the new RS is not ready for a new weight
-        for i := *index - 1; i >= 0; i-- {
-          step := c.rollout.Spec.Strategy.Canary.Steps[i]
-          if step.SetWeight != nil {
-            desiredWeight = *step.SetWeight
-            break
-          }
+		currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
+		desiredWeight := int32(0)
+		weightDestinations := make([]v1alpha1.WeightDestination, 0)
+		if rolloututil.IsFullyPromoted(c.rollout) {
+			// when we are fully promoted. desired canary weight should be 0
+		} else if c.pauseContext.IsAborted() {
+			// when aborted, desired canary weight should be 0 (100% to stable), *unless* we
+			// are using dynamic stable scaling. In that case, we can only decrease canary weight
+			// according to available replica counts of the stable.
+			if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+				desiredWeight = 100 - ((100 * c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas)
+			}
+		} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
+			// when newRS is not available or replicas num is 0. never weight to canary
+		} else if index != nil {
+			atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, nil)
+			if !atDesiredReplicaCount {
+				// Use the previous weight since the new RS is not ready for a new weight
+				for i := *index - 1; i >= 0; i-- {
+					step := c.rollout.Spec.Strategy.Canary.Steps[i]
+					if step.SetWeight != nil {
+						desiredWeight = *step.SetWeight
+						break
+					}
 				}
 			} else if *index != int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
 				// This if statement prevents the desiredWeight from being set to 100
@@ -165,57 +165,48 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				}
 				for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
 					templateWeight := getTemplateWeight(templateStatus.Name)
-					weightDestinations = append(weightDestinations, trafficrouting.WeightDestination{
+					weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
 						ServiceName:     templateStatus.ServiceName,
 						PodTemplateHash: templateStatus.PodTemplateHash,
 						Weight:          *templateWeight,
 					})
 				}
-				return nil
-			}
-			for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
-				templateWeight := getTemplateWeight(templateStatus.Name)
-				weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
-					ServiceName:     templateStatus.ServiceName,
-					PodTemplateHash: templateStatus.PodTemplateHash,
-					Weight:          *templateWeight,
-				})
 			}
 		}
 
-    err = reconciler.SetWeight(desiredWeight, weightDestinations...)
-    if err != nil {
-      c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
-      return err
-    }
-    if modified, newWeights := calculateWeightStatus(c.rollout, canaryHash, stableHash, desiredWeight, weightDestinations...); modified {
-      c.log.Infof("Previous weights: %v", c.rollout.Status.Canary.Weights)
-      c.log.Infof("New weights: %v", newWeights)
-      c.newStatus.Canary.Weights = newWeights
-    }
+		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
+		if err != nil {
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
+			return err
+		}
+		if modified, newWeights := calculateWeightStatus(c.rollout, canaryHash, stableHash, desiredWeight, weightDestinations...); modified {
+			c.log.Infof("Previous weights: %v", c.rollout.Status.Canary.Weights)
+			c.log.Infof("New weights: %v", newWeights)
+			c.newStatus.Canary.Weights = newWeights
+		}
 
-    // If we are in the middle of an update at a setWeight step, also perform weight verification.
-    // Note that we don't do this every reconciliation because weight verification typically involves
-    // API calls to the cloud provider which could incur rate limiting
-    shouldVerifyWeight := c.rollout.Status.StableRS != "" &&
-      !rolloututil.IsFullyPromoted(c.rollout) &&
-      currentStep != nil && currentStep.SetWeight != nil
+		// If we are in the middle of an update at a setWeight step, also perform weight verification.
+		// Note that we don't do this every reconciliation because weight verification typically involves
+		// API calls to the cloud provider which could incur rate limiting
+		shouldVerifyWeight := c.rollout.Status.StableRS != "" &&
+			!rolloututil.IsFullyPromoted(c.rollout) &&
+			currentStep != nil && currentStep.SetWeight != nil
 
-    if shouldVerifyWeight {
-      weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
-      c.newStatus.Canary.Weights.Verified = weightVerified
-      if err != nil {
-        c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
-        return nil // return nil instead of error since we want to continue with normal reconciliation
-      }
-      if weightVerified != nil {
-        if *weightVerified {
-          c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
-        } else {
-          c.log.Infof("Desired weight (stepIdx: %d) %d not yet verified", *index, desiredWeight)
-          c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
-        }
-      }
+		if shouldVerifyWeight {
+			weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
+			c.newStatus.Canary.Weights.Verified = weightVerified
+			if err != nil {
+				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
+				return nil // return nil instead of error since we want to continue with normal reconciliation
+			}
+			if weightVerified != nil {
+				if *weightVerified {
+					c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
+				} else {
+					c.log.Infof("Desired weight (stepIdx: %d) %d not yet verified", *index, desiredWeight)
+					c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
+				}
+			}
 		}
 	}
 	return nil
