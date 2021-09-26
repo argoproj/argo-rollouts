@@ -7,5 +7,5 @@ resources:
 - argo-rollouts-aggregate-roles.yaml
 - argo-rollouts-metrics-service.yaml
 images:
-- name: quay.io/argoproj/argo-rollouts
+- name: quay.io/codefresh/argo-rollouts
   newTag: latest

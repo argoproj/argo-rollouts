@@ -19,6 +19,6 @@ spec:
       serviceAccountName: argo-rollouts-dashboard
       containers:
         - name: argo-rollouts-dashboard
-          image: quay.io/argoproj/kubectl-argo-rollouts
+          image: quay.io/codefresh/kubectl-argo-rollouts
           ports:
             - containerPort: 3100
