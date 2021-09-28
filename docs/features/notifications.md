@@ -35,6 +35,8 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-notification-configmap
 data:
+  # detail of the templates is omitted
+  # detail of the triggers is omitted
   service.slack: |
     token: $slack-token
 ---
@@ -124,7 +126,7 @@ when rollout pod spec uses `argoproj/rollouts-demo:purple` image:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-notifications-cm
+  name: argo-rollouts-notification-configmap
 data:
   trigger.on-purple: |
     - send: [my-purple-template]

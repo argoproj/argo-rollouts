@@ -167,6 +167,7 @@ func NewAPIFactorySettings() api.Settings {
 
 // Send notifications for triggered event if user is subscribed
 func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts EventOptions) error {
+	logCtx := logutil.WithObject(object)
 	subsFromAnnotations := subscriptions.Annotations(object.(metav1.Object).GetAnnotations())
 	destByTrigger := subsFromAnnotations.GetDestinations(nil, map[string][]string{})
 
@@ -174,6 +175,7 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 
 	destinations := destByTrigger[trigger]
 	if len(destinations) == 0 {
+		logCtx.Debugf("No configured destinations for trigger: %s", trigger)
 		return nil
 	}
 
@@ -185,6 +187,7 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 	// Creates config for notifications for built-in triggers
 	triggerActions, ok := notificationsAPI.GetConfig().Triggers[trigger]
 	if !ok {
+		logCtx.Debugf("No configured template for trigger: %s", trigger)
 		return nil
 	}
 
