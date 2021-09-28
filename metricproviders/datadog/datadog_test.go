@@ -135,13 +135,13 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Handle if datadog doesn't return any datapoints && you want a nil ResultPointer
+		// Explicitly succeed if no datapoints are returned
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "len(resultPointer) == nil",
+				SuccessCondition: "resultPointer == nil",
 				FailureCondition: "result >= 0.05",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
@@ -155,7 +155,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Error if datadog doesn't return any datapoints && you don't handle the ResultPointer
+		// Implicitly succeed if no datapoints are returned
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
@@ -170,8 +170,8 @@ func TestRunSuite(t *testing.T) {
 				},
 			},
 			expectedIntervalSeconds: 300,
-			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    "Datadog returned no value: {\"status\":\"ok\",\"series\":[{\"pointlist\":[]}]}",
+			expectedValue:           "0",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
 

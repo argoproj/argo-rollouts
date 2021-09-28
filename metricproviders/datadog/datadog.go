@@ -142,21 +142,23 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)
 	}
 
-	if len(res.Series) < 1 || len(res.Series[0].Pointlist) < 1 {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datadog returned no value: %s", string(bodyBytes))
-	}
-
-	series := res.Series[0]
-	datapoint := series.Pointlist[len(series.Pointlist)-1]
-
 	var value *float64
-	// If datadog series.Pointlist is not empty, set the pointer value, else let it stay nil
-	if len(datapoint) == 2 {
-		value = new(float64)
-		*value = datapoint[1]
+	if len(res.Series) > 0 && len(res.Series[0].Pointlist) > 0 {
+		series := res.Series[0]
+		datapoint := series.Pointlist[len(series.Pointlist)-1]
+
+		// If datadog series.Pointlist is not empty, set the pointer value, else let it stay nil
+		if len(datapoint) == 2 {
+			value = new(float64)
+			*value = datapoint[1]
+		}
 	}
 
 	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
+	if value == nil {
+		return "0", status, err
+	}
+
 	return strconv.FormatFloat(*value, 'f', -1, 64), status, err
 }
 
