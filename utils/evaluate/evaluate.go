@@ -61,11 +61,12 @@ func EvalCondition(resultValue interface{}, condition string) (bool, error) {
 	var err error
 
 	env := map[string]interface{}{
-		"result":  resultValue,
-		"asInt":   asInt,
-		"asFloat": asFloat,
-		"isNaN":   math.IsNaN,
-		"isInf":   isInf,
+		"result":        preprocessResult(resultValue),
+		"resultPointer": preprocessResultPointer(resultValue),
+		"asInt":         asInt,
+		"asFloat":       asFloat,
+		"isNaN":         math.IsNaN,
+		"isInf":         isInf,
 	}
 
 	unwrapFileErr := func(e error) error {
@@ -184,4 +185,36 @@ func Equal(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func preprocessResultPointer(in interface{}) (resultPointer interface{}) {
+	if reflect.ValueOf(in).Kind() == reflect.Ptr {
+		resultPointer = in
+	}
+
+	return
+}
+
+func preprocessResult(in interface{}) (result interface{}) {
+	// Multiple functions can be called here in series to preprocess results if needed
+	result = zeroIfNil(in)
+
+	// The final result should not be a pointer
+	return
+}
+
+func zeroIfNil(in interface{}) interface{} {
+	switch in.(type) {
+	case *float64:
+		return zeroIfNilFloat64(in.(*float64))
+	}
+
+	return in
+}
+
+func zeroIfNilFloat64(in *float64) (out float64) {
+	if in != nil {
+		out = *in
+	}
+	return
 }

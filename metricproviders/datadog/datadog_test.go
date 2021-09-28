@@ -134,7 +134,28 @@ func TestRunSuite(t *testing.T) {
 			expectedErrorMessage:    "received authentication error response code: 401 {\"errors\": [\"No authenticated user.\"]}",
 			useEnvVarForKeys:        false,
 		},
-		// Error if datadog doesn't return any datapoints
+
+		// Handle if datadog doesn't return any datapoints && you want a nil ResultPointer
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "len(resultPointer) == nil",
+				FailureCondition: "result >= 0.05",
+				Provider: v1alpha1.MetricProvider{
+					Datadog: &v1alpha1.DatadogMetric{
+						Query: "avg:kubernetes.cpu.user.total{*}",
+					},
+				},
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+
+		// Error if datadog doesn't return any datapoints && you don't handle the ResultPointer
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
@@ -154,7 +175,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Error if datadog doesn't return any datapoints
+		// Error if datadog returns non-array series
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":"invalid"}`,

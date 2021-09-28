@@ -148,12 +148,16 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 
 	series := res.Series[0]
 	datapoint := series.Pointlist[len(series.Pointlist)-1]
-	if len(datapoint) < 1 {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datadog returned no value: %s", string(bodyBytes))
+
+	var value *float64
+	// If datadog series.Pointlist is not empty, set the pointer value, else let it stay nil
+	if len(datapoint) == 2 {
+		value = new(float64)
+		*value = datapoint[1]
 	}
 
-	status, err := evaluate.EvaluateResult(datapoint[1], metric, p.logCtx)
-	return strconv.FormatFloat(datapoint[1], 'f', -1, 64), status, err
+	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
+	return strconv.FormatFloat(*value, 'f', -1, 64), status, err
 }
 
 // Resume should not be used the Datadog provider since all the work should occur in the Run method
