@@ -141,8 +141,7 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "resultPointer == nil",
-				FailureCondition: "result >= 0.05",
+				SuccessCondition: "resultPointer == nil || result < 0.05",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
 						Query: "avg:kubernetes.cpu.user.total{*}",
@@ -152,6 +151,25 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+
+		// Validate nil pointer logic
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "resultPointer != nil && result < 0.05",
+				Provider: v1alpha1.MetricProvider{
+					Datadog: &v1alpha1.DatadogMetric{
+						Query: "avg:kubernetes.cpu.user.total{*}",
+					},
+				},
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0",
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
 			useEnvVarForKeys:        false,
 		},
 
