@@ -2085,6 +2085,8 @@ with the required notifications service such as Slack or MS Teams. An example be
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-rollouts-notification-configmap</span>
 <span class="nt">data</span><span class="p">:</span>
+  <span class="c1"># detail of the templates is omitted</span>
+  <span class="c1"># detail of the triggers is omitted</span>
   <span class="nt">service.slack</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">token: $slack-token</span>
 <span class="nn">---</span>
@@ -2155,7 +2157,7 @@ when rollout pod spec uses <code>argoproj/rollouts-demo:purple</code> image:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-notifications-cm</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-rollouts-notification-configmap</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">trigger.on-purple</span><span class="p">:</span> <span class="p p-Indicator">|</span>
     <span class="no">- send: [my-purple-template]</span>
