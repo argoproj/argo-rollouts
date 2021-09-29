@@ -141,6 +141,21 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
+		// Implicitly succeed by handling a 0 value result if no data is provided. Datadog provider will return 0 for no data provided
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result < 0.05",
+				Provider:         ddProviderIntervalDefault,
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+
 		// Safely succeed by explicitly accounting for isNil(result): no data provided
 		{
 			webServerStatus:   200,
