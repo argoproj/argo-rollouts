@@ -66,10 +66,7 @@ func EvalCondition(resultValue interface{}, condition string) (bool, error) {
 		"asFloat": asFloat,
 		"isNaN":   math.IsNaN,
 		"isInf":   isInf,
-		"isNil": func(in interface{}) bool {
-			// Purposefully ignore "in". This is function is created for developer experience when writing expressions
-			return isNil(resultValue)
-		},
+		"isNil":   isNilFunc(resultValue),
 	}
 
 	unwrapFileErr := func(e error) error {
@@ -190,6 +187,13 @@ func Equal(a, b []string) bool {
 	return true
 }
 
+func isNilFunc(resultValue interface{}) func(interface{}) bool {
+	return func(in interface{}) bool {
+		// Purposefully ignore "in". This is function is created for developer experience when writing expressions
+		return isNil(resultValue)
+	}
+}
+
 func isNil(in interface{}) (out bool) {
 	// Courtesy of: https://gist.github.com/mangatmodi/06946f937cbff24788fa1d9f94b6b138
 	if in == nil {
@@ -200,7 +204,6 @@ func isNil(in interface{}) (out bool) {
 	switch reflect.TypeOf(in).Kind() {
 	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
 		out = reflect.ValueOf(in).IsNil()
-		return
 	}
 
 	return
@@ -214,18 +217,21 @@ func preprocessResult(in interface{}) (result interface{}) {
 	return
 }
 
-func zeroIfNil(in interface{}) interface{} {
+func zeroIfNil(in interface{}) (out interface{}) {
+	out = in
+
 	switch in.(type) {
 	case *float64:
-		return zeroIfNilFloat64(in.(*float64))
+		out = zeroIfNilFloat64(in.(*float64))
 	}
 
-	return in
+	return
 }
 
 func zeroIfNilFloat64(in *float64) (out float64) {
 	if in != nil {
 		out = *in
 	}
+
 	return
 }
