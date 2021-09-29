@@ -218,7 +218,9 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 	if err != nil {
 		return newObj, len(patches) > 0, err
 	}
-	err = unstructured.SetNestedSlice(newObj.Object, tlsRoutesI, "spec", Tls)
+	if tlsRoutesI != nil {
+		err = unstructured.SetNestedSlice(newObj.Object, tlsRoutesI, "spec", Tls)
+	}
 	return newObj, len(patches) > 0, err
 }
 
@@ -525,7 +527,6 @@ func (r *Reconciler) Type() string {
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	ctx := context.TODO()
 	var vsvc *unstructured.Unstructured
-	var err error
 	var virtualServices []v1alpha1.IstioVirtualService
 
 	if istioutil.MultipleVirtualServiceConfigured(r.rollout) {
@@ -541,6 +542,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 			namespace = r.rollout.Namespace
 		}
 
+		var err error
 		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 		if r.virtualServiceLister != nil {
 			vsvc, err = r.virtualServiceLister.Namespace(namespace).Get(vsvcName)
@@ -564,9 +566,11 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 		if err == nil {
 			r.log.Debugf("Updated VirtualService: %s", modifiedVirtualService)
 			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set to desiredWeight '%d'", vsvcName, desiredWeight)
+		} else {
+			return err
 		}
 	}
-	return err
+	return nil
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
