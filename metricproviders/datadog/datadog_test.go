@@ -156,7 +156,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Expect failure if no data is provided
+		// Expect failure if no data is provided and !isNil(result) is provided
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
