@@ -135,13 +135,32 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Explicitly succeed if no datapoints are returned
+		// Safely succeed by excplitily accounting for isNil(result): data provided
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "isNil(result) || result < 0.05",
+				Provider: v1alpha1.MetricProvider{
+					Datadog: &v1alpha1.DatadogMetric{
+						Query: "avg:kubernetes.cpu.user.total{*}",
+					},
+				},
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0.006121378742186943",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+
+		// Safely succeed by excplitily accounting for isNil(result): no data provided
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "resultPointer == nil || result < 0.05",
+				SuccessCondition: "isNil(result) || result < 0.05",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
 						Query: "avg:kubernetes.cpu.user.total{*}",
@@ -154,13 +173,13 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Validate nil pointer logic
+		// Expect failure if no data is provided
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "resultPointer != nil && result < 0.05",
+				SuccessCondition: "!isNil(result) && result < 0.05",
 				Provider: v1alpha1.MetricProvider{
 					Datadog: &v1alpha1.DatadogMetric{
 						Query: "avg:kubernetes.cpu.user.total{*}",

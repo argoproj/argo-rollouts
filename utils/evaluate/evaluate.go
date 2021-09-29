@@ -61,12 +61,15 @@ func EvalCondition(resultValue interface{}, condition string) (bool, error) {
 	var err error
 
 	env := map[string]interface{}{
-		"result":        preprocessResult(resultValue),
-		"resultPointer": preprocessResultPointer(resultValue),
-		"asInt":         asInt,
-		"asFloat":       asFloat,
-		"isNaN":         math.IsNaN,
-		"isInf":         isInf,
+		"result":  preprocessResult(resultValue),
+		"asInt":   asInt,
+		"asFloat": asFloat,
+		"isNaN":   math.IsNaN,
+		"isInf":   isInf,
+		"isNil": func(in interface{}) bool {
+			// Purposefully ignore "in". This is function is created for developer experience when writing expressions
+			return isNil(resultValue)
+		},
 	}
 
 	unwrapFileErr := func(e error) error {
@@ -187,9 +190,17 @@ func Equal(a, b []string) bool {
 	return true
 }
 
-func preprocessResultPointer(in interface{}) (resultPointer interface{}) {
-	if reflect.ValueOf(in).Kind() == reflect.Ptr {
-		resultPointer = in
+func isNil(in interface{}) (out bool) {
+	// Courtesy of: https://gist.github.com/mangatmodi/06946f937cbff24788fa1d9f94b6b138
+	if in == nil {
+		out = true
+		return
+	}
+
+	switch reflect.TypeOf(in).Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		out = reflect.ValueOf(in).IsNil()
+		return
 	}
 
 	return
@@ -199,7 +210,7 @@ func preprocessResult(in interface{}) (result interface{}) {
 	// Multiple functions can be called here in series to preprocess results if needed
 	result = zeroIfNil(in)
 
-	// The final result should not be a pointer
+	// The final result should not be a pointer to prevent any type mismatch errors
 	return
 }
 
