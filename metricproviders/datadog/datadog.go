@@ -156,7 +156,12 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 
 	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
 	if value == nil {
-		return "0", status, err
+		seriesBytes, jsonErr := json.Marshal(res.Series)
+		if jsonErr != nil {
+			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Failed to marshall JSON empty series: %v", jsonErr)
+		}
+
+		return string(seriesBytes), status, err
 	}
 
 	return strconv.FormatFloat(*value, 'f', -1, 64), status, err

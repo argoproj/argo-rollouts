@@ -61,12 +61,13 @@ func EvalCondition(resultValue interface{}, condition string) (bool, error) {
 	var err error
 
 	env := map[string]interface{}{
-		"result":  preprocessResult(resultValue),
+		"result":  valueFromPointer(resultValue),
 		"asInt":   asInt,
 		"asFloat": asFloat,
 		"isNaN":   math.IsNaN,
 		"isInf":   isInf,
 		"isNil":   isNilFunc(resultValue),
+		"default": defaultFunc(resultValue),
 	}
 
 	unwrapFileErr := func(e error) error {
@@ -187,15 +188,23 @@ func Equal(a, b []string) bool {
 	return true
 }
 
+func defaultFunc(resultValue interface{}) func(interface{}, interface{}) interface{} {
+	return func(_ interface{}, defaultValue interface{}) interface{} {
+		if isNil(resultValue) {
+			return defaultValue
+		}
+		return valueFromPointer(resultValue)
+	}
+}
+
 func isNilFunc(resultValue interface{}) func(interface{}) bool {
-	return func(in interface{}) bool {
-		// Purposefully ignore "in". This is function is created for developer experience when writing expressions
+	return func(_ interface{}) bool {
 		return isNil(resultValue)
 	}
 }
 
+// isNil is courtesy of: https://gist.github.com/mangatmodi/06946f937cbff24788fa1d9f94b6b138
 func isNil(in interface{}) (out bool) {
-	// Courtesy of: https://gist.github.com/mangatmodi/06946f937cbff24788fa1d9f94b6b138
 	if in == nil {
 		out = true
 		return
@@ -209,29 +218,18 @@ func isNil(in interface{}) (out bool) {
 	return
 }
 
-func preprocessResult(in interface{}) (result interface{}) {
-	// Multiple functions can be called here in series to preprocess results if needed
-	result = zeroIfNil(in)
-
-	// The final result should not be a pointer to prevent any type mismatch errors
-	return
-}
-
-func zeroIfNil(in interface{}) (out interface{}) {
-	out = in
-
-	switch in.(type) {
-	case *float64:
-		out = zeroIfNilFloat64(in.(*float64))
+// valueFromPointer allows pointers to be passed in from the provider, but then extracts the value from
+// the pointer if the pointer is not nil, else returns nil
+func valueFromPointer(in interface{}) (out interface{}) {
+	if isNil(in) {
+		return
 	}
 
-	return
-}
-
-func zeroIfNilFloat64(in *float64) (out float64) {
-	if in != nil {
-		out = *in
+	if reflect.TypeOf(in).Kind() != reflect.Ptr {
+		out = in
+		return
 	}
 
+	out = reflect.ValueOf(in).Elem().Interface()
 	return
 }

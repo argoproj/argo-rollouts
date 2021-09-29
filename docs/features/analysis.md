@@ -806,16 +806,14 @@ status:
 
 #### Datadog
 
-Datadog queries can return empty results if the query takes place in a time interval with no metrics. The Datadog provider will implicitly convert the empty result to a `0` value. If you need to account for empty results, you can use `isNil(result)` to explicitly handle empty results
+Datadog queries can return empty results if the query takes place during a time interval with no metrics. The Datadog provider will return a `nil` value yielding an error during the evaluation phase like:
 
-On an empty result, here is a `successCondition` that is **true** with explicit `isNil(result)` handling:
-
-```yaml
-successCondition: isNil(result) || result < 0.05
+```
+invalid operation: < (mismatched types <nil> and float64)
 ```
 
-On an empty result, here is a `successCondition` that is **false** with an explicit `!isNil(result)` handling:
+However, empty query results yielding a `nil` value can be handled using the `default()` function. Here is a succeeding example using the `default()` function:
 
 ```yaml
-successCondition: !isNil(result) || result < 0.05
+successCondition: default(result, 0) < 0.05
 ```

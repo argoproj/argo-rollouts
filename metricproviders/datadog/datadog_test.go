@@ -126,13 +126,13 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Safely succeed by explicitly accounting for isNil(result): data provided
+		// Expect success with default() and data
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "isNil(result) || result < 0.05",
+				SuccessCondition: "default(result, 0) < 0.05",
 				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
@@ -141,7 +141,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Implicitly succeed by handling a 0 value result if no data is provided. Datadog provider will return 0 for no data provided
+		// Expect error with no default() and no data
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
@@ -151,53 +151,52 @@ func TestRunSuite(t *testing.T) {
 				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
-			expectedValue:           "0",
-			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    `invalid operation: < (mismatched types <nil> and float64)`,
 			useEnvVarForKeys:        false,
 		},
 
-		// Safely succeed by explicitly accounting for isNil(result): no data provided
+		// Expect success with default() and no data
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "isNil(result) || result < 0.05",
+				SuccessCondition: "default(result, 0) < 0.05",
 				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
-			expectedValue:           "0",
+			expectedValue:           `[{"pointlist":[]}]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
 
-		// Expect failure if no data is provided and !isNil(result) is provided
+		// Expect failure with bad default() and no data
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "!isNil(result) && result < 0.05",
+				SuccessCondition: "default(result, 1) < 0.05",
 				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
-			expectedValue:           "0",
+			expectedValue:           `[{"pointlist":[]}]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
 			useEnvVarForKeys:        false,
 		},
 
-		// Implicitly succeed if no datapoints are returned
+		// Expect sucess with bad default() and good data
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result < 0.001",
-				FailureCondition: "result >= 0.001",
+				SuccessCondition: "default(result, 1) < 0.05",
 				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
-			expectedValue:           "0",
+			expectedValue:           `0.006121378742186943`,
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
