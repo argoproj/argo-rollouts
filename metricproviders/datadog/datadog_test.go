@@ -126,7 +126,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Safely succeed by excplitily accounting for isNil(result): data provided
+		// Safely succeed by explicitly accounting for isNil(result): data provided
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
@@ -141,7 +141,7 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Safely succeed by excplitily accounting for isNil(result): no data provided
+		// Safely succeed by explicitly accounting for isNil(result): no data provided
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
