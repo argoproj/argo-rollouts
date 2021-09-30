@@ -1,7 +1,7 @@
 # Getting Started - Multiple Providers (Service Mesh Interface and NGiNX Ingress)
 
 !!! important
-    Available since v1.1
+    Available since v1.2
 
 This guide covers how Argo Rollouts integrates with multiple TrafficRoutings, using
 [Linkerd](https://linkerd.io) and 
