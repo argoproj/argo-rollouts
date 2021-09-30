@@ -262,7 +262,10 @@ func TestReconcileStableIngressNotFound(t *testing.T) {
 	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -271,7 +274,7 @@ func TestReconcileStableIngressNotFound(t *testing.T) {
 		IngressWrapper: ingressWrapper,
 	})
 
-	err := r.SetWeight(10)
+	err = r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 }
 
@@ -282,7 +285,10 @@ func TestReconcileStableIngressFound(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -291,7 +297,7 @@ func TestReconcileStableIngressFound(t *testing.T) {
 		IngressWrapper: ingressWrapper,
 	})
 
-	err := r.SetWeight(10)
+	err = r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -309,7 +315,10 @@ func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -318,7 +327,7 @@ func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
 		IngressWrapper: ingressWrapper,
 	})
 
-	err := r.SetWeight(10)
+	err = r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 	assert.Contains(t, err.Error(), "has no rules using service", "correct error is returned")
 }
@@ -332,7 +341,10 @@ func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -341,7 +353,7 @@ func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
 		IngressWrapper: ingressWrapper,
 	})
 
-	err := r.SetWeight(10)
+	err = r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 }
 
@@ -356,7 +368,10 @@ func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
@@ -366,7 +381,7 @@ func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
 		IngressWrapper: ingressWrapper,
 	})
 
-	err := r.SetWeight(10)
+	err = r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 }
 
@@ -383,7 +398,10 @@ func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -392,7 +410,7 @@ func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
 		IngressWrapper: ingressWrapper,
 	})
 
-	err := r.SetWeight(10)
+	err = r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
@@ -416,7 +434,10 @@ func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -425,7 +446,7 @@ func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
 		IngressWrapper: ingressWrapper,
 	})
 
-	err := r.SetWeight(10)
+	err = r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 0)
@@ -441,7 +462,10 @@ func TestReconcileCanaryCreateError(t *testing.T) {
 
 	// stableIngress exists
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
@@ -456,7 +480,7 @@ func TestReconcileCanaryCreateError(t *testing.T) {
 		return true, nil, errors.New("fake error")
 	})
 
-	err := r.SetWeight(10)
+	err = r.SetWeight(10)
 	assert.NotNil(t, err, "Reconcile returns error")
 	assert.Equal(t, "error creating canary ingress `rollout-stable-ingress-canary`: fake error", err.Error())
 	actions := client.Actions()
@@ -484,7 +508,10 @@ func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
 
 	// stableIngress exists
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
@@ -507,7 +534,7 @@ func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
 		return true, canaryIngress, nil
 	})
 
-	err := r.SetWeight(10)
+	err = r.SetWeight(10)
 	assert.Nil(t, err, "Reconcile returns no error")
 	actions := client.Actions()
 	assert.Len(t, actions, 3)

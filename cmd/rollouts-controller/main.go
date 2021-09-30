@@ -144,7 +144,8 @@ func newCommand() *cobra.Command {
 
 			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
 			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
-			ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, kubeClient, kubeInformerFactory)
+			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, kubeClient, kubeInformerFactory)
+			checkError(err)
 
 			cm := controller.NewManager(
 				namespace,

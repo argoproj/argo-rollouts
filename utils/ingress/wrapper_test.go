@@ -168,7 +168,7 @@ func TestGetObjectMeta(t *testing.T) {
 		om := ni.GetObjectMeta()
 
 		// then
-		assert.Equal(t, "some-ingress", om.GetName())
+		assert.Equal(t, "networking-ingress", om.GetName())
 		assert.Equal(t, "some-namespace", om.GetNamespace())
 		assert.Equal(t, 2, len(om.GetLabels()))
 	})
@@ -182,7 +182,7 @@ func TestGetObjectMeta(t *testing.T) {
 		om := li.GetObjectMeta()
 
 		// then
-		assert.Equal(t, "some-ingress", om.GetName())
+		assert.Equal(t, "extensions-ingress", om.GetName())
 		assert.Equal(t, "some-namespace", om.GetNamespace())
 		assert.Equal(t, 2, len(om.GetLabels()))
 	})
@@ -242,14 +242,28 @@ func TestGetLoadBalancerStatus(t *testing.T) {
 	})
 }
 
+func Test_IngressWrapNew(t *testing.T) {
+	t.Run("will return error if invalid ingress mode is passed", func(t *testing.T) {
+		// given
+		t.Parallel()
+
+		// when
+		iw, err := ingress.NewIngressWrapper(9999, nil, nil)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, iw)
+	})
+}
+
 func Test_IngressWrapPatch(t *testing.T) {
 	t.Run("will patch networking ingress successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
-		iw := newMockedIngressWrapper(ingress.IngressModeNetworking)
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
 
 		// when
-		ing, err := iw.Patch(context.Background(), "some-namespace", "some-ingress", types.MergePatchType, []byte("{}"), metav1.PatchOptions{})
+		ing, err := iw.Patch(context.Background(), "some-namespace", "networking-ingress", types.MergePatchType, []byte("{}"), metav1.PatchOptions{})
 
 		// then
 		assert.NoError(t, err)
@@ -261,10 +275,10 @@ func Test_IngressWrapPatch(t *testing.T) {
 	t.Run("will return error if fails to patch networking ingress", func(t *testing.T) {
 		// given
 		t.Parallel()
-		iw := newMockedIngressWrapper(ingress.IngressModeNetworking)
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
 
 		// when
-		ing, err := iw.Patch(context.Background(), "not-found", "not-found", types.MergePatchType, []byte("{}"), metav1.PatchOptions{})
+		ing, err := iw.Patch(context.Background(), "not_found", "not_found", types.MergePatchType, []byte("{}"), metav1.PatchOptions{})
 
 		// then
 		assert.Error(t, err)
@@ -273,10 +287,10 @@ func Test_IngressWrapPatch(t *testing.T) {
 	t.Run("will patch extensions ingress successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
-		iw := newMockedIngressWrapper(ingress.IngressModeExtensions)
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
 
 		// when
-		ing, err := iw.Patch(context.Background(), "some-namespace", "some-ingress", types.MergePatchType, []byte("{}"), metav1.PatchOptions{})
+		ing, err := iw.Patch(context.Background(), "some-namespace", "extensions-ingress", types.MergePatchType, []byte("{}"), metav1.PatchOptions{})
 
 		// then
 		assert.NoError(t, err)
@@ -288,10 +302,10 @@ func Test_IngressWrapPatch(t *testing.T) {
 	t.Run("will return error if fails to patch extensions ingress", func(t *testing.T) {
 		// given
 		t.Parallel()
-		iw := newMockedIngressWrapper(ingress.IngressModeExtensions)
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
 
 		// when
-		ing, err := iw.Patch(context.Background(), "not-found", "not-found", types.MergePatchType, []byte("{}"), metav1.PatchOptions{})
+		ing, err := iw.Patch(context.Background(), "not_found", "not_found", types.MergePatchType, []byte("{}"), metav1.PatchOptions{})
 
 		// then
 		assert.Error(t, err)
@@ -303,7 +317,7 @@ func Test_IngressWrapUpdate(t *testing.T) {
 	t.Run("will update networking ingress successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
-		iw := newMockedIngressWrapper(ingress.IngressModeNetworking)
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
 		i := ingress.NewIngress(getNetworkingIngress())
 		ctx := context.Background()
 
@@ -317,7 +331,7 @@ func Test_IngressWrapUpdate(t *testing.T) {
 	t.Run("will return error if fails to update networking ingress", func(t *testing.T) {
 		// given
 		t.Parallel()
-		iw := newMockedIngressWrapper(ingress.IngressModeNetworking)
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
 		wrongIngressVersion := ingress.NewLegacyIngress(getExtensionsIngress())
 		ctx := context.Background()
 
@@ -331,7 +345,7 @@ func Test_IngressWrapUpdate(t *testing.T) {
 	t.Run("will update extensions ingress successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
-		iw := newMockedIngressWrapper(ingress.IngressModeExtensions)
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
 		i := ingress.NewLegacyIngress(getExtensionsIngress())
 		ctx := context.Background()
 
@@ -345,7 +359,7 @@ func Test_IngressWrapUpdate(t *testing.T) {
 	t.Run("will return error if fails to update extensions ingress", func(t *testing.T) {
 		// given
 		t.Parallel()
-		iw := newMockedIngressWrapper(ingress.IngressModeExtensions)
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
 		wrongIngressVersion := ingress.NewIngress(getNetworkingIngress())
 		ctx := context.Background()
 
@@ -356,19 +370,296 @@ func Test_IngressWrapUpdate(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 	})
+	t.Run("will return error if wrapper has invalid IngressMode", func(t *testing.T) {
+		// given
+		t.Parallel()
+		invalidIngressWrap := ingress.IngressWrap{}
+		ctx := context.Background()
+
+		// when
+		i, err := invalidIngressWrap.Update(ctx, "some-namespace", nil)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, i)
+	})
 }
 
-func newMockedIngressWrapper(mode ingress.IngressMode) *ingress.IngressWrap {
+func Test_IngressWrapGet(t *testing.T) {
+	t.Run("will get network ingress successfully", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
+		ctx := context.Background()
+
+		// when
+		i, err := iw.Get(ctx, "some-namespace", "networking-ingress", metav1.GetOptions{})
+
+		// then
+		assert.NoError(t, err)
+		assert.NotNil(t, i)
+		assert.Equal(t, "networking-ingress", i.GetName())
+		assert.Equal(t, "some-namespace", i.GetNamespace())
+	})
+	t.Run("will return error if fails to get networking ingress", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
+		ctx := context.Background()
+
+		// when
+		i, err := iw.Get(ctx, "not_found", "not_found", metav1.GetOptions{})
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, i)
+	})
+	t.Run("will get extensions ingress successfully", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
+		ctx := context.Background()
+
+		// when
+		i, err := iw.Get(ctx, "some-namespace", "extensions-ingress", metav1.GetOptions{})
+
+		// then
+		assert.NoError(t, err)
+		assert.NotNil(t, i)
+		assert.Equal(t, "extensions-ingress", i.GetName())
+		assert.Equal(t, "some-namespace", i.GetNamespace())
+	})
+	t.Run("will return error if fails to get extensions ingress", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
+		ctx := context.Background()
+
+		// when
+		i, err := iw.Get(ctx, "not_found", "not_found", metav1.GetOptions{})
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, i)
+	})
+	t.Run("will return error if wrapper has invalid IngressMode", func(t *testing.T) {
+		// given
+		t.Parallel()
+		invalidIngressWrap := ingress.IngressWrap{}
+		ctx := context.Background()
+
+		// when
+		i, err := invalidIngressWrap.Get(ctx, "some-namespace", "extensions-ingress", metav1.GetOptions{})
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, i)
+	})
+}
+
+func Test_IngressWrapGetCached(t *testing.T) {
+	t.Run("will get cached network ingress successfully", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
+
+		// when
+		i, err := iw.GetCached("some-namespace", "networking-ingress")
+
+		// then
+		assert.NoError(t, err)
+		assert.NotNil(t, i)
+		assert.Equal(t, "networking-ingress", i.GetName())
+		assert.Equal(t, "some-namespace", i.GetNamespace())
+	})
+	t.Run("will return error if fails to get cached networking ingress", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
+
+		// when
+		i, err := iw.GetCached("not_found", "not_found")
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, i)
+	})
+	t.Run("will get cached extensions ingress successfully", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
+
+		// when
+		i, err := iw.GetCached("some-namespace", "extensions-ingress")
+
+		// then
+		assert.NoError(t, err)
+		assert.NotNil(t, i)
+		assert.Equal(t, "extensions-ingress", i.GetName())
+		assert.Equal(t, "some-namespace", i.GetNamespace())
+	})
+	t.Run("will return error if fails to get extensions ingress", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
+
+		// when
+		i, err := iw.GetCached("not_found", "not_found")
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, i)
+	})
+	t.Run("will return error if wrapper has invalid IngressMode", func(t *testing.T) {
+		// given
+		t.Parallel()
+		invalidIngressWrap := ingress.IngressWrap{}
+
+		// when
+		i, err := invalidIngressWrap.GetCached("some-namespace", "extensions-ingress")
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, i)
+	})
+}
+
+func Test_IngressWrapCreate(t *testing.T) {
+	t.Run("will create network ingress successfully", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
+		ctx := context.Background()
+		ni := getNetworkingIngress()
+		ni.SetNamespace("different-namespace")
+		i := ingress.NewIngress(ni)
+
+		// when
+		i, err := iw.Create(ctx, "different-namespace", i, metav1.CreateOptions{})
+
+		// then
+		assert.NoError(t, err)
+		assert.NotNil(t, i)
+		assert.Equal(t, "networking-ingress", i.GetName())
+		assert.Equal(t, "different-namespace", i.GetNamespace())
+	})
+	t.Run("will return error if fails to create networking ingress", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
+		ctx := context.Background()
+		i := ingress.NewIngress(getNetworkingIngress())
+
+		// when
+		i, err := iw.Create(ctx, "some-namespace", i, metav1.CreateOptions{})
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, i)
+	})
+	t.Run("will create extensions ingress successfully", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
+		ctx := context.Background()
+		li := getExtensionsIngress()
+		li.SetNamespace("different-namespace")
+		i := ingress.NewLegacyIngress(li)
+
+		// when
+		i, err := iw.Create(ctx, "different-namespace", i, metav1.CreateOptions{})
+
+		// then
+		assert.NoError(t, err)
+		assert.NotNil(t, i)
+		assert.Equal(t, "extensions-ingress", i.GetName())
+		assert.Equal(t, "different-namespace", i.GetNamespace())
+	})
+	t.Run("will return error if fails to create extensions ingress", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
+		ctx := context.Background()
+		i := ingress.NewLegacyIngress(getExtensionsIngress())
+
+		// when
+		i, err := iw.Create(ctx, "some-namespace", i, metav1.CreateOptions{})
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, i)
+	})
+	t.Run("will return error if wrapper has invalid IngressMode", func(t *testing.T) {
+		// given
+		t.Parallel()
+		invalidIngressWrap := ingress.IngressWrap{}
+		i := ingress.NewLegacyIngress(getExtensionsIngress())
+		ctx := context.Background()
+
+		// when
+		i, err := invalidIngressWrap.Create(ctx, "some-namespace", i, metav1.CreateOptions{})
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, i)
+	})
+}
+
+func Test_IngressWrapHasSynced(t *testing.T) {
+	t.Run("will check networking ingress HasSynced", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeNetworking)
+
+		// when
+		synced := iw.HasSynced()
+
+		// then
+		assert.False(t, synced)
+	})
+	t.Run("will check extensions ingress HasSynced", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := newMockedIngressWrapper(t, ingress.IngressModeExtensions)
+
+		// when
+		synced := iw.HasSynced()
+
+		// then
+		assert.False(t, synced)
+	})
+	t.Run("will return false if wrapper has invalid IngressMode", func(t *testing.T) {
+		// given
+		t.Parallel()
+		iw := ingress.IngressWrap{}
+
+		// when
+		synced := iw.HasSynced()
+
+		// then
+		assert.False(t, synced)
+	})
+}
+
+func newMockedIngressWrapper(t *testing.T, mode ingress.IngressMode) *ingress.IngressWrap {
+	t.Helper()
 	kubeclient := k8sfake.NewSimpleClientset(getNetworkingIngress(), getExtensionsIngress())
 	informer := kubeinformers.NewSharedInformerFactory(kubeclient, 0)
-	return ingress.NewIngressWrapper(mode, kubeclient, informer)
+	informer.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(getExtensionsIngress())
+	informer.Networking().V1().Ingresses().Informer().GetIndexer().Add(getNetworkingIngress())
+
+	i, err := ingress.NewIngressWrapper(mode, kubeclient, informer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return i
 }
 
 func getNetworkingIngress() *v1.Ingress {
 	ingressClassName := "ingress-name"
 	return &v1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "some-ingress",
+			Name:      "networking-ingress",
 			Namespace: "some-namespace",
 			Labels: map[string]string{
 				"label-key1": "label-value1",
@@ -410,7 +701,7 @@ func getExtensionsIngress() *v1beta1.Ingress {
 	ingressClassName := "ingress-name"
 	return &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "some-ingress",
+			Name:      "extensions-ingress",
 			Namespace: "some-namespace",
 			Labels: map[string]string{
 				"label-key1": "label-value1",

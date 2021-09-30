@@ -78,7 +78,7 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 			},
 		},
 	}
-	c, _, _ := f.newController(noResyncPeriodFunc)
+	c, _, _ := f.newController(t, noResyncPeriodFunc)
 	t.Run("Get Both", func(t *testing.T) {
 		roCtx, err := c.newRolloutContext(rollout)
 		assert.NoError(t, err)
@@ -131,7 +131,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, previewSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.run(t, getKey(r, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.activeService: Invalid value: \"active-svc\": service \"active-svc\" not found"
@@ -160,7 +160,7 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	f.serviceLister = append(f.serviceLister)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(getKey(r, t))
+	f.run(t, getKey(r, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.blueGreen.previewService: Invalid value: \"preview-svc\": service \"preview-svc\" not found"
@@ -316,7 +316,7 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 
 	f.expectGetEndpointsAction(ep)
 	patchIndex := f.expectPatchRolloutAction(r2) // update status message
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{"status":{"message":"waiting for post-promotion verification to complete"}}`
@@ -399,7 +399,7 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 
 	f.expectGetEndpointsAction(ep)
 	patchIndex := f.expectPatchRolloutAction(r2) // update status message
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := fmt.Sprintf(`{"status":{"message":null,"phase":"Healthy","stableRS":"%s"}}`, rs2PodHash)
@@ -498,7 +498,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 	f.expectGetEndpointsAction(ep)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
 	})
@@ -593,7 +593,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 
 	f.expectGetEndpointsAction(ep)
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	f.verifyPatchedReplicaSet(scaleDownRSIndex, 30)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
@@ -650,7 +650,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
-	f.run(getKey(r2, t)) // there should be no api calls
+	f.run(t, getKey(r2, t)) // there should be no api calls
 	f.assertEvents(nil)
 }
 
@@ -661,7 +661,7 @@ func TestShouldVerifyTargetGroups(t *testing.T) {
 
 	f := newFixture(t)
 	defer f.Close()
-	ctrl, _, _ := f.newController(noResyncPeriodFunc)
+	ctrl, _, _ := f.newController(t, noResyncPeriodFunc)
 
 	t.Run("CanaryNotUsingTrafficRouting", func(t *testing.T) {
 		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromString("25%"), intstr.FromString("25%"))

@@ -52,7 +52,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 	createExIndex := f.expectCreateExperimentAction(ex)
 	patchIndex := f.expectPatchRolloutAction(r1)
 
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, createdEx.Name, ex.Name)
 	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, at.Name)
@@ -108,7 +108,7 @@ func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 	createExIndex := f.expectCreateExperimentAction(ex)
 	patchIndex := f.expectPatchRolloutAction(r1)
 
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, createdEx.Name, ex.Name)
 	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, cat.Name)
@@ -163,7 +163,7 @@ func TestCreateExperimentWithCollision(t *testing.T) {
 	createExIndex := f.expectCreateExperimentAction(ex) // create with a new name
 	patchIndex := f.expectPatchRolloutAction(r1)
 
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, ex.Name+".1", createdEx.Name)
 	patch := f.getPatchedRollout(patchIndex)
@@ -214,7 +214,7 @@ func TestCreateExperimentWithCollisionAndSemanticEquality(t *testing.T) {
 	f.expectGetExperimentAction(ex) // get existing to verify semantic equality
 	patchIndex := f.expectPatchRolloutAction(r1)
 
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, ex.Name, createdEx.Name)
 	patch := f.getPatchedRollout(patchIndex)
@@ -260,7 +260,7 @@ func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
 	f.objects = append(f.objects, r2, ex)
 
 	patchIndex := f.expectPatchRolloutAction(r1)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
@@ -294,7 +294,7 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 	f.objects = append(f.objects, r2, ex)
 
 	patchIndex := f.expectPatchRolloutAction(r1)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
@@ -340,7 +340,7 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 	f.objects = append(f.objects, r2, ex)
 
 	patchIndex := f.expectPatchRolloutAction(r1)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatchFmt := `{
 		"status": {
@@ -391,7 +391,7 @@ func TestRolloutExperimentScaleDownExperimentFromPreviousStep(t *testing.T) {
 
 	exPatchIndex := f.expectPatchExperimentAction(ex)
 	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	exPatch := f.getPatchedExperiment(exPatchIndex)
 	assert.True(t, exPatch.Spec.Terminate)
 }
@@ -435,7 +435,7 @@ func TestRolloutExperimentScaleDownExtraExperiment(t *testing.T) {
 
 	exPatchIndex := f.expectPatchExperimentAction(extraExp)
 	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	exPatch := f.getPatchedExperiment(exPatchIndex)
 	assert.True(t, exPatch.Spec.Terminate)
 }
@@ -476,7 +476,7 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 	f.objects = append(f.objects, r2, ex)
 
 	patchIndex := f.expectPatchRolloutAction(r1)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
@@ -521,7 +521,7 @@ func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r2) // update progressing condition
 	f.expectUpdateReplicaSetAction(rs2)   // scale replicaset
 	f.expectPatchRolloutAction(r1)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 }
 
 func TestGetExperimentFromTemplate(t *testing.T) {
@@ -623,7 +623,7 @@ func TestDeleteExperimentWithNoMatchingRS(t *testing.T) {
 
 	deletedIndex := f.expectDeleteExperimentAction(exWithNoMatchingPodHash)
 	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 
 	deletedAr := f.getDeletedExperiment(deletedIndex)
 	assert.Equal(t, deletedAr, exWithNoMatchingPodHash.Name)
@@ -668,7 +668,7 @@ func TestDeleteExperimentsAfterRSDelete(t *testing.T) {
 	f.expectDeleteReplicaSetAction(rs1)
 	deletedIndex := f.expectDeleteExperimentAction(exToDelete)
 	f.expectPatchRolloutAction(r3)
-	f.run(getKey(r3, t))
+	f.run(t, getKey(r3, t))
 
 	deletedEx := f.getDeletedExperiment(deletedIndex)
 	assert.Equal(t, deletedEx, exToDelete.Name)
@@ -704,7 +704,7 @@ func TestCancelExperimentWhenAborted(t *testing.T) {
 
 	f.expectPatchExperimentAction(ex)
 	f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 }
 
 func TestRolloutCreateExperimentWithInstanceID(t *testing.T) {
@@ -745,7 +745,7 @@ func TestRolloutCreateExperimentWithInstanceID(t *testing.T) {
 	createExIndex := f.expectCreateExperimentAction(ex)
 	f.expectPatchRolloutAction(r1)
 
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
 	assert.Equal(t, createdEx.Name, ex.Name)
 	assert.Equal(t, "instance-id-test", createdEx.Labels[v1alpha1.LabelKeyControllerInstanceID])

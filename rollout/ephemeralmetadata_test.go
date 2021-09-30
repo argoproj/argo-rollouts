@@ -39,7 +39,7 @@ func TestSyncCanaryEphemeralMetadataInitialRevision(t *testing.T) {
 	idx := f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs1)
 	_ = f.expectPatchRolloutAction(r1)
-	f.run(getKey(r1, t))
+	f.run(t, getKey(r1, t))
 	createdRS1 := f.getCreatedReplicaSet(idx)
 	expectedLabels := map[string]string{
 		"foo":                        "bar",
@@ -79,7 +79,7 @@ func TestSyncBlueGreenEphemeralMetadataInitialRevision(t *testing.T) {
 	f.expectPatchRolloutAction(r1)
 	f.expectPatchServiceAction(previewSvc, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 	f.expectUpdateReplicaSetAction(rs1) // scale replicaset
-	f.run(getKey(r1, t))
+	f.run(t, getKey(r1, t))
 	createdRS1 := f.getCreatedReplicaSet(idx)
 	expectedLabels := map[string]string{
 		"foo":                        "bar",
@@ -138,7 +138,7 @@ func TestSyncCanaryEphemeralMetadataSecondRevision(t *testing.T) {
 	f.expectUpdateReplicaSetAction(rs1)           // scale revision 1 ReplicaSet down
 	f.expectPatchRolloutAction(r2)                // Patch Rollout status
 
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	// revision 2 replicaset should been updated to use canary metadata
 	createdRS2 := f.getCreatedReplicaSet(rs2idx)
 	expectedCanaryLabels := map[string]string{
@@ -217,7 +217,7 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	rs1idx := f.expectUpdateReplicaSetAction(rs1)      // update stable replicaset with stable metadata
 	f.expectPatchRolloutAction(r2)                     // Patch Rollout status
 
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 	// revision 2 replicaset should been updated to use canary metadata
 	createdRS2 := f.getCreatedReplicaSet(rs2idx)
 	expectedCanaryLabels := map[string]string{

@@ -309,7 +309,7 @@ func TestCanaryPromoteFull(t *testing.T) {
 	f.expectUpdateRolloutStatusAction(r2)                  // update rollout conditions
 	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // scale new ReplicaSet to 10
 	patchedRolloutIndex := f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 
 	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
 	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
@@ -366,7 +366,7 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash) // update active to rs2
 	patchRolloutIdx := f.expectPatchRolloutAction(r2) // update rollout status
-	f.run(getKey(r2, t))
+	f.run(t, getKey(r2, t))
 
 	patchedRollout := f.getPatchedRolloutAsObject(patchRolloutIdx)
 	assert.Equal(t, rs2PodHash, patchedRollout.Status.StableRS)

@@ -191,24 +191,27 @@ type IngressWrap struct {
 type IngressMode int
 
 const (
-	IngressModeExtensions IngressMode = iota
+	IngressModeExtensions IngressMode = iota + 1 // start iota with 1 to avoid having this as default value
 	IngressModeNetworking
 )
 
-func NewIngressWrapper(mode IngressMode, client kubernetes.Interface, informerFactory informers.SharedInformerFactory) *IngressWrap {
+func NewIngressWrapper(mode IngressMode, client kubernetes.Interface, informerFactory informers.SharedInformerFactory) (*IngressWrap, error) {
 	var ingressInformer networkingv1.IngressInformer
 	var legacyIngressInformer extensionsv1beta1.IngressInformer
-	if mode == IngressModeNetworking {
+	switch mode {
+	case IngressModeNetworking:
 		ingressInformer = informerFactory.Networking().V1().Ingresses()
-	} else {
+	case IngressModeExtensions:
 		legacyIngressInformer = informerFactory.Extensions().V1beta1().Ingresses()
+	default:
+		return nil, errors.New("error creating ingress wrapper: undefined ingress mode")
 	}
 	return &IngressWrap{
 		client:                client,
 		mode:                  mode,
 		ingressInformer:       ingressInformer,
 		legacyIngressInformer: legacyIngressInformer,
-	}
+	}, nil
 }
 
 func (w *IngressWrap) Informer() cache.SharedIndexInformer {

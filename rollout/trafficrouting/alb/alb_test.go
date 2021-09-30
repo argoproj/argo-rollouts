@@ -130,7 +130,10 @@ func TestIngressNotFound(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", "stable-ingress", 443)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
@@ -150,7 +153,10 @@ func TestServiceNotFoundInIngress(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
@@ -169,7 +175,10 @@ func TestNoChanges(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
@@ -190,7 +199,10 @@ func TestErrorOnInvalidManagedBy(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
@@ -210,7 +222,10 @@ func TestSetInitialDesiredWeight(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
@@ -230,7 +245,10 @@ func TestUpdateDesiredWeight(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
@@ -259,7 +277,10 @@ func TestErrorPatching(t *testing.T) {
 	client.ReactionChain = nil
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
@@ -312,7 +333,10 @@ func TestVerifyWeight(t *testing.T) {
 		client := fake.NewSimpleClientset(i)
 		k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-		ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+		if err != nil {
+			t.Fatal(err)
+		}
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -390,7 +414,10 @@ func TestSetWeightWithMultipleBackends(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
@@ -458,7 +485,10 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		client := fake.NewSimpleClientset(i)
 		k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-		ingressWrapper := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+		if err != nil {
+			t.Fatal(err)
+		}
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
