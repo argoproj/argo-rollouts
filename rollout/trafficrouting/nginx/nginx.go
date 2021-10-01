@@ -130,7 +130,7 @@ func (r *Reconciler) buildCanaryIngress(stableIngress *networkingv1.Ingress, nam
 	return ingressutil.NewIngress(desiredCanaryIngress), nil
 }
 
-func (r *Reconciler) buildCanaryIngressExtensions(stableIngress *extensionsv1beta1.Ingress, name string, desiredWeight int32) (*ingressutil.Ingress, error) {
+func (r *Reconciler) buildLegacyCanaryIngress(stableIngress *extensionsv1beta1.Ingress, name string, desiredWeight int32) (*ingressutil.Ingress, error) {
 	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 	stableServiceName := r.cfg.Rollout.Spec.Strategy.Canary.StableService
 	canaryServiceName := r.cfg.Rollout.Spec.Strategy.Canary.CanaryService
@@ -214,7 +214,7 @@ func (r *Reconciler) canaryIngress(stableIngress *ingressutil.Ingress, name stri
 		if err != nil {
 			return nil, err
 		}
-		return r.buildCanaryIngressExtensions(extensionsIngress, name, desiredWeight)
+		return r.buildLegacyCanaryIngress(extensionsIngress, name, desiredWeight)
 	default:
 		return nil, errors.New("undefined ingress mode")
 	}
