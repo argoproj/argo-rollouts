@@ -397,4 +397,9 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, "v1alpha9", GetTargetGroupBindingAPIVersion())
 	SetTargetGroupBindingAPIVersion(DefaultTargetGroupBindingAPIVersion)
 	assert.Equal(t, DefaultTargetGroupBindingAPIVersion, GetTargetGroupBindingAPIVersion())
+
+	SetIngressAPIVersion("networking/v1")
+	assert.Equal(t, "networking/v1", GetIngressAPIVersion())
+	SetIngressAPIVersion(DefaultIngressVersion)
+	assert.Equal(t, DefaultIngressVersion, GetIngressAPIVersion())
 }

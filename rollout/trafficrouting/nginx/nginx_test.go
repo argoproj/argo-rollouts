@@ -156,6 +156,7 @@ func checkBackendService(t *testing.T, ing *ingressutil.Ingress, serviceName str
 }
 
 func checkIngressBackendService(t *testing.T, ing *networkingv1.Ingress, serviceName string) {
+	t.Helper()
 	for ir := 0; ir < len(ing.Spec.Rules); ir++ {
 		for ip := 0; ip < len(ing.Spec.Rules[ir].HTTP.Paths); ip++ {
 			assert.Equal(t, serviceName, ing.Spec.Rules[ir].HTTP.Paths[ip].Backend.Service.Name)
@@ -166,6 +167,7 @@ func checkIngressBackendService(t *testing.T, ing *networkingv1.Ingress, service
 	assert.Fail(t, msg)
 }
 func checkBackendServiceLegacy(t *testing.T, ing *extensionsv1beta1.Ingress, serviceName string) {
+	t.Helper()
 	for ir := 0; ir < len(ing.Spec.Rules); ir++ {
 		for ip := 0; ip < len(ing.Spec.Rules[ir].HTTP.Paths); ip++ {
 			assert.Equal(t, serviceName, ing.Spec.Rules[ir].HTTP.Paths[ip].Backend.ServiceName)

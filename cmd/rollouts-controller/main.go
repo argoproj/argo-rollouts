@@ -55,6 +55,7 @@ func newCommand() *cobra.Command {
 		istioVersion         string
 		trafficSplitVersion  string
 		ambassadorVersion    string
+		ingressVersion       string
 		albIngressClasses    []string
 		nginxIngressClasses  []string
 		awsVerifyTargetGroup bool
@@ -84,6 +85,7 @@ func newCommand() *cobra.Command {
 			defaults.SetIstioAPIVersion(istioVersion)
 			defaults.SetAmbassadorAPIVersion(ambassadorVersion)
 			defaults.SetSMIAPIVersion(trafficSplitVersion)
+			defaults.SetIngressAPIVersion(ingressVersion)
 
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
@@ -144,7 +146,13 @@ func newCommand() *cobra.Command {
 
 			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
 			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
-			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, kubeClient, kubeInformerFactory)
+			var mode ingressutil.IngressMode
+			if ingressVersion == "extensions/v1beta1" {
+				mode = ingressutil.IngressModeExtensions
+			} else {
+				mode = ingressutil.IngressModeNetworking
+			}
+			ingressWrapper, err := ingressutil.NewIngressWrapper(mode, kubeClient, kubeInformerFactory)
 			checkError(err)
 
 			cm := controller.NewManager(
@@ -214,6 +222,7 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
+	command.Flags().StringVar(&ingressVersion, "ingress-api-version", defaults.DefaultIngressVersion, "Set the Ingress apiVersion that the controller should use.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
 	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on. Defaults to nginx")
 	command.Flags().BoolVar(&awsVerifyTargetGroup, "alb-verify-weight", false, "Verify ALB target group weights before progressing through steps (requires AWS privileges)")
