@@ -54,7 +54,7 @@ func rollout(stableSvc, canarySvc string, istioVirtualService *v1alpha1.IstioVir
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Istio: &v1alpha1.IstioTrafficRouting{
-							VirtualService: *istioVirtualService,
+							VirtualService: istioVirtualService,
 						},
 					},
 				},
@@ -821,7 +821,7 @@ func TestValidateHTTPRoutes(t *testing.T) {
 						CanaryService: "canary",
 						TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 							Istio: &v1alpha1.IstioTrafficRouting{
-								VirtualService: v1alpha1.IstioVirtualService{
+								VirtualService: &v1alpha1.IstioVirtualService{
 									Routes: routes,
 								},
 							},
@@ -872,7 +872,7 @@ func TestValidateTLSRoutes(t *testing.T) {
 						CanaryService: "canary",
 						TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 							Istio: &v1alpha1.IstioTrafficRouting{
-								VirtualService: v1alpha1.IstioVirtualService{
+								VirtualService: &v1alpha1.IstioVirtualService{
 									Routes:    routes,
 									TLSRoutes: tlsRoutes,
 								},
@@ -990,7 +990,7 @@ func TestValidateHTTPRoutesSubsets(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Istio: &v1alpha1.IstioTrafficRouting{
-							VirtualService: v1alpha1.IstioVirtualService{
+							VirtualService: &v1alpha1.IstioVirtualService{
 								Routes: []string{"primary"},
 							},
 							DestinationRule: &v1alpha1.IstioDestinationRule{
@@ -1056,7 +1056,7 @@ func rolloutWithDestinationRule() *v1alpha1.Rollout {
 				Canary: &v1alpha1.CanaryStrategy{
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Istio: &v1alpha1.IstioTrafficRouting{
-							VirtualService: v1alpha1.IstioVirtualService{
+							VirtualService: &v1alpha1.IstioVirtualService{
 								Routes: []string{"primary"},
 							},
 							DestinationRule: &v1alpha1.IstioDestinationRule{

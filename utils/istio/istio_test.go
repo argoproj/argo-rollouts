@@ -64,7 +64,7 @@ func TestGetRolloutVirtualServiceKeys(t *testing.T) {
 	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
 	ro.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{
-		VirtualService: v1alpha1.IstioVirtualService{},
+		VirtualService: &v1alpha1.IstioVirtualService{},
 	}
 	assert.Len(t, GetRolloutVirtualServiceKeys(ro), 0)
 	ro.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{
