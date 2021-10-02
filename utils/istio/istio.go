@@ -79,6 +79,10 @@ func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
 		if namespace == "" {
 			namespace = ro.Namespace
 		}
+		if name == "" {
+			continue
+		}
+
 		virtualServiceKeys = append(virtualServiceKeys, fmt.Sprintf("%s/%s", namespace, name))
 	}
 
