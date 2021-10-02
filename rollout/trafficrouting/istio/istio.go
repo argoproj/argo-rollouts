@@ -532,7 +532,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if istioutil.MultipleVirtualServiceConfigured(r.rollout) {
 		virtualServices = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
 	} else {
-		virtualServices = []v1alpha1.IstioVirtualService{r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
+		virtualServices = []v1alpha1.IstioVirtualService{*r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
 	}
 
 	for _, virtualService := range virtualServices {

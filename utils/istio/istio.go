@@ -63,15 +63,15 @@ func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
 	canary := ro.Spec.Strategy.Canary
 
 	if canary == nil || canary.TrafficRouting == nil || canary.TrafficRouting.Istio == nil ||
-		(canary.TrafficRouting.Istio.VirtualServices == nil && canary.TrafficRouting.Istio.VirtualService.Name == "") ||
-		(canary.TrafficRouting.Istio.VirtualServices != nil && canary.TrafficRouting.Istio.VirtualService.Name != "") {
+		(canary.TrafficRouting.Istio.VirtualServices == nil && canary.TrafficRouting.Istio.VirtualService == nil) ||
+		(canary.TrafficRouting.Istio.VirtualServices != nil && canary.TrafficRouting.Istio.VirtualService != nil) {
 		return []string{}
 	}
 
 	if MultipleVirtualServiceConfigured(ro) {
 		virtualServices = ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
 	} else {
-		virtualServices = []v1alpha1.IstioVirtualService{ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
+		virtualServices = []v1alpha1.IstioVirtualService{*ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
 	}
 
 	for _, virtualService := range virtualServices {
@@ -79,6 +79,10 @@ func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
 		if namespace == "" {
 			namespace = ro.Namespace
 		}
+		if name == "" {
+			continue
+		}
+
 		virtualServiceKeys = append(virtualServiceKeys, fmt.Sprintf("%s/%s", namespace, name))
 	}
 

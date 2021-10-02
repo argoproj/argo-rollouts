@@ -412,7 +412,7 @@ func TestValidateVirtualService(t *testing.T) {
 					CanaryService: "canary",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Istio: &v1alpha1.IstioTrafficRouting{
-							VirtualService: v1alpha1.IstioVirtualService{
+							VirtualService: &v1alpha1.IstioVirtualService{
 								Name: "istio-vsvc",
 								Routes: []string{
 									"primary",
@@ -520,7 +520,7 @@ func TestValidateRolloutVirtualServicesConfig(t *testing.T) {
 
 	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Istio: &v1alpha1.IstioTrafficRouting{
-			VirtualService: v1alpha1.IstioVirtualService{
+			VirtualService: &v1alpha1.IstioVirtualService{
 				Name: "istio-vsvc1-name",
 			},
 			VirtualServices: []v1alpha1.IstioVirtualService{{Name: "istio-vsvc1-name", Routes: nil}},
@@ -537,7 +537,7 @@ func TestValidateRolloutVirtualServicesConfig(t *testing.T) {
 
 	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Istio: &v1alpha1.IstioTrafficRouting{
-			VirtualService: v1alpha1.IstioVirtualService{
+			VirtualService: &v1alpha1.IstioVirtualService{
 				Name: "istio-vsvc1-name",
 			},
 		},
