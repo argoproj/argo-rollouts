@@ -1,7 +1,7 @@
 # Multiple Providers
 !!! note
 
-    Multiple trafficRouting is available since Argo Rollouts v1.1
+    Multiple trafficRouting is available since Argo Rollouts v1.2
 
 The usage of multiple providers tries to cover scenarios where, for some reason, we have to use
 different providers on North-South and West-East traffic routing or any other hybrid architecture that
