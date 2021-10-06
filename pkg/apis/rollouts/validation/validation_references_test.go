@@ -672,6 +672,203 @@ spec:
 	})
 }
 
+func TestValidateAppMeshResource(t *testing.T) {
+	t.Run("will return error with appmesh virtual-service", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  namespace: myns
+  name: mysvc
+spec:
+  awsName: mysvc.myns.svc.cluster.local
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: mysvc-vrouter
+`
+		obj := toUnstructured(t, manifest)
+		refResources := ReferencedResources{
+			AppMeshResources: []k8sunstructured.Unstructured{*obj},
+		}
+		errList := ValidateRolloutReferencedResources(getRollout(), refResources)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, errList[0].Detail, "Expected object kind to be VirtualRouter but is VirtualService")
+	})
+
+	t.Run("will return error when appmesh virtual-router has no routes", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, errList[0].Field, field.NewPath("spec", "routes").String())
+	})
+
+	routeTypes := []string{"httpRoute", "tcpRoute", "grpcRoute", "http2Route"}
+	for _, routeType := range routeTypes {
+		t.Run(fmt.Sprintf("will succeed with valid appmesh virtual-router with %s", routeType), func(t *testing.T) {
+			t.Parallel()
+			manifest := fmt.Sprintf(`
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - name: primary
+      %s:
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: mysvc-canary-vn
+              weight: 0
+            - virtualNodeRef:
+                name: mysvc-stable-vn
+              weight: 100
+`, routeType)
+			obj := toUnstructured(t, manifest)
+			errList := ValidateAppMeshResource(*obj)
+			assert.NotNil(t, errList)
+			assert.Len(t, errList, 0)
+		})
+	}
+
+	t.Run("will return error with appmesh virtual-router with unsupported route type", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - name: primary
+      badRouteType:
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, field.NewPath("spec", "routes").Index(0).String(), errList[0].Field)
+	})
+
+	t.Run("will return error when appmesh virtual-router has route that is not a struct", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - invalid-spec
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, field.NewPath("spec", "routes").Index(0).String(), errList[0].Field)
+	})
+
+	t.Run("will return error when appmesh virtual-router has routes with no targets", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, field.NewPath("spec", "routes").Index(0).Child("httpRoute").Child("action").Child("weightedTargets").String(), errList[0].Field)
+	})
+
+	t.Run("will return error when appmesh virtual-router has routes with 1 target", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: only-target
+              weight: 100
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, field.NewPath("spec", "routes").Index(0).Child("httpRoute").Child("action").Child("weightedTargets").String(), errList[0].Field)
+	})
+
+	t.Run("will return error when appmesh virtual-router has routes with 3 targets", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: target-1
+              weight: 10
+            - virtualNodeRef:
+                name: target-2
+              weight: 10
+            - virtualNodeRef:
+                name: target-3
+              weight: 80
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, field.NewPath("spec", "routes").Index(0).Child("httpRoute").Child("action").Child("weightedTargets").String(), errList[0].Field)
+	})
+}
+
 func toUnstructured(t *testing.T, manifest string) *k8sunstructured.Unstructured {
 	t.Helper()
 	obj := &k8sunstructured.Unstructured{}

@@ -598,6 +598,61 @@
       },
       "title": "AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshTrafficRouting": {
+      "type": "object",
+      "properties": {
+        "virtualService": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualService",
+          "title": "VirtualService references an AppMesh VirtualService and VirtualRouter to modify to shape traffic"
+        },
+        "virtualNodeGroup": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualNodeGroup",
+          "title": "VirtualNodeGroup references an AppMesh Route targets that are formed by a set of VirtualNodes that are used to shape traffic"
+        }
+      },
+      "title": "AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualNodeGroup": {
+      "type": "object",
+      "properties": {
+        "canaryVirtualNodeRef": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualNodeReference",
+          "title": "CanaryVirtualNodeRef is the virtual node ref to modify labels with canary ReplicaSet pod template hash value"
+        },
+        "stableVirtualNodeRef": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualNodeReference",
+          "title": "StableVirtualNodeRef is the virtual node name to modify labels with stable ReplicaSet pod template hash value"
+        }
+      },
+      "title": "AppMeshVirtualNodeGroup holds information about targets used for routing traffic to a virtual service"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualNodeReference": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of VirtualNode CR"
+        }
+      },
+      "title": "AppMeshVirtualNodeReference holds a reference to VirtualNode.appmesh.k8s.aws"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualService": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of virtual service"
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Routes is list of HTTP routes within virtual router associated with virtual service to edit. If omitted, virtual service must have a single route of this type."
+        }
+      },
+      "title": "AppMeshVirtualService holds information on the virtual service the rollout needs to modify"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ArgumentValueFrom": {
       "type": "object",
       "properties": {
@@ -1443,6 +1498,10 @@
         "ambassador": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AmbassadorTrafficRouting",
           "title": "Ambassador holds specific configuration to use Ambassador to route traffic"
+        },
+        "appMesh": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshTrafficRouting",
+          "title": "AppMesh holds specific configuration to use AppMesh to route traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"

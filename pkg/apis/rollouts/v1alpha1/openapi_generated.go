@@ -43,6 +43,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateList":                            schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateList(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec":                            schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity":                                    schema_pkg_apis_rollouts_v1alpha1_AntiAffinity(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting":                           schema_pkg_apis_rollouts_v1alpha1_AppMeshTrafficRouting(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualNodeGroup":                         schema_pkg_apis_rollouts_v1alpha1_AppMeshVirtualNodeGroup(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualNodeReference":                     schema_pkg_apis_rollouts_v1alpha1_AppMeshVirtualNodeReference(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualService":                           schema_pkg_apis_rollouts_v1alpha1_AppMeshVirtualService(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument":                                        schema_pkg_apis_rollouts_v1alpha1_Argument(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ArgumentValueFrom":                               schema_pkg_apis_rollouts_v1alpha1_ArgumentValueFrom(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AwsResourceRef":                                  schema_pkg_apis_rollouts_v1alpha1_AwsResourceRef(ref),
@@ -773,6 +777,120 @@ func schema_pkg_apis_rollouts_v1alpha1_AntiAffinity(ref common.ReferenceCallback
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_AppMeshTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"virtualService": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VirtualService references an AppMesh VirtualService and VirtualRouter to modify to shape traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualService"),
+						},
+					},
+					"virtualNodeGroup": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VirtualNodeGroup references an AppMesh Route targets that are formed by a set of VirtualNodes that are used to shape traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualNodeGroup"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualNodeGroup", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualService"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_AppMeshVirtualNodeGroup(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AppMeshVirtualNodeGroup holds information about targets used for routing traffic to a virtual service",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"canaryVirtualNodeRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CanaryVirtualNodeRef is the virtual node ref to modify labels with canary ReplicaSet pod template hash value",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualNodeReference"),
+						},
+					},
+					"stableVirtualNodeRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StableVirtualNodeRef is the virtual node name to modify labels with stable ReplicaSet pod template hash value",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualNodeReference"),
+						},
+					},
+				},
+				Required: []string{"canaryVirtualNodeRef", "stableVirtualNodeRef"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualNodeReference"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_AppMeshVirtualNodeReference(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AppMeshVirtualNodeReference holds a reference to VirtualNode.appmesh.k8s.aws",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of VirtualNode CR",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_AppMeshVirtualService(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AppMeshVirtualService holds information on the virtual service the rollout needs to modify",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of virtual service",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"routes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Routes is list of HTTP routes within virtual router associated with virtual service to edit. If omitted, virtual service must have a single route of this type.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
 	}
 }
 
@@ -3945,11 +4063,17 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting"),
 						},
 					},
+					"appMesh": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppMesh holds specific configuration to use AppMesh to route traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting"},
 	}
 }
 

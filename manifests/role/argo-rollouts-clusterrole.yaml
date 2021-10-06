@@ -199,3 +199,27 @@ rules:
   verbs:
   - list
   - get
+# AppMesh virtualservices/virtualrouter CRD read-only access needed for using the App Mesh provider
+- apiGroups:
+  - appmesh.k8s.aws
+  resources:
+  - virtualservices
+  verbs:
+  - watch
+  - get
+  - list
+# AppMesh virtualnode CRD r/w access needed for using the App Mesh provider
+- apiGroups:
+  - appmesh.k8s.aws
+  resources:
+  - virtualnodes
+  - virtualrouters
+  verbs:
+  - watch
+  - get
+  - list
+  - update
+  - patch
+
+
+

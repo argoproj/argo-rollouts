@@ -111,6 +111,9 @@ func getStrategyAndTrafficRouter(rollout *v1alpha1.Rollout) (string, string) {
 			if rollout.Spec.Strategy.Canary.TrafficRouting.SMI != nil {
 				trafficRouter = "SMI"
 			}
+			if rollout.Spec.Strategy.Canary.TrafficRouting.AppMesh != nil {
+				trafficRouter = "AppMesh"
+			}
 		}
 	}
 	return strategy, trafficRouter
