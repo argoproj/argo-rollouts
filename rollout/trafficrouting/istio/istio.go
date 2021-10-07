@@ -743,9 +743,6 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, vsvcTLSRoutes []v1alpha1.TLSRoute, t
 
 // validateVirtualServiceRouteDestinations verifies that there is both a canary and a stable host or subset specified
 func validateVirtualServiceRouteDestinations(hr []VirtualServiceRouteDestination, stableSvc, canarySvc string, dRule *v1alpha1.IstioDestinationRule) error {
-	//if len(hr) != 2 {
-	//	return fmt.Errorf("Route does not have exactly two route destinations.")
-	//}
 	hasStableSvc := false
 	hasCanarySvc := false
 	hasStableSubset := false
