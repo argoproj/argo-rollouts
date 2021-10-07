@@ -207,7 +207,7 @@ Traffic Routing is enabled, the Rollout Experiment step allows
 traffic to be shifted to experiment pods.
 
 !!! note
-    This feature is currently available only for the SMI and ALB Traffic Routers.
+    This feature is currently available only for the SMI, ALB, and Istio Traffic Routers.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

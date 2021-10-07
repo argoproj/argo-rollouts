@@ -54,6 +54,8 @@ type virtualServicePatch struct {
 	routeType        string
 	destinationIndex int
 	weight           int64
+	host             string
+	toDelete         bool
 }
 
 type virtualServicePatches []virtualServicePatch
@@ -85,13 +87,25 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 		if !ok {
 			return fmt.Errorf(invalidCasting, patch.routeType+"[].route", "[]interface")
 		}
-		destination, ok := destinations[patch.destinationIndex].(map[string]interface{})
-		if !ok {
-			return fmt.Errorf(invalidCasting, patch.routeType+"[].route[].destination", "map[string]interface")
+		if patch.destinationIndex < len(destinations) {
+			destination, ok := destinations[patch.destinationIndex].(map[string]interface{})
+			if !ok {
+				return fmt.Errorf(invalidCasting, patch.routeType+"[].route[].destination", "map[string]interface")
+			}
+			if patch.toDelete {
+				destinations = append(destinations[:patch.destinationIndex], destinations[patch.destinationIndex+1:]...)
+			} else {
+				destination["weight"] = float64(patch.weight)
+				destinations[patch.destinationIndex] = destination
+			}
+			route["route"] = destinations
+		} else {
+			destination := make(map[string]interface{}, 0)
+			destination["weight"] = float64(patch.weight)
+			destination["destination"] = map[string]interface{}{"host": patch.host}
+			destinations = append(destinations, destination)
+			route["route"] = destinations
 		}
-		destination["weight"] = float64(patch.weight)
-		destinations[patch.destinationIndex] = destination
-		route["route"] = destinations
 		if patch.routeType == Http {
 			httpRoutes[patch.routeIndex] = route
 		} else if patch.routeType == Tls {
@@ -101,7 +115,7 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 	return nil
 }
 
-func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []string, httpRoutes []VirtualServiceHTTPRoute, rolloutVsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute, desiredWeight int64) virtualServicePatches {
+func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []string, httpRoutes []VirtualServiceHTTPRoute, rolloutVsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute, desiredWeight int64, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	stableSvc := r.rollout.Spec.Strategy.Canary.StableService
 	canarySubset := ""
@@ -127,29 +141,47 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 		if len(httpRoutes) <= routeIdx {
 			break
 		}
-		patches = processRoutes(Http, routeIdx, httpRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches)
+		patches = processRoutes(Http, routeIdx, httpRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches, additionalDestinations...)
 	}
 	// Process TLS Routes
 	for _, routeIdx := range tlsRouteIndexesToPatch {
 		if len(tlsRoutes) <= routeIdx {
 			break
 		}
-		patches = processRoutes(Tls, routeIdx, tlsRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches)
+		patches = processRoutes(Tls, routeIdx, tlsRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches, additionalDestinations...)
 	}
 	return patches
 }
 
-func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight int64, svcSubsets svcSubsets, patches virtualServicePatches) virtualServicePatches {
+func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight int64, svcSubsets svcSubsets, patches virtualServicePatches, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
+	svcToDest := map[string]v1alpha1.WeightDestination{}
+	stableWeight := 100 - desiredWeight
+	for _, dest := range additionalDestinations {
+		svcToDest[dest.ServiceName] = dest
+		stableWeight -= int64(dest.Weight)
+	}
 	for idx, destination := range destinations {
 		host := getHost(destination)
 		subset := destination.Destination.Subset
 		weight := destination.Weight
-		if (host != "" && host == svcSubsets.canarySvc) || (subset != "" && subset == svcSubsets.canarySubset) {
-			patches = appendPatch(routeIdx, routeType, weight, desiredWeight, idx, patches)
+		if host != "" {
+			if host == svcSubsets.canarySvc || (subset != "" && subset == svcSubsets.canarySubset) {
+				patches = appendPatch(routeIdx, routeType, weight, desiredWeight, idx, host, false, patches)
+			} else if host == svcSubsets.stableSvc || (subset != "" && subset == svcSubsets.stableSubset) {
+				patches = appendPatch(routeIdx, routeType, weight, stableWeight, idx, host, false, patches)
+			} else if dest, ok := svcToDest[host]; ok { // Patch weight for existing experiment services
+				patches = appendPatch(routeIdx, routeType, weight, int64(dest.Weight), idx, host, false, patches)
+				delete(svcToDest, host)
+			} else {
+				patches = appendPatch(routeIdx, routeType, weight, 0, idx, host, true, patches)
+			}
 		}
-		if (host != "" && host == svcSubsets.stableSvc) || (subset != "" && subset == svcSubsets.stableSubset) {
-			patches = appendPatch(routeIdx, routeType, weight, 100-desiredWeight, idx, patches)
-		}
+	}
+	// Add new destinations for experiment services which don't exist yet
+	idx := len(destinations)
+	for _, dest := range svcToDest {
+		patches = appendPatch(routeIdx, routeType, 0, int64(dest.Weight), idx, dest.ServiceName, false, patches)
+		idx += 1
 	}
 	return patches
 }
@@ -164,20 +196,22 @@ func getHost(destination VirtualServiceRouteDestination) string {
 	return host
 }
 
-func appendPatch(routeIdx int, routeType string, weight int64, desiredWeight int64, destinationIndex int, patches virtualServicePatches) virtualServicePatches {
+func appendPatch(routeIdx int, routeType string, weight int64, desiredWeight int64, destinationIndex int, host string, toDelete bool, patches virtualServicePatches) virtualServicePatches {
 	if weight != desiredWeight {
 		patch := virtualServicePatch{
 			routeIndex:       routeIdx,
 			routeType:        routeType,
 			destinationIndex: destinationIndex,
 			weight:           desiredWeight,
+			host:             host,
+			toDelete:         toDelete,
 		}
 		patches = append(patches, patch)
 	}
 	return patches
 }
 
-func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsvcRouteNames []string, vsvcTLSRoutes []v1alpha1.TLSRoute, desiredWeight int32) (*unstructured.Unstructured, bool, error) {
+func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsvcRouteNames []string, vsvcTLSRoutes []v1alpha1.TLSRoute, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*unstructured.Unstructured, bool, error) {
 	newObj := obj.DeepCopy()
 
 	// HTTP Routes
@@ -208,7 +242,7 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 		}
 	}
 
-	patches := r.generateVirtualServicePatches(vsvcRouteNames, httpRoutes, vsvcTLSRoutes, tlsRoutes, int64(desiredWeight))
+	patches := r.generateVirtualServicePatches(vsvcRouteNames, httpRoutes, vsvcTLSRoutes, tlsRoutes, int64(desiredWeight), additionalDestinations...)
 	err = patches.patchVirtualService(httpRoutesI, tlsRoutesI)
 	if err != nil {
 		return nil, false, err
@@ -555,7 +589,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 			}
 			return err
 		}
-		modifiedVirtualService, modified, err := r.reconcileVirtualService(vsvc, virtualService.Routes, virtualService.TLSRoutes, desiredWeight)
+		modifiedVirtualService, modified, err := r.reconcileVirtualService(vsvc, virtualService.Routes, virtualService.TLSRoutes, desiredWeight, additionalDestinations...)
 		if err != nil {
 			return err
 		}
@@ -663,7 +697,7 @@ func searchTlsRoute(tlsRoute v1alpha1.TLSRoute, istioTlsRoutes []VirtualServiceT
 	return routeIndices
 }
 
-// validateHTTPRoutes ensures that all the routes in the rollout exist and they only have two destinations
+// validateHTTPRoutes ensures that all the routes in the rollout exist
 func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []VirtualServiceHTTPRoute) error {
 	stableSvc := r.Spec.Strategy.Canary.StableService
 	canarySvc := r.Spec.Strategy.Canary.CanaryService
@@ -707,12 +741,11 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, vsvcTLSRoutes []v1alpha1.TLSRoute, t
 	return nil
 }
 
-// validateVirtualServiceRouteDestinations ensures there are two destinations within a route and
-// verifies that there is both a canary and a stable host or subset specified
+// validateVirtualServiceRouteDestinations verifies that there is both a canary and a stable host or subset specified
 func validateVirtualServiceRouteDestinations(hr []VirtualServiceRouteDestination, stableSvc, canarySvc string, dRule *v1alpha1.IstioDestinationRule) error {
-	if len(hr) != 2 {
-		return fmt.Errorf("Route does not have exactly two route destinations.")
-	}
+	//if len(hr) != 2 {
+	//	return fmt.Errorf("Route does not have exactly two route destinations.")
+	//}
 	hasStableSvc := false
 	hasCanarySvc := false
 	hasStableSubset := false

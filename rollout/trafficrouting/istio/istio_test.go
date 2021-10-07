@@ -23,7 +23,6 @@ import (
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
-const RouteMissingBothDestinationsError = "Route does not have exactly two route destinations."
 const NoTlsRouteFoundError = "No matching TLS routes found in the defined Virtual Service."
 
 func getIstioListers(client dynamic.Interface) (dynamiclister.Lister, dynamiclister.Lister) {
@@ -623,6 +622,67 @@ func TestReconcileNoChanges(t *testing.T) {
 	assert.Equal(t, "get", client.Actions()[0].GetVerb())
 }
 
+func TestReconcileVirtualServiceExperimentStep(t *testing.T) {
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil)
+	additionalDestinations := []v1alpha1.WeightDestination{
+		{
+			ServiceName:     "exp-svc",
+			PodTemplateHash: "",
+			Weight:          20,
+		},
+	}
+	// Set weight with additionalDestination
+	err := r.SetWeight(10, additionalDestinations...)
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 2)
+	assert.Equal(t, "get", client.Actions()[0].GetVerb())
+	assert.Equal(t, "update", client.Actions()[1].GetVerb())
+	// Change weight of additionalDestination
+	additionalDestinations[0].Weight = 10
+	err = r.SetWeight(10, additionalDestinations...)
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 4)
+	assert.Equal(t, "get", client.Actions()[2].GetVerb())
+	assert.Equal(t, "update", client.Actions()[3].GetVerb())
+	// Delete additionalDestination
+	err = r.SetWeight(10)
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 6)
+	assert.Equal(t, "get", client.Actions()[4].GetVerb())
+	assert.Equal(t, "update", client.Actions()[5].GetVerb())
+}
+
+func TestHostSplitExperimentStep(t *testing.T) {
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil)
+	additionalDestinations := []v1alpha1.WeightDestination{
+		{
+			ServiceName:     "exp-svc",
+			PodTemplateHash: "",
+			Weight:          20,
+		},
+	}
+	vsvcRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
+	modifiedObj, _, err := r.reconcileVirtualService(obj, vsvcRoutes, nil, 10, additionalDestinations...)
+	assert.Nil(t, err)
+	// Create route for experiment service
+	httpRoutes := extractHttpRoutes(t, modifiedObj)
+	checkDestination(t, httpRoutes[0].Route, "stable", 70)
+	checkDestination(t, httpRoutes[0].Route, "canary", 10)
+	checkDestination(t, httpRoutes[0].Route, "exp-svc", 20)
+	// Delete route for experiment service if no additionalDestinations specified
+	modifiedObj, _, err = r.reconcileVirtualService(obj, vsvcRoutes, nil, 10)
+	assert.Nil(t, err)
+	httpRoutes = extractHttpRoutes(t, modifiedObj)
+	checkDestination(t, httpRoutes[0].Route, "stable", 90)
+	checkDestination(t, httpRoutes[0].Route, "canary", 10)
+}
+
 func TestTlsReconcileNoChanges(t *testing.T) {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularTlsVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
@@ -837,23 +897,16 @@ func TestValidateHTTPRoutes(t *testing.T) {
 			Destination: VirtualServiceDestination{
 				Host: "stable",
 			},
+		}, {
+			Destination: VirtualServiceDestination{
+				Host: "canary",
+			},
 		}},
 	}}
 	rollout := newRollout([]string{"test"})
 	vsvcRoutes := rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
-	err := ValidateHTTPRoutes(rollout, vsvcRoutes, httpRoutes)
-	assert.Equal(t, fmt.Errorf(RouteMissingBothDestinationsError), err)
 
-	httpRoutes[0].Route = []VirtualServiceRouteDestination{{
-		Destination: VirtualServiceDestination{
-			Host: "stable",
-		},
-	}, {
-		Destination: VirtualServiceDestination{
-			Host: "canary",
-		},
-	}}
-	err = ValidateHTTPRoutes(rollout, vsvcRoutes, httpRoutes)
+	err := ValidateHTTPRoutes(rollout, vsvcRoutes, httpRoutes)
 	assert.Nil(t, err)
 
 	rolloutWithNotFoundRoute := newRollout([]string{"not-found-route"})
@@ -893,27 +946,14 @@ func TestValidateTLSRoutes(t *testing.T) {
 			},
 		}},
 	}}
-	rollout := newRollout([]string{},
-		[]v1alpha1.TLSRoute{
-			{
-				Port: 3001,
-			},
-		},
-	)
-	vsvcTLSRoutes := rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes
-	err := ValidateTlsRoutes(rollout, vsvcTLSRoutes, tlsRoutes)
-	assert.Equal(t, fmt.Errorf(NoTlsRouteFoundError), err)
 
-	rollout = newRollout([]string{},
+	rollout := newRollout([]string{},
 		[]v1alpha1.TLSRoute{
 			{
 				Port: 3000,
 			},
 		},
 	)
-	vsvcTLSRoutes = rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes
-	err = ValidateTlsRoutes(rollout, vsvcTLSRoutes, tlsRoutes)
-	assert.Equal(t, fmt.Errorf(RouteMissingBothDestinationsError), err)
 
 	tlsRoutes[0].Route = []VirtualServiceRouteDestination{{
 		Destination: VirtualServiceDestination{
@@ -924,8 +964,8 @@ func TestValidateTLSRoutes(t *testing.T) {
 			Host: "canary",
 		},
 	}}
-	vsvcTLSRoutes = rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes
-	err = ValidateTlsRoutes(rollout, vsvcTLSRoutes, tlsRoutes)
+	vsvcTLSRoutes := rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes
+	err := ValidateTlsRoutes(rollout, vsvcTLSRoutes, tlsRoutes)
 	assert.Nil(t, err)
 
 	rolloutWithNotFoundRoute := newRollout([]string{},
@@ -947,21 +987,14 @@ func TestValidateHosts(t *testing.T) {
 			Destination: VirtualServiceDestination{
 				Host: "stable",
 			},
+		}, {
+			Destination: VirtualServiceDestination{
+				Host: "canary",
+			},
 		}},
 	}
-	err := validateVirtualServiceRouteDestinations(hr.Route, "stable", "canary", nil)
-	assert.Equal(t, fmt.Errorf(RouteMissingBothDestinationsError), err)
 
-	hr.Route = []VirtualServiceRouteDestination{{
-		Destination: VirtualServiceDestination{
-			Host: "stable",
-		},
-	}, {
-		Destination: VirtualServiceDestination{
-			Host: "canary",
-		},
-	}}
-	err = validateVirtualServiceRouteDestinations(hr.Route, "stable", "canary", nil)
+	err := validateVirtualServiceRouteDestinations(hr.Route, "stable", "canary", nil)
 	assert.Nil(t, err)
 
 	err = validateVirtualServiceRouteDestinations(hr.Route, "not-found-stable", "canary", nil)
