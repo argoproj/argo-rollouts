@@ -9,7 +9,7 @@ of the as the result variable.
 ```yaml
   metrics:
   - name: webmetric
-    successCondition: result == 'true'
+    successCondition: result == true
     provider:
       web:
         url: "http://my-server.com/api/v1/measurement?service={{ args.service-name }}"
@@ -17,7 +17,7 @@ of the as the result variable.
         headers:
           - key: Authorization
             value: "Bearer {{ args.api-token }}"
-        jsonPath: "{$.results.ok}" 
+        jsonPath: "{$.data.ok}" 
 ```
 
 In the following example, given the payload, the measurement will be Successful if the `data.ok` field was `true`, and the `data.successPercent`
