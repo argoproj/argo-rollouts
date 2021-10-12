@@ -207,7 +207,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	return pointer.BoolPtr(numVerifiedWeights == 1+len(additionalDestinations)), nil
 }
 
-func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) string {
+func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (string, error) {
 	stableService := r.Spec.Strategy.Canary.StableService
 	canaryService := r.Spec.Strategy.Canary.CanaryService
 	portStr := strconv.Itoa(int(port))
@@ -245,14 +245,33 @@ func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32
 			TargetGroups: targetGroups,
 		},
 	}
+
+	var stickinessConfig = r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig
+	if stickinessConfig != nil && stickinessConfig.Enabled {
+		// AWS API valid range
+		// https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_TargetGroupStickinessConfig.html
+		if stickinessConfig.DurationSeconds < 1 || stickinessConfig.DurationSeconds > 604800 {
+			return "", fmt.Errorf("TargetGroupStickinessConfig's duration must be between 1 and 604800 seconds (7 days)!")
+		}
+		newStickyConfig := ingressutil.ALBTargetGroupStickinessConfig{
+			Enabled:         true,
+			DurationSeconds: stickinessConfig.DurationSeconds,
+		}
+		action.ForwardConfig.TargetGroupStickinessConfig = &newStickyConfig
+	}
+
 	bytes := jsonutil.MustMarshal(action)
-	return string(bytes)
+	return string(bytes), nil
 }
 
 func getDesiredAnnotations(current *ingressutil.Ingress, r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (map[string]string, error) {
 	desired := current.DeepCopy().GetAnnotations()
 	key := ingressutil.ALBActionAnnotationKey(r)
-	desired[key] = getForwardActionString(r, port, desiredWeight, additionalDestinations...)
+	value, err := getForwardActionString(r, port, desiredWeight, additionalDestinations...)
+	if err != nil {
+		return nil, err
+	}
+	desired[key] = value
 	m, err := ingressutil.NewManagedALBActions(desired[ingressutil.ManagedActionsAnnotation])
 	if err != nil {
 		return nil, err

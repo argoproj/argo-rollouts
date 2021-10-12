@@ -34,7 +34,14 @@ type ALBAction struct {
 
 // ALBForwardConfig describes a list of target groups that the ALB should route traffic towards
 type ALBForwardConfig struct {
-	TargetGroups []ALBTargetGroup `json:"TargetGroups"`
+	TargetGroups                []ALBTargetGroup                `json:"TargetGroups"`
+	TargetGroupStickinessConfig *ALBTargetGroupStickinessConfig `json:"TargetGroupStickinessConfig,omitempty"`
+}
+
+// ALBTargetGroupStickinessConfig describes settings for the listener to apply to all forwards
+type ALBTargetGroupStickinessConfig struct {
+	Enabled         bool  `json:"Enabled"`
+	DurationSeconds int64 `json:"DurationSeconds"`
 }
 
 // ALBTargetGroup holds the weight to send to a specific destination consisting of a K8s service and port or ARN
