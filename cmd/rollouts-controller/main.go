@@ -60,6 +60,7 @@ func newCommand() *cobra.Command {
 		namespaced           bool
 		printVersion         bool
 	)
+	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
 		Use:   cliName,
 		Short: "argo-rollouts is a controller to operate on rollout CRD",
@@ -186,7 +187,7 @@ func newCommand() *cobra.Command {
 				istioDynamicInformerFactory.Start(stopCh)
 			}
 
-			if err = cm.Run(rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, stopCh); err != nil {
+			if err = cm.Run(rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts, stopCh); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
 			}
 			return nil
@@ -217,6 +218,11 @@ func newCommand() *cobra.Command {
 	command.Flags().MarkDeprecated("alb-verify-weight", "Use --aws-verify-target-group instead")
 	command.Flags().BoolVar(&awsVerifyTargetGroup, "aws-verify-target-group", false, "Verify ALB target group before progressing through steps (requires AWS privileges)")
 	command.Flags().BoolVar(&printVersion, "version", false, "Print version")
+	command.Flags().BoolVar(&electOpts.LeaderElect, "leader-elect", controller.DefaultLeaderElect, "If true, controller will perform leader election between instances to ensure no more than one instance of controller operates at a time")
+	command.Flags().StringVar(&electOpts.LeaderElectionNamespace, "leader-election-namespace", controller.DefaultLeaderElectionNamespace, "Namespace used to perform leader election. Only used if leader election is enabled")
+	command.Flags().DurationVar(&electOpts.LeaderElectionLeaseDuration, "leader-election-lease-duration", controller.DefaultLeaderElectionLeaseDuration, "The duration that non-leader candidates will wait after observing a leadership renewal until attempting to acquire leadership of a led but unrenewed leader slot. This is effectively the maximum duration that a leader can be stopped before it is replaced by another candidate. This is only applicable if leader election is enabled.")
+	command.Flags().DurationVar(&electOpts.LeaderElectionRenewDeadline, "leader-election-renew-deadline", controller.DefaultLeaderElectionRenewDeadline, "The interval between attempts by the acting master to renew a leadership slot before it stops leading. This must be less than or equal to the lease duration. This is only applicable if leader election is enabled.")
+	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
 	return &command
 }
 

@@ -123,7 +123,7 @@ func (s *AnalysisSuite) TestCanaryFailInlineMultipleAnalysis() {
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
 		PromoteRollout().
-		Sleep(1*time.Second). // promoting too fast causes test to flake
+		Sleep(1 * time.Second). // promoting too fast causes test to flake
 		Then().
 		ExpectRolloutStatus("Progressing").
 		When().
@@ -675,7 +675,6 @@ func (s *AnalysisSuite) TestAnalysisWithSecret() {
 		Then().
 		ExpectStableRevision("2")
 }
-
 
 func (s *AnalysisSuite) TestAnalysisWithArgs() {
 	s.Given().
