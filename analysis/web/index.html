@@ -1951,7 +1951,7 @@ in the <code>successCondition</code> and <code>failureCondition</code> expressio
 of the as the result variable.</p>
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webmetric</span>
-    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result == &#39;true&#39;</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result == true</span>
     <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">web</span><span class="p">:</span>
         <span class="nt">url</span><span class="p">:</span> <span class="s">&quot;http://my-server.com/api/v1/measurement?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
@@ -1959,7 +1959,7 @@ of the as the result variable.</p>
         <span class="nt">headers</span><span class="p">:</span>
           <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Authorization</span>
             <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span>
-        <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.results.ok}&quot;</span> 
+        <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.data.ok}&quot;</span> 
 </code></pre></div>
 <p>In the following example, given the payload, the measurement will be Successful if the <code>data.ok</code> field was <code>true</code>, and the <code>data.successPercent</code>
 was greater than <code>0.90</code></p>
