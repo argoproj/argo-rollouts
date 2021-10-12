@@ -1814,6 +1814,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#can-we-run-the-argo-rollouts-controller-in-ha-mode" class="md-nav__link">
+    Can we run the Argo Rollouts controller in HA mode?
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2134,6 +2141,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#can-we-run-the-argo-rollouts-controller-in-ha-mode" class="md-nav__link">
+    Can we run the Argo Rollouts controller in HA mode?
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2270,6 +2284,8 @@ This command executes the action listed on the application listed.</p>
 <p>Argo Rollouts is a Kubernetes controller that will react to any manifest change regardless of how the manifest was changed. The manifest can be changed
 by a Git commit, an API call, another controller or even a manual <code>kubectl</code> command. You can use Argo Rollouts with any traditional CI/CD
 solution that does not follow the GitOps approach.</p>
+<h3 id="can-we-run-the-argo-rollouts-controller-in-ha-mode">Can we run the Argo Rollouts controller in HA mode?<a class="headerlink" href="#can-we-run-the-argo-rollouts-controller-in-ha-mode" title="Permanent link">&para;</a></h3>
+<p>Yes. A k8s cluster can run multiple replicas of Argo-rollouts controllers to achieve HA. To enable this feature, run the controller with <code>--leader-elect</code> flag and increase the number of replicas in the controller's deployment manifest. The implementation is based on the <a href="https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#section-documentation">k8s client-go's leaderelection package</a>. This implementation is tolerant to <em>arbitrary clock skew</em> among replicas. The level of tolerance to skew rate can be configured by setting <code>--leader-election-lease-duration</code> and <code>--leader-election-renew-deadline</code> appropriately. Please refer to the <a href="https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#pkg-overview">package documentation</a> for details.</p>
 <h2 id="rollouts">Rollouts<a class="headerlink" href="#rollouts" title="Permanent link">&para;</a></h2>
 <h3 id="which-deployment-strategies-does-argo-rollouts-support">Which deployment strategies does Argo Rollouts support?<a class="headerlink" href="#which-deployment-strategies-does-argo-rollouts-support" title="Permanent link">&para;</a></h3>
 <p>Argo Rollouts supports BlueGreen, Canary, and Rolling Update. Additionally, Progressive Delivery features can be enabled on top of the blue-green/canary update, which further provides advanced deployment such as automated analysis and rollback.</p>
