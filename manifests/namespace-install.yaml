@@ -13161,8 +13161,8 @@ spec:
         livenessProbe:
           failureThreshold: 3
           httpGet:
-            path: /metrics
-            port: 8090
+            path: /healthz
+            port: healthz
           initialDelaySeconds: 30
           periodSeconds: 20
           successThreshold: 1
@@ -13171,11 +13171,14 @@ spec:
         ports:
         - containerPort: 8090
           name: metrics
+        - containerPort: 8080
+          name: healthz
         readinessProbe:
           failureThreshold: 3
           httpGet:
             path: /metrics
-            port: 8090
+            port: metrics
+          initialDelaySeconds: 10
           periodSeconds: 5
           successThreshold: 1
           timeoutSeconds: 4

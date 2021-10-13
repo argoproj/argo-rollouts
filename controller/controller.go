@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -50,6 +51,9 @@ import (
 const (
 	// DefaultRolloutResyncPeriod is the default time in seconds for rollout resync period
 	DefaultRolloutResyncPeriod = 15 * 60
+
+	// DefaultHealthzPort is the default port to check controller's health
+	DefaultHealthzPort = 8080
 
 	// DefaultMetricsPort is the default port to expose the metrics endpoint
 	DefaultMetricsPort = 8090
@@ -106,6 +110,7 @@ func NewLeaderElectionOptions() *LeaderElectionOptions {
 // Manager is the controller implementation for Argo-Rollout resources
 type Manager struct {
 	metricsServer           *metrics.MetricsServer
+	healthzServer           *http.Server
 	rolloutController       *rollout.Controller
 	experimentController    *experiments.Controller
 	analysisController      *analysis.Controller
@@ -163,6 +168,7 @@ func NewManager(
 	resyncPeriod time.Duration,
 	instanceID string,
 	metricsPort int,
+	healthzPort int,
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	nginxIngressClasses []string,
 	albIngressClasses []string,
@@ -181,6 +187,9 @@ func NewManager(
 		ExperimentLister:              experimentsInformer.Lister(),
 		K8SRequestProvider:            k8sRequestProvider,
 	})
+
+	healthzAddr := fmt.Sprintf("0.0.0.0:%d", healthzPort)
+	healthzServer := NewHealthzServer(healthzAddr)
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	experimentWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Experiments")
@@ -286,6 +295,7 @@ func NewManager(
 
 	cm := &Manager{
 		metricsServer:                 metricsServer,
+		healthzServer:                 healthzServer,
 		rolloutSynced:                 rolloutsInformer.Informer().HasSynced,
 		serviceSynced:                 servicesInformer.Informer().HasSynced,
 		ingressSynced:                 ingressesInformer.Informer().HasSynced,
@@ -387,13 +397,14 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	}
 
 	go func() {
-		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
-		err := c.metricsServer.ListenAndServe()
+		log.Infof("Starting Healthz Server at %s", c.healthzServer.Addr)
+		err := c.healthzServer.ListenAndServe()
 		if err != nil {
-			err = errors.Wrap(err, "Starting Metric Server")
+			err = errors.Wrap(err, "Starting Healthz Server")
 			log.Error(err)
 		}
 	}()
+
 	<-stopCh
 	log.Info("Shutting down workers")
 
@@ -410,5 +421,15 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	go wait.Until(func() { c.experimentController.Run(experimentThreadiness, ctx.Done()) }, time.Second, ctx.Done())
 	go wait.Until(func() { c.analysisController.Run(analysisThreadiness, ctx.Done()) }, time.Second, ctx.Done())
 	go wait.Until(func() { c.notificationsController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done())
+
+	go func() {
+		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
+		err := c.metricsServer.ListenAndServe()
+		if err != nil {
+			err = errors.Wrap(err, "Starting Metric Server")
+			log.Error(err)
+		}
+	}()
+
 	log.Info("Started controller")
 }
