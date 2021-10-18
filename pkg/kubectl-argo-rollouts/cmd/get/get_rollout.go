@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/signals"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
@@ -44,7 +45,9 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			name := args[0]
 			controller := viewcontroller.NewRolloutViewController(o.Namespace(), name, getOptions.KubeClientset(), getOptions.RolloutsClientset())
-			ctx := context.Background()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			signals.SetupSignalHandler(cancel)
 			controller.Start(ctx)
 
 			ri, err := controller.GetRolloutInfo()

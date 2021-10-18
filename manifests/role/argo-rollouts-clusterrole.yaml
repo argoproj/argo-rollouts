@@ -79,6 +79,15 @@ rules:
   - watch
   - patch
   - create
+# leases create/get/update needed for leader election
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - update
 # secret read access to run analysis templates which reference secrets
 - apiGroups:
   - ""

@@ -37,6 +37,10 @@ Argo Rollouts is a Kubernetes controller that will react to any manifest change 
 by a Git commit, an API call, another controller or even a manual `kubectl` command. You can use Argo Rollouts with any traditional CI/CD
 solution that does not follow the GitOps approach.
 
+### Can we run the Argo Rollouts controller in HA mode?
+
+Yes. A k8s cluster can run multiple replicas of Argo-rollouts controllers to achieve HA. To enable this feature, run the controller with `--leader-elect` flag and increase the number of replicas in the controller's deployment manifest. The implementation is based on the [k8s client-go's leaderelection package](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#section-documentation). This implementation is tolerant to *arbitrary clock skew* among replicas. The level of tolerance to skew rate can be configured by setting `--leader-election-lease-duration` and `--leader-election-renew-deadline` appropriately. Please refer to the [package documentation](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#pkg-overview) for details.
+
 ## Rollouts
 
 ### Which deployment strategies does Argo Rollouts support?
