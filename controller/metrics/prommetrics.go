@@ -1,6 +1,9 @@
 package metrics
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/argoproj/argo-rollouts/utils/version"
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 // Follow Prometheus naming practices
 // https://prometheus.io/docs/practices/naming/
@@ -182,5 +185,19 @@ var (
 			Help:      "Number of kubernetes requests executed during application reconciliation.",
 		},
 		[]string{"kind", "namespace", "name", "verb", "status_code"},
+	)
+)
+
+// MetricVersionGauge version info
+var (
+	MetricVersionGauge = prometheus.NewGaugeFunc(
+		prometheus.GaugeOpts{
+			Name:        "argo_info",
+			Help:        "Current Argo version",
+			ConstLabels: prometheus.Labels{"version": version.GetVersion().Version},
+		},
+		func() float64 {
+			return float64(1)
+		},
 	)
 )

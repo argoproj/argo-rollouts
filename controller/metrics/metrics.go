@@ -61,6 +61,7 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	reg.MustRegister(MetricExperimentReconcileError)
 	reg.MustRegister(MetricAnalysisRunReconcile)
 	reg.MustRegister(MetricAnalysisRunReconcileError)
+	reg.MustRegister(MetricVersionGauge)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
