@@ -79,7 +79,9 @@ analysis_run_reconcile_error{name="name",namespace="ns"} 1
 # TYPE experiment_reconcile_error counter
 # HELP rollout_reconcile_error Error occurring during the rollout
 # TYPE rollout_reconcile_error counter
-rollout_reconcile_error{name="name",namespace="ns"} 1`
+rollout_reconcile_error{name="name",namespace="ns"} 1
+# HELP argo_info Current Argo version
+# TYPE argo_info gauge`
 
 	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
 
