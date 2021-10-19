@@ -193,7 +193,7 @@ var (
 	MetricVersionGauge = prometheus.NewGaugeFunc(
 		prometheus.GaugeOpts{
 			Name:        "argo_info",
-			Help:        "Current Argo version",
+			Help:        "Running Argo-rollouts version",
 			ConstLabels: prometheus.Labels{"version": version.GetVersion().Version},
 		},
 		func() float64 {
