@@ -261,6 +261,6 @@ func getDesiredAnnotations(current *extensionsv1beta1.Ingress, r *v1alpha1.Rollo
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
 	return nil
 }

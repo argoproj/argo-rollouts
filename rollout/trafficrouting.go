@@ -75,18 +75,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	}
 	c.log.Infof("Reconciling TrafficRouting with type '%s'", reconciler.Type())
 
-	var canaryHash, stableHash string
-	if c.stableRS != nil {
-		stableHash = c.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	}
-	if c.newRS != nil {
-		canaryHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	}
-	err = reconciler.UpdateHash(canaryHash, stableHash)
-	if err != nil {
-		return err
-	}
-
 	currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	desiredWeight := int32(0)
 	weightDestinations := make([]v1alpha1.WeightDestination, 0)
@@ -143,6 +131,19 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				})
 			}
 		}
+	}
+
+	var canaryHash, stableHash string
+	if c.stableRS != nil {
+		stableHash = c.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	}
+	if c.newRS != nil {
+		canaryHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	}
+
+	err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
+	if err != nil {
+		return err
 	}
 
 	err = reconciler.SetWeight(desiredWeight, weightDestinations...)

@@ -48,13 +48,20 @@ func (_m *TrafficRoutingReconciler) Type() string {
 	return r0
 }
 
-// UpdateHash provides a mock function with given fields: canaryHash, stableHash
-func (_m *TrafficRoutingReconciler) UpdateHash(canaryHash string, stableHash string) error {
-	ret := _m.Called(canaryHash, stableHash)
+// UpdateHash provides a mock function with given fields: canaryHash, stableHash, additionalDestinations
+func (_m *TrafficRoutingReconciler) UpdateHash(canaryHash string, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	_va := make([]interface{}, len(additionalDestinations))
+	for _i := range additionalDestinations {
+		_va[_i] = additionalDestinations[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, canaryHash, stableHash)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(canaryHash, stableHash)
+	if rf, ok := ret.Get(0).(func(string, string, ...v1alpha1.WeightDestination) error); ok {
+		r0 = rf(canaryHash, stableHash, additionalDestinations...)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -1273,6 +1273,63 @@ func TestUpdateHashDestinationRuleNotFound(t *testing.T) {
 	assert.EqualError(t, err, "destinationrules.networking.istio.io \"istio-destrule\" not found")
 }
 
+func TestUpdateHashWithAdditionalDestinations(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  subsets:
+  - name: stable
+  - name: canary
+`)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	additionalDestinations := []v1alpha1.WeightDestination{
+		{
+			ServiceName:     "exp-svc",
+			PodTemplateHash: "exp-hash",
+			Weight:          20,
+		},
+	}
+	err := r.UpdateHash("abc123", "def456", additionalDestinations...)
+	assert.NoError(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+
+	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+	assert.Equal(t, dRule.Annotations[v1alpha1.ManagedByRolloutsKey], "rollout")
+	assert.Len(t, dRule.Spec.Subsets, 3)
+	assert.Equal(t, "def456", dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	assert.Equal(t, "abc123", dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+	assert.Equal(t, "exp-svc", dRule.Spec.Subsets[2].Name)
+	assert.Equal(t, "exp-hash", dRule.Spec.Subsets[2].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+
+	client.ClearActions()
+	err = r.UpdateHash("abc123", "def456")
+	assert.NoError(t, err)
+	actions = client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+	dRuleUn, err = client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err = unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+	assert.Len(t, dRule.Spec.Subsets, 2)
+	assert.Equal(t, dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "def456")
+	assert.Equal(t, dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "abc123")
+}
+
 //Multiple Virtual Service Support Unit Tests
 
 func multiVsRollout(stableSvc string, canarySvc string, multipleVirtualService []v1alpha1.IstioVirtualService) *v1alpha1.Rollout {
