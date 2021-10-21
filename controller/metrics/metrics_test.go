@@ -79,14 +79,20 @@ analysis_run_reconcile_error{name="name",namespace="ns"} 1
 # TYPE experiment_reconcile_error counter
 # HELP rollout_reconcile_error Error occurring during the rollout
 # TYPE rollout_reconcile_error counter
-rollout_reconcile_error{name="name",namespace="ns"} 1
-# HELP argo_rollout_info Running Argo-rollouts version
-# TYPE argo_rollout_info gauge`
+rollout_reconcile_error{name="name",namespace="ns"} 1`
 
 	metricsServ := NewMetricsServer(newFakeServerConfig())
 
 	metricsServ.IncError("ns", "name", logutil.AnalysisRunKey)
 	metricsServ.IncError("ns", "name", logutil.ExperimentKey)
 	metricsServ.IncError("ns", "name", logutil.RolloutKey)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+}
+
+func TestVersionInfo(t *testing.T) {
+	expectedResponse := `# HELP argo_rollout_info Running Argo-rollouts version
+# TYPE argo_rollout_info gauge`
+
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 	testHttpResponse(t, metricsServ.Handler, expectedResponse)
 }
