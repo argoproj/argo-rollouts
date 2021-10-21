@@ -97,3 +97,11 @@ func TestSecondaryMetricsServer(t *testing.T) {
 	metricsServ := NewMetricsServer(newFakeServerConfig(), false)
 	testHttpResponse(t, metricsServ.Handler, expectedResponse)
 }
+
+func TestVersionInfo(t *testing.T) {
+	expectedResponse := `# HELP argo_rollout_info Running Argo-rollouts version
+# TYPE argo_rollout_info gauge`
+
+	metricsServ := NewMetricsServer(newFakeServerConfig())
+	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+}
