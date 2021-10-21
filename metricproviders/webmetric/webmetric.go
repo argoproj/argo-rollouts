@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"reflect"
+	"strings"
 	"time"
 
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
@@ -46,17 +47,28 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	// Create request
-	request := &http.Request{
-		Method: "GET", // TODO maybe make this configurable....also implies we will need body templates
+	method := v1alpha1.WebMetricMethodGet
+	if metric.Provider.Web.Method != "" {
+		method = metric.Provider.Web.Method
 	}
 
-	url, err := url.Parse(metric.Provider.Web.URL)
+	url := metric.Provider.Web.URL
+
+	var body io.Reader
+
+	if metric.Provider.Web.Body != "" {
+		if method == v1alpha1.WebMetricMethodGet {
+			return metricutil.MarkMeasurementError(measurement, fmt.Errorf("Body can only be used with POST or PUT WebMetric Method types"))
+		}
+
+		body = strings.NewReader(metric.Provider.Web.Body)
+	}
+
+	// Create request
+	request, err := http.NewRequest(string(method), url, body)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
-
-	request.URL = url
 
 	request.Header = make(http.Header)
 
