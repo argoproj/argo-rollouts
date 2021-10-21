@@ -398,7 +398,7 @@ type ScopeDetail struct {
 
 type WebMetric struct {
 	// Method is the method of the web metric (empty defaults to GET)
-	Method WebMetricMethod `json:"method" protobuf:"bytes,1,opt,name=method"`
+	Method WebMetricMethod `json:"method,omitempty" protobuf:"bytes,1,opt,name=method"`
 	// URL is the address of the web metric
 	URL string `json:"url" protobuf:"bytes,2,opt,name=url"`
 	// +patchMergeKey=key
@@ -406,7 +406,7 @@ type WebMetric struct {
 	// Headers are optional HTTP headers to use in the request
 	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,3,rep,name=headers"`
 	// Body is the body of the we metric (must be POST/PUT)
-	Body string `json:"body" protobuf:"bytes,4,opt,name=body"`
+	Body string `json:"body,omitempty" protobuf:"bytes,4,opt,name=body"`
 	// TimeoutSeconds is the timeout for the request in seconds (default: 10)
 	TimeoutSeconds int64 `json:"timeoutSeconds,omitempty" protobuf:"varint,5,opt,name=timeoutSeconds"`
 	// JSONPath is a JSON Path to use as the result variable (default: "{$}")

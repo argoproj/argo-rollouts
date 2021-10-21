@@ -2473,8 +2473,6 @@ spec:
                             url:
                               type: string
                           required:
-                          - body
-                          - method
                           - url
                           type: object
                       type: object
