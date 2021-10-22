@@ -3,10 +3,12 @@ package ingress
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/client-go/discovery"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/diff"
@@ -251,4 +253,38 @@ func buildIngressPatchLegacy(current, desired *extensionsv1beta1.Ingress, cfg *p
 		des.Spec = desired.Spec
 	}
 	return diff.CreateTwoWayMergePatch(cur, des, extensionsv1beta1.Ingress{})
+}
+
+// DetermineIngressMode will first attempt to determine the ingress mode by checking
+// the given apiVersion. If it is "extensions/v1beta1" will return IngressModeExtensions.
+// If it is "networking/v1" will return IngressModeNetworking. Otherwise it will check
+// the kubernetes server version to determine the ingress mode.
+func DetermineIngressMode(apiVersion string, d discovery.ServerVersionInterface) (IngressMode, error) {
+	if apiVersion == "extensions/v1beta1" {
+		return IngressModeExtensions, nil
+	}
+	if apiVersion == "networking/v1" {
+		return IngressModeNetworking, nil
+	}
+
+	ver, err := d.ServerVersion()
+	if err != nil {
+		return 0, err
+	}
+	major, err := strconv.Atoi(ver.Major)
+	if err != nil {
+		return 0, err
+	}
+	minor, err := strconv.Atoi(ver.Minor)
+	if err != nil {
+		return 0, err
+	}
+	if major > 1 {
+		return IngressModeNetworking, nil
+	}
+	if major == 1 && minor >= 19 {
+		return IngressModeNetworking, nil
+	}
+	return IngressModeExtensions, nil
+
 }

@@ -44,7 +44,6 @@ const (
 	DefaultIstioVersion                 = "v1alpha3"
 	DefaultSMITrafficSplitVersion       = "v1alpha1"
 	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
-	DefaultIngressVersion               = "extensions/v1beta1"
 )
 
 var (
@@ -53,7 +52,6 @@ var (
 	ambassadorAPIVersion         = DefaultAmbassadorVersion
 	smiAPIVersion                = DefaultSMITrafficSplitVersion
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
-	ingressAPIVersion            = DefaultIngressVersion
 )
 
 const (
@@ -279,12 +277,4 @@ func GetTargetGroupBindingAPIVersion() string {
 
 func GetRolloutVerifyRetryInterval() time.Duration {
 	return rolloutVerifyRetryInterval
-}
-
-func GetIngressAPIVersion() string {
-	return ingressAPIVersion
-}
-
-func SetIngressAPIVersion(apiVersion string) {
-	ingressAPIVersion = apiVersion
 }

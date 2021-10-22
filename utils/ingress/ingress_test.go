@@ -1,7 +1,9 @@
 package ingress
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -11,6 +13,8 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/discovery"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -285,6 +289,114 @@ func TestALBActionAnnotationKey(t *testing.T) {
 	r.Spec.Strategy.Canary.TrafficRouting.ALB.AnnotationPrefix = ""
 	assert.Equal(t, "alb.ingress.kubernetes.io/actions.root-svc", ALBActionAnnotationKey(r))
 
+}
+
+func TestDetermineIngressMode(t *testing.T) {
+	type testCase struct {
+		name          string
+		apiVersion    string
+		faKeDiscovery discovery.ServerVersionInterface
+		expectedMode  IngressMode
+		expectedError error
+	}
+
+	cases := []*testCase{
+		{
+			name:         "will return extensions mode if apiVersion is extensions/v1beta1",
+			apiVersion:   "extensions/v1beta1",
+			expectedMode: IngressModeExtensions,
+		},
+		{
+			name:         "will return networking mode if apiVersion is networking/v1",
+			apiVersion:   "networking/v1",
+			expectedMode: IngressModeNetworking,
+		},
+		{
+			name:          "will return networking mode if server version is 1.19",
+			apiVersion:    "",
+			faKeDiscovery: newFakeDiscovery("1", "19", nil),
+			expectedMode:  IngressModeNetworking,
+		},
+		{
+			name:          "will return networking mode if server version is 2.0",
+			apiVersion:    "",
+			faKeDiscovery: newFakeDiscovery("2", "0", nil),
+			expectedMode:  IngressModeNetworking,
+		},
+		{
+			name:          "will return extensions mode if server version is 1.18",
+			apiVersion:    "",
+			faKeDiscovery: newFakeDiscovery("1", "18", nil),
+			expectedMode:  IngressModeExtensions,
+		},
+		{
+			name:          "will return error if fails to retrieve server version",
+			apiVersion:    "",
+			faKeDiscovery: newFakeDiscovery("", "", errors.New("internal server error")),
+			expectedMode:  0,
+			expectedError: errors.New("internal server error"),
+		},
+		{
+			name:          "will return error if fails to parse major version",
+			apiVersion:    "",
+			faKeDiscovery: newFakeDiscovery("wrong", "", nil),
+			expectedMode:  0,
+			expectedError: &strconv.NumError{
+				Func: "Atoi",
+				Num:  "wrong",
+				Err:  errors.New("invalid syntax"),
+			},
+		},
+		{
+			name:          "will return error if fails to parse minor version",
+			apiVersion:    "",
+			faKeDiscovery: newFakeDiscovery("1", "wrong", nil),
+			expectedMode:  0,
+			expectedError: &strconv.NumError{
+				Func: "Atoi",
+				Num:  "wrong",
+				Err:  errors.New("invalid syntax"),
+			},
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			// given
+			t.Parallel()
+
+			// when
+			mode, err := DetermineIngressMode(c.apiVersion, c.faKeDiscovery)
+
+			// then
+			fmt.Println(err)
+			assert.Equal(t, c.expectedError, err)
+			assert.Equal(t, c.expectedMode, mode)
+		})
+	}
+}
+
+type fakeDiscovery struct {
+	major, minor string
+	err          error
+}
+
+func newFakeDiscovery(major, minor string, err error) *fakeDiscovery {
+	return &fakeDiscovery{
+		major: major,
+		minor: minor,
+		err:   err,
+	}
+}
+
+func (f *fakeDiscovery) ServerVersion() (*version.Info, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &version.Info{
+		Major: f.major,
+		Minor: f.minor,
+	}, nil
 }
 
 func getNetworkingIngress() *networkingv1.Ingress {
