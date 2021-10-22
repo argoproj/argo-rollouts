@@ -438,7 +438,7 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		invalidRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, 1, len(allErrs))
-		assert.Equal(t, "Experiment template weight is only available for TrafficRouting with SMI and ALB at this time", allErrs[0].Detail)
+		assert.Equal(t, "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time", allErrs[0].Detail)
 	})
 
 	t.Run("unsupported - Nginx TrafficRouting", func(t *testing.T) {
@@ -450,7 +450,7 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, 1, len(allErrs))
-		assert.Equal(t, "Experiment template weight is only available for TrafficRouting with SMI and ALB at this time", allErrs[0].Detail)
+		assert.Equal(t, "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time", allErrs[0].Detail)
 	})
 
 	t.Run("unsupported - Ambassador TrafficRouting", func(t *testing.T) {
@@ -462,7 +462,7 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, 1, len(allErrs))
-		assert.Equal(t, "Experiment template weight is only available for TrafficRouting with SMI and ALB at this time", allErrs[0].Detail)
+		assert.Equal(t, "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time", allErrs[0].Detail)
 	})
 
 	t.Run("unsupported - Istio TrafficRouting", func(t *testing.T) {
@@ -475,8 +475,7 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 			},
 		}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
-		assert.Equal(t, 1, len(allErrs))
-		assert.Equal(t, "Experiment template weight is only available for TrafficRouting with SMI and ALB at this time", allErrs[0].Detail)
+		assert.Equal(t, 0, len(allErrs))
 	})
 
 	t.Run("success - SMI TrafficRouting", func(t *testing.T) {
