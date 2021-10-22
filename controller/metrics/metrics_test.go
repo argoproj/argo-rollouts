@@ -81,10 +81,17 @@ analysis_run_reconcile_error{name="name",namespace="ns"} 1
 # TYPE rollout_reconcile_error counter
 rollout_reconcile_error{name="name",namespace="ns"} 1`
 
-	metricsServ := NewMetricsServer(newFakeServerConfig())
+	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
 
 	metricsServ.IncError("ns", "name", logutil.AnalysisRunKey)
 	metricsServ.IncError("ns", "name", logutil.ExperimentKey)
 	metricsServ.IncError("ns", "name", logutil.RolloutKey)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+}
+
+func TestSecondaryMetricsServer(t *testing.T) {
+	expectedResponse := ``
+
+	metricsServ := NewMetricsServer(newFakeServerConfig(), false)
 	testHttpResponse(t, metricsServ.Handler, expectedResponse)
 }

@@ -186,7 +186,7 @@ func NewManager(
 		ClusterAnalysisTemplateLister: clusterAnalysisTemplateInformer.Lister(),
 		ExperimentLister:              experimentsInformer.Lister(),
 		K8SRequestProvider:            k8sRequestProvider,
-	})
+	}, true)
 
 	healthzAddr := fmt.Sprintf("0.0.0.0:%d", healthzPort)
 	healthzServer := NewHealthzServer(healthzAddr)
@@ -369,6 +369,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		// add a uniquifier so that two processes on the same host don't accidentally both become active
 		id = id + "_" + string(uuid.NewUUID())
 		log.Infof("Leaderelection get id %s", id)
+		var secondaryMetricsServer *metrics.MetricsServer
 		go leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock: &resourcelock.LeaseLock{
 				LeaseMeta: metav1.ObjectMeta{Name: "argo-rollouts-controller-lock", Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
@@ -380,6 +381,10 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 			RetryPeriod:     electOpts.LeaderElectionRetryPeriod,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) {
+					if secondaryMetricsServer != nil {
+						log.Infof("Shutdown secondaryMetricsServer")
+						secondaryMetricsServer.Shutdown(ctx)
+					}
 					c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
 				},
 				OnStoppedLeading: func() {
@@ -391,6 +396,20 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 						return
 					}
 					log.Infof("New leader elected: %s", identity)
+
+					if secondaryMetricsServer != nil {
+						return
+					}
+
+					log.Infof("Starting Secondary Metric Server at %s", c.metricsServer.Addr)
+					secondaryMetricsServer = metrics.NewMetricsServer(metrics.ServerConfig{
+						Addr: c.metricsServer.Addr,
+					}, false)
+					err = secondaryMetricsServer.ListenAndServe()
+					if err != nil {
+						err = errors.Wrap(err, "Starting Secondary Metric Server")
+						log.Warn(err)
+					}
 				},
 			},
 		})
