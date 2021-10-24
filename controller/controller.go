@@ -87,6 +87,9 @@ const (
 
 	// DefaultLeaderElectionRetryPeriod is the default time in seconds that the leader election clients should wait between tries of actions
 	DefaultLeaderElectionRetryPeriod = 2 * time.Second
+
+	defaultLeaderElectionLeaseLockName = "argo-rollouts-controller-lock"
+	listenAddr                         = "0.0.0.0:%d"
 )
 
 type LeaderElectionOptions struct {
@@ -110,6 +113,7 @@ func NewLeaderElectionOptions() *LeaderElectionOptions {
 // Manager is the controller implementation for Argo-Rollout resources
 type Manager struct {
 	metricsServer           *metrics.MetricsServer
+	secondaryMetricsServer  *metrics.MetricsServer
 	healthzServer           *http.Server
 	rolloutController       *rollout.Controller
 	experimentController    *experiments.Controller
@@ -177,7 +181,7 @@ func NewManager(
 	utilruntime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
 
-	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
+	metricsAddr := fmt.Sprintf(listenAddr, metricsPort)
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:                          metricsAddr,
 		RolloutLister:                 rolloutsInformer.Lister(),
@@ -188,8 +192,7 @@ func NewManager(
 		K8SRequestProvider:            k8sRequestProvider,
 	}, true)
 
-	healthzAddr := fmt.Sprintf("0.0.0.0:%d", healthzPort)
-	healthzServer := NewHealthzServer(healthzAddr)
+	healthzServer := NewHealthzServer(fmt.Sprintf(listenAddr, healthzPort))
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	experimentWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Experiments")
@@ -369,10 +372,9 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		// add a uniquifier so that two processes on the same host don't accidentally both become active
 		id = id + "_" + string(uuid.NewUUID())
 		log.Infof("Leaderelection get id %s", id)
-		var secondaryMetricsServer *metrics.MetricsServer
 		go leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock: &resourcelock.LeaseLock{
-				LeaseMeta: metav1.ObjectMeta{Name: "argo-rollouts-controller-lock", Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
+				LeaseMeta: metav1.ObjectMeta{Name: defaultLeaderElectionLeaseLockName, Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
 				LockConfig: resourcelock.ResourceLockConfig{Identity: id},
 			},
 			ReleaseOnCancel: true,
@@ -381,15 +383,15 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 			RetryPeriod:     electOpts.LeaderElectionRetryPeriod,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) {
-					if secondaryMetricsServer != nil {
-						log.Infof("Shutdown secondaryMetricsServer")
-						secondaryMetricsServer.Shutdown(ctx)
+					if c.secondaryMetricsServer != nil {
+						log.Warnln("Shutdown Secondary Metrics Server")
+						c.secondaryMetricsServer.Shutdown(ctx)
 					}
 					c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
 				},
 				OnStoppedLeading: func() {
 					log.Infof("Stopped leading controller: %s", id)
-					os.Exit(0)
+					return
 				},
 				OnNewLeader: func(identity string) {
 					if identity == id {
@@ -397,15 +399,16 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 					}
 					log.Infof("New leader elected: %s", identity)
 
-					if secondaryMetricsServer != nil {
+					if c.secondaryMetricsServer != nil {
+						log.Warn("Secondary metrics server already started")
 						return
 					}
 
 					log.Infof("Starting Secondary Metric Server at %s", c.metricsServer.Addr)
-					secondaryMetricsServer = metrics.NewMetricsServer(metrics.ServerConfig{
+					c.secondaryMetricsServer = metrics.NewMetricsServer(metrics.ServerConfig{
 						Addr: c.metricsServer.Addr,
 					}, false)
-					err = secondaryMetricsServer.ListenAndServe()
+					err = c.secondaryMetricsServer.ListenAndServe()
 					if err != nil {
 						err = errors.Wrap(err, "Starting Secondary Metric Server")
 						log.Warn(err)
@@ -443,10 +446,8 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 
 	go func() {
 		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
-		err := c.metricsServer.ListenAndServe()
-		if err != nil {
-			err = errors.Wrap(err, "Starting Metric Server")
-			log.Error(err)
+		if err := c.metricsServer.ListenAndServe(); err != nil {
+			log.Error(errors.Wrap(err, "Starting Metric Server"))
 		}
 	}()
 
