@@ -360,7 +360,8 @@ func TestDetermineIngressMode(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		c := c
+		c := c // necessary to ensure all test cases are executed when running in parallel mode
+
 		t.Run(c.name, func(t *testing.T) {
 			// given
 			t.Parallel()
@@ -369,7 +370,6 @@ func TestDetermineIngressMode(t *testing.T) {
 			mode, err := DetermineIngressMode(c.apiVersion, c.faKeDiscovery)
 
 			// then
-			fmt.Println(err)
 			assert.Equal(t, c.expectedError, err)
 			assert.Equal(t, c.expectedMode, mode)
 		})

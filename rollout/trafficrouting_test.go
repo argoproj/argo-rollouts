@@ -84,7 +84,7 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(errors.New("Error message"))
-	f.runExpectError(t, getKey(ro, t), true)
+	f.runExpectError(getKey(ro, t), true)
 }
 
 // verify error is not returned when VerifyWeight returns error (so that we can continue reconciling)
@@ -96,7 +96,7 @@ func TestReconcileTrafficRoutingVerifyWeightErr(t *testing.T) {
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), errors.New("Error message"))
 	f.expectPatchRolloutAction(ro)
-	f.run(t, getKey(ro, t))
+	f.run(getKey(ro, t))
 }
 
 // verify we requeue when VerifyWeight returns false
@@ -107,7 +107,7 @@ func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), nil)
-	c, i, k8sI := f.newController(t, noResyncPeriodFunc)
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	enqueued := false
 	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		enqueued = true
@@ -168,7 +168,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 		return nil
 	})
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
-	f.run(t, getKey(r2, t))
+	f.run(getKey(r2, t))
 }
 
 func TestRolloutWithExperimentStep(t *testing.T) {
@@ -241,7 +241,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			assert.Equal(t, ex.Status.TemplateStatuses[0].PodTemplateHash, weightDestinations[0].PodTemplateHash)
 			return nil
 		})
-		f.run(t, getKey(r2, t))
+		f.run(getKey(r2, t))
 	})
 
 	t.Run("Experiment Pending - no WeightDestination created", func(t *testing.T) {
@@ -259,7 +259,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			assert.Len(t, weightDestinations, 0)
 			return nil
 		})
-		f.run(t, getKey(r2, t))
+		f.run(getKey(r2, t))
 	})
 }
 
@@ -310,7 +310,7 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 	})
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.fakeTrafficRouting.On("error patching alb ingress", mock.Anything, mock.Anything).Return(true, nil)
-	f.run(t, getKey(r2, t))
+	f.run(getKey(r2, t))
 }
 
 func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
@@ -351,7 +351,7 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 		return nil
 	})
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
-	f.run(t, getKey(r1, t))
+	f.run(getKey(r1, t))
 }
 
 func TestNewTrafficRoutingReconciler(t *testing.T) {
@@ -505,7 +505,7 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	rs1Patch := f.expectPatchReplicaSetAction(rs1) // set scale-down-deadline annotation
-	f.run(t, getKey(r2, t))
+	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)
 }
@@ -550,7 +550,7 @@ func TestCanaryWithTrafficRoutingScaleDownLimit(t *testing.T) {
 
 	rs1ScaleDownIndex := f.expectUpdateReplicaSetAction(rs1) // scale down ReplicaSet
 	_ = f.expectPatchRolloutAction(r3)                       // updates the rollout status
-	f.run(t, getKey(r3, t))
+	f.run(getKey(r3, t))
 
 	rs1Updated := f.getUpdatedReplicaSet(rs1ScaleDownIndex)
 	assert.Equal(t, int32(0), *rs1Updated.Spec.Replicas)

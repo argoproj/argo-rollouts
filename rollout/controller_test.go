@@ -474,8 +474,8 @@ func getKey(rollout *v1alpha1.Rollout, t *testing.T) string {
 
 type resyncFunc func() time.Duration
 
-func (f *fixture) newController(t *testing.T, resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
-	t.Helper()
+func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
+	f.t.Helper()
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 
@@ -509,7 +509,7 @@ func (f *fixture) newController(t *testing.T, resync resyncFunc) (*Controller, i
 
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, f.kubeclient, k8sI)
 	if err != nil {
-		t.Fatal(err)
+		f.t.Fatal(err)
 	}
 
 	c := NewController(ControllerConfig{
@@ -599,13 +599,13 @@ func (f *fixture) newController(t *testing.T, resync resyncFunc) (*Controller, i
 	return c, i, k8sI
 }
 
-func (f *fixture) run(t *testing.T, rolloutName string) {
-	c, i, k8sI := f.newController(t, noResyncPeriodFunc)
+func (f *fixture) run(rolloutName string) {
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(rolloutName, true, false, c, i, k8sI)
 }
 
-func (f *fixture) runExpectError(t *testing.T, rolloutName string, startInformers bool) {
-	c, i, k8sI := f.newController(t, noResyncPeriodFunc)
+func (f *fixture) runExpectError(rolloutName string, startInformers bool) {
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(rolloutName, startInformers, true, c, i, k8sI)
 }
 
@@ -1119,7 +1119,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.objects = append(f.objects, r)
 
 	f.expectPatchRolloutAction(r)
-	f.run(t, getKey(r, t))
+	f.run(getKey(r, t))
 }
 
 func TestAdoptReplicaSet(t *testing.T) {
@@ -1141,7 +1141,7 @@ func TestAdoptReplicaSet(t *testing.T) {
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r) // update rollout progressing condition
 	f.expectPatchServiceAction(previewSvc, "")
 	f.expectPatchRolloutAction(r)
-	f.run(t, getKey(r, t))
+	f.run(getKey(r, t))
 
 	updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
 	progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
@@ -1223,7 +1223,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			f := newFixture(t)
 			defer f.Close()
-			c, _, _ := f.newController(t, noResyncPeriodFunc)
+			c, _, _ := f.newController(noResyncPeriodFunc)
 			roCtx, err := c.newRolloutContext(test.rollout)
 			assert.NoError(t, err)
 			duration := roCtx.requeueStuckRollout(test.rollout.Status)
@@ -1248,7 +1248,7 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.objects = append(f.objects, r)
 
 	updateIndex := f.expectUpdateRolloutAction(r)
-	f.run(t, getKey(r, t))
+	f.run(getKey(r, t))
 	updatedRollout := f.getUpdatedRollout(updateIndex)
 	assert.Equal(t, defaults.DefaultReplicas, *updatedRollout.Spec.Replicas)
 }
@@ -1269,7 +1269,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	f.objects = append(f.objects, r)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(t, getKey(r, t))
+	f.run(getKey(r, t))
 
 	expectedPatchWithoutSub := `{
 		"status": {
@@ -1331,7 +1331,7 @@ requests:
 		f.expectPatchRolloutAction(r)
 		rs := newReplicaSet(r, 1)
 		rsIdx := f.expectCreateReplicaSetAction(rs)
-		f.run(t, getKey(r, t))
+		f.run(getKey(r, t))
 		rs = f.getCreatedReplicaSet(rsIdx)
 		assert.Equal(t, expectedReplicaSetName, rs.Name)
 		f.Close()
@@ -1349,7 +1349,7 @@ func TestNoReconcileForDeletedRollout(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
-	f.run(t, getKey(r, t))
+	f.run(getKey(r, t))
 }
 
 // TestComputeHashChangeTolerationBlueGreen verifies that we can tolerate a change in
@@ -1399,7 +1399,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(t, getKey(r, t))
+	f.run(getKey(r, t))
 	expectedPatch := `{"status":{"observedGeneration":"123"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
@@ -1440,7 +1440,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(t, getKey(r, t))
+	f.run(getKey(r, t))
 	expectedPatch := `{"status":{"observedGeneration":"123"}}`
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, expectedPatch, patch)
@@ -1468,7 +1468,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 
 	i := f.expectPatchRolloutAction(r)
 	f.objects = append(f.objects, r)
-	f.run(t, getKey(r, t))
+	f.run(getKey(r, t))
 	patch := f.getPatchedRollout(i)
 
 	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "")
@@ -1522,7 +1522,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 	t.Run("blueGreen pre-promotion analysis - fail", func(t *testing.T) {
 		r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
 		r.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &rolloutAnalysisFail
-		c, _, _ := f.newController(t, noResyncPeriodFunc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedRolloutAnalyses()
@@ -1534,7 +1534,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 	t.Run("blueGreen post-promotion analysis - fail", func(t *testing.T) {
 		r := newBlueGreenRollout("rollout", 1, nil, "active-service", "preview-service")
 		r.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &rolloutAnalysisFail
-		c, _, _ := f.newController(t, noResyncPeriodFunc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedRolloutAnalyses()
@@ -1548,7 +1548,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 		r.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 			RolloutAnalysis: rolloutAnalysisFail,
 		}
-		c, _, _ := f.newController(t, noResyncPeriodFunc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedRolloutAnalyses()
@@ -1562,7 +1562,7 @@ func TestGetReferencedAnalyses(t *testing.T) {
 			Analysis: &rolloutAnalysisFail,
 		}}
 		r := newCanaryRollout("rollout-canary", 1, nil, canarySteps, int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
-		c, _, _ := f.newController(t, noResyncPeriodFunc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedRolloutAnalyses()
@@ -1584,7 +1584,7 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 	}
 
 	t.Run("get referenced analysisTemplate - fail", func(t *testing.T) {
-		c, _, _ := f.newController(t, noResyncPeriodFunc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
@@ -1594,7 +1594,7 @@ func TestGetReferencedAnalysisTemplate(t *testing.T) {
 
 	t.Run("get referenced analysisTemplate - success", func(t *testing.T) {
 		f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, clusterAnalysisTemplate("cluster-analysis-template-name"))
-		c, _, _ := f.newController(t, noResyncPeriodFunc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedAnalysisTemplates(r, roAnalysisTemplate, validation.PrePromotionAnalysis, 0)
@@ -1614,7 +1614,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 	r.Namespace = metav1.NamespaceDefault
 
 	t.Run("get referenced ALB ingress - fail", func(t *testing.T) {
-		c, _, _ := f.newController(t, noResyncPeriodFunc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
@@ -1630,7 +1630,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 			},
 		}
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
-		c, _, _ := f.newController(t, noResyncPeriodFunc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		i, err := roCtx.getReferencedIngresses()
@@ -1652,7 +1652,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 	defer f.Close()
 
 	t.Run("get referenced Nginx ingress - fail", func(t *testing.T) {
-		c, _, _ := f.newController(t, noResyncPeriodFunc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
@@ -1668,7 +1668,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 			},
 		}
 		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
-		c, _, _ := f.newController(t, noResyncPeriodFunc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
@@ -1679,7 +1679,7 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 func TestGetAmbassadorMappings(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
-	c, _, _ := f.newController(t, noResyncPeriodFunc)
+	c, _, _ := f.newController(noResyncPeriodFunc)
 	schema := runtime.NewScheme()
 	c.dynamicclientset = dynamicfake.NewSimpleDynamicClient(schema)
 
@@ -1722,7 +1722,7 @@ func TestRolloutStrategyNotSet(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
 	patchIndex := f.expectPatchRolloutAction(r)
-	f.run(t, getKey(r, t))
+	f.run(getKey(r, t))
 	patchedRollout := f.getPatchedRollout(patchIndex)
 	assert.Contains(t, patchedRollout, `Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'`)
 }
@@ -1745,7 +1745,7 @@ func TestWriteBackToInformer(t *testing.T) {
 
 	f.expectPatchRolloutAction(r1)
 
-	c, i, k8sI := f.newController(t, noResyncPeriodFunc)
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	roKey := getKey(r1, t)
 	f.runController(roKey, true, false, c, i, k8sI)
 
