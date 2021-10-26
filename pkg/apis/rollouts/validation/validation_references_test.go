@@ -7,6 +7,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	"github.com/argoproj/argo-rollouts/utils/unstructured"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -180,8 +181,8 @@ func getRollout() *v1alpha1.Rollout {
 	}
 }
 
-func getIngress() v1beta1.Ingress {
-	return v1beta1.Ingress{
+func getIngress() *v1beta1.Ingress {
+	return &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "alb-ingress",
 		},
@@ -218,7 +219,7 @@ func getServiceWithType() ServiceWithType {
 func TestValidateRolloutReferencedResources(t *testing.T) {
 	refResources := ReferencedResources{
 		AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplatesWithType()},
-		Ingresses:                 []v1beta1.Ingress{getIngress()},
+		Ingresses:                 []ingressutil.Ingress{*ingressutil.NewLegacyIngress(getIngress())},
 		ServiceWithType:           []ServiceWithType{getServiceWithType()},
 		VirtualServices:           nil,
 	}
@@ -372,7 +373,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 func TestValidateIngress(t *testing.T) {
 	t.Run("validate ingress - success", func(t *testing.T) {
-		ingress := getIngress()
+		ingress := ingressutil.NewLegacyIngress(getIngress())
 		allErrs := ValidateIngress(getRollout(), ingress)
 		assert.Empty(t, allErrs)
 	})
@@ -380,7 +381,8 @@ func TestValidateIngress(t *testing.T) {
 	t.Run("validate ingress - failure", func(t *testing.T) {
 		ingress := getIngress()
 		ingress.Spec.Rules[0].HTTP.Paths[0].Backend.ServiceName = "not-stable-service"
-		allErrs := ValidateIngress(getRollout(), ingress)
+		i := ingressutil.NewLegacyIngress(ingress)
+		allErrs := ValidateIngress(getRollout(), i)
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingress"), ingress.Name, "ingress `alb-ingress` has no rules using service stable-service-name backend")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})

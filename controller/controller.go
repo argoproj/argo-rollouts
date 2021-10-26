@@ -24,7 +24,6 @@ import (
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	batchinformers "k8s.io/client-go/informers/batch/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
-	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
@@ -43,6 +42,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout"
 	"github.com/argoproj/argo-rollouts/service"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	"github.com/argoproj/argo-rollouts/utils/queue"
 	"github.com/argoproj/argo-rollouts/utils/record"
 )
@@ -148,7 +148,7 @@ func NewManager(
 	discoveryClient discovery.DiscoveryInterface,
 	replicaSetInformer appsinformers.ReplicaSetInformer,
 	servicesInformer coreinformers.ServiceInformer,
-	ingressesInformer extensionsinformers.IngressInformer,
+	ingressWrap *ingressutil.IngressWrap,
 	jobInformer batchinformers.JobInformer,
 	rolloutsInformer informers.RolloutInformer,
 	experimentsInformer informers.ExperimentInformer,
@@ -222,7 +222,7 @@ func NewManager(
 		IstioDestinationRuleInformer:    istioDestinationRuleInformer,
 		ReplicaSetInformer:              replicaSetInformer,
 		ServicesInformer:                servicesInformer,
-		IngressInformer:                 ingressesInformer,
+		IngressWrapper:                  ingressWrap,
 		RolloutsInformer:                rolloutsInformer,
 		ResyncPeriod:                    resyncPeriod,
 		RolloutWorkQueue:                rolloutWorkqueue,
@@ -272,7 +272,7 @@ func NewManager(
 
 	ingressController := ingress.NewController(ingress.ControllerConfig{
 		Client:           kubeclientset,
-		IngressInformer:  ingressesInformer,
+		IngressWrap:      ingressWrap,
 		IngressWorkQueue: ingressWorkqueue,
 
 		RolloutsInformer: rolloutsInformer,
@@ -288,7 +288,7 @@ func NewManager(
 		metricsServer:                 metricsServer,
 		rolloutSynced:                 rolloutsInformer.Informer().HasSynced,
 		serviceSynced:                 servicesInformer.Informer().HasSynced,
-		ingressSynced:                 ingressesInformer.Informer().HasSynced,
+		ingressSynced:                 ingressWrap.HasSynced,
 		jobSynced:                     jobInformer.Informer().HasSynced,
 		experimentSynced:              experimentsInformer.Informer().HasSynced,
 		analysisRunSynced:             analysisRunInformer.Informer().HasSynced,
