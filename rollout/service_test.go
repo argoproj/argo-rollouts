@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/aws/mocks"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -494,6 +495,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	f.objects = append(f.objects, r2, tgb)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc, ep)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 	f.expectGetEndpointsAction(ep)
 	f.run(getKey(r2, t))
@@ -587,6 +589,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.objects = append(f.objects, r2, tgb)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc, ep)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 	f.expectGetEndpointsAction(ep)
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
@@ -645,6 +648,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 	f.run(getKey(r2, t)) // there should be no api calls
 	f.assertEvents(nil)
