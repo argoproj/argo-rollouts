@@ -36,7 +36,7 @@ This example highlights:
 
 === "Rollout"
 
-    ```yaml 
+    ```yaml
     apiVersion: argoproj.io/v1alpha1
     kind: Rollout
     metadata:
@@ -65,7 +65,7 @@ This example highlights:
 
 === "AnalysisTemplate"
 
-    ```yaml 
+    ```yaml
     apiVersion: argoproj.io/v1alpha1
     kind: AnalysisTemplate
     metadata:
@@ -86,7 +86,7 @@ This example highlights:
             query: |
               sum(irate(
                 istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
-              )) / 
+              )) /
               sum(irate(
                 istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
               ))
@@ -114,7 +114,7 @@ metadata:
 spec:
 ...
   strategy:
-    canary: 
+    canary:
       steps:
       - setWeight: 20
       - pause: {duration: 5m}
@@ -148,13 +148,13 @@ spec:
         query: |
           sum(irate(
             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
-          )) / 
+          )) /
           sum(irate(
             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
           ))
 ```
 
-Multiple measurements can be performed over a longer duration period, by specifying the `count` and 
+Multiple measurements can be performed over a longer duration period, by specifying the `count` and
 `interval` fields:
 
 ```yaml hl_lines="4 5"
@@ -174,8 +174,8 @@ Multiple measurements can be performed over a longer duration period, by specify
 !!! important
     Available since v0.9.0
 
-A Rollout can reference a Cluster scoped AnalysisTemplate called a 
-`ClusterAnalysisTemplate`. This can be useful when you want to share an AnalysisTemplate across multiple Rollouts; 
+A Rollout can reference a Cluster scoped AnalysisTemplate called a
+`ClusterAnalysisTemplate`. This can be useful when you want to share an AnalysisTemplate across multiple Rollouts;
 in different namespaces, and avoid duplicating the same template in every namespace. Use the field
 `clusterScope: true` to reference a ClusterAnalysisTemplate instead of an AnalysisTemplate.
 
@@ -189,7 +189,7 @@ in different namespaces, and avoid duplicating the same template in every namesp
     spec:
     ...
       strategy:
-        canary: 
+        canary:
           steps:
           - setWeight: 20
           - pause: {duration: 5m}
@@ -203,7 +203,7 @@ in different namespaces, and avoid duplicating the same template in every namesp
     ```
 
 === "ClusterAnalysisTemplate"
- 
+
     ```yaml
     apiVersion: argoproj.io/v1alpha1
     kind: ClusterAnalysisTemplate
@@ -223,7 +223,7 @@ in different namespaces, and avoid duplicating the same template in every namesp
             query: |
               sum(irate(
                 istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
-              )) / 
+              )) /
               sum(irate(
                 istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
               ))
@@ -234,7 +234,7 @@ in different namespaces, and avoid duplicating the same template in every namesp
 
 ## Analysis with Multiple Templates
 
-A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to compose 
+A Rollout can reference multiple AnalysisTemplates when constructing an AnalysisRun. This allows users to compose
 analysis from multiple AnalysisTemplates. If multiple templates are referenced, then the controller will merge the
 templates together. The controller combines the `metrics` and `args` fields of all the templates.
 
@@ -332,7 +332,7 @@ templates together. The controller combines the `metrics` and `args` fields of a
             query: |
               sum(irate(
                 istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
-              )) / 
+              )) /
               sum(irate(
                 istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
               ))
@@ -346,13 +346,13 @@ templates together. The controller combines the `metrics` and `args` fields of a
             query: |
               sum(irate(
                 istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
-              )) / 
+              )) /
               sum(irate(
                 istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
               ))
-    ``` 
+    ```
 
-!!! note 
+!!! note
     The controller will error when merging the templates if:
 
     * Multiple metrics in the templates have the same name
@@ -388,12 +388,12 @@ spec:
     successCondition: result == 'true'
     provider:
       web:
-        # placeholders are resolved when an AnalysisRun is created 
+        # placeholders are resolved when an AnalysisRun is created
         url: "{{ args.api-url }}?service={{ args.service-name }}"
         headers:
           - key: Authorization
             value: "Bearer {{ args.api-token }}"
-        jsonPath: "{$.results.ok}" 
+        jsonPath: "{$.results.ok}"
 ```
 
 Analysis arguments defined in a Rollout are merged with the args from the AnalysisTemplate when the AnalysisRun is created.
@@ -411,7 +411,7 @@ spec:
         templates:
         - templateName: args-example
         args:
-        # required value 
+        # required value
         - name: service-name
           value: guestbook-svc.default.svc.cluster.local
         # override default value
@@ -485,11 +485,11 @@ spec:
 ```
 
 In this example, the Rollout creates a pre-promotion AnalysisRun once the new ReplicaSet is fully available.
-The Rollout will not switch traffic to the new version until the analysis run finishes successfully. 
+The Rollout will not switch traffic to the new version until the analysis run finishes successfully.
 
 Note: if the`autoPromotionSeconds` field is specified and the Rollout has waited auto promotion seconds amount of time,
 the Rollout marks the AnalysisRun successful and switches the traffic to a new version automatically. If the AnalysisRun
-completes before then, the Rollout will not create another AnalysisRun and wait out the rest of the 
+completes before then, the Rollout will not create another AnalysisRun and wait out the rest of the
 `autoPromotionSeconds`.
 
 ## BlueGreen Post Promotion Analysis
@@ -497,7 +497,7 @@ completes before then, the Rollout will not create another AnalysisRun and wait 
 A Rollout using a BlueGreen strategy can launch an analysis run *after* the traffic switch to the new version using
 post-promotion analysis. If post-promotion Analysis fails or errors, the Rollout enters an aborted state and switches traffic back to the
 previous stable Replicaset. When post-analysis is Successful, the Rollout is considered fully promoted and
-the new ReplicaSet will be marked as stable. The old ReplicaSet will then be scaled down according to 
+the new ReplicaSet will be marked as stable. The old ReplicaSet will then be scaled down according to
 `scaleDownDelaySeconds` (default 30 seconds).
 
 ```yaml
@@ -522,8 +522,8 @@ spec:
 
 ## Failure Conditions
 
-`failureCondition` can be used to cause an analysis run to fail. The following example continually polls a prometheus 
-server to get the total number of errors every 5 minutes, causing the analysis run to fail if 10 or more errors were 
+`failureCondition` can be used to cause an analysis run to fail. The following example continually polls a prometheus
+server to get the total number of errors every 5 minutes, causing the analysis run to fail if 10 or more errors were
 encountered.
 
 ```yaml hl_lines="4"
@@ -546,7 +546,7 @@ encountered.
 Analysis runs can also be considered `Inconclusive`, which indicates the run was neither successful,
 nor failed. Inconclusive runs causes a rollout to become paused at its current step. Manual
 intervention is then needed to either resume the rollout, or abort. One example of how analysis runs
-could become `Inconclusive`, is when a metric defines no success or failure conditions. 
+could become `Inconclusive`, is when a metric defines no success or failure conditions.
 
 ```yaml
   metrics:
@@ -575,9 +575,9 @@ A use case for having `Inconclusive` analysis runs are to enable Argo Rollouts t
 whether or not measurement value is acceptable and decide to proceed or abort.
 
 ## Delay Analysis Runs
-If the analysis run does not need to start immediately (i.e give the metric provider time to collect 
+If the analysis run does not need to start immediately (i.e give the metric provider time to collect
 metrics on the canary version), Analysis Runs can delay the specific metric analysis. Each metric
-can be configured to have a different delay. In additional to the metric specific delays, the rollouts 
+can be configured to have a different delay. In additional to the metric specific delays, the rollouts
 with background analysis can delay creating an analysis run until a certain step is reached
 
 Delaying a specific analysis metric:
@@ -585,7 +585,7 @@ Delaying a specific analysis metric:
   metrics:
   - name: success-rate
     # Do not start this analysis until 5 minutes after the analysis run starts
-    initialDelay: 5m 
+    initialDelay: 5m
     successCondition: result[0] >= 0.90
     provider:
       prometheus:
@@ -602,7 +602,7 @@ metadata:
   name: guestbook
 spec:
   strategy:
-    canary: 
+    canary:
       analysis:
         templates:
         - templateName: success-rate
@@ -642,7 +642,7 @@ spec:
       web:
         headers:
         - key: Authorization
-          value: "Bearer {{ args.api-token }}" 
+          value: "Bearer {{ args.api-token }}"
 ```
 
 ## Handling Metric Results
@@ -758,6 +758,8 @@ status:
 
 ### Empty array
 
+#### Prometheus
+
 Metric providers can sometimes return empty array, e.g., no data returned from prometheus query.
 
 Here are two examples where a metric result of empty array is considered successful and failed respectively.
@@ -800,4 +802,18 @@ status:
     successful: 1
   phase: Failed
   startedAt: "2021-09-08T19:19:44Z"
+```
+
+#### Datadog
+
+Datadog queries can return empty results if the query takes place during a time interval with no metrics. The Datadog provider will return a `nil` value yielding an error during the evaluation phase like:
+
+```
+invalid operation: < (mismatched types <nil> and float64)
+```
+
+However, empty query results yielding a `nil` value can be handled using the `default()` function. Here is a succeeding example using the `default()` function:
+
+```yaml
+successCondition: default(result, 0) < 0.05
 ```

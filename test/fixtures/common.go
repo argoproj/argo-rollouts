@@ -535,6 +535,22 @@ func (c *Common) GetALBIngress() *extensionsv1beta1.Ingress {
 	return ingress
 }
 
+func (c *Common) GetNginxIngressStable() *extensionsv1beta1.Ingress {
+	ro := c.Rollout()
+	name := ro.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
+	ingress, err := c.kubeClient.ExtensionsV1beta1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ingress
+}
+
+func (c *Common) GetNginxIngressCanary() *extensionsv1beta1.Ingress {
+	ro := c.Rollout()
+	name := ro.Name + "-" + ro.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress + "-canary"
+	ingress, err := c.kubeClient.ExtensionsV1beta1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ingress
+}
+
 func (c *Common) GetTrafficSplit() *smiv1alpha1.TrafficSplit {
 	ro := c.Rollout()
 	name := ro.Spec.Strategy.Canary.TrafficRouting.SMI.TrafficSplitName

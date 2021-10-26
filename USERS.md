@@ -2,10 +2,12 @@
 Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
 
 1. [ADP](https://www.adp.com)
+1. [Akuity](https://akuity.io/)
 1. [Alibaba Group](https://www.alibabagroup.com/)
 1. [Ambassador Labs](https://www.getambassador.io)
 1. [Ant Group](https://www.antgroup.com/)
 1. [Bucketplace](https://www.bucketplace.co.kr/)
+1. [Calm](https://www.calm.com/)
 1. [Codefresh](https://codefresh.io/)
 1. [Databricks](https://github.com/databricks)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)

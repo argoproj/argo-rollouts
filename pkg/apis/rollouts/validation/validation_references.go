@@ -224,11 +224,11 @@ func ValidateRolloutVirtualServicesConfig(r *v1alpha1.Rollout) error {
 		canary := r.Spec.Strategy.Canary
 		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
 			if istioutil.MultipleVirtualServiceConfigured(r) {
-				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name != "" {
+				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService != nil {
 					return field.InternalError(fldPath, fmt.Errorf(errorString))
 				}
 			} else {
-				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == "" {
+				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService == nil {
 					return field.InternalError(fldPath, fmt.Errorf(errorString))
 				}
 			}
@@ -248,7 +248,7 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 		virtualServices = rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
 	} else {
 		fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
-		virtualServices = []v1alpha1.IstioVirtualService{rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
+		virtualServices = []v1alpha1.IstioVirtualService{*rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
 	}
 
 	virtualServiceRecordName := obj.GetName()

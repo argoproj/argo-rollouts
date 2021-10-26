@@ -1,12 +1,15 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
+
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -14,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -23,6 +27,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/analysis"
@@ -62,7 +68,40 @@ const (
 
 	// DefaultIngressThreads is the default number of ingress worker threads to start with the controller
 	DefaultIngressThreads = 10
+
+	// DefaultLeaderElect is the default true leader election should be enabled
+	DefaultLeaderElect = true
+
+	// DefaultLeaderElectionNamespace is the default namespace used to perform leader election. Only used if leader election is enabled
+	DefaultLeaderElectionNamespace = "kube-system"
+
+	// DefaultLeaderElectionLeaseDuration is the default time in seconds that non-leader candidates will wait to force acquire leadership
+	DefaultLeaderElectionLeaseDuration = 15 * time.Second
+
+	// DefaultLeaderElectionRenewDeadline is the default time in seconds that the acting master will retry refreshing leadership before giving up
+	DefaultLeaderElectionRenewDeadline = 10 * time.Second
+
+	// DefaultLeaderElectionRetryPeriod is the default time in seconds that the leader election clients should wait between tries of actions
+	DefaultLeaderElectionRetryPeriod = 2 * time.Second
 )
+
+type LeaderElectionOptions struct {
+	LeaderElect                 bool
+	LeaderElectionNamespace     string
+	LeaderElectionLeaseDuration time.Duration
+	LeaderElectionRenewDeadline time.Duration
+	LeaderElectionRetryPeriod   time.Duration
+}
+
+func NewLeaderElectionOptions() *LeaderElectionOptions {
+	return &LeaderElectionOptions{
+		LeaderElect:                 DefaultLeaderElect,
+		LeaderElectionNamespace:     DefaultLeaderElectionNamespace,
+		LeaderElectionLeaseDuration: DefaultLeaderElectionLeaseDuration,
+		LeaderElectionRenewDeadline: DefaultLeaderElectionRenewDeadline,
+		LeaderElectionRetryPeriod:   DefaultLeaderElectionRetryPeriod,
+	}
+}
 
 // Manager is the controller implementation for Argo-Rollout resources
 type Manager struct {
@@ -93,6 +132,8 @@ type Manager struct {
 	analysisRunWorkqueue workqueue.RateLimitingInterface
 
 	refResolver rollout.TemplateRefResolver
+
+	kubeClientSet kubernetes.Interface
 
 	namespace string
 }
@@ -269,6 +310,7 @@ func NewManager(
 		notificationsController:       notificationsController,
 		refResolver:                   refResolver,
 		namespace:                     namespace,
+		kubeClientSet:                 kubeclientset,
 	}
 
 	return cm
@@ -277,7 +319,7 @@ func NewManager(
 // Run will sync informer caches and start controllers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // controllers to finish processing their current work items.
-func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, stopCh <-chan struct{}) error {
+func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, electOpts *LeaderElectionOptions, stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 	defer c.serviceWorkqueue.ShutDown()
 	defer c.ingressWorkqueue.ShutDown()
@@ -297,16 +339,52 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		}
 	}
 
-	// Start the informer factories to begin populating the informer caches
-	log.Info("Starting Controllers")
-	go wait.Until(func() { c.rolloutController.Run(rolloutThreadiness, stopCh) }, time.Second, stopCh)
-	go wait.Until(func() { c.serviceController.Run(serviceThreadiness, stopCh) }, time.Second, stopCh)
-	go wait.Until(func() { c.ingressController.Run(ingressThreadiness, stopCh) }, time.Second, stopCh)
-	go wait.Until(func() { c.experimentController.Run(experimentThreadiness, stopCh) }, time.Second, stopCh)
-	go wait.Until(func() { c.analysisController.Run(analysisThreadiness, stopCh) }, time.Second, stopCh)
-	go wait.Until(func() { c.notificationsController.Run(rolloutThreadiness, stopCh) }, time.Second, stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	log.Info("Started controller")
+	if !electOpts.LeaderElect {
+		log.Info("Leader election is turned off. Running in single-instance mode")
+		go c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
+	} else {
+		// id used to distinguish between multiple controller manager instances
+		id, err := os.Hostname()
+		if err != nil {
+			log.Fatalf("Error getting hostname for leader election %v", err)
+		}
+
+		if electOpts.LeaderElectionNamespace == "" {
+			log.Fatalf("Error LeaderElectionNamespace is empty")
+		}
+
+		// add a uniquifier so that two processes on the same host don't accidentally both become active
+		id = id + "_" + string(uuid.NewUUID())
+		log.Infof("Leaderelection get id %s", id)
+		go leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
+			Lock: &resourcelock.LeaseLock{
+				LeaseMeta: metav1.ObjectMeta{Name: "argo-rollouts-controller-lock", Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
+				LockConfig: resourcelock.ResourceLockConfig{Identity: id},
+			},
+			ReleaseOnCancel: true,
+			LeaseDuration:   electOpts.LeaderElectionLeaseDuration,
+			RenewDeadline:   electOpts.LeaderElectionRenewDeadline,
+			RetryPeriod:     electOpts.LeaderElectionRetryPeriod,
+			Callbacks: leaderelection.LeaderCallbacks{
+				OnStartedLeading: func(ctx context.Context) {
+					c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
+				},
+				OnStoppedLeading: func() {
+					log.Infof("Stopped leading controller: %s", id)
+					os.Exit(0)
+				},
+				OnNewLeader: func(identity string) {
+					if identity == id {
+						return
+					}
+					log.Infof("New leader elected: %s", identity)
+				},
+			},
+		})
+	}
 
 	go func() {
 		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
@@ -320,4 +398,17 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	log.Info("Shutting down workers")
 
 	return nil
+}
+
+func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int) {
+	defer runtime.HandleCrash()
+	// Start the informer factories to begin populating the informer caches
+	log.Info("Starting Controllers")
+	go wait.Until(func() { c.rolloutController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done())
+	go wait.Until(func() { c.serviceController.Run(serviceThreadiness, ctx.Done()) }, time.Second, ctx.Done())
+	go wait.Until(func() { c.ingressController.Run(ingressThreadiness, ctx.Done()) }, time.Second, ctx.Done())
+	go wait.Until(func() { c.experimentController.Run(experimentThreadiness, ctx.Done()) }, time.Second, ctx.Done())
+	go wait.Until(func() { c.analysisController.Run(analysisThreadiness, ctx.Done()) }, time.Second, ctx.Done())
+	go wait.Until(func() { c.notificationsController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done())
+	log.Info("Started controller")
 }

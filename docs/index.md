@@ -29,6 +29,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Customizable metric queries and analysis of business KPIs
 * Ingress controller integration: NGINX, ALB
 * Service Mesh integration: Istio, Linkerd, SMI
+* Simultaneous usage of multiple providers: SMI + NGINX, Istio + ALB, etc.
 * Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, Graphite
 
 ## Quick Start

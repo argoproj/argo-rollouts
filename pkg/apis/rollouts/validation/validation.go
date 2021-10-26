@@ -259,8 +259,8 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 				if template.Weight != nil {
 					if canary.TrafficRouting == nil {
 						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting))
-					} else if canary.TrafficRouting.ALB == nil && canary.TrafficRouting.SMI == nil {
-						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, "Experiment template weight is only available for TrafficRouting with SMI and ALB at this time"))
+					} else if canary.TrafficRouting.ALB == nil && canary.TrafficRouting.SMI == nil && canary.TrafficRouting.Istio == nil {
+						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time"))
 					}
 				}
 			}

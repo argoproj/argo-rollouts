@@ -3,6 +3,7 @@ package evaluate
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -261,4 +262,60 @@ func TestEqual(t *testing.T) {
 	assert.True(t, Equal([]string{"a", "b"}, []string{"b", "a"}))
 	assert.False(t, Equal([]string{"a"}, []string{"a", "b"}))
 	assert.False(t, Equal([]string{"a", "b"}, []string{}))
+}
+
+func TestDefaultFunc(t *testing.T) {
+	var nilFloat *float64
+	var oneFloat float64 = 1
+	var oneFloatPointer *float64 = new(float64)
+	*oneFloatPointer = 1
+
+	assert.True(t, defaultFunc(nilFloat)(nilFloat, 0) == 0)
+	assert.True(t, defaultFunc(nilFloat)(nilFloat, 1) == 1)
+	assert.True(t, defaultFunc(nilFloat)(nilFloat, 2) == 2)
+	assert.True(t, defaultFunc(oneFloatPointer)(oneFloatPointer, 0) == oneFloat)
+}
+
+func TestIsNilFunc(t *testing.T) {
+	var nilFloat *float64
+	var oneFloat float64 = 1
+	var nilArr []string
+	var twoArr []string = []string{"hi", "hello"}
+
+	assert.True(t, isNilFunc(nilFloat)(nilFloat))
+	assert.True(t, isNilFunc(nilArr)(nilArr))
+	assert.False(t, isNilFunc(oneFloat)(oneFloat))
+	assert.False(t, isNilFunc(twoArr)(twoArr))
+	assert.False(t, isNilFunc(1)(1))
+	assert.False(t, isNilFunc(false)(false))
+}
+
+func TestIsNil(t *testing.T) {
+	var nilFloat *float64
+	var oneFloat float64 = 1
+	var nilArr []string
+	var twoArr []string = []string{"hi", "hello"}
+
+	assert.True(t, isNil(nilFloat))
+	assert.True(t, isNil(nilArr))
+	assert.False(t, isNil(oneFloat))
+	assert.False(t, isNil(twoArr))
+	assert.False(t, isNil(1))
+	assert.False(t, isNil(false))
+}
+
+func TestValueFromPointer(t *testing.T) {
+	var nilFloat *float64
+	var oneFloat float64 = 1
+	var oneFloatPointer *float64 = new(float64)
+	*oneFloatPointer = 1
+	var nilArr []string
+	var twoArr []string = []string{"hi", "hello"}
+
+	assert.True(t, valueFromPointer(nilFloat) == nil)
+	assert.True(t, valueFromPointer(nilArr) == nil)
+	assert.True(t, reflect.DeepEqual(valueFromPointer(twoArr).([]string), twoArr))
+	assert.True(t, valueFromPointer(oneFloatPointer) == oneFloat)
+	assert.True(t, valueFromPointer(1) == 1)
+	assert.True(t, valueFromPointer(false) == false)
 }
