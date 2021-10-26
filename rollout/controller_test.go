@@ -102,8 +102,9 @@ type fixture struct {
 	unfreezeTime    func() error
 
 	// events holds all the K8s Event Reasons emitted during the run
-	events             []string
-	fakeTrafficRouting *mocks.TrafficRoutingReconciler
+	events                   []string
+	fakeTrafficRouting       []*mocks.TrafficRoutingReconciler
+	fakeSingleTrafficRouting *mocks.TrafficRoutingReconciler
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -116,7 +117,9 @@ func newFixture(t *testing.T) *fixture {
 	patch, err := mpatch.PatchMethod(time.Now, func() time.Time { return now })
 	assert.NoError(t, err)
 	f.unfreezeTime = patch.Unpatch
+
 	f.fakeTrafficRouting = newFakeTrafficRoutingReconciler()
+	f.fakeSingleTrafficRouting = newFakeSingleTrafficRoutingReconciler()
 	return f
 }
 
@@ -550,12 +553,13 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		c.enqueueRollout(obj)
 	}
-
-	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
+	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
 		if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 			return nil, nil
 		}
-		return f.fakeTrafficRouting, nil
+		var reconcilers = []trafficrouting.TrafficRoutingReconciler{}
+		reconcilers = append(reconcilers, f.fakeSingleTrafficRouting)
+		return reconcilers, nil
 	}
 
 	for _, r := range f.rolloutLister {

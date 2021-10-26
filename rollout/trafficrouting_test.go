@@ -27,21 +27,35 @@ import (
 )
 
 // newFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with mocked success return values
-func newFakeTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
-	r := mocks.TrafficRoutingReconciler{}
-	r.On("Type").Return("fake")
-	r.On("SetWeight", mock.Anything).Return(nil)
-	r.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
-	r.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-	return &r
+func newFakeTrafficRoutingReconciler() []*mocks.TrafficRoutingReconciler {
+	reconcilerList := []*mocks.TrafficRoutingReconciler{}
+	for _, trafficRoutingReconciler := range reconcilerList {
+		trafficRoutingReconciler.On("Type").Return("fake")
+		trafficRoutingReconciler.On("SetWeight", mock.Anything).Return(nil)
+		trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+		trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+	}
+	return reconcilerList
+}
+
+// newFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with mocked success return values
+func newFakeSingleTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
+	trafficRoutingReconciler := mocks.TrafficRoutingReconciler{}
+	trafficRoutingReconciler.On("Type").Return("fake")
+	trafficRoutingReconciler.On("SetWeight", mock.Anything).Return(nil)
+	trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+	return &trafficRoutingReconciler
 }
 
 // newUnmockedFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with unmocked
 // methods (except Type() mocked)
-func newUnmockedFakeTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
-	r := mocks.TrafficRoutingReconciler{}
-	r.On("Type").Return("fake")
-	return &r
+func newUnmockedFakeTrafficRoutingReconciler() *[]*mocks.TrafficRoutingReconciler {
+	reconcilerList := []*mocks.TrafficRoutingReconciler{}
+	for _, trafficRoutingReconciler := range reconcilerList {
+		trafficRoutingReconciler.On("Type").Return("fake")
+	}
+	return &reconcilerList
 }
 
 func newTrafficWeightFixture(t *testing.T) (*fixture, *v1alpha1.Rollout) {
@@ -81,40 +95,45 @@ func newTrafficWeightFixture(t *testing.T) (*fixture, *v1alpha1.Rollout) {
 func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f, ro := newTrafficWeightFixture(t)
 	defer f.Close()
-	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(errors.New("Error message"))
-	f.runExpectError(getKey(ro, t), true)
+	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
+	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("SetWeight", mock.Anything).Return(errors.New("Error message"))
+		f.runExpectError(getKey(ro, t), true)
+	}
 }
 
 // verify error is not returned when VerifyWeight returns error (so that we can continue reconciling)
 func TestReconcileTrafficRoutingVerifyWeightErr(t *testing.T) {
 	f, ro := newTrafficWeightFixture(t)
 	defer f.Close()
-	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), errors.New("Error message"))
-	f.expectPatchRolloutAction(ro)
-	f.run(getKey(ro, t))
+	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
+	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
+		fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), errors.New("Error message"))
+		f.runExpectError(getKey(ro, t), true)
+	}
 }
 
 // verify we requeue when VerifyWeight returns false
 func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	f, ro := newTrafficWeightFixture(t)
 	defer f.Close()
-	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), nil)
-	c, i, k8sI := f.newController(noResyncPeriodFunc)
-	enqueued := false
-	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
-		enqueued = true
+	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
+	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
+		fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), nil)
+		c, i, k8sI := f.newController(noResyncPeriodFunc)
+		enqueued := false
+		c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
+			enqueued = true
+		}
+		f.expectPatchRolloutAction(ro)
+		f.runController(getKey(ro, t), true, false, c, i, k8sI)
+		assert.True(t, enqueued)
 	}
-	f.expectPatchRolloutAction(ro)
-	f.runController(getKey(ro, t), true, false, c, i, k8sI)
-	assert.True(t, enqueued)
 }
 
 func TestRolloutUseDesiredWeight(t *testing.T) {
@@ -160,14 +179,16 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 
 	f.expectPatchRolloutAction(r2)
 
-	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-		// make sure SetWeight was called with correct value
-		assert.Equal(t, int32(10), desiredWeight)
-		return nil
-	})
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
+	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+			// make sure SetWeight was called with correct value
+			assert.Equal(t, int32(10), desiredWeight)
+			return nil
+		})
+		fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
+	}
 	f.run(getKey(r2, t))
 }
 
@@ -224,41 +245,45 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 
 	t.Run("Experiment Running - WeightDestination created", func(t *testing.T) {
 		ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
-		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
-			// make sure SetWeight was called with correct value
-			assert.Equal(t, int32(10), desiredWeight)
-			assert.Equal(t, int32(5), weightDestinations[0].Weight)
-			assert.Equal(t, ex.Status.TemplateStatuses[0].ServiceName, weightDestinations[0].ServiceName)
-			assert.Equal(t, ex.Status.TemplateStatuses[0].PodTemplateHash, weightDestinations[0].PodTemplateHash)
-			return nil
-		})
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
-			assert.Equal(t, int32(10), desiredWeight)
-			assert.Equal(t, int32(5), weightDestinations[0].Weight)
-			assert.Equal(t, ex.Status.TemplateStatuses[0].ServiceName, weightDestinations[0].ServiceName)
-			assert.Equal(t, ex.Status.TemplateStatuses[0].PodTemplateHash, weightDestinations[0].PodTemplateHash)
-			return nil
-		})
+		f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
+		for _, fakeTrafficRouting := range f.fakeTrafficRouting {
+			fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+			fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
+				// make sure SetWeight was called with correct value
+				assert.Equal(t, int32(10), desiredWeight)
+				assert.Equal(t, int32(5), weightDestinations[0].Weight)
+				assert.Equal(t, ex.Status.TemplateStatuses[0].ServiceName, weightDestinations[0].ServiceName)
+				assert.Equal(t, ex.Status.TemplateStatuses[0].PodTemplateHash, weightDestinations[0].PodTemplateHash)
+				return nil
+			})
+			fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
+				assert.Equal(t, int32(10), desiredWeight)
+				assert.Equal(t, int32(5), weightDestinations[0].Weight)
+				assert.Equal(t, ex.Status.TemplateStatuses[0].ServiceName, weightDestinations[0].ServiceName)
+				assert.Equal(t, ex.Status.TemplateStatuses[0].PodTemplateHash, weightDestinations[0].PodTemplateHash)
+				return nil
+			})
+		}
 		f.run(getKey(r2, t))
 	})
 
 	t.Run("Experiment Pending - no WeightDestination created", func(t *testing.T) {
 		ex.Status.Phase = v1alpha1.AnalysisPhasePending
-		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
-			// make sure SetWeight was called with correct value
-			assert.Equal(t, int32(10), desiredWeight)
-			assert.Len(t, weightDestinations, 0)
-			return nil
-		})
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
-			assert.Equal(t, int32(10), desiredWeight)
-			assert.Len(t, weightDestinations, 0)
-			return nil
-		})
+		f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
+		for _, fakeTrafficRouting := range f.fakeTrafficRouting {
+			fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+			fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
+				// make sure SetWeight was called with correct value
+				assert.Equal(t, int32(10), desiredWeight)
+				assert.Len(t, weightDestinations, 0)
+				return nil
+			})
+			fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
+				assert.Equal(t, int32(10), desiredWeight)
+				assert.Len(t, weightDestinations, 0)
+				return nil
+			})
+		}
 		f.run(getKey(r2, t))
 	})
 }
@@ -301,15 +326,17 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 	f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 
-	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-		// make sure SetWeight was called with correct value
-		assert.Equal(t, int32(10), desiredWeight)
-		return nil
-	})
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(pointer.BoolPtr(true), nil)
-	f.fakeTrafficRouting.On("error patching alb ingress", mock.Anything, mock.Anything).Return(true, nil)
+	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
+	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+			// make sure SetWeight was called with correct value
+			assert.Equal(t, int32(10), desiredWeight)
+			return nil
+		})
+		fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(pointer.BoolPtr(true), nil)
+		fakeTrafficRouting.On("error patching alb ingress", mock.Anything, mock.Anything).Return(true, nil)
+	}
 	f.run(getKey(r2, t))
 }
 
@@ -343,14 +370,17 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	f.objects = append(f.objects, r1)
 
 	f.expectPatchRolloutAction(r1)
-	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
-	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-		// make sure SetWeight was called with correct value
-		assert.Equal(t, int32(0), desiredWeight)
-		return nil
-	})
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+
+	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
+	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+			// make sure SetWeight was called with correct value
+			assert.Equal(t, int32(0), desiredWeight)
+			return nil
+		})
+		fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	}
 	f.run(getKey(r1, t))
 }
 
@@ -400,10 +430,12 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
-		assert.Nil(t, err)
-		assert.NotNil(t, networkReconciler)
-		assert.Equal(t, istio.Type, networkReconciler.Type())
+		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
+		for _, networkReconciler := range networkReconcilerList {
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+			assert.Equal(t, istio.Type, networkReconciler.Type())
+		}
 	}
 	{
 		// With istioVirtualServiceLister
@@ -420,10 +452,12 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
-		assert.Nil(t, err)
-		assert.NotNil(t, networkReconciler)
-		assert.Equal(t, istio.Type, networkReconciler.Type())
+		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
+		for _, networkReconciler := range networkReconcilerList {
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+			assert.Equal(t, istio.Type, networkReconciler.Type())
+		}
 	}
 	{
 		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
@@ -434,10 +468,12 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
-		assert.Nil(t, err)
-		assert.NotNil(t, networkReconciler)
-		assert.Equal(t, nginx.Type, networkReconciler.Type())
+		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
+		for _, networkReconciler := range networkReconcilerList {
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+			assert.Equal(t, nginx.Type, networkReconciler.Type())
+		}
 	}
 	{
 		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
@@ -448,10 +484,12 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler, err := rc.NewTrafficRoutingReconciler(roCtx)
-		assert.Nil(t, err)
-		assert.NotNil(t, networkReconciler)
-		assert.Equal(t, alb.Type, networkReconciler.Type())
+		networkReconcilerList, err := rc.NewTrafficRoutingReconciler(roCtx)
+		for _, networkReconciler := range networkReconcilerList {
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+			assert.Equal(t, alb.Type, networkReconciler.Type())
+		}
 	}
 	{
 		tsController := Controller{}
@@ -463,10 +501,61 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			rollout: r,
 			log:     logutil.WithRollout(r),
 		}
-		networkReconciler, err := tsController.NewTrafficRoutingReconciler(roCtx)
-		assert.Nil(t, err)
-		assert.NotNil(t, networkReconciler)
-		assert.Equal(t, smi.Type, networkReconciler.Type())
+		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
+		for _, networkReconciler := range networkReconcilerList {
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+			assert.Equal(t, smi.Type, networkReconciler.Type())
+		}
+	}
+	{
+		// (2) Multiple Reconcilers (Nginx + SMI)
+		tsController := Controller{}
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Nginx: &v1alpha1.NginxTrafficRouting{},
+			SMI:   &v1alpha1.SMITrafficRouting{},
+		}
+		roCtx := &rolloutContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
+		for position, networkReconciler := range networkReconcilerList {
+			if position == 0 {
+				assert.Equal(t, nginx.Type, networkReconciler.Type())
+			} else if position == 1 {
+				assert.Equal(t, smi.Type, networkReconciler.Type())
+			}
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+		}
+	}
+	{
+		// (3) Multiple Reconcilers (ALB + Nginx + SMI)
+		tsController := Controller{}
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			ALB:   &v1alpha1.ALBTrafficRouting{},
+			Nginx: &v1alpha1.NginxTrafficRouting{},
+			SMI:   &v1alpha1.SMITrafficRouting{},
+		}
+		roCtx := &rolloutContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
+		for position, networkReconciler := range networkReconcilerList {
+			if position == 0 {
+				assert.Equal(t, nginx.Type, networkReconciler.Type())
+			} else if position == 1 {
+				assert.Equal(t, alb.Type, networkReconciler.Type())
+			} else if position == 2 {
+				assert.Equal(t, smi.Type, networkReconciler.Type())
+			}
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+		}
 	}
 }
 
