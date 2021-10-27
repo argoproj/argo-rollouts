@@ -63,7 +63,7 @@ func TestGetReferencedVirtualServices(t *testing.T) {
 	}
 	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Istio: &v1alpha1.IstioTrafficRouting{
-			VirtualService: v1alpha1.IstioVirtualService{
+			VirtualService: &v1alpha1.IstioVirtualService{
 				Name: "istio-vsvc-name",
 			},
 		},
@@ -137,7 +137,7 @@ func TestSyncDestinationRule(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Istio: &v1alpha1.IstioTrafficRouting{
-							VirtualService: v1alpha1.IstioVirtualService{
+							VirtualService: &v1alpha1.IstioVirtualService{
 								Name: "istio-vsvc",
 							},
 							DestinationRule: &v1alpha1.IstioDestinationRule{

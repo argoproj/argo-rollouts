@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/signals"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
 	"github.com/spf13/cobra"
@@ -50,6 +51,7 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 			controller := viewcontroller.NewRolloutViewController(o.Namespace(), name, statusOptions.KubeClientset(), statusOptions.RolloutsClientset())
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+			signals.SetupSignalHandler(cancel)
 			controller.Start(ctx)
 
 			ri, err := controller.GetRolloutInfo()
@@ -61,7 +63,6 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 				fmt.Fprintln(o.Out, ri.Status)
 			} else {
 				rolloutUpdates := make(chan *rollout.RolloutInfo)
-				defer close(rolloutUpdates)
 				controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
 					rolloutUpdates <- roInfo
 				})
@@ -72,7 +73,7 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 				if err != nil {
 					return err
 				}
-
+				close(rolloutUpdates)
 				if finalRi.Status == "Degraded" {
 					return fmt.Errorf("The rollout is in a degraded state with message: %s", finalRi.Message)
 				} else if finalRi.Status != "Healthy" {
@@ -88,7 +89,7 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, rolloutUpdates chan *rollout.RolloutInfo) string {
+func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, rolloutUpdates <-chan *rollout.RolloutInfo) string {
 	timeout := make(chan bool)
 	var roInfo *rollout.RolloutInfo
 	var preventFlicker time.Time

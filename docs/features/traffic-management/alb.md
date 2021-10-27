@@ -331,7 +331,7 @@ spec:
 
 ### Custom kubernetes.io/ingress.class
 
-By default, Argo Rollout will operates on Ingresses with the annotation:
+By default, Argo Rollout will operate on Ingresses with the annotation:
 
 ```yaml
 apiVersion: networking.k8s.io/v1beta1

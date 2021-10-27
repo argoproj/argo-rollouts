@@ -25,6 +25,19 @@ func TestRunSuite(t *testing.T) {
 
 	unixNow = func() int64 { return 1599076435 }
 
+	ddProviderIntervalDefault := v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query: "avg:kubernetes.cpu.user.total{*}",
+		},
+	}
+
+	ddProviderInterval10m := v1alpha1.MetricProvider{
+		Datadog: &v1alpha1.DatadogMetric{
+			Query:    "avg:kubernetes.cpu.user.total{*}",
+			Interval: "10m",
+		},
+	}
+
 	// Test Cases
 	var tests = []struct {
 		serverURL               string
@@ -45,12 +58,7 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider: v1alpha1.MetricProvider{
-					Datadog: &v1alpha1.DatadogMetric{
-						Query:    "avg:kubernetes.cpu.user.total{*}",
-						Interval: "10m",
-					},
-				},
+				Provider:         ddProviderInterval10m,
 			},
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
@@ -65,12 +73,7 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider: v1alpha1.MetricProvider{
-					Datadog: &v1alpha1.DatadogMetric{
-						Query:    "avg:kubernetes.cpu.user.total{*}",
-						Interval: "10m",
-					},
-				},
+				Provider:         ddProviderInterval10m,
 			},
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
@@ -85,11 +88,7 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider: v1alpha1.MetricProvider{
-					Datadog: &v1alpha1.DatadogMetric{
-						Query: "avg:kubernetes.cpu.user.total{*}",
-					},
-				},
+				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121378742186943",
@@ -104,11 +103,7 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider: v1alpha1.MetricProvider{
-					Datadog: &v1alpha1.DatadogMetric{
-						Query: "avg:kubernetes.cpu.user.total{*}",
-					},
-				},
+				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
@@ -123,38 +118,90 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider: v1alpha1.MetricProvider{
-					Datadog: &v1alpha1.DatadogMetric{
-						Query: "avg:kubernetes.cpu.user.total{*}",
-					},
-				},
+				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "received authentication error response code: 401 {\"errors\": [\"No authenticated user.\"]}",
 			useEnvVarForKeys:        false,
 		},
-		// Error if datadog doesn't return any datapoints
+
+		// Expect success with default() and data
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "default(result, 0) < 0.05",
+				Provider:         ddProviderIntervalDefault,
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           "0.006121378742186943",
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+
+		// Expect error with no default() and no data
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result < 0.001",
-				FailureCondition: "result >= 0.001",
-				Provider: v1alpha1.MetricProvider{
-					Datadog: &v1alpha1.DatadogMetric{
-						Query: "avg:kubernetes.cpu.user.total{*}",
-					},
-				},
+				SuccessCondition: "result < 0.05",
+				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    "Datadog returned no value: {\"status\":\"ok\",\"series\":[{\"pointlist\":[]}]}",
+			expectedErrorMessage:    `invalid operation: < (mismatched types <nil> and float64)`,
 			useEnvVarForKeys:        false,
 		},
 
-		// Error if datadog doesn't return any datapoints
+		// Expect success with default() and no data
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "default(result, 0) < 0.05",
+				Provider:         ddProviderIntervalDefault,
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           `[{"pointlist":[]}]`,
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+
+		// Expect failure with bad default() and no data
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "default(result, 1) < 0.05",
+				Provider:         ddProviderIntervalDefault,
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           `[{"pointlist":[]}]`,
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			useEnvVarForKeys:        false,
+		},
+
+		// Expect success with bad default() and good data
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "default(result, 1) < 0.05",
+				Provider:         ddProviderIntervalDefault,
+			},
+			expectedIntervalSeconds: 300,
+			expectedValue:           `0.006121378742186943`,
+			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
+			useEnvVarForKeys:        false,
+		},
+
+		// Error if datadog returns non-array series
 		{
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":"invalid"}`,
@@ -162,11 +209,7 @@ func TestRunSuite(t *testing.T) {
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
 				FailureCondition: "result >= 0.001",
-				Provider: v1alpha1.MetricProvider{
-					Datadog: &v1alpha1.DatadogMetric{
-						Query: "avg:kubernetes.cpu.user.total{*}",
-					},
-				},
+				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
