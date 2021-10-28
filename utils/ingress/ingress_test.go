@@ -3,7 +3,6 @@ package ingress
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -318,6 +317,12 @@ func TestDetermineIngressMode(t *testing.T) {
 			expectedMode:  IngressModeNetworking,
 		},
 		{
+			name:          "will return networking mode if server version is 1.19+",
+			apiVersion:    "",
+			faKeDiscovery: newFakeDiscovery("1", "19+", nil),
+			expectedMode:  IngressModeNetworking,
+		},
+		{
 			name:          "will return networking mode if server version is 2.0",
 			apiVersion:    "",
 			faKeDiscovery: newFakeDiscovery("2", "0", nil),
@@ -341,22 +346,14 @@ func TestDetermineIngressMode(t *testing.T) {
 			apiVersion:    "",
 			faKeDiscovery: newFakeDiscovery("wrong", "", nil),
 			expectedMode:  0,
-			expectedError: &strconv.NumError{
-				Func: "Atoi",
-				Num:  "wrong",
-				Err:  errors.New("invalid syntax"),
-			},
+			expectedError: errors.New("failed to parse major version: 'wrong'"),
 		},
 		{
 			name:          "will return error if fails to parse minor version",
 			apiVersion:    "",
 			faKeDiscovery: newFakeDiscovery("1", "wrong", nil),
 			expectedMode:  0,
-			expectedError: &strconv.NumError{
-				Func: "Atoi",
-				Num:  "wrong",
-				Err:  errors.New("invalid syntax"),
-			},
+			expectedError: errors.New("failed to parse minor version: 'wrong'"),
 		},
 	}
 	for _, c := range cases {

@@ -3,6 +3,7 @@ package ingress
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -271,11 +272,20 @@ func DetermineIngressMode(apiVersion string, d discovery.ServerVersionInterface)
 	if err != nil {
 		return 0, err
 	}
-	major, err := strconv.Atoi(ver.Major)
+
+	re := regexp.MustCompile(`^\d+`)
+	if !re.MatchString(ver.Major) {
+		return 0, fmt.Errorf("failed to parse major version: '%s'", ver.Major)
+	}
+	major, err := strconv.Atoi(re.FindString(ver.Major))
 	if err != nil {
 		return 0, err
 	}
-	minor, err := strconv.Atoi(ver.Minor)
+
+	if !re.MatchString(ver.Minor) {
+		return 0, fmt.Errorf("failed to parse minor version: '%s'", ver.Minor)
+	}
+	minor, err := strconv.Atoi(re.FindString(ver.Minor))
 	if err != nil {
 		return 0, err
 	}
