@@ -330,6 +330,12 @@ func TestDetermineIngressMode(t *testing.T) {
 			expectedMode:  IngressModeExtensions,
 		},
 		{
+			name:          "will return networking mode if server minor version has '+' suffix, e.g. 1.19+",
+			apiVersion:    "",
+			faKeDiscovery: newFakeDiscovery("1", "19+", nil),
+			expectedMode:  IngressModeNetworking,
+		},
+		{
 			name:          "will return error if fails to retrieve server version",
 			apiVersion:    "",
 			faKeDiscovery: newFakeDiscovery("", "", errors.New("internal server error")),
@@ -355,6 +361,28 @@ func TestDetermineIngressMode(t *testing.T) {
 			expectedError: &strconv.NumError{
 				Func: "Atoi",
 				Num:  "wrong",
+				Err:  errors.New("invalid syntax"),
+			},
+		},
+		{
+			name:          "will return error if fails to parse minor version with '+' suffix, e.g. 1.wrong+",
+			apiVersion:    "",
+			faKeDiscovery: newFakeDiscovery("1", "wrong+", nil),
+			expectedMode:  0,
+			expectedError: &strconv.NumError{
+				Func: "Atoi",
+				Num:  "wrong",
+				Err:  errors.New("invalid syntax"),
+			},
+		},
+		{
+			name:          "will return error if fails to parse minor version with just '+'",
+			apiVersion:    "",
+			faKeDiscovery: newFakeDiscovery("1", "+", nil),
+			expectedMode:  0,
+			expectedError: &strconv.NumError{
+				Func: "Atoi",
+				Num:  "",
 				Err:  errors.New("invalid syntax"),
 			},
 		},
