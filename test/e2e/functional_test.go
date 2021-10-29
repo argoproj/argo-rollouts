@@ -186,7 +186,7 @@ spec:
 // TestBlueGreenPromoteFull verifies behavior when performing full promotion with a blue-green strategy
 func (s *FunctionalSuite) TestBlueGreenPromoteFull() {
 	s.Given().
-		RolloutObjects(newService("bluegreen-promote-full-active")).
+		RolloutObjects(newService("bluegreen-promote-full-active", "bluegreen-promote-full")).
 		RolloutObjects(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -713,7 +713,7 @@ func (s *FunctionalSuite) TestBlueGreenUpdate() {
 // TestBlueGreenToCanary tests behavior when migrating from bluegreen to canary
 func (s *FunctionalSuite) TestBlueGreenToCanary() {
 	s.Given().
-		RolloutObjects(newService("bluegreen-to-canary")).
+		RolloutObjects(newService("bluegreen-to-canary", "bluegreen-to-canary")).
 		HealthyRollout(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -820,7 +820,7 @@ spec:
 // TestBlueGreenScaleDownDelay verifies the scaleDownDelay feature
 func (s *FunctionalSuite) TestBlueGreenScaleDownDelay() {
 	s.Given().
-		RolloutObjects(newService("bluegreen-scaledowndelay-active")).
+		RolloutObjects(newService("bluegreen-scaledowndelay-active", "bluegreen-scaledowndelay")).
 		RolloutObjects(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -892,7 +892,7 @@ spec:
 // TestBlueGreenAbortExceedProgressDeadline verifies the AbortExceedProgressDeadline feature
 func (s *FunctionalSuite) TestBlueGreenExceedProgressDeadlineAbort() {
 	s.Given().
-		RolloutObjects(newService("bluegreen-scaledowndelay-active")).
+		RolloutObjects(newService("bluegreen-scaledowndelay-active", "bluegreen-scaledowndelay")).
 		RolloutObjects(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -963,8 +963,8 @@ spec:
 // TestBlueGreenScaleDownOnAbort verifies the scaleDownOnAbort feature
 func (s *FunctionalSuite) TestBlueGreenScaleDownOnAbort() {
 	s.Given().
-		RolloutObjects(newService("bluegreen-preview-replicas-active")).
-		RolloutObjects(newService("bluegreen-preview-replicas-preview")).
+		RolloutObjects(newService("bluegreen-preview-replicas-active", "bluegreen-preview-replicas")).
+		RolloutObjects(newService("bluegreen-preview-replicas-preview", "bluegreen-preview-replicas")).
 		RolloutObjects(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout

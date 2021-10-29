@@ -78,7 +78,7 @@ spec:
     protocol: TCP
     name: http
   selector:
-    app: ephemeral-metadata
+    app: ephemeral-metadata-bg
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -282,8 +282,8 @@ spec:
 // TestBlueGreenPreviewReplicaCount verifies the previewReplicaCount feature
 func (s *BlueGreenSuite) TestBlueGreenPreviewReplicaCount() {
 	s.Given().
-		RolloutObjects(newService("bluegreen-preview-replicas-active")).
-		RolloutObjects(newService("bluegreen-preview-replicas-preview")).
+		RolloutObjects(newService("bluegreen-preview-replicas-active", "bluegreen-preview-replicas")).
+		RolloutObjects(newService("bluegreen-preview-replicas-preview", "bluegreen-preview-replicas")).
 		RolloutObjects(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -333,7 +333,7 @@ spec:
 // TestBlueGreenPreviewReplicaCountPromoteFull verifies promote full works with previewReplicaCount
 func (s *FunctionalSuite) TestBlueGreenPreviewReplicaCountPromoteFull() {
 	s.Given().
-		RolloutObjects(newService("bluegreen-preview-replicas-active")).
+		RolloutObjects(newService("bluegreen-preview-replicas-active", "bluegreen-preview-replicas-promote-full")).
 		RolloutObjects(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout

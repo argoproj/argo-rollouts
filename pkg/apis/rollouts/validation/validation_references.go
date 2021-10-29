@@ -91,7 +91,12 @@ func ValidateService(svc ServiceWithType, rollout *v1alpha1.Rollout) field.Error
 	}
 
 	service := svc.Service
+
+	// Verify the service selector labels matches rollout's, except for DefaultRolloutUniqueLabelKey
 	for svcLabelKey, svcLabelValue := range service.Spec.Selector {
+		if svcLabelKey == v1alpha1.DefaultRolloutUniqueLabelKey {
+			continue
+		}
 		if v, ok := rollout.Spec.Template.Labels[svcLabelKey]; !ok || v != svcLabelValue {
 			msg := fmt.Sprintf("Service %q has unmatch lable %q in rollout", service.Name, svcLabelKey)
 			fmt.Println(msg)
