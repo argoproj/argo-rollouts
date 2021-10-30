@@ -1327,7 +1327,7 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: rollout-bluegreen
+      app: rollout-ref-deployment
   progressDeadlineSeconds: 5
   revisionHistoryLimit: 2
   strategy:
@@ -1336,7 +1336,7 @@ spec:
   template:
     metadata:
       labels:
-        app: rollout-bluegreen
+        app: rollout-ref-deployment
     spec:
       containers:
         - name: rollouts-demo
