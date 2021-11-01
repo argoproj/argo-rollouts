@@ -863,9 +863,41 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Web
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         Web
       </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#optional-web-methods" class="md-nav__link">
+    Optional web methods
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1930,6 +1962,21 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#optional-web-methods" class="md-nav__link">
+    Optional web methods
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1946,7 +1993,7 @@
                 
                 
                 <h1 id="web-metrics">Web Metrics<a class="headerlink" href="#web-metrics" title="Permanent link">&para;</a></h1>
-<p>A HTTP request can be performed against some external service to obtain the measurement. This example
+<p>An HTTP request can be performed against some external service to obtain the measurement. This example
 makes a HTTP GET request to some URL. The webhook response must return JSON content. The result of
 the optional <code>jsonPath</code> expression will be assigned to the <code>result</code> variable that can be referenced
 in the <code>successCondition</code> and <code>failureCondition</code> expressions. If omitted, will use the entire body
@@ -1986,6 +2033,27 @@ was greater than <code>0.90</code></p>
 <p>NOTE: if the result is a string, two convenience functions <code>asInt</code> and <code>asFloat</code> are provided
 to convert a result value to a numeric type so that mathematical comparison operators can be used
 (e.g. &gt;, &lt;, &gt;=, &lt;=).</p>
+<h3 id="optional-web-methods">Optional web methods<a class="headerlink" href="#optional-web-methods" title="Permanent link">&para;</a></h3>
+<p>It is possible to use a POST or PUT requests, by specifying the <code>method</code> and <code>body</code> fields</p>
+<p><div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">webmetric</span>
+    <span class="nt">successCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result == true</span>
+    <span class="nt">provider</span><span class="p">:</span>
+      <span class="nt">web</span><span class="p">:</span>
+        <span class="nt">method</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">POST</span> <span class="c1"># valid values are GET|POST|PUT, defaults to GET</span>
+        <span class="nt">url</span><span class="p">:</span> <span class="s">&quot;http://my-server.com/api/v1/measurement?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
+        <span class="nt">timeoutSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span> <span class="c1"># defaults to 10 seconds</span>
+        <span class="nt">headers</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Authorization</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span>
+          <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Content-Type</span> <span class="c1"># if body is a json, it is recommended to set the Content-Type</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;application/json&quot;</span>
+        <span class="nt">body</span><span class="p">:</span> <span class="s">&quot;{\&quot;key\&quot;:</span><span class="nv"> </span><span class="s">\&quot;string</span><span class="nv"> </span><span class="s">value\&quot;}&quot;</span>
+        <span class="nt">jsonPath</span><span class="p">:</span> <span class="s">&quot;{$.data.ok}&quot;</span> 
+</code></pre></div>
+  !!! tip
+      In order to send in JSON, you have to encode it yourself, and send the correct Content-Type as well.
+      Setting a <code>body</code> field for a <code>GET</code> request will result in an error.</p>
                 
               
               
