@@ -87,7 +87,7 @@ to split traffic between the `canaryService` and `stableService` according to th
 
 The following is an example of our example Ingress after the rollout has injected the custom action 
 annotation that splits traffic between the canary-service and stable-service, with a traffic weight
-of 80 and 20 respectively:
+of 10 and 90 respectively:
 
 ```yaml
 apiVersion: networking.k8s.io/v1beta1
@@ -190,7 +190,8 @@ controller to verify that TargetGroups are accurate before marking newly created
 preventing premature scale down of the older ReplicaSet.
 
 Pod readiness gate injection uses a mutating webhook which decides to inject readiness gates when a
-pod is created based on the following conditions:
+pod is created based on the following conditions:  
+
 * There exists a service matching the pod labels in the same namespace
 * There exists at least one target group binding that refers to the matching service
 
