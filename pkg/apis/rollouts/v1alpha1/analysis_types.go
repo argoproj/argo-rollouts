@@ -397,19 +397,33 @@ type ScopeDetail struct {
 }
 
 type WebMetric struct {
+	// Method is the method of the web metric (empty defaults to GET)
+	Method WebMetricMethod `json:"method,omitempty" protobuf:"bytes,1,opt,name=method"`
 	// URL is the address of the web metric
-	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
+	URL string `json:"url" protobuf:"bytes,2,opt,name=url"`
 	// +patchMergeKey=key
 	// +patchStrategy=merge
 	// Headers are optional HTTP headers to use in the request
-	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,2,rep,name=headers"`
+	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,3,rep,name=headers"`
+	// Body is the body of the we metric (must be POST/PUT)
+	Body string `json:"body,omitempty" protobuf:"bytes,4,opt,name=body"`
 	// TimeoutSeconds is the timeout for the request in seconds (default: 10)
-	TimeoutSeconds int64 `json:"timeoutSeconds,omitempty" protobuf:"varint,3,opt,name=timeoutSeconds"`
+	TimeoutSeconds int64 `json:"timeoutSeconds,omitempty" protobuf:"varint,5,opt,name=timeoutSeconds"`
 	// JSONPath is a JSON Path to use as the result variable (default: "{$}")
-	JSONPath string `json:"jsonPath,omitempty" protobuf:"bytes,4,opt,name=jsonPath"`
+	JSONPath string `json:"jsonPath,omitempty" protobuf:"bytes,6,opt,name=jsonPath"`
 	// Insecure skips host TLS verification
-	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,7,opt,name=insecure"`
 }
+
+// WebMetricMethod is the available HTTP methods
+type WebMetricMethod string
+
+// Possible HTTP method values
+const (
+	WebMetricMethodGet  WebMetricMethod = "GET"
+	WebMetricMethodPost WebMetricMethod = "POST"
+	WebMetricMethodPut  WebMetricMethod = "PUT"
+)
 
 type WebMetricHeader struct {
 	Key   string `json:"key" protobuf:"bytes,1,opt,name=key"`
