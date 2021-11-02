@@ -18,19 +18,24 @@ import (
 
 func TestRunSuite(t *testing.T) {
 
-	const expectedApiId = "0123456789abcdef0123456789abcdef"
-	const expectedApiKey = "0123456789abcdef0123456789abcdef01234567"
+	const (
+		expectedApiId           = "0123456789abcdef0123456789abcdef"
+		expectedApiKey          = "0123456789abcdef0123456789abcdef01234567"
+		defaultSuccessCondition = "result.Percentage[0] > 95.001"
+		defaultFailureCondition = "result.Percentage[0] <= 95.000"
+		query                   = "requests| summarize Failure=count(success == False), Success=count(success == True)| extend Percentage=((Success*1.0)/(Success+Failure))*100"
+	)
 
 	aiProviderIntervalDefault := v1alpha1.MetricProvider{
 		AppInsights: &v1alpha1.AppInsightsMetric{
-			Query: "requests| summarize Failure=count(success == False), Success=count(success == True)| extend Percentage=((Success*1.0)/(Success+Failure))*100",
+			Query: query,
 		},
 	}
 
 	aiProviderIntervalProfile := v1alpha1.MetricProvider{
 		AppInsights: &v1alpha1.AppInsightsMetric{
 			Profile: "appinsights-profile-test",
-			Query:   "requests| summarize Failure=count(success == False), Success=count(success == True)| extend Percentage=((Success*1.0)/(Success+Failure))*100",
+			Query:   query,
 		},
 	}
 
@@ -50,8 +55,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"tables":[{"name":"PrimaryResult","columns":[{"name":"Failure","type":"long"},{"name":"Success","type":"long"},{"name":"Percentage","type":"real"}],"rows":[[40,1107,96.512641673932]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result.Percentage[0] > 95.001",
-				FailureCondition: "result.Percentage[0] <= 95.000",
+				SuccessCondition: defaultSuccessCondition,
+				FailureCondition: defaultFailureCondition,
 				Provider:         aiProviderIntervalDefault,
 			},
 			expectedValue: "{\"Failure\":[40],\"Percentage\":[96.512641673932],\"Success\":[1107]}",
@@ -63,8 +68,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"tables":[{"name":"PrimaryResult","columns":[{"name":"Failure","type":"long"},{"name":"Success","type":"long"},{"name":"Percentage","type":"real"}],"rows":[[40,1107,96.512641673932]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result.Percentage[0] > 95.001",
-				FailureCondition: "result.Percentage[0] <= 95.000",
+				SuccessCondition: defaultSuccessCondition,
+				FailureCondition: defaultFailureCondition,
 				Provider:         aiProviderIntervalProfile,
 			},
 			expectedValue: "{\"Failure\":[40],\"Percentage\":[96.512641673932],\"Success\":[1107]}",
@@ -76,8 +81,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"tables":[{"name":"PrimaryResult","columns":[{"name":"Failure","type":"long"},{"name":"Success","type":"long"},{"name":"Percentage","type":"real"}],"rows":[[2,732,99.72752043596729],[6,232,97.47899159663865]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result.Percentage[1] > 95.001",
-				FailureCondition: "result.Percentage[1] <= 95.000",
+				SuccessCondition: defaultSuccessCondition,
+				FailureCondition: defaultFailureCondition,
 				Provider:         aiProviderIntervalDefault,
 			},
 			expectedValue: "{\"Failure\":[2,6],\"Percentage\":[99.72752043596729,97.47899159663865],\"Success\":[732,232]}",
@@ -89,8 +94,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"tables":[{"name":"PrimaryResult","columns":[{"name":"Failure","type":"long"},{"name":"Success","type":"long"},{"name":"Percentage","type":"real"}],"rows":[[40,1107,94.512641673932]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result.Percentage[0] > 95.001",
-				FailureCondition: "result.Percentage[0] <= 95.000",
+				SuccessCondition: defaultSuccessCondition,
+				FailureCondition: defaultFailureCondition,
 				Provider:         aiProviderIntervalDefault,
 			},
 			expectedValue: "{\"Failure\":[40],\"Percentage\":[94.512641673932],\"Success\":[1107]}",
@@ -102,8 +107,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"tables":[{"name":"PrimaryResult","columns":[{"name":"Failure","type":"long"},{"name":"Success","type":"long"},{"name":"Percentage","type":"real"}],"rows":[[]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result.Percentage[0] > 95.001",
-				FailureCondition: "result.Percentage[0] <= 95.000",
+				SuccessCondition: defaultSuccessCondition,
+				FailureCondition: defaultFailureCondition,
 				Provider:         aiProviderIntervalDefault,
 			},
 			expectedErrorMessage: "type <nil> has no field Percentage",
@@ -142,8 +147,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"status":"error","error":"error messsage"}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result.Percentage[0] > 95.001",
-				FailureCondition: "result.Percentage[0] <= 95.000",
+				SuccessCondition: defaultSuccessCondition,
+				FailureCondition: defaultFailureCondition,
 				Provider:         aiProviderIntervalDefault,
 			},
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
@@ -155,8 +160,8 @@ func TestRunSuite(t *testing.T) {
 			webServerResponse: `{"error":{"message":"Valid authentication was not provided","code":"AuthorizationRequiredError","correlationId":"00000000-0000-0000-0000-000000000000"}}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
-				SuccessCondition: "result.Percentage[0] > 95.001",
-				FailureCondition: "result.Percentage[0] <= 95.000",
+				SuccessCondition: defaultSuccessCondition,
+				FailureCondition: defaultFailureCondition,
 				Provider:         aiProviderIntervalDefault,
 			},
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
@@ -176,7 +181,7 @@ func TestRunSuite(t *testing.T) {
 				//Check query variables
 				actualQuery := req.URL.Query().Get("query")
 
-				if actualQuery != "requests| summarize Failure=count(success == False), Success=count(success == True)| extend Percentage=((Success*1.0)/(Success+Failure))*100" {
+				if actualQuery != query {
 					t.Errorf("\nquery expected requests| summarize Failure=count(success == False), Success=count(success == True)| extend Percentage=((Success*1.0)/(Success+Failure))*100 but got %s", actualQuery)
 				}
 
@@ -232,19 +237,13 @@ func TestRunSuite(t *testing.T) {
 		assert.Equal(t, string(test.expectedPhase), string(measurement.Phase))
 
 		// Phase specific cases
-		switch test.expectedPhase {
-		case v1alpha1.AnalysisPhaseSuccessful:
-			assert.NotNil(t, measurement.StartedAt)
-			assert.Equal(t, test.expectedValue, measurement.Value)
-			assert.NotNil(t, measurement.FinishedAt)
-		case v1alpha1.AnalysisPhaseFailed:
-			assert.NotNil(t, measurement.StartedAt)
-			assert.Equal(t, test.expectedValue, measurement.Value)
-			assert.NotNil(t, measurement.FinishedAt)
-		case v1alpha1.AnalysisPhaseError:
+		if test.expectedPhase == v1alpha1.AnalysisPhaseError {
 			assert.Contains(t, measurement.Message, test.expectedErrorMessage)
+		} else {
+			assert.NotNil(t, measurement.StartedAt)
+			assert.Equal(t, test.expectedValue, measurement.Value)
+			assert.NotNil(t, measurement.FinishedAt)
 		}
-
 	}
 }
 
