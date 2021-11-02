@@ -171,6 +171,13 @@ message AntiAffinity {
   optional RequiredDuringSchedulingIgnoredDuringExecution requiredDuringSchedulingIgnoredDuringExecution = 2;
 }
 
+message AppInsightsMetric {
+  optional string query = 1;
+
+  // Profile is the name of the secret holding Application Insights account configuration
+  optional string profile = 2;
+}
+
 // Argument is an argument to an AnalysisRun
 message Argument {
   // Name is the name of the argument
@@ -803,6 +810,9 @@ message MetricProvider {
 
   // Graphite specifies the Graphite metric to query
   optional GraphiteMetric graphite = 9;
+
+  // Application Insights specifies a AppInsights metric to query
+  optional AppInsightsMetric appInsights = 10;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with

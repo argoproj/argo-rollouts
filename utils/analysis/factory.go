@@ -209,6 +209,9 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.Provider.CloudWatch != nil {
 		numProviders++
 	}
+	if metric.Provider.AppInsights != nil {
+		numProviders++
+	}
 	if numProviders == 0 {
 		return fmt.Errorf("no provider specified")
 	}

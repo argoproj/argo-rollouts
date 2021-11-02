@@ -92,6 +92,15 @@ spec:
                       type: string
                     provider:
                       properties:
+                        appInsights:
+                          properties:
+                            profile:
+                              type: string
+                            query:
+                              type: string
+                          required:
+                          - query
+                          type: object
                         cloudWatch:
                           properties:
                             interval:

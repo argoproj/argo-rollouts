@@ -3,6 +3,7 @@ package metricproviders
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/metricproviders/appinsights"
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
 	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
@@ -90,6 +91,8 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 			return nil, err
 		}
 		return cloudwatch.NewCloudWatchProvider(clinet, logCtx), nil
+	case appinsights.ProviderType:
+		return appinsights.NewAppInsightsProvider(logCtx, f.KubeClient, metric)
 	default:
 		return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
 	}
@@ -112,6 +115,9 @@ func Type(metric v1alpha1.Metric) string {
 		return newrelic.ProviderType
 	} else if metric.Provider.CloudWatch != nil {
 		return cloudwatch.ProviderType
+	} else if metric.Provider.AppInsights != nil {
+		return appinsights.ProviderType
 	}
+
 	return "Unknown Provider"
 }

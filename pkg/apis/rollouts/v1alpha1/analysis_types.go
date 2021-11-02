@@ -143,6 +143,8 @@ type MetricProvider struct {
 	CloudWatch *CloudWatchMetric `json:"cloudWatch,omitempty" protobuf:"bytes,8,opt,name=cloudWatch"`
 	// Graphite specifies the Graphite metric to query
 	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,9,opt,name=graphite"`
+	// Application Insights specifies a AppInsights metric to query
+	AppInsights *AppInsightsMetric `json:"appInsights,omitempty" protobuf:"bytes,10,opt,name=appInsights"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -419,4 +421,10 @@ type WebMetricHeader struct {
 type DatadogMetric struct {
 	Interval DurationString `json:"interval,omitempty" protobuf:"bytes,1,opt,name=interval,casttype=DurationString"`
 	Query    string         `json:"query" protobuf:"bytes,2,opt,name=query"`
+}
+
+type AppInsightsMetric struct {
+	Query string `json:"query" protobuf:"bytes,1,opt,name=query"`
+	// Profile is the name of the secret holding Application Insights account configuration
+	Profile string `json:"profile,omitempty" protobuf:"bytes,2,opt,name=profile"`
 }
