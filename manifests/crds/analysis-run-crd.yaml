@@ -2447,6 +2447,8 @@ spec:
                           type: object
                         web:
                           properties:
+                            body:
+                              type: string
                             headers:
                               items:
                                 properties:
@@ -2462,6 +2464,8 @@ spec:
                             insecure:
                               type: boolean
                             jsonPath:
+                              type: string
+                            method:
                               type: string
                             timeoutSeconds:
                               format: int64
