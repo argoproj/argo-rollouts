@@ -69,9 +69,9 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		templateRS := &appsv1.ReplicaSet{}
 		switch templateStep.SpecRef {
 		case v1alpha1.CanarySpecRef:
-			templateRS = newRS
+			templateRS = newRS.DeepCopy()
 		case v1alpha1.StableSpecRef:
-			templateRS = stableRS
+			templateRS = stableRS.DeepCopy()
 		default:
 			return nil, fmt.Errorf("Invalid template step SpecRef: must be canary or stable")
 		}

@@ -584,6 +584,41 @@ func TestGetExperimentFromTemplate(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestGetExperimentFromTemplateModifiedLabelsDoesntChangeRefReplicatSet(t *testing.T) {
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{{
+				Name:     "stable-template",
+				SpecRef:  v1alpha1.StableSpecRef,
+				Replicas: pointer.Int32Ptr(1),
+			}},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.Steps[0].Experiment.Templates[0].Metadata.Annotations = map[string]string{"abc": "def"}
+	r2.Spec.Strategy.Canary.Steps[0].Experiment.Templates[0].Metadata.Labels = map[string]string{"123": "456"}
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	stableRsTemplate := rs1.Spec.Template.DeepCopy()
+	canaryRsTemplate := rs2.Spec.Template.DeepCopy()
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.StableRS = rs1PodHash
+
+	_, err := GetExperimentFromTemplate(r2, rs1, rs2)
+	assert.Nil(t, err)
+	assert.Equal(t, stableRsTemplate, &rs1.Spec.Template)
+
+	r2.Spec.Strategy.Canary.Steps[0].Experiment.Templates[0].SpecRef = v1alpha1.CanarySpecRef
+	_, err = GetExperimentFromTemplate(r2, rs1, rs2)
+	assert.Nil(t, err)
+	assert.Equal(t, canaryRsTemplate, &rs2.Spec.Template)
+}
+
 func TestDeleteExperimentWithNoMatchingRS(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
