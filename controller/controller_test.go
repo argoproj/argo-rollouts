@@ -37,6 +37,7 @@ import (
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	rolloutController "github.com/argoproj/argo-rollouts/rollout"
 	"github.com/argoproj/argo-rollouts/service"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"github.com/argoproj/argo-rollouts/utils/queue"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -118,6 +119,11 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
 	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
 
+	mode, err := ingressutil.DetermineIngressMode("extensions/v1beta1", &discoveryfake.FakeDiscovery{})
+	assert.NoError(t, err)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(mode, f.kubeclient, k8sI)
+	assert.NoError(t, err)
+
 	cm.rolloutController = rolloutController.NewController(rolloutController.ControllerConfig{
 		Namespace:                       metav1.NamespaceAll,
 		KubeClientSet:                   f.kubeclient,
@@ -129,7 +135,7 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
 		ReplicaSetInformer:              k8sI.Apps().V1().ReplicaSets(),
 		ServicesInformer:                k8sI.Core().V1().Services(),
-		IngressInformer:                 k8sI.Extensions().V1beta1().Ingresses(),
+		IngressWrapper:                  ingressWrapper,
 		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
 		IstioPrimaryDynamicClient:       dynamicClient,
 		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
@@ -155,7 +161,7 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 
 	cm.ingressController = ingress.NewController(ingress.ControllerConfig{
 		Client:           f.kubeclient,
-		IngressInformer:  k8sI.Extensions().V1beta1().Ingresses(),
+		IngressWrap:      ingressWrapper,
 		IngressWorkQueue: ingressWorkqueue,
 
 		RolloutsInformer: i.Argoproj().V1alpha1().Rollouts(),
@@ -245,6 +251,11 @@ func TestNewManager(t *testing.T) {
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
 	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
 
+	mode, err := ingressutil.DetermineIngressMode("extensions/v1beta1", &discoveryfake.FakeDiscovery{})
+	assert.NoError(t, err)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(mode, f.kubeclient, k8sI)
+	assert.NoError(t, err)
+
 	k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
 	cm := NewManager(
 		"default",
@@ -255,7 +266,7 @@ func TestNewManager(t *testing.T) {
 		&discoveryfake.FakeDiscovery{},
 		k8sI.Apps().V1().ReplicaSets(),
 		k8sI.Core().V1().Services(),
-		k8sI.Extensions().V1beta1().Ingresses(),
+		ingressWrapper,
 		k8sI.Batch().V1().Jobs(),
 		i.Argoproj().V1alpha1().Rollouts(),
 		i.Argoproj().V1alpha1().Experiments(),
