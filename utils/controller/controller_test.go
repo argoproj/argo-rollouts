@@ -38,7 +38,7 @@ func TestProcessNextWorkItemHandlePanic(t *testing.T) {
 	metricServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	})
+	}, true)
 	syncHandler := func(key string) error {
 		panic("Bad big panic :(")
 	}
@@ -87,7 +87,7 @@ func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {
 	metricServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	})
+	}, true)
 	syncHandler := func(key string) error {
 		return fmt.Errorf("error message")
 	}

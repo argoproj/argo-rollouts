@@ -86,7 +86,7 @@ func newFakeIngressController(t *testing.T, ing *extensionsv1beta1.Ingress, roll
 		MetricsServer: metrics.NewMetricsServer(metrics.ServerConfig{
 			Addr:               "localhost:8080",
 			K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-		}),
+		}, true),
 	})
 	enqueuedObjects := map[string]int{}
 	var enqueuedObjectsLock sync.Mutex

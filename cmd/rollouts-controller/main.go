@@ -46,6 +46,7 @@ func newCommand() *cobra.Command {
 		logLevel             string
 		klogLevel            int
 		metricsPort          int
+		healthzPort          int
 		instanceID           string
 		rolloutThreads       int
 		experimentThreads    int
@@ -175,6 +176,7 @@ func newCommand() *cobra.Command {
 				resyncDuration,
 				instanceID,
 				metricsPort,
+				healthzPort,
 				k8sRequestProvider,
 				nginxIngressClasses,
 				albIngressClasses)
@@ -209,6 +211,7 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&klogLevel, "kloglevel", 0, "Set the klog logging level")
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
+	command.Flags().IntVar(&healthzPort, "healthzPort", controller.DefaultHealthzPort, "Set the port the healthz endpoint should be exposed over")
 	command.Flags().StringVar(&instanceID, "instance-id", "", "Indicates which argo rollout objects the controller should operate on")
 	command.Flags().IntVar(&rolloutThreads, "rollout-threads", controller.DefaultRolloutThreads, "Set the number of worker threads for the Rollout controller")
 	command.Flags().IntVar(&experimentThreads, "experiment-threads", controller.DefaultExperimentThreads, "Set the number of worker threads for the Experiment controller")

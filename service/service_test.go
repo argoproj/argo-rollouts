@@ -72,7 +72,7 @@ func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	})
+	}, true)
 	c := NewController(ControllerConfig{
 		Kubeclientset:     kubeclient,
 		Argoprojclientset: client,
