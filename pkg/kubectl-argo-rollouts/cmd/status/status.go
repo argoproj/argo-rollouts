@@ -60,7 +60,11 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 
 			if !statusOptions.Watch {
-				fmt.Fprintln(o.Out, ri.Status)
+				if ri.Status == "Healthy" || ri.Status == "Degraded" {
+					fmt.Fprintln(o.Out, ri.Status)
+				} else {
+					fmt.Fprintf(o.Out, "%s - %s\n", ri.Status, ri.Message)
+				}
 			} else {
 				rolloutUpdates := make(chan *rollout.RolloutInfo)
 				controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
@@ -68,17 +72,19 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 				})
 				go controller.Run(ctx)
 				statusOptions.WatchStatus(ctx.Done(), rolloutUpdates)
+				close(rolloutUpdates)
 
-				finalRi, err := controller.GetRolloutInfo()
+				// the final rollout info after timeout or reach Healthy or Degraded status
+				ri, err = controller.GetRolloutInfo()
 				if err != nil {
 					return err
 				}
-				close(rolloutUpdates)
-				if finalRi.Status == "Degraded" {
-					return fmt.Errorf("The rollout is in a degraded state with message: %s", finalRi.Message)
-				} else if finalRi.Status != "Healthy" {
-					return fmt.Errorf("Rollout progress exceeded timeout")
-				}
+			}
+
+			if ri.Status == "Degraded" {
+				return fmt.Errorf("The rollout is in a degraded state with message: %s", ri.Message)
+			} else if ri.Status != "Healthy" && statusOptions.Watch {
+				return fmt.Errorf("Rollout status watch exceeded timeout")
 			}
 
 			return nil
