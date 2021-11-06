@@ -64,6 +64,18 @@ spec:
                   - name
                   type: object
                 type: array
+              dryRun:
+                items:
+                  properties:
+                    measurementsLength:
+                      type: integer
+                    metricName:
+                      type: string
+                  required:
+                  - measurementsLength
+                  - metricName
+                  type: object
+                type: array
               metrics:
                 items:
                   properties:

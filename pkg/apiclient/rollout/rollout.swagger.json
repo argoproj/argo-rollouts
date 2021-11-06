@@ -829,6 +829,21 @@
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DryRun": {
+      "type": "object",
+      "properties": {
+        "metricName": {
+          "type": "string",
+          "description": "MetricName is the name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported\nand denotes all the available metrics."
+        },
+        "measurementsLength": {
+          "type": "string",
+          "format": "int64",
+          "description": "MeasurementsLength indicates how many measurements to retain for this metric when it's running in the Dry-Run\nmode."
+        }
+      },
+      "description": "DryRun defines the settings for running the analysis in Dry-Run mode."
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.FieldRef": {
       "type": "object",
       "properties": {
@@ -1018,6 +1033,13 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunArgument"
           },
           "title": "Args the arguments that will be added to the AnalysisRuns\n+patchMergeKey=name\n+patchStrategy=merge"
+        },
+        "dryRun": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DryRun"
+          },
+          "title": "DryRun object contains the settings for running the analysis in Dry-Run mode\n+patchMergeKey=metricName\n+patchStrategy=merge"
         }
       },
       "title": "RolloutAnalysis defines a template that is used to create a analysisRun"

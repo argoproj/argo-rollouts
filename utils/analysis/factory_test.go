@@ -159,6 +159,149 @@ func TestBackgroundLabels(t *testing.T) {
 	assert.Equal(t, expected, generated)
 }
 
+func TestValidateDryRunMetrics(t *testing.T) {
+	t.Run("No failures when DryRun is a subset of the metrics", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{
+				{
+					MetricName: "success-rate",
+				},
+			},
+		}
+		err := ValidateDryRunMetrics(spec.Metrics, spec.DryRun)
+		assert.Nil(t, err)
+	})
+	t.Run("Wildcards are accepted in DryRun", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+				{
+					Name:         "error-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{
+				{
+					MetricName: "*",
+				},
+			},
+		}
+		err := ValidateDryRunMetrics(spec.Metrics, spec.DryRun)
+		assert.Nil(t, err)
+	})
+	t.Run("No other metric names are accepted along with the wildcard in the DryRun", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+				{
+					Name:         "error-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{
+				{
+					MetricName: "*",
+				},
+				{
+					MetricName: "error-rate",
+				},
+			},
+		}
+		err := ValidateDryRunMetrics(spec.Metrics, spec.DryRun)
+		assert.EqualError(t, err, "dryRun[0]: While using the wildcard '*' no other metric names are allowed")
+	})
+	t.Run("DryRun shouldn't have any metric names which aren't in the metrics", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "error-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{
+				{
+					MetricName: "success-rate",
+				},
+				{
+					MetricName: "error-rate",
+				},
+			},
+		}
+		err := ValidateDryRunMetrics(spec.Metrics, spec.DryRun)
+		assert.EqualError(t, err, "dryRun[0]: Invalid metric name 'success-rate'")
+	})
+	t.Run("DryRun shouldn't have any duplicate metric names", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "error-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{
+				{
+					MetricName: "error-rate",
+				},
+				{
+					MetricName: "error-rate",
+				},
+			},
+		}
+		err := ValidateDryRunMetrics(spec.Metrics, spec.DryRun)
+		assert.EqualError(t, err, "dryRun[1]: Duplicate metric name 'error-rate'")
+	})
+}
+
 func TestValidateMetrics(t *testing.T) {
 	t.Run("Ensure count >= failureLimit", func(t *testing.T) {
 		failureLimit := intstr.FromInt(2)
@@ -303,7 +446,7 @@ func TestValidateMetrics(t *testing.T) {
 			},
 		}
 		err := ValidateMetrics(spec.Metrics)
-		assert.EqualError(t, err, "metrics[1]: duplicate name 'success-rate")
+		assert.EqualError(t, err, "metrics[1]: duplicate name 'success-rate'")
 	})
 	t.Run("Ensure failureLimit >= 0", func(t *testing.T) {
 		failureLimit := intstr.FromInt(-1)
