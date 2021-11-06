@@ -772,6 +772,9 @@ message Metric {
 
   // Provider configuration to the external system to use to verify the analysis
   optional MetricProvider provider = 10;
+
+  // Whether to evaluate this metric in a Dry-Run mode
+  optional bool dryRun = 11;
 }
 
 // MetricProvider which external system to use to verify the analysis
@@ -839,6 +842,9 @@ message MetricResult {
   // ConsecutiveError is the number of times an error was encountered during measurement in succession
   // Resets to zero when non-errors are encountered
   optional int32 consecutiveError = 10;
+
+  // Whether this metric is running in a Dry-Run mode
+  optional bool dryRun = 11;
 }
 
 // NewRelicMetric defines the newrelic query to perform canary analysis

@@ -106,6 +106,8 @@ type Metric struct {
 	ConsecutiveErrorLimit *intstrutil.IntOrString `json:"consecutiveErrorLimit,omitempty" protobuf:"bytes,9,opt,name=consecutiveErrorLimit"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider" protobuf:"bytes,10,opt,name=provider"`
+	// Whether to evaluate this metric in a Dry-Run mode
+	DryRun bool `json:"dryRun,omitempty" protobuf:"varint,11,opt,name=dryRun"`
 }
 
 // EffectiveCount is the effective count based on whether or not count/interval is specified
@@ -343,6 +345,8 @@ type MetricResult struct {
 	// ConsecutiveError is the number of times an error was encountered during measurement in succession
 	// Resets to zero when non-errors are encountered
 	ConsecutiveError int32 `json:"consecutiveError,omitempty" protobuf:"varint,10,opt,name=consecutiveError"`
+	// Whether this metric is running in a Dry-Run mode
+	DryRun bool `json:"dryRun,omitempty" protobuf:"varint,11,opt,name=dryRun"`
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured

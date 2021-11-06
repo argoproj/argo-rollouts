@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"fmt"
+
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
@@ -83,17 +85,17 @@ func collectAnalysisRuns(ch chan<- prometheus.Metric, ar *v1alpha1.AnalysisRun) 
 	for _, metric := range ar.Spec.Metrics {
 		metricType := metricproviders.Type(metric)
 		metricResult := analysis.GetResult(ar, metric.Name)
-		addGauge(MetricAnalysisRunMetricType, 1, metric.Name, metricType)
+		addGauge(MetricAnalysisRunMetricType, 1, metric.Name, metricType, fmt.Sprint(metric.DryRun))
 		calculatedPhase := v1alpha1.AnalysisPhase("")
 		if metricResult != nil {
 			calculatedPhase = metricResult.Phase
 		}
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), metric.Name, metricType, string(v1alpha1.AnalysisPhasePending))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), metric.Name, metricType, string(v1alpha1.AnalysisPhaseError))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseFailed), metric.Name, metricType, string(v1alpha1.AnalysisPhaseFailed))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), metric.Name, metricType, string(v1alpha1.AnalysisPhaseSuccessful))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), metric.Name, metricType, string(v1alpha1.AnalysisPhaseRunning))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), metric.Name, metricType, string(v1alpha1.AnalysisPhaseInconclusive))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhasePending))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhaseError))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseFailed), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhaseFailed))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhaseSuccessful))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhaseRunning))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhaseInconclusive))
 	}
 }
 
@@ -106,6 +108,6 @@ func collectAnalysisTemplate(ch chan<- prometheus.Metric, namespace, name string
 
 	for _, metric := range at.Metrics {
 		metricType := metricproviders.Type(metric)
-		addGauge(MetricAnalysisTemplateMetricInfo, 1, metricType, metric.Name)
+		addGauge(MetricAnalysisTemplateMetricInfo, 1, metricType, metric.Name, fmt.Sprint(metric.DryRun))
 	}
 }

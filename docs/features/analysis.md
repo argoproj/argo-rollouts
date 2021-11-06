@@ -541,6 +541,53 @@ encountered.
           ))
 ```
 
+## Dry-Run Mode
+
+`dryRun` can be used on a metric to control whether or not to evaluate that metric in a dry-run mode. A metric running 
+in the dry-run mode won't impact the final state of the rollout or experiment even if it fails or the evaluation comes 
+out as inconclusive.
+
+The following example queries prometheus every 5 minutes to get the total number of 4XX and 5XX errors, and even if one 
+or both of them fails, the analysis run will pass.
+
+```yaml hl_lines="4"
+  metrics:
+  - name: total-5xx-errors
+    interval: 5m
+    dryRun: true
+    failureCondition: result[0] >= 10
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code~"5.*"}[5m]
+          ))
+  - name: total-4xx-errors
+    interval: 5m
+    dryRun: true
+    failureCondition: result[0] >= 10
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code~"4.*"}[5m]
+          ))
+```
+
+If one or more metrics are running in the dry-run mode, the summary of the dry-run results gets appended to the analysis 
+run message. Assuming that the `total-4xx-errors` metric fails in the above example but, the `total-5xx-errors` 
+succeeds, the final dry-run summary will look like this.
+
+```yaml hl_lines="1"
+Message: Dry-Run Summary: Total=2, Successful=1, Failed=1, Inconclusive=0
+Metric Results:
+...
+```
+
 ## Inconclusive Runs
 
 Analysis runs can also be considered `Inconclusive`, which indicates the run was neither successful,

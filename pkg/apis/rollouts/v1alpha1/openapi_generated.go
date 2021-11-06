@@ -2280,6 +2280,13 @@ func schema_pkg_apis_rollouts_v1alpha1_Metric(ref common.ReferenceCallback) comm
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricProvider"),
 						},
 					},
+					"dryRun": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether to evaluate this metric in a Dry-Run mode",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"name", "provider"},
 			},
@@ -2442,6 +2449,13 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref common.ReferenceCallback
 							Description: "ConsecutiveError is the number of times an error was encountered during measurement in succession Resets to zero when non-errors are encountered",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"dryRun": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether this metric is running in a Dry-Run mode",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

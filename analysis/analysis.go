@@ -26,7 +26,10 @@ const (
 	DefaultMeasurementHistoryLimit = 10
 	// DefaultErrorRetryInterval is the default interval to retry a measurement upon error, in the
 	// event an interval was not specified
-	DefaultErrorRetryInterval time.Duration = 10 * time.Second
+	DefaultErrorRetryInterval = 10 * time.Second
+	// SuccessfulAssessmentRunTerminatedResult is used for logging purposes when the metrics evaluation
+	// is successful and the run is terminated.
+	SuccessfulAssessmentRunTerminatedResult = "Metric Assessment Result - Successful: Run Terminated"
 )
 
 // metricTask holds the metric which need to be measured during this reconciliation along with
@@ -36,11 +39,19 @@ type metricTask struct {
 	incompleteMeasurement *v1alpha1.Measurement
 }
 
+// dryRunStatus holds the stats of the metrics being evaluated in the Dry-Run mode.
+type dryRunStatus struct {
+	totalMetrics        int32
+	failedMetrics       int32
+	inconclusiveMetrics int32
+	successfulMetrics   int32
+}
+
 func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
 	if origRun.Status.Phase.Completed() {
 		return origRun
 	}
-	log := logutil.WithAnalysisRun(origRun)
+	logger := logutil.WithAnalysisRun(origRun)
 	run := origRun.DeepCopy()
 
 	if run.Status.MetricResults == nil {
@@ -49,8 +60,8 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 
 	resolvedMetrics, err := getResolvedMetricsWithoutSecrets(run.Spec.Metrics, run.Spec.Args)
 	if err != nil {
-		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
-		log.Warn(message)
+		message := fmt.Sprintf("Unable to resolve metric arguments: %v", err)
+		logger.Warn(message)
 		run.Status.Phase = v1alpha1.AnalysisPhaseError
 		run.Status.Message = message
 		c.recordAnalysisRunCompletionEvent(run)
@@ -59,8 +70,8 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 
 	err = analysisutil.ValidateMetrics(resolvedMetrics)
 	if err != nil {
-		message := fmt.Sprintf("analysis spec invalid: %v", err)
-		log.Warn(message)
+		message := fmt.Sprintf("Analysis spec invalid: %v", err)
+		logger.Warn(message)
 		run.Status.Phase = v1alpha1.AnalysisPhaseError
 		run.Status.Message = message
 		c.recordAnalysisRunCompletionEvent(run)
@@ -68,11 +79,11 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 	}
 
 	tasks := generateMetricTasks(run, resolvedMetrics)
-	log.Infof("taking %d measurements", len(tasks))
+	logger.Infof("Taking %d Measurement(s)...", len(tasks))
 	err = c.runMeasurements(run, tasks)
 	if err != nil {
-		message := fmt.Sprintf("unable to resolve metric arguments: %v", err)
-		log.Warn(message)
+		message := fmt.Sprintf("Unable to resolve metric arguments: %v", err)
+		logger.Warn(message)
 		run.Status.Phase = v1alpha1.AnalysisPhaseError
 		run.Status.Message = message
 		c.recordAnalysisRunCompletionEvent(run)
@@ -91,7 +102,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 	err = c.garbageCollectMeasurements(run, DefaultMeasurementHistoryLimit)
 	if err != nil {
 		// TODO(jessesuen): surface errors to controller so they can be retried
-		log.Warnf("Failed to garbage collect measurements: %v", err)
+		logger.Warnf("Failed to garbage collect measurements: %v", err)
 	}
 
 	nextReconcileTime := calculateNextReconcileTime(run, resolvedMetrics)
@@ -100,7 +111,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		if enqueueSeconds < 0 {
 			enqueueSeconds = 0
 		}
-		log.Infof("enqueueing analysis after %v", enqueueSeconds)
+		logger.Infof("Enqueueing analysis after %v", enqueueSeconds)
 		c.enqueueAnalysisAfter(run, enqueueSeconds)
 	}
 	return run
@@ -133,7 +144,7 @@ func (c *Controller) recordAnalysisRunCompletionEvent(run *v1alpha1.AnalysisRun)
 	case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
 		eventType = corev1.EventTypeWarning
 	}
-	c.recorder.Eventf(run, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(run.Status.Phase)}, "analysis completed %s", run.Status.Phase)
+	c.recorder.Eventf(run, record.EventOptions{EventType: eventType, EventReason: "AnalysisRun" + string(run.Status.Phase)}, "Analysis Completed. Result: %s", run.Status.Phase)
 }
 
 // generateMetricTasks generates a list of metrics tasks needed to be measured as part of this
@@ -141,7 +152,7 @@ func (c *Controller) recordAnalysisRunCompletionEvent(run *v1alpha1.AnalysisRun)
 // terminating (e.g. due to manual termination or failing metric), will not schedule further
 // measurements other than to resume any in-flight measurements.
 func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) []metricTask {
-	log := logutil.WithAnalysisRun(run)
+	logger := logutil.WithAnalysisRun(run)
 	var tasks []metricTask
 	terminating := analysisutil.IsTerminating(run)
 
@@ -149,7 +160,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 		if analysisutil.MetricCompleted(run, metric.Name) {
 			continue
 		}
-		logCtx := log.WithField("metric", metric.Name)
+		logCtx := logger.WithField("metric", metric.Name)
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement != nil && lastMeasurement.FinishedAt == nil {
 			now := metav1.Now()
@@ -157,7 +168,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 				continue
 			}
 			// last measurement is still in-progress. need to complete it
-			logCtx.Infof("resuming in-progress measurement")
+			logCtx.Infof("Resuming in-progress measurement")
 			tasks = append(tasks, metricTask{
 				metric:                run.Spec.Metrics[i],
 				incompleteMeasurement: lastMeasurement,
@@ -165,7 +176,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 			continue
 		}
 		if terminating {
-			logCtx.Infof("skipping measurement: run is terminating")
+			logCtx.Infof("Skipping measurement: run is terminating")
 			continue
 		}
 		if lastMeasurement == nil {
@@ -179,13 +190,13 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 					continue
 				}
 				if run.Status.StartedAt.Add(duration).After(time.Now()) {
-					logCtx.Infof("waiting until start delay duration passes")
+					logCtx.Infof("Waiting until start delay duration passes")
 					continue
 				}
 			}
 			// measurement never taken
 			tasks = append(tasks, metricTask{metric: run.Spec.Metrics[i]})
-			logCtx.Infof("running initial measurement")
+			logCtx.Infof("Running initial measurement")
 			continue
 		}
 		metricResult := analysisutil.GetResult(run, metric.Name)
@@ -201,20 +212,30 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 		if lastMeasurement.Phase == v1alpha1.AnalysisPhaseError {
 			interval = DefaultErrorRetryInterval
 		} else if metric.Interval != "" {
-			metricInterval, err := metric.Interval.Duration()
+			parsedInterval, err := parseMetricInterval(*logCtx, metric.Interval)
 			if err != nil {
-				logCtx.Warnf("failed to parse interval: %v", err)
 				continue
 			}
-			interval = metricInterval
+			interval = parsedInterval
 		}
 		if time.Now().After(lastMeasurement.FinishedAt.Add(interval)) {
 			tasks = append(tasks, metricTask{metric: run.Spec.Metrics[i]})
-			logCtx.Infof("running overdue measurement")
+			logCtx.Infof("Running overdue measurement")
 			continue
 		}
 	}
 	return tasks
+}
+
+// parseMetricInterval is a helper method to parse the given metric interval and return the
+// parsed duration or error (if any)
+func parseMetricInterval(logCtx log.Entry, metricDurationString v1alpha1.DurationString) (time.Duration, error) {
+	metricInterval, err := metricDurationString.Duration()
+	if err != nil {
+		logCtx.Warnf("Failed to parse interval: %v", err)
+		return -1, err
+	}
+	return metricInterval, nil
 }
 
 // resolveArgs resolves args for metricTasks, including secret references
@@ -286,7 +307,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 		go func(t metricTask) {
 			defer wg.Done()
 			//redact secret values from logs
-			log := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
+			logger := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
 
 			resultsLock.Lock()
 			metricResult := analysisutil.GetResult(run, t.metric.Name)
@@ -294,13 +315,14 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 
 			if metricResult == nil {
 				metricResult = &v1alpha1.MetricResult{
-					Name:  t.metric.Name,
-					Phase: v1alpha1.AnalysisPhaseRunning,
+					Name:   t.metric.Name,
+					Phase:  v1alpha1.AnalysisPhaseRunning,
+					DryRun: t.metric.DryRun,
 				}
 			}
 
 			var newMeasurement v1alpha1.Measurement
-			provider, err := c.newProvider(*log, t.metric)
+			provider, err := c.newProvider(*logger, t.metric)
 			if err != nil {
 				if t.incompleteMeasurement != nil {
 					newMeasurement = *t.incompleteMeasurement
@@ -316,10 +338,10 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				} else {
 					// metric is incomplete. either terminate or resume it
 					if terminating {
-						log.Infof("terminating in-progress measurement")
+						logger.Infof("Terminating in-progress measurement")
 						newMeasurement = provider.Terminate(run, t.metric, *t.incompleteMeasurement)
 						if newMeasurement.Phase == v1alpha1.AnalysisPhaseSuccessful {
-							newMeasurement.Message = "metric terminated"
+							newMeasurement.Message = "Metric Terminated"
 						}
 					} else {
 						newMeasurement = provider.Resume(run, t.metric, *t.incompleteMeasurement)
@@ -328,7 +350,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			}
 
 			if newMeasurement.Phase.Completed() {
-				log.Infof("measurement completed %s", newMeasurement.Phase)
+				logger.Infof("Measurement Completed. Result: %s", newMeasurement.Phase)
 				if newMeasurement.FinishedAt == nil {
 					finishedAt := metav1.Now()
 					newMeasurement.FinishedAt = &finishedAt
@@ -349,7 +371,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				case v1alpha1.AnalysisPhaseError:
 					metricResult.Error++
 					metricResult.ConsecutiveError++
-					log.Warnf("measurement had error: %s", newMeasurement.Message)
+					logger.Warnf("Measurement had error: %s", newMeasurement.Message)
 				}
 			}
 
@@ -391,23 +413,33 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 		run.Status.StartedAt = &now
 	}
 	if run.Spec.Terminate {
-		worstMessage = "run terminated"
+		worstMessage = "Run Terminated"
 	}
 
 	// Iterate all metrics and update MetricResult.Phase fields based on latest measurement(s)
+	dryRunStatus := dryRunStatus{
+		totalMetrics:        0,
+		failedMetrics:       0,
+		inconclusiveMetrics: 0,
+		successfulMetrics:   0,
+	}
 	for _, metric := range metrics {
+		if metric.DryRun {
+			log.Infof("Metric '%s' is running in Dry-Run mode.", metric.Name)
+			dryRunStatus.totalMetrics++
+		}
 		if result := analysisutil.GetResult(run, metric.Name); result != nil {
-			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
+			logger := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
 			metricStatus := assessMetricStatus(metric, *result, terminating)
 			if result.Phase != metricStatus {
-				log.Infof("metric transitioned from %s -> %s", result.Phase, metricStatus)
+				logger.Infof("Metric '%s' transitioned from %s -> %s", metric.Name, result.Phase, metricStatus)
 				if metricStatus.Completed() {
 					eventType := corev1.EventTypeNormal
 					switch metricStatus {
 					case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
 						eventType = corev1.EventTypeWarning
 					}
-					c.recorder.Eventf(run, record.EventOptions{EventType: eventType, EventReason: "Metric" + string(metricStatus)}, "metric '%s' completed %s", metric.Name, metricStatus)
+					c.recorder.Eventf(run, record.EventOptions{EventType: eventType, EventReason: "Metric" + string(metricStatus)}, "Metric '%s' Completed. Result: %s", metric.Name, metricStatus)
 				}
 				if lastMeasurement := analysisutil.LastMeasurement(run, metric.Name); lastMeasurement != nil {
 					result.Message = lastMeasurement.Message
@@ -419,31 +451,58 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 				// if any metric is in-progress, then entire analysis run will be considered running
 				everythingCompleted = false
 			} else {
+				phase, message := assessMetricFailureInconclusiveOrError(metric, *result)
+				// NOTE: We don't care about the status if the metric is marked as a Dry-Run
 				// otherwise, remember the worst status of all completed metric results
-				if worstStatus == "" || analysisutil.IsWorse(worstStatus, metricStatus) {
-					worstStatus = metricStatus
-					_, message := assessMetricFailureInconclusiveOrError(metric, *result)
-					if message != "" {
-						worstMessage = fmt.Sprintf("metric \"%s\" assessed %s due to %s", metric.Name, metricStatus, message)
-						if result.Message != "" {
-							worstMessage += fmt.Sprintf(": \"Error Message: %s\"", result.Message)
+				if !metric.DryRun {
+					if worstStatus == "" || analysisutil.IsWorse(worstStatus, metricStatus) {
+						worstStatus = metricStatus
+						if message != "" {
+							worstMessage = fmt.Sprintf("Metric \"%s\" assessed %s due to %s", metric.Name, metricStatus, message)
+							if result.Message != "" {
+								worstMessage += fmt.Sprintf(": \"Error Message: %s\"", result.Message)
+							}
 						}
+					}
+				} else {
+					// Update metric result message
+					if message != "" {
+						failureMessage := fmt.Sprintf("Metric assessed %s due to %s", metricStatus, message)
+						if result.Message != "" {
+							result.Message = fmt.Sprintf("%s: \"Error Message: %s\"", failureMessage, result.Message)
+						} else {
+							result.Message = failureMessage
+						}
+						analysisutil.SetResult(run, *result)
+					}
+					// Update DryRun stats
+					switch phase {
+					case v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseFailed:
+						dryRunStatus.failedMetrics++
+					case v1alpha1.AnalysisPhaseInconclusive:
+						dryRunStatus.inconclusiveMetrics++
+					case v1alpha1.AnalysisPhaseSuccessful:
+						dryRunStatus.successfulMetrics++
+					default:
+						// We'll mark the status as success by default if it doesn't match anything.
+						dryRunStatus.successfulMetrics++
 					}
 				}
 			}
 		} else {
-			// metric hasn't started running. possible cases where some of the metrics starts with delay
+			// metric hasn't started running. possible cases where some metrics starts with delay
 			everythingCompleted = false
 		}
 	}
-
+	// Append Dry-Run metrics results if any.
+	worstMessage = appendDryRunResults(strings.TrimSpace(worstMessage), dryRunStatus)
 	if terminating {
 		if worstStatus == "" {
 			// we have yet to take a single measurement, but have already been instructed to stop
-			log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisPhaseSuccessful)
+			log.Infof(SuccessfulAssessmentRunTerminatedResult)
 			return v1alpha1.AnalysisPhaseSuccessful, worstMessage
 		}
-		log.Infof("metric assessed %s: run terminated", worstStatus)
+		log.Infof("Metric Assessment Result - %s: Run Terminated", worstStatus)
 		return worstStatus, worstMessage
 	}
 	if !everythingCompleted || worstStatus == "" {
@@ -452,26 +511,39 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 	return worstStatus, worstMessage
 }
 
+// appendDryRunResults is a helper method to append the Dry-Run metrics status to the AnalysisRun message.
+func appendDryRunResults(worstMessage string, dryRunStatus dryRunStatus) string {
+	if dryRunStatus.totalMetrics > 0 {
+		dryRunResults := fmt.Sprintf("Dry-Run Summary: Total=%d, Successful=%d, Failed=%d, Inconclusive=%d", dryRunStatus.totalMetrics, dryRunStatus.successfulMetrics, dryRunStatus.failedMetrics, dryRunStatus.inconclusiveMetrics)
+		log.Infof(dryRunResults)
+		if worstMessage == "" {
+			return dryRunResults
+		}
+		return fmt.Sprintf("%s; %s", worstMessage, dryRunResults)
+	}
+	return worstMessage
+}
+
 // assessMetricStatus assesses the status of a single metric based on:
-// * current/latest measurement status
+// * current or latest measurement status
 // * parameters given by the metric (failureLimit, count, etc...)
-// * whether or not we are terminating (e.g. due to failing run, or termination request)
+// * whether we are terminating (e.g. due to failing run, or termination request)
 func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, terminating bool) v1alpha1.AnalysisPhase {
 	if result.Phase.Completed() {
 		return result.Phase
 	}
-	log := log.WithField("metric", metric.Name)
+	logger := log.WithField("metric", metric.Name)
 	if len(result.Measurements) == 0 {
 		if terminating {
 			// we have yet to take a single measurement, but have already been instructed to stop
-			log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisPhaseSuccessful)
+			logger.Infof(SuccessfulAssessmentRunTerminatedResult)
 			return v1alpha1.AnalysisPhaseSuccessful
 		}
 		return v1alpha1.AnalysisPhasePending
 	}
 	lastMeasurement := result.Measurements[len(result.Measurements)-1]
 	if !lastMeasurement.Phase.Completed() {
-		// we still have a in-flight measurement
+		// we still have an in-flight measurement
 		return v1alpha1.AnalysisPhaseRunning
 	}
 
@@ -479,7 +551,7 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 	// If true, then return AnalysisRunPhase as Failed, Inconclusive, or Error respectively
 	phaseFailureInconclusiveOrError, message := assessMetricFailureInconclusiveOrError(metric, result)
 	if phaseFailureInconclusiveOrError != "" {
-		log.Infof("metric assessed %s: %s", phaseFailureInconclusiveOrError, message)
+		logger.Infof("Metric Assessment Result - %s: %s", phaseFailureInconclusiveOrError, message)
 		return phaseFailureInconclusiveOrError
 	}
 
@@ -488,12 +560,12 @@ func assessMetricStatus(metric v1alpha1.Metric, result v1alpha1.MetricResult, te
 	// taken into consideration above, and we do not want to fail if failures < failureLimit.
 	effectiveCount := metric.EffectiveCount()
 	if effectiveCount != nil && result.Count >= int32(effectiveCount.IntValue()) {
-		log.Infof("metric assessed %s: count (%s) reached", v1alpha1.AnalysisPhaseSuccessful, effectiveCount.String())
+		logger.Infof("Metric Assessment Result - %s: Count (%s) Reached", v1alpha1.AnalysisPhaseSuccessful, effectiveCount.String())
 		return v1alpha1.AnalysisPhaseSuccessful
 	}
 	// if we get here, this metric runs indefinitely
 	if terminating {
-		log.Infof("metric assessed %s: run terminated", v1alpha1.AnalysisPhaseSuccessful)
+		logger.Infof(SuccessfulAssessmentRunTerminatedResult)
 		return v1alpha1.AnalysisPhaseSuccessful
 	}
 	return v1alpha1.AnalysisPhaseRunning
@@ -546,19 +618,18 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Me
 				if run.Status.StartedAt != nil {
 					startTime = *run.Status.StartedAt
 				}
-				duration, err := metric.InitialDelay.Duration()
+				parsedInterval, err := parseMetricInterval(*logCtx, metric.InitialDelay)
 				if err != nil {
-					logCtx.Warnf("failed to parse interval: %v", err)
 					continue
 				}
-				endInitialDelay := startTime.Add(duration)
+				endInitialDelay := startTime.Add(parsedInterval)
 				if reconcileTime == nil || reconcileTime.After(endInitialDelay) {
 					reconcileTime = &endInitialDelay
 				}
 				continue
 			}
 			// no measurement was started . we should never get here
-			logCtx.Warnf("metric never started. not factored into enqueue time")
+			logCtx.Warnf("Metric never started. Not factored into enqueue time.")
 			continue
 		}
 		if lastMeasurement.FinishedAt == nil {
@@ -580,18 +651,17 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Me
 		if lastMeasurement.Phase == v1alpha1.AnalysisPhaseError {
 			interval = DefaultErrorRetryInterval
 		} else if metric.Interval != "" {
-			metricInterval, err := metric.Interval.Duration()
+			parsedInterval, err := parseMetricInterval(*logCtx, metric.Interval)
 			if err != nil {
-				logCtx.Warnf("failed to parse interval: %v", err)
 				continue
 			}
-			interval = metricInterval
+			interval = parsedInterval
 		} else {
 			// if we get here, an interval was not set (meaning reoccurrence was not desired), and
 			// there was no error (meaning we don't need to retry). no need to requeue this metric.
 			// NOTE: we shouldn't ever get here since it means we are not doing proper bookkeeping
 			// of count.
-			logCtx.Warnf("skipping requeue. no interval or error (count: %d, effectiveCount: %s)", metricResult.Count, metric.EffectiveCount().String())
+			logCtx.Warnf("Skipping requeue. No interval or error (count: %d, effectiveCount: %s)", metricResult.Count, metric.EffectiveCount().String())
 			continue
 		}
 		// Take the earliest time of all metrics
@@ -619,8 +689,8 @@ func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit
 			if !ok {
 				continue
 			}
-			log := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
-			provider, err := c.newProvider(*log, metric)
+			logger := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
+			provider, err := c.newProvider(*logger, metric)
 			if err != nil {
 				errors = append(errors, err)
 				continue

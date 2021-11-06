@@ -10090,6 +10090,7 @@ func (this *MetricResult) String() string {
 		`Phase:` + fmt.Sprintf("%v", this.Phase) + `,`,
 		`Measurements:` + repeatedStringForMeasurements + `,`,
 		`Message:` + fmt.Sprintf("%v", this.Message) + `,`,
+		`Dry-Run:` + fmt.Sprintf("%v", this.DryRun) + `,`,
 		`Count:` + fmt.Sprintf("%v", this.Count) + `,`,
 		`Successful:` + fmt.Sprintf("%v", this.Successful) + `,`,
 		`Failed:` + fmt.Sprintf("%v", this.Failed) + `,`,
