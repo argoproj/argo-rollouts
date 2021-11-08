@@ -21,6 +21,10 @@ spec:
       jsonPath: .status.phase
       name: Status
       type: string
+    - description: Time since resource was created
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
