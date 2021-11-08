@@ -1337,6 +1337,23 @@ spec:
 	assert.Len(t, dRule.Spec.Subsets, 4)
 	assert.Equal(t, "exp-svc2", dRule.Spec.Subsets[3].Name)
 	assert.Equal(t, "exp-hash2", dRule.Spec.Subsets[3].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
+
+	client = testutil.NewFakeDynamicClient(dRuleUn)
+	vsvcLister, druleLister = getIstioListers(client)
+	r = NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+	err = r.UpdateHash("abc123", "def456", additionalDestinations[1])
+	assert.NoError(t, err)
+	actions = client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+	dRuleUn, err = client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
+	assert.NoError(t, err)
+	_, dRule, _, err = unstructuredToDestinationRules(dRuleUn)
+	assert.NoError(t, err)
+	assert.Len(t, dRule.Spec.Subsets, 3)
+	assert.Equal(t, "exp-svc2", dRule.Spec.Subsets[2].Name)
+	assert.Equal(t, "exp-hash2", dRule.Spec.Subsets[2].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 }
 
 //Multiple Virtual Service Support Unit Tests
