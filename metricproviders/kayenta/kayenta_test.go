@@ -206,6 +206,8 @@ func TestRunSuccessfully(t *testing.T) {
 		{Name: "stable-hash", Value: &stableHash},
 		{Name: "canary-hash", Value: &canaryHash},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
 
 	measurement := p.Run(run, metric)
 
@@ -268,6 +270,8 @@ func TestRunBadJobResponse(t *testing.T) {
 		{Name: "stable-hash", Value: &stableHash},
 		{Name: "canary-hash", Value: &canaryHash},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
 
 	measurement := p.Run(run, metric)
 

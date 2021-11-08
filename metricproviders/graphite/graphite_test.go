@@ -50,6 +50,9 @@ func TestType(t *testing.T) {
 func TestRunSuccessfulEvaluation(t *testing.T) {
 	response := 10.000000
 	g := NewGraphiteProvider(newMockAPI(&response, nil), log.Entry{})
+	metricsMetadata := g.GetMetadata(newTestingMetric())
+	assert.Nil(t, metricsMetadata)
+
 	measurement := g.Run(&v1alpha1.AnalysisRun{}, newTestingMetric())
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "[10.000000]", measurement.Value)
@@ -60,6 +63,9 @@ func TestRunSuccessfulEvaluation(t *testing.T) {
 func TestRunFailedEvaluation(t *testing.T) {
 	response := 5.000000
 	g := NewGraphiteProvider(newMockAPI(&response, nil), log.Entry{})
+	metricsMetadata := g.GetMetadata(newTestingMetric())
+	assert.Nil(t, metricsMetadata)
+
 	measurement := g.Run(&v1alpha1.AnalysisRun{}, newTestingMetric())
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "[5.000000]", measurement.Value)

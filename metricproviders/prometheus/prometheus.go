@@ -17,8 +17,11 @@ import (
 )
 
 const (
-	//ProviderType indicates the provider is prometheus
+	// ProviderType indicates the provider is prometheus
 	ProviderType = "Prometheus"
+	// ResolvedPrometheusQuery is used as the key for storing the resolved prometheus query in the metrics result
+	// metadata object.
+	ResolvedPrometheusQuery = "ResolvedPrometheusQuery"
 )
 
 // Provider contains all the required components to run a prometheus query
@@ -30,6 +33,15 @@ type Provider struct {
 // Type indicates provider is a prometheus provider
 func (p *Provider) Type() string {
 	return ProviderType
+}
+
+// GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
+func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	metricsMetadata := make(map[string]string)
+	if metric.Provider.Prometheus.Query != "" {
+		metricsMetadata[ResolvedPrometheusQuery] = metric.Provider.Prometheus.Query
+	}
+	return metricsMetadata
 }
 
 // Run queries prometheus for the metric
