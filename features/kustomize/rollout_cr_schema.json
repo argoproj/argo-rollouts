@@ -575,6 +575,10 @@
                                                                 ],
                                                                 "type": "object"
                                                             },
+                                                            "terminationGracePeriodSeconds": {
+                                                                "format": "int64",
+                                                                "type": "integer"
+                                                            },
                                                             "timeoutSeconds": {
                                                                 "format": "int32",
                                                                 "type": "integer"
@@ -715,6 +719,10 @@
                                                                     "port"
                                                                 ],
                                                                 "type": "object"
+                                                            },
+                                                            "terminationGracePeriodSeconds": {
+                                                                "format": "int64",
+                                                                "type": "integer"
                                                             },
                                                             "timeoutSeconds": {
                                                                 "format": "int32",
@@ -920,6 +928,10 @@
                                                                     "port"
                                                                 ],
                                                                 "type": "object"
+                                                            },
+                                                            "terminationGracePeriodSeconds": {
+                                                                "format": "int64",
+                                                                "type": "integer"
                                                             },
                                                             "timeoutSeconds": {
                                                                 "format": "int32",
@@ -1424,6 +1436,10 @@
                                                                 ],
                                                                 "type": "object"
                                                             },
+                                                            "terminationGracePeriodSeconds": {
+                                                                "format": "int64",
+                                                                "type": "integer"
+                                                            },
                                                             "timeoutSeconds": {
                                                                 "format": "int32",
                                                                 "type": "integer"
@@ -1559,6 +1575,10 @@
                                                                     "port"
                                                                 ],
                                                                 "type": "object"
+                                                            },
+                                                            "terminationGracePeriodSeconds": {
+                                                                "format": "int64",
+                                                                "type": "integer"
                                                             },
                                                             "timeoutSeconds": {
                                                                 "format": "int32",
@@ -1764,6 +1784,10 @@
                                                                     "port"
                                                                 ],
                                                                 "type": "object"
+                                                            },
+                                                            "terminationGracePeriodSeconds": {
+                                                                "format": "int64",
+                                                                "type": "integer"
                                                             },
                                                             "timeoutSeconds": {
                                                                 "format": "int32",
@@ -2303,6 +2327,10 @@
                                                                 ],
                                                                 "type": "object"
                                                             },
+                                                            "terminationGracePeriodSeconds": {
+                                                                "format": "int64",
+                                                                "type": "integer"
+                                                            },
                                                             "timeoutSeconds": {
                                                                 "format": "int32",
                                                                 "type": "integer"
@@ -2443,6 +2471,10 @@
                                                                     "port"
                                                                 ],
                                                                 "type": "object"
+                                                            },
+                                                            "terminationGracePeriodSeconds": {
+                                                                "format": "int64",
+                                                                "type": "integer"
                                                             },
                                                             "timeoutSeconds": {
                                                                 "format": "int32",
@@ -2648,6 +2680,10 @@
                                                                     "port"
                                                                 ],
                                                                 "type": "object"
+                                                            },
+                                                            "terminationGracePeriodSeconds": {
+                                                                "format": "int64",
+                                                                "type": "integer"
                                                             },
                                                             "timeoutSeconds": {
                                                                 "format": "int32",
