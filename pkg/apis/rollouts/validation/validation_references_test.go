@@ -403,6 +403,22 @@ func TestValidateService(t *testing.T) {
 		expectedErr := field.Invalid(GetServiceWithTypeFieldPath(svc.Type), svc.Service.Name, "Service \"stable-service-name\" is managed by another Rollout")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
+
+	t.Run("validate service with unmatch label - failure", func(t *testing.T) {
+		svc := getServiceWithType()
+		svc.Service.Spec.Selector = map[string]string{"app": "unmatch-rollout-label"}
+		allErrs := ValidateService(svc, getRollout())
+		assert.Len(t, allErrs, 1)
+		expectedErr := field.Invalid(GetServiceWithTypeFieldPath(svc.Type), svc.Service.Name, "Service \"stable-service-name\" has unmatch lable \"app\" in rollout")
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+	})
+
+	t.Run("validate service with Rollout label - success", func(t *testing.T) {
+		svc := getServiceWithType()
+		svc.Service.Spec.Selector = map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "123-456"}
+		allErrs := ValidateService(svc, getRollout())
+		assert.Empty(t, allErrs)
+	})
 }
 
 func TestValidateVirtualService(t *testing.T) {
