@@ -31,9 +31,9 @@ func newFakeTrafficRoutingReconciler() []*mocks.TrafficRoutingReconciler {
 	reconcilerList := []*mocks.TrafficRoutingReconciler{}
 	for _, trafficRoutingReconciler := range reconcilerList {
 		trafficRoutingReconciler.On("Type").Return("fake")
-		trafficRoutingReconciler.On("SetWeight", mock.Anything).Return(nil)
+		trafficRoutingReconciler.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 		trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
-		trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+		trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	}
 	return reconcilerList
 }
@@ -42,9 +42,9 @@ func newFakeTrafficRoutingReconciler() []*mocks.TrafficRoutingReconciler {
 func newFakeSingleTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
 	trafficRoutingReconciler := mocks.TrafficRoutingReconciler{}
 	trafficRoutingReconciler.On("Type").Return("fake")
-	trafficRoutingReconciler.On("SetWeight", mock.Anything).Return(nil)
+	trafficRoutingReconciler.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 	trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
-	trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+	trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	return &trafficRoutingReconciler
 }
 
@@ -97,8 +97,8 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	defer f.Close()
 	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
 	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
-		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-		fakeTrafficRouting.On("SetWeight", mock.Anything).Return(errors.New("Error message"))
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("Error message"))
 		f.runExpectError(getKey(ro, t), true)
 	}
 }
@@ -109,8 +109,8 @@ func TestReconcileTrafficRoutingVerifyWeightErr(t *testing.T) {
 	defer f.Close()
 	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
 	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
-		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-		fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 		fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), errors.New("Error message"))
 		f.runExpectError(getKey(ro, t), true)
 	}
@@ -122,8 +122,8 @@ func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	defer f.Close()
 	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
 	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
-		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
-		fakeTrafficRouting.On("SetWeight", mock.Anything).Return(nil)
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 		fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), nil)
 		c, i, k8sI := f.newController(noResyncPeriodFunc)
 		enqueued := false
@@ -181,7 +181,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 
 	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
 	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
-		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 			// make sure SetWeight was called with correct value
 			assert.Equal(t, int32(10), desiredWeight)
@@ -247,7 +247,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 		ex.Status.Phase = v1alpha1.AnalysisPhaseRunning
 		f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
 		for _, fakeTrafficRouting := range f.fakeTrafficRouting {
-			fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+			fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
 				// make sure SetWeight was called with correct value
 				assert.Equal(t, int32(10), desiredWeight)
@@ -271,7 +271,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 		ex.Status.Phase = v1alpha1.AnalysisPhasePending
 		f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
 		for _, fakeTrafficRouting := range f.fakeTrafficRouting {
-			fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+			fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
 				// make sure SetWeight was called with correct value
 				assert.Equal(t, int32(10), desiredWeight)
@@ -328,7 +328,7 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 
 	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
 	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
-		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 			// make sure SetWeight was called with correct value
 			assert.Equal(t, int32(10), desiredWeight)
@@ -373,7 +373,7 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 
 	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
 	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
-		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 			// make sure SetWeight was called with correct value
 			assert.Equal(t, int32(0), desiredWeight)

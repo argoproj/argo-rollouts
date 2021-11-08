@@ -169,12 +169,13 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 					})
 				}
 			}
-
-			err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
-			if err != nil {
-				return err
-			}
 		}
+
+		err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
+		if err != nil {
+			return err
+		}
+
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
 		if err != nil {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())

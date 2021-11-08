@@ -1315,8 +1315,17 @@ spec:
 	assert.Equal(t, "exp-svc", dRule.Spec.Subsets[2].Name)
 	assert.Equal(t, "exp-hash", dRule.Spec.Subsets[2].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 
+	client = testutil.NewFakeDynamicClient(dRuleUn)
+	vsvcLister, druleLister = getIstioListers(client)
+	r = NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
-	err = r.UpdateHash("abc123", "def456")
+	additionalDestinations = append(additionalDestinations, v1alpha1.WeightDestination{
+		ServiceName:     "exp-svc2",
+		PodTemplateHash: "exp-hash2",
+		Weight:          40,
+	},
+	)
+	err = r.UpdateHash("abc123", "def456", additionalDestinations...)
 	assert.NoError(t, err)
 	actions = client.Actions()
 	assert.Len(t, actions, 1)
@@ -1325,9 +1334,9 @@ spec:
 	assert.NoError(t, err)
 	_, dRule, _, err = unstructuredToDestinationRules(dRuleUn)
 	assert.NoError(t, err)
-	assert.Len(t, dRule.Spec.Subsets, 2)
-	assert.Equal(t, dRule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "def456")
-	assert.Equal(t, dRule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey], "abc123")
+	assert.Len(t, dRule.Spec.Subsets, 4)
+	assert.Equal(t, "exp-svc2", dRule.Spec.Subsets[3].Name)
+	assert.Equal(t, "exp-hash2", dRule.Spec.Subsets[3].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 }
 
 //Multiple Virtual Service Support Unit Tests

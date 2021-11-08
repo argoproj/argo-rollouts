@@ -287,6 +287,7 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 		dRuleNew.Annotations = make(map[string]string)
 	}
 	dRuleNew.Annotations[v1alpha1.ManagedByRolloutsKey] = r.rollout.Name
+	// Maps service to WeightDestination object
 	svcToDest := map[string]v1alpha1.WeightDestination{}
 	for _, dest := range additionalDestinations {
 		svcToDest[dest.ServiceName] = dest
@@ -311,7 +312,7 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 			} else {
 				delete(subset.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 			}
-		} else if dest, ok := svcToDest[subset.Name]; ok { // Modify existing Experiment subsets
+		} else if dest, ok := svcToDest[subset.Name]; ok { // Current experiment steps
 			if dest.PodTemplateHash != "" {
 				subset.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = dest.PodTemplateHash
 				delete(svcToDest, subset.Name)
