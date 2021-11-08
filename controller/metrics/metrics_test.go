@@ -79,9 +79,7 @@ analysis_run_reconcile_error{name="name",namespace="ns"} 1
 # TYPE experiment_reconcile_error counter
 # HELP rollout_reconcile_error Error occurring during the rollout
 # TYPE rollout_reconcile_error counter
-rollout_reconcile_error{name="name",namespace="ns"} 1
-# HELP argo_rollout_info Running Argo-rollouts version
-# TYPE argo_rollout_info gauge`
+rollout_reconcile_error{name="name",namespace="ns"} 1`
 
 	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
 
@@ -102,6 +100,6 @@ func TestVersionInfo(t *testing.T) {
 	expectedResponse := `# HELP argo_rollout_info Running Argo-rollouts version
 # TYPE argo_rollout_info gauge`
 
-	metricsServ := NewMetricsServer(newFakeServerConfig())
+	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
 	testHttpResponse(t, metricsServ.Handler, expectedResponse)
 }
