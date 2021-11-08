@@ -1291,6 +1291,7 @@ spec:
 	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
 
+	// UpdateHash for 1 additional destination
 	additionalDestinations := []v1alpha1.WeightDestination{
 		{
 			ServiceName:     "exp-svc",
@@ -1303,7 +1304,6 @@ spec:
 	actions := client.Actions()
 	assert.Len(t, actions, 1)
 	assert.Equal(t, "update", actions[0].GetVerb())
-
 	dRuleUn, err := client.Resource(istioutil.GetIstioDestinationRuleGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), "istio-destrule", metav1.GetOptions{})
 	assert.NoError(t, err)
 	_, dRule, _, err := unstructuredToDestinationRules(dRuleUn)
@@ -1315,6 +1315,7 @@ spec:
 	assert.Equal(t, "exp-svc", dRule.Spec.Subsets[2].Name)
 	assert.Equal(t, "exp-hash", dRule.Spec.Subsets[2].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 
+	// Add another additionalDestination
 	client = testutil.NewFakeDynamicClient(dRuleUn)
 	vsvcLister, druleLister = getIstioListers(client)
 	r = NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
@@ -1338,6 +1339,7 @@ spec:
 	assert.Equal(t, "exp-svc2", dRule.Spec.Subsets[3].Name)
 	assert.Equal(t, "exp-hash2", dRule.Spec.Subsets[3].Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 
+	// Remove 1 of additionalDestinations
 	client = testutil.NewFakeDynamicClient(dRuleUn)
 	vsvcLister, druleLister = getIstioListers(client)
 	r = NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
