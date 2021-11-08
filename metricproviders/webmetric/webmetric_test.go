@@ -613,6 +613,9 @@ func TestRunSuite(t *testing.T) {
 		assert.NoError(t, err)
 		provider := NewWebMetricProvider(*logCtx, server.Client(), jsonparser)
 
+		metricsMetadata := provider.GetMetadata(test.metric)
+		assert.Nil(t, metricsMetadata)
+
 		// Get our result
 		measurement := provider.Run(newAnalysisRun(), test.metric)
 

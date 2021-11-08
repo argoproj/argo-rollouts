@@ -78,6 +78,9 @@ func TestRunWithQueryError(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
@@ -103,6 +106,9 @@ func TestRunWithResolveArgsError(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
@@ -131,6 +137,9 @@ constraint: Member must not be null'`)
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)

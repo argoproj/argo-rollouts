@@ -36,6 +36,11 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
+// GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
+func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	return nil
+}
+
 type WavefrontClientAPI interface {
 	NewQuery(params *wavefrontapi.QueryParams) WavefrontQueryAPI
 }

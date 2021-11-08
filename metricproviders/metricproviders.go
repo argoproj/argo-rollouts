@@ -34,6 +34,9 @@ type Provider interface {
 	GarbageCollect(*v1alpha1.AnalysisRun, v1alpha1.Metric, int) error
 	// Type gets the provider type
 	Type() string
+	// GetMetadata returns any additional metadata which providers need to store/display as part
+	// of the metric result. For example, Prometheus uses is to store the final resolved queries.
+	GetMetadata(metric v1alpha1.Metric) map[string]string
 }
 
 type ProviderFactory struct {

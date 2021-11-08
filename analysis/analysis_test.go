@@ -892,6 +892,7 @@ func TestReconcileAnalysisRunInitial(t *testing.T) {
 		},
 	}
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
 	{
 		newRun := c.reconcileAnalysisRun(run)
 		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, newRun.Status.MetricResults[0].Phase)
@@ -1128,6 +1129,38 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 	}
 }
 
+func TestGetMetadataIsCalled(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	arg := "success-rate"
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{
+				{
+					Name:  "metric-name",
+					Value: &arg,
+				},
+			},
+			Metrics: []v1alpha1.Metric{{
+				Name:             "rate",
+				SuccessCondition: "result[0] > 0",
+				Provider: v1alpha1.MetricProvider{
+					Prometheus: &v1alpha1.PrometheusMetric{
+						Query: "{{args.metric-name}}",
+					},
+				},
+			}},
+		},
+	}
+	metricMetadata := map[string]string{"foo": "bar"}
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(metricMetadata, nil)
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	assert.Equal(t, metricMetadata, newRun.Status.MetricResults[0].Metadata)
+}
+
 // TestSecretContentReferenceSuccess verifies that secret arguments are properly resolved
 func TestSecretContentReferenceSuccess(t *testing.T) {
 	f := newFixture(t)
@@ -1172,6 +1205,7 @@ func TestSecretContentReferenceSuccess(t *testing.T) {
 		},
 	}
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 }
@@ -1236,6 +1270,7 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 	measurement.Message = error.Error()
 
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(measurement)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
 	newRun := c.reconcileAnalysisRun(run)
 	logMessage := buf.String()
 
@@ -1297,6 +1332,7 @@ func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 	}
 
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 }

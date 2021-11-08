@@ -398,6 +398,10 @@ type MetricResult struct {
 	ConsecutiveError int32 `json:"consecutiveError,omitempty" protobuf:"varint,10,opt,name=consecutiveError"`
 	// DryRun indicates whether this metric is running in a dry-run mode or not
 	DryRun bool `json:"dryRun,omitempty" protobuf:"varint,11,opt,name=dryRun"`
+	// Metadata stores additional metadata about this metric. It is used by different providers to store
+	// the final state which gets used while taking measurements. For example, Prometheus uses this field
+	// to store the final resolved query after substituting the template arguments.
+	Metadata map[string]string `json:"metadata,omitempty" protobuf:"bytes,12,rep,name=metadata"`
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured

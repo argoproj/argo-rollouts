@@ -120,6 +120,9 @@ func TestRun(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
 	metric := run.Spec.Metrics[0]
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(run, metric)
 
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, measurement.Phase)
@@ -160,6 +163,8 @@ func TestRunCreateFail(t *testing.T) {
 	fakeClient.PrependReactor("create", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf(errMsg)
 	})
+	metricsMetadata := p.GetMetadata(run.Spec.Metrics[0])
+	assert.Nil(t, metricsMetadata)
 
 	measurement := p.Run(run, run.Spec.Metrics[0])
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
