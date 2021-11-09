@@ -13545,6 +13545,7 @@ rules:
   - watch
   - patch
   - create
+  - delete
 - apiGroups:
   - coordination.k8s.io
   resources:
