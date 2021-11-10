@@ -130,6 +130,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 		} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 			// when newRS is not available or replicas num is 0. never weight to canary
+			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
 		} else if index != nil {
 			atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, nil)
 			if !atDesiredReplicaCount {
@@ -150,28 +151,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				// last setWeight step, which is set by GetCurrentSetWeight.
 				desiredWeight = replicasetutil.GetCurrentSetWeight(c.rollout)
 			}
-
-			// Checks for experiment step
-			// If current experiment exists, then create WeightDestinations for each experiment template
-			exStep := replicasetutil.GetCurrentExperimentStep(c.rollout)
-			if exStep != nil && c.currentEx != nil && c.currentEx.Status.Phase == v1alpha1.AnalysisPhaseRunning {
-				getTemplateWeight := func(name string) *int32 {
-					for _, tmpl := range exStep.Templates {
-						if tmpl.Name == name {
-							return tmpl.Weight
-						}
-					}
-					return nil
-				}
-				for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
-					templateWeight := getTemplateWeight(templateStatus.Name)
-					weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
-						ServiceName:     templateStatus.ServiceName,
-						PodTemplateHash: templateStatus.PodTemplateHash,
-						Weight:          *templateWeight,
-					})
-				}
-			}
+			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
 		}
 
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
@@ -237,4 +217,30 @@ func calculateWeightStatus(ro *v1alpha1.Rollout, canaryHash, stableHash string, 
 		prevWeights.Stable != weights.Stable ||
 		!reflect.DeepEqual(prevWeights.Additional, weights.Additional)
 	return modified, &weights
+}
+
+// calculateWeightDestinationsFromExperiment checks for experiment step
+// If current experiment exists, then create WeightDestinations for each experiment template
+func (c *rolloutContext) calculateWeightDestinationsFromExperiment() []v1alpha1.WeightDestination {
+	weightDestinations := make([]v1alpha1.WeightDestination, 0)
+	exStep := replicasetutil.GetCurrentExperimentStep(c.rollout)
+	if exStep != nil && c.currentEx != nil && c.currentEx.Status.Phase == v1alpha1.AnalysisPhaseRunning {
+		getTemplateWeight := func(name string) *int32 {
+			for _, tmpl := range exStep.Templates {
+				if tmpl.Name == name {
+					return tmpl.Weight
+				}
+			}
+			return nil
+		}
+		for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
+			templateWeight := getTemplateWeight(templateStatus.Name)
+			weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
+				ServiceName:     templateStatus.ServiceName,
+				PodTemplateHash: templateStatus.PodTemplateHash,
+				Weight:          *templateWeight,
+			})
+		}
+	}
+	return weightDestinations
 }
