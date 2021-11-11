@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -450,6 +451,7 @@ spec:
         args: null
 `).
 		WaitForRolloutStatus("Paused").
+		Sleep(2*time.Second). // Give some time before validating the scaling down event
 		Then().
 		ExpectRevisionPodCount("1", 1).
 		ExpectRevisionScaleDown("2", true).
@@ -459,6 +461,7 @@ spec:
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
+		Sleep(2*time.Second). // Give some time before validating the scaling down event
 		Then().
 		ExpectRevisionPodCount("1", 1).
 		ExpectRevisionScaleDown("1", true).
@@ -714,6 +717,7 @@ func (s *AnalysisSuite) TestBackgroundAnalysisWithArgs() {
 		When().
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
+		Sleep(3 * time.Second). // Give some time before validating that AnalysisRun got kicked off
 		Then().
 		ExpectAnalysisRunCount(1).
 		ExpectBackgroundAnalysisRunPhase("Running").
