@@ -34,3 +34,7 @@ you validate your [PromQL expression](https://prometheus.io/docs/prometheus/late
 
 See the [Analysis Overview page](../../features/analysis) for more details on the available options.
 
+# Additional Metadata
+
+Any additional metadata from the Prometheus controller, like the resolved queries after substituting the template's 
+arguments, etc. will appear under the `Metadata` map in the `MetricsResult` object of `AnalysisRun`.
