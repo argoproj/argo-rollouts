@@ -586,14 +586,15 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionFalse, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
 			changed := conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
 
-			// if any rs status changes (e.g., pod restarted, evicted -> recreated ) to a previous completed rollout,
-			// we need to reset the progressCondition to avoid timeout
+			// If the ReplicaSet status changes (e.g., one of the pod restarts, evicted -> recreated) for a previously
+			// completed rollout, we'll need to reset the rollout's condition to `PROGRESSING` to avoid any timeouts.
 			if changed && c.stableRS != nil && c.newRS != nil && (replicasetutil.GetPodTemplateHash(c.stableRS) == replicasetutil.GetPodTemplateHash(c.newRS)) {
 				existProgressingCondition := conditions.GetRolloutCondition(newStatus, v1alpha1.RolloutProgressing)
 				if existProgressingCondition != nil {
 					conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutProgressing)
 				}
 				msg := fmt.Sprintf("stable rs %s progressing", c.stableRS.Name)
+				c.log.Infof("Fully promoted rollout %s becomes progressing due to: %s", c.rollout.Name, msg)
 				newProgressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
 				conditions.SetRolloutCondition(&newStatus, *newProgressingCondition)
 			}
