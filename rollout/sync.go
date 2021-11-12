@@ -584,7 +584,19 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	} else {
 		if completeCond != nil {
 			updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionFalse, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
-			conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+			changed := conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+
+			// if any rs status changes (e.g., pod restarted, evicted -> recreated ) to a previous completed rollout,
+			// we need to reset the progressCondition to avoid timeout
+			if changed && c.stableRS != nil && c.newRS != nil && (replicasetutil.GetPodTemplateHash(c.stableRS) == replicasetutil.GetPodTemplateHash(c.newRS)) {
+				existProgressingCondition := conditions.GetRolloutCondition(newStatus, v1alpha1.RolloutProgressing)
+				if existProgressingCondition != nil {
+					conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutProgressing)
+				}
+				msg := fmt.Sprintf("stable rs %s progressing", c.stableRS.Name)
+				newProgressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
+				conditions.SetRolloutCondition(&newStatus, *newProgressingCondition)
+			}
 		}
 	}
 

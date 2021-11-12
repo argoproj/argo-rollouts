@@ -2,11 +2,11 @@ package rollout
 
 import (
 	"context"
-	"fmt"
+	// "fmt"
 	"sort"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/conditions"
+	// "github.com/argoproj/argo-rollouts/utils/conditions"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
@@ -125,14 +125,17 @@ func (p *RolloutPodRestarter) Reconcile(roCtx *rolloutContext) error {
 		canRestart -= 1
 		restarted += 1
 
-		// Everytime a pod is restarted, updating the rollout's progressingCondition
-		existProgressingCondition := conditions.GetRolloutCondition(roCtx.rollout.Status, v1alpha1.RolloutProgressing)
-		if existProgressingCondition != nil {
-			conditions.RemoveRolloutCondition(&roCtx.rollout.Status, v1alpha1.RolloutProgressing)
-		}
-		msg := fmt.Sprintf("pod %s restarted", pod.Name)
-		newProgressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
-		conditions.SetRolloutCondition(&roCtx.rollout.Status, *newProgressingCondition)
+		// TODO: remove
+		/*
+			// Everytime a pod is restarted, updating the rollout's progressingCondition
+			existProgressingCondition := conditions.GetRolloutCondition(roCtx.rollout.Status, v1alpha1.RolloutProgressing)
+			if existProgressingCondition != nil {
+				conditions.RemoveRolloutCondition(&roCtx.rollout.Status, v1alpha1.RolloutProgressing)
+			}
+			msg := fmt.Sprintf("pod %s restarted", pod.Name)
+			newProgressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
+			conditions.SetRolloutCondition(&roCtx.rollout.Status, *newProgressingCondition)
+		*/
 	}
 	remaining := needsRestart - restarted
 
