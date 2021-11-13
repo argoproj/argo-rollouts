@@ -543,6 +543,9 @@ encountered.
 
 ## Dry-Run Mode
 
+!!! important
+    Available since v1.2
+
 `dryRun` can be used on a metric to control whether or not to evaluate that metric in a dry-run mode. A metric running 
 in the dry-run mode won't impact the final state of the rollout or experiment even if it fails or the evaluation comes 
 out as inconclusive.
