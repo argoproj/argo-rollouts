@@ -86,6 +86,15 @@ const (
 	// estimated once a rollout is paused.
 	RolloutPausedMessage = "Rollout is paused"
 
+	// RolloutBecomesIncomplete is added when a fully promoted rollout becomes incomplete, e.g.,
+	// due to  pod restarts, evicted -> recreated. In this case, we'll need to reset the rollout's
+	// condition to `PROGRESSING` to avoid any timeouts.
+	RolloutBecomesIncomplete = "RolloutBecomesIncomplete"
+	// RolloutBecomesIncompleteMessage is added when a fully promoted rollout becomes incomplete, e.g.,
+	// due to  pod restarts, evicted -> recreated. In this case, we'll need to reset the rollout's
+	// condition to `PROGRESSING` to avoid any timeouts.
+	RolloutBecomesIncompleteMessage = "Fully promoted rollout becomes incomplete"
+
 	// RolloutResumedReason is added in a rollout when it is resumed. Useful for not failing accidentally
 	// rollout that paused amidst a rollout and are bounded by a deadline.
 	RolloutResumedReason = "RolloutResumed"
