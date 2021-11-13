@@ -298,7 +298,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("desiredWeight", desiredWeight).Info("updating canary Ingress")
 	r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "PatchingCanaryIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", canaryIngressName, desiredWeight)
 
-	_, err = r.cfg.Client.ExtensionsV1beta1().Ingresses(r.cfg.Rollout.Namespace).Patch(ctx, canaryIngressName, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err = r.cfg.IngressWrapper.Patch(ctx, r.cfg.Rollout.Namespace, canaryIngressName, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error patching canary ingress")
 		return fmt.Errorf("error patching canary ingress `%s`: %v", canaryIngressName, err)
