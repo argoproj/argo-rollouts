@@ -2,11 +2,12 @@ name: Go
 on:
   push:
     branches:
-      - "master"
-      - "release-*"
+      # - "master"
+      - "release-*" # Codefresh convention
   pull_request:
     branches:
-      - "master"
+      # - "master"
+      - "release-*" # Codefresh convention
 jobs:
   lint-go:
     name: Lint Go code
