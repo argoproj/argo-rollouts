@@ -1884,7 +1884,6 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref common.ReferenceC
 					"virtualService": {
 						SchemaProps: spec.SchemaProps{
 							Description: "VirtualService references an Istio VirtualService to modify to shape traffic",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService"),
 						},
 					},
