@@ -11,6 +11,9 @@ Install:
 * [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
+Kustomize is required for unit tests (`make test` is using it), so you [must install it](https://kubectl.docs.kubernetes.io/installation/kustomize/)
+locally if you wish to make code contributions to Argo Rollouts.
+
 Argo Rollout additionally uses the following tools
 
 * `golangci-lint` to lint the project.
@@ -28,7 +31,7 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 ```
 
 Brew users can quickly install the lot:
-    
+
 ```bash
 brew install go kubectl kustomize golangci-lint protobuf swagger-codegen
 ```
@@ -76,7 +79,7 @@ make test
 ## Running E2E tests
 
 The end-to-end tests need to run against a kubernetes cluster with the Argo Rollouts controller
-running. The rollout controller can be started with the command: 
+running. The rollout controller can be started with the command:
 
 ```
 make start-e2e
@@ -106,8 +109,8 @@ make test-e2e E2E_TEST_OPTIONS="-testify.m ^TestRolloutRestart$"
 
 3. The e2e tests are designed to run as quickly as possible, eliminating readiness and termination
 delays. However, it is often desired to artificially slow down the tests for debugging purposes,
-as well as to understand what the test is doing. To delay startup and termination of pods, set the 
-`E2E_POD_DELAY` to an integer value in seconds. This environment variable is often coupled with 
+as well as to understand what the test is doing. To delay startup and termination of pods, set the
+`E2E_POD_DELAY` to an integer value in seconds. This environment variable is often coupled with
 `E2E_TEST_OPTIONS` to debug and slow down a specific test.
 
 ```shell
@@ -176,14 +179,14 @@ kubectl -n argo-rollouts apply -f manifests/install.yaml
 ```
 
 ## Upgrading Kubernetes Libraries
-Argo Rollouts has a dependency on the kubernetes/kubernetes repo for some of the functionality that has not been 
-pushed into the other kubernetes repositories yet. In order to import the kubernetes/kubernetes repo, all of the 
-associated repos have to pinned to the correct version specified by the kubernetes/kubernetes release. The 
+Argo Rollouts has a dependency on the kubernetes/kubernetes repo for some of the functionality that has not been
+pushed into the other kubernetes repositories yet. In order to import the kubernetes/kubernetes repo, all of the
+associated repos have to pinned to the correct version specified by the kubernetes/kubernetes release. The
 `./hack/update-k8s-dependencies.sh` updates all the dependencies to the those correct versions.
 
 ## Documentation Changes
 
-Modify contents in `docs/` directory. 
+Modify contents in `docs/` directory.
 
 Preview changes in your browser by visiting http://localhost:8000 after running:
 

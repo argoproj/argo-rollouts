@@ -18,7 +18,7 @@ const config = {
     devtool: 'source-map',
 
     resolve: {
-        extensions: ['.ts', '.tsx', '.js', '.json', '.ttf'],
+        extensions: ['.ts', '.tsx', '.js', '.json'],
         alias: {react: require.resolve('react')},
     },
 
@@ -26,7 +26,7 @@ const config = {
         rules: [
             {
                 test: /\.tsx?$/,
-                loaders: [`ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`],
+                loaders: [`ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./tsconfig.json')}`],
             },
             {
                 test: /\.scss$/,
@@ -35,10 +35,6 @@ const config = {
             {
                 test: /\.css$/,
                 loader: 'style-loader!raw-loader',
-            },
-            {
-                test: /\.ttf$/,
-                use: ['file-loader'],
             },
         ],
     },
@@ -55,6 +51,10 @@ const config = {
         new CopyWebpackPlugin({
             patterns: [
                 {from: 'src/assets', to: 'assets'},
+                {
+                    from: 'node_modules/argo-ui/src/assets',
+                    to: 'assets'
+                },
                 {
                     from: 'node_modules/@fortawesome/fontawesome-free/webfonts',
                     to: 'assets/fonts',

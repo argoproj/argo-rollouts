@@ -196,12 +196,65 @@ func TestFilterAnalysisRunsToDelete(t *testing.T) {
 		deletedRS,
 		nil,
 	}
-	filteredArs := FilterAnalysisRunsToDelete(ars, olderRSs)
+	filteredArs := FilterAnalysisRunsToDelete(ars, olderRSs, 4, 4)
 	assert.Len(t, filteredArs, 3)
 	assert.NotContains(t, filteredArs, arNoDeletion)
 	assert.Contains(t, filteredArs, arWithNoPodHash)
 	assert.Contains(t, filteredArs, arWithDeletedRS)
 	assert.Contains(t, filteredArs, arWithNoMatchingRS)
+}
+
+func TestFilterAnalysisRunsToDeleteByLimit(t *testing.T) {
+	rs := func(podHash string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: podHash},
+			},
+		}
+	}
+	ar := func(podHash string, phase v1alpha1.AnalysisPhase) *v1alpha1.AnalysisRun {
+		return &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels:            map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: podHash},
+				CreationTimestamp: metav1.Now(),
+			},
+			Status: v1alpha1.AnalysisRunStatus{
+				Phase: phase,
+			},
+		}
+	}
+
+	arS0 := ar("a", v1alpha1.AnalysisPhaseSuccessful)
+	arS1 := ar("a", v1alpha1.AnalysisPhaseSuccessful)
+	arS2 := ar("a", v1alpha1.AnalysisPhaseSuccessful)
+	arS3 := ar("a", v1alpha1.AnalysisPhaseSuccessful)
+	arS4 := ar("a", v1alpha1.AnalysisPhaseSuccessful)
+	arF0 := ar("a", v1alpha1.AnalysisPhaseFailed)
+	arF1 := ar("a", v1alpha1.AnalysisPhaseFailed)
+	arF2 := ar("a", v1alpha1.AnalysisPhaseFailed)
+	arF3 := ar("a", v1alpha1.AnalysisPhaseFailed)
+	arF4 := ar("a", v1alpha1.AnalysisPhaseFailed)
+
+	validRS := rs("a")
+	ars := []*v1alpha1.AnalysisRun{
+		arS0, arF0, arS1, arF1, arS2, arF2, arS3, arF3, arS4, arF4,
+	}
+	olderRSs := []*appsv1.ReplicaSet{
+		validRS,
+		nil,
+	}
+
+	assert.Len(t, FilterAnalysisRunsToDelete(ars, olderRSs, 1, 0), 9)
+	assert.Len(t, FilterAnalysisRunsToDelete(ars, olderRSs, 5, 0), 5)
+	assert.Len(t, FilterAnalysisRunsToDelete(ars, olderRSs, 10, 0), 5)
+
+	assert.Len(t, FilterAnalysisRunsToDelete(ars, olderRSs, 0, 1), 9)
+	assert.Len(t, FilterAnalysisRunsToDelete(ars, olderRSs, 0, 5), 5)
+	assert.Len(t, FilterAnalysisRunsToDelete(ars, olderRSs, 0, 10), 5)
+
+	assert.Len(t, FilterAnalysisRunsToDelete(ars, olderRSs, 0, 0), 10)
+	assert.Len(t, FilterAnalysisRunsToDelete(ars, olderRSs, 4, 4), 2)
+	assert.Len(t, FilterAnalysisRunsToDelete(ars, olderRSs, 10, 10), 0)
 }
 
 func TestSortAnalysisRunByPodHash(t *testing.T) {

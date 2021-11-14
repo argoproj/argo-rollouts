@@ -63,7 +63,7 @@ func TestGetReferencedVirtualServices(t *testing.T) {
 	}
 	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Istio: &v1alpha1.IstioTrafficRouting{
-			VirtualService: v1alpha1.IstioVirtualService{
+			VirtualService: &v1alpha1.IstioVirtualService{
 				Name: "istio-vsvc-name",
 			},
 		},
@@ -74,6 +74,54 @@ func TestGetReferencedVirtualServices(t *testing.T) {
 		c := NewFakeIstioController()
 		_, err := c.GetReferencedVirtualServices(&ro)
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc-name", "virtualservices.networking.istio.io \"istio-vsvc-name\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+}
+
+const istiovsvc1 = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-vsvc1-name
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: 'stable'
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
+func TestGetReferencedMultipleVirtualServices(t *testing.T) {
+
+	multipleVirtualService := []v1alpha1.IstioVirtualService{{Name: "istio-vsvc1-name", Routes: nil}, {Name: "istio-vsvc2-name", Routes: nil}}
+
+	ro := v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{},
+			},
+		},
+	}
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualServices: multipleVirtualService,
+		},
+	}
+	ro.Namespace = metav1.NamespaceDefault
+
+	vService := unstructuredutil.StrToUnstructuredUnsafe(istiovsvc1)
+
+	t.Run("get referenced virtualService - fail", func(t *testing.T) {
+		c := NewFakeIstioController(vService)
+		_, err := c.GetReferencedVirtualServices(&ro)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualServices", "name"), "istio-vsvc2-name", "virtualservices.networking.istio.io \"istio-vsvc2-name\" not found")
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
 }
@@ -89,7 +137,7 @@ func TestSyncDestinationRule(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Istio: &v1alpha1.IstioTrafficRouting{
-							VirtualService: v1alpha1.IstioVirtualService{
+							VirtualService: &v1alpha1.IstioVirtualService{
 								Name: "istio-vsvc",
 							},
 							DestinationRule: &v1alpha1.IstioDestinationRule{

@@ -8,9 +8,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/aws"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
@@ -105,6 +110,110 @@ func (c *rolloutContext) reconcileActiveService(activeSvc *corev1.Service) error
 	return nil
 }
 
+// areTargetsVerified is a convenience to determine if the pod targets have been verified with
+// underlying load balancer. If check was not performed or unnecessary, returns true.
+func (c *rolloutContext) areTargetsVerified() bool {
+	return c.targetsVerified == nil || *c.targetsVerified
+}
+
+// awsVerifyTargetGroups examines a Service and verifies that the underlying AWS TargetGroup has all
+// of the Service's Endpoint IPs and ports registered. Only valid for services which are reachable
+// by an ALB Ingress, which can be determined if there exists a TargetGroupBinding object in the
+// namespace that references the given service
+func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
+	if !c.shouldVerifyTargetGroup(svc) {
+		return nil
+	}
+	logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
+	logCtx.Infof("Verifying target group")
+
+	ctx := context.TODO()
+	// find all TargetGroupBindings in the namespace which reference the service name + port
+	tgBindings, err := aws.GetTargetGroupBindingsByService(ctx, c.dynamicclientset, *svc)
+	if err != nil {
+		return err
+	}
+	if len(tgBindings) == 0 {
+		// no TargetGroupBinding for the service found (e.g. it is in-cluster blue-green). nothing to verify
+		return nil
+	}
+
+	c.targetsVerified = pointer.BoolPtr(false)
+
+	// get endpoints of service
+	endpoints, err := c.kubeclientset.CoreV1().Endpoints(svc.Namespace).Get(ctx, svc.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	awsClnt, err := aws.NewClient()
+	if err != nil {
+		return err
+	}
+
+	for _, tgb := range tgBindings {
+		verifyRes, err := aws.VerifyTargetGroupBinding(ctx, c.log, awsClnt, tgb, endpoints, svc)
+		if err != nil {
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, svc.Name, tgb.Spec.TargetGroupARN, err)
+			return err
+		}
+		if verifyRes == nil {
+			// verification not applicable
+			continue
+		}
+		if !verifyRes.Verified {
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered, verifyRes.EndpointsTotal)
+			c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
+			return nil
+		}
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered)
+	}
+	c.targetsVerified = pointer.BoolPtr(true)
+	return nil
+}
+
+// shouldVerifyTargetGroup returns whether or not we should verify the target group
+func (c *rolloutContext) shouldVerifyTargetGroup(svc *corev1.Service) bool {
+	if !defaults.VerifyTargetGroup() {
+		// feature is disabled
+		return false
+	}
+	desiredPodHash := c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	if c.rollout.Spec.Strategy.BlueGreen != nil {
+		if c.rollout.Status.StableRS == desiredPodHash {
+			// for blue-green, we only verify targets right after switching active service. So if
+			// we are fully promoted, then there is no need to verify targets.
+			// NOTE: this is the opposite of canary, where we only verify targets if stable == desired
+			return false
+		}
+		svcPodHash := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		if svcPodHash != desiredPodHash {
+			// we have not yet switched service selector
+			return false
+		}
+		if c.rollout.Status.BlueGreen.PostPromotionAnalysisRunStatus != nil {
+			// we already started post-promotion analysis, so verification already occurred
+			return false
+		}
+		return true
+	} else if c.rollout.Spec.Strategy.Canary != nil {
+		if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil || c.rollout.Spec.Strategy.Canary.TrafficRouting.ALB == nil {
+			// not ALB canary, so no need to verify targets
+			return false
+		}
+		if c.rollout.Status.StableRS != desiredPodHash {
+			// for canary, we only verify targets right after switching stable service, which happens
+			// after the update. So if stable != desired, we are still in the middle of an update
+			// and there is no need to verify targets.
+			// NOTE: this is the opposite of blue-green, where we only verify targets if stable != active
+			return false
+		}
+		return true
+	}
+	// should not get here
+	return false
+}
+
 func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1.Service, error) {
 	var previewSvc *corev1.Service
 	var activeSvc *corev1.Service
@@ -132,7 +241,7 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		return err
 	}
 
-	if c.newRSReady() {
+	if replicasetutil.IsReplicaSetReady(c.newRS) {
 		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS)
 		if err != nil {
 			return err
@@ -156,13 +265,4 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet)
 		}
 	}
 	return nil
-}
-
-func (c *rolloutContext) newRSReady() bool {
-	if c.newRS == nil {
-		return false
-	}
-	replicas := c.newRS.Spec.Replicas
-	readyReplicas := c.newRS.Status.ReadyReplicas
-	return replicas != nil && *replicas != 0 && readyReplicas != 0 && *replicas <= readyReplicas
 }

@@ -215,7 +215,6 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	f.expectListPodAction(r1.Namespace)                // list pods to patch ephemeral data on revision 1 ReplicaSets pods`
 	podIdx := f.expectUpdatePodAction(&pod)            // Update pod with ephemeral data
 	rs1idx := f.expectUpdateReplicaSetAction(rs1)      // update stable replicaset with stable metadata
-	f.expectPatchReplicaSetAction(rs1)                 // scale revision 1 ReplicaSet down
 	f.expectPatchRolloutAction(r2)                     // Patch Rollout status
 
 	f.run(getKey(r2, t))

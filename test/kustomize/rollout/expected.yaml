@@ -235,7 +235,7 @@ spec:
             configMapKeyRef:
               key: FOO
               name: my-guestbook-cm-m2mg5mb749
-        image: guestbook:v2
+        image: guestbook-patched:v1
         name: guestbook
         ports:
         - containerPort: 8080

@@ -13,18 +13,6 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
-var (
-	istioAPIVersion = defaults.DefaultIstioVersion
-)
-
-func SetIstioAPIVersion(apiVersion string) {
-	istioAPIVersion = apiVersion
-}
-
-func GetIstioAPIVersion() string {
-	return istioAPIVersion
-}
-
 func DoesIstioExist(dynamicClient dynamic.Interface, namespace string) bool {
 	_, err := dynamicClient.Resource(GetIstioVirtualServiceGVR()).Namespace(namespace).List(context.TODO(), metav1.ListOptions{Limit: 1})
 	if err != nil {
@@ -36,7 +24,7 @@ func DoesIstioExist(dynamicClient dynamic.Interface, namespace string) bool {
 func GetIstioVirtualServiceGVR() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    "networking.istio.io",
-		Version:  istioAPIVersion,
+		Version:  defaults.GetIstioAPIVersion(),
 		Resource: "virtualservices",
 	}
 }
@@ -44,7 +32,7 @@ func GetIstioVirtualServiceGVR() schema.GroupVersionResource {
 func GetIstioDestinationRuleGVR() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    "networking.istio.io",
-		Version:  istioAPIVersion,
+		Version:  defaults.GetIstioAPIVersion(),
 		Resource: "destinationrules",
 	}
 }
@@ -64,19 +52,41 @@ func GetVirtualServiceNamespaceName(vsv string) (string, string) {
 	return namespace, name
 }
 
+func MultipleVirtualServiceConfigured(rollout *v1alpha1.Rollout) bool {
+	return rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices != nil
+}
+
 // GetRolloutVirtualServiceKeys gets the referenced VirtualService and its namespace from a Rollout
 func GetRolloutVirtualServiceKeys(ro *v1alpha1.Rollout) []string {
+	var virtualServices []v1alpha1.IstioVirtualService
+	var virtualServiceKeys []string
 	canary := ro.Spec.Strategy.Canary
-	if canary == nil || canary.TrafficRouting == nil || canary.TrafficRouting.Istio == nil || canary.TrafficRouting.Istio.VirtualService.Name == "" {
+
+	if canary == nil || canary.TrafficRouting == nil || canary.TrafficRouting.Istio == nil ||
+		(canary.TrafficRouting.Istio.VirtualServices == nil && canary.TrafficRouting.Istio.VirtualService == nil) ||
+		(canary.TrafficRouting.Istio.VirtualServices != nil && canary.TrafficRouting.Istio.VirtualService != nil) {
 		return []string{}
 	}
 
-	namespace, name := GetVirtualServiceNamespaceName(canary.TrafficRouting.Istio.VirtualService.Name)
-	if namespace == "" {
-		namespace = ro.Namespace
+	if MultipleVirtualServiceConfigured(ro) {
+		virtualServices = ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
+	} else {
+		virtualServices = []v1alpha1.IstioVirtualService{*ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
 	}
 
-	return []string{fmt.Sprintf("%s/%s", namespace, name)}
+	for _, virtualService := range virtualServices {
+		namespace, name := GetVirtualServiceNamespaceName(virtualService.Name)
+		if namespace == "" {
+			namespace = ro.Namespace
+		}
+		if name == "" {
+			continue
+		}
+
+		virtualServiceKeys = append(virtualServiceKeys, fmt.Sprintf("%s/%s", namespace, name))
+	}
+
+	return virtualServiceKeys
 }
 
 // GetRolloutDesinationRuleKeys gets the referenced DestinationRule and its namespace from a Rollout

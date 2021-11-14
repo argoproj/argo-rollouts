@@ -11,6 +11,14 @@ spec:
   # Number of desired pods.
   # Defaults to 1.
   replicas: 5
+  analysis:
+    # limits the number of successful analysis runs and experiments to be stored in a history
+    # Defaults to 5.
+    successfulRunHistoryLimit: 10
+    # limits the number of unsuccessful analysis runs and experiments to be stored in a history. 
+    # Stages for unsuccessful: "Error", "Failed", "Inconclusive"
+    # Defaults to 5.
+    unsuccessfulRunHistoryLimit: 10
 
   # Label selector for pods. Existing ReplicaSets whose pods are selected by
   # this will be the ones affected by this rollout. It must match the pod
@@ -51,6 +59,11 @@ spec:
   # paused.
   # Defaults to 600s
   progressDeadlineSeconds: 600
+
+  # Whether to abort the update when ProgressDeadlineSeconds
+  # is exceeded if analysis or experiment is not used.
+  # Optional and default is false.
+  progressDeadlineAbort: false
 
   # UTC timestamp in which a Rollout should sequentially restart all of
   # its pods. Used by the `kubectl argo rollouts restart ROLLOUT` command.
@@ -114,6 +127,10 @@ spec:
       # Limits the number of old RS that can run at once before getting scaled
       # down. Defaults to nil
       scaleDownDelayRevisionLimit: 2
+
+      # Add a delay in second before scaling down the preview replicaset
+      # if update is aborted. 0 means not to scale down. Default is 30 second
+      abortScaleDownDelaySeconds: 30
 
       # Anti Affinity configuration between desired and previous ReplicaSet.
       # Only one must be specified
@@ -226,11 +243,12 @@ spec:
       # Pauses indefinitely until manually resumed
       - pause: {}
 
-      # set canary scale to a explicit count (supported only with trafficRouting)
+      # set canary scale to a explicit count without changing traffic weight
+      # (supported only with trafficRouting)
       - setCanaryScale:
           replicas: 3
 
-      # set canary scale to a percentage of spec.replicas
+      # set canary scale to a percentage of spec.replicas without changing traffic weight
       # (supported only with trafficRouting)
       - setCanaryScale:
           weight: 25
@@ -271,10 +289,19 @@ spec:
 
         # Istio traffic routing configuration
         istio:
+          # Either virtualService or virtualServices can be configured.
           virtualService: 
             name: rollout-vsvc  # required
             routes:
             - primary # optional if there is a single route in VirtualService, required otherwise
+          virtualServices:
+          # One or more virtualServices can be configured
+          - name: rollouts-vsvc1  # required
+            routes:
+              - primary # optional if there is a single route in VirtualService, required otherwise
+          - name: rollouts-vsvc2  # required
+            routes:
+              - secondary # optional if there is a single route in VirtualService, required otherwise
 
         # NGINX Ingress Controller routing configuration
         nginx:
@@ -295,6 +322,11 @@ spec:
           rootService: root-svc # optional
           trafficSplitName: rollout-example-traffic-split # optional
 
+      # Add a delay in second before scaling down the canary pods when update
+      # is aborted for canary strategy with traffic routing (not applicable for basic canary).
+      # 0 means canary pods are not scaled down. Default is 30 seconds.
+      abortScaleDownDelaySeconds: 30
+
 status:
   pauseConditions:
   - reason: StepPause
@@ -304,3 +336,9 @@ status:
   - reason: AnalysisRunInconclusive
     startTime: 2019-10-00T1234 
 ```
+## Examples
+
+You can find examples of Rollouts at:
+
+ * The [example directory](https://github.com/argoproj/argo-rollouts/tree/master/examples)
+ * The [Argo Rollouts Demo application](https://github.com/argoproj/rollouts-demo)

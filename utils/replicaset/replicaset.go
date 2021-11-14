@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -231,7 +232,7 @@ func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) 
 // When one of the followings is true, we're rolling out the deployment; otherwise, we're scaling it.
 // 1) The new RS is saturated: newRS's replicas == deployment's replicas
 // 2) Max number of pods allowed is reached: deployment's replicas + maxSurge == all RSs' replicas
-func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) (int32, error) {
+func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, weights *v1alpha1.TrafficWeights) (int32, error) {
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		desiredReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 		if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil {
@@ -262,8 +263,13 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 	}
 	if rollout.Spec.Strategy.Canary != nil {
 		stableRS := GetStableRS(rollout, newRS, allRSs)
-		otherRSs := GetOtherRSs(rollout, newRS, stableRS, allRSs)
-		newRSReplicaCount, _ := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, otherRSs)
+		var newRSReplicaCount int32
+		if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+			otherRSs := GetOtherRSs(rollout, newRS, stableRS, allRSs)
+			newRSReplicaCount, _ = CalculateReplicaCountsForBasicCanary(rollout, newRS, stableRS, otherRSs)
+		} else {
+			newRSReplicaCount, _ = CalculateReplicaCountsForTrafficRoutedCanary(rollout, weights)
+		}
 		return newRSReplicaCount, nil
 	}
 	return 0, fmt.Errorf("no rollout strategy provided")
@@ -581,6 +587,23 @@ func HasScaleDownDeadline(rs *appsv1.ReplicaSet) bool {
 	return rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] != ""
 }
 
+func GetTimeRemainingBeforeScaleDownDeadline(rs *appsv1.ReplicaSet) (*time.Duration, error) {
+	if HasScaleDownDeadline(rs) {
+		scaleDownAtStr := rs.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]
+		scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read scaleDownAt label on rs '%s'", rs.Name)
+		}
+		now := metav1.Now()
+		scaleDownAt := metav1.NewTime(scaleDownAtTime)
+		if scaleDownAt.After(now.Time) {
+			remainingTime := scaleDownAt.Sub(now.Time)
+			return &remainingTime, nil
+		}
+	}
+	return nil, nil
+}
+
 // GetPodsOwnedByReplicaSet returns a list of pods owned by the given replicaset
 func GetPodsOwnedByReplicaSet(ctx context.Context, client kubernetes.Interface, rs *appsv1.ReplicaSet) ([]*corev1.Pod, error) {
 	pods, err := client.CoreV1().Pods(rs.Namespace).List(ctx, metav1.ListOptions{
@@ -597,4 +620,14 @@ func GetPodsOwnedByReplicaSet(ctx context.Context, client kubernetes.Interface, 
 		}
 	}
 	return podOwnedByRS, nil
+}
+
+// IsReplicaSetReady returns if a ReplicaSet is scaled up and its ready count is >= desired count
+func IsReplicaSetReady(rs *appsv1.ReplicaSet) bool {
+	if rs == nil {
+		return false
+	}
+	replicas := rs.Spec.Replicas
+	readyReplicas := rs.Status.ReadyReplicas
+	return replicas != nil && *replicas != 0 && readyReplicas != 0 && *replicas <= readyReplicas
 }

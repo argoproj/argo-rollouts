@@ -10,6 +10,9 @@ kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/rele
 This will create a new namespace, `argo-rollouts`, where Argo Rollouts controller will run.
 
 !!! tip
+    If you are using another namspace name, please update `install.yaml` clusterrolebinding's serviceaccount namespace name.
+
+!!! tip
     When installing Argo Rollouts on Kubernetes v1.14 or lower, the CRD manifests must be kubectl applied with the --validate=false option. This is caused by use of new CRD fields introduced in v1.15, which are rejected by default in lower API servers.
 
 
@@ -19,6 +22,9 @@ This will create a new namespace, `argo-rollouts`, where Argo Rollouts controlle
     ```shell
     kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
     ```
+
+You can find released container images of the controller at [Quay.io](https://quay.io/repository/argoproj/argo-rollouts?tab=tags). There are also old releases
+at Dockerhub, but since the introduction of rate limiting, the Argo project has moved to Quay.
 
 ## Kubectl Plugin Installation
 
@@ -58,6 +64,17 @@ Test to ensure the version you installed is up-to-date:
 ```shell
 kubectl argo rollouts version
 ```
+
+## Shell auto completion
+
+The CLI can export shell completion code for several shells.
+
+For bash, ensure you have bash completions installed and enabled. To access completions in your current shell, run $ `source <(kubectl-argo-rollouts completion bash)`. Alternatively, write it to a file and source in `.bash_profile`.
+
+The completion command supports bash, zsh, fish and powershell.
+
+See the [completion command documentation](./generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion.md) for more details.
+
 
 ## Using the CLI  with Docker
 

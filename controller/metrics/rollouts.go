@@ -71,7 +71,7 @@ func calculatePhase(rollout *v1alpha1.Rollout) RolloutPhase {
 		if progressing.Reason == conditions.RolloutPausedReason {
 			phase = RolloutPaused
 		}
-		if progressing.Reason == conditions.ServiceNotFoundReason || progressing.Reason == conditions.FailedRSCreateReason {
+		if progressing.Reason == conditions.FailedRSCreateReason {
 			phase = RolloutError
 		}
 		if progressing.Reason == conditions.TimedOutReason {

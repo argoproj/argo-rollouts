@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	argoprojclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 )
@@ -373,7 +372,17 @@ func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs
 		return nil, err
 	}
 
+	// Remove resourceVersion if exists
+	_, found, err := unstructured.NestedString(obj.Object, "metadata", "resourceVersion")
+	if err != nil {
+		return nil, err
+	}
+	if found {
+		unstructured.RemoveNestedField(obj.Object, "metadata", "resourceVersion")
+	}
+
 	// Set args
+	newArgVals := []interface{}{}
 	for i := 0; i < len(newArgs); i++ {
 		var newArgInterface map[string]interface{}
 		newArgBytes, err := json.Marshal(newArgs[i])
@@ -384,7 +393,10 @@ func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs
 		if err != nil {
 			return nil, err
 		}
-		err = unstructured.SetNestedMap(obj.Object, newArgInterface, field.NewPath("spec", "args").Index(i).String())
+		newArgVals = append(newArgVals, newArgInterface)
+	}
+	if len(newArgVals) > 0 {
+		err = unstructured.SetNestedSlice(obj.Object, newArgVals, "spec", "args")
 		if err != nil {
 			return nil, err
 		}

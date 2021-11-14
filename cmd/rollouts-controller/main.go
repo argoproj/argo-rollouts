@@ -24,12 +24,8 @@ import (
 	jobprovider "github.com/argoproj/argo-rollouts/metricproviders/job"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-rollouts/pkg/signals"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	"github.com/argoproj/argo-rollouts/utils/istio"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/tolerantinformer"
@@ -44,25 +40,25 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
-		clientConfig        clientcmd.ClientConfig
-		rolloutResyncPeriod int64
-		logLevel            string
-		klogLevel           int
-		metricsPort         int
-		instanceID          string
-		rolloutThreads      int
-		experimentThreads   int
-		analysisThreads     int
-		serviceThreads      int
-		ingressThreads      int
-		istioVersion        string
-		trafficSplitVersion string
-		ambassadorVersion   string
-		albIngressClasses   []string
-		nginxIngressClasses []string
-		albVerifyWeight     bool
-		namespaced          bool
-		printVersion        bool
+		clientConfig         clientcmd.ClientConfig
+		rolloutResyncPeriod  int64
+		logLevel             string
+		klogLevel            int
+		metricsPort          int
+		instanceID           string
+		rolloutThreads       int
+		experimentThreads    int
+		analysisThreads      int
+		serviceThreads       int
+		ingressThreads       int
+		istioVersion         string
+		trafficSplitVersion  string
+		ambassadorVersion    string
+		albIngressClasses    []string
+		nginxIngressClasses  []string
+		awsVerifyTargetGroup bool
+		namespaced           bool
+		printVersion         bool
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -83,10 +79,10 @@ func newCommand() *cobra.Command {
 			// set up signals so we handle the first shutdown signal gracefully
 			stopCh := signals.SetupSignalHandler()
 
-			alb.SetDefaultVerifyWeight(albVerifyWeight)
-			istio.SetIstioAPIVersion(istioVersion)
-			ambassador.SetAPIVersion(ambassadorVersion)
-			smi.SetSMIAPIVersion(trafficSplitVersion)
+			defaults.SetVerifyTargetGroup(awsVerifyTargetGroup)
+			defaults.SetIstioAPIVersion(istioVersion)
+			defaults.SetAmbassadorAPIVersion(ambassadorVersion)
+			defaults.SetSMIAPIVersion(trafficSplitVersion)
 
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
@@ -97,12 +93,10 @@ func newCommand() *cobra.Command {
 				namespace = configNS
 				log.Infof("Using namespace %s", namespace)
 			}
-			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
-			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
 
 			kubeClient, err := kubernetes.NewForConfig(config)
 			checkError(err)
-			rolloutClient, err := clientset.NewForConfig(config)
+			argoprojClient, err := clientset.NewForConfig(config)
 			checkError(err)
 			dynamicClient, err := dynamic.NewForConfig(config)
 			checkError(err)
@@ -134,11 +128,26 @@ func newCommand() *cobra.Command {
 			// a single namespace (i.e. rollouts-controller --namespace foo).
 			clusterDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, metav1.NamespaceAll, instanceIDTweakListFunc)
 			// 3. We finally need an istio dynamic informer factory which does not use a tweakListFunc.
-			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, resyncDuration, namespace, nil)
+			_, istioPrimaryDynamicClient := istioutil.GetPrimaryClusterDynamicClient(kubeClient, namespace)
+			if istioPrimaryDynamicClient == nil {
+				istioPrimaryDynamicClient = dynamicClient
+			}
+			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(istioPrimaryDynamicClient, resyncDuration, namespace, nil)
+
+			controllerNamespaceInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+				kubeClient,
+				resyncDuration,
+				kubeinformers.WithNamespace(defaults.Namespace()))
+			configMapInformer := controllerNamespaceInformerFactory.Core().V1().ConfigMaps()
+			secretInformer := controllerNamespaceInformerFactory.Core().V1().Secrets()
+
+			k8sRequestProvider := &metrics.K8sRequestsCountProvider{}
+			kubeclientmetrics.AddMetricsTransportWrapper(config, k8sRequestProvider.IncKubernetesRequest)
+
 			cm := controller.NewManager(
 				namespace,
 				kubeClient,
-				rolloutClient,
+				argoprojClient,
 				dynamicClient,
 				smiClient,
 				discoveryClient,
@@ -151,8 +160,11 @@ func newCommand() *cobra.Command {
 				tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
 				tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
 				tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
+				istioPrimaryDynamicClient,
 				istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
 				istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
+				configMapInformer,
+				secretInformer,
 				resyncDuration,
 				instanceID,
 				metricsPort,
@@ -166,10 +178,11 @@ func newCommand() *cobra.Command {
 				clusterDynamicInformerFactory.Start(stopCh)
 			}
 			kubeInformerFactory.Start(stopCh)
+			controllerNamespaceInformerFactory.Start(stopCh)
 			jobInformerFactory.Start(stopCh)
 
 			// Check if Istio installed on cluster before starting dynamicInformerFactory
-			if istioutil.DoesIstioExist(dynamicClient, namespace) {
+			if istioutil.DoesIstioExist(istioPrimaryDynamicClient, namespace) {
 				istioDynamicInformerFactory.Start(stopCh)
 			}
 
@@ -200,7 +213,9 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")
 	command.Flags().StringArrayVar(&nginxIngressClasses, "nginx-ingress-classes", defaultNGINXIngressClass, "Defines all the ingress class annotations that the nginx ingress controller operates on. Defaults to nginx")
-	command.Flags().BoolVar(&albVerifyWeight, "alb-verify-weight", false, "Verify ALB target group weights before progressing through steps (requires AWS privileges)")
+	command.Flags().BoolVar(&awsVerifyTargetGroup, "alb-verify-weight", false, "Verify ALB target group weights before progressing through steps (requires AWS privileges)")
+	command.Flags().MarkDeprecated("alb-verify-weight", "Use --aws-verify-target-group instead")
+	command.Flags().BoolVar(&awsVerifyTargetGroup, "aws-verify-target-group", false, "Verify ALB target group before progressing through steps (requires AWS privileges)")
 	command.Flags().BoolVar(&printVersion, "version", false, "Print version")
 	return &command
 }

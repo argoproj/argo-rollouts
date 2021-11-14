@@ -215,6 +215,54 @@ func TestReconcileRevisionHistoryLimit(t *testing.T) {
 	}
 }
 
+func TestPersistWorkloadRefGeneration(t *testing.T) {
+	replica := int32(1)
+	r := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Replicas: &replica,
+		},
+	}
+	fake := fake.Clientset{}
+	roCtx := &rolloutContext{
+		rollout: r,
+		log:     logutil.WithRollout(r),
+		reconcilerBase: reconcilerBase{
+			argoprojclientset: &fake,
+		},
+		pauseContext: &pauseContext{
+			rollout: r,
+		},
+	}
+
+	tests := []struct {
+		annotatedRefGeneration string
+		currentObserved        string
+	}{
+		{"1", ""},
+		{"2", "1"},
+		{"", "1"},
+	}
+
+	for _, tc := range tests {
+		newStatus := &v1alpha1.RolloutStatus{
+			UpdatedReplicas:   int32(1),
+			AvailableReplicas: int32(1),
+		}
+
+		if tc.annotatedRefGeneration != "" {
+			annotations.SetRolloutWorkloadRefGeneration(r, tc.annotatedRefGeneration)
+			r.Spec.TemplateResolvedFromRef = true
+
+			newStatus.WorkloadObservedGeneration = tc.currentObserved
+		} else {
+			r.Spec.TemplateResolvedFromRef = false
+			annotations.RemoveRolloutWorkloadRefGeneration(r)
+		}
+		roCtx.persistRolloutStatus(newStatus)
+		assert.Equal(t, tc.annotatedRefGeneration, newStatus.WorkloadObservedGeneration)
+	}
+}
+
 // TestCanaryPromoteFull verifies skip pause, analysis, steps when promote full is set for a canary rollout
 func TestCanaryPromoteFull(t *testing.T) {
 	f := newFixture(t)
@@ -317,7 +365,6 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	f.expectPatchServiceAction(activeSvc, rs2PodHash) // update active to rs2
-	f.expectPatchReplicaSetAction(rs1)                // set scaledown delay on rs1
 	patchRolloutIdx := f.expectPatchRolloutAction(r2) // update rollout status
 	f.run(getKey(r2, t))
 
