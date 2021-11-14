@@ -379,6 +379,7 @@ func TestValidateMetrics(t *testing.T) {
 						Web:        &v1alpha1.WebMetric{},
 						Datadog:    &v1alpha1.DatadogMetric{},
 						NewRelic:   &v1alpha1.NewRelicMetric{},
+						CloudWatch: &v1alpha1.CloudWatchMetric{},
 					},
 				},
 			},

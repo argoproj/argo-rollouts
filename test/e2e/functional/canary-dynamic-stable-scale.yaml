@@ -1,35 +1,33 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: alb-rollout-root
+  name: dynamic-stable-scale-root
 spec:
-  type: NodePort
   ports:
   - port: 80
     targetPort: http
     protocol: TCP
     name: http
   selector:
-    app: alb-rollout
+    app: dynamic-stable-scale
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: alb-rollout-canary
+  name: dynamic-stable-scale-canary
 spec:
-  type: NodePort
   ports:
   - port: 80
     targetPort: http
     protocol: TCP
     name: http
   selector:
-    app: alb-rollout
+    app: dynamic-stable-scale
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: alb-rollout-stable
+  name: dynamic-stable-scale-stable
 spec:
   type: NodePort
   ports:
@@ -38,12 +36,12 @@ spec:
     protocol: TCP
     name: http
   selector:
-    app: alb-rollout
+    app: dynamic-stable-scale
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
-  name: alb-rollout-ingress
+  name: dynamic-stable-scale-ingress
   annotations:
     kubernetes.io/ingress.class: alb
 spec:
@@ -52,24 +50,27 @@ spec:
       paths:
       - path: /*
         backend:
-          serviceName: alb-rollout-root
+          serviceName: dynamic-stable-scale-root
           servicePort: use-annotation
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: alb-rollout
+  name: dynamic-stable-scale
 spec:
+  replicas: 4
   selector:
     matchLabels:
-      app: alb-rollout
+      app: dynamic-stable-scale
   template:
     metadata:
       labels:
-        app: alb-rollout
+        app: dynamic-stable-scale
     spec:
+      readinessGates:
+      - conditionType: argoproj.io/e2e-readiness
       containers:
-      - name: alb-rollout
+      - name: dynamic-stable-scale
         image: nginx:1.19-alpine
         ports:
         - name: http
@@ -81,15 +82,16 @@ spec:
             cpu: 5m
   strategy:
     canary:
-      canaryService: alb-rollout-canary
-      stableService: alb-rollout-stable
+      dynamicStableScale: true
+      canaryService: dynamic-stable-scale-canary
+      stableService: dynamic-stable-scale-stable
+      steps:
+        - setWeight: 25
+        - pause: {}
+        - setWeight: 75
+        - pause: {}
       trafficRouting:
         alb:
-          ingress: alb-rollout-ingress
-          rootService: alb-rollout-root
+          ingress: dynamic-stable-scale-ingress
+          rootService: dynamic-stable-scale-root
           servicePort: 80
-      steps:
-      - setWeight: 10
-      - pause: {duration: 5s}
-      - setWeight: 20
-      - pause: {duration: 5s}

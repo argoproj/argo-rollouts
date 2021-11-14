@@ -550,6 +550,22 @@
       },
       "title": "AnalysisRunArgument argument to add to analysisRun"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStrategy": {
+      "type": "object",
+      "properties": {
+        "successfulRunHistoryLimit": {
+          "type": "integer",
+          "format": "int32",
+          "title": "SuccessfulRunHistoryLimit limits the number of old successful analysis runs and experiments to be retained in a history"
+        },
+        "unsuccessfulRunHistoryLimit": {
+          "type": "integer",
+          "format": "int32",
+          "title": "UnsuccessfulRunHistoryLimit limits the number of old unsuccessful analysis runs and experiments to be retained in a history.\nStages for unsuccessful: \"Error\", \"Failed\", \"Inconclusive\""
+        }
+      },
+      "title": "AnalysisRunStrategy configuration for the analysis runs and experiments to retain"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AntiAffinity": {
       "type": "object",
       "properties": {
@@ -662,6 +678,11 @@
         "activeMetadata": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodTemplateMetadata",
           "title": "ActiveMetadata specify labels and annotations which will be attached to the active pods for\nthe duration which they act as a active pod, and will be removed after"
+        },
+        "abortScaleDownDelaySeconds": {
+          "type": "integer",
+          "format": "int32",
+          "title": "AbortScaleDownDelaySeconds adds a delay in second before scaling down the preview replicaset\nif update is aborted. 0 means not to scale down.\nDefault is 30 second\n+optional"
         }
       },
       "title": "BlueGreenStrategy defines parameters for Blue Green deployment"
@@ -680,6 +701,10 @@
         "currentExperiment": {
           "type": "string",
           "title": "CurrentExperiment indicates the running experiment"
+        },
+        "weights": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TrafficWeights",
+          "title": "Weights records the weights which have been set on traffic provider. Only valid when using traffic routing"
         }
       },
       "title": "CanaryStatus status fields that only pertain to the canary rollout"
@@ -766,6 +791,15 @@
           "type": "integer",
           "format": "int32",
           "title": "ScaleDownDelayRevisionLimit limits the number of old RS that can run at one time before getting scaled down\n+optional"
+        },
+        "abortScaleDownDelaySeconds": {
+          "type": "integer",
+          "format": "int32",
+          "title": "AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update\nis aborted for canary strategy with traffic routing (not applicable for basic canary).\n0 means canary pods are not scaled down.\nDefault is 30 seconds.\n+optional"
+        },
+        "dynamicStableScale": {
+          "type": "boolean",
+          "description": "DynamicStableScale is a traffic routing feature which dynamically scales the stable\nReplicaSet to minimize total pods which are running during an update. This is calculated by\nscaling down the stable as traffic is increased to canary. When disabled (the default behavior)\nthe stable ReplicaSet remains fully scaled to support instantaneous aborts."
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
@@ -807,6 +841,13 @@
         "destinationRule": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IstioDestinationRule",
           "title": "DestinationRule references an Istio DestinationRule to modify to shape traffic"
+        },
+        "virtualServices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IstioVirtualService"
+          },
+          "title": "VirtualServices references a list of Istio VirtualService to modify to shape traffic"
         }
       },
       "title": "IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration"
@@ -823,7 +864,14 @@
           "items": {
             "type": "string"
           },
-          "title": "Routes are list of routes within VirtualService to edit. If omitted, VirtualService must have a single route"
+          "description": "A list of HTTP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
+        },
+        "tlsRoutes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute"
+          },
+          "description": "A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
         }
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
@@ -1095,6 +1143,11 @@
         "selector": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector",
           "title": "Selector overrides the selector to be used for the template's ReplicaSet. If omitted, will\nuse the same selector as the Rollout\n+optional"
+        },
+        "weight": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Weight sets the percentage of traffic the template's replicas should receive"
         }
       },
       "title": "RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step"
@@ -1152,9 +1205,17 @@
           "format": "int32",
           "description": "ProgressDeadlineSeconds The maximum time in seconds for a rollout to\nmake progress before it is considered to be failed. Argo Rollouts will\ncontinue to process failed rollouts and a condition with a\nProgressDeadlineExceeded reason will be surfaced in the rollout status.\nNote that progress will not be estimated during the time a rollout is paused.\nDefaults to 600s."
         },
+        "progressDeadlineAbort": {
+          "type": "boolean",
+          "title": "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds\nis exceeded if analysis is not used. Default is false.\n+optional"
+        },
         "restartAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
           "title": "RestartAt indicates when all the pods of a Rollout should be restarted"
+        },
+        "analysis": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStrategy",
+          "title": "Analysis configuration for the analysis runs to retain"
         }
       },
       "title": "RolloutSpec is the spec for a Rollout resource"
@@ -1222,6 +1283,10 @@
         "observedGeneration": {
           "type": "string",
           "title": "The generation observed by the rollout controller from metadata.generation\n+optional"
+        },
+        "workloadObservedGeneration": {
+          "type": "string",
+          "title": "The generation of referenced workload observed by the rollout controller\n+optional"
         },
         "conditions": {
           "type": "array",
@@ -1343,6 +1408,67 @@
         }
       },
       "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "string",
+          "format": "int64",
+          "description": "Port number of the TLS Route desired to be matched in the given Istio VirtualService."
+        },
+        "sniHosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of all the SNI Hosts of the TLS Route desired to be matched in the given Istio VirtualService."
+        }
+      },
+      "description": "TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TrafficWeights": {
+      "type": "object",
+      "properties": {
+        "canary": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination",
+          "title": "Canary is the current traffic weight split to canary ReplicaSet"
+        },
+        "stable": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination",
+          "title": "Stable is the current traffic weight split to stable ReplicaSet"
+        },
+        "additional": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination"
+          },
+          "title": "Additional holds the weights split to additional ReplicaSets such as experiment ReplicaSets"
+        },
+        "verified": {
+          "type": "boolean",
+          "title": "Verified is an optional indicator that the weight has been verified to have taken effect.\nThis is currently only applicable to ALB traffic router"
+        }
+      },
+      "title": "TrafficWeights describes the current status of how traffic has been split"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination": {
+      "type": "object",
+      "properties": {
+        "weight": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Weight is an percentage of traffic being sent to this destination"
+        },
+        "serviceName": {
+          "type": "string",
+          "title": "ServiceName is the Kubernetes service name traffic is being sent to"
+        },
+        "podTemplateHash": {
+          "type": "string",
+          "title": "PodTemplateHash is the pod template hash label for this destination"
+        }
+      }
     },
     "google.protobuf.Any": {
       "type": "object",
@@ -4130,6 +4256,12 @@
       "properties": {
         "namespace": {
           "type": "string"
+        },
+        "availableNamespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

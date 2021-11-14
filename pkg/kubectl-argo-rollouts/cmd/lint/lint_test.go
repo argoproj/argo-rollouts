@@ -15,7 +15,7 @@ func TestLintValidRollout(t *testing.T) {
 	cmd := NewCmdLint(o)
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 
-	for _, filename := range []string{"testdata/valid.yml", "testdata/valid-with-another-empty-object.yml"} {
+	for _, filename := range []string{"testdata/valid.yml", "testdata/valid-workload-ref.yaml", "testdata/valid-with-another-empty-object.yml"} {
 		cmd.SetArgs([]string{"-f", filename})
 		err := cmd.Execute()
 		assert.NoError(t, err)

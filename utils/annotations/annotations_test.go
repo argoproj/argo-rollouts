@@ -114,6 +114,55 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
+	// Check if WorkloadRefGeneration annotations can be set
+	t.Run("SetRolloutWorkloadRefGeneration", func(t *testing.T) {
+		copyRollout := tRollout.DeepCopy()
+		copyRollout.Annotations = nil
+		updated := SetRolloutWorkloadRefGeneration(copyRollout, "1")
+		if !updated {
+			t.Errorf("SetRolloutWorkloadRefGeneration() Expected=True Obtained=False")
+		}
+		if copyRollout.Annotations[WorkloadGenerationAnnotation] != "1" {
+			t.Errorf("Revision Expected=1 Obtained=%s", copyRollout.Annotations[WorkloadGenerationAnnotation])
+		}
+	})
+
+	t.Run("SetRolloutWorkloadRefGenerationAlreadySet", func(t *testing.T) {
+		copyRollout := tRollout.DeepCopy()
+		copyRollout.Annotations = map[string]string{WorkloadGenerationAnnotation: "1"}
+		updated := SetRolloutWorkloadRefGeneration(copyRollout, "2")
+		if !updated {
+			t.Errorf("SetRolloutWorkloadRefGeneration() Expected=True Obtained=False")
+		}
+		if copyRollout.Annotations[WorkloadGenerationAnnotation] != "2" {
+			t.Errorf("WorkloadGeneration Expected=1 Obtained=%s", copyRollout.Annotations[WorkloadGenerationAnnotation])
+		}
+	})
+
+	t.Run("SetRolloutWorkloadRefGenerationUnchanged", func(t *testing.T) {
+		copyRollout := tRollout.DeepCopy()
+		copyRollout.Annotations = map[string]string{WorkloadGenerationAnnotation: "2"}
+		updated := SetRolloutWorkloadRefGeneration(copyRollout, "2")
+		if updated {
+			t.Errorf("SetRolloutWorkloadRefGeneration() Expected=False Obtained=True")
+		}
+		if copyRollout.Annotations[WorkloadGenerationAnnotation] != "2" {
+			t.Errorf("WorkloadGeneration Expected=2 Obtained=%s", copyRollout.Annotations[WorkloadGenerationAnnotation])
+		}
+	})
+	t.Run("RemoveRolloutWorkloadRefGeneration", func(t *testing.T) {
+		copyRollout := tRollout.DeepCopy()
+
+		copyRollout.Annotations = nil
+		RemoveRolloutWorkloadRefGeneration(copyRollout)
+		assert.Nil(t, copyRollout.Annotations)
+
+		copyRollout.Annotations = map[string]string{WorkloadGenerationAnnotation: "2"}
+		RemoveRolloutWorkloadRefGeneration(copyRollout)
+		_, ok := copyRollout.Annotations[WorkloadGenerationAnnotation]
+		assert.False(t, ok)
+	})
+
 	t.Run("SetRolloutRevisionAlreadySet", func(t *testing.T) {
 		copyRollout := tRollout.DeepCopy()
 		copyRollout.Labels = map[string]string{RevisionAnnotation: "2"}
@@ -235,6 +284,38 @@ func TestAnnotationUtils(t *testing.T) {
 		if ok {
 			t.Errorf("IsSaturated Expected=false Obtained=true")
 		}
+	})
+
+	// Check if we can grab annotations from rollout
+	t.Run("GetDesiredReplicasAnnotationNotSet", func(t *testing.T) {
+		generation, ok := GetWorkloadGenerationAnnotation(&tRollout)
+		assert.False(t, ok)
+		assert.Equal(t, int32(0), generation)
+	})
+
+	tRollout.Annotations[WorkloadGenerationAnnotation] = "1"
+	t.Run("GetDesiredReplicasAnnotation", func(t *testing.T) {
+		generation, ok := GetWorkloadGenerationAnnotation(&tRollout)
+		assert.True(t, ok)
+		assert.Equal(t, int32(1), generation)
+	})
+
+	tRollout.Annotations[WorkloadGenerationAnnotation] = "20000000000"
+	t.Run("GetDesiredReplicasAnnotationOutOfRange", func(t *testing.T) {
+		_, ok := GetWorkloadGenerationAnnotation(&tRollout)
+		assert.Falsef(t, ok, "Should be an error as 20M value does not fit into int32")
+	})
+
+	t.Run("GetWorkloadGenerationAnnotationNilInput", func(t *testing.T) {
+		generation, ok := GetWorkloadGenerationAnnotation(nil)
+		assert.False(t, ok)
+		assert.Equal(t, int32(0), generation)
+	})
+
+	tRollout.Annotations[WorkloadGenerationAnnotation] = "Not a number"
+	t.Run("GetWorkloadGenerationAnnotationInvalidAnnotations", func(t *testing.T) {
+		_, ok := GetWorkloadGenerationAnnotation(&tRollout)
+		assert.False(t, ok)
 	})
 
 	copyRS := tRS.DeepCopy()

@@ -2,7 +2,6 @@ package rollout
 
 import (
 	"sort"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -92,8 +91,20 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		c.log.Info("No StableRS exists to reconcile or matches newRS")
 		return false, nil
 	}
-	_, stableRSReplicaCount := replicasetutil.CalculateReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
-	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, stableRSReplicaCount)
+	var desiredStableRSReplicaCount int32
+	if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForBasicCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+	} else {
+		// Note the use of c.rollout.Status.Canary.Weights instead of c.newStatus.Canary.Weights.
+		// We don't want to use c.newStatus because that would have been just been modified in
+		// reconcileTrafficRouting(). At the end of the canary steps, we switch the service and set
+		// stable to 100%. In this scenario, c.newStatus.Canary.Weights.Stable.Weight would be 100,
+		// causing us to flap and scale up the stable 100 temporarily (before scaling down to 0 later).
+		// Therefore, we send c.rollout.Status.Canary.Weights so that the stable scaling happens in
+		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
+		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.rollout.Status.Canary.Weights)
+	}
+	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	return scaled, err
 }
 
@@ -158,6 +169,10 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 
 	sort.Sort(sort.Reverse(replicasetutil.ReplicaSetsByRevisionNumber(oldRSs)))
 
+	if canProceed, err := c.canProceedWithScaleDownAnnotation(oldRSs); !canProceed || err != nil {
+		return 0, err
+	}
+
 	annotationedRSs := int32(0)
 	rolloutReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
 	for _, targetRS := range oldRSs {
@@ -170,7 +185,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 		if maxScaleDown <= 0 {
 			break
 		}
-		if *(targetRS.Spec.Replicas) == 0 {
+		if *targetRS.Spec.Replicas == 0 {
 			// cannot scale down this ReplicaSet.
 			continue
 		}
@@ -178,40 +193,51 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 		if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 			// For basic canary, we must scale down all other ReplicaSets because existence of
 			// those pods will cause traffic to be served by them
-			if *(targetRS.Spec.Replicas) > maxScaleDown {
-				desiredReplicaCount = *(targetRS.Spec.Replicas) - maxScaleDown
+			if *targetRS.Spec.Replicas > maxScaleDown {
+				desiredReplicaCount = *targetRS.Spec.Replicas - maxScaleDown
 			}
 		} else {
-			// For traffic shaped canary, we leave the old ReplicaSets up until scaleDownDelaySeconds
-			if scaleDownAtStr, ok := targetRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey]; ok {
-				annotationedRSs++
-				scaleDownAtTime, err := time.Parse(time.RFC3339, scaleDownAtStr)
-				scaleDownRevisionLimit := getScaleDownRevisionLimit(c.rollout)
-				if err != nil {
-					c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", targetRS.Name)
-				} else if annotationedRSs > scaleDownRevisionLimit {
-					c.log.Infof("At ScaleDownDelayRevisionLimit (%d) and scaling down the rest", scaleDownRevisionLimit)
+			if rolloututil.IsFullyPromoted(c.rollout) || replicasetutil.HasScaleDownDeadline(targetRS) {
+				// If we are fully promoted and we encounter an old ReplicaSet, we can infer that
+				// this ReplicaSet is likely the previous stable. We should do one of two things:
+				if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+					// 1. if we are using dynamic scaling, then this should be scaled down to 0 now
+					desiredReplicaCount = 0
 				} else {
-					now := metav1.Now()
-					scaleDownAt := metav1.NewTime(scaleDownAtTime)
-					if scaleDownAt.After(now.Time) {
-						c.log.Infof("RS '%s' has not reached the scaleDownTime", targetRS.Name)
-						remainingTime := scaleDownAt.Sub(now.Time)
-						if remainingTime < c.resyncPeriod {
-							c.enqueueRolloutAfter(c.rollout, remainingTime)
-						}
-						desiredReplicaCount = rolloutReplicas
+					// 2. otherwise, honor scaledown delay second
+					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
+					if err != nil {
+						return totalScaledDown, err
 					}
 				}
+			} else {
+				// If we get here, we are *not* fully promoted and are in the middle of an update.
+				// We just encountered a scaled up ReplicaSet which is neither the stable or canary
+				// and doesn't yet have scale down deadline. This happens when a user changes their
+				// mind in the middle of an V1 -> V2 update, and then applies a V3. We are deciding
+				// what to do with the defunct, intermediate V2 ReplicaSet right now.
+				if replicasetutil.IsReplicaSetReady(c.newRS) && replicasetutil.IsReplicaSetReady(c.stableRS) {
+					// If the both new and old RS are available, we can infer that it is safe to
+					// scale down this ReplicaSet, since traffic should have shifted away from this RS.
+					// TODO: instead of checking availability of canary/stable, a better way to determine
+					// if it is safe to scale this down, is to check if traffic is directed to the RS.
+					// In other words, we can check c.rollout.Status.Canary.Weights to see if this
+					// ReplicaSet hash is still referenced, and scale it down otherwise.
+					c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
+				} else {
+					// The current and stable ReplicaSets have not reached readiness. This implies
+					// we might not have shifted traffic away from this ReplicaSet so we need to
+					// keep this scaled up.
+					continue
+				}
 			}
-
 		}
-		if *(targetRS.Spec.Replicas) == desiredReplicaCount {
-			// at desired account
+		if *targetRS.Spec.Replicas == desiredReplicaCount {
+			// already at desired account, nothing to do
 			continue
 		}
 		// Scale down.
-		_, _, err := c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
+		_, _, err = c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
 		if err != nil {
 			return totalScaledDown, err
 		}
@@ -221,6 +247,50 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 	}
 
 	return totalScaledDown, nil
+}
+
+// canProceedWithScaleDownAnnotation returns whether or not it is safe to proceed with annotating
+// old replicasets with the scale-down-deadline in the traffic-routed canary strategy.
+// This method only matters with ALB canary + the target group verification feature.
+// The safety guarantees we provide are that we will not scale down *anything* unless we can verify
+// stable target group endpoints are registered properly.
+// NOTE: this method was written in a way which avoids AWS API calls.
+func (c *rolloutContext) canProceedWithScaleDownAnnotation(oldRSs []*appsv1.ReplicaSet) (bool, error) {
+	isALBCanary := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil
+	if !isALBCanary {
+		// Only ALB
+		return true, nil
+	}
+
+	needToVerifyTargetGroups := false
+	for _, targetRS := range oldRSs {
+		if *targetRS.Spec.Replicas > 0 && !replicasetutil.HasScaleDownDeadline(targetRS) {
+			// We encountered an old ReplicaSet that is not yet scaled down, and is not annotated
+			// We only verify target groups if there is something to scale down.
+			needToVerifyTargetGroups = true
+			break
+		}
+	}
+	if !needToVerifyTargetGroups {
+		// All ReplicaSets are either scaled down, or have a scale-down-deadline annotation.
+		// The presence of the scale-down-deadline on all oldRSs, implies we can proceed with
+		// scale down, because we only add that annotation when target groups have been verified.
+		// Therefore, we return true to avoid performing verification again and making unnecessary
+		// AWS API calls.
+		return true, nil
+	}
+	stableSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.StableService)
+	if err != nil {
+		return false, err
+	}
+	err = c.awsVerifyTargetGroups(stableSvc)
+	if err != nil {
+		return false, err
+	}
+
+	canProceed := c.areTargetsVerified()
+	c.log.Infof("Proceed with scaledown: %v", canProceed)
+	return canProceed, nil
 }
 
 func (c *rolloutContext) completedCurrentCanaryStep() bool {
@@ -235,12 +305,13 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	case currentStep.Pause != nil:
 		return c.pauseContext.CompletedCanaryPauseStep(*currentStep.Pause)
 	case currentStep.SetCanaryScale != nil:
-		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.newStatus.Canary.Weights)
 	case currentStep.SetWeight != nil:
-		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
+		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.newStatus.Canary.Weights) {
 			return false
 		}
-		if c.weightVerified != nil && !*c.weightVerified {
+		if c.newStatus.Canary.Weights != nil && c.newStatus.Canary.Weights.Verified != nil && !*c.newStatus.Canary.Weights.Verified {
+			// we haven't yet verified the target weight after the setWeight
 			return false
 		}
 		return true

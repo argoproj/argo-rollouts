@@ -5,9 +5,16 @@ import (
 	"strconv"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
+
+// IsFullyPromoted returns whether or not the given rollout is in a fully promoted state.
+// (versus being in the middle of an update). This is determined by checking if stable hash == desired hash
+func IsFullyPromoted(ro *v1alpha1.Rollout) bool {
+	return ro.Status.StableRS == ro.Status.CurrentPodHash
+}
 
 // GetRolloutPhase returns a status and message for a rollout. Takes into consideration whether
 // or not metadata.generation was observed in status.observedGeneration
@@ -16,6 +23,11 @@ func GetRolloutPhase(ro *v1alpha1.Rollout) (v1alpha1.RolloutPhase, string) {
 	if !isGenerationObserved(ro) {
 		return v1alpha1.RolloutPhaseProgressing, "waiting for rollout spec update to be observed"
 	}
+
+	if ro.Spec.TemplateResolvedFromRef && !isWorkloadGenerationObserved(ro) {
+		return v1alpha1.RolloutPhaseProgressing, "waiting for rollout spec update to be observed for the reference workload"
+	}
+
 	if ro.Status.Phase != "" {
 		// for 1.0+ phase/message is calculated controller side
 		return ro.Status.Phase, ro.Status.Message
@@ -37,6 +49,19 @@ func isGenerationObserved(ro *v1alpha1.Rollout) bool {
 		return true
 	}
 	return int64(observedGen) == ro.Generation
+}
+
+func isWorkloadGenerationObserved(ro *v1alpha1.Rollout) bool {
+	if _, ok := annotations.GetWorkloadGenerationAnnotation(ro); !ok {
+		return true
+	}
+	workloadGeneration, _ := annotations.GetWorkloadGenerationAnnotation(ro)
+	observedWorkloadGen, err := strconv.ParseInt(ro.Status.WorkloadObservedGeneration, 10, 32)
+	if err != nil {
+		return true
+	}
+
+	return int32(observedWorkloadGen) == workloadGeneration
 }
 
 // CalculateRolloutPhase calculates a rollout phase and message for the given rollout based on
@@ -76,8 +101,15 @@ func CalculateRolloutPhase(spec v1alpha1.RolloutSpec, status v1alpha1.RolloutSta
 		if ro.Status.BlueGreen.ActiveSelector == "" || ro.Status.BlueGreen.ActiveSelector != ro.Status.CurrentPodHash {
 			return v1alpha1.RolloutPhaseProgressing, "active service cutover pending"
 		}
-		if ro.Status.StableRS == "" || ro.Status.StableRS != ro.Status.CurrentPodHash {
-			return v1alpha1.RolloutPhaseProgressing, "waiting for analysis to complete"
+		if ro.Status.StableRS == "" || !IsFullyPromoted(&ro) {
+			// we switched the active selector to the desired ReplicaSet, but we have yet to mark it
+			// as stable. This could be caused by one of two things:
+			// 1. post-promotion analysis has yet to complete successfully
+			// 2. post-promotion verification (i.e. target group verification)
+			if waitingForBlueGreenPostPromotionAnalysis(&ro) {
+				return v1alpha1.RolloutPhaseProgressing, "waiting for analysis to complete"
+			}
+			return v1alpha1.RolloutPhaseProgressing, "waiting for post-promotion verification to complete"
 		}
 	} else if ro.Spec.Strategy.Canary != nil {
 		if ro.Spec.Strategy.Canary.TrafficRouting == nil {
@@ -88,11 +120,21 @@ func CalculateRolloutPhase(spec v1alpha1.RolloutSpec, status v1alpha1.RolloutSta
 				return v1alpha1.RolloutPhaseProgressing, "old replicas are pending termination"
 			}
 		}
-		if ro.Status.StableRS == "" || ro.Status.StableRS != ro.Status.CurrentPodHash {
+		if ro.Status.StableRS == "" || !IsFullyPromoted(&ro) {
 			return v1alpha1.RolloutPhaseProgressing, "waiting for all steps to complete"
 		}
 	}
 	return v1alpha1.RolloutPhaseHealthy, ""
+}
+
+// waitingForBlueGreenPostPromotionAnalysis returns we are waiting for blue-green post promotion to complete
+func waitingForBlueGreenPostPromotionAnalysis(ro *v1alpha1.Rollout) bool {
+	if ro.Spec.Strategy.BlueGreen.PostPromotionAnalysis != nil {
+		if ro.Status.BlueGreen.PostPromotionAnalysisRunStatus == nil || !ro.Status.BlueGreen.PostPromotionAnalysisRunStatus.Status.Completed() {
+			return true
+		}
+	}
+	return false
 }
 
 // CanaryStepString returns a string representation of a canary step

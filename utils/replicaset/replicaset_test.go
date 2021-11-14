@@ -193,12 +193,12 @@ func TestGetReplicaCountForReplicaSets(t *testing.T) {
 func TestNewRSNewReplicas(t *testing.T) {
 	ro := generateRollout("test")
 	ro.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
-	blueGreenNewRSCount, err := NewRSNewReplicas(&ro, nil, nil)
+	blueGreenNewRSCount, err := NewRSNewReplicas(&ro, nil, nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, blueGreenNewRSCount, *ro.Spec.Replicas)
 
 	ro.Spec.Strategy.BlueGreen = nil
-	_, err = NewRSNewReplicas(&ro, nil, nil)
+	_, err = NewRSNewReplicas(&ro, nil, nil, nil)
 	assert.Error(t, err, "no rollout strategy provided")
 }
 
@@ -285,7 +285,7 @@ func TestNewRSNewReplicasWitPreviewReplicaCount(t *testing.T) {
 			if test.overrideCurrentPodHash != "" {
 				r.Status.CurrentPodHash = test.overrideCurrentPodHash
 			}
-			count, err := NewRSNewReplicas(r, []*appsv1.ReplicaSet{rs, rs2}, rs)
+			count, err := NewRSNewReplicas(r, []*appsv1.ReplicaSet{rs, rs2}, rs, nil)
 			assert.Nil(t, err)
 			assert.Equal(t, test.expectReplicaCount, count)
 		})
@@ -1177,6 +1177,26 @@ func TestGetPodsOwnedByReplicaSet(t *testing.T) {
 	assert.Equal(t, "guestbook-abc123", pods[0].Name)
 }
 
+func TestGetTimeRemainingBeforeScaleDownDeadline(t *testing.T) {
+	rs := generateRS(generateRollout("foo"))
+	{
+		remainingTime, _ := GetTimeRemainingBeforeScaleDownDeadline(&rs)
+		assert.Nil(t, remainingTime)
+	}
+	{
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: metav1.Now().Add(-600 * time.Second).UTC().Format(time.RFC3339)}
+		remainingTime, err := GetTimeRemainingBeforeScaleDownDeadline(&rs)
+		assert.Nil(t, err)
+		assert.Nil(t, remainingTime)
+	}
+	{
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: metav1.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)}
+		remainingTime, err := GetTimeRemainingBeforeScaleDownDeadline(&rs)
+		assert.Nil(t, err)
+		assert.NotNil(t, remainingTime)
+	}
+}
+
 // TestPodTemplateEqualIgnoreHashWithServiceAccount catches a corner case where the K8s ComputeHash
 // function changed from underneath us, and we fell back to deep equality checking, which then
 // incorrectly detected a diff because of a deprecated field being present in the live but not desired.
@@ -1226,4 +1246,55 @@ spec:
 	assert.NoError(t, err)
 
 	assert.True(t, PodTemplateEqualIgnoreHash(&live, &desired))
+}
+
+func TestIsReplicaSetReady(t *testing.T) {
+	{
+		assert.False(t, IsReplicaSetReady(nil))
+	}
+	{
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(1),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas: 0,
+			},
+		}
+		assert.False(t, IsReplicaSetReady(&rs))
+	}
+	{
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(1),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas: 1,
+			},
+		}
+		assert.True(t, IsReplicaSetReady(&rs))
+	}
+	{
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(1),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas: 2,
+			},
+		}
+		assert.True(t, IsReplicaSetReady(&rs))
+	}
+	{
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(0),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas: 0,
+			},
+		}
+		// NOTE: currently consider scaled down replicas as not ready
+		assert.False(t, IsReplicaSetReady(&rs))
+	}
 }

@@ -7,9 +7,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
-	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -17,6 +14,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 const (
@@ -53,6 +55,18 @@ spec:
   rewrite: /myapp/
   service: myapp:8080
   weight: 20`
+
+	baseV3Mapping = `
+apiVersion: x.getambassador.io/v3alpha1
+kind:  AmbassadorMapping
+metadata:
+  name: myapp-mapping
+  namespace: default
+spec:
+  hostname: 'example.com'
+  prefix: /myapp/
+  rewrite: /myapp/
+  service: myapp:8080`
 
 	canaryMapping = `
 apiVersion: getambassador.io/v2
@@ -216,6 +230,34 @@ func TestReconciler_SetWeight(t *testing.T) {
 			getReturns := []*getReturn{
 				{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
 				{obj: toUnstructured(t, baseMapping)},
+			}
+			createReturns := []*createReturn{
+				{nil, nil},
+			}
+			f.fakeClient.getReturns = getReturns
+			f.fakeClient.createReturns = createReturns
+
+			// when
+			err := f.reconciler.SetWeight(13)
+
+			// then
+			assert.NoError(t, err)
+			assert.Equal(t, 2, len(f.fakeClient.getInvokations))
+			assert.Equal(t, "myapp-mapping-canary", f.fakeClient.getInvokations[0].name)
+			assert.Equal(t, "myapp-mapping", f.fakeClient.getInvokations[1].name)
+			assert.Equal(t, 1, len(f.fakeClient.createInvokations))
+			assert.Equal(t, int64(13), ambassador.GetMappingWeight(f.fakeClient.createInvokations[0].obj))
+			assert.Equal(t, "canary-service:8080", ambassador.GetMappingService(f.fakeClient.createInvokations[0].obj))
+			assert.Equal(t, 0, len(f.fakeClient.updateInvokations))
+			assert.Equal(t, 0, len(f.fakeClient.deleteInvokations))
+		})
+		t.Run("will create canary ambassadormapping and set weight successfully", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+			getReturns := []*getReturn{
+				{err: k8serrors.NewNotFound(schema.GroupResource{}, "canary-mapping")},
+				{obj: toUnstructured(t, baseV3Mapping)},
 			}
 			createReturns := []*createReturn{
 				{nil, nil},
@@ -449,7 +491,7 @@ func TestReconciler_SetWeight(t *testing.T) {
 		})
 	})
 	t.Run("VerifyWeight", func(t *testing.T) {
-		t.Run("verify weight will always return true", func(t *testing.T) {
+		t.Run("verify weight will always return nil", func(t *testing.T) {
 			// given
 			t.Parallel()
 			f := setup()
@@ -459,7 +501,7 @@ func TestReconciler_SetWeight(t *testing.T) {
 
 			// then
 			assert.Nil(t, err)
-			assert.True(t, verified)
+			assert.Nil(t, verified)
 		})
 	})
 	t.Run("UpdateHash", func(t *testing.T) {
@@ -503,7 +545,7 @@ func TestGetMappingGVR(t *testing.T) {
 	})
 	t.Run("will get gvr successfully", func(t *testing.T) {
 		// given
-		ambassador.SetAPIVersion("v1")
+		defaults.SetAmbassadorAPIVersion("v1")
 
 		// when
 		gvr := ambassador.GetMappingGVR()
@@ -516,16 +558,30 @@ func TestGetMappingGVR(t *testing.T) {
 	t.Run("will get valid gvr even if apiVersion has the wrong domain", func(t *testing.T) {
 		// given
 		apiVersion := "invalid.com/v1alpha1"
-		ambassador.SetAPIVersion(apiVersion)
+		defaults.SetAmbassadorAPIVersion(apiVersion)
 
 		// when
 		gvr := ambassador.GetMappingGVR()
 
 		// then
-		assert.Equal(t, "getambassador.io", gvr.Group)
+		assert.Equal(t, "invalid.com", gvr.Group)
 		assert.Equal(t, "v1alpha1", gvr.Version)
 		assert.Equal(t, "mappings", gvr.Resource)
-		assert.Equal(t, apiVersion, ambassador.GetAPIVersion())
+		assert.Equal(t, apiVersion, defaults.GetAmbassadorAPIVersion())
+	})
+	t.Run("will get correct gvr for x.getambassador.io api group", func(t *testing.T) {
+		// given
+		apiVersion := "x.getambassador.io/v3alpha1"
+		defaults.SetAmbassadorAPIVersion(apiVersion)
+
+		// when
+		gvr := ambassador.GetMappingGVR()
+
+		// then
+		assert.Equal(t, "x.getambassador.io", gvr.Group)
+		assert.Equal(t, "v3alpha1", gvr.Version)
+		assert.Equal(t, "ambassadormappings", gvr.Resource)
+		assert.Equal(t, apiVersion, defaults.GetAmbassadorAPIVersion())
 	})
 }
 

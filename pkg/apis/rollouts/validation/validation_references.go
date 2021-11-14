@@ -3,12 +3,12 @@ package validation
 import (
 	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
+	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	corev1 "k8s.io/api/core/v1"
@@ -213,26 +213,88 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress v1beta1.Ingress) field.E
 	return allErrs
 }
 
+// ValidateRolloutVirtualServicesConfig checks either VirtualService or VirtualServices configured
+// It returns an error if both VirtualService and VirtualServices are configured.
+// Also, returns an error if both are not configured.
+func ValidateRolloutVirtualServicesConfig(r *v1alpha1.Rollout) error {
+	var fldPath *field.Path
+	fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
+	errorString := "either VirtualService or VirtualServices must be configured"
+
+	if r.Spec.Strategy.Canary != nil {
+		canary := r.Spec.Strategy.Canary
+		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
+			if istioutil.MultipleVirtualServiceConfigured(r) {
+				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService != nil {
+					return field.InternalError(fldPath, fmt.Errorf(errorString))
+				}
+			} else {
+				if r.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService == nil {
+					return field.InternalError(fldPath, fmt.Errorf(errorString))
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstructured) field.ErrorList {
+	var fldPath *field.Path
+	var virtualServices []v1alpha1.IstioVirtualService
 	allErrs := field.ErrorList{}
 	newObj := obj.DeepCopy()
-	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
-	vsvcName := rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
-	httpRoutesI, err := istio.GetHttpRoutesI(newObj)
-	if err != nil {
-		msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
-		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+
+	if istioutil.MultipleVirtualServiceConfigured(rollout) {
+		fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualServices", "name")
+		virtualServices = rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
+	} else {
+		fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
+		virtualServices = []v1alpha1.IstioVirtualService{*rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
 	}
-	httpRoutes, err := istio.GetHttpRoutes(newObj, httpRoutesI)
-	if err != nil {
-		msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
-		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+
+	virtualServiceRecordName := obj.GetName()
+
+	for _, virtualService := range virtualServices {
+		name := virtualService.Name
+		_, vsvcName := istioutil.GetVirtualServiceNamespaceName(name)
+		if vsvcName == virtualServiceRecordName {
+			httpRoutesI, errHttp := istio.GetHttpRoutesI(newObj)
+			tlsRoutesI, errTls := istio.GetTlsRoutesI(newObj)
+			// None of the HTTP/TLS routes exist.
+			if errHttp != nil && errTls != nil {
+				msg := fmt.Sprintf("Unable to get HTTP and/or TLS routes for Istio VirtualService")
+				allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+			}
+			// Validate HTTP Routes
+			if errHttp == nil {
+				httpRoutes, err := istio.GetHttpRoutes(newObj, httpRoutesI)
+				if err != nil {
+					msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
+					allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+				}
+				err = istio.ValidateHTTPRoutes(rollout, virtualService.Routes, httpRoutes)
+				if err != nil {
+					msg := fmt.Sprintf("Istio VirtualService has invalid HTTP routes. Error: %s", err.Error())
+					allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+				}
+			}
+			// Validate TLS Routes
+			if errTls == nil {
+				tlsRoutes, err := istio.GetTlsRoutes(newObj, tlsRoutesI)
+				if err != nil {
+					msg := fmt.Sprintf("Unable to get TLS routes for Istio VirtualService")
+					allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+				}
+				err = istio.ValidateTlsRoutes(rollout, virtualService.TLSRoutes, tlsRoutes)
+				if err != nil {
+					msg := fmt.Sprintf("Istio VirtualService has invalid TLS routes. Error: %s", err.Error())
+					allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
+				}
+			}
+			break
+		}
 	}
-	err = istio.ValidateHTTPRoutes(rollout, httpRoutes)
-	if err != nil {
-		msg := fmt.Sprintf("Istio VirtualService has invalid HTTP routes. Error: %s", err.Error())
-		allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))
-	}
+	// Return all errors
 	return allErrs
 }
 

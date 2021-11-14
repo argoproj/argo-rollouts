@@ -1,5 +1,3 @@
-import {faTimesCircle} from '@fortawesome/free-solid-svg-icons';
-import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import * as React from 'react';
 import {Key, KeybindingContext} from 'react-keyhooks';
 
@@ -19,7 +17,7 @@ export const Modal = (props: {children: React.ReactNode; hide?: () => void}) => 
         <div className='modal-container'>
             <div className='modal'>
                 <div className='modal__bar'>
-                    <FontAwesomeIcon className='modal__bar__close' icon={faTimesCircle} onClick={props.hide} />
+                    <i className='modal__bar__close fa fa-times-circle' onClick={props.hide} />
                 </div>
                 <div className='modal__content'>{props.children}</div>
             </div>

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/queue"
-
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -28,6 +26,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/queue"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -175,31 +174,44 @@ func (c *IstioController) EnqueueRolloutFromIstioVirtualService(vsvc interface{}
 }
 
 func (c *IstioController) GetReferencedVirtualServices(ro *v1alpha1.Rollout) (*[]unstructured.Unstructured, error) {
+	var fldPath *field.Path
 	ctx := context.TODO()
 	virtualServices := []unstructured.Unstructured{}
-	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
 	if ro.Spec.Strategy.Canary != nil {
 		canary := ro.Spec.Strategy.Canary
 		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
 			var vsvc *unstructured.Unstructured
 			var err error
-			vsvcNamespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(canary.TrafficRouting.Istio.VirtualService.Name)
-			if vsvcNamespace == "" {
-				vsvcNamespace = ro.Namespace
-			}
-			if c.VirtualServiceInformer.HasSynced() {
-				vsvc, err = c.VirtualServiceLister.Namespace(vsvcNamespace).Get(vsvcName)
+			var vsvcs []v1alpha1.IstioVirtualService
+
+			if istioutil.MultipleVirtualServiceConfigured(ro) {
+				vsvcs = canary.TrafficRouting.Istio.VirtualServices
+				fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualServices", "name")
 			} else {
-				vsvc, err = c.DynamicClientSet.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(vsvcNamespace).Get(ctx, vsvcName, metav1.GetOptions{})
+				vsvcs = []v1alpha1.IstioVirtualService{*canary.TrafficRouting.Istio.VirtualService}
+				fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
 			}
 
-			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath, vsvcName, err.Error())
+			for _, eachVsvc := range vsvcs {
+				vsvcNamespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(eachVsvc.Name)
+				if vsvcNamespace == "" {
+					vsvcNamespace = ro.Namespace
+				}
+				if c.VirtualServiceInformer.HasSynced() {
+					vsvc, err = c.VirtualServiceLister.Namespace(vsvcNamespace).Get(vsvcName)
+				} else {
+					vsvc, err = c.DynamicClientSet.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(vsvcNamespace).Get(ctx, vsvcName, metav1.GetOptions{})
+				}
+
+				if k8serrors.IsNotFound(err) {
+					return nil, field.Invalid(fldPath, vsvcName, err.Error())
+				}
+				if err != nil {
+					return nil, err
+				}
+
+				virtualServices = append(virtualServices, *vsvc)
 			}
-			if err != nil {
-				return nil, err
-			}
-			virtualServices = append(virtualServices, *vsvc)
 		}
 	}
 	return &virtualServices, nil

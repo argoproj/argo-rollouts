@@ -98,6 +98,59 @@ spec:
                       type: string
                     provider:
                       properties:
+                        cloudWatch:
+                          properties:
+                            interval:
+                              type: string
+                            metricDataQueries:
+                              items:
+                                properties:
+                                  expression:
+                                    type: string
+                                  id:
+                                    type: string
+                                  label:
+                                    type: string
+                                  metricStat:
+                                    properties:
+                                      metric:
+                                        properties:
+                                          dimensions:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          metricName:
+                                            type: string
+                                          namespace:
+                                            type: string
+                                        type: object
+                                      period:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        x-kubernetes-int-or-string: true
+                                      stat:
+                                        type: string
+                                      unit:
+                                        type: string
+                                    type: object
+                                  period:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
+                                    x-kubernetes-int-or-string: true
+                                  returnData:
+                                    type: boolean
+                                type: object
+                              type: array
+                          required:
+                          - metricDataQueries
+                          type: object
                         datadog:
                           properties:
                             interval:
@@ -106,6 +159,13 @@ spec:
                               type: string
                           required:
                           - query
+                          type: object
+                        graphite:
+                          properties:
+                            address:
+                              type: string
+                            query:
+                              type: string
                           type: object
                         job:
                           properties:
@@ -2596,6 +2656,59 @@ spec:
                       type: string
                     provider:
                       properties:
+                        cloudWatch:
+                          properties:
+                            interval:
+                              type: string
+                            metricDataQueries:
+                              items:
+                                properties:
+                                  expression:
+                                    type: string
+                                  id:
+                                    type: string
+                                  label:
+                                    type: string
+                                  metricStat:
+                                    properties:
+                                      metric:
+                                        properties:
+                                          dimensions:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          metricName:
+                                            type: string
+                                          namespace:
+                                            type: string
+                                        type: object
+                                      period:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        x-kubernetes-int-or-string: true
+                                      stat:
+                                        type: string
+                                      unit:
+                                        type: string
+                                    type: object
+                                  period:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
+                                    x-kubernetes-int-or-string: true
+                                  returnData:
+                                    type: boolean
+                                type: object
+                              type: array
+                          required:
+                          - metricDataQueries
+                          type: object
                         datadog:
                           properties:
                             interval:
@@ -2604,6 +2717,13 @@ spec:
                               type: string
                           required:
                           - query
+                          type: object
+                        graphite:
+                          properties:
+                            address:
+                              type: string
+                            query:
+                              type: string
                           type: object
                         job:
                           properties:
@@ -5021,6 +5141,59 @@ spec:
                       type: string
                     provider:
                       properties:
+                        cloudWatch:
+                          properties:
+                            interval:
+                              type: string
+                            metricDataQueries:
+                              items:
+                                properties:
+                                  expression:
+                                    type: string
+                                  id:
+                                    type: string
+                                  label:
+                                    type: string
+                                  metricStat:
+                                    properties:
+                                      metric:
+                                        properties:
+                                          dimensions:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          metricName:
+                                            type: string
+                                          namespace:
+                                            type: string
+                                        type: object
+                                      period:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        x-kubernetes-int-or-string: true
+                                      stat:
+                                        type: string
+                                      unit:
+                                        type: string
+                                    type: object
+                                  period:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
+                                    x-kubernetes-int-or-string: true
+                                  returnData:
+                                    type: boolean
+                                type: object
+                              type: array
+                          required:
+                          - metricDataQueries
+                          type: object
                         datadog:
                           properties:
                             interval:
@@ -5029,6 +5202,13 @@ spec:
                               type: string
                           required:
                           - query
+                          type: object
+                        graphite:
+                          properties:
+                            address:
+                              type: string
+                            query:
+                              type: string
                           type: object
                         job:
                           properties:
@@ -7439,6 +7619,9 @@ spec:
               progressDeadlineSeconds:
                 format: int32
                 type: integer
+              scaleDownDelaySeconds:
+                format: int32
+                type: integer
               templates:
                 items:
                   properties:
@@ -7472,6 +7655,8 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                      type: object
+                    service:
                       type: object
                     template:
                       properties:
@@ -9660,12 +9845,16 @@ spec:
                       type: string
                     name:
                       type: string
+                    podTemplateHash:
+                      type: string
                     readyReplicas:
                       format: int32
                       type: integer
                     replicas:
                       format: int32
                       type: integer
+                    serviceName:
+                      type: string
                     status:
                       type: string
                     updatedReplicas:
@@ -9736,10 +9925,21 @@ spec:
             type: object
           spec:
             properties:
+              analysis:
+                properties:
+                  successfulRunHistoryLimit:
+                    format: int32
+                    type: integer
+                  unsuccessfulRunHistoryLimit:
+                    format: int32
+                    type: integer
+                type: object
               minReadySeconds:
                 format: int32
                 type: integer
               paused:
+                type: boolean
+              progressDeadlineAbort:
                 type: boolean
               progressDeadlineSeconds:
                 format: int32
@@ -9780,6 +9980,9 @@ spec:
                 properties:
                   blueGreen:
                     properties:
+                      abortScaleDownDelaySeconds:
+                        format: int32
+                        type: integer
                       activeMetadata:
                         properties:
                           annotations:
@@ -9913,6 +10116,9 @@ spec:
                     type: object
                   canary:
                     properties:
+                      abortScaleDownDelaySeconds:
+                        format: int32
+                        type: integer
                       analysis:
                         properties:
                           args:
@@ -9977,6 +10183,8 @@ spec:
                         type: object
                       canaryService:
                         type: string
+                      dynamicStableScale:
+                        type: boolean
                       maxSurge:
                         anyOf:
                         - type: integer
@@ -10131,6 +10339,9 @@ spec:
                                         type: object
                                       specRef:
                                         type: string
+                                      weight:
+                                        format: int32
+                                        type: integer
                                     required:
                                     - name
                                     - specRef
@@ -10212,11 +10423,46 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                  tlsRoutes:
+                                    items:
+                                      properties:
+                                        port:
+                                          format: int64
+                                          type: integer
+                                        sniHosts:
+                                          items:
+                                            type: string
+                                          type: array
+                                      type: object
+                                    type: array
                                 required:
                                 - name
                                 type: object
-                            required:
-                            - virtualService
+                              virtualServices:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    routes:
+                                      items:
+                                        type: string
+                                      type: array
+                                    tlsRoutes:
+                                      items:
+                                        properties:
+                                          port:
+                                            format: int64
+                                            type: integer
+                                          sniHosts:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
                             type: object
                           nginx:
                             properties:
@@ -12433,6 +12679,52 @@ spec:
                     - name
                     - status
                     type: object
+                  weights:
+                    properties:
+                      additional:
+                        items:
+                          properties:
+                            podTemplateHash:
+                              type: string
+                            serviceName:
+                              type: string
+                            weight:
+                              format: int32
+                              type: integer
+                          required:
+                          - weight
+                          type: object
+                        type: array
+                      canary:
+                        properties:
+                          podTemplateHash:
+                            type: string
+                          serviceName:
+                            type: string
+                          weight:
+                            format: int32
+                            type: integer
+                        required:
+                        - weight
+                        type: object
+                      stable:
+                        properties:
+                          podTemplateHash:
+                            type: string
+                          serviceName:
+                            type: string
+                          weight:
+                            format: int32
+                            type: integer
+                        required:
+                        - weight
+                        type: object
+                      verified:
+                        type: boolean
+                    required:
+                    - canary
+                    - stable
+                    type: object
                 type: object
               collisionCount:
                 format: int32
@@ -12509,6 +12801,8 @@ spec:
               updatedReplicas:
                 format: int32
                 type: integer
+              workloadObservedGeneration:
+                type: string
             type: object
         required:
         - spec
@@ -12536,9 +12830,9 @@ kind: Role
 metadata:
   labels:
     app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-role
+    app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
-  name: argo-rollouts-role
+  name: argo-rollouts
 rules:
 - apiGroups:
   - argoproj.io
@@ -12607,10 +12901,12 @@ rules:
   - list
   - watch
   - patch
+  - create
 - apiGroups:
   - ""
   resources:
   - secrets
+  - configmaps
   verbs:
   - get
   - list
@@ -12682,8 +12978,10 @@ rules:
   - patch
 - apiGroups:
   - getambassador.io
+  - x.getambassador.io
   resources:
   - mappings
+  - ambassadormappings
   verbs:
   - create
   - watch
@@ -12691,6 +12989,19 @@ rules:
   - update
   - list
   - delete
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+- apiGroups:
+  - elbv2.k8s.aws
+  resources:
+  - targetgroupbindings
+  verbs:
+  - list
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -12781,16 +13092,21 @@ kind: RoleBinding
 metadata:
   labels:
     app.kubernetes.io/component: rollouts-controller
-    app.kubernetes.io/name: argo-rollouts-role-binding
+    app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
-  name: argo-rollouts-role-binding
+  name: argo-rollouts
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: argo-rollouts-role
+  name: argo-rollouts
 subjects:
 - kind: ServiceAccount
   name: argo-rollouts
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argo-rollouts-notification-secret
 ---
 apiVersion: v1
 kind: Service
@@ -12833,10 +13149,27 @@ spec:
         - --namespaced
         image: quay.io/codefresh/argo-rollouts:latest
         imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /metrics
+            port: 8090
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         name: argo-rollouts
         ports:
         - containerPort: 8090
           name: metrics
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /metrics
+            port: 8090
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 4
       securityContext:
         runAsNonRoot: true
       serviceAccountName: argo-rollouts

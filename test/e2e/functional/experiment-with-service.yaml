@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: experiment-with-service
+spec:
+  duration: 10s
+  scaleDownDelaySeconds: 5
+  # List of pod template specs to run in the experiment as ReplicaSets
+  templates:
+    - name: test
+      replicas: 1
+      service: {}
+      selector:
+        matchLabels:
+          app: experiment-with-service
+      template:
+        metadata:
+          labels:
+            app: experiment-with-service
+        spec:
+          containers:
+            - name: experiment-with-service
+              image: nginx:1.19-alpine
+              resources:
+                requests:
+                  memory: 16Mi
+                  cpu: 1m

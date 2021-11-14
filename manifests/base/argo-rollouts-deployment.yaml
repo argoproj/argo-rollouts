@@ -23,6 +23,23 @@ spec:
         ports:
           - containerPort: 8090
             name: metrics
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 8090
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          failureThreshold: 3
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 8090
+          periodSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+          timeoutSeconds: 4
       securityContext:
         runAsNonRoot: true
   strategy:

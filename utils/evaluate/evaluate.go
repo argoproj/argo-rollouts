@@ -61,11 +61,13 @@ func EvalCondition(resultValue interface{}, condition string) (bool, error) {
 	var err error
 
 	env := map[string]interface{}{
-		"result":  resultValue,
+		"result":  valueFromPointer(resultValue),
 		"asInt":   asInt,
 		"asFloat": asFloat,
 		"isNaN":   math.IsNaN,
 		"isInf":   isInf,
+		"isNil":   isNilFunc(resultValue),
+		"default": defaultFunc(resultValue),
 	}
 
 	unwrapFileErr := func(e error) error {
@@ -167,4 +169,67 @@ func asFloat(in interface{}) float64 {
 		panic(err)
 	}
 	panic(fmt.Sprintf("asFloat() not supported on %v %v", reflect.TypeOf(in), in))
+}
+
+// Check whether two slices of type string are equal or not.
+func Equal(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	left := make(map[string]bool)
+	for _, x := range a {
+		left[x] = true
+	}
+	for _, x := range b {
+		if !left[x] {
+			return false
+		}
+	}
+	return true
+}
+
+func defaultFunc(resultValue interface{}) func(interface{}, interface{}) interface{} {
+	return func(_ interface{}, defaultValue interface{}) interface{} {
+		if isNil(resultValue) {
+			return defaultValue
+		}
+		return valueFromPointer(resultValue)
+	}
+}
+
+func isNilFunc(resultValue interface{}) func(interface{}) bool {
+	return func(_ interface{}) bool {
+		return isNil(resultValue)
+	}
+}
+
+// isNil is courtesy of: https://gist.github.com/mangatmodi/06946f937cbff24788fa1d9f94b6b138
+func isNil(in interface{}) (out bool) {
+	if in == nil {
+		out = true
+		return
+	}
+
+	switch reflect.TypeOf(in).Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		out = reflect.ValueOf(in).IsNil()
+	}
+
+	return
+}
+
+// valueFromPointer allows pointers to be passed in from the provider, but then extracts the value from
+// the pointer if the pointer is not nil, else returns nil
+func valueFromPointer(in interface{}) (out interface{}) {
+	if isNil(in) {
+		return
+	}
+
+	if reflect.TypeOf(in).Kind() != reflect.Ptr {
+		out = in
+		return
+	}
+
+	out = reflect.ValueOf(in).Elem().Interface()
+	return
 }

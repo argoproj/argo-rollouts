@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,14 +11,35 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/argoproj/notifications-engine/pkg/docs"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
 )
 
 func main() {
+	generateNotificationsDocs()
+	generatePluginsDocs()
+}
+
+func generateNotificationsDocs() {
+	os.RemoveAll("./docs/generated/notification-services")
+	os.MkdirAll("./docs/generated/notification-services/", 0755)
+	files, err := docs.CopyServicesDocs("./docs/generated/notification-services/")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if files != nil {
+		if e := updateMkDocsNav("Notifications", "Services", files); e != nil {
+			log.Fatal(e)
+		}
+	}
+}
+
+func generatePluginsDocs() {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 	defer tf.Cleanup()
 	cmd := cmd.NewCmdArgoRollouts(o)
@@ -30,40 +50,40 @@ func main() {
 		log.Fatal(err)
 	}
 	if files != nil {
-		if e := updateMkDocsNav(files); e != nil {
+		if e := updateMkDocsNav("Kubectl Plugin", "Commands", files); e != nil {
 			log.Fatal(e)
 		}
 	}
 }
 
-func updateMkDocsNav(files []string) error {
+func updateMkDocsNav(parent string, child string, files []string) error {
 	trimPrefixes(files, "docs/")
 	sort.Strings(files)
 	data, err := ioutil.ReadFile("mkdocs.yml")
 	if err != nil {
 		return err
 	}
-	var mkdocs mkDocs
-	if e := yaml.Unmarshal(data, &mkdocs); e != nil {
+	var un unstructured.Unstructured
+	if e := yaml.Unmarshal(data, &un.Object); e != nil {
 		return e
 	}
-	navitem, _ := findNavItem(mkdocs.Nav, "Kubectl Plugin")
+	nav := un.Object["nav"].([]interface{})
+	navitem, _ := findNavItem(nav, parent)
 	if navitem == nil {
-		return errors.New("Can't find 'Kubectl Plugin' nav item in mkdoc.yml")
+		return fmt.Errorf("Can't find '%s' nav item in mkdoc.yml", parent)
 	}
 	navitemmap := navitem.(map[interface{}]interface{})
-	subnav := navitemmap["Kubectl Plugin"].([]interface{})
-	subnav = removeNavItem(subnav, "Commands")
+	subnav := navitemmap[parent].([]interface{})
+	subnav = removeNavItem(subnav, child)
 	commands := make(map[string]interface{})
-	commands["Commands"] = files
-	navitemmap["Kubectl Plugin"] = append(subnav, commands)
+	commands[child] = files
+	navitemmap[parent] = append(subnav, commands)
 
-	newmkdocs, err := yaml.Marshal(mkdocs)
+	newmkdocs, err := yaml.Marshal(un.Object)
 	if err != nil {
 		return err
 	}
-	ioutil.WriteFile("mkdocs.yml", newmkdocs, 0644)
-	return nil
+	return ioutil.WriteFile("mkdocs.yml", newmkdocs, 0644)
 }
 
 func findNavItem(nav []interface{}, key string) (interface{}, int) {
@@ -243,15 +263,3 @@ type byName []*cobra.Command
 func (s byName) Len() int           { return len(s) }
 func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s byName) Less(i, j int) bool { return s[i].Name() < s[j].Name() }
-
-// mkDocs config struct to keep output order
-type mkDocs struct {
-	SiteName           string                 `yaml:"site_name,omitempty"`
-	RepoURL            string                 `yaml:"repo_url,omitempty"`
-	Strict             bool                   `yaml:"strict,omitempty"`
-	Theme              map[string]interface{} `yaml:"theme,omitempty"`
-	GoogleAnalytics    []string               `yaml:"google_analytics,omitempty"`
-	MarkdownExtensions []interface{}          `yaml:"markdown_extensions,omitempty"`
-	Plugins            []interface{}          `yaml:"plugins,omitempty"`
-	Nav                []interface{}          `yaml:"nav,omitempty"`
-}

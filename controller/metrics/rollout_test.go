@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -47,19 +48,6 @@ status:
   replicas: 1
   availableReplicas: 1
 `
-	expectedResponse = `
-# HELP rollout_info Information about rollout.
-# TYPE rollout_info gauge
-rollout_info{name="guestbook-bluegreen",namespace="default",phase="Progressing",strategy="blueGreen",traffic_router=""} 1
-# HELP rollout_info_replicas_available The number of available replicas per rollout.
-# TYPE rollout_info_replicas_available gauge
-rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 1
-# HELP rollout_info_replicas_desired The number of desired replicas per rollout.
-# TYPE rollout_info_replicas_desired gauge
-rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
-# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
-# TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`
 
 	fakeCanaryRollout = `
 apiVersion: argoproj.io/v1alpha1
@@ -92,8 +80,63 @@ status:
   replicas: 1
   availableReplicas: 1
 `
+)
 
-	expectedCanaryResponse = `
+func newFakeRollout(fakeRollout string, cond *v1alpha1.RolloutCondition) *v1alpha1.Rollout {
+	var rollout v1alpha1.Rollout
+	err := yaml.Unmarshal([]byte(fakeRollout), &rollout)
+	if err != nil {
+		panic(err)
+	}
+	rollout.Status.Conditions = append(rollout.Status.Conditions, *cond)
+	return &rollout
+}
+
+func TestCollectRollouts(t *testing.T) {
+	combinations := []struct {
+		fakeRollout      string
+		fakeCondition    *v1alpha1.RolloutCondition
+		expectedResponse string
+	}{
+		{
+			fakeRollout,
+			conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, "Progressing", ""),
+			`
+# HELP rollout_info Information about rollout.
+# TYPE rollout_info gauge
+rollout_info{name="guestbook-bluegreen",namespace="default",phase="Progressing",strategy="blueGreen",traffic_router=""} 1
+# HELP rollout_info_replicas_available The number of available replicas per rollout.
+# TYPE rollout_info_replicas_available gauge
+rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 1
+# HELP rollout_info_replicas_desired The number of desired replicas per rollout.
+# TYPE rollout_info_replicas_desired gauge
+rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
+		},
+
+		{
+			fakeRollout,
+			conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.FailedRSCreateReason, "test"),
+			`
+# HELP rollout_info Information about rollout.
+# TYPE rollout_info gauge
+rollout_info{name="guestbook-bluegreen",namespace="default",phase="Error",strategy="blueGreen",traffic_router=""} 1
+# HELP rollout_info_replicas_available The number of available replicas per rollout.
+# TYPE rollout_info_replicas_available gauge
+rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 1
+# HELP rollout_info_replicas_desired The number of desired replicas per rollout.
+# TYPE rollout_info_replicas_desired gauge
+rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
+		},
+		{
+			fakeCanaryRollout,
+			conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, "Progressing", "test"),
+			`
 # HELP rollout_info Information about rollout.
 # TYPE rollout_info gauge
 rollout_info{name="guestbook-canary",namespace="default",phase="Progressing",strategy="canary",traffic_router="SMI"} 1
@@ -105,38 +148,18 @@ rollout_info_replicas_available{name="guestbook-canary",namespace="default"} 1
 rollout_info_replicas_desired{name="guestbook-canary",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0`
-)
-
-func newFakeRollout(fakeRollout string) *v1alpha1.Rollout {
-	var rollout v1alpha1.Rollout
-	err := yaml.Unmarshal([]byte(fakeRollout), &rollout)
-	if err != nil {
-		panic(err)
-	}
-	return &rollout
-}
-
-func TestCollectRollouts(t *testing.T) {
-	combinations := []testCombination{
-		{
-			resource:         fakeRollout,
-			expectedResponse: expectedResponse,
-		},
-		{
-			resource:         fakeCanaryRollout,
-			expectedResponse: expectedCanaryResponse,
+rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0`,
 		},
 	}
 
 	for _, combination := range combinations {
-		testRolloutDescribe(t, combination.resource, combination.expectedResponse)
+		testRolloutDescribe(t, combination.fakeRollout, combination.fakeCondition, combination.expectedResponse)
 	}
 }
 
-func testRolloutDescribe(t *testing.T, fakeRollout string, expectedResponse string) {
+func testRolloutDescribe(t *testing.T, fakeRollout string, cond *v1alpha1.RolloutCondition, expectedResponse string) {
 	registry := prometheus.NewRegistry()
-	config := newFakeServerConfig(newFakeRollout(fakeRollout))
+	config := newFakeServerConfig(newFakeRollout(fakeRollout, cond))
 	registry.MustRegister(NewRolloutCollector(config.RolloutLister))
 	mux := http.NewServeMux()
 	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
