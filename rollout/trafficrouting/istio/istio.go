@@ -258,7 +258,7 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 	return newObj, len(patches) > 0, err
 }
 
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
 	dRuleSpec := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule
 	if dRuleSpec == nil {
 		return nil
@@ -273,7 +273,6 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
 	} else {
 		dRuleUn, err = client.Get(ctx, dRuleSpec.Name, metav1.GetOptions{})
 	}
-
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			r.recorder.Warnf(r.rollout, record.EventOptions{EventReason: "DestinationRuleNotFound"}, "DestinationRule `%s` not found", dRuleSpec.Name)
@@ -288,8 +287,14 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
 		dRuleNew.Annotations = make(map[string]string)
 	}
 	dRuleNew.Annotations[v1alpha1.ManagedByRolloutsKey] = r.rollout.Name
-	for i, subset := range dRuleNew.Spec.Subsets {
-		if subset.Name == dRuleSpec.CanarySubsetName {
+	// Maps service to WeightDestination object
+	svcToDest := map[string]v1alpha1.WeightDestination{}
+	for _, dest := range additionalDestinations {
+		svcToDest[dest.ServiceName] = dest
+	}
+	tmp := make([]Subset, 0)
+	for _, subset := range dRuleNew.Spec.Subsets {
+		if subset.Name == dRuleSpec.CanarySubsetName { // Canary Subset
 			if subset.Labels == nil {
 				subset.Labels = make(map[string]string)
 			}
@@ -298,7 +303,7 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
 			} else {
 				delete(subset.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 			}
-		} else if subset.Name == dRuleSpec.StableSubsetName {
+		} else if subset.Name == dRuleSpec.StableSubsetName { // Stable Subset
 			if subset.Labels == nil {
 				subset.Labels = make(map[string]string)
 			}
@@ -307,8 +312,25 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
 			} else {
 				delete(subset.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 			}
+		} else if dest, ok := svcToDest[subset.Name]; ok { // Current experiment steps
+			if dest.PodTemplateHash != "" {
+				subset.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = dest.PodTemplateHash
+				delete(svcToDest, subset.Name)
+			} else {
+				delete(subset.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
+			}
+		} else {
+			continue // Ignore any extraneous subsets (not stable, canary, or additionalDestination)
 		}
-		dRuleNew.Spec.Subsets[i] = subset
+		tmp = append(tmp, subset)
+	}
+	dRuleNew.Spec.Subsets = tmp
+	// Add new subsets for experiment services if they don't exist yet
+	for _, dest := range svcToDest {
+		dRuleNew.Spec.Subsets = append(dRuleNew.Spec.Subsets, Subset{
+			Name:   dest.ServiceName,
+			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: dest.PodTemplateHash},
+		})
 	}
 	modified, err := updateDestinationRule(ctx, client, origBytes, dRule, dRuleNew)
 	if err != nil {
@@ -697,7 +719,7 @@ func searchTlsRoute(tlsRoute v1alpha1.TLSRoute, istioTlsRoutes []VirtualServiceT
 	return routeIndices
 }
 
-// validateHTTPRoutes ensures that all the routes in the rollout exist
+// ValidateHTTPRoutes ensures that all the routes in the rollout exist
 func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []VirtualServiceHTTPRoute) error {
 	stableSvc := r.Spec.Strategy.Canary.StableService
 	canarySvc := r.Spec.Strategy.Canary.CanaryService
