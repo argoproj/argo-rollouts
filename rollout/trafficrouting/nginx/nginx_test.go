@@ -30,7 +30,7 @@ func networkingIngress(name string, port int, serviceName string) *networkingv1.
 	return &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: "some-namespace",
+			Namespace: metav1.NamespaceDefault,
 			Annotations: map[string]string{
 				"annotation-key1": "annotation-value1",
 			},
@@ -508,6 +508,46 @@ func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
 		// Avoid "index out of range" errors
 		assert.Equal(t, "patch", actions[0].GetVerb(), "action: patch canary ingress")
 		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: patch canary ingress")
+	}
+}
+
+func TestReconcileWillInvokeNetworkingIngress(t *testing.T) {
+	// given
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	stableIngress := networkingIngress("stable-ingress", 80, "stable-service")
+	canaryIngress := networkingIngress("rollout-stable-ingress-canary", 80, "canary-service")
+	canaryIngress.SetAnnotations(map[string]string{
+		"nginx.ingress.kubernetes.io/canary":        "true",
+		"nginx.ingress.kubernetes.io/canary-weight": "15",
+	})
+	canaryIngress.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(rollout, schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Rollout"})})
+	client := fake.NewSimpleClientset(stableIngress, canaryIngress)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(stableIngress)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := NewReconciler(ReconcilerConfig{
+		Rollout:        rollout,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+
+	// when
+	err = r.SetWeight(10)
+
+	// then
+	assert.Nil(t, err, "Reconcile returns no error")
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	if !t.Failed() {
+		// Avoid "index out of range" errors
+		assert.Equal(t, "patch", actions[0].GetVerb(), "action: patch canary ingress")
+		assert.Equal(t, schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"}, actions[0].GetResource(), "action: patch canary ingress")
 	}
 }
 
