@@ -2892,10 +2892,6 @@ spec:
                     - arn
                     - name
                     type: object
-                required:
-                - canaryTargetGroup
-                - loadBalancer
-                - stableTargetGroup
                 type: object
               availableReplicas:
                 format: int32

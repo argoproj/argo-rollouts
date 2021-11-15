@@ -801,9 +801,9 @@ type RolloutAnalysisRunStatus struct {
 }
 
 type ALBStatus struct {
-	LoadBalancer      AwsResourceRef `json:"loadBalancer" protobuf:"bytes,1,opt,name=loadBalancer"`
-	CanaryTargetGroup AwsResourceRef `json:"canaryTargetGroup" protobuf:"bytes,2,opt,name=canaryTargetGroup"`
-	StableTargetGroup AwsResourceRef `json:"stableTargetGroup" protobuf:"bytes,3,opt,name=stableTargetGroup"`
+	LoadBalancer      AwsResourceRef `json:"loadBalancer,omitempty" protobuf:"bytes,1,opt,name=loadBalancer"`
+	CanaryTargetGroup AwsResourceRef `json:"canaryTargetGroup,omitempty" protobuf:"bytes,2,opt,name=canaryTargetGroup"`
+	StableTargetGroup AwsResourceRef `json:"stableTargetGroup,omitempty" protobuf:"bytes,3,opt,name=stableTargetGroup"`
 }
 
 type AwsResourceRef struct {
