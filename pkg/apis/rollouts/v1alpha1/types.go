@@ -710,35 +710,35 @@ type RolloutStatus struct {
 	// The generation observed by the rollout controller from metadata.generation
 	// +optional
 	ObservedGeneration string `json:"observedGeneration,omitempty" protobuf:"bytes,13,opt,name=observedGeneration"`
-	// The generation of referenced workload observed by the rollout controller
-	// +optional
-	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,14,opt,name=workloadObservedGeneration"`
 	// Conditions a list of conditions a rollout can have.
 	// +optional
-	Conditions []RolloutCondition `json:"conditions,omitempty" protobuf:"bytes,15,rep,name=conditions"`
+	Conditions []RolloutCondition `json:"conditions,omitempty" protobuf:"bytes,14,rep,name=conditions"`
 	// Canary describes the state of the canary rollout
 	// +optional
-	Canary CanaryStatus `json:"canary,omitempty" protobuf:"bytes,16,opt,name=canary"`
+	Canary CanaryStatus `json:"canary,omitempty" protobuf:"bytes,15,opt,name=canary"`
 	// BlueGreen describes the state of the bluegreen rollout
 	// +optional
-	BlueGreen BlueGreenStatus `json:"blueGreen,omitempty" protobuf:"bytes,17,opt,name=blueGreen"`
+	BlueGreen BlueGreenStatus `json:"blueGreen,omitempty" protobuf:"bytes,16,opt,name=blueGreen"`
 	// HPAReplicas the number of non-terminated replicas that are receiving active traffic
 	// +optional
-	HPAReplicas int32 `json:"HPAReplicas,omitempty" protobuf:"varint,18,opt,name=HPAReplicas"`
+	HPAReplicas int32 `json:"HPAReplicas,omitempty" protobuf:"varint,17,opt,name=HPAReplicas"`
 	// Selector that identifies the pods that are receiving active traffic
 	// +optional
-	Selector string `json:"selector,omitempty" protobuf:"bytes,19,opt,name=selector"`
+	Selector string `json:"selector,omitempty" protobuf:"bytes,18,opt,name=selector"`
 	// StableRS indicates the replicaset that has successfully rolled out
 	// +optional
-	StableRS string `json:"stableRS,omitempty" protobuf:"bytes,20,opt,name=stableRS"`
+	StableRS string `json:"stableRS,omitempty" protobuf:"bytes,19,opt,name=stableRS"`
 	// RestartedAt indicates last time a Rollout was restarted
-	RestartedAt *metav1.Time `json:"restartedAt,omitempty" protobuf:"bytes,21,opt,name=restartedAt"`
+	RestartedAt *metav1.Time `json:"restartedAt,omitempty" protobuf:"bytes,20,opt,name=restartedAt"`
 	// PromoteFull indicates if the rollout should perform a full promotion, skipping analysis and pauses.
-	PromoteFull bool `json:"promoteFull,omitempty" protobuf:"varint,22,opt,name=promoteFull"`
+	PromoteFull bool `json:"promoteFull,omitempty" protobuf:"varint,21,opt,name=promoteFull"`
 	// Phase is the rollout phase. Clients should only rely on the value if status.observedGeneration equals metadata.generation
-	Phase RolloutPhase `json:"phase,omitempty" protobuf:"bytes,23,opt,name=phase,casttype=RolloutPhase"`
+	Phase RolloutPhase `json:"phase,omitempty" protobuf:"bytes,22,opt,name=phase,casttype=RolloutPhase"`
 	// Message provides details on why the rollout is in its current phase
-	Message string `json:"message,omitempty" protobuf:"bytes,24,opt,name=message"`
+	Message string `json:"message,omitempty" protobuf:"bytes,23,opt,name=message"`
+	// The generation of referenced workload observed by the rollout controller
+	// +optional
+	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
 	/// ALB keeps information regarding the ALB and TargetGroups
 	ALB ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
 }

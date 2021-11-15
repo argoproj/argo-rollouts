@@ -1309,10 +1309,6 @@
           "type": "string",
           "title": "The generation observed by the rollout controller from metadata.generation\n+optional"
         },
-        "workloadObservedGeneration": {
-          "type": "string",
-          "title": "The generation of referenced workload observed by the rollout controller\n+optional"
-        },
         "conditions": {
           "type": "array",
           "items": {
@@ -1356,6 +1352,10 @@
         "message": {
           "type": "string",
           "title": "Message provides details on why the rollout is in its current phase"
+        },
+        "workloadObservedGeneration": {
+          "type": "string",
+          "title": "The generation of referenced workload observed by the rollout controller\n+optional"
         },
         "alb": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBStatus",
