@@ -496,6 +496,20 @@
     }
   },
   "definitions": {
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBStatus": {
+      "type": "object",
+      "properties": {
+        "loadBalancer": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AwsResourceRef"
+        },
+        "canaryTargetGroup": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AwsResourceRef"
+        },
+        "stableTargetGroup": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AwsResourceRef"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBTrafficRouting": {
       "type": "object",
       "properties": {
@@ -593,6 +607,17 @@
         }
       },
       "title": "ArgumentValueFrom defines references to fields within resources to grab for the value (i.e. Pod Template Hash)"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AwsResourceRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "arn": {
+          "type": "string"
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.BlueGreenStatus": {
       "type": "object",
@@ -1331,6 +1356,10 @@
         "message": {
           "type": "string",
           "title": "Message provides details on why the rollout is in its current phase"
+        },
+        "alb": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBStatus",
+          "title": "/ ALB keeps information regarding the ALB and TargetGroups"
         }
       },
       "title": "RolloutStatus is the status for a Rollout resource"

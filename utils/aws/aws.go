@@ -342,7 +342,8 @@ type TargetGroupVerifyResult struct {
 // irrelevant for our purposes of verifying the service label change was reflected in the LB.
 // Returns nil if the verification is not applicable (e.g. target type is not IP)
 func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Client, tgb TargetGroupBinding, endpoints *corev1.Endpoints, svc *corev1.Service) (*TargetGroupVerifyResult, error) {
-	if tgb.Spec.TargetType == nil || *tgb.Spec.TargetType != TargetTypeIP {
+	// TODO: should it handle "instance" as well?
+	if tgb.Spec.TargetType == nil { // || *tgb.Spec.TargetType != TargetTypeIP {
 		// We only need to verify target groups using AWS CNI (spec.targetType: ip)
 		return nil, nil
 	}

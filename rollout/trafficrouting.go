@@ -50,6 +50,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
 			IngressWrapper: c.ingressWrapper,
+			Status:         &roCtx.newStatus,
 		})
 		if err != nil {
 			return trafficReconcilers, err
