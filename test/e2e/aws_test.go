@@ -125,7 +125,6 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 		ExpectExperimentCount(0).
 		When().
 		UpdateSpec().
-		WaitForRolloutCanaryStepIndex(1).
 		Sleep(10*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
@@ -133,8 +132,8 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 			action, ok :=  ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
 			assert.True(s.T(), ok)
 
-			experiments:= t.GetRolloutExperiments().Items
-			exService1, exService2 := experiments[0].Status.TemplateStatuses[0].ServiceName, experiments[1].Status.TemplateStatuses[0].ServiceName
+			experiment := t.GetRolloutExperiments().Items[0]
+			exService1, exService2 := experiment.Status.TemplateStatuses[0].ServiceName, experiment.Status.TemplateStatuses[1].ServiceName
 
 			port := 80
 			expectedAction := fmt.Sprintf(actionTemplateWithExperiments, "alb-rollout-canary", port, 0, exService1, port, 20, exService2, port, 20, "alb-rollout-stable", port, 60)
