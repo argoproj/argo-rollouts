@@ -1884,7 +1884,6 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref common.ReferenceC
 					"virtualService": {
 						SchemaProps: spec.SchemaProps{
 							Description: "VirtualService references an Istio VirtualService to modify to shape traffic",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService"),
 						},
 					},
@@ -4046,6 +4045,13 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
+					"method": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Method is the method of the web metric (empty defaults to GET)",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"url": {
 						SchemaProps: spec.SchemaProps{
 							Description: "URL is the address of the web metric",
@@ -4072,6 +4078,13 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 									},
 								},
 							},
+						},
+					},
+					"body": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Body is the body of the we metric (must be POST/PUT)",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"timeoutSeconds": {

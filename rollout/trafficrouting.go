@@ -84,7 +84,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 func (c *rolloutContext) reconcileTrafficRouting() error {
 	reconcilers, err := c.newTrafficRoutingReconciler(c)
 	// a return here does ensure that all trafficReconcilers are healthy
-	// and sane in syntax
+	// and same in syntax
 	if err != nil {
 		return err
 	}
@@ -104,6 +104,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	for _, reconciler := range reconcilers {
 		c.log.Infof("Reconciling TrafficRouting with type '%s'", reconciler.Type())
 
+		currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
+		desiredWeight := int32(0)
+		weightDestinations := make([]v1alpha1.WeightDestination, 0)
+
 		var canaryHash, stableHash string
 		if c.stableRS != nil {
 			stableHash = c.stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -111,14 +115,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		if c.newRS != nil {
 			canaryHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		}
-		err = reconciler.UpdateHash(canaryHash, stableHash)
-		if err != nil {
-			return err
-		}
 
-		currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
-		desiredWeight := int32(0)
-		weightDestinations := make([]v1alpha1.WeightDestination, 0)
 		if rolloututil.IsFullyPromoted(c.rollout) {
 			// when we are fully promoted. desired canary weight should be 0
 		} else if c.pauseContext.IsAborted() {
@@ -172,6 +169,11 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 					})
 				}
 			}
+		}
+
+		err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
+		if err != nil {
+			return err
 		}
 
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
