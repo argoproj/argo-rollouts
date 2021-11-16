@@ -34,6 +34,7 @@ type ReconcilerConfig struct {
 	Recorder       record.EventRecorder
 	ControllerKind schema.GroupVersionKind
 	IngressWrapper IngressWrapper
+	Status         *v1alpha1.RolloutStatus
 	VerifyWeight   *bool
 }
 
@@ -77,11 +78,11 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if err != nil {
 		return err
 	}
-	actionService := r.cfg.Rollout.Spec.Strategy.Canary.StableService
-	if r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
-		actionService = r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
+	actionService := rollout.Spec.Strategy.Canary.StableService
+	if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
+		actionService = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
 	}
-	port := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
+	port := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
 	if !ingressutil.HasRuleWithService(ingress, actionService) {
 		return fmt.Errorf("ingress does not have service `%s` in rules", actionService)
 	}
@@ -101,7 +102,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	}
 	r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
 	r.log.WithField("desiredWeight", desiredWeight).Info("updating ALB Ingress")
-	r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", ingressName, desiredWeight)
+	r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", ingressName, desiredWeight)
 
 	_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
@@ -133,6 +134,8 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 
 	canaryService := rollout.Spec.Strategy.Canary.CanaryService
 	canaryResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+	stableService := rollout.Spec.Strategy.Canary.StableService
+	stableResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), stableService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 
 	for _, dest := range additionalDestinations {
 		resourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), dest.ServiceName, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
@@ -158,6 +161,10 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 			r.log.Infof("LoadBalancer %s not found", lbIngress.Hostname)
 			return pointer.BoolPtr(false), nil
 		}
+
+		r.cfg.Status.ALB.LoadBalancer.Name = *lb.LoadBalancerName
+		r.cfg.Status.ALB.LoadBalancer.ARN = *lb.LoadBalancerArn
+
 		lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 		if err != nil {
 			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
@@ -166,6 +173,8 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
 		for _, tg := range lbTargetGroups {
 			if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
+				r.cfg.Status.ALB.CanaryTargetGroup.Name = *tg.TargetGroupName
+				r.cfg.Status.ALB.CanaryTargetGroup.ARN = *tg.TargetGroupArn
 				if tg.Weight != nil {
 					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 					logCtx.Infof("canary weight of %s (desired: %d, current: %d)", canaryResourceID, desiredWeight, *tg.Weight)
@@ -189,6 +198,9 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 						r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, dest.ServiceName, *tg.TargetGroupArn, dest.Weight, *tg.Weight)
 					}
 				}
+			} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
+				r.cfg.Status.ALB.StableTargetGroup.Name = *tg.TargetGroupName
+				r.cfg.Status.ALB.StableTargetGroup.ARN = *tg.TargetGroupArn
 			}
 		}
 	}

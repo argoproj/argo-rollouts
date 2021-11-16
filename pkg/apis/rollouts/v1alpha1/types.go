@@ -710,9 +710,6 @@ type RolloutStatus struct {
 	// The generation observed by the rollout controller from metadata.generation
 	// +optional
 	ObservedGeneration string `json:"observedGeneration,omitempty" protobuf:"bytes,13,opt,name=observedGeneration"`
-	// The generation of referenced workload observed by the rollout controller
-	// +optional
-	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
 	// Conditions a list of conditions a rollout can have.
 	// +optional
 	Conditions []RolloutCondition `json:"conditions,omitempty" protobuf:"bytes,14,rep,name=conditions"`
@@ -739,6 +736,11 @@ type RolloutStatus struct {
 	Phase RolloutPhase `json:"phase,omitempty" protobuf:"bytes,22,opt,name=phase,casttype=RolloutPhase"`
 	// Message provides details on why the rollout is in its current phase
 	Message string `json:"message,omitempty" protobuf:"bytes,23,opt,name=message"`
+	// The generation of referenced workload observed by the rollout controller
+	// +optional
+	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
+	/// ALB keeps information regarding the ALB and TargetGroups
+	ALB ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
@@ -796,6 +798,17 @@ type RolloutAnalysisRunStatus struct {
 	Name    string        `json:"name" protobuf:"bytes,1,opt,name=name"`
 	Status  AnalysisPhase `json:"status" protobuf:"bytes,2,opt,name=status,casttype=AnalysisPhase"`
 	Message string        `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
+}
+
+type ALBStatus struct {
+	LoadBalancer      AwsResourceRef `json:"loadBalancer,omitempty" protobuf:"bytes,1,opt,name=loadBalancer"`
+	CanaryTargetGroup AwsResourceRef `json:"canaryTargetGroup,omitempty" protobuf:"bytes,2,opt,name=canaryTargetGroup"`
+	StableTargetGroup AwsResourceRef `json:"stableTargetGroup,omitempty" protobuf:"bytes,3,opt,name=stableTargetGroup"`
+}
+
+type AwsResourceRef struct {
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	ARN  string `json:"arn" protobuf:"bytes,2,opt,name=arn"`
 }
 
 // RolloutConditionType defines the conditions of Rollout
