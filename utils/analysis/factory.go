@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/objx"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/kubernetes/pkg/fieldpath"
 )
 
 // BuildArgumentsForRolloutAnalysisRun builds the arguments for a analysis base created by a rollout
@@ -27,7 +28,10 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 					value = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 				}
 			} else if arg.ValueFrom.FieldRef != nil {
-				value = extractValueFromRollout(r, arg.ValueFrom.FieldRef.FieldPath)
+				value, _ = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
+				if value == "" {
+					value = extractValueFromRollout(r, arg.ValueFrom.FieldRef.FieldPath)
+				}
 			}
 		}
 

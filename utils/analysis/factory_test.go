@@ -4,22 +4,21 @@ import (
 	"fmt"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/util/intstr"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
 )
 
 func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
-
 	new := v1alpha1.Latest
 	stable := v1alpha1.Stable
+	annotationPath := fmt.Sprintf("metadata.annotations['%s']", annotations.RevisionAnnotation)
 	rolloutAnalysis := &v1alpha1.RolloutAnalysis{
 		Args: []v1alpha1.AnalysisRunArgument{
 			{
@@ -50,6 +49,18 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 					FieldRef: &v1alpha1.FieldRef{FieldPath: "metadata.labels['env']"},
 				},
 			},
+			{
+				Name: annotationPath,
+				ValueFrom: &v1alpha1.ArgumentValueFrom{
+					FieldRef: &v1alpha1.FieldRef{FieldPath: annotationPath},
+				},
+			},
+			{
+				Name: "status.pauseConditions[0].reason",
+				ValueFrom: &v1alpha1.ArgumentValueFrom{
+					FieldRef: &v1alpha1.FieldRef{FieldPath: "status.pauseConditions[0].reason"},
+				},
+			},
 		},
 	}
 	stableRS := &appsv1.ReplicaSet{
@@ -64,7 +75,6 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "123456"},
 		},
 	}
-
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:       uuid.NewUUID(),
@@ -102,7 +112,13 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 				"env": "test",
 			}},
 		},
-		Status: v1alpha1.RolloutStatus{},
+		Status: v1alpha1.RolloutStatus{
+			PauseConditions: []v1alpha1.PauseCondition{
+				{
+					Reason: "test-reason",
+				},
+			},
+		},
 	}
 
 	args := BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, stableRS, newRS, ro)
@@ -111,7 +127,8 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 	assert.Contains(t, args, v1alpha1.Argument{Name: "new-key", Value: pointer.StringPtr("123456")})
 	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['app']", Value: pointer.StringPtr("app")})
 	assert.Contains(t, args, v1alpha1.Argument{Name: "metadata.labels['env']", Value: pointer.StringPtr("test")})
-
+	assert.Contains(t, args, v1alpha1.Argument{Name: annotationPath, Value: pointer.StringPtr("1")})
+	assert.Contains(t, args, v1alpha1.Argument{Name: "status.pauseConditions[0].reason", Value: pointer.StringPtr("test-reason")})
 }
 
 func TestPrePromotionLabels(t *testing.T) {
@@ -425,4 +442,54 @@ func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	newMetric, err := ResolveMetricArgs(metric, arguments)
 	assert.NoError(t, err)
 	assert.Equal(t, fmt.Sprintf(arg), newMetric.SuccessCondition)
+}
+
+func Test_extractValueFromRollout(t *testing.T) {
+	ro := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+			Labels: map[string]string{
+				"app": "app",
+			},
+		},
+		Status: v1alpha1.RolloutStatus{
+			PauseConditions: []v1alpha1.PauseCondition{
+				{
+					Reason: "test-reason",
+				},
+			},
+		},
+	}
+	tests := map[string]struct {
+		path string
+		want string
+	}{
+		"should return a simple metadata value": {
+			path: "metadata.name",
+			want: "test",
+		},
+		"should return a label using dot notation": {
+			path: "metadata.labels.app",
+			want: "app",
+		},
+		"should fail returning a label using accessor notation": {
+			path: "metadata.labels['app']",
+			want: "",
+		},
+		"should return a status value": {
+			path: "status.pauseConditions[0].reason",
+			want: "test-reason",
+		},
+		"should return an empty string when path is inavlid": {
+			path: "some.invalid[2].non.existing.path",
+			want: "",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := extractValueFromRollout(ro, tt.path); got != tt.want {
+				t.Errorf("extractValueFromRollout() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
