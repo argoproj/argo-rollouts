@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/stretchr/objx"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/kubernetes/pkg/fieldpath"
 )
 
 // BuildArgumentsForRolloutAnalysisRun builds the arguments for a analysis base created by a rollout
@@ -26,20 +26,18 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 				case v1alpha1.Stable:
 					value = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 				}
-			} else {
-				if arg.ValueFrom.FieldRef != nil {
-					value, _ = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
-				}
+			} else if arg.ValueFrom.FieldRef != nil {
+				value = extractValueFromRollout(r, arg.ValueFrom.FieldRef.FieldPath)
 			}
-
 		}
+
 		analysisArg := v1alpha1.Argument{
 			Name:  arg.Name,
 			Value: &value,
 		}
 		arguments = append(arguments, analysisArg)
-
 	}
+
 	return arguments
 }
 
@@ -216,4 +214,10 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 		return fmt.Errorf("multiple providers specified")
 	}
 	return nil
+}
+
+func extractValueFromRollout(r *v1alpha1.Rollout, path string) string {
+	j, _ := json.Marshal(r)
+	m := objx.MustFromJSON(string(j))
+	return m.Get(path).String()
 }
