@@ -121,7 +121,8 @@ func TestBuildArgumentsForRolloutAnalysisRun(t *testing.T) {
 		},
 	}
 
-	args := BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, stableRS, newRS, ro)
+	args, err := BuildArgumentsForRolloutAnalysisRun(rolloutAnalysis.Args, stableRS, newRS, ro)
+	assert.NoError(t, err)
 	assert.Contains(t, args, v1alpha1.Argument{Name: "hard-coded-value-key", Value: pointer.StringPtr("hard-coded-value")})
 	assert.Contains(t, args, v1alpha1.Argument{Name: "stable-key", Value: pointer.StringPtr("abcdef")})
 	assert.Contains(t, args, v1alpha1.Argument{Name: "new-key", Value: pointer.StringPtr("123456")})
@@ -461,8 +462,9 @@ func Test_extractValueFromRollout(t *testing.T) {
 		},
 	}
 	tests := map[string]struct {
-		path string
-		want string
+		path    string
+		want    string
+		wantErr string
 	}{
 		"should return a simple metadata value": {
 			path: "metadata.name",
@@ -473,21 +475,32 @@ func Test_extractValueFromRollout(t *testing.T) {
 			want: "app",
 		},
 		"should fail returning a label using accessor notation": {
-			path: "metadata.labels['app']",
-			want: "",
+			path:    "metadata.labels['app']",
+			wantErr: "parsing error: metadata.labels['app']\t:1:17 - 1:22 could not parse string: invalid syntax",
 		},
 		"should return a status value": {
 			path: "status.pauseConditions[0].reason",
 			want: "test-reason",
 		},
 		"should return an empty string when path is inavlid": {
-			path: "some.invalid[2].non.existing.path",
-			want: "",
+			path:    "some.invalid[2].non.existing.path",
+			wantErr: "unknown parameter some.invalid",
 		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			if got := extractValueFromRollout(ro, tt.path); got != tt.want {
+			got, err := extractValueFromRollout(ro, tt.path)
+			if err != nil {
+				if tt.wantErr != "" {
+					assert.EqualError(t, err, tt.wantErr)
+				} else {
+					t.Errorf("extractValueFromRollout() error = %v", err)
+				}
+
+				return
+			}
+
+			if got != tt.want {
 				t.Errorf("extractValueFromRollout() = %v, want %v", got, tt.want)
 			}
 		})

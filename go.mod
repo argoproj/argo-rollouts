@@ -3,6 +3,7 @@ module github.com/argoproj/argo-rollouts
 go 1.16
 
 require (
+	github.com/PaesslerAG/jsonpath v0.1.1
 	github.com/antonmedv/expr v1.8.9
 	github.com/argoproj/notifications-engine v0.2.1-0.20210525191332-e8e293898477
 	github.com/argoproj/pkg v0.9.0

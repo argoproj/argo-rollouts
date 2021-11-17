@@ -9,13 +9,13 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 
-	"github.com/stretchr/objx"
+	"github.com/PaesslerAG/jsonpath"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/kubernetes/pkg/fieldpath"
 )
 
 // BuildArgumentsForRolloutAnalysisRun builds the arguments for a analysis base created by a rollout
-func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, stableRS, newRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) []v1alpha1.Argument {
+func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, stableRS, newRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) ([]v1alpha1.Argument, error) {
 	arguments := []v1alpha1.Argument{}
 	for i := range args {
 		arg := args[i]
@@ -29,10 +29,17 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 					value = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 				}
 			} else if arg.ValueFrom.FieldRef != nil {
+				var err error
 				if strings.HasPrefix(arg.ValueFrom.FieldRef.FieldPath, "metadata") {
-					value, _ = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
+					value, err = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
+					if err != nil {
+						return nil, err
+					}
 				} else {
-					value = extractValueFromRollout(r, arg.ValueFrom.FieldRef.FieldPath)
+					value, err = extractValueFromRollout(r, arg.ValueFrom.FieldRef.FieldPath)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
@@ -44,7 +51,7 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 		arguments = append(arguments, analysisArg)
 	}
 
-	return arguments
+	return arguments, nil
 }
 
 // PostPromotionLabels returns a map[string]string of common labels for the post promotion analysis
@@ -222,8 +229,18 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	return nil
 }
 
-func extractValueFromRollout(r *v1alpha1.Rollout, path string) string {
-	j, _ := json.Marshal(r)
-	m := objx.MustFromJSON(string(j))
-	return m.Get(path).String()
+func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
+	j, err := json.Marshal(r)
+	if err != nil {
+		return "", err
+	}
+
+	v := interface{}(nil)
+	json.Unmarshal(j, &v)
+	res, err := jsonpath.Get(path, v)
+	if err != nil {
+		return "", err
+	}
+
+	return res.(string), nil
 }
