@@ -229,18 +229,14 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 }
 
 func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
-	j, err := json.Marshal(r)
-	if err != nil {
-		return "", err
-	}
-
+	j, _ := json.Marshal(r)
 	m := interface{}(nil)
 	json.Unmarshal(j, &m)
 	sections := regexp.MustCompile("[\\.\\[\\]]+").Split(path, -1)
 	for _, section := range sections {
 		if asArray, ok := m.([]interface{}); ok {
 			if i, err := strconv.Atoi(section); err != nil {
-				return "", fmt.Errorf("invalid index %s", section)
+				return "", fmt.Errorf("invalid index '%s'", section)
 			} else if i >= len(asArray) {
 				return "", fmt.Errorf("index %d out of range", i)
 			} else {

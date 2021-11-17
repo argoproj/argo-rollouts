@@ -482,7 +482,19 @@ func Test_extractValueFromRollout(t *testing.T) {
 			path: "status.pauseConditions[0].reason",
 			want: "test-reason",
 		},
-		"should return an empty string when path is inavlid": {
+		"should fail when array indexer is not an int": {
+			path: "status.pauseConditions[blah].reason",
+			wantErr: "invalid index 'blah'",
+		},
+		"should fail when array indexer is out of range": {
+			path: "status.pauseConditions[12].reason",
+			wantErr: "index 12 out of range",
+		},
+		"should fail when path references an empty field": {
+			path:    "status.pauseConditions[0].startTime",
+			wantErr: "invalid path status.pauseConditions[0].startTime in rollout",
+		},
+		"should fail when path is inavlid": {
 			path:    "some.invalid[2].non.existing.path",
 			wantErr: "invalid path some.invalid[2].non.existing.path in rollout",
 		},
