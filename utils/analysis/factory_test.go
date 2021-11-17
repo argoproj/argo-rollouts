@@ -476,7 +476,7 @@ func Test_extractValueFromRollout(t *testing.T) {
 		},
 		"should fail returning a label using accessor notation": {
 			path:    "metadata.labels['app']",
-			wantErr: "parsing error: metadata.labels['app']\t:1:17 - 1:22 could not parse string: invalid syntax",
+			wantErr: "invalid path metadata.labels['app'] in rollout",
 		},
 		"should return a status value": {
 			path: "status.pauseConditions[0].reason",
@@ -484,7 +484,7 @@ func Test_extractValueFromRollout(t *testing.T) {
 		},
 		"should return an empty string when path is inavlid": {
 			path:    "some.invalid[2].non.existing.path",
-			wantErr: "unknown parameter some.invalid",
+			wantErr: "invalid path some.invalid[2].non.existing.path in rollout",
 		},
 	}
 	for name, tt := range tests {
