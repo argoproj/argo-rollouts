@@ -234,6 +234,10 @@ func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
 	json.Unmarshal(j, &m)
 	sections := regexp.MustCompile("[\\.\\[\\]]+").Split(path, -1)
 	for _, section := range sections {
+		if section == "" {
+			continue // if path ends with a separator char, Split returns an empty last section
+		}
+
 		if asArray, ok := m.([]interface{}); ok {
 			if i, err := strconv.Atoi(section); err != nil {
 				return "", fmt.Errorf("invalid index '%s'", section)
