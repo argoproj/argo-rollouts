@@ -89,6 +89,13 @@ rollout_reconcile_error{name="name",namespace="ns"} 1`
 	testHttpResponse(t, metricsServ.Handler, expectedResponse)
 }
 
+func TestVersionInfo(t *testing.T) {
+	expectedResponse := `# HELP argo_rollout_info Running Argo-rollouts version
+# TYPE argo_rollout_info gauge`
+	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+}
+
 func TestSecondaryMetricsServer(t *testing.T) {
 	expectedResponse := ``
 
