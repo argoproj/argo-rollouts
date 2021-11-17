@@ -426,8 +426,9 @@ spec:
           valueFrom:
             podTemplateHashValue: Latest
 ```
-Analysis arguments also support valueFrom for reading metadata fields and passing them as arguments to AnalysisTemplate.
-An example would be to reference metadata labels like env and region and passing them along to AnalysisTemplate.
+Analysis arguments also support valueFrom for reading any Rollout fields and passing them as arguments to AnalysisTemplate.
+An example would be to reference metadata labels like env and region and passing them along to AnalysisTemplate, or any field
+from the Rollout status
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -457,6 +458,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.labels['region']
+        - name: canary-hash
+          valueFrom:
+            fieldRef:
+              fieldPath: status.canary.weights.canary.podTemplateHash
 ```
 
 ## BlueGreen Pre Promotion Analysis
