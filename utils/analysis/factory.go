@@ -3,19 +3,20 @@ package analysis
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
 
-	"github.com/PaesslerAG/jsonpath"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/kubernetes/pkg/fieldpath"
 )
 
 // BuildArgumentsForRolloutAnalysisRun builds the arguments for a analysis base created by a rollout
 func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, stableRS, newRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) ([]v1alpha1.Argument, error) {
+	var err error
 	arguments := []v1alpha1.Argument{}
 	for i := range args {
 		arg := args[i]
@@ -29,17 +30,15 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 					value = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 				}
 			} else if arg.ValueFrom.FieldRef != nil {
-				var err error
 				if strings.HasPrefix(arg.ValueFrom.FieldRef.FieldPath, "metadata") {
 					value, err = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
 					if err != nil {
 						return nil, err
 					}
 				} else {
+					// in case of error - return empty value for Validation stage, so it will pass validation
+					// returned error will only be used in Analysis stage
 					value, err = extractValueFromRollout(r, arg.ValueFrom.FieldRef.FieldPath)
-					if err != nil {
-						return nil, err
-					}
 				}
 			}
 		}
@@ -51,7 +50,7 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 		arguments = append(arguments, analysisArg)
 	}
 
-	return arguments, nil
+	return arguments, err
 }
 
 // PostPromotionLabels returns a map[string]string of common labels for the post promotion analysis
@@ -235,12 +234,35 @@ func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
 		return "", err
 	}
 
-	v := interface{}(nil)
-	json.Unmarshal(j, &v)
-	res, err := jsonpath.Get(path, v)
-	if err != nil {
-		return "", err
+	m := interface{}(nil)
+	json.Unmarshal(j, &m)
+	sections := regexp.MustCompile("[\\.\\[\\]]+").Split(path, -1)
+	for _, section := range sections {
+		if asArray, ok := m.([]interface{}); ok {
+			if i, err := strconv.Atoi(section); err != nil {
+				return "", fmt.Errorf("invalid index %s", section)
+			} else if i >= len(asArray) {
+				return "", fmt.Errorf("index %d out of range", i)
+			} else {
+				m = asArray[i]
+			}
+		} else if asMap, ok := m.(map[string]interface{}); ok {
+			m = asMap[section]
+		} else {
+			return "", fmt.Errorf("invalid path %s in rollout", path)
+		}
 	}
 
-	return res.(string), nil
+	if m == nil {
+		return "", fmt.Errorf("invalid path %s in rollout", path)
+	}
+
+	var isArray, isMap bool
+	_, isArray = m.([]interface{})
+	_, isMap = m.(map[string]interface{})
+	if isArray || isMap {
+		return "", fmt.Errorf("path %s in rollout must terminate in a primitive value", path)
+	}
+
+	return fmt.Sprintf("%v", m), nil
 }
