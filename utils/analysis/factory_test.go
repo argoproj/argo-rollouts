@@ -483,11 +483,11 @@ func Test_extractValueFromRollout(t *testing.T) {
 			want: "test-reason",
 		},
 		"should fail when array indexer is not an int": {
-			path: "status.pauseConditions[blah].reason",
+			path:    "status.pauseConditions[blah].reason",
 			wantErr: "invalid index 'blah'",
 		},
 		"should fail when array indexer is out of range": {
-			path: "status.pauseConditions[12].reason",
+			path:    "status.pauseConditions[12].reason",
 			wantErr: "index 12 out of range",
 		},
 		"should fail when path references an empty field": {
