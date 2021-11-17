@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
@@ -28,8 +29,9 @@ func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, st
 					value = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 				}
 			} else if arg.ValueFrom.FieldRef != nil {
-				value, _ = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
-				if value == "" {
+				if strings.HasPrefix(arg.ValueFrom.FieldRef.FieldPath, "metadata") {
+					value, _ = fieldpath.ExtractFieldPathAsString(r, arg.ValueFrom.FieldRef.FieldPath)
+				} else {
 					value = extractValueFromRollout(r, arg.ValueFrom.FieldRef.FieldPath)
 				}
 			}
