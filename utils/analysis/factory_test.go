@@ -498,6 +498,10 @@ func Test_extractValueFromRollout(t *testing.T) {
 			path:    "some.invalid[2].non.existing.path",
 			wantErr: "invalid path some.invalid[2].non.existing.path in rollout",
 		},
+		"should fail when path references a non-primitive value": {
+			path:    "status.pauseConditions[0]",
+			wantErr: "path status.pauseConditions[0] in rollout must terminate in a primitive value",
+		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
