@@ -68,7 +68,7 @@ rules:
   - list
   - watch
 # services patch needed to update selector of canary/stable/active/preview services
-# services create needed to create services for experiments
+# services create needed to create and delete services for experiments
 - apiGroups:
   - ""
   resources:
@@ -79,6 +79,7 @@ rules:
   - watch
   - patch
   - create
+  - delete
 # leases create/get/update needed for leader election
 - apiGroups:
   - coordination.k8s.io
