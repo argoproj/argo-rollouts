@@ -12902,6 +12902,7 @@ rules:
   - watch
   - patch
   - create
+  - delete
 - apiGroups:
   - ""
   resources:
