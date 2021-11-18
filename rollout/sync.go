@@ -627,17 +627,19 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			if c.newRS != nil {
 				msg = fmt.Sprintf(conditions.ReplicaSetProgressingMessage, c.newRS.Name)
 			}
-			reason := conditions.ReplicaSetUpdatedReason
 
-			// When a fully promoted rollout becomes Incomplete, e.g., due to the ReplicaSet status changes like
-			// pod restarts, evicted -> recreated, we'll need to reset the rollout's condition to `PROGRESSING` to
-			// avoid any timeouts.
-			if becameIncomplete {
+			var reason string
+			if newStatus.StableRS == newStatus.CurrentPodHash {
+				// When a fully promoted rollout becomes Incomplete, e.g., due to the ReplicaSet status changes like
+				// pod restarts, evicted -> recreated, we'll need to reset the rollout's condition to `PROGRESSING` to
+				// avoid any timeouts.
 				reason = conditions.ReplicaSetNotAvailableReason
 				msg = conditions.NotAvailableMessage
+			} else {
+				reason = conditions.ReplicaSetUpdatedReason
 			}
-
 			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, reason, msg)
+
 			// Update the current Progressing condition or add a new one if it doesn't exist.
 			// If a Progressing condition with status=true already exists, we should update
 			// everything but lastTransitionTime. SetRolloutCondition already does that but
