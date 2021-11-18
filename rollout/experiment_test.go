@@ -165,7 +165,7 @@ func TestCreateExperimentWithCollision(t *testing.T) {
 
 	f.run(getKey(r2, t))
 	createdEx := f.getCreatedExperiment(createExIndex)
-	assert.Equal(t, ex.Name+".1", createdEx.Name)
+	assert.Equal(t, ex.Name+"-1", createdEx.Name)
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {
