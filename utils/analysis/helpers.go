@@ -92,6 +92,20 @@ func IsTerminating(run *v1alpha1.AnalysisRun) bool {
 	return false
 }
 
+// GetDryRunMetricNames returns an array of metric names from the Dry-Run array.
+func GetDryRunMetricNames(dryRunArray []v1alpha1.DryRun) (map[string]bool, bool) {
+	metricNames := make(map[string]bool)
+	wildcardPresent := false
+	for _, dryRunObject := range dryRunArray {
+		if dryRunObject.MetricName == "*" {
+			wildcardPresent = true
+			continue
+		}
+		metricNames[dryRunObject.MetricName] = true
+	}
+	return metricNames, wildcardPresent
+}
+
 // GetResult returns the metric result by name
 func GetResult(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.MetricResult {
 	for _, result := range run.Status.MetricResults {

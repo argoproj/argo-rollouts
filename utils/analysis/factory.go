@@ -125,12 +125,33 @@ func ValidateMetrics(metrics []v1alpha1.Metric) error {
 	duplicateNames := make(map[string]bool)
 	for i, metric := range metrics {
 		if _, ok := duplicateNames[metric.Name]; ok {
-			return fmt.Errorf("metrics[%d]: duplicate name '%s", i, metric.Name)
+			return fmt.Errorf("metrics[%d]: duplicate name '%s'", i, metric.Name)
 		}
 		duplicateNames[metric.Name] = true
 		if err := ValidateMetric(metric); err != nil {
 			return fmt.Errorf("metrics[%d]: %v", i, err)
 		}
+	}
+	return nil
+}
+
+// ValidateDryRunMetrics validates that all the dry-run metric names are valid
+func ValidateDryRunMetrics(metrics []v1alpha1.Metric, dryRunArray []v1alpha1.DryRun) error {
+	metricNames := map[string]bool{}
+	for _, metric := range metrics {
+		metricNames[metric.Name] = true
+	}
+	// Check whether all the Dry-Run metrics are present in `metricNames`
+	duplicateNames := make(map[string]bool)
+	for i, dryRunObject := range dryRunArray {
+		if dryRunObject.MetricName == "*" {
+			continue
+		} else if _, ok := metricNames[dryRunObject.MetricName]; !ok {
+			return fmt.Errorf("dryRun[%d]: Invalid metric name '%s'", i, dryRunObject.MetricName)
+		} else if _, isDupe := duplicateNames[dryRunObject.MetricName]; isDupe {
+			return fmt.Errorf("dryRun[%d]: Duplicate metric name '%s'", i, dryRunObject.MetricName)
+		}
+		duplicateNames[dryRunObject.MetricName] = true
 	}
 	return nil
 }

@@ -106,8 +106,13 @@ type Metric struct {
 	ConsecutiveErrorLimit *intstrutil.IntOrString `json:"consecutiveErrorLimit,omitempty" protobuf:"bytes,9,opt,name=consecutiveErrorLimit"`
 	// Provider configuration to the external system to use to verify the analysis
 	Provider MetricProvider `json:"provider" protobuf:"bytes,10,opt,name=provider"`
-	// Whether to evaluate this metric in a Dry-Run mode
-	DryRun bool `json:"dryRun,omitempty" protobuf:"varint,11,opt,name=dryRun"`
+}
+
+// DryRun defines the settings for running the analysis in Dry-RUn mode.
+type DryRun struct {
+	// Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
+	// the available metrics.
+	MetricName string `json:"metricName" protobuf:"bytes,1,opt,name=metricName"`
 }
 
 // EffectiveCount is the effective count based on whether or not count/interval is specified
@@ -277,6 +282,8 @@ type AnalysisRunSpec struct {
 	Args []Argument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,2,rep,name=args"`
 	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
 	Terminate bool `json:"terminate,omitempty" protobuf:"varint,3,opt,name=terminate"`
+	// DryRun object contains the settings for running the analysis in Dry-Run mode.
+	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=dryRun"`
 }
 
 // Argument is an argument to an AnalysisRun

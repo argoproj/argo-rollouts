@@ -92,24 +92,28 @@ func newRun() *v1alpha1.AnalysisRun {
 
 // newTerminatingRun returns a run which is terminating because of the given status
 func newTerminatingRun(status v1alpha1.AnalysisPhase, isDryRun bool) *v1alpha1.AnalysisRun {
+	var dryRunArray []v1alpha1.DryRun
+	if isDryRun {
+		dryRunArray = append(dryRunArray, v1alpha1.DryRun{MetricName: "run-forever"})
+		dryRunArray = append(dryRunArray, v1alpha1.DryRun{MetricName: "failed-metric"})
+	}
 	run := v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics: []v1alpha1.Metric{
 				{
-					Name:   "run-forever",
-					DryRun: isDryRun,
+					Name: "run-forever",
 					Provider: v1alpha1.MetricProvider{
 						Job: &v1alpha1.JobMetric{},
 					},
 				},
 				{
-					Name:   "failed-metric",
-					DryRun: isDryRun,
+					Name: "failed-metric",
 					Provider: v1alpha1.MetricProvider{
 						Job: &v1alpha1.JobMetric{},
 					},
 				},
 			},
+			DryRun: dryRunArray,
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			Phase: v1alpha1.AnalysisPhaseRunning,
@@ -1075,11 +1079,14 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 	c, _, _ := f.newController(noResyncPeriodFunc)
 	// Dry-Run or not if the args resolution fails then we should fail the analysis
 	for _, isDryRun := range [3]bool{false, true, false} {
+		var dryRunArray []v1alpha1.DryRun
+		if isDryRun {
+			dryRunArray = append(dryRunArray, v1alpha1.DryRun{MetricName: "rate"})
+		}
 		run := &v1alpha1.AnalysisRun{
 			Spec: v1alpha1.AnalysisRunSpec{
 				Metrics: []v1alpha1.Metric{{
 					Name:             "rate",
-					DryRun:           isDryRun,
 					SuccessCondition: "{{args.does-not-exist}}",
 					Provider: v1alpha1.MetricProvider{
 						Prometheus: &v1alpha1.PrometheusMetric{
@@ -1087,6 +1094,7 @@ func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
 						},
 					},
 				}},
+				DryRun: dryRunArray,
 			},
 		}
 		newRun := c.reconcileAnalysisRun(run)
@@ -1519,6 +1527,10 @@ func StartTerminatingAnalysisRun(t *testing.T, isDryRun bool) *v1alpha1.Analysis
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseError), nil)
 
 	now := metav1.Now()
+	var dryRunArray []v1alpha1.DryRun
+	if isDryRun {
+		dryRunArray = append(dryRunArray, v1alpha1.DryRun{MetricName: "success-rate"})
+	}
 	run := &v1alpha1.AnalysisRun{
 		Spec: v1alpha1.AnalysisRunSpec{
 			Terminate: true,
@@ -1530,7 +1542,6 @@ func StartTerminatingAnalysisRun(t *testing.T, isDryRun bool) *v1alpha1.Analysis
 			},
 			Metrics: []v1alpha1.Metric{{
 				Name:             "success-rate",
-				DryRun:           isDryRun,
 				InitialDelay:     "20s",
 				Interval:         "20s",
 				SuccessCondition: "result[0] > 0.90",
@@ -1538,6 +1549,7 @@ func StartTerminatingAnalysisRun(t *testing.T, isDryRun bool) *v1alpha1.Analysis
 					Web: &v1alpha1.WebMetric{},
 				},
 			}},
+			DryRun: dryRunArray,
 		},
 		Status: v1alpha1.AnalysisRunStatus{
 			StartedAt: &now,

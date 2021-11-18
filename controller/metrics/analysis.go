@@ -10,7 +10,7 @@ import (
 	"github.com/argoproj/argo-rollouts/metricproviders"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutlister "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/analysis"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 )
 
 type analysisRunCollector struct {
@@ -82,20 +82,21 @@ func collectAnalysisRuns(ch chan<- prometheus.Metric, ar *v1alpha1.AnalysisRun) 
 	addGauge(MetricAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), string(v1alpha1.AnalysisPhaseRunning))
 	addGauge(MetricAnalysisRunPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), string(v1alpha1.AnalysisPhaseInconclusive))
 
+	dryRunMetricsMap, everythingRunningInDryRun := analysisutil.GetDryRunMetricNames(ar.Spec.DryRun)
 	for _, metric := range ar.Spec.Metrics {
 		metricType := metricproviders.Type(metric)
-		metricResult := analysis.GetResult(ar, metric.Name)
-		addGauge(MetricAnalysisRunMetricType, 1, metric.Name, metricType, fmt.Sprint(metric.DryRun))
+		metricResult := analysisutil.GetResult(ar, metric.Name)
+		addGauge(MetricAnalysisRunMetricType, 1, metric.Name, metricType, fmt.Sprint(everythingRunningInDryRun || dryRunMetricsMap[metric.Name]))
 		calculatedPhase := v1alpha1.AnalysisPhase("")
 		if metricResult != nil {
 			calculatedPhase = metricResult.Phase
 		}
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhasePending))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhaseError))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseFailed), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhaseFailed))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhaseSuccessful))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhaseRunning))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), metric.Name, metricType, fmt.Sprint(metric.DryRun), string(v1alpha1.AnalysisPhaseInconclusive))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), metric.Name, metricType, fmt.Sprint(everythingRunningInDryRun || dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhasePending))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), metric.Name, metricType, fmt.Sprint(everythingRunningInDryRun || dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhaseError))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseFailed), metric.Name, metricType, fmt.Sprint(everythingRunningInDryRun || dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhaseFailed))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), metric.Name, metricType, fmt.Sprint(everythingRunningInDryRun || dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhaseSuccessful))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), metric.Name, metricType, fmt.Sprint(everythingRunningInDryRun || dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhaseRunning))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), metric.Name, metricType, fmt.Sprint(everythingRunningInDryRun || dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhaseInconclusive))
 	}
 }
 
@@ -108,6 +109,6 @@ func collectAnalysisTemplate(ch chan<- prometheus.Metric, namespace, name string
 
 	for _, metric := range at.Metrics {
 		metricType := metricproviders.Type(metric)
-		addGauge(MetricAnalysisTemplateMetricInfo, 1, metricType, metric.Name, fmt.Sprint(metric.DryRun))
+		addGauge(MetricAnalysisTemplateMetricInfo, 1, metricType, metric.Name)
 	}
 }
