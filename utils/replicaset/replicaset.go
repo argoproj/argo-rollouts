@@ -523,7 +523,7 @@ func PodTemplateEqualIgnoreHash(live, desired *corev1.PodTemplateSpec) bool {
 
 // GetPodTemplateHash returns the rollouts-pod-template-hash value from a ReplicaSet's labels
 func GetPodTemplateHash(rs *appsv1.ReplicaSet) string {
-	if rs.Labels == nil {
+	if rs == nil || rs.Labels == nil {
 		return ""
 	}
 	return rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
