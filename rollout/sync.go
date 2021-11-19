@@ -629,7 +629,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			}
 
 			var reason string
-			if newStatus.StableRS == newStatus.CurrentPodHash {
+			if newStatus.StableRS == newStatus.CurrentPodHash && becameIncomplete {
 				// When a fully promoted rollout becomes Incomplete, e.g., due to the ReplicaSet status changes like
 				// pod restarts, evicted -> recreated, we'll need to reset the rollout's condition to `PROGRESSING` to
 				// avoid any timeouts.
