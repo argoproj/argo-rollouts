@@ -90,8 +90,8 @@ rollout_reconcile_error{name="name",namespace="ns"} 1`
 }
 
 func TestVersionInfo(t *testing.T) {
-	expectedResponse := `# HELP argo_rollout_info Running Argo-rollouts version
-# TYPE argo_rollout_info gauge`
+	expectedResponse := `# HELP argo_rollouts_controller_info Running Argo-rollouts version
+# TYPE argo_rollouts_controller_info gauge`
 	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
 	testHttpResponse(t, metricsServ.Handler, expectedResponse)
 }
