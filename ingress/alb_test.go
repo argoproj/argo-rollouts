@@ -146,7 +146,7 @@ func TestInvalidPreviousALBActionAnnotationValue(t *testing.T) {
 }
 
 func TestInvalidPreviousALBActionAnnotationKey(t *testing.T) {
-	ing := newALBIngress("test-ingress", 80, "stable-service", "not-existing-rollout", false)
+	ing := newALBIngress("test-ingress", 80, "stable-service", "also-not-existing-rollout", false)
 	ing.Annotations[ingressutil.ManagedActionsAnnotation] = "invalid-action-key"
 	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, nil)
 
@@ -157,7 +157,7 @@ func TestInvalidPreviousALBActionAnnotationKey(t *testing.T) {
 }
 
 func TestResetActionFailureFindNoPort(t *testing.T) {
-	ing := newALBIngress("test-ingress", 80, "stable-service", "not-existing-rollout", false)
+	ing := newALBIngress("test-ingress", 80, "stable-service", "still-not-existing-rollout", false)
 	ing.Annotations[albActionAnnotation("stable-service")] = "{}"
 
 	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, nil)
