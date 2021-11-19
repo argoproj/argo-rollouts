@@ -225,6 +225,9 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 		if reason == conditions.NewRSAvailableReason {
 			msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, resource.Name)
 		}
+		if reason == conditions.ReplicaSetNotAvailableReason {
+			msg = conditions.NotAvailableMessage
+		}
 	case *v1alpha1.Rollout:
 		if reason == conditions.ReplicaSetUpdatedReason {
 			msg = fmt.Sprintf(conditions.RolloutProgressingMessage, resource.Name)
