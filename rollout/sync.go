@@ -577,6 +577,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
 	isAborted := c.pauseContext.IsAborted()
 
+	var becameIncomplete bool // remember if we transitioned from completed
 	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutCompleted)
 	if !isPaused && conditions.RolloutComplete(c.rollout, &newStatus) {
 		updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
@@ -584,7 +585,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	} else {
 		if completeCond != nil {
 			updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionFalse, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
-			conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+			becameIncomplete = conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
 		}
 	}
 
@@ -619,14 +620,26 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			msg := fmt.Sprintf(conditions.ReplicaSetCompletedMessage, rsName)
 			progressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *progressingCondition)
-		case conditions.RolloutProgressing(c.rollout, &newStatus):
+		case conditions.RolloutProgressing(c.rollout, &newStatus) || becameIncomplete:
 			// If there is any progress made, continue by not checking if the rollout failed. This
 			// behavior emulates the rolling updater progressDeadline check.
 			msg := fmt.Sprintf(conditions.RolloutProgressingMessage, c.rollout.Name)
 			if c.newRS != nil {
 				msg = fmt.Sprintf(conditions.ReplicaSetProgressingMessage, c.newRS.Name)
 			}
-			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.ReplicaSetUpdatedReason, msg)
+
+			var reason string
+			if newStatus.StableRS == newStatus.CurrentPodHash && becameIncomplete {
+				// When a fully promoted rollout becomes Incomplete, e.g., due to the ReplicaSet status changes like
+				// pod restarts, evicted -> recreated, we'll need to reset the rollout's condition to `PROGRESSING` to
+				// avoid any timeouts.
+				reason = conditions.ReplicaSetNotAvailableReason
+				msg = conditions.NotAvailableMessage
+			} else {
+				reason = conditions.ReplicaSetUpdatedReason
+			}
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, reason, msg)
+
 			// Update the current Progressing condition or add a new one if it doesn't exist.
 			// If a Progressing condition with status=true already exists, we should update
 			// everything but lastTransitionTime. SetRolloutCondition already does that but
