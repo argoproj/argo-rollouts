@@ -323,8 +323,11 @@ func TestGetForwardActionStringMarshalsZeroCorrectly(t *testing.T) {
 
 func TestGetForwardActionStringMarshalsDisabledStickyConfigCorrectly(t *testing.T) {
 	r := fakeRollout("stable", "canary", "ingress", 443)
-	r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig.Enabled = false
-	r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig.DurationSeconds = 0
+	stickinessConfig := v1alpha1.StickinessConfig{
+		Enabled:         false,
+		DurationSeconds: 0,
+	}
+	r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig = &stickinessConfig
 	forwardAction, err := getForwardActionString(r, 443, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -334,23 +337,29 @@ func TestGetForwardActionStringMarshalsDisabledStickyConfigCorrectly(t *testing.
 
 func TestGetForwardActionStringDetectsNegativeStickyConfigDuration(t *testing.T) {
 	r := fakeRollout("stable", "canary", "ingress", 443)
-	r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig.Enabled = true
-	r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig.DurationSeconds = 0
+	stickinessConfig := v1alpha1.StickinessConfig{
+		Enabled:         true,
+		DurationSeconds: 0,
+	}
+	r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig = &stickinessConfig
 	forwardAction, err := getForwardActionString(r, 443, 0)
 
 	assert.NotNilf(t, forwardAction, "There should be no forwardAction being generated: %v", forwardAction)
-	expectedErrorMsg := "asdf"
+	expectedErrorMsg := "TargetGroupStickinessConfig's duration must be between 1 and 604800 seconds (7 days)!"
 	assert.EqualErrorf(t, err, expectedErrorMsg, "Error should be: %v, got: %v", expectedErrorMsg, err)
 }
 
 func TestGetForwardActionStringDetectsTooLargeStickyConfigDuration(t *testing.T) {
 	r := fakeRollout("stable", "canary", "ingress", 443)
-	r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig.Enabled = true
-	r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig.DurationSeconds = 604800 + 1
+	stickinessConfig := v1alpha1.StickinessConfig{
+		Enabled:         true,
+		DurationSeconds: 604800 + 1,
+	}
+	r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig = &stickinessConfig
 	forwardAction, err := getForwardActionString(r, 443, 0)
 
 	assert.NotNilf(t, forwardAction, "There should be no forwardAction being generated: %v", forwardAction)
-	expectedErrorMsg := "asdf"
+	expectedErrorMsg := "TargetGroupStickinessConfig's duration must be between 1 and 604800 seconds (7 days)!"
 	assert.EqualErrorf(t, err, expectedErrorMsg, "Error should be: %v, got: %v", expectedErrorMsg, err)
 }
 
