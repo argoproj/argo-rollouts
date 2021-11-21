@@ -230,7 +230,7 @@ func (c *rolloutContext) createExperimentWithCollisionHandling(newEx *v1alpha1.E
 			// we likely reconciled the rollout with a stale cache (quite common).
 			return existingEx, nil
 		}
-		newEx.Name = fmt.Sprintf("%s.%d", baseName, collisionCount)
+		newEx.Name = fmt.Sprintf("%s-%d", baseName, collisionCount)
 		collisionCount++
 	}
 }

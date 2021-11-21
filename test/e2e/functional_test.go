@@ -1074,6 +1074,43 @@ spec:
 		ExpectActiveRevision("2")
 }
 
+func (s *FunctionalSuite) TestCompleteRolloutRestart() {
+	s.Given().
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-restart
+spec:
+  progressDeadlineAbort: true
+  progressDeadlineSeconds: 15
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ollout-restart
+  template:
+    metadata:
+      labels:
+        app: ollout-restart
+    spec:
+      containers:
+      - name: ollout-restart
+        image: nginx:1.19-alpine
+        imagePullPolicy: Always
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20
+`).
+		When().
+		WatchRolloutStatus("Healthy").
+		Sleep(16 * time.Second). // give it enough time to pass the progressDeadlineSeconds
+		Then().
+		When().
+		RestartRollout().
+		WatchRolloutStatus("Healthy")
+}
+
 func (s *FunctionalSuite) TestKubectlWaitForCompleted() {
 	s.Given().
 		HealthyRollout(`

@@ -131,7 +131,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
 		} else if index != nil {
 			atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, nil)
-			if !atDesiredReplicaCount {
+			if !atDesiredReplicaCount && !c.rollout.Status.PromoteFull {
 				// Use the previous weight since the new RS is not ready for a new weight
 				for i := *index - 1; i >= 0; i-- {
 					step := c.rollout.Spec.Strategy.Canary.Steps[i]
