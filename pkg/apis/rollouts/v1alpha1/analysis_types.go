@@ -61,6 +61,10 @@ type AnalysisTemplateSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	Args []Argument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,2,rep,name=args"`
+	// DryRun object contains the settings for running the analysis in Dry-Run mode
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,3,rep,name=dryRun"`
 }
 
 // DurationString is a string representing a duration (e.g. 30s, 5m, 1h)
@@ -108,7 +112,7 @@ type Metric struct {
 	Provider MetricProvider `json:"provider" protobuf:"bytes,10,opt,name=provider"`
 }
 
-// DryRun defines the settings for running the analysis in Dry-RUn mode.
+// DryRun defines the settings for running the analysis in Dry-Run mode.
 type DryRun struct {
 	// Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
 	// the available metrics.
@@ -282,7 +286,9 @@ type AnalysisRunSpec struct {
 	Args []Argument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,2,rep,name=args"`
 	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
 	Terminate bool `json:"terminate,omitempty" protobuf:"varint,3,opt,name=terminate"`
-	// DryRun object contains the settings for running the analysis in Dry-Run mode.
+	// DryRun object contains the settings for running the analysis in Dry-Run mode
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
 	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=dryRun"`
 }
 
@@ -325,6 +331,22 @@ type AnalysisRunStatus struct {
 	MetricResults []MetricResult `json:"metricResults,omitempty" protobuf:"bytes,3,rep,name=metricResults"`
 	// StartedAt indicates when the analysisRun first started
 	StartedAt *metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,4,opt,name=startedAt"`
+	// DryRunSummary contains the final status of the metric results collected during the Dry-Run mode
+	DryRunSummary DryRunSummary `json:"dryRunSummary,omitempty" protobuf:"bytes,5,opt,name=dryRunSummary"`
+}
+
+// DryRunSummary contains the final results from the metric executions in the Dry-Run mode.
+type DryRunSummary struct {
+	// This is equal to the sum of Successful, Failed, Inconclusive
+	Count int32 `json:"count,omitempty" protobuf:"varint,1,opt,name=count"`
+	// Successful is the number of times the metric was measured Successful
+	Successful int32 `json:"successful,omitempty" protobuf:"varint,2,opt,name=successful"`
+	// Failed is the number of times the metric was measured Failed
+	Failed int32 `json:"failed,omitempty" protobuf:"varint,3,opt,name=failed"`
+	// Inconclusive is the number of times the metric was measured Inconclusive
+	Inconclusive int32 `json:"inconclusive,omitempty" protobuf:"varint,4,opt,name=inconclusive"`
+	// Error is the number of times an error was encountered during measurement
+	Error int32 `json:"error,omitempty" protobuf:"varint,5,opt,name=error"`
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with

@@ -188,15 +188,16 @@ analysis_run_reconcile_count{name="ar-test",namespace="ar-namespace"} 1`
 }
 
 func TestAnalysisTemplateDescribe(t *testing.T) {
-	expectedResponse := `# TYPE analysis_template_info gauge
+	expectedResponse := `# HELP analysis_template_info Information about analysis templates.
+# TYPE analysis_template_info gauge
 analysis_template_info{name="http-benchmark-cluster-test",namespace=""} 1
 analysis_template_info{name="http-benchmark-test",namespace="jesse-test"} 1
 # HELP analysis_template_metric_info Information on metrics in analysis templates.
 # TYPE analysis_template_metric_info gauge
-analysis_template_metric_info{dryRun="false",metric="web-metric-1",name="http-benchmark-cluster-test",namespace="",type="Web"} 1
-analysis_template_metric_info{dryRun="false",metric="web-metric-1",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
-analysis_template_metric_info{dryRun="true",metric="web-metric-2",name="http-benchmark-cluster-test",namespace="",type="Web"} 1
-analysis_template_metric_info{dryRun="true",metric="web-metric-2",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-1",name="http-benchmark-cluster-test",namespace="",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-1",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-2",name="http-benchmark-cluster-test",namespace="",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-2",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
 `
 	registry := prometheus.NewRegistry()
 	at := newFakeAnalysisTemplate(fakeAnalysisTemplate)

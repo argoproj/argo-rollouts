@@ -145,6 +145,9 @@ func ValidateDryRunMetrics(metrics []v1alpha1.Metric, dryRunArray []v1alpha1.Dry
 	duplicateNames := make(map[string]bool)
 	for i, dryRunObject := range dryRunArray {
 		if dryRunObject.MetricName == "*" {
+			if len(dryRunArray) > 1 {
+				return fmt.Errorf("dryRun[%d]: While using the wildcard '*' no other metric names are allowed", i)
+			}
 			continue
 		} else if _, ok := metricNames[dryRunObject.MetricName]; !ok {
 			return fmt.Errorf("dryRun[%d]: Invalid metric name '%s'", i, dryRunObject.MetricName)

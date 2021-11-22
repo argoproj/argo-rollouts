@@ -24,8 +24,6 @@ package github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1;
 import "k8s.io/api/batch/v1/generated.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
-import "k8s.io/apimachinery/pkg/runtime/generated.proto";
-import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 
 // Package-wide variables from generator "generated".
@@ -776,9 +774,6 @@ message Metric {
 
   // Provider configuration to the external system to use to verify the analysis
   optional MetricProvider provider = 10;
-
-  // Whether to evaluate this metric in a Dry-Run mode
-  optional bool dryRun = 11;
 }
 
 // MetricProvider which external system to use to verify the analysis
@@ -846,9 +841,6 @@ message MetricResult {
   // ConsecutiveError is the number of times an error was encountered during measurement in succession
   // Resets to zero when non-errors are encountered
   optional int32 consecutiveError = 10;
-
-  // Whether this metric is running in a Dry-Run mode
-  optional bool dryRun = 11;
 }
 
 // NewRelicMetric defines the newrelic query to perform canary analysis
