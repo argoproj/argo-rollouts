@@ -261,7 +261,7 @@ func (r *informerBasedTemplateResolver) updateRolloutsReferenceAnnotation(obj in
 			}
 
 			if err != nil {
-				log.Errorf("Cannot update the workload-ref/annotation for %s/%s: %v", ro.GetName(), ro.GetNamespace(), err)
+				log.Errorf("Cannot update the workload-ref/annotation for %s/%s", ro.GetName(), ro.GetNamespace())
 			}
 		}
 	}
