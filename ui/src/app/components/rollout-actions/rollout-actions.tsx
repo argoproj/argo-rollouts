@@ -18,6 +18,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
     const namespaceCtx = React.useContext(NamespaceContext);
 
     const restartedAt = formatTimestamp(props.rollout.restartedAt || '');
+    const isDeploying = props.rollout.status === RolloutStatus.Progressing || props.rollout.status === RolloutStatus.Paused
 
     const actionMap = new Map<RolloutAction, ActionButtonProps & {body?: any}>([
         [
@@ -36,6 +37,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 label: 'RETRY',
                 icon: 'fa-redo-alt',
                 action: api.rolloutServiceRetryRollout,
+                disabled: props.rollout.status !== RolloutStatus.Degraded,
                 shouldConfirm: true,
             },
         ],
@@ -45,6 +47,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 label: 'ABORT',
                 icon: 'fa-exclamation-circle',
                 action: api.rolloutServiceAbortRollout,
+                disabled: !isDeploying,
                 shouldConfirm: true,
             },
         ],
@@ -55,7 +58,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
                 icon: 'fa-chevron-circle-up',
                 action: api.rolloutServicePromoteRollout,
                 body: {full: false},
-                disabled: props.rollout.status !== RolloutStatus.Paused,
+                disabled: !isDeploying,
                 shouldConfirm: true,
             },
         ],
@@ -64,9 +67,9 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             {
                 label: 'PROMOTE-FULL',
                 icon: 'fa-arrow-circle-up',
-                body: {full: true},
                 action: api.rolloutServicePromoteRollout,
-                disabled: props.rollout.status !== RolloutStatus.Paused,
+                body: {full: true},
+                disabled: !isDeploying,
                 shouldConfirm: true,
             },
         ],
