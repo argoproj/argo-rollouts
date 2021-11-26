@@ -356,7 +356,7 @@ templates together. The controller combines the `metrics` and `args` fields of a
     The controller will error when merging the templates if:
 
     * Multiple metrics in the templates have the same name
-    * Two arguments with the same name both have values
+    * Two arguments with the same name have different default values no matter the argument value in Rollout
 
 ## Analysis Template Arguments
 
@@ -370,11 +370,11 @@ metadata:
   name: args-example
 spec:
   args:
-  # required
+  # required in Rollout due to no default value
   - name: service-name
   - name: stable-hash
   - name: latest-hash
-  # optional
+  # optional in Rollout given the default value
   - name: api-url
     value: http://example/measure
   # from secret
