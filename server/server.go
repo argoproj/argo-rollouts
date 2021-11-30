@@ -24,12 +24,14 @@ import (
 	"k8s.io/client-go/dynamic"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	appslisters "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
@@ -293,65 +295,61 @@ func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, 
 		}
 	}
 	ctx := ws.Context()
-	rolloutIf := s.Options.RolloutsClientset.ArgoprojV1alpha1().Rollouts(q.GetNamespace())
+
+	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(q.Namespace))
+	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(q.Namespace)
+	rolloutInformer := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer()
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(s.Options.KubeClientset, 0, kubeinformers.WithNamespace(q.Namespace))
 	podsLister := kubeInformerFactory.Core().V1().Pods().Lister().Pods(q.GetNamespace())
 	rsLister := kubeInformerFactory.Apps().V1().ReplicaSets().Lister().ReplicaSets(q.GetNamespace())
 	kubeInformerFactory.Start(ws.Context().Done())
+	podsInformer := kubeInformerFactory.Core().V1().Pods().Informer()
+
+	rolloutUpdateChan := make(chan *v1alpha1.Rollout)
+
+	rolloutInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			rolloutUpdateChan <- obj.(*v1alpha1.Rollout)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			rolloutUpdateChan <- newObj.(*v1alpha1.Rollout)
+		},
+	})
+	podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			podUpdated(obj.(*corev1.Pod), rsLister, rolloutsLister, rolloutUpdateChan)
+		},
+	})
+
+	go rolloutInformer.Run(ctx.Done())
 
 	cache.WaitForCacheSync(
 		ws.Context().Done(),
-		kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
+		podsInformer.HasSynced,
 		kubeInformerFactory.Apps().V1().ReplicaSets().Informer().HasSynced,
+		rolloutInformer.HasSynced,
 	)
 
-	watchIf, err := rolloutIf.Watch(ctx, v1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	var ro *v1alpha1.Rollout
-	retries := 0
-L:
 	for {
 		select {
-		case next := <-watchIf.ResultChan():
-			ro, _ = next.Object.(*v1alpha1.Rollout)
 		case <-ctx.Done():
-			break L
-		}
-		if ro == nil {
-			watchIf.Stop()
-			newWatchIf, err := rolloutIf.Watch(ctx, v1.ListOptions{})
+			return nil
+		case ro := <-rolloutUpdateChan:
+			allPods, err := podsLister.List(labels.Everything())
 			if err != nil {
-				if retries > 5 {
-					return err
-				}
-				log.Warn(err)
-				time.Sleep(time.Second)
-				retries++
-			} else {
-				watchIf = newWatchIf
-				retries = 0
+				return err
 			}
-			continue
-		}
-		allPods, err := podsLister.List(labels.Everything())
-		if err != nil {
-			return err
-		}
-		allReplicaSets, err := rsLister.List(labels.Everything())
-		if err != nil {
-			return err
-		}
+			allReplicaSets, err := rsLister.List(labels.Everything())
+			if err != nil {
+				return err
+			}
 
-		// get shallow rollout info
-		ri := info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil)
-		send(ri)
+			// get shallow rollout info
+			ri := info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil)
+			send(ri)
+		}
 	}
-	watchIf.Stop()
-	return nil
 }
 
 func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollout.RolloutInfo, error) {
@@ -427,4 +425,23 @@ func (s *ArgoRolloutsServer) Version(ctx context.Context, _ *empty.Empty) (*roll
 	return &rollout.VersionInfo{
 		RolloutsVersion: version.String(),
 	}, nil
+}
+
+func podUpdated(pod *corev1.Pod, rsLister appslisters.ReplicaSetNamespaceLister,
+	rolloutLister listers.RolloutNamespaceLister, rolloutUpdated chan *v1alpha1.Rollout) {
+	for _, podOwner := range pod.GetOwnerReferences() {
+		if podOwner.Kind == "ReplicaSet" {
+			rs, err := rsLister.Get(podOwner.Name)
+			if err == nil {
+				for _, rsOwner := range rs.GetOwnerReferences() {
+					if rsOwner.APIVersion == v1alpha1.SchemeGroupVersion.String() && rsOwner.Kind == "Rollout" {
+						ro, err := rolloutLister.Get(rsOwner.Name)
+						if err == nil {
+							rolloutUpdated <- ro
+						}
+					}
+				}
+			}
+		}
+	}
 }
