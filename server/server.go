@@ -10,7 +10,6 @@ import (
 	"os"
 	"time"
 
-	v1alpha12 "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/pkg/errors"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -32,6 +31,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/abort"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/promote"
@@ -428,7 +428,7 @@ func (s *ArgoRolloutsServer) Version(ctx context.Context, _ *empty.Empty) (*roll
 }
 
 func podUpdated(pod *corev1.Pod, rsLister appslisters.ReplicaSetNamespaceLister,
-	rolloutLister v1alpha12.RolloutNamespaceLister, rolloutUpdated chan *v1alpha1.Rollout) {
+	rolloutLister listers.RolloutNamespaceLister, rolloutUpdated chan *v1alpha1.Rollout) {
 	for _, podOwner := range pod.GetOwnerReferences() {
 		if podOwner.Kind == "ReplicaSet" {
 			rs, err := rsLister.Get(podOwner.Name)
