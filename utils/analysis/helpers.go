@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
@@ -92,18 +93,26 @@ func IsTerminating(run *v1alpha1.AnalysisRun) bool {
 	return false
 }
 
-// GetDryRunMetricNames returns an array of metric names from the Dry-Run array.
-func GetDryRunMetricNames(dryRunArray []v1alpha1.DryRun) (map[string]bool, bool) {
-	metricNames := make(map[string]bool)
-	wildcardPresent := false
-	for _, dryRunObject := range dryRunArray {
-		if dryRunObject.MetricName == "*" {
-			wildcardPresent = true
-			continue
-		}
-		metricNames[dryRunObject.MetricName] = true
+// GetDryRunMetrics returns an array of metric names matching the RegEx rules from the Dry-Run metrics.
+func GetDryRunMetrics(dryRunMetrics []v1alpha1.DryRun, metrics []v1alpha1.Metric) (map[string]bool, error) {
+	metricsMap := make(map[string]bool)
+	if len(dryRunMetrics) == 0 {
+		return metricsMap, nil
 	}
-	return metricNames, wildcardPresent
+	// Iterate all the rules in `dryRunMetrics` and try to match the `metrics` one by one
+	for index, dryRunObject := range dryRunMetrics {
+		matchCount := 0
+		for _, metric := range metrics {
+			if matched, _ := regexp.MatchString(dryRunObject.MetricName, metric.Name); matched {
+				metricsMap[metric.Name] = true
+				matchCount++
+			}
+		}
+		if matchCount < 1 {
+			return metricsMap, fmt.Errorf("dryRun[%d]: Rule didn't match any metric name(s)", index)
+		}
+	}
+	return metricsMap, nil
 }
 
 // GetResult returns the metric result by name
@@ -384,10 +393,8 @@ func flattenDryRunMetrics(templates []*v1alpha1.AnalysisTemplate, clusterTemplat
 func validateDryRunMetrics(dryRunMetrics []v1alpha1.DryRun) error {
 	metricMap := map[string]bool{}
 	for _, dryRun := range dryRunMetrics {
-		if dryRun.MetricName == "*" && len(dryRunMetrics) > 1 {
-			return fmt.Errorf("merge failed: while using the wildcard '*' no other metric names are allowed")
-		} else if _, ok := metricMap[dryRun.MetricName]; ok {
-			return fmt.Errorf("two Dry-Run metrics have the same name '%s'", dryRun.MetricName)
+		if _, ok := metricMap[dryRun.MetricName]; ok {
+			return fmt.Errorf("two Dry-Run metric rules have the same name '%s'", dryRun.MetricName)
 		}
 		metricMap[dryRun.MetricName] = true
 	}

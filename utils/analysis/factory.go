@@ -135,30 +135,6 @@ func ValidateMetrics(metrics []v1alpha1.Metric) error {
 	return nil
 }
 
-// ValidateDryRunMetrics validates that all the dry-run metric names are valid
-func ValidateDryRunMetrics(metrics []v1alpha1.Metric, dryRunArray []v1alpha1.DryRun) error {
-	metricNames := map[string]bool{}
-	for _, metric := range metrics {
-		metricNames[metric.Name] = true
-	}
-	// Check whether all the Dry-Run metrics are present in `metricNames`
-	duplicateNames := make(map[string]bool)
-	for i, dryRunObject := range dryRunArray {
-		if dryRunObject.MetricName == "*" {
-			if len(dryRunArray) > 1 {
-				return fmt.Errorf("dryRun[%d]: While using the wildcard '*' no other metric names are allowed", i)
-			}
-			continue
-		} else if _, ok := metricNames[dryRunObject.MetricName]; !ok {
-			return fmt.Errorf("dryRun[%d]: Invalid metric name '%s'", i, dryRunObject.MetricName)
-		} else if _, isDupe := duplicateNames[dryRunObject.MetricName]; isDupe {
-			return fmt.Errorf("dryRun[%d]: Duplicate metric name '%s'", i, dryRunObject.MetricName)
-		}
-		duplicateNames[dryRunObject.MetricName] = true
-	}
-	return nil
-}
-
 // ValidateMetric validates a single metric spec
 func ValidateMetric(metric v1alpha1.Metric) error {
 	count := 0

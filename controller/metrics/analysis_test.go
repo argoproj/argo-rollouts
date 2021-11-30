@@ -97,15 +97,15 @@ const expectedAnalysisRunResponse = `# HELP analysis_run_info Information about 
 analysis_run_info{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error"} 1
 # HELP analysis_run_metric_phase Information on the duration of a specific metric in the Analysis Run
 # TYPE analysis_run_metric_phase gauge
-analysis_run_metric_phase{dryRun="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="Web"} 1
-analysis_run_metric_phase{dryRun="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed",type="Web"} 0
-analysis_run_metric_phase{dryRun="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive",type="Web"} 0
-analysis_run_metric_phase{dryRun="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending",type="Web"} 0
-analysis_run_metric_phase{dryRun="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running",type="Web"} 0
-analysis_run_metric_phase{dryRun="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Successful",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="Web"} 1
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Successful",type="Web"} 0
 # HELP analysis_run_metric_type Information on the type of a specific metric in the Analysis Runs
 # TYPE analysis_run_metric_type gauge
-analysis_run_metric_type{dryRun="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",type="Web"} 1
+analysis_run_metric_type{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",type="Web"} 1
 # HELP analysis_run_phase Information on the state of the Analysis Run (DEPRECATED - use analysis_run_info)
 # TYPE analysis_run_phase gauge
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error"} 1

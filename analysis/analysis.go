@@ -70,7 +70,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		return run
 	}
 
-	err = analysisutil.ValidateDryRunMetrics(resolvedMetrics, run.Spec.DryRun)
+	dryRunMetricsMap, err := analysisutil.GetDryRunMetrics(run.Spec.DryRun, resolvedMetrics)
 	if err != nil {
 		message := fmt.Sprintf("Analysis spec invalid: %v", err)
 		logger.Warn(message)
@@ -82,7 +82,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 
 	tasks := generateMetricTasks(run, resolvedMetrics)
 	logger.Infof("Taking %d Measurement(s)...", len(tasks))
-	err = c.runMeasurements(run, tasks)
+	err = c.runMeasurements(run, tasks, dryRunMetricsMap)
 	if err != nil {
 		message := fmt.Sprintf("Unable to resolve metric arguments: %v", err)
 		logger.Warn(message)
@@ -92,7 +92,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		return run
 	}
 
-	newStatus, newMessage := c.assessRunStatus(run, resolvedMetrics)
+	newStatus, newMessage := c.assessRunStatus(run, resolvedMetrics, dryRunMetricsMap)
 	if newStatus != run.Status.Phase {
 		run.Status.Phase = newStatus
 		run.Status.Message = newMessage
@@ -289,7 +289,7 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 }
 
 // runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
-func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask) error {
+func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask, dryRunMetricsMap map[string]bool) error {
 	var wg sync.WaitGroup
 	// resultsLock should be held whenever we are accessing or setting status.metricResults since
 	// we are performing queries in parallel
@@ -315,12 +315,11 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			metricResult := analysisutil.GetResult(run, t.metric.Name)
 			resultsLock.Unlock()
 
-			dryRunMetricsMap, everythingRunningInDryRun := analysisutil.GetDryRunMetricNames(run.Spec.DryRun)
 			if metricResult == nil {
 				metricResult = &v1alpha1.MetricResult{
 					Name:   t.metric.Name,
 					Phase:  v1alpha1.AnalysisPhaseRunning,
-					DryRun: everythingRunningInDryRun || dryRunMetricsMap[t.metric.Name],
+					DryRun: dryRunMetricsMap[t.metric.Name],
 				}
 			}
 
@@ -405,12 +404,11 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 // assessRunStatus assesses the overall status of this AnalysisRun
 // If any metric is not yet completed, the AnalysisRun is still considered Running
 // Once all metrics are complete, the worst status is used as the overall AnalysisRun status
-func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) (v1alpha1.AnalysisPhase, string) {
+func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric, dryRunMetricsMap map[string]bool) (v1alpha1.AnalysisPhase, string) {
 	var worstStatus v1alpha1.AnalysisPhase
 	var worstMessage string
 	terminating := analysisutil.IsTerminating(run)
 	everythingCompleted := true
-	dryRunMetricsMap, everythingRunningInDryRun := analysisutil.GetDryRunMetricNames(run.Spec.DryRun)
 
 	if run.Status.StartedAt == nil {
 		now := metav1.Now()
@@ -420,20 +418,29 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 		worstMessage = "Run Terminated"
 	}
 
-	// Initialize Dry-Run summary object.
-	dryRunSummary := v1alpha1.DryRunSummary{
+	// Initialize Run & Dry-Run summary object
+	runSummary := v1alpha1.RunSummary{
 		Count:        0,
 		Successful:   0,
 		Failed:       0,
 		Inconclusive: 0,
 		Error:        0,
+		DryRun: v1alpha1.DryRunSummary{
+			Count:        0,
+			Successful:   0,
+			Failed:       0,
+			Inconclusive: 0,
+			Error:        0,
+		},
 	}
 
 	// Iterate all metrics and update `MetricResult.Phase` fields based on latest measurement(s)
 	for _, metric := range metrics {
-		if everythingRunningInDryRun || dryRunMetricsMap[metric.Name] {
+		if dryRunMetricsMap[metric.Name] {
 			log.Infof("Metric '%s' is running in the Dry-Run mode.", metric.Name)
-			dryRunSummary.Count++
+			runSummary.DryRun.Count++
+		} else {
+			runSummary.Count++
 		}
 		if result := analysisutil.GetResult(run, metric.Name); result != nil {
 			logger := logutil.WithAnalysisRun(run).WithField("metric", metric.Name)
@@ -461,7 +468,7 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 				phase, message := assessMetricFailureInconclusiveOrError(metric, *result)
 				// NOTE: We don't care about the status if the metric is marked as a Dry-Run
 				// otherwise, remember the worst status of all completed metric results
-				if !(everythingRunningInDryRun || dryRunMetricsMap[metric.Name]) {
+				if !dryRunMetricsMap[metric.Name] {
 					if worstStatus == "" || analysisutil.IsWorse(worstStatus, metricStatus) {
 						worstStatus = metricStatus
 						if message != "" {
@@ -470,6 +477,20 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 								worstMessage += fmt.Sprintf(": \"Error Message: %s\"", result.Message)
 							}
 						}
+					}
+					// Update Run Summary
+					switch phase {
+					case v1alpha1.AnalysisPhaseError:
+						runSummary.Error++
+					case v1alpha1.AnalysisPhaseFailed:
+						runSummary.Failed++
+					case v1alpha1.AnalysisPhaseInconclusive:
+						runSummary.Inconclusive++
+					case v1alpha1.AnalysisPhaseSuccessful:
+						runSummary.Successful++
+					default:
+						// We'll mark the status as success by default if it doesn't match anything.
+						runSummary.Successful++
 					}
 				} else {
 					// Update metric result message
@@ -482,19 +503,19 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 						}
 						analysisutil.SetResult(run, *result)
 					}
-					// Update DryRun results
+					// Update DryRun Summary
 					switch phase {
 					case v1alpha1.AnalysisPhaseError:
-						dryRunSummary.Error++
+						runSummary.DryRun.Error++
 					case v1alpha1.AnalysisPhaseFailed:
-						dryRunSummary.Failed++
+						runSummary.DryRun.Failed++
 					case v1alpha1.AnalysisPhaseInconclusive:
-						dryRunSummary.Inconclusive++
+						runSummary.DryRun.Inconclusive++
 					case v1alpha1.AnalysisPhaseSuccessful:
-						dryRunSummary.Successful++
+						runSummary.DryRun.Successful++
 					default:
 						// We'll mark the status as success by default if it doesn't match anything.
-						dryRunSummary.Successful++
+						runSummary.DryRun.Successful++
 					}
 				}
 			}
@@ -505,7 +526,7 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 	}
 	// Append Dry-Run metrics results if any.
 	worstMessage = strings.TrimSpace(worstMessage)
-	run.Status.DryRunSummary = dryRunSummary
+	run.Status.RunSummary = runSummary
 	if terminating {
 		if worstStatus == "" {
 			// we have yet to take a single measurement, but have already been instructed to stop

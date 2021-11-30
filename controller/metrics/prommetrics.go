@@ -111,14 +111,14 @@ var (
 	MetricAnalysisRunMetricType = prometheus.NewDesc(
 		"analysis_run_metric_type",
 		"Information on the type of a specific metric in the Analysis Runs",
-		append(namespaceNameLabels, "metric", "type", "dryRun"),
+		append(namespaceNameLabels, "metric", "type"),
 		nil,
 	)
 
 	MetricAnalysisRunMetricPhase = prometheus.NewDesc(
 		"analysis_run_metric_phase",
 		"Information on the duration of a specific metric in the Analysis Run",
-		append(namespaceNameLabels, "metric", "type", "dryRun", "phase"),
+		append(namespaceNameLabels, "metric", "type", "dry_run", "phase"),
 		nil,
 	)
 )

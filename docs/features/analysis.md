@@ -581,12 +581,12 @@ evaluation of the metric to monitor the 5XX error-rate fail, the analysis run wi
           ))
 ```
 
-A wildcard '*' can be used to make all the metrics run in the dry-run mode. In the following example, even if one or 
-both metrics fail, the analysis run will pass.
+RegEx matches are also supported. `.*` can be used to make all the metrics run in the dry-run mode. In the following 
+example, even if one or both metrics fail, the analysis run will pass.
 
 ```yaml hl_lines="1 2"
   dryRun:
-  - metricName: *
+  - metricName: .*
   metrics:
   - name: total-5xx-errors
     interval: 5m
@@ -618,14 +618,14 @@ If one or more metrics are running in the dry-run mode, the summary of the dry-r
 run message. Assuming that the `total-4xx-errors` metric fails in the above example but, the `total-5xx-errors` 
 succeeds, the final dry-run summary will look like this.
 
-```yaml hl_lines="2 3 4 5 6 7"
+```yaml hl_lines="4 5 6 7"
 Message: Run Terminated
-Dry-Run Summary: 
-  Count: 2
-  Successful: 1
-  Failed: 1
-  Inconclusive: 0
-  Error: 0
+Run Summary:
+  ...
+  Dry Run: 
+    Count: 2
+    Successful: 1
+    Failed: 1
 Metric Results:
 ...
 ```

@@ -331,11 +331,27 @@ type AnalysisRunStatus struct {
 	MetricResults []MetricResult `json:"metricResults,omitempty" protobuf:"bytes,3,rep,name=metricResults"`
 	// StartedAt indicates when the analysisRun first started
 	StartedAt *metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,4,opt,name=startedAt"`
-	// DryRunSummary contains the final status of the metric results collected during the Dry-Run mode
-	DryRunSummary DryRunSummary `json:"dryRunSummary,omitempty" protobuf:"bytes,5,opt,name=dryRunSummary"`
+	// RunSummary contains the final status of the metric results collected from the run
+	RunSummary RunSummary `json:"runSummary,omitempty" protobuf:"bytes,5,opt,name=runSummary"`
 }
 
-// DryRunSummary contains the final results from the metric executions in the Dry-Run mode.
+// RunSummary contains the final results from the metric executions
+type RunSummary struct {
+	// This is equal to the sum of Successful, Failed, Inconclusive
+	Count int32 `json:"count,omitempty" protobuf:"varint,1,opt,name=count"`
+	// Successful is the number of times the metric was measured Successful
+	Successful int32 `json:"successful,omitempty" protobuf:"varint,2,opt,name=successful"`
+	// Failed is the number of times the metric was measured Failed
+	Failed int32 `json:"failed,omitempty" protobuf:"varint,3,opt,name=failed"`
+	// Inconclusive is the number of times the metric was measured Inconclusive
+	Inconclusive int32 `json:"inconclusive,omitempty" protobuf:"varint,4,opt,name=inconclusive"`
+	// Error is the number of times an error was encountered during measurement
+	Error int32 `json:"error,omitempty" protobuf:"varint,5,opt,name=error"`
+	// DryRun contains the final status of the metric results collected from the dry-run mode
+	DryRun DryRunSummary `json:"dryRun,omitempty" protobuf:"bytes,6,opt,name=dryRun"`
+}
+
+// DryRunSummary contains the final results from the metric executions in the dry-run mode
 type DryRunSummary struct {
 	// This is equal to the sum of Successful, Failed, Inconclusive
 	Count int32 `json:"count,omitempty" protobuf:"varint,1,opt,name=count"`
@@ -374,7 +390,7 @@ type MetricResult struct {
 	// ConsecutiveError is the number of times an error was encountered during measurement in succession
 	// Resets to zero when non-errors are encountered
 	ConsecutiveError int32 `json:"consecutiveError,omitempty" protobuf:"varint,10,opt,name=consecutiveError"`
-	// Whether this metric is running in a Dry-Run mode
+	// DryRun indicates whether this metric is running in a dry-run mode or not
 	DryRun bool `json:"dryRun,omitempty" protobuf:"varint,11,opt,name=dryRun"`
 }
 
