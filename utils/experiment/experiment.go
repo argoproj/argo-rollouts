@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutsclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 var terminateExperimentPatch = []byte(`{"spec":{"terminate":true}}`)
@@ -88,7 +89,7 @@ func PassedDurations(experiment *v1alpha1.Experiment) (bool, time.Duration) {
 	if experiment.Status.AvailableAt == nil {
 		return false, 0
 	}
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	dur, err := experiment.Spec.Duration.Duration()
 	if err != nil {
 		return false, 0

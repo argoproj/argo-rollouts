@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -622,7 +623,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 
 	rs1 := newReplicaSetWithStatus(r1, 3, 3)
 	// set an annotation on old RS to cause verification to be skipped
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = metav1.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)
 	rs2 := newReplicaSetWithStatus(r2, 3, 3)
 
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]

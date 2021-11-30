@@ -20,10 +20,10 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
-
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experimentContext {
@@ -123,7 +123,7 @@ func TestRemoveScaleDownDelayFromRS(t *testing.T) {
 	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
 	e.Status.Conditions = append(e.Status.Conditions, *cond)
 	rs := templateToRS(e, templates[0], 1)
-	rs.ObjectMeta.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = metav1.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)
+	rs.ObjectMeta.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusSuccessful, now()),
 	}
@@ -160,7 +160,7 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
 	e.Status.Conditions = append(e.Status.Conditions, *cond)
 
-	inThePast := metav1.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
+	inThePast := timeutil.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
 	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inThePast
 
@@ -219,9 +219,9 @@ func TestNoPatch(t *testing.T) {
 		Type:               v1alpha1.ExperimentProgressing,
 		Reason:             conditions.NewRSAvailableReason,
 		Message:            fmt.Sprintf(conditions.ExperimentRunningMessage, e.Name),
-		LastTransitionTime: metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
 		Status:             corev1.ConditionTrue,
-		LastUpdateTime:     metav1.Now(),
+		LastUpdateTime:     timeutil.MetaNow(),
 	}}
 
 	e.Status.AvailableAt = now()
@@ -243,7 +243,7 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "5s")
 
-	tenSecondsAgo := metav1.Now().Add(-10 * time.Second)
+	tenSecondsAgo := timeutil.Now().Add(-10 * time.Second)
 	e.Status.AvailableAt = &metav1.Time{Time: tenSecondsAgo}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
@@ -278,7 +278,7 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 func TestDontRequeueWithoutDuration(t *testing.T) {
 	templates := generateTemplates("bar")
 	ex := newExperiment("foo", templates, "")
-	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
+	ex.Status.AvailableAt = &metav1.Time{Time: timeutil.MetaNow().Add(-10 * time.Second)}
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
@@ -303,7 +303,7 @@ func TestRequeueAfterDuration(t *testing.T) {
 	templates := generateTemplates("bar")
 	ex := newExperiment("foo", templates, "")
 	ex.Spec.Duration = "30s"
-	ex.Status.AvailableAt = &metav1.Time{Time: metav1.Now().Add(-10 * time.Second)}
+	ex.Status.AvailableAt = &metav1.Time{Time: timeutil.MetaNow().Add(-10 * time.Second)}
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
@@ -332,7 +332,7 @@ func TestRequeueAfterProgressDeadlineSeconds(t *testing.T) {
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	ex.Status.TemplateStatuses[0].LastTransitionTime = &now
 	exCtx := newTestContext(ex)
 	rs1 := templateToRS(ex, ex.Spec.Templates[0], 0)

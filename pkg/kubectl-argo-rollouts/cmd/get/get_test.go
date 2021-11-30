@@ -7,14 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
 	options "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options/fake"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func assertStdout(t *testing.T, expectedOut string, o genericclioptions.IOStreams) {
@@ -163,7 +162,7 @@ NAME                                        KIND        STATUS        AGE  INFO
 
 func TestGetBlueGreenRolloutScaleDownDelay(t *testing.T) {
 	rolloutObjs := testdata.NewBlueGreenRollout()
-	inFourHours := metav1.Now().Add(4 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
+	inFourHours := timeutil.Now().Add(4 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
 	rolloutObjs.ReplicaSets[2].Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inFourHours
 	delete(rolloutObjs.ReplicaSets[2].Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 
@@ -211,7 +210,7 @@ NAME                                        KIND        STATUS        AGE  INFO
 
 func TestGetBlueGreenRolloutScaleDownDelayPassed(t *testing.T) {
 	rolloutObjs := testdata.NewBlueGreenRollout()
-	anHourAgo := metav1.Now().Add(-1 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
+	anHourAgo := timeutil.Now().Add(-1 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
 	rolloutObjs.ReplicaSets[2].Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = anHourAgo
 	delete(rolloutObjs.ReplicaSets[2].Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 

@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 // generateRollout creates a rollout, with the input image as its template
@@ -1184,13 +1185,13 @@ func TestGetTimeRemainingBeforeScaleDownDeadline(t *testing.T) {
 		assert.Nil(t, remainingTime)
 	}
 	{
-		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: metav1.Now().Add(-600 * time.Second).UTC().Format(time.RFC3339)}
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: timeutil.Now().Add(-600 * time.Second).UTC().Format(time.RFC3339)}
 		remainingTime, err := GetTimeRemainingBeforeScaleDownDeadline(&rs)
 		assert.Nil(t, err)
 		assert.Nil(t, remainingTime)
 	}
 	{
-		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: metav1.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)}
+		rs.ObjectMeta.Annotations = map[string]string{v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey: timeutil.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)}
 		remainingTime, err := GetTimeRemainingBeforeScaleDownDeadline(&rs)
 		assert.Nil(t, err)
 		assert.NotNil(t, remainingTime)

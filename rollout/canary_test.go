@@ -25,6 +25,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
@@ -177,7 +178,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	}`
 
 	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, v1alpha1.PauseReasonCanaryPauseStep, now, conditions, v1alpha1.PauseReasonCanaryPauseStep)
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
 	assert.Equal(t, expectedPatch, patch)
@@ -1089,7 +1090,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
-	earlier := metav1.Now()
+	earlier := timeutil.MetaNow()
 	earlier.Time = earlier.Add(-10 * time.Second)
 	r2.Status.ControllerPause = true
 	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
@@ -1560,7 +1561,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 
 		r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
 		r2.Status.Abort = true
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		r2.Status.AbortedAt = &now
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.objects = append(f.objects, r2)
@@ -1597,7 +1598,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 		}
 		r1 := newCanaryRollout("foo", 2, nil, steps, int32Ptr(3), intstr.FromInt(1), intstr.FromInt(0))
 		r1.Status.Abort = true
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		r1.Status.AbortedAt = &now
 		rs1 := newReplicaSetWithStatus(r1, 2, 2)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
