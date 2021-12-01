@@ -26,6 +26,7 @@ import (
 
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	smiutil "github.com/argoproj/argo-rollouts/utils/smi"
@@ -137,8 +138,8 @@ func (s *E2ESuite) SetupSuite() {
 	restConfig, err := config.ClientConfig()
 	s.CheckError(err)
 	s.Common.kubernetesHost = restConfig.Host
-	restConfig.Burst = 50
-	restConfig.QPS = 20
+	restConfig.Burst = defaults.DefaultBurst
+	restConfig.QPS = defaults.DefaultQPS
 	s.namespace, _, err = config.Namespace()
 	s.CheckError(err)
 	s.kubeClient, err = kubernetes.NewForConfig(restConfig)
