@@ -1412,7 +1412,7 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
 }
 
-func StartAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T, isDryRun bool) (v1alpha1.AnalysisPhase, string, v1alpha1.DryRunSummary) {
+func StartAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T, isDryRun bool) (v1alpha1.AnalysisPhase, string, *v1alpha1.RunSummary) {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
@@ -1420,14 +1420,14 @@ func StartAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T, isDryRun bo
 	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed, isDryRun)
 	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseSuccessful
 	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{"run-forever": isDryRun, "failed-metric": isDryRun})
-	return status, message, run.Status.RunSummary.DryRun
+	return status, message, run.Status.DryRunSummary
 }
 
 func TestAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T) {
 	status, message, dryRunSummary := StartAssessRunStatusErrorMessageAnalysisPhaseFail(t, false)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 	assert.Equal(t, "Metric \"failed-metric\" assessed Failed due to failed (1) > failureLimit (0)", message)
-	expectedDryRunSummary := v1alpha1.DryRunSummary{
+	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        0,
 		Successful:   0,
 		Failed:       0,
@@ -1441,7 +1441,7 @@ func TestAssessRunStatusErrorMessageAnalysisPhaseFailInDryRunMode(t *testing.T) 
 	status, message, dryRunSummary := StartAssessRunStatusErrorMessageAnalysisPhaseFail(t, true)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
 	assert.Equal(t, "", message)
-	expectedDryRunSummary := v1alpha1.DryRunSummary{
+	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        2,
 		Successful:   1,
 		Failed:       1,
@@ -1451,7 +1451,7 @@ func TestAssessRunStatusErrorMessageAnalysisPhaseFailInDryRunMode(t *testing.T) 
 	assert.Equal(t, expectedDryRunSummary, dryRunSummary)
 }
 
-func StartAssessRunStatusErrorMessageFromProvider(t *testing.T, providerMessage string, isDryRun bool) (v1alpha1.AnalysisPhase, string, v1alpha1.DryRunSummary) {
+func StartAssessRunStatusErrorMessageFromProvider(t *testing.T, providerMessage string, isDryRun bool) (v1alpha1.AnalysisPhase, string, *v1alpha1.RunSummary) {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
@@ -1460,7 +1460,7 @@ func StartAssessRunStatusErrorMessageFromProvider(t *testing.T, providerMessage 
 	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseSuccessful // All metrics must complete, or assessRunStatus will not return message
 	run.Status.MetricResults[1].Message = providerMessage
 	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{"run-forever": isDryRun, "failed-metric": isDryRun})
-	return status, message, run.Status.RunSummary.DryRun
+	return status, message, run.Status.DryRunSummary
 }
 
 // TestAssessRunStatusErrorMessageFromProvider verifies that the message returned by assessRunStatus
@@ -1471,7 +1471,7 @@ func TestAssessRunStatusErrorMessageFromProvider(t *testing.T) {
 	expectedMessage := fmt.Sprintf("Metric \"failed-metric\" assessed Failed due to failed (1) > failureLimit (0): \"Error Message: %s\"", providerMessage)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 	assert.Equal(t, expectedMessage, message)
-	expectedDryRunSummary := v1alpha1.DryRunSummary{
+	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        0,
 		Successful:   0,
 		Failed:       0,
@@ -1486,7 +1486,7 @@ func TestAssessRunStatusErrorMessageFromProviderInDryRunMode(t *testing.T) {
 	status, message, dryRunSummary := StartAssessRunStatusErrorMessageFromProvider(t, providerMessage, true)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
 	assert.Equal(t, "", message)
-	expectedDryRunSummary := v1alpha1.DryRunSummary{
+	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        2,
 		Successful:   1,
 		Failed:       1,
@@ -1496,7 +1496,7 @@ func TestAssessRunStatusErrorMessageFromProviderInDryRunMode(t *testing.T) {
 	assert.Equal(t, expectedDryRunSummary, dryRunSummary)
 }
 
-func StartAssessRunStatusMultipleFailures(t *testing.T, isDryRun bool) (v1alpha1.AnalysisPhase, string, v1alpha1.DryRunSummary) {
+func StartAssessRunStatusMultipleFailures(t *testing.T, isDryRun bool) (v1alpha1.AnalysisPhase, string, *v1alpha1.RunSummary) {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
@@ -1505,7 +1505,7 @@ func StartAssessRunStatusMultipleFailures(t *testing.T, isDryRun bool) (v1alpha1
 	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseFailed
 	run.Status.MetricResults[0].Failed = 1
 	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{"run-forever": isDryRun, "failed-metric": isDryRun})
-	return status, message, run.Status.RunSummary.DryRun
+	return status, message, run.Status.DryRunSummary
 }
 
 // TestAssessRunStatusMultipleFailures verifies that if there are multiple failed metrics, assessRunStatus returns the message
@@ -1514,7 +1514,7 @@ func TestAssessRunStatusMultipleFailures(t *testing.T) {
 	status, message, dryRunSummary := StartAssessRunStatusMultipleFailures(t, false)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 	assert.Equal(t, "Metric \"run-forever\" assessed Failed due to failed (1) > failureLimit (0)", message)
-	expectedDryRunSummary := v1alpha1.DryRunSummary{
+	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        0,
 		Successful:   0,
 		Failed:       0,
@@ -1528,7 +1528,7 @@ func TestAssessRunStatusMultipleFailuresInDryRunMode(t *testing.T) {
 	status, message, dryRunSummary := StartAssessRunStatusMultipleFailures(t, true)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
 	assert.Equal(t, "", message)
-	expectedDryRunSummary := v1alpha1.DryRunSummary{
+	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        2,
 		Successful:   0,
 		Failed:       2,
@@ -1564,14 +1564,14 @@ func TestAssessRunStatusWorstMessageInReconcileAnalysisRunInDryRunMode(t *testin
 	newRun := StartAssessRunStatusWorstMessageInReconcileAnalysisRun(t, true)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 	assert.Equal(t, "", newRun.Status.Message)
-	expectedDryRunSummary := v1alpha1.DryRunSummary{
+	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        2,
 		Successful:   0,
 		Failed:       2,
 		Inconclusive: 0,
 		Error:        0,
 	}
-	assert.Equal(t, expectedDryRunSummary, newRun.Status.RunSummary.DryRun)
+	assert.Equal(t, expectedDryRunSummary, newRun.Status.DryRunSummary)
 	assert.Equal(t, "Metric assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.MetricResults[0].Message)
 	assert.Equal(t, "Metric assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.MetricResults[1].Message)
 }
@@ -1626,14 +1626,14 @@ func TestTerminateAnalysisRunInDryRunMode(t *testing.T) {
 	newRun := StartTerminatingAnalysisRun(t, true)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 	assert.Equal(t, "Run Terminated", newRun.Status.Message)
-	expectedDryRunSummary := v1alpha1.DryRunSummary{
+	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        1,
 		Successful:   0,
 		Failed:       0,
 		Inconclusive: 0,
 		Error:        0,
 	}
-	assert.Equal(t, expectedDryRunSummary, newRun.Status.RunSummary.DryRun)
+	assert.Equal(t, expectedDryRunSummary, newRun.Status.DryRunSummary)
 }
 
 func TestInvalidDryRunConfigThrowsError(t *testing.T) {

@@ -622,10 +622,10 @@ succeeds, the final dry-run summary will look like this.
 Message: Run Terminated
 Run Summary:
   ...
-  Dry Run: 
-    Count: 2
-    Successful: 1
-    Failed: 1
+Dry Run Summary: 
+  Count: 2
+  Successful: 1
+  Failed: 1
 Metric Results:
 ...
 ```

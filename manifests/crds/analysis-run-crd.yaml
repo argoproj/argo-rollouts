@@ -2626,6 +2626,24 @@ spec:
             type: object
           status:
             properties:
+              dryRunSummary:
+                properties:
+                  count:
+                    format: int32
+                    type: integer
+                  error:
+                    format: int32
+                    type: integer
+                  failed:
+                    format: int32
+                    type: integer
+                  inconclusive:
+                    format: int32
+                    type: integer
+                  successful:
+                    format: int32
+                    type: integer
+                type: object
               message:
                 type: string
               metricResults:
@@ -2695,24 +2713,6 @@ spec:
                   count:
                     format: int32
                     type: integer
-                  dryRun:
-                    properties:
-                      count:
-                        format: int32
-                        type: integer
-                      error:
-                        format: int32
-                        type: integer
-                      failed:
-                        format: int32
-                        type: integer
-                      inconclusive:
-                        format: int32
-                        type: integer
-                      successful:
-                        format: int32
-                        type: integer
-                    type: object
                   error:
                     format: int32
                     type: integer
