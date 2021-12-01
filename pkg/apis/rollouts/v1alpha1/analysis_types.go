@@ -334,7 +334,7 @@ type AnalysisRunStatus struct {
 	// RunSummary contains the final results from the metric executions
 	RunSummary RunSummary `json:"runSummary,omitempty" protobuf:"bytes,5,opt,name=runSummary"`
 	// DryRunSummary contains the final results from the metric executions in the dry-run mode
-	DryRunSummary *RunSummary `json:"dryRunSummary,omitempty" protobuf:"bytes,5,opt,name=dryRunSummary"`
+	DryRunSummary *RunSummary `json:"dryRunSummary,omitempty" protobuf:"bytes,6,opt,name=dryRunSummary"`
 }
 
 // RunSummary contains the final results from the metric executions
