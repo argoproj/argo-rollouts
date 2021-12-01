@@ -646,7 +646,7 @@ spec:
       - templateName: random-fail
       - templateName: always-pass
       dryRun:
-      - metricName: *
+      - metricName: .*
 ```
 
 ## Inconclusive Runs
