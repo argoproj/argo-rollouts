@@ -1434,7 +1434,7 @@ func TestAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T) {
 		Inconclusive: 0,
 		Error:        0,
 	}
-	assert.Equal(t, expectedDryRunSummary, dryRunSummary)
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
 }
 
 func TestAssessRunStatusErrorMessageAnalysisPhaseFailInDryRunMode(t *testing.T) {
@@ -1448,7 +1448,7 @@ func TestAssessRunStatusErrorMessageAnalysisPhaseFailInDryRunMode(t *testing.T) 
 		Inconclusive: 0,
 		Error:        0,
 	}
-	assert.Equal(t, expectedDryRunSummary, dryRunSummary)
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
 }
 
 func StartAssessRunStatusErrorMessageFromProvider(t *testing.T, providerMessage string, isDryRun bool) (v1alpha1.AnalysisPhase, string, *v1alpha1.RunSummary) {
@@ -1478,7 +1478,7 @@ func TestAssessRunStatusErrorMessageFromProvider(t *testing.T) {
 		Inconclusive: 0,
 		Error:        0,
 	}
-	assert.Equal(t, expectedDryRunSummary, dryRunSummary)
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
 }
 
 func TestAssessRunStatusErrorMessageFromProviderInDryRunMode(t *testing.T) {
@@ -1493,7 +1493,7 @@ func TestAssessRunStatusErrorMessageFromProviderInDryRunMode(t *testing.T) {
 		Inconclusive: 0,
 		Error:        0,
 	}
-	assert.Equal(t, expectedDryRunSummary, dryRunSummary)
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
 }
 
 func StartAssessRunStatusMultipleFailures(t *testing.T, isDryRun bool) (v1alpha1.AnalysisPhase, string, *v1alpha1.RunSummary) {
@@ -1521,7 +1521,7 @@ func TestAssessRunStatusMultipleFailures(t *testing.T) {
 		Inconclusive: 0,
 		Error:        0,
 	}
-	assert.Equal(t, expectedDryRunSummary, dryRunSummary)
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
 }
 
 func TestAssessRunStatusMultipleFailuresInDryRunMode(t *testing.T) {
@@ -1535,7 +1535,7 @@ func TestAssessRunStatusMultipleFailuresInDryRunMode(t *testing.T) {
 		Inconclusive: 0,
 		Error:        0,
 	}
-	assert.Equal(t, expectedDryRunSummary, dryRunSummary)
+	assert.Equal(t, &expectedDryRunSummary, dryRunSummary)
 }
 
 func StartAssessRunStatusWorstMessageInReconcileAnalysisRun(t *testing.T, isDryRun bool) *v1alpha1.AnalysisRun {
@@ -1571,7 +1571,7 @@ func TestAssessRunStatusWorstMessageInReconcileAnalysisRunInDryRunMode(t *testin
 		Inconclusive: 0,
 		Error:        0,
 	}
-	assert.Equal(t, expectedDryRunSummary, newRun.Status.DryRunSummary)
+	assert.Equal(t, &expectedDryRunSummary, newRun.Status.DryRunSummary)
 	assert.Equal(t, "Metric assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.MetricResults[0].Message)
 	assert.Equal(t, "Metric assessed Failed due to failed (1) > failureLimit (0)", newRun.Status.MetricResults[1].Message)
 }
@@ -1633,7 +1633,7 @@ func TestTerminateAnalysisRunInDryRunMode(t *testing.T) {
 		Inconclusive: 0,
 		Error:        0,
 	}
-	assert.Equal(t, expectedDryRunSummary, newRun.Status.DryRunSummary)
+	assert.Equal(t, &expectedDryRunSummary, newRun.Status.DryRunSummary)
 }
 
 func TestInvalidDryRunConfigThrowsError(t *testing.T) {
