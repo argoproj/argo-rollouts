@@ -520,13 +520,14 @@ spec:
           value: preview-svc.default.svc.cluster.local
 ```
 
-## Failure Conditions
+## Failure Conditions and Failure Limit
 
-`failureCondition` can be used to cause an analysis run to fail. The following example continually polls a prometheus
-server to get the total number of errors every 5 minutes, causing the analysis run to fail if 10 or more errors were
-encountered.
+`failureCondition` can be used to cause an analysis run to fail.
+`failureLimit` is the maximum number of failed run an analysis is allowed.
+The following example continually polls the defined Prometheus server to get the total number of errors(i.e., HTTP response code >= 500) every 5 minutes, causing the measurement to fail if ten or more errors are encountered.
+The entire analysis run is considered as Failed after three failed measurements.
 
-```yaml hl_lines="4"
+```yaml hl_lines="4 5"
   metrics:
   - name: total-errors
     interval: 5m
@@ -537,7 +538,7 @@ encountered.
         address: http://prometheus.example.com:9090
         query: |
           sum(irate(
-            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code~"5.*"}[5m]
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
           ))
 ```
 
