@@ -170,6 +170,15 @@ spec:
                               - name
                               type: object
                             type: array
+                          dryRun:
+                            items:
+                              properties:
+                                metricName:
+                                  type: string
+                              required:
+                              - metricName
+                              type: object
+                            type: array
                           templates:
                             items:
                               properties:
@@ -203,6 +212,15 @@ spec:
                                   type: object
                               required:
                               - name
+                              type: object
+                            type: array
+                          dryRun:
+                            items:
+                              properties:
+                                metricName:
+                                  type: string
+                              required:
+                              - metricName
                               type: object
                             type: array
                           templates:
@@ -268,6 +286,15 @@ spec:
                                   type: object
                               required:
                               - name
+                              type: object
+                            type: array
+                          dryRun:
+                            items:
+                              properties:
+                                metricName:
+                                  type: string
+                              required:
+                              - metricName
                               type: object
                             type: array
                           startingStep:
@@ -366,6 +393,15 @@ spec:
                                         type: object
                                     required:
                                     - name
+                                    type: object
+                                  type: array
+                                dryRun:
+                                  items:
+                                    properties:
+                                      metricName:
+                                        type: string
+                                    required:
+                                    - metricName
                                     type: object
                                   type: array
                                 templates:

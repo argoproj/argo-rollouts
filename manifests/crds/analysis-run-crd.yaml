@@ -68,6 +68,15 @@ spec:
                   - name
                   type: object
                 type: array
+              dryRun:
+                items:
+                  properties:
+                    metricName:
+                      type: string
+                  required:
+                  - metricName
+                  type: object
+                type: array
               metrics:
                 items:
                   properties:
@@ -2617,6 +2626,24 @@ spec:
             type: object
           status:
             properties:
+              dryRunSummary:
+                properties:
+                  count:
+                    format: int32
+                    type: integer
+                  error:
+                    format: int32
+                    type: integer
+                  failed:
+                    format: int32
+                    type: integer
+                  inconclusive:
+                    format: int32
+                    type: integer
+                  successful:
+                    format: int32
+                    type: integer
+                type: object
               message:
                 type: string
               metricResults:
@@ -2628,6 +2655,8 @@ spec:
                     count:
                       format: int32
                       type: integer
+                    dryRun:
+                      type: boolean
                     error:
                       format: int32
                       type: integer
@@ -2679,6 +2708,24 @@ spec:
                 type: array
               phase:
                 type: string
+              runSummary:
+                properties:
+                  count:
+                    format: int32
+                    type: integer
+                  error:
+                    format: int32
+                    type: integer
+                  failed:
+                    format: int32
+                    type: integer
+                  inconclusive:
+                    format: int32
+                    type: integer
+                  successful:
+                    format: int32
+                    type: integer
+                type: object
               startedAt:
                 format: date-time
                 type: string

@@ -118,7 +118,7 @@ var (
 	MetricAnalysisRunMetricPhase = prometheus.NewDesc(
 		"analysis_run_metric_phase",
 		"Information on the duration of a specific metric in the Analysis Run",
-		append(namespaceNameLabels, "metric", "type", "phase"),
+		append(namespaceNameLabels, "metric", "type", "dry_run", "phase"),
 		nil,
 	)
 )

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -369,14 +371,24 @@ func TestFlattenTemplates(t *testing.T) {
 			{
 				Spec: v1alpha1.AnalysisTemplateSpec{
 					Metrics: []v1alpha1.Metric{fooMetric},
-					Args:    nil,
+					DryRun: []v1alpha1.DryRun{
+						{
+							MetricName: "foo",
+						},
+					},
+					Args: nil,
 				},
 			},
 		}, []*v1alpha1.ClusterAnalysisTemplate{
 			{
 				Spec: v1alpha1.AnalysisTemplateSpec{
 					Metrics: []v1alpha1.Metric{barMetric},
-					Args:    nil,
+					DryRun: []v1alpha1.DryRun{
+						{
+							MetricName: "bar",
+						},
+					},
+					Args: nil,
 				},
 			},
 		})
@@ -386,7 +398,7 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Equal(t, fooMetric, template.Spec.Metrics[0])
 		assert.Equal(t, barMetric, template.Spec.Metrics[1])
 	})
-	t.Run(" Merge fail with name collision", func(t *testing.T) {
+	t.Run("Merge fail with name collision", func(t *testing.T) {
 		fooMetric := metric("foo", "true")
 		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
 			{
@@ -403,6 +415,35 @@ func TestFlattenTemplates(t *testing.T) {
 		}, []*v1alpha1.ClusterAnalysisTemplate{})
 		assert.Nil(t, template)
 		assert.Equal(t, err, fmt.Errorf("two metrics have the same name 'foo'"))
+	})
+	t.Run("Merge fail with dry-run name collision", func(t *testing.T) {
+		fooMetric := metric("foo", "true")
+		barMetric := metric("bar", "true")
+		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
+			{
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: []v1alpha1.Metric{fooMetric},
+					DryRun: []v1alpha1.DryRun{
+						{
+							MetricName: "foo",
+						},
+					},
+					Args: nil,
+				},
+			}, {
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: []v1alpha1.Metric{barMetric},
+					DryRun: []v1alpha1.DryRun{
+						{
+							MetricName: "foo",
+						},
+					},
+					Args: nil,
+				},
+			},
+		}, []*v1alpha1.ClusterAnalysisTemplate{})
+		assert.Nil(t, template)
+		assert.Equal(t, err, fmt.Errorf("two Dry-Run metric rules have the same name 'foo'"))
 	})
 	t.Run("Merge multiple args successfully", func(t *testing.T) {
 		fooArgs := arg("foo", pointer.StringPtr("true"))
@@ -506,7 +547,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	}
 
 	args := []v1alpha1.Argument{arg, secretArg}
-	run, err := NewAnalysisRunFromTemplates(templates, clustertemplates, args, "foo-run", "foo-run-generate-", "my-ns")
+	run, err := NewAnalysisRunFromTemplates(templates, clustertemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -519,7 +560,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	// Fail Merge Args
 	unresolvedArg := v1alpha1.Argument{Name: "unresolved"}
 	templates[0].Spec.Args = append(templates[0].Spec.Args, unresolvedArg)
-	run, err = NewAnalysisRunFromTemplates(templates, clustertemplates, args, "foo-run", "foo-run-generate-", "my-ns")
+	run, err = NewAnalysisRunFromTemplates(templates, clustertemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
 	assert.Equal(t, fmt.Errorf("args.unresolved was not resolved"), err)
 	// Fail flatten metric
@@ -532,7 +573,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	}
 	// Fail Flatten Templates
 	templates = append(templates, matchingMetric)
-	run, err = NewAnalysisRunFromTemplates(templates, clustertemplates, args, "foo-run", "foo-run-generate-", "my-ns")
+	run, err = NewAnalysisRunFromTemplates(templates, clustertemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
 	assert.Equal(t, fmt.Errorf("two metrics have the same name 'success-rate'"), err)
 }
@@ -772,4 +813,87 @@ func TestGetInstanceID(t *testing.T) {
 	var nilRun *v1alpha1.AnalysisRun
 	assert.Panics(t, func() { GetInstanceID(nilRun) })
 
+}
+
+func TestGetDryRunMetrics(t *testing.T) {
+	t.Run("GetDryRunMetrics returns the metric names map", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{
+				{
+					MetricName: "success-rate",
+				},
+			},
+		}
+		dryRunMetricNamesMap, err := GetDryRunMetrics(spec.DryRun, spec.Metrics)
+		assert.Nil(t, err)
+		assert.True(t, dryRunMetricNamesMap["success-rate"])
+	})
+	t.Run("GetDryRunMetrics handles the RegEx rules", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+				{
+					Name:         "error-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{
+				{
+					MetricName: ".*",
+				},
+			},
+		}
+		dryRunMetricNamesMap, err := GetDryRunMetrics(spec.DryRun, spec.Metrics)
+		assert.Nil(t, err)
+		assert.Equal(t, len(dryRunMetricNamesMap), 2)
+	})
+	t.Run("GetDryRunMetrics throw error when a rule doesn't get matched", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{
+				{
+					MetricName: "error-rate",
+				},
+			},
+		}
+		dryRunMetricNamesMap, err := GetDryRunMetrics(spec.DryRun, spec.Metrics)
+		assert.EqualError(t, err, "dryRun[0]: Rule didn't match any metric name(s)")
+		assert.Equal(t, len(dryRunMetricNamesMap), 0)
+	})
 }
