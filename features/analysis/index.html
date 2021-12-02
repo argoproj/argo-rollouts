@@ -855,8 +855,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#failure-conditions" class="md-nav__link">
-    Failure Conditions
+  <a href="#failure-conditions-and-failure-limit" class="md-nav__link">
+    Failure Conditions and Failure Limit
   </a>
   
 </li>
@@ -2169,8 +2169,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#failure-conditions" class="md-nav__link">
-    Failure Conditions
+  <a href="#failure-conditions-and-failure-limit" class="md-nav__link">
+    Failure Conditions and Failure Limit
   </a>
   
 </li>
@@ -2784,21 +2784,22 @@ the new ReplicaSet will be marked as stable. The old ReplicaSet will then be sca
         <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
           <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-svc.default.svc.cluster.local</span>
 </code></pre></div>
-<h2 id="failure-conditions">Failure Conditions<a class="headerlink" href="#failure-conditions" title="Permanent link">&para;</a></h2>
-<p><code>failureCondition</code> can be used to cause an analysis run to fail. The following example continually polls a prometheus
-server to get the total number of errors every 5 minutes, causing the analysis run to fail if 10 or more errors were
-encountered.</p>
+<h2 id="failure-conditions-and-failure-limit">Failure Conditions and Failure Limit<a class="headerlink" href="#failure-conditions-and-failure-limit" title="Permanent link">&para;</a></h2>
+<p><code>failureCondition</code> can be used to cause an analysis run to fail.
+<code>failureLimit</code> is the maximum number of failed run an analysis is allowed.
+The following example continually polls the defined Prometheus server to get the total number of errors(i.e., HTTP response code &gt;= 500) every 5 minutes, causing the measurement to fail if ten or more errors are encountered.
+The entire analysis run is considered as Failed after three failed measurements.</p>
 <div class="highlight"><pre><span></span><code>  <span class="nt">metrics</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">total-errors</span>
     <span class="nt">interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
 <span class="hll">    <span class="nt">failureCondition</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">result[0] &gt;= 10</span>
-</span>    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
-    <span class="nt">provider</span><span class="p">:</span>
+</span><span class="hll">    <span class="nt">failureLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+</span>    <span class="nt">provider</span><span class="p">:</span>
       <span class="nt">prometheus</span><span class="p">:</span>
         <span class="nt">address</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
         <span class="nt">query</span><span class="p">:</span> <span class="p p-Indicator">|</span>
           <span class="no">sum(irate(</span>
-            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code~&quot;5.*&quot;}[5m]</span>
+            <span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code=~&quot;5.*&quot;}[5m]</span>
           <span class="no">))</span>
 </code></pre></div>
 <h2 id="dry-run-mode">Dry-Run Mode<a class="headerlink" href="#dry-run-mode" title="Permanent link">&para;</a></h2>
