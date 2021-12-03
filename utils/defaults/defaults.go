@@ -36,6 +36,10 @@ const (
 	// DefaultConsecutiveErrorLimit is the default number times a metric can error in sequence before
 	// erroring the entire metric.
 	DefaultConsecutiveErrorLimit int32 = 4
+	// DefaultQPS is the default Queries Per Second (QPS) for client side throttling to the K8s API server
+	DefaultQPS float32 = 40.0
+	// DefaultBurst is the default value for Burst for client side throttling to the K8s API server
+	DefaultBurst int = 80
 )
 
 const (

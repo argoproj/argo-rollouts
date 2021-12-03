@@ -46,6 +46,8 @@ func newCommand() *cobra.Command {
 		klogLevel            int
 		metricsPort          int
 		instanceID           string
+		qps                  float32
+		burst                int
 		rolloutThreads       int
 		experimentThreads    int
 		analysisThreads      int
@@ -86,6 +88,8 @@ func newCommand() *cobra.Command {
 
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
+			config.QPS = qps
+			config.Burst = burst
 			namespace := metav1.NamespaceAll
 			configNS, _, err := clientConfig.Namespace()
 			checkError(err)
@@ -203,6 +207,8 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&klogLevel, "kloglevel", 0, "Set the klog logging level")
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
 	command.Flags().StringVar(&instanceID, "instance-id", "", "Indicates which argo rollout objects the controller should operate on")
+	command.Flags().Float32Var(&qps, "qps", defaults.DefaultQPS, "Maximum QPS (queries per second) to the K8s API server")
+	command.Flags().IntVar(&burst, "burst", defaults.DefaultBurst, "Maximum burst for throttle.")
 	command.Flags().IntVar(&rolloutThreads, "rollout-threads", controller.DefaultRolloutThreads, "Set the number of worker threads for the Rollout controller")
 	command.Flags().IntVar(&experimentThreads, "experiment-threads", controller.DefaultExperimentThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
