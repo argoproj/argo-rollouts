@@ -126,6 +126,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
 				desiredWeight = 100 - ((100 * c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas)
 			}
+		} else if c.rollout.Status.PromoteFull {
+			// on a promote full, desired stable weight should be 0 (100% to canary),
+			// But we can only increase canary weight according to available replica counts of the canary.
+			desiredWeight = (100 * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
 		} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 			// when newRS is not available or replicas num is 0. never weight to canary
 			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
