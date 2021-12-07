@@ -157,7 +157,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)

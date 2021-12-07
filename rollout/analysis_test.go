@@ -307,20 +307,23 @@ func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 	f.objects = append(f.objects, r)
 
 	patchIndex := f.expectPatchRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)
 	f.run(getKey(r, t))
 
 	expectedPatchWithoutSub := `{
 		"status": {
-			"conditions": [%s,%s],
+			"conditions": [%s,%s,%s,%s],
 			"phase": "Degraded",
 			"message": "InvalidSpec: %s"
 		}
 	}`
 	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"missing\": ClusterAnalysisTemplate 'missing' not found"
-	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	_, progressingCond := newProgressingCondition(conditions.InvalidSpecReason, r, conditions.InvalidSpecReason)
+	_, completedCond := newCompletedCondition(false, conditions.InvalidSpecReason)
+	_, pausedCond := newPausedCondition(false, conditions.InvalidSpecReason, conditions.InvalidSpecReason)
 	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, completedCond, pausedCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
@@ -613,20 +616,23 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	f.objects = append(f.objects, r, at)
 
 	patchIndex := f.expectPatchRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)
 	f.run(getKey(r, t))
 
 	expectedPatchWithoutSub := `{
 		"status": {
-			"conditions": [%s,%s],
+			"conditions": [%s,%s,%s,%s],
 			"phase": "Degraded",
 			"message": "InvalidSpec: %s"
 		}
 	}`
 	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [bad-template]\": two metrics have the same name 'example'"
-	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	_, progressingCond := newProgressingCondition(conditions.InvalidSpecReason, r, conditions.InvalidSpecReason)
+	_, completedCond := newCompletedCondition(false, conditions.InvalidSpecReason)
+	_, pausedCond := newPausedCondition(false, conditions.InvalidSpecReason, conditions.InvalidSpecReason)
 	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, completedCond, pausedCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
@@ -658,20 +664,23 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	f.objects = append(f.objects, r, at)
 
 	patchIndex := f.expectPatchRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)
 	f.run(getKey(r, t))
 
 	expectedPatchWithoutSub := `{
 		"status": {
-			"conditions": [%s,%s],
+			"conditions": [%s,%s,%s,%s],
 			"phase": "Degraded",
 			"message": "InvalidSpec: %s"
 		}
 	}`
 	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"templateNames: [bad-template]\": two metrics have the same name 'example'"
-	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	_, progressingCond := newProgressingCondition(conditions.InvalidSpecReason, r, conditions.InvalidSpecReason)
 	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
+	_, completedCond := newCompletedCondition(false, conditions.InvalidSpecReason)
+	_, pausedCond := newPausedCondition(false, conditions.InvalidSpecReason, conditions.InvalidSpecReason)
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, completedCond, pausedCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
@@ -705,20 +714,23 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 	f.objects = append(f.objects, r, at)
 
 	patchIndex := f.expectPatchRolloutAction(r)
+	f.expectUpdateRolloutStatusAction(r)
 	f.run(getKey(r, t))
 
 	expectedPatchWithoutSub := `{
 		"status": {
-			"conditions": [%s,%s],
+			"conditions": [%s,%s,%s,%s],
 			"phase": "Degraded",
 			"message": "InvalidSpec: %s"
 		}
 	}`
 	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.analysis.templates: Invalid value: \"templateNames: [bad-template bad-template]\": two metrics have the same name 'example'"
-	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r, "")
+	_, progressingCond := newProgressingCondition(conditions.InvalidSpecReason, r, conditions.InvalidSpecReason)
+	_, completedCond := newCompletedCondition(false, conditions.InvalidSpecReason)
+	_, pausedCond := newPausedCondition(false, conditions.InvalidSpecReason, conditions.InvalidSpecReason)
 	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, completedCond, pausedCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
@@ -1472,7 +1484,7 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	availableCondition, _ := newAvailableCondition(true)
@@ -1580,7 +1592,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
@@ -1764,7 +1776,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -1832,7 +1844,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -1899,7 +1911,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -1966,7 +1978,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	availableCondition, _ := newAvailableCondition(true)
@@ -2015,7 +2027,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 	r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
@@ -2188,7 +2200,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
@@ -2245,7 +2257,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}

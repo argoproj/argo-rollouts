@@ -393,7 +393,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-		pausedCondition, _ := newPausedCondition(true)
+		pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
@@ -441,7 +441,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-		pausedCondition, _ := newPausedCondition(true)
+		pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
@@ -482,7 +482,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-		pausedCondition, _ := newPausedCondition(true)
+		pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
@@ -524,7 +524,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-		pausedCondition, _ := newPausedCondition(true)
+		pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
@@ -583,7 +583,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-		pausedCondition, _ := newPausedCondition(true)
+		pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
@@ -883,7 +883,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1161,14 +1161,14 @@ func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
 	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
-	completedCondition, _ := newCompletedCondition(true)
+	completedCondition, _ := newCompletedCondition(true, conditions.RolloutCompletedReason)
 	conditions.SetRolloutCondition(&r1.Status, completedCondition)
 
 	r2 := bumpVersion(r1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
@@ -1456,7 +1456,7 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 	r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 

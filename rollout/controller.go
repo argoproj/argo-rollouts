@@ -507,9 +507,18 @@ func (c *rolloutContext) createInvalidRolloutCondition(validationError error, r 
 		if prevCond != nil && prevCond.Message != invalidSpecCond.Message {
 			conditions.RemoveRolloutCondition(newStatus, v1alpha1.InvalidSpec)
 		}
+		progressCondUpdated := conditions.UnprogressRolloutConditions(newStatus)
+
 		err := c.patchCondition(r, newStatus, invalidSpecCond)
 		if err != nil {
 			return err
+		}
+
+		if progressCondUpdated {
+			_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).UpdateStatus(context.TODO(), c.rollout, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

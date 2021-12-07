@@ -198,7 +198,7 @@ func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
@@ -231,7 +231,7 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	availableCondition, _ := newAvailableCondition(true)
@@ -992,7 +992,7 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	availableCondition, _ := newAvailableCondition(true)
@@ -1040,7 +1040,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	availableCondition, _ := newAvailableCondition(true)
@@ -1086,7 +1086,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	earlier := metav1.Now()
@@ -1130,7 +1130,7 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 4, 4)
@@ -1284,6 +1284,7 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs)
 
 	patchIndex := f.expectPatchRolloutAction(rollout)
+	f.expectUpdateRolloutStatusAction(rollout)
 	f.run(getKey(rollout, t))
 
 	patch := make(map[string]interface{})
@@ -1294,9 +1295,9 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	c, ok, err := unstructured.NestedSlice(patch, "status", "conditions")
 	assert.NoError(t, err)
 	assert.True(t, ok)
-	assert.Len(t, c, 2)
+	assert.Len(t, c, 4)
 
-	condition, ok := c[1].(map[string]interface{})
+	condition, ok := c[3].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
 	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.canaryService: Invalid value: \"invalid-canary\": service \"invalid-canary\" not found", condition["message"])
@@ -1336,6 +1337,7 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs)
 
 	patchIndex := f.expectPatchRolloutAction(rollout)
+	f.expectUpdateRolloutStatusAction(rollout)
 	f.run(getKey(rollout, t))
 
 	patch := make(map[string]interface{})
@@ -1346,9 +1348,9 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	c, ok, err := unstructured.NestedSlice(patch, "status", "conditions")
 	assert.NoError(t, err)
 	assert.True(t, ok)
-	assert.Len(t, c, 2)
+	assert.Len(t, c, 4)
 
-	condition, ok := c[1].(map[string]interface{})
+	condition, ok := c[3].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
 	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.stableService: Invalid value: \"invalid-stable\": service \"invalid-stable\" not found", condition["message"])
@@ -1377,7 +1379,7 @@ func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1475,7 +1477,7 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 	}}
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs1, "")
 	conditions.SetRolloutCondition(&r1.Status, progressingCondition)
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r1.Status, pausedCondition)
 	r2.Spec.Paused = true
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
@@ -1521,7 +1523,7 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs1, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
-	pausedCondition, _ := newPausedCondition(true)
+	pausedCondition, _ := newPausedCondition(true, conditions.RolloutPausedReason, conditions.RolloutPausedMessage)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 	availableCondition, _ := newAvailableCondition(true)
