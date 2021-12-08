@@ -13,6 +13,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/aws"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -210,6 +211,9 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (string, error) {
 	stableService := r.Spec.Strategy.Canary.StableService
 	canaryService := r.Spec.Strategy.Canary.CanaryService
+	if trafficrouting.IsPingPongEnabled(r) {
+		stableService, canaryService = trafficrouting.GetCurrentPingPong(r)
+	}
 	portStr := strconv.Itoa(int(port))
 	stableWeight := int32(100)
 	targetGroups := make([]ingressutil.ALBTargetGroup, 0)
