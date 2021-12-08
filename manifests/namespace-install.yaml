@@ -10820,6 +10820,16 @@ spec:
                         - type: integer
                         - type: string
                         x-kubernetes-int-or-string: true
+                      pingPong:
+                        properties:
+                          pingService:
+                            type: string
+                          pongService:
+                            type: string
+                        required:
+                        - pingService
+                        - pongService
+                        type: object
                       scaleDownDelayRevisionLimit:
                         format: int32
                         type: integer
@@ -13476,6 +13486,8 @@ spec:
                     - name
                     - status
                     type: object
+                  stablePingPong:
+                    type: string
                   weights:
                     properties:
                       additional:

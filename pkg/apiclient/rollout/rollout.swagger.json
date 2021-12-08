@@ -734,6 +734,10 @@
         "weights": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TrafficWeights",
           "title": "Weights records the weights which have been set on traffic provider. Only valid when using traffic routing"
+        },
+        "stablePingPong": {
+          "type": "string",
+          "title": "StablePingPong For the ping-pong feature holds the current stable service, ping or pong"
         }
       },
       "title": "CanaryStatus status fields that only pertain to the canary rollout"
@@ -829,6 +833,10 @@
         "dynamicStableScale": {
           "type": "boolean",
           "description": "DynamicStableScale is a traffic routing feature which dynamically scales the stable\nReplicaSet to minimize total pods which are running during an update. This is calculated by\nscaling down the stable as traffic is increased to canary. When disabled (the default behavior)\nthe stable ReplicaSet remains fully scaled to support instantaneous aborts."
+        },
+        "pingPong": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PingPongSpec",
+          "title": "PingPongSpec holds the ping and pong services"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
@@ -965,6 +973,20 @@
         }
       },
       "title": "PauseCondition the reason for a pause and when it started"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PingPongSpec": {
+      "type": "object",
+      "properties": {
+        "pingService": {
+          "type": "string",
+          "title": "name of the ping service"
+        },
+        "pongService": {
+          "type": "string",
+          "title": "name of the pong service"
+        }
+      },
+      "description": "PingPongSpec holds the ping and pong service name."
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodTemplateMetadata": {
       "type": "object",

@@ -17,6 +17,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -945,6 +946,9 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 	previousStableHash := newStatus.StableRS
 	if previousStableHash != newStatus.CurrentPodHash {
 		// only emit this event when we switched stable
+		if trafficrouting.IsPingPongEnabled(c.rollout) {
+			newStatus.Canary.StablePingPong = trafficrouting.PingPongOpposite(c.rollout.Status.Canary.StablePingPong)
+		}
 		newStatus.StableRS = newStatus.CurrentPodHash
 		revision, _ := replicasetutil.Revision(c.rollout)
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},

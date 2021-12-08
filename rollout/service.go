@@ -11,6 +11,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/aws"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -18,6 +19,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	"github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
@@ -230,6 +232,20 @@ func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1
 		return nil, nil, err
 	}
 	return previewSvc, activeSvc, nil
+}
+
+func (c *rolloutContext) reconcilePingAndPongService() error {
+	if c.rollout.Spec.Strategy.Canary == nil || c.rollout.Spec.Strategy.Canary.PingPong == nil {
+		return nil
+	}
+
+	if !rollout.IsFullyPromoted(c.rollout) {
+		_, newPingPongService := trafficrouting.GetCurrentPingPong(c.rollout)
+		if err := c.ensureSVCTargets(newPingPongService, c.newRS); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *rolloutContext) reconcileStableAndCanaryService() error {

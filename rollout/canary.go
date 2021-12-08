@@ -44,6 +44,10 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
+	if err := c.reconcilePingAndPongService(); err != nil {
+		return err
+	}
+
 	if err := c.reconcileStableAndCanaryService(); err != nil {
 		return err
 	}
@@ -331,6 +335,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
+	newStatus.Canary.StablePingPong = c.rollout.Status.Canary.StablePingPong
 
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
