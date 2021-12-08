@@ -6,7 +6,6 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"k8s.io/client-go/tools/cache"
 
-	//"github.com/argoproj/notifications-engine/pkg/triggers"
 	k8sinformers "k8s.io/client-go/informers"
 	"regexp"
 	"strings"
