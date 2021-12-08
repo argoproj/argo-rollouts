@@ -16,6 +16,7 @@ import (
 type ExperimentSuite struct {
 	fixtures.E2ESuite
 }
+
 // TestRolloutWithExperimentAndAnalysis this tests the ability for a rollout to launch an experiment,
 // and use self-referencing features/pass metadata arguments to the experiment and analysis, such as:
 //  * specRef: stable
@@ -95,6 +96,16 @@ func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service", "test", 0).
 		ExpectExperimentServiceCount("experiment-with-service", 0)
+}
+
+func (s *ExperimentSuite) TestExperimentWithDryRunMetrics() {
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-dry-run-analysis.yaml")
+	g.When().
+		WaitForExperimentPhase("experiment-with-dry-run", "Successful").
+		Sleep(time.Second*3).
+		Then().
+		ExpectExperimentDryRunSummary(1, 0, 1, "experiment-with-dry-run")
 }
 
 func TestExperimentSuite(t *testing.T) {

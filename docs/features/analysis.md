@@ -650,6 +650,35 @@ spec:
       - metricName: .*
 ```
 
+### Dry-Run Experiments
+
+If an experiment wants to dry run its analysis, it simply needs to specify the `dryRun` field under its specs. In the 
+following example, all the metrics from `analyze-job` matching the RegEx rule `test.*` will be executed in the dry-run 
+mode.
+
+```yaml hl_lines="20 21"
+kind: Experiment
+spec:
+  templates:
+  - name: baseline
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+      spec:
+        containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:blue
+  analyses:
+  - name: analyze-job
+    templateName: analyze-job
+  dryRun:
+  - metricName: test.*
+```
+
 ## Inconclusive Runs
 
 Analysis runs can also be considered `Inconclusive`, which indicates the run was neither successful,

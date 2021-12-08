@@ -84,6 +84,15 @@ spec:
                   - templateName
                   type: object
                 type: array
+              dryRun:
+                items:
+                  properties:
+                    metricName:
+                      type: string
+                  required:
+                  - metricName
+                  type: object
+                type: array
               duration:
                 type: string
               progressDeadlineSeconds:

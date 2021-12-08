@@ -64,6 +64,7 @@ type AnalysisTemplateSpec struct {
 	// DryRun object contains the settings for running the analysis in Dry-Run mode
 	// +patchMergeKey=metricName
 	// +patchStrategy=merge
+	// +optional
 	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,3,rep,name=dryRun"`
 }
 
@@ -289,6 +290,7 @@ type AnalysisRunSpec struct {
 	// DryRun object contains the settings for running the analysis in Dry-Run mode
 	// +patchMergeKey=metricName
 	// +patchStrategy=merge
+	// +optional
 	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=dryRun"`
 }
 

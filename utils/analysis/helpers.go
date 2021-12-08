@@ -478,48 +478,6 @@ func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs
 	return obj, nil
 }
 
-//TODO(dthomson) remove v0.9.0
-func NewAnalysisRunFromClusterTemplate(template *v1alpha1.ClusterAnalysisTemplate, args []v1alpha1.Argument, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
-	newArgs, err := MergeArgs(args, template.Spec.Args)
-	if err != nil {
-		return nil, err
-	}
-	ar := v1alpha1.AnalysisRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:         name,
-			GenerateName: generateName,
-			Namespace:    namespace,
-		},
-		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: template.Spec.Metrics,
-			DryRun:  template.Spec.DryRun,
-			Args:    newArgs,
-		},
-	}
-	return &ar, nil
-}
-
-//TODO(dthomson) remove v0.9.0
-func NewAnalysisRunFromTemplate(template *v1alpha1.AnalysisTemplate, args []v1alpha1.Argument, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
-	newArgs, err := MergeArgs(args, template.Spec.Args)
-	if err != nil {
-		return nil, err
-	}
-	ar := v1alpha1.AnalysisRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:         name,
-			GenerateName: generateName,
-			Namespace:    namespace,
-		},
-		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: template.Spec.Metrics,
-			DryRun:  template.Spec.DryRun,
-			Args:    newArgs,
-		},
-	}
-	return &ar, nil
-}
-
 // GetInstanceID takes an object and returns the controller instance id if it has one
 func GetInstanceID(obj runtime.Object) string {
 	objMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
