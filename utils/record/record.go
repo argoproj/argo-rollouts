@@ -213,12 +213,7 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 	logCtx := logutil.WithObject(object)
 	destByTrigger := cfg.GetGlobalDestinations(object.(metav1.Object).GetLabels())
 	destByTrigger.Merge(subscriptions.NewAnnotations(object.(metav1.Object).GetAnnotations()).GetDestinations(cfg.DefaultTriggers, cfg.ServiceDefaultTriggers))
-	//logCtx := logutil.WithObject(object)
-	//subsFromAnnotations := subscriptions.Annotations(object.(metav1.Object).GetAnnotations())
-	//destByTrigger := subsFromAnnotations.GetDestinations(nil, map[string][]string{})
-
 	trigger := translateReasonToTrigger(opts.EventReason)
-
 	destinations := destByTrigger[trigger]
 	if len(destinations) == 0 {
 		logCtx.Debugf("No configured destinations for trigger: %s", trigger)
