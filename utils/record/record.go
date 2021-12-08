@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	rolloutapi "github.com/argoproj/notifications-engine/pkg/api"
+	api "github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
@@ -67,10 +67,10 @@ type EventRecorderAdapter struct {
 
 	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{})
 	// apiFactory is a notifications engine API factory
-	apiFactory rolloutapi.Factory
+	apiFactory api.Factory
 }
 
-func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, apiFactory rolloutapi.Factory) EventRecorder {
+func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, apiFactory api.Factory) EventRecorder {
 	// Create event broadcaster
 	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
 	// logged for argo-rollouts types.
@@ -94,9 +94,9 @@ type FakeEventRecorder struct {
 	Events []string
 }
 
-func NewFakeApiFactory() rolloutapi.Factory {
+func NewFakeApiFactory() api.Factory {
 	var (
-		settings = rolloutapi.Settings{ConfigMapName: "my-config-map", SecretName: "my-secret", InitGetVars: func(cfg *rolloutapi.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (rolloutapi.GetVars, error) {
+		settings = api.Settings{ConfigMapName: "my-config-map", SecretName: "my-secret", InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
 				return map[string]interface{}{"obj": obj}
 			}, nil
@@ -118,7 +118,7 @@ func NewFakeApiFactory() rolloutapi.Factory {
 
 	secrets := informerFactory.Core().V1().Secrets().Informer()
 	configMaps := informerFactory.Core().V1().ConfigMaps().Informer()
-	apiFactory := rolloutapi.NewFactory(settings, "default", secrets, configMaps)
+	apiFactory := api.NewFactory(settings, "default", secrets, configMaps)
 	go informerFactory.Start(context.Background().Done())
 	if !cache.WaitForCacheSync(context.Background().Done(), configMaps.HasSynced, secrets.HasSynced) {
 		log.Info("failed to sync informers")
@@ -191,11 +191,11 @@ func (e *EventRecorderAdapter) K8sRecorder() record.EventRecorder {
 	return e.Recorder
 }
 
-func NewAPIFactorySettings() rolloutapi.Settings {
-	return rolloutapi.Settings{
+func NewAPIFactorySettings() api.Settings {
+	return api.Settings{
 		SecretName:    NotificationSecret,
 		ConfigMapName: NotificationConfigMap,
-		InitGetVars: func(cfg *rolloutapi.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (rolloutapi.GetVars, error) {
+		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
 				return map[string]interface{}{"rollout": obj}
 			}, nil
