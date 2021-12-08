@@ -1,13 +1,18 @@
 package record
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/argoproj/notifications-engine/pkg/services"
+	"k8s.io/client-go/tools/cache"
+
+	//"github.com/argoproj/notifications-engine/pkg/triggers"
+	k8sinformers "k8s.io/client-go/informers"
 	"regexp"
 	"strings"
+	"time"
 
-	"github.com/argoproj/notifications-engine/pkg/services"
-
-	"github.com/argoproj/notifications-engine/pkg/api"
+	rolloutapi "github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
@@ -62,10 +67,10 @@ type EventRecorderAdapter struct {
 
 	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{})
 	// apiFactory is a notifications engine API factory
-	apiFactory api.Factory
+	apiFactory rolloutapi.Factory
 }
 
-func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, apiFactory api.Factory) EventRecorder {
+func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, apiFactory rolloutapi.Factory) EventRecorder {
 	// Create event broadcaster
 	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
 	// logged for argo-rollouts types.
@@ -89,6 +94,39 @@ type FakeEventRecorder struct {
 	Events []string
 }
 
+func NewFakeApiFactory() rolloutapi.Factory {
+	var (
+		settings = rolloutapi.Settings{ConfigMapName: "my-config-map", SecretName: "my-secret", InitGetVars: func(cfg *rolloutapi.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (rolloutapi.GetVars, error) {
+			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
+				return map[string]interface{}{"obj": obj}
+			}, nil
+		}}
+	)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-config-map", Namespace: "default"},
+		Data: map[string]string{
+			"service.slack": `{"token": "abc"}`,
+		},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"},
+	}
+
+	clientset := k8sfake.NewSimpleClientset(cm, secret)
+	informerFactory := k8sinformers.NewSharedInformerFactory(clientset, time.Minute)
+
+	secrets := informerFactory.Core().V1().Secrets().Informer()
+	configMaps := informerFactory.Core().V1().ConfigMaps().Informer()
+	apiFactory := rolloutapi.NewFactory(settings, "default", secrets, configMaps)
+	go informerFactory.Start(context.Background().Done())
+	if !cache.WaitForCacheSync(context.Background().Done(), configMaps.HasSynced, secrets.HasSynced) {
+		log.Info("failed to sync informers")
+	}
+
+	return apiFactory
+}
+
 func NewFakeEventRecorder() *FakeEventRecorder {
 	recorder := NewEventRecorder(
 		k8sfake.NewSimpleClientset(),
@@ -98,7 +136,7 @@ func NewFakeEventRecorder() *FakeEventRecorder {
 			},
 			[]string{"name", "namespace", "type", "reason"},
 		),
-		nil,
+		NewFakeApiFactory(),
 	).(*EventRecorderAdapter)
 	recorder.Recorder = record.NewFakeRecorder(1000)
 	fakeRecorder := &FakeEventRecorder{}
@@ -153,11 +191,11 @@ func (e *EventRecorderAdapter) K8sRecorder() record.EventRecorder {
 	return e.Recorder
 }
 
-func NewAPIFactorySettings() api.Settings {
-	return api.Settings{
+func NewAPIFactorySettings() rolloutapi.Settings {
+	return rolloutapi.Settings{
 		SecretName:    NotificationSecret,
 		ConfigMapName: NotificationConfigMap,
-		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
+		InitGetVars: func(cfg *rolloutapi.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (rolloutapi.GetVars, error) {
 			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
 				return map[string]interface{}{"rollout": obj}
 			}, nil
@@ -167,9 +205,17 @@ func NewAPIFactorySettings() api.Settings {
 
 // Send notifications for triggered event if user is subscribed
 func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts EventOptions) error {
+	notificationsAPI, err := e.apiFactory.GetAPI()
+	if err != nil {
+		return err
+	}
+	cfg := notificationsAPI.GetConfig()
 	logCtx := logutil.WithObject(object)
-	subsFromAnnotations := subscriptions.Annotations(object.(metav1.Object).GetAnnotations())
-	destByTrigger := subsFromAnnotations.GetDestinations(nil, map[string][]string{})
+	destByTrigger := cfg.GetGlobalDestinations(object.(metav1.Object).GetLabels())
+	destByTrigger.Merge(subscriptions.NewAnnotations(object.(metav1.Object).GetAnnotations()).GetDestinations(cfg.DefaultTriggers, cfg.ServiceDefaultTriggers))
+	//logCtx := logutil.WithObject(object)
+	//subsFromAnnotations := subscriptions.Annotations(object.(metav1.Object).GetAnnotations())
+	//destByTrigger := subsFromAnnotations.GetDestinations(nil, map[string][]string{})
 
 	trigger := translateReasonToTrigger(opts.EventReason)
 
@@ -177,11 +223,6 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 	if len(destinations) == 0 {
 		logCtx.Debugf("No configured destinations for trigger: %s", trigger)
 		return nil
-	}
-
-	notificationsAPI, err := e.apiFactory.GetAPI()
-	if err != nil {
-		return err
 	}
 
 	// Creates config for notifications for built-in triggers
