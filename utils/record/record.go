@@ -220,7 +220,7 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 	}
 
 	// Creates config for notifications for built-in triggers
-	triggerActions, ok := notificationsAPI.GetConfig().Triggers[trigger]
+	triggerActions, ok := cfg.Triggers[trigger]
 	if !ok {
 		logCtx.Debugf("No configured template for trigger: %s", trigger)
 		return nil
