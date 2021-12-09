@@ -36,6 +36,7 @@ require (
 	github.com/tj/assert v0.0.3
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/valyala/fasttemplate v1.2.1
+	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d // indirect
 	google.golang.org/genproto v0.0.0-20201110150050-8816d57aaa9a
 	google.golang.org/grpc v1.33.1
 	google.golang.org/grpc/examples v0.0.0-20210331235824-f6bb3972ed15 // indirect
