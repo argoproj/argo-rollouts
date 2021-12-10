@@ -611,6 +611,18 @@ func (c *rolloutContext) getReferencedServices() (*[]validation.ServiceWithType,
 		} else if err != nil {
 			return nil, err
 		}
+		if canarySpec.PingPong != nil {
+			if service, err := c.getReferencedService(canarySpec.PingPong.PingService, validation.PingService); service != nil {
+				services = append(services, *service)
+			} else if err != nil {
+				return nil, err
+			}
+			if service, err := c.getReferencedService(canarySpec.PingPong.PongService, validation.PongService); service != nil {
+				services = append(services, *service)
+			} else if err != nil {
+				return nil, err
+			}
+		}
 	}
 	return &services, nil
 }

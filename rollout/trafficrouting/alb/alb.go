@@ -79,7 +79,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if err != nil {
 		return err
 	}
-	actionService := rollout.Spec.Strategy.Canary.StableService
+	actionService, _ := trafficrouting.GetStableAndCanaryServices(rollout)
 	if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
 		actionService = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
 	}
@@ -133,9 +133,8 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	}
 	resourceIDToDest := map[string]v1alpha1.WeightDestination{}
 
-	canaryService := rollout.Spec.Strategy.Canary.CanaryService
+	canaryService, stableService := trafficrouting.GetStableAndCanaryServices(rollout)
 	canaryResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
-	stableService := rollout.Spec.Strategy.Canary.StableService
 	stableResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), stableService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 
 	for _, dest := range additionalDestinations {
@@ -209,11 +208,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 }
 
 func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (string, error) {
-	stableService := r.Spec.Strategy.Canary.StableService
-	canaryService := r.Spec.Strategy.Canary.CanaryService
-	if trafficrouting.IsPingPongEnabled(r) {
-		stableService, canaryService = trafficrouting.GetCurrentPingPong(r)
-	}
+	stableService, canaryService := trafficrouting.GetStableAndCanaryServices(r)
 	portStr := strconv.Itoa(int(port))
 	stableWeight := int32(100)
 	targetGroups := make([]ingressutil.ALBTargetGroup, 0)

@@ -3,21 +3,21 @@ package validation
 import (
 	"fmt"
 
-	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
-	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
 // Controller will validate references in reconciliation
@@ -46,6 +46,8 @@ type ServiceType string
 const (
 	StableService  ServiceType = "StableService"
 	CanaryService  ServiceType = "CanaryService"
+	PingService    ServiceType = "PingService"
+	PongService    ServiceType = "PongService"
 	ActiveService  ServiceType = "ActiveService"
 	PreviewService ServiceType = "PreviewService"
 )
@@ -210,7 +212,7 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 	} else if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
 		fldPath = fldPath.Child("alb").Child("ingress")
 		ingressName = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
-		serviceName = rollout.Spec.Strategy.Canary.StableService
+		serviceName, _ = trafficrouting.GetStableAndCanaryServices(rollout)
 		if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
 			serviceName = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
 		}
@@ -332,6 +334,10 @@ func GetServiceWithTypeFieldPath(serviceType ServiceType) *field.Path {
 		fldPath = fldPath.Child("canary", "canaryService")
 	case StableService:
 		fldPath = fldPath.Child("canary", "stableService")
+	case PingService:
+		fldPath = fldPath.Child("canary", "pingPong", "pingService")
+	case PongService:
+		fldPath = fldPath.Child("canary", "pingPong", "pongService")
 	default:
 		return nil
 	}
