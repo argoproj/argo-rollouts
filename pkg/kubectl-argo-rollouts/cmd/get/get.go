@@ -31,6 +31,8 @@ var (
 		info.InfoTagStable:  FgGreen,
 		info.InfoTagActive:  FgGreen,
 		info.InfoTagPreview: FgHiBlue,
+		info.InfoTagPing:    FgHiBlue,
+		info.InfoTagPong:    FgHiBlue,
 
 		// Colors for highlighting experiment/analysisruns
 		string(v1alpha1.AnalysisPhasePending): FgHiBlue,

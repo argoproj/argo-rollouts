@@ -6,12 +6,14 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/duration"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -44,8 +46,15 @@ func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 			if ro.Spec.Strategy.Canary != nil {
 				if ro.Status.StableRS == podTemplateHash {
 					rsInfo.Stable = true
+					if trafficrouting.IsPingPongEnabled(ro) {
+						fillPingPong(trafficrouting.IsStablePing(ro), rsInfo)
+					}
 				} else if ro.Status.CurrentPodHash == podTemplateHash {
 					rsInfo.Canary = true
+					if trafficrouting.IsPingPongEnabled(ro) {
+						canaryRsIsPing := !trafficrouting.IsStablePing(ro)
+						fillPingPong(canaryRsIsPing, rsInfo)
+					}
 				}
 			}
 			if ro.Spec.Strategy.BlueGreen != nil {
@@ -75,6 +84,14 @@ func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 		return rsInfos[i].ObjectMeta.Name < rsInfos[j].ObjectMeta.Name
 	})
 	return addPodInfos(rsInfos, allPods)
+}
+
+func fillPingPong(rsIsPing bool, rsInfo *rollout.ReplicaSetInfo) {
+	if rsIsPing {
+		rsInfo.Ping = true
+	} else {
+		rsInfo.Pong = true
+	}
 }
 
 func getReplicaSetHealth(rs *appsv1.ReplicaSet) string {

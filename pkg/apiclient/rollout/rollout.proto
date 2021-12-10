@@ -123,6 +123,8 @@ message ReplicaSetInfo {
   string scaleDownDeadline = 12;
   repeated string images = 13;
   repeated PodInfo pods = 14;
+  bool ping = 15;
+  bool pong = 16;
 }
 
 message PodInfo {

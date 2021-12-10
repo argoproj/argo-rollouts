@@ -4442,6 +4442,12 @@
           "items": {
             "$ref": "#/definitions/rollout.PodInfo"
           }
+        },
+        "ping": {
+          "type": "boolean"
+        },
+        "pong": {
+          "type": "boolean"
         }
       }
     },
