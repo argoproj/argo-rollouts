@@ -3,15 +3,17 @@ package record
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"k8s.io/client-go/tools/cache"
 
-	k8sinformers "k8s.io/client-go/informers"
 	"regexp"
 	"strings"
 	"time"
 
-	api "github.com/argoproj/notifications-engine/pkg/api"
+	k8sinformers "k8s.io/client-go/informers"
+
+	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
