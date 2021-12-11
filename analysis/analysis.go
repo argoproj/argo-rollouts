@@ -7,17 +7,17 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/utils/pointer"
-
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -109,7 +109,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 
 	nextReconcileTime := calculateNextReconcileTime(run, resolvedMetrics)
 	if nextReconcileTime != nil {
-		enqueueSeconds := nextReconcileTime.Sub(time.Now())
+		enqueueSeconds := nextReconcileTime.Sub(timeutil.Now())
 		if enqueueSeconds < 0 {
 			enqueueSeconds = 0
 		}
@@ -165,7 +165,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 		logCtx := logger.WithField("metric", metric.Name)
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement != nil && lastMeasurement.FinishedAt == nil {
-			now := metav1.Now()
+			now := timeutil.MetaNow()
 			if lastMeasurement.ResumeAt != nil && lastMeasurement.ResumeAt.After(now.Time) {
 				continue
 			}
@@ -191,7 +191,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 					logCtx.Warnf("failed to parse duration: %v", err)
 					continue
 				}
-				if run.Status.StartedAt.Add(duration).After(time.Now()) {
+				if run.Status.StartedAt.Add(duration).After(timeutil.Now()) {
 					logCtx.Infof("Waiting until start delay duration passes")
 					continue
 				}
@@ -220,7 +220,7 @@ func generateMetricTasks(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric) [
 			}
 			interval = parsedInterval
 		}
-		if time.Now().After(lastMeasurement.FinishedAt.Add(interval)) {
+		if timeutil.Now().After(lastMeasurement.FinishedAt.Add(interval)) {
 			tasks = append(tasks, metricTask{metric: run.Spec.Metrics[i]})
 			logCtx.Infof("Running overdue measurement")
 			continue
@@ -329,7 +329,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				if t.incompleteMeasurement != nil {
 					newMeasurement = *t.incompleteMeasurement
 				} else {
-					startedAt := metav1.Now()
+					startedAt := timeutil.MetaNow()
 					newMeasurement.StartedAt = &startedAt
 				}
 				newMeasurement.Phase = v1alpha1.AnalysisPhaseError
@@ -354,7 +354,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			if newMeasurement.Phase.Completed() {
 				logger.Infof("Measurement Completed. Result: %s", newMeasurement.Phase)
 				if newMeasurement.FinishedAt == nil {
-					finishedAt := metav1.Now()
+					finishedAt := timeutil.MetaNow()
 					newMeasurement.FinishedAt = &finishedAt
 				}
 				switch newMeasurement.Phase {
@@ -411,7 +411,7 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 	everythingCompleted := true
 
 	if run.Status.StartedAt == nil {
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		run.Status.StartedAt = &now
 	}
 	if run.Spec.Terminate {
@@ -633,7 +633,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Me
 		lastMeasurement := analysisutil.LastMeasurement(run, metric.Name)
 		if lastMeasurement == nil {
 			if metric.InitialDelay != "" {
-				startTime := metav1.Now()
+				startTime := timeutil.MetaNow()
 				if run.Status.StartedAt != nil {
 					startTime = *run.Status.StartedAt
 				}

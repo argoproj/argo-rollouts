@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -39,8 +40,8 @@ func NewExperimentConditions(condType v1alpha1.ExperimentConditionType, status c
 	return &v1alpha1.ExperimentCondition{
 		Type:               condType,
 		Status:             status,
-		LastUpdateTime:     metav1.Now(),
-		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     timeutil.MetaNow(),
+		LastTransitionTime: timeutil.MetaNow(),
 		Reason:             reason,
 		Message:            message,
 	}
@@ -127,7 +128,7 @@ func ExperimentRunning(experiment *v1alpha1.Experiment) bool {
 
 func newInvalidSpecExperimentCondition(prevCond *v1alpha1.ExperimentCondition, reason string, message string) *v1alpha1.ExperimentCondition {
 	if prevCond != nil && prevCond.Message == message {
-		prevCond.LastUpdateTime = metav1.Now()
+		prevCond.LastUpdateTime = timeutil.MetaNow()
 		return prevCond
 	}
 	return NewExperimentConditions(v1alpha1.InvalidExperimentSpec, corev1.ConditionTrue, reason, message)

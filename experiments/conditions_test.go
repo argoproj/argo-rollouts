@@ -9,6 +9,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func TestUpdateProgressingLastUpdateTime(t *testing.T) {
@@ -20,7 +21,7 @@ func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 		Name: "bar",
 	}}
 	prevCond := newCondition(conditions.ReplicaSetUpdatedReason, e)
-	prevTime := metav1.NewTime(metav1.Now().Add(-10 * time.Second))
+	prevTime := metav1.NewTime(timeutil.Now().Add(-10 * time.Second))
 	prevCond.LastUpdateTime = prevTime
 	prevCond.LastTransitionTime = prevTime
 	e.Status.Conditions = []v1alpha1.ExperimentCondition{
@@ -53,7 +54,7 @@ func TestEnterTimeoutDegradedState(t *testing.T) {
 		Status: v1alpha1.TemplateStatusProgressing,
 	}}
 	e.Spec.ProgressDeadlineSeconds = pointer.Int32Ptr(30)
-	prevTime := metav1.NewTime(metav1.Now().Add(-1 * time.Minute).Truncate(time.Second))
+	prevTime := metav1.NewTime(timeutil.Now().Add(-1 * time.Minute).Truncate(time.Second))
 	e.Status.TemplateStatuses[0].LastTransitionTime = &prevTime
 
 	rs := templateToRS(e, templates[0], 0)

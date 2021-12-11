@@ -9,6 +9,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func TestAge(t *testing.T) {
@@ -63,7 +64,7 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 	}
 	{
 		rolloutObjs := testdata.NewBlueGreenRollout()
-		inFourHours := metav1.Now().Add(4 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
+		inFourHours := timeutil.Now().Add(4 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
 		rolloutObjs.ReplicaSets[0].Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inFourHours
 		delayedRs := rolloutObjs.ReplicaSets[0].ObjectMeta.UID
 		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)

@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
@@ -53,7 +54,7 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 		}
 		return nil
 	}
-	deadline := metav1.Now().Add(scaleDownDelaySeconds).UTC().Format(time.RFC3339)
+	deadline := timeutil.MetaNow().Add(scaleDownDelaySeconds).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
@@ -131,7 +132,7 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 			if err != nil {
 				c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", c.newRS.Name)
 			} else {
-				now := metav1.Now()
+				now := timeutil.MetaNow()
 				scaleDownAt := metav1.NewTime(scaleDownAtTime)
 				if scaleDownAt.After(now.Time) {
 					c.log.Infof("RS '%s' has not reached the scaleDownTime", c.newRS.Name)

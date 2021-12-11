@@ -9,12 +9,12 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -163,8 +163,8 @@ func NewRolloutCondition(condType v1alpha1.RolloutConditionType, status corev1.C
 	return &v1alpha1.RolloutCondition{
 		Type:               condType,
 		Status:             status,
-		LastUpdateTime:     metav1.Now(),
-		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     timeutil.MetaNow(),
+		LastTransitionTime: timeutil.MetaNow(),
 		Reason:             reason,
 		Message:            message,
 	}
@@ -322,7 +322,7 @@ func RolloutTimedOut(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 	// progress or tried to create a replica set, or resumed a paused rollout and
 	// compare against progressDeadlineSeconds.
 	from := condition.LastUpdateTime
-	now := time.Now()
+	now := timeutil.Now()
 
 	progressDeadlineSeconds := defaults.GetProgressDeadlineSecondsOrDefault(rollout)
 	delta := time.Duration(progressDeadlineSeconds) * time.Second

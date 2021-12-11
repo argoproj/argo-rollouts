@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -977,7 +979,7 @@ func TestDeleteAnalysisRunsAfterRSDelete(t *testing.T) {
 	arToDelete.Spec.Terminate = true
 	arAlreadyDeleted := arToDelete.DeepCopy()
 	arAlreadyDeleted.Name = "already-deleted-analysis-run"
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	arAlreadyDeleted.DeletionTimestamp = &now
 
 	r3 = updateCanaryRolloutStatus(r3, rs2PodHash, 1, 0, 1, false)
@@ -1100,7 +1102,7 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := `{
 		"status": {
 			"conditions": %s,
@@ -1164,7 +1166,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := `{
 		"status": {
 			"conditions": %s,
@@ -1246,7 +1248,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 			"message": "RolloutAborted: %s"
 		}
 	}`
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": " + ar.Status.Message
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, errmsg)
 	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, errmsg)
@@ -1325,7 +1327,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
 	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
 
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.Now().UTC().Format(time.RFC3339)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg)), patch)
 }
 
@@ -1386,7 +1388,7 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 		}
 	}`
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.Now().UTC().Format(time.RFC3339)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, now, errmsg)), patch)
 }
 
@@ -1465,7 +1467,7 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 
 	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
-		StartTime: metav1.Now(),
+		StartTime: timeutil.MetaNow(),
 	}}
 	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
 
@@ -1781,7 +1783,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"pauseConditions":[
@@ -1894,7 +1896,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
-	now := metav1.NewTime(metav1.Now().Add(-10 * time.Second))
+	now := metav1.NewTime(timeutil.MetaNow().Add(-10 * time.Second))
 	r2.Status.PauseConditions[0].StartTime = now
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
@@ -1959,7 +1961,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 	inconclusivePauseCondition := v1alpha1.PauseCondition{
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
-		StartTime: metav1.Now(),
+		StartTime: timeutil.MetaNow(),
 	}
 	r2.Status.PauseConditions = append(r2.Status.PauseConditions, inconclusivePauseCondition)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
@@ -2049,7 +2051,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 			"message": "%s: %s"
 		}
 	}`
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
@@ -2183,7 +2185,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
-		StartTime: metav1.Now(),
+		StartTime: timeutil.MetaNow(),
 	}}
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
@@ -2278,7 +2280,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 			"message": "%s: %s"
 		}
 	}`
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	progressingFalseAborted, _ := newProgressingCondition(conditions.RolloutAbortedReason, r2, "")
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)

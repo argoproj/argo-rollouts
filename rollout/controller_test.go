@@ -13,7 +13,6 @@ import (
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-mpatch"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -54,6 +53,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 var (
@@ -115,9 +115,11 @@ func newFixture(t *testing.T) *fixture {
 	f.kubeobjects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	patch, err := mpatch.PatchMethod(time.Now, func() time.Time { return now })
-	assert.NoError(t, err)
-	f.unfreezeTime = patch.Unpatch
+	timeutil.Now = func() time.Time { return now }
+	f.unfreezeTime = func() error {
+		timeutil.Now = time.Now
+		return nil
+	}
 
 	f.fakeTrafficRouting = newFakeTrafficRoutingReconciler()
 	f.fakeSingleTrafficRouting = newFakeSingleTrafficRoutingReconciler()
@@ -178,8 +180,8 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 		status = corev1.ConditionFalse
 	}
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            conditions.RolloutPausedMessage,
 		Reason:             conditions.RolloutPausedReason,
 		Status:             status,
@@ -198,8 +200,8 @@ func newCompletedCondition(isCompleted bool) (v1alpha1.RolloutCondition, string)
 		status = corev1.ConditionFalse
 	}
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            conditions.RolloutCompletedReason,
 		Reason:             conditions.RolloutCompletedReason,
 		Status:             status,
@@ -279,8 +281,8 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            msg,
 		Reason:             reason,
 		Status:             status,
@@ -303,8 +305,8 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 
 	}
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            message,
 		Reason:             conditions.AvailableReason,
 		Status:             status,
@@ -363,7 +365,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
 	if pause {
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonBlueGreenPause,
 			StartTime: now,
@@ -895,7 +897,7 @@ func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
 	}
-	now := metav1.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+	now := timeutil.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
@@ -1177,7 +1179,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 
 		if progressingConditionReason != "" {
 			lastUpdated := metav1.Time{
-				Time: metav1.Now().Add(-10 * time.Second),
+				Time: timeutil.MetaNow().Add(-10 * time.Second),
 			}
 			r.Status.Conditions = []v1alpha1.RolloutCondition{{
 				Type:           v1alpha1.RolloutProgressing,
@@ -1501,8 +1503,8 @@ func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            msg,
 		Reason:             reason,
 		Status:             status,

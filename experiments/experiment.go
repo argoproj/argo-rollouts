@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/utils/pointer"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutslisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
@@ -17,6 +15,8 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -123,7 +124,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	}
 	prevStatus := templateStatus.DeepCopy()
 	desiredReplicaCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 
 	rs := ec.templateRSs[template.Name]
 
@@ -348,7 +349,7 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 		}
 	}
 	deadlineSeconds := defaults.GetExperimentProgressDeadlineSecondsOrDefault(ex)
-	now := time.Now()
+	now := timeutil.Now()
 	for _, template := range ex.Spec.Templates {
 		// Set candidate to the earliest of LastTransitionTime + progressDeadlineSeconds
 		ts := experimentutil.GetTemplateStatus(ex.Status, template.Name)
@@ -511,7 +512,7 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 		templateStatus, templateMessage := ec.assessTemplates()
 		analysesStatus, analysesMessage := ec.assessAnalysisRuns()
 		if templateStatus == v1alpha1.AnalysisPhaseRunning && ec.newStatus.AvailableAt == nil {
-			now := metav1.Now()
+			now := timeutil.MetaNow()
 			ec.newStatus.AvailableAt = &now
 			ec.log.Infof("Marked AvailableAt: %v", now)
 		}

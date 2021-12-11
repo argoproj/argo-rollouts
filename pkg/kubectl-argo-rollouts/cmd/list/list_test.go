@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-mpatch"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	kubetesting "k8s.io/client-go/testing"
@@ -176,22 +175,14 @@ func TestListNamespaceAndTimestamp(t *testing.T) {
 	cmd.PersistentPreRunE = o.PersistentPreRunE
 	cmd.SetArgs([]string{"--all-namespaces", "--timestamps"})
 
-	patch, err := mpatch.PatchMethod(time.Now, func() time.Time {
-		return time.Time{}
-	})
-	assert.NoError(t, err)
-	err = cmd.Execute()
-	patch.Unpatch()
+	err := cmd.Execute()
 
 	assert.NoError(t, err)
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
 	assert.Empty(t, stderr)
-	expectedOut := strings.TrimPrefix(`
-TIMESTAMP             NAMESPACE  NAME           STRATEGY   STATUS        STEP  SET-WEIGHT  READY  DESIRED  UP-TO-DATE  AVAILABLE
-0001-01-01T00:00:00Z  test       can-guestbook  Canary     Progressing   1/3   10          1/4    5        3           2        
-`, "\n")
-	assert.Equal(t, expectedOut, stdout)
+	assert.Contains(t, stdout, "TIMESTAMP             NAMESPACE  NAME           STRATEGY   STATUS        STEP  SET-WEIGHT  READY  DESIRED  UP-TO-DATE  AVAILABLE")
+	assert.Contains(t, stdout, "test       can-guestbook  Canary     Progressing   1/3   10          1/4    5        3           2")
 }
 
 func TestListWithWatch(t *testing.T) {

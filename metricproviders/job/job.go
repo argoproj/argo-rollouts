@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -93,7 +94,7 @@ func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) (*batchv1.J
 
 func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
 	ctx := context.TODO()
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	measurement := v1alpha1.Measurement{
 		StartedAt: &now,
 		Phase:     v1alpha1.AnalysisPhaseRunning,
@@ -133,7 +134,7 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1a
 
 func (p *JobProvider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	jobName, err := getJobName(measurement)
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
@@ -166,7 +167,7 @@ func (p *JobProvider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metri
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	measurement.FinishedAt = &now
 	measurement.Phase = v1alpha1.AnalysisPhaseSuccessful
 	p.logCtx.Infof("job %s/%s terminated", run.Namespace, jobName)

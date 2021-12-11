@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/replicaset"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -167,7 +168,7 @@ func (p *RolloutPodRestarter) getRolloutPods(ctx context.Context, ro *v1alpha1.R
 
 func getAvailablePodCount(pods []*corev1.Pod, minReadySeconds int32) int32 {
 	var available int32
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	for _, pod := range pods {
 		if podutil.IsPodAvailable(pod, minReadySeconds, now) && pod.DeletionTimestamp == nil {
 			available += 1
