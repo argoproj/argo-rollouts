@@ -5,14 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/uuid"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func TestRolloutCreateExperiment(t *testing.T) {
@@ -308,7 +309,7 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 			"message": "%s: %s"
 		}
 	}`
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.Now().UTC().Format(time.RFC3339)
 	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))), patch)
 }
