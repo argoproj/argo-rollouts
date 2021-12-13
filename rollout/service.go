@@ -19,7 +19,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
-	"github.com/argoproj/argo-rollouts/utils/rollout"
+	rolloututils "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
@@ -239,7 +239,7 @@ func (c *rolloutContext) reconcilePingAndPongService() error {
 		return nil
 	}
 
-	if !rollout.IsFullyPromoted(c.rollout) {
+	if !rolloututils.IsFullyPromoted(c.rollout) {
 		_, newPingPongService := trafficrouting.GetCurrentPingPong(c.rollout)
 		if err := c.ensureSVCTargets(newPingPongService, c.newRS); err != nil {
 			return err
