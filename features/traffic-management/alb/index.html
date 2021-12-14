@@ -745,6 +745,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#sticky-session" class="md-nav__link">
+    Sticky session
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#zero-downtime-updates-with-aws-targetgroup-verification" class="md-nav__link">
     Zero-Downtime Updates with AWS TargetGroup Verification
   </a>
@@ -2080,6 +2087,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#sticky-session" class="md-nav__link">
+    Sticky session
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#zero-downtime-updates-with-aws-targetgroup-verification" class="md-nav__link">
     Zero-Downtime Updates with AWS TargetGroup Verification
   </a>
@@ -2155,7 +2169,7 @@
 <li>AWS Load Balancer Controller v1.1.5 or greater</li>
 </ul>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/kubernetes-sigs/aws-load-balancer-controller">AWS Load Balancer Controller</a> 
+<p><a href="https://github.com/kubernetes-sigs/aws-load-balancer-controller">AWS Load Balancer Controller</a>
 (also known as AWS ALB Ingress Controller) enables traffic management through an Ingress object,
 which configures an AWS Application Load Balancer (ALB) to route traffic to one or more Kubernetes
 services. ALBs provides advanced traffic splitting capability through the concept of
@@ -2176,7 +2190,7 @@ groups (e.g. different Kubernetes services), the AWS Load Balancer controller lo
 This annotation is injected and updated automatically by a Rollout during an update according to
 the desired traffic weights.</p>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
-<p>To configure a Rollout to use the ALB integration and split traffic between the canary and stable 
+<p>To configure a Rollout to use the ALB integration and split traffic between the canary and stable
 services during updates, the Rollout should be configured with the following fields:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
@@ -2222,8 +2236,8 @@ services during updates, the Rollout should be configured with the following fie
 </code></pre></div>
 <p>During an update, the rollout controller injects the <code>alb.ingress.kubernetes.io/actions.&lt;SERVICE-NAME&gt;</code>
 annotation, containing a JSON payload understood by the AWS Load Balancer Controller, directing it
-to split traffic between the <code>canaryService</code> and <code>stableService</code> according to the current canary weight. </p>
-<p>The following is an example of our example Ingress after the rollout has injected the custom action 
+to split traffic between the <code>canaryService</code> and <code>stableService</code> according to the current canary weight.</p>
+<p>The following is an example of our example Ingress after the rollout has injected the custom action
 annotation that splits traffic between the canary-service and stable-service, with a traffic weight
 of 10 and 90 respectively:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
@@ -2233,16 +2247,16 @@ of 10 and 90 respectively:</p>
   <span class="nt">annotations</span><span class="p">:</span>
     <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">alb</span>
     <span class="nt">alb.ingress.kubernetes.io/actions.root-service</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-      <span class="no">{ </span>
+      <span class="no">{</span>
         <span class="no">&quot;Type&quot;:&quot;forward&quot;,</span>
-        <span class="no">&quot;ForwardConfig&quot;:{ </span>
-          <span class="no">&quot;TargetGroups&quot;:[ </span>
-            <span class="no">{ </span>
+        <span class="no">&quot;ForwardConfig&quot;:{</span>
+          <span class="no">&quot;TargetGroups&quot;:[</span>
+            <span class="no">{</span>
                 <span class="no">&quot;Weight&quot;:10,</span>
                 <span class="no">&quot;ServiceName&quot;:&quot;canary-service&quot;,</span>
                 <span class="no">&quot;ServicePort&quot;:&quot;80&quot;</span>
             <span class="no">},</span>
-            <span class="no">{ </span>
+            <span class="no">{</span>
                 <span class="no">&quot;Weight&quot;:90,</span>
                 <span class="no">&quot;ServiceName&quot;:&quot;stable-service&quot;,</span>
                 <span class="no">&quot;ServicePort&quot;:&quot;80&quot;</span>
@@ -2288,8 +2302,25 @@ alb specification:</p>
           <span class="nt">rootService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-root</span>
 <span class="nn">...</span>
 </code></pre></div>
+<h3 id="sticky-session">Sticky session<a class="headerlink" href="#sticky-session" title="Permanent link">&para;</a></h3>
+<p>Because at least two target groups (canary and stable) are used, target group stickiness requires additional configuration:
+Sticky session must be activated on the target group via</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">strategy</span><span class="p">:</span>
+    <span class="nt">canary</span><span class="p">:</span>
+<span class="nn">...</span>
+      <span class="nt">trafficRouting</span><span class="p">:</span>
+        <span class="nt">alb</span><span class="p">:</span>
+          <span class="nt">stickinessConfig</span><span class="p">:</span>
+            <span class="nt">enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+            <span class="nt">durationSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3600</span>
+<span class="nn">...</span>
+</code></pre></div>
+<p>More information can be found in the <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html">AWS ALB API</a></p>
 <h3 id="zero-downtime-updates-with-aws-targetgroup-verification">Zero-Downtime Updates with AWS TargetGroup Verification<a class="headerlink" href="#zero-downtime-updates-with-aws-targetgroup-verification" title="Permanent link">&para;</a></h3>
-<p>Argo Rollouts contains two features to help ensure zero-downtime updates when used with the AWS 
+<p>Argo Rollouts contains two features to help ensure zero-downtime updates when used with the AWS
 LoadBalancer controller: TargetGroup IP verification and TargetGroup weight verification. Both
 features involve the Rollout controller performing additional safety checks to AWS, to verify
 the changes made to the Ingress object are reflected in the underlying AWS TargetGroup.</p>
@@ -2311,7 +2342,7 @@ can more easily become outdated from the <em><em>actual</em></em> availability a
 errors when the TargetGroup points to pods which have already been scaled down.</p>
 <p>To mitigate this risk, AWS recommends the use of
 <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/">pod readiness gate injection</a>
-when running the AWS LoadBalancer in IP mode. Readiness gates allow for the AWS LoadBalancer 
+when running the AWS LoadBalancer in IP mode. Readiness gates allow for the AWS LoadBalancer
 controller to verify that TargetGroups are accurate before marking newly created Pods as "ready",
 preventing premature scale down of the older ReplicaSet.</p>
 <p>Pod readiness gate injection uses a mutating webhook which decides to inject readiness gates when a
@@ -2341,7 +2372,7 @@ downtime in the following problematic scenario during an update from V1 to V2:</
 <li>V1 ReplicaSet is scaled down to complete the update</li>
 </ol>
 <p>After step 5, when the V1 ReplicaSet is scaled down, the outdated TargetGroup would still be pointing
-to the V1 Pods IPs which no longer exist, causing downtime. </p>
+to the V1 Pods IPs which no longer exist, causing downtime.</p>
 <p>To allow for zero-downtime updates, Argo Rollouts has the ability to perform TargetGroup IP
 verification as an additional safety measure during an update. When this feature is enabled, whenever
 a service selector modification is made, the Rollout controller blocks progression of the update
