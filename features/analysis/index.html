@@ -2651,7 +2651,7 @@ templates together. The controller combines the <code>metrics</code> and <code>a
 <p>The controller will error when merging the templates if:</p>
 <ul>
 <li>Multiple metrics in the templates have the same name</li>
-<li>Two arguments with the same name both have values</li>
+<li>Two arguments with the same name have different default values no matter the argument value in Rollout</li>
 </ul>
 </div>
 <h2 id="analysis-template-arguments">Analysis Template Arguments<a class="headerlink" href="#analysis-template-arguments" title="Permanent link">&para;</a></h2>
@@ -2663,11 +2663,11 @@ templates together. The controller combines the <code>metrics</code> and <code>a
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">args-example</span>
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">args</span><span class="p">:</span>
-  <span class="c1"># required</span>
+  <span class="c1"># required in Rollout due to no default value</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-hash</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">latest-hash</span>
-  <span class="c1"># optional</span>
+  <span class="c1"># optional in Rollout given the default value</span>
   <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">api-url</span>
     <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http://example/measure</span>
   <span class="c1"># from secret</span>
