@@ -5,7 +5,7 @@
 ### Does Argo Rollouts depend on Argo CD or any other Argo project?
 
 Argo Rollouts is a standalone project. Even though it works great with Argo CD and other Argo projects, it can be used
-on its own for Progressive Delivery scenarios. More specifically, argo Rollouts does **NOT** require that you also have installed Argo CD on the same cluster.
+on its own for Progressive Delivery scenarios. More specifically, Argo Rollouts does **NOT** require that you also have installed Argo CD on the same cluster.
 
 ### How does Argo Rollouts integrate with Argo CD?
 Argo CD understands the health of Argo Rollouts resources via Argo CD’s [Lua health check](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/health.md). These Health checks understand when the Argo Rollout objects are Progressing, Suspended, Degraded, or Healthy.  Additionally, Argo CD has Lua based Resource Actions that can mutate an Argo Rollouts resource (i.e. unpause a Rollout).
@@ -54,6 +54,12 @@ A BlueGreen Rollout keeps the old ReplicaSet up and running for 30 seconds or th
 
 ### What is the `argo-rollouts.argoproj.io/managed-by-rollouts` annotation?
 Argo Rollouts adds an `argo-rollouts.argoproj.io/managed-by-rollouts` annotation to Services and Ingresses that the controller modifies. They are used when the Rollout managing these resources is deleted and the controller tries to revert them back into their previous state.
+
+### How can I deploy multiple services in a single step and roll them back according to their dependencies?
+
+The Rollout specification focuses on a single application/deployment. Argo Rollouts knows nothing about application dependencies. If you want to deploy multiple applications together in a smart way (e.g. automatically rollback a frontend if backend deployment fails) you need to write your own solution
+on top of Argo Rollouts. In most cases, you would need one Rollout resource for each application that you
+are deploying. Ideally you should also make your services backwards and forwards compatible (i.e. frontend should be able to work with both backend-preview and backend-active).
 
 ## Experiments
 
