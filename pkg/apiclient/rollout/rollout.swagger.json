@@ -526,6 +526,10 @@
           "type": "string",
           "title": "RootService references the service in the ingress to the controller should add the action to"
         },
+        "stickinessConfig": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StickinessConfig",
+          "title": "AdditionalForwardConfig allows to specify further settings on the ForwaredConfig\n+optional"
+        },
         "annotationPrefix": {
           "type": "string",
           "title": "AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller\n+optional"
@@ -1454,6 +1458,18 @@
         }
       },
       "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StickinessConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "durationSeconds": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute": {
       "type": "object",

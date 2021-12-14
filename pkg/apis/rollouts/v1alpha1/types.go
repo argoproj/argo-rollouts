@@ -324,9 +324,17 @@ type ALBTrafficRouting struct {
 	ServicePort int32 `json:"servicePort" protobuf:"varint,2,opt,name=servicePort"`
 	// RootService references the service in the ingress to the controller should add the action to
 	RootService string `json:"rootService,omitempty" protobuf:"bytes,3,opt,name=rootService"`
+	// AdditionalForwardConfig allows to specify further settings on the ForwaredConfig
+	// +optional
+	StickinessConfig *StickinessConfig `json:"stickinessConfig,omitempty" protobuf:"bytes,5,opt,name=stickinessConfig"`
 	// AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller
 	// +optional
 	AnnotationPrefix string `json:"annotationPrefix,omitempty" protobuf:"bytes,4,opt,name=annotationPrefix"`
+}
+
+type StickinessConfig struct {
+	Enabled         bool  `json:"enabled" protobuf:"varint,1,opt,name=enabled"`
+	DurationSeconds int64 `json:"durationSeconds" protobuf:"varint,2,opt,name=durationSeconds"`
 }
 
 // RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing

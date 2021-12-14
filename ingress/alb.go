@@ -101,6 +101,14 @@ func getResetALBActionStr(ingress *ingressutil.Ingress, action string) (string, 
 			},
 		},
 	}
+
+	if previousAction.ForwardConfig.TargetGroupStickinessConfig != nil {
+		albAction.ForwardConfig.TargetGroupStickinessConfig = &ingressutil.ALBTargetGroupStickinessConfig{
+			Enabled:         previousAction.ForwardConfig.TargetGroupStickinessConfig.Enabled,
+			DurationSeconds: previousAction.ForwardConfig.TargetGroupStickinessConfig.DurationSeconds,
+		}
+	}
+
 	bytes := jsonutil.MustMarshal(albAction)
 	return string(bytes), nil
 }

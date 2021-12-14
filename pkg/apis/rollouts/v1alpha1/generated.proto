@@ -29,6 +29,14 @@ import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 // Package-wide variables from generator "generated".
 option go_package = "v1alpha1";
 
+message ALBStatus {
+  optional AwsResourceRef loadBalancer = 1;
+
+  optional AwsResourceRef canaryTargetGroup = 2;
+
+  optional AwsResourceRef stableTargetGroup = 3;
+}
+
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
 message ALBTrafficRouting {
   // Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
@@ -39,6 +47,10 @@ message ALBTrafficRouting {
 
   // RootService references the service in the ingress to the controller should add the action to
   optional string rootService = 3;
+
+  // AdditionalForwardConfig allows to specify further settings on the ForwaredConfig
+  // +optional
+  optional StickinessConfig stickinessConfig = 5;
 
   // AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller
   // +optional
@@ -192,6 +204,12 @@ message ArgumentValueFrom {
 
   // FieldRef
   optional FieldRef fieldRef = 2;
+}
+
+message AwsResourceRef {
+  optional string name = 1;
+
+  optional string arn = 2;
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
@@ -1176,10 +1194,6 @@ message RolloutStatus {
   // +optional
   optional string observedGeneration = 13;
 
-  // The generation of referenced workload observed by the rollout controller
-  // +optional
-  optional string workloadObservedGeneration = 24;
-
   // Conditions a list of conditions a rollout can have.
   // +optional
   repeated RolloutCondition conditions = 14;
@@ -1215,6 +1229,13 @@ message RolloutStatus {
 
   // Message provides details on why the rollout is in its current phase
   optional string message = 23;
+
+  // The generation of referenced workload observed by the rollout controller
+  // +optional
+  optional string workloadObservedGeneration = 24;
+
+  // / ALB keeps information regarding the ALB and TargetGroups
+  optional ALBStatus alb = 25;
 }
 
 // RolloutStrategy defines strategy to apply during next rollout
@@ -1288,6 +1309,12 @@ message SetCanaryScale {
   // MatchTrafficWeight cancels out previously set Replicas or Weight, effectively activating SetWeight
   // +optional
   optional bool matchTrafficWeight = 3;
+}
+
+message StickinessConfig {
+  optional bool enabled = 1;
+
+  optional int64 durationSeconds = 2;
 }
 
 // TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.

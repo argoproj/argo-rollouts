@@ -549,6 +549,17 @@ spec:
                               servicePort:
                                 format: int32
                                 type: integer
+                              stickinessConfig:
+                                properties:
+                                  durationSeconds:
+                                    format: int64
+                                    type: integer
+                                  enabled:
+                                    type: boolean
+                                required:
+                                - durationSeconds
+                                - enabled
+                                type: object
                             required:
                             - ingress
                             - servicePort
