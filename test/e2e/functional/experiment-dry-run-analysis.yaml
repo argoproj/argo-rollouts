@@ -1,0 +1,51 @@
+kind: AnalysisTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: dry-run-job
+spec:
+  metrics:
+  - name: test-1
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: sleep
+                image: alpine:3.8
+                command: [exit, "1"]
+              restartPolicy: Never
+          backoffLimit: 0
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: experiment-with-dry-run
+spec:
+  duration: 30s
+  progressDeadlineSeconds: 30
+  templates:
+  - name: baseline
+    replicas: 1
+    service: {}
+    selector:
+      matchLabels:
+        app: experiment-with-dry-run
+    template:
+      metadata:
+        labels:
+          app: experiment-with-dry-run
+      spec:
+        containers:
+          - name: experiment-with-dry-run
+            image: nginx:1.19-alpine
+            resources:
+              requests:
+                memory: 16Mi
+                cpu: 1m
+  analyses:
+  - name: dry-run-job
+    templateName: dry-run-job
+  dryRun:
+  - metricName: test.*

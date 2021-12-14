@@ -1038,7 +1038,7 @@
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DryRun"
           },
-          "title": "DryRun object contains the settings for running the analysis in Dry-Run mode\n+patchMergeKey=metricName\n+patchStrategy=merge"
+          "title": "DryRun object contains the settings for running the analysis in Dry-Run mode\n+patchMergeKey=metricName\n+patchStrategy=merge\n+optional"
         }
       },
       "title": "RolloutAnalysis defines a template that is used to create a analysisRun"

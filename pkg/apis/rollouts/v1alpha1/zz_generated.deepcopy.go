@@ -1055,6 +1055,11 @@ func (in *ExperimentSpec) DeepCopyInto(out *ExperimentSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.DryRun != nil {
+		in, out := &in.DryRun, &out.DryRun
+		*out = make([]DryRun, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

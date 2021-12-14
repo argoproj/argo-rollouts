@@ -728,8 +728,7 @@ func TestNewAnalysisRunFromUnstructured(t *testing.T) {
 	}
 }
 
-//TODO(dthomson) remove this test in v0.9.0
-func TestNewAnalysisRunFromTemplate(t *testing.T) {
+func TestCompatibilityNewAnalysisRunFromTemplate(t *testing.T) {
 	template := v1alpha1.AnalysisTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -754,7 +753,8 @@ func TestNewAnalysisRunFromTemplate(t *testing.T) {
 			Value: pointer.StringPtr("my-val"),
 		},
 	}
-	run, err := NewAnalysisRunFromTemplate(&template, args, "foo-run", "foo-run-generate-", "my-ns")
+	analysisTemplates := []*v1alpha1.AnalysisTemplate{&template}
+	run, err := NewAnalysisRunFromTemplates(analysisTemplates, nil, args, nil, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -763,9 +763,8 @@ func TestNewAnalysisRunFromTemplate(t *testing.T) {
 	assert.Equal(t, "my-val", *run.Spec.Args[0].Value)
 }
 
-//TODO(dthomson) remove this test in v0.9.0
-func TestNewAnalysisRunFromClusterTemplate(t *testing.T) {
-	template := v1alpha1.ClusterAnalysisTemplate{
+func TestCompatibilityNewAnalysisRunFromClusterTemplate(t *testing.T) {
+	clusterTemplate := v1alpha1.ClusterAnalysisTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: metav1.NamespaceDefault,
@@ -789,7 +788,8 @@ func TestNewAnalysisRunFromClusterTemplate(t *testing.T) {
 			Value: pointer.StringPtr("my-val"),
 		},
 	}
-	run, err := NewAnalysisRunFromClusterTemplate(&template, args, "foo-run", "foo-run-generate-", "my-ns")
+	clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{&clusterTemplate}
+	run, err := NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, nil, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
