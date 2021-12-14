@@ -883,6 +883,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#dry-run-experiments" class="md-nav__link">
+    Dry-Run Experiments
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2197,6 +2204,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#dry-run-experiments" class="md-nav__link">
+    Dry-Run Experiments
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2894,6 +2908,31 @@ following example, all the metrics from <code>random-fail</code> and <code>alway
       <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">always-pass</span>
 <span class="hll">      <span class="nt">dryRun</span><span class="p">:</span>
 </span><span class="hll">      <span class="p p-Indicator">-</span> <span class="nt">metricName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">.*</span>
+</span></code></pre></div>
+<h3 id="dry-run-experiments">Dry-Run Experiments<a class="headerlink" href="#dry-run-experiments" title="Permanent link">&para;</a></h3>
+<p>If an experiment wants to dry run its analysis, it simply needs to specify the <code>dryRun</code> field under its specs. In the 
+following example, all the metrics from <code>analyze-job</code> matching the RegEx rule <code>test.*</code> will be executed in the dry-run 
+mode.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Experiment</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">templates</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">baseline</span>
+    <span class="nt">selector</span><span class="p">:</span>
+      <span class="nt">matchLabels</span><span class="p">:</span>
+        <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+    <span class="nt">template</span><span class="p">:</span>
+      <span class="nt">metadata</span><span class="p">:</span>
+        <span class="nt">labels</span><span class="p">:</span>
+          <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+      <span class="nt">spec</span><span class="p">:</span>
+        <span class="nt">containers</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+          <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:blue</span>
+  <span class="nt">analyses</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">analyze-job</span>
+    <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">analyze-job</span>
+  <span class="nt">dryRun</span><span class="p">:</span>
+<span class="hll">  <span class="p p-Indicator">-</span> <span class="nt">metricName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">test.*</span>
 </span></code></pre></div>
 <h2 id="inconclusive-runs">Inconclusive Runs<a class="headerlink" href="#inconclusive-runs" title="Permanent link">&para;</a></h2>
 <p>Analysis runs can also be considered <code>Inconclusive</code>, which indicates the run was neither successful,
