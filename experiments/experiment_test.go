@@ -318,7 +318,7 @@ func TestRequeueAfterDuration(t *testing.T) {
 		// ensures we are enqueued around ~20 seconds
 		twentySeconds := time.Second * time.Duration(20)
 		delta := math.Abs(float64(twentySeconds - duration))
-		assert.True(t, delta < float64(100*time.Millisecond), "")
+		assert.True(t, delta < float64(150*time.Millisecond), "")
 	}
 	exCtx.reconcile()
 	assert.True(t, enqueueCalled)
@@ -345,7 +345,7 @@ func TestRequeueAfterProgressDeadlineSeconds(t *testing.T) {
 		// ensures we are enqueued around 10 minutes
 		tenMinutes := time.Second * time.Duration(600)
 		delta := math.Abs(float64(tenMinutes - duration))
-		assert.True(t, delta < float64(100*time.Millisecond))
+		assert.True(t, delta < float64(150*time.Millisecond))
 	}
 	exCtx.reconcile()
 	assert.True(t, enqueueCalled)

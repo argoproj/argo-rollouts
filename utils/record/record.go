@@ -1,11 +1,18 @@
 package record
 
 import (
+	"context"
 	"encoding/json"
-	"regexp"
-	"strings"
 
 	"github.com/argoproj/notifications-engine/pkg/services"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/tools/cache"
+
+	"regexp"
+	"strings"
+	"time"
+
+	k8sinformers "k8s.io/client-go/informers"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
@@ -89,6 +96,39 @@ type FakeEventRecorder struct {
 	Events []string
 }
 
+func NewFakeApiFactory() api.Factory {
+	var (
+		settings = api.Settings{ConfigMapName: "my-config-map", SecretName: "my-secret", InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
+			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
+				return map[string]interface{}{"obj": obj}
+			}, nil
+		}}
+	)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-config-map", Namespace: "default"},
+		Data: map[string]string{
+			"service.slack": `{"token": "abc"}`,
+		},
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-secret", Namespace: "default"},
+	}
+
+	clientset := k8sfake.NewSimpleClientset(cm, secret)
+	informerFactory := k8sinformers.NewSharedInformerFactory(clientset, time.Minute)
+
+	secrets := informerFactory.Core().V1().Secrets().Informer()
+	configMaps := informerFactory.Core().V1().ConfigMaps().Informer()
+	apiFactory := api.NewFactory(settings, "default", secrets, configMaps)
+	go informerFactory.Start(context.Background().Done())
+	if !cache.WaitForCacheSync(context.Background().Done(), configMaps.HasSynced, secrets.HasSynced) {
+		log.Info("failed to sync informers")
+	}
+
+	return apiFactory
+}
+
 func NewFakeEventRecorder() *FakeEventRecorder {
 	recorder := NewEventRecorder(
 		k8sfake.NewSimpleClientset(),
@@ -98,7 +138,7 @@ func NewFakeEventRecorder() *FakeEventRecorder {
 			},
 			[]string{"name", "namespace", "type", "reason"},
 		),
-		nil,
+		NewFakeApiFactory(),
 	).(*EventRecorderAdapter)
 	recorder.Recorder = record.NewFakeRecorder(1000)
 	fakeRecorder := &FakeEventRecorder{}
@@ -168,24 +208,28 @@ func NewAPIFactorySettings() api.Settings {
 // Send notifications for triggered event if user is subscribed
 func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts EventOptions) error {
 	logCtx := logutil.WithObject(object)
-	subsFromAnnotations := subscriptions.Annotations(object.(metav1.Object).GetAnnotations())
-	destByTrigger := subsFromAnnotations.GetDestinations(nil, map[string][]string{})
-
+	notificationsAPI, err := e.apiFactory.GetAPI()
+	if err != nil {
+		// don't return error if notifications are not configured and rollout has no subscribers
+		subsFromAnnotations := subscriptions.Annotations(object.(metav1.Object).GetAnnotations())
+		logCtx.Infof("subsFromAnnotations: %s", subsFromAnnotations)
+		if errors.IsNotFound(err) && len(subsFromAnnotations.GetDestinations(nil, map[string][]string{})) == 0 {
+			return nil
+		}
+		return err
+	}
+	cfg := notificationsAPI.GetConfig()
+	destByTrigger := cfg.GetGlobalDestinations(object.(metav1.Object).GetLabels())
+	destByTrigger.Merge(subscriptions.NewAnnotations(object.(metav1.Object).GetAnnotations()).GetDestinations(cfg.DefaultTriggers, cfg.ServiceDefaultTriggers))
 	trigger := translateReasonToTrigger(opts.EventReason)
-
 	destinations := destByTrigger[trigger]
 	if len(destinations) == 0 {
 		logCtx.Debugf("No configured destinations for trigger: %s", trigger)
 		return nil
 	}
 
-	notificationsAPI, err := e.apiFactory.GetAPI()
-	if err != nil {
-		return err
-	}
-
 	// Creates config for notifications for built-in triggers
-	triggerActions, ok := notificationsAPI.GetConfig().Triggers[trigger]
+	triggerActions, ok := cfg.Triggers[trigger]
 	if !ok {
 		logCtx.Debugf("No configured template for trigger: %s", trigger)
 		return nil
