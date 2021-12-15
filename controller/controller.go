@@ -76,9 +76,6 @@ const (
 	// DefaultLeaderElect is the default true leader election should be enabled
 	DefaultLeaderElect = true
 
-	// DefaultLeaderElectionNamespace is the default namespace used to perform leader election. Only used if leader election is enabled
-	DefaultLeaderElectionNamespace = "kube-system"
-
 	// DefaultLeaderElectionLeaseDuration is the default time in seconds that non-leader candidates will wait to force acquire leadership
 	DefaultLeaderElectionLeaseDuration = 15 * time.Second
 
@@ -103,7 +100,7 @@ type LeaderElectionOptions struct {
 func NewLeaderElectionOptions() *LeaderElectionOptions {
 	return &LeaderElectionOptions{
 		LeaderElect:                 DefaultLeaderElect,
-		LeaderElectionNamespace:     DefaultLeaderElectionNamespace,
+		LeaderElectionNamespace:     defaults.Namespace(),
 		LeaderElectionLeaseDuration: DefaultLeaderElectionLeaseDuration,
 		LeaderElectionRenewDeadline: DefaultLeaderElectionRenewDeadline,
 		LeaderElectionRetryPeriod:   DefaultLeaderElectionRetryPeriod,
