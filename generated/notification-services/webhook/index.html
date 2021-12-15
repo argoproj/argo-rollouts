@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/generated/notification-services/webhook/">
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.1">
+      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.2">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.23b6d78a.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.f7951f6f.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.e6a45f82.min.css">
@@ -984,6 +984,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../alertmanager/" class="md-nav__link">
+        Alertmanager
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../email/" class="md-nav__link">
         Email
       </a>
@@ -1000,6 +1014,20 @@
     <li class="md-nav__item">
       <a href="../github/" class="md-nav__link">
         GitHub
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../googlechat/" class="md-nav__link">
+        Google Chat
       </a>
     </li>
   
@@ -1056,6 +1084,20 @@
     <li class="md-nav__item">
       <a href="../overview/" class="md-nav__link">
         Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pushover/" class="md-nav__link">
+        Pushover
       </a>
     </li>
   
@@ -1185,6 +1227,13 @@
           <li class="md-nav__item">
   <a href="#send-form-data" class="md-nav__link">
     Send form-data
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#send-slack" class="md-nav__link">
+    Send Slack
   </a>
   
 </li>
@@ -2029,6 +2078,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#send-slack" class="md-nav__link">
+    Send Slack
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2169,6 +2225,40 @@ Using Webhook you might trigger a Jenkins job, update Github commit status.</p>
         <span class="no">method: POST</span>
         <span class="no">body: key1=value1&amp;key2=value2</span>
 </code></pre></div>
+<h3 id="send-slack">Send Slack<a class="headerlink" href="#send-slack" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">service.webhook.slack_webhook</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">url: https://hooks.slack.com/services/xxxxx</span>
+    <span class="no">headers:</span>
+    <span class="no">- name: Content-Type</span>
+      <span class="no">value: application/json</span>
+
+  <span class="nt">template.send-slack</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">webhook:</span>
+      <span class="no">slack_webhook:</span>
+        <span class="no">method: POST</span>
+        <span class="no">body: |</span>
+          <span class="no">{</span>
+            <span class="no">&quot;attachments&quot;: [{</span>
+              <span class="no">&quot;title&quot;: &quot;{{.app.metadata.name}}&quot;,</span>
+              <span class="no">&quot;title_link&quot;: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}&quot;,</span>
+              <span class="no">&quot;color&quot;: &quot;#18be52&quot;,</span>
+              <span class="no">&quot;fields&quot;: [{</span>
+                <span class="no">&quot;title&quot;: &quot;Sync Status&quot;,</span>
+                <span class="no">&quot;value&quot;: &quot;{{.app.status.sync.status}}&quot;,</span>
+                <span class="no">&quot;short&quot;: true</span>
+              <span class="no">}, {</span>
+                <span class="no">&quot;title&quot;: &quot;Repository&quot;,</span>
+                <span class="no">&quot;value&quot;: &quot;{{.app.spec.source.repoURL}}&quot;,</span>
+                <span class="no">&quot;short&quot;: true</span>
+              <span class="no">}]</span>
+            <span class="no">}]</span>
+          <span class="no">}</span>
+</code></pre></div>
 
               
             </article>
@@ -2234,10 +2324,10 @@ Using Webhook you might trigger a Jenkins job, update Github commit status.</p>
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
-    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../../assets/javascripts/workers/search.c7dec7e7.min.js"}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../../assets/javascripts/workers/search.0bbba5b5.min.js"}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.da79ceb7.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.649a939e.min.js"></script>
       
         <script src="../../../assets/versions.js"></script>
       

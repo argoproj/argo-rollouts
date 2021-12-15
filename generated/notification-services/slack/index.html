@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/generated/notification-services/slack/">
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.1">
+      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.2">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.23b6d78a.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.f7951f6f.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.e6a45f82.min.css">
@@ -66,7 +66,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#configuration" class="md-skip">
+        <a href="#slack" class="md-skip">
           Skip to content
         </a>
       
@@ -984,6 +984,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../alertmanager/" class="md-nav__link">
+        Alertmanager
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../email/" class="md-nav__link">
         Email
       </a>
@@ -1000,6 +1014,20 @@
     <li class="md-nav__item">
       <a href="../github/" class="md-nav__link">
         GitHub
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../googlechat/" class="md-nav__link">
+        Google Chat
       </a>
     </li>
   
@@ -1068,6 +1096,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../pushover/" class="md-nav__link">
+        Pushover
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../rocketchat/" class="md-nav__link">
         Rocket.Chat
       </a>
@@ -1088,6 +1130,8 @@
       <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
       
       
+        
+      
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
           Slack
@@ -1104,12 +1148,21 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    Parameters
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#configuration" class="md-nav__link">
@@ -1959,12 +2012,21 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    Parameters
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#configuration" class="md-nav__link">
@@ -1997,8 +2059,17 @@
 </a>
 
 
-  <h1>Slack</h1>
-
+<h1 id="slack">Slack<a class="headerlink" href="#slack" title="Permanent link">&para;</a></h1>
+<p>If you want to send message using incoming webhook, you can use <a href="../webhook/#send-slack">webhook</a>.</p>
+<h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
+<p>The Slack notification service configuration includes following settings:</p>
+<ul>
+<li><code>token</code> - the app token</li>
+<li><code>apiURL</code> - optional, the server url, e.g. https://example.com/api</li>
+<li><code>username</code> - optional, the app username</li>
+<li><code>icon</code> - optional, the app icon, e.g. :robot_face: or https://example.com/image.png</li>
+<li><code>insecureSkipVerify</code> - optional bool, true or false</li>
+</ul>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Create Slack Application using https://api.slack.com/apps?new_app=1
@@ -2010,15 +2081,15 @@
 <li>Scroll back to the top, click 'Install App to Workspace' button and confirm the installation.
 <img alt="4" src="https://user-images.githubusercontent.com/426437/73604311-4d495b80-4543-11ea-9155-9d216b20ec86.png" /></li>
 <li>
-<p>Once installation is completed copy the OAuth token. 
+<p>Once installation is completed copy the OAuth token.
 <img alt="5" src="https://user-images.githubusercontent.com/426437/73604312-4d495b80-4543-11ea-832b-a9d9d5e4bc29.png" /></p>
 </li>
 <li>
 <p>Create a public or private channel, for this example <code>my_channel</code></p>
 </li>
 <li>Invite your slack bot to this channel <strong>otherwise slack bot won't be able to deliver notifications to this channel</strong></li>
-<li>Store Oauth access token in <code>argocd-notifications-secret</code> secret</li>
-</ol>
+<li>
+<p>Store Oauth access token in <code>argocd-notifications-secret</code> secret</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -2026,32 +2097,29 @@
 <span class="nt">stringData</span><span class="p">:</span>
   <span class="nt">slack-token</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;Oauth-access-token&gt;</span>
 </code></pre></div>
-<ol>
+</li>
 <li>
-<p>Define service type slack in data section of <code>argocd-notifications-cm</code> configmap: 
+<p>Define service type slack in data section of <code>argocd-notifications-cm</code> configmap:
 service
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+    <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
 <span class="nt">data</span><span class="p">:</span>
   <span class="nt">service.slack</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">apiURL: &lt;url&gt;                 # optional URL, e.g. https://example.com/api</span>
     <span class="no">token: $slack-token</span>
-    <span class="no">username: &lt;override-username&gt; # optional username</span>
-    <span class="no">icon: &lt;override-icon&gt; # optional icon for the message (supports both emoij and url notation)</span>
 </code></pre></div></p>
 </li>
 <li>
 <p>Add annotation in application yaml file to enable notifications for specific argocd app</p>
-</li>
-</ol>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">annotations</span><span class="p">:</span>
     <span class="nt">notifications.argoproj.io/subscribe.on-sync-succeeded.slack</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my_channel</span>
 </code></pre></div>
+</li>
+</ol>
 <h2 id="templates">Templates<a class="headerlink" href="#templates" title="Permanent link">&para;</a></h2>
 <p>Notification templates can be customized to leverage slack message blocks and attachments
 <a href="https://api.slack.com/messaging/composing/layouts">feature</a>.</p>
@@ -2077,6 +2145,57 @@ service
           <span class="no">&quot;short&quot;: true</span>
         <span class="no">}]</span>
       <span class="no">}]</span>
+</code></pre></div>
+<p>The messages can be aggregated to the slack threads by grouping key which can be specified in a <code>groupingKey</code> string field under <code>slack</code> field.
+<code>groupingKey</code> is used across each template and works independently on each slack channel.
+When multiple applications will be updated at the same time or frequently, the messages in slack channel can be easily read by aggregating with git commit hash, application name, etc.
+Furthermore, the messages can be broadcast to the channel at the specific template by <code>notifyBroadcast</code> field.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">template.app-sync-status</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+  <span class="no">message: |</span>
+    <span class="no">Application {{.app.metadata.name}} sync is {{.app.status.sync.status}}.</span>
+    <span class="no">Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.</span>
+  <span class="no">slack:</span>
+    <span class="no">attachments: |</span>
+      <span class="no">[{</span>
+        <span class="no">&quot;title&quot;: &quot;{{.app.metadata.name}}&quot;,</span>
+        <span class="no">&quot;title_link&quot;: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}&quot;,</span>
+        <span class="no">&quot;color&quot;: &quot;#18be52&quot;,</span>
+        <span class="no">&quot;fields&quot;: [{</span>
+          <span class="no">&quot;title&quot;: &quot;Sync Status&quot;,</span>
+          <span class="no">&quot;value&quot;: &quot;{{.app.status.sync.status}}&quot;,</span>
+          <span class="no">&quot;short&quot;: true</span>
+        <span class="no">}, {</span>
+          <span class="no">&quot;title&quot;: &quot;Repository&quot;,</span>
+          <span class="no">&quot;value&quot;: &quot;{{.app.spec.source.repoURL}}&quot;,</span>
+          <span class="no">&quot;short&quot;: true</span>
+        <span class="no">}]</span>
+      <span class="no">}]</span>
+    <span class="no"># Aggregate the messages to the thread by git commit hash</span>
+    <span class="no">groupingKey: &quot;{{.app.status.sync.revision}}&quot;</span>
+    <span class="no">notifyBroadcast: false</span>
+<span class="nt">template.app-sync-failed</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+  <span class="no">message: |</span>
+    <span class="no">Application {{.app.metadata.name}} sync is {{.app.status.sync.status}}.</span>
+    <span class="no">Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.</span>
+  <span class="no">slack:</span>
+    <span class="no">attachments: |</span>
+      <span class="no">[{</span>
+        <span class="no">&quot;title&quot;: &quot;{{.app.metadata.name}}&quot;,</span>
+        <span class="no">&quot;title_link&quot;: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}&quot;,</span>
+        <span class="no">&quot;color&quot;: &quot;#ff0000&quot;,</span>
+        <span class="no">&quot;fields&quot;: [{</span>
+          <span class="no">&quot;title&quot;: &quot;Sync Status&quot;,</span>
+          <span class="no">&quot;value&quot;: &quot;{{.app.status.sync.status}}&quot;,</span>
+          <span class="no">&quot;short&quot;: true</span>
+        <span class="no">}, {</span>
+          <span class="no">&quot;title&quot;: &quot;Repository&quot;,</span>
+          <span class="no">&quot;value&quot;: &quot;{{.app.spec.source.repoURL}}&quot;,</span>
+          <span class="no">&quot;short&quot;: true</span>
+        <span class="no">}]</span>
+      <span class="no">}]</span>
+    <span class="no"># Aggregate the messages to the thread by git commit hash</span>
+    <span class="no">groupingKey: &quot;{{.app.status.sync.revision}}&quot;</span>
+    <span class="no">notifyBroadcast: true</span>
 </code></pre></div>
 
               
@@ -2143,10 +2262,10 @@ service
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
-    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../../assets/javascripts/workers/search.c7dec7e7.min.js"}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../../assets/javascripts/workers/search.0bbba5b5.min.js"}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.da79ceb7.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.649a939e.min.js"></script>
       
         <script src="../../../assets/versions.js"></script>
       
