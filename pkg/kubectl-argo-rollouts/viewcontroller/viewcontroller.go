@@ -9,6 +9,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -182,22 +183,27 @@ func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 		return nil, err
 	}
 
-	allReplicaSets, err := c.replicaSetLister.List(labels.Everything())
+	selector, err := metav1.LabelSelectorAsSelector(ro.Spec.Selector)
 	if err != nil {
 		return nil, err
 	}
 
-	allPods, err := c.podLister.List(labels.Everything())
+	allReplicaSets, err := c.replicaSetLister.List(selector)
 	if err != nil {
 		return nil, err
 	}
 
-	allExps, err := c.experimentLister.List(labels.Everything())
+	allPods, err := c.podLister.List(selector)
 	if err != nil {
 		return nil, err
 	}
 
-	allAnalysisRuns, err := c.analysisRunLister.List(labels.Everything())
+	allExps, err := c.experimentLister.List(selector)
+	if err != nil {
+		return nil, err
+	}
+
+	allAnalysisRuns, err := c.analysisRunLister.List(selector)
 	if err != nil {
 		return nil, err
 	}
