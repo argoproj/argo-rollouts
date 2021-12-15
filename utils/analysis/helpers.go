@@ -94,8 +94,8 @@ func IsTerminating(run *v1alpha1.AnalysisRun) bool {
 }
 
 // GetDryRunMetrics returns an array of metric names matching the RegEx rules from the Dry-Run metrics.
-func GetDryRunMetrics(dryRunMetrics []v1alpha1.DryRun, metrics []v1alpha1.Metric) (map[string]bool, error) {
-	metricsMap := make(map[string]bool)
+func GetDryRunMetrics(dryRunMetrics []v1alpha1.DryRun, metrics []v1alpha1.Metric) (map[string]*v1alpha1.DryRun, error) {
+	metricsMap := make(map[string]*v1alpha1.DryRun)
 	if len(dryRunMetrics) == 0 {
 		return metricsMap, nil
 	}
@@ -104,7 +104,7 @@ func GetDryRunMetrics(dryRunMetrics []v1alpha1.DryRun, metrics []v1alpha1.Metric
 		matchCount := 0
 		for _, metric := range metrics {
 			if matched, _ := regexp.MatchString(dryRunObject.MetricName, metric.Name); matched {
-				metricsMap[metric.Name] = true
+				metricsMap[metric.Name] = &dryRunObject
 				matchCount++
 			}
 		}

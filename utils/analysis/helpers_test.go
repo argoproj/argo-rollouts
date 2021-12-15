@@ -838,7 +838,7 @@ func TestGetDryRunMetrics(t *testing.T) {
 		}
 		dryRunMetricNamesMap, err := GetDryRunMetrics(spec.DryRun, spec.Metrics)
 		assert.Nil(t, err)
-		assert.True(t, dryRunMetricNamesMap["success-rate"])
+		assert.NotNil(t, dryRunMetricNamesMap["success-rate"])
 	})
 	t.Run("GetDryRunMetrics handles the RegEx rules", func(t *testing.T) {
 		failureLimit := intstr.FromInt(2)

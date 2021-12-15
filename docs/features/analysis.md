@@ -554,9 +554,13 @@ out as inconclusive.
 The following example queries prometheus every 5 minutes to get the total number of 4XX and 5XX errors, and even if the
 evaluation of the metric to monitor the 5XX error-rate fail, the analysis run will pass.
 
-```yaml hl_lines="1 2"
+```yaml hl_lines="1 2 3 4 5 6"
   dryRun:
   - metricName: total-5xx-errors
+    # `measurementsLength` can be used to retain more than ten results for the metrics running in the dry-run mode. 
+    # Setting it to `0` will disable this option and, the controller will revert to the existing behavior of retaining 
+    # the latest ten measurements.
+    measurementsLength: 25
   metrics:
   - name: total-5xx-errors
     interval: 5m
@@ -713,7 +717,7 @@ A use case for having `Inconclusive` analysis runs are to enable Argo Rollouts t
 whether or not measurement value is acceptable and decide to proceed or abort.
 
 ## Delay Analysis Runs
-If the analysis run does not need to start immediately (i.e give the metric provider time to collect
+If the analysis run does not need to start immediately (i.e. give the metric provider time to collect
 metrics on the canary version), Analysis Runs can delay the specific metric analysis. Each metric
 can be configured to have a different delay. In additional to the metric specific delays, the rollouts
 with background analysis can delay creating an analysis run until a certain step is reached

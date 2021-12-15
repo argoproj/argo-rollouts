@@ -118,6 +118,9 @@ type DryRun struct {
 	// Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
 	// the available metrics.
 	MetricName string `json:"metricName" protobuf:"bytes,1,opt,name=metricName"`
+	// MeasurementsLength indicates how many measurements to retain for this metric when it's running in the Dry-Run
+	// mode.
+	MeasurementsLength int `json:"measurementsLength,omitempty" protobuf:"varint,2,opt,name=measurementsLength"`
 }
 
 // EffectiveCount is the effective count based on whether or not count/interval is specified

@@ -446,7 +446,7 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{})
+		status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]*v1alpha1.DryRun{})
 		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 		assert.Equal(t, "", message)
 	}
@@ -465,7 +465,7 @@ func TestAssessRunStatus(t *testing.T) {
 				},
 			},
 		}
-		status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{})
+		status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]*v1alpha1.DryRun{})
 		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, status)
 		assert.Equal(t, "", message)
 	}
@@ -519,7 +519,7 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 			},
 		},
 	}
-	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{})
+	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]*v1alpha1.DryRun{})
 	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 	assert.Equal(t, "", message)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, run.Status.MetricResults[1].Phase)
@@ -1055,7 +1055,7 @@ func TestTrimMeasurementHistory(t *testing.T) {
 
 	{
 		run := newRun()
-		c.garbageCollectMeasurements(run, 2)
+		c.garbageCollectMeasurements(run, 2, map[string]*v1alpha1.DryRun{})
 		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
 		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
 		assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
@@ -1064,11 +1064,35 @@ func TestTrimMeasurementHistory(t *testing.T) {
 	}
 	{
 		run := newRun()
-		c.garbageCollectMeasurements(run, 1)
+		c.garbageCollectMeasurements(run, 1, map[string]*v1alpha1.DryRun{})
 		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
 		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
 		assert.Len(t, run.Status.MetricResults[1].Measurements, 1)
 		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[0].Value)
+	}
+	{
+		run := newRun()
+		var dryRunMetricsMap = map[string]*v1alpha1.DryRun{}
+		dryRunMetricsMap["metric2"] = &v1alpha1.DryRun{MetricName: "*", MeasurementsLength: 2}
+		err := c.garbageCollectMeasurements(run, 1, dryRunMetricsMap)
+		assert.Nil(t, err)
+		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
+		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
+		assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
+		assert.Equal(t, "2", run.Status.MetricResults[1].Measurements[0].Value)
+		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[1].Value)
+	}
+	{
+		run := newRun()
+		var dryRunMetricsMap = map[string]*v1alpha1.DryRun{}
+		dryRunMetricsMap["metric2"] = &v1alpha1.DryRun{MetricName: "metric2", MeasurementsLength: 2}
+		err := c.garbageCollectMeasurements(run, 1, dryRunMetricsMap)
+		assert.Nil(t, err)
+		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
+		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
+		assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
+		assert.Equal(t, "2", run.Status.MetricResults[1].Measurements[0].Value)
+		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[1].Value)
 	}
 }
 
@@ -1418,7 +1442,11 @@ func StartAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T, isDryRun bo
 
 	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed, isDryRun)
 	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseSuccessful
-	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{"run-forever": isDryRun, "failed-metric": isDryRun})
+	dryRunMetricsMap := map[string]*v1alpha1.DryRun{}
+	if isDryRun {
+		dryRunMetricsMap = map[string]*v1alpha1.DryRun{"run-forever": {MetricName: "run-forever"}, "failed-metric": {MetricName: "failed-metric"}}
+	}
+	status, message := c.assessRunStatus(run, run.Spec.Metrics, dryRunMetricsMap)
 	return status, message, run.Status.DryRunSummary
 }
 
@@ -1458,7 +1486,11 @@ func StartAssessRunStatusErrorMessageFromProvider(t *testing.T, providerMessage 
 	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed, isDryRun)
 	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseSuccessful // All metrics must complete, or assessRunStatus will not return message
 	run.Status.MetricResults[1].Message = providerMessage
-	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{"run-forever": isDryRun, "failed-metric": isDryRun})
+	dryRunMetricsMap := map[string]*v1alpha1.DryRun{}
+	if isDryRun {
+		dryRunMetricsMap = map[string]*v1alpha1.DryRun{"run-forever": {MetricName: "run-forever"}, "failed-metric": {MetricName: "failed-metric"}}
+	}
+	status, message := c.assessRunStatus(run, run.Spec.Metrics, dryRunMetricsMap)
 	return status, message, run.Status.DryRunSummary
 }
 
@@ -1503,7 +1535,11 @@ func StartAssessRunStatusMultipleFailures(t *testing.T, isDryRun bool) (v1alpha1
 	run := newTerminatingRun(v1alpha1.AnalysisPhaseFailed, isDryRun)
 	run.Status.MetricResults[0].Phase = v1alpha1.AnalysisPhaseFailed
 	run.Status.MetricResults[0].Failed = 1
-	status, message := c.assessRunStatus(run, run.Spec.Metrics, map[string]bool{"run-forever": isDryRun, "failed-metric": isDryRun})
+	dryRunMetricsMap := map[string]*v1alpha1.DryRun{}
+	if isDryRun {
+		dryRunMetricsMap = map[string]*v1alpha1.DryRun{"run-forever": {MetricName: "run-forever"}, "failed-metric": {MetricName: "failed-metric"}}
+	}
+	status, message := c.assessRunStatus(run, run.Spec.Metrics, dryRunMetricsMap)
 	return status, message, run.Status.DryRunSummary
 }
 

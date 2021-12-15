@@ -839,6 +839,11 @@
         "metricName": {
           "type": "string",
           "description": "Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all\nthe available metrics."
+        },
+        "measurementsLength": {
+          "type": "string",
+          "format": "int64",
+          "description": "MeasurementsLength indicates how many measurements to retain for this metric when it's running in the Dry-Run\nmode."
         }
       },
       "description": "DryRun defines the settings for running the analysis in Dry-Run mode."

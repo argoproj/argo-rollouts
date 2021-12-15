@@ -173,6 +173,8 @@ spec:
                           dryRun:
                             items:
                               properties:
+                                measurementsLength:
+                                  type: integer
                                 metricName:
                                   type: string
                               required:
@@ -217,6 +219,8 @@ spec:
                           dryRun:
                             items:
                               properties:
+                                measurementsLength:
+                                  type: integer
                                 metricName:
                                   type: string
                               required:
@@ -291,6 +295,8 @@ spec:
                           dryRun:
                             items:
                               properties:
+                                measurementsLength:
+                                  type: integer
                                 metricName:
                                   type: string
                               required:
@@ -398,6 +404,8 @@ spec:
                                 dryRun:
                                   items:
                                     properties:
+                                      measurementsLength:
+                                        type: integer
                                       metricName:
                                         type: string
                                     required:

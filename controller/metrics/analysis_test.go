@@ -22,13 +22,21 @@ metadata:
   name: http-benchmark-test-tr8rn
   namespace: jesse-test
 spec:
+  dryRun:
+  - metricName: web-metric-2
   metrics:
-  - name: webmetric
+  - name: web-metric-1
     provider:
       web:
         jsonPath: .
         url: https://www.google.com
     successCondition: "true"
+  - name: web-metric-2
+    provider:
+      web:
+        jsonPath: .
+        url: https://www.msn.com
+    successCondition: "false"
 status:
   metricResults:
   - consecutiveError: 5
@@ -39,7 +47,17 @@ status:
         of value'
       phase: Error
       startedAt: "2020-03-16T20:02:14Z"
-    name: webmetric
+    name: web-metric-1
+    phase: Error
+  - consecutiveError: 5
+    error: 5
+    measurements:
+    - finishedAt: "2020-03-16T20:02:15Z"
+      message: 'Could not parse JSON body: invalid character ''<'' looking for beginning
+        of value'
+      phase: Error
+      startedAt: "2020-03-16T20:02:14Z"
+    name: web-metric-2
     phase: Error
   phase: Error
   startedAt: "2020-03-16T20:02:15Z"
@@ -53,6 +71,8 @@ metadata:
   name: http-benchmark-test
   namespace: jesse-test
 spec:
+  dryRun:
+  - metricName: web-metric-2
   metrics:
   - name: web-metric-1
     provider:
@@ -61,7 +81,6 @@ spec:
         url: https://www.google.com
     successCondition: "true"
   - name: web-metric-2
-    dryRun: true
     provider:
       web:
         jsonPath: .
@@ -76,6 +95,8 @@ metadata:
   creationTimestamp: "2020-03-16T20:01:13Z"
   name: http-benchmark-cluster-test
 spec:
+  dryRun:
+  - metricName: web-metric-2
   metrics:
   - name: web-metric-1
     provider:
@@ -84,7 +105,6 @@ spec:
         url: https://www.google.com
     successCondition: "true"
   - name: web-metric-2
-    dryRun: true
     provider:
       web:
         jsonPath: .
@@ -97,15 +117,22 @@ const expectedAnalysisRunResponse = `# HELP analysis_run_info Information about 
 analysis_run_info{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error"} 1
 # HELP analysis_run_metric_phase Information on the duration of a specific metric in the Analysis Run
 # TYPE analysis_run_metric_phase gauge
-analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="Web"} 1
-analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed",type="Web"} 0
-analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive",type="Web"} 0
-analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending",type="Web"} 0
-analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running",type="Web"} 0
-analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Successful",type="Web"} 0
+analysis_run_metric_phase{dry_run="No",metric="web-metric-1",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="Web"} 1
+analysis_run_metric_phase{dry_run="No",metric="web-metric-1",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed",type="Web"} 0
+analysis_run_metric_phase{dry_run="No",metric="web-metric-1",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive",type="Web"} 0
+analysis_run_metric_phase{dry_run="No",metric="web-metric-1",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending",type="Web"} 0
+analysis_run_metric_phase{dry_run="No",metric="web-metric-1",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running",type="Web"} 0
+analysis_run_metric_phase{dry_run="No",metric="web-metric-1",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Successful",type="Web"} 0
+analysis_run_metric_phase{dry_run="Yes",metric="web-metric-2",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="Web"} 1
+analysis_run_metric_phase{dry_run="Yes",metric="web-metric-2",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed",type="Web"} 0
+analysis_run_metric_phase{dry_run="Yes",metric="web-metric-2",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive",type="Web"} 0
+analysis_run_metric_phase{dry_run="Yes",metric="web-metric-2",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending",type="Web"} 0
+analysis_run_metric_phase{dry_run="Yes",metric="web-metric-2",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running",type="Web"} 0
+analysis_run_metric_phase{dry_run="Yes",metric="web-metric-2",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Successful",type="Web"} 0
 # HELP analysis_run_metric_type Information on the type of a specific metric in the Analysis Runs
 # TYPE analysis_run_metric_type gauge
-analysis_run_metric_type{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",type="Web"} 1
+analysis_run_metric_type{metric="web-metric-1",name="http-benchmark-test-tr8rn",namespace="jesse-test",type="Web"} 1
+analysis_run_metric_type{metric="web-metric-2",name="http-benchmark-test-tr8rn",namespace="jesse-test",type="Web"} 1
 # HELP analysis_run_phase Information on the state of the Analysis Run (DEPRECATED - use analysis_run_info)
 # TYPE analysis_run_phase gauge
 analysis_run_phase{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error"} 1

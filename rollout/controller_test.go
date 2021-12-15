@@ -1760,8 +1760,17 @@ func TestWriteBackToInformer(t *testing.T) {
 
 	// Verify the informer was updated with the new unstructured object after reconciliation
 	obj, _, _ := c.rolloutsIndexer.GetByKey(roKey)
-	un := obj.(*unstructured.Unstructured)
-	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
+	stableRS := ""
+	switch objType := obj.(type) {
+	case *unstructured.Unstructured:
+		un := obj.(*unstructured.Unstructured)
+		stableRS, _, _ = unstructured.NestedString(un.Object, "status", "stableRS")
+	case *v1alpha1.Rollout:
+		rollout := obj.(*v1alpha1.Rollout)
+		stableRS = rollout.Status.StableRS
+	default:
+		fmt.Println("Unknown Type:", objType)
+	}
 	assert.NotEmpty(t, stableRS)
 	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
 }

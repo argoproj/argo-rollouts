@@ -91,12 +91,16 @@ func collectAnalysisRuns(ch chan<- prometheus.Metric, ar *v1alpha1.AnalysisRun) 
 		if metricResult != nil {
 			calculatedPhase = metricResult.Phase
 		}
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), metric.Name, metricType, fmt.Sprint(dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhasePending))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), metric.Name, metricType, fmt.Sprint(dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhaseError))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseFailed), metric.Name, metricType, fmt.Sprint(dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhaseFailed))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), metric.Name, metricType, fmt.Sprint(dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhaseSuccessful))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), metric.Name, metricType, fmt.Sprint(dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhaseRunning))
-		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), metric.Name, metricType, fmt.Sprint(dryRunMetricsMap[metric.Name]), string(v1alpha1.AnalysisPhaseInconclusive))
+		isDryRunMetric := "No"
+		if dryRunMetricsMap[metric.Name] != nil {
+			isDryRunMetric = "Yes"
+		}
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhasePending || calculatedPhase == ""), metric.Name, metricType, fmt.Sprint(isDryRunMetric), string(v1alpha1.AnalysisPhasePending))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseError), metric.Name, metricType, fmt.Sprint(isDryRunMetric), string(v1alpha1.AnalysisPhaseError))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseFailed), metric.Name, metricType, fmt.Sprint(isDryRunMetric), string(v1alpha1.AnalysisPhaseFailed))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseSuccessful), metric.Name, metricType, fmt.Sprint(isDryRunMetric), string(v1alpha1.AnalysisPhaseSuccessful))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseRunning), metric.Name, metricType, fmt.Sprint(isDryRunMetric), string(v1alpha1.AnalysisPhaseRunning))
+		addGauge(MetricAnalysisRunMetricPhase, boolFloat64(calculatedPhase == v1alpha1.AnalysisPhaseInconclusive), metric.Name, metricType, fmt.Sprint(isDryRunMetric), string(v1alpha1.AnalysisPhaseInconclusive))
 	}
 }
 

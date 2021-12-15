@@ -101,7 +101,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		}
 	}
 
-	err = c.garbageCollectMeasurements(run, DefaultMeasurementHistoryLimit)
+	err = c.garbageCollectMeasurements(run, DefaultMeasurementHistoryLimit, dryRunMetricsMap)
 	if err != nil {
 		// TODO(jessesuen): surface errors to controller so they can be retried
 		logger.Warnf("Failed to garbage collect measurements: %v", err)
@@ -289,7 +289,7 @@ func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, n
 }
 
 // runMeasurements iterates a list of metric tasks, and runs, resumes, or terminates measurements
-func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask, dryRunMetricsMap map[string]bool) error {
+func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTask, dryRunMetricsMap map[string]*v1alpha1.DryRun) error {
 	var wg sync.WaitGroup
 	// resultsLock should be held whenever we are accessing or setting status.metricResults since
 	// we are performing queries in parallel
@@ -319,7 +319,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				metricResult = &v1alpha1.MetricResult{
 					Name:   t.metric.Name,
 					Phase:  v1alpha1.AnalysisPhaseRunning,
-					DryRun: dryRunMetricsMap[t.metric.Name],
+					DryRun: dryRunMetricsMap[t.metric.Name] != nil,
 				}
 			}
 
@@ -404,7 +404,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 // assessRunStatus assesses the overall status of this AnalysisRun
 // If any metric is not yet completed, the AnalysisRun is still considered Running
 // Once all metrics are complete, the worst status is used as the overall AnalysisRun status
-func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric, dryRunMetricsMap map[string]bool) (v1alpha1.AnalysisPhase, string) {
+func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Metric, dryRunMetricsMap map[string]*v1alpha1.DryRun) (v1alpha1.AnalysisPhase, string) {
 	var worstStatus v1alpha1.AnalysisPhase
 	var worstMessage string
 	terminating := analysisutil.IsTerminating(run)
@@ -436,7 +436,7 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 
 	// Iterate all metrics and update `MetricResult.Phase` fields based on latest measurement(s)
 	for _, metric := range metrics {
-		if dryRunMetricsMap[metric.Name] {
+		if dryRunMetricsMap[metric.Name] != nil {
 			log.Infof("Metric '%s' is running in the Dry-Run mode.", metric.Name)
 			dryRunSummary.Count++
 		} else {
@@ -468,7 +468,7 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 				phase, message := assessMetricFailureInconclusiveOrError(metric, *result)
 				// NOTE: We don't care about the status if the metric is marked as a Dry-Run
 				// otherwise, remember the worst status of all completed metric results
-				if !dryRunMetricsMap[metric.Name] {
+				if dryRunMetricsMap[metric.Name] == nil {
 					if worstStatus == "" || analysisutil.IsWorse(worstStatus, metricStatus) {
 						worstStatus = metricStatus
 						if message != "" {
@@ -693,7 +693,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Me
 }
 
 // garbageCollectMeasurements trims the measurement history to the specified limit and GCs old measurements
-func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit int) error {
+func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit int, dryRunMetricsMap map[string]*v1alpha1.DryRun) error {
 	var errors []error
 
 	metricsByName := make(map[string]v1alpha1.Metric)
@@ -703,7 +703,12 @@ func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit
 
 	for i, result := range run.Status.MetricResults {
 		length := len(result.Measurements)
-		if length > limit {
+		dryRunObject, metricRunningInDryRun := dryRunMetricsMap[result.Name]
+		measurementsLimit := limit
+		if metricRunningInDryRun && dryRunObject.MeasurementsLength > 0 {
+			measurementsLimit = dryRunObject.MeasurementsLength
+		}
+		if length > measurementsLimit {
 			metric, ok := metricsByName[result.Name]
 			if !ok {
 				continue
@@ -714,11 +719,11 @@ func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit
 				errors = append(errors, err)
 				continue
 			}
-			err = provider.GarbageCollect(run, metric, limit)
+			err = provider.GarbageCollect(run, metric, measurementsLimit)
 			if err != nil {
 				return err
 			}
-			result.Measurements = result.Measurements[length-limit : length]
+			result.Measurements = result.Measurements[length-measurementsLimit : length]
 		}
 		run.Status.MetricResults[i] = result
 	}
