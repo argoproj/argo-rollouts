@@ -120,6 +120,7 @@ message AnalysisRunSpec {
   // DryRun object contains the settings for running the analysis in Dry-Run mode
   // +patchMergeKey=metricName
   // +patchStrategy=merge
+  // +optional
   repeated DryRun dryRun = 4;
 }
 
@@ -189,6 +190,7 @@ message AnalysisTemplateSpec {
   // DryRun object contains the settings for running the analysis in Dry-Run mode
   // +patchMergeKey=metricName
   // +patchStrategy=merge
+  // +optional
   repeated DryRun dryRun = 3;
 }
 
@@ -635,6 +637,12 @@ message ExperimentSpec {
   // more information
   // +optional
   optional int32 scaleDownDelaySeconds = 6;
+
+  // DryRun object contains the settings for running the analysis in Dry-Run mode
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated DryRun dryRun = 7;
 }
 
 // ExperimentStatus is the status for a Experiment resource
@@ -997,6 +1005,7 @@ message RolloutAnalysis {
   // DryRun object contains the settings for running the analysis in Dry-Run mode
   // +patchMergeKey=metricName
   // +patchStrategy=merge
+  // +optional
   repeated DryRun dryRun = 3;
 }
 
