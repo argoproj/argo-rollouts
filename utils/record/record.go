@@ -3,8 +3,8 @@ package record
 import (
 	"context"
 	"encoding/json"
-
 	"github.com/argoproj/notifications-engine/pkg/services"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/cache"
 
 	"regexp"
@@ -206,12 +206,18 @@ func NewAPIFactorySettings() api.Settings {
 
 // Send notifications for triggered event if user is subscribed
 func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts EventOptions) error {
+	logCtx := logutil.WithObject(object)
 	notificationsAPI, err := e.apiFactory.GetAPI()
 	if err != nil {
+		// don't return error if notifications are not configured and rollout has no subscribers
+		subsFromAnnotations := subscriptions.Annotations(object.(metav1.Object).GetAnnotations())
+		logCtx.Infof("subsFromAnnotations: %s", subsFromAnnotations)
+		if errors.IsNotFound(err) && len(subsFromAnnotations.GetDestinations(nil, map[string][]string{})) == 0 {
+			return nil
+		}
 		return err
 	}
 	cfg := notificationsAPI.GetConfig()
-	logCtx := logutil.WithObject(object)
 	destByTrigger := cfg.GetGlobalDestinations(object.(metav1.Object).GetLabels())
 	destByTrigger.Merge(subscriptions.NewAnnotations(object.(metav1.Object).GetAnnotations()).GetDestinations(cfg.DefaultTriggers, cfg.ServiceDefaultTriggers))
 	trigger := translateReasonToTrigger(opts.EventReason)
