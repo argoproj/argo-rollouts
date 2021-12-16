@@ -187,13 +187,16 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 
 	f.expectPatchRolloutAction(r2)
 
-	f.fakeSingleTrafficRouting = newUnmockedSingalFakeTrafficRoutingReconciler()
-	f.fakeSingleTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	f.fakeSingleTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-		assert.Equal(t, int32(10), desiredWeight)
-		return nil
-	})
-	f.fakeSingleTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
+	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
+	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
+		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+			// make sure SetWeight was called with correct value
+			assert.Equal(t, int32(10), desiredWeight)
+			return nil
+		})
+		fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
+	}
 
 	f.run(getKey(r2, t))
 }
