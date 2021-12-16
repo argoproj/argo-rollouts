@@ -58,6 +58,14 @@ func newUnmockedFakeTrafficRoutingReconciler() *[]*mocks.TrafficRoutingReconcile
 	return &reconcilerList
 }
 
+// newUnmockedSingalFakeTrafficRoutingReconciler returns a fake TrafficRoutingReconciler with unmocked
+// methods (except Type() mocked)
+func newUnmockedSingalFakeTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
+	trafficRoutingReconciler := mocks.TrafficRoutingReconciler{}
+	trafficRoutingReconciler.On("Type").Return("fake")
+	return &trafficRoutingReconciler
+}
+
 func newTrafficWeightFixture(t *testing.T) (*fixture, *v1alpha1.Rollout) {
 	f := newFixture(t)
 	defer f.Close()
@@ -179,16 +187,14 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 
 	f.expectPatchRolloutAction(r2)
 
-	f.fakeTrafficRouting = *newUnmockedFakeTrafficRoutingReconciler()
-	for _, fakeTrafficRouting := range f.fakeTrafficRouting {
-		fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-			// make sure SetWeight was called with correct value
-			assert.Equal(t, int32(10), desiredWeight)
-			return nil
-		})
-		fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
-	}
+	f.fakeSingleTrafficRouting = newUnmockedSingalFakeTrafficRoutingReconciler()
+	f.fakeSingleTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	f.fakeSingleTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+		assert.Equal(t, int32(10), desiredWeight)
+		return nil
+	})
+	f.fakeSingleTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
+
 	f.run(getKey(r2, t))
 }
 
@@ -388,6 +394,83 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 		fakeTrafficRouting.On("error patching alb ingress", mock.Anything, mock.Anything).Return(true, nil)
 	}
 	f.run(getKey(r2, t))
+}
+
+func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32Ptr(5),
+		},
+		{
+			SetWeight: pointer.Int32Ptr(25),
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r2.Spec.Strategy.Canary.CanaryService = "canary"
+	r2.Spec.Strategy.Canary.StableService = "stable"
+
+	rs1 := newReplicaSetWithStatus(r1, 5, 5)
+	rs2 := newReplicaSetWithStatus(r2, 10, 5)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r2)
+	stableSvc := newService("stable", 80, stableSelector, r2)
+
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			Weight:          5,
+			ServiceName:     "canary",
+			PodTemplateHash: rs2PodHash,
+		},
+		Stable: v1alpha1.WeightDestination{
+			Weight:          95,
+			ServiceName:     "stable",
+			PodTemplateHash: rs1PodHash,
+		},
+	}
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 15, 0, 10, false)
+	r2.Status.PromoteFull = true
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.expectUpdateReplicaSetAction(rs2)
+	f.expectPatchRolloutAction(r2)
+
+	t.Run("DynamicStableScale true", func(t *testing.T) {
+		r2.Spec.Strategy.Canary.DynamicStableScale = true
+		f.fakeSingleTrafficRouting = newUnmockedSingalFakeTrafficRoutingReconciler()
+		f.fakeSingleTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		f.fakeSingleTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+			assert.Equal(t, int32(50), desiredWeight)
+			return nil
+		})
+		f.fakeSingleTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+		f.run(getKey(r2, t))
+	})
+
+	t.Run("DynamicStableScale false", func(t *testing.T) {
+		r2.Spec.Strategy.Canary.DynamicStableScale = false
+		f.fakeSingleTrafficRouting = newUnmockedSingalFakeTrafficRoutingReconciler()
+		f.fakeSingleTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		f.fakeSingleTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+			assert.Equal(t, int32(5), desiredWeight)
+			return nil
+		})
+		f.fakeSingleTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+		f.run(getKey(r2, t))
+	})
 }
 
 func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
