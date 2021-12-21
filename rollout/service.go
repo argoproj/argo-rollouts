@@ -88,8 +88,6 @@ func (c *rolloutContext) reconcilePreviewService(previewSvc *corev1.Service) err
 }
 
 func (c *rolloutContext) reconcileActiveService(activeSvc *corev1.Service) error {
-	//c.ensureSVCTargets(c.rollout.Spec.Strategy.BlueGreen.ActiveService, c.stableRS)
-	//
 	if !replicasetutil.ReadyForPause(c.rollout, c.newRS, c.allRSs) || !annotations.IsSaturated(c.rollout, c.newRS) {
 		c.log.Infof("skipping active service switch: New RS '%s' is not fully saturated", c.newRS.Name)
 		return nil
@@ -237,13 +235,9 @@ func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1
 }
 
 func (c *rolloutContext) reconcilePingAndPongService() error {
-	if c.rollout.Spec.Strategy.Canary == nil || c.rollout.Spec.Strategy.Canary.PingPong == nil {
-		return nil
-	}
-
-	if !rolloututils.IsFullyPromoted(c.rollout) {
-		_, newPingPongService := trafficrouting.GetCurrentPingPong(c.rollout)
-		if err := c.ensureSVCTargets(newPingPongService, c.newRS); err != nil {
+	if trafficrouting.IsPingPongEnabled(c.rollout) && !rolloututils.IsFullyPromoted(c.rollout) {
+		_, canaryService := trafficrouting.GetCurrentPingPong(c.rollout)
+		if err := c.ensureSVCTargets(canaryService, c.newRS); err != nil {
 			return err
 		}
 	}
