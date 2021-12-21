@@ -83,7 +83,6 @@ func assertWeights(s *AWSSuite, groupA, groupB string, weightA, weightB int64) f
 		if err := json.Unmarshal([]byte(action), &albAction); err != nil {
 			panic(err)
 		}
-		assert.Equal(s.T(), action, albAction)
 		for _, targetGroup := range albAction.ForwardConfig.TargetGroups {
 			switch targetGroup.ServiceName {
 			case groupA:
@@ -92,7 +91,6 @@ func assertWeights(s *AWSSuite, groupA, groupB string, weightA, weightB int64) f
 				assert.True(s.T(), *targetGroup.Weight == weightB, fmt.Sprintf("Weight doesn't match: %d and %d", *targetGroup.Weight, weightB))
 			default:
 				assert.True(s.T(), false, "Service is not expected in the target group: "+targetGroup.ServiceName)
-
 			}
 		}
 	}
