@@ -8,7 +8,7 @@ import (
 // Which one "ping-service" or "pong-service" currently is a stable one which is a canary
 func GetCurrentPingPong(ro *v1alpha1.Rollout) (string, string) {
 	canary := ro.Spec.Strategy.Canary
-	if IsStablePing(ro) {
+	if isStablePing(ro.Status.Canary.StablePingPong) {
 		return canary.PingPong.PingService, canary.PingPong.PongService
 	} else {
 		return canary.PingPong.PongService, canary.PingPong.PingService
@@ -27,15 +27,15 @@ func GetStableAndCanaryServices(ro *v1alpha1.Rollout) (string, string) {
 }
 
 func isStablePing(current v1alpha1.PingPongType) bool {
-	return current == v1alpha1.PPPing
+	return current == "" || current == v1alpha1.PPPing
 }
 
 func IsStablePing(ro *v1alpha1.Rollout) bool {
-	return ro.Status.Canary.StablePingPong == v1alpha1.PPPing
+	return isStablePing(ro.Status.Canary.StablePingPong)
 }
 
 func PingPongOpposite(current v1alpha1.PingPongType) v1alpha1.PingPongType {
-	if isStablePing(current) {
+	if current != "" && isStablePing(current) {
 		return v1alpha1.PPPong
 	} else {
 		return v1alpha1.PPPing

@@ -3,6 +3,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/tj/assert"
 
 	"github.com/argoproj/argo-rollouts/test/fixtures"
+	ingress2 "github.com/argoproj/argo-rollouts/utils/ingress"
 )
 
 type AWSSuite struct {
@@ -26,7 +28,6 @@ const actionTemplate = `{"Type":"forward","ForwardConfig":{"TargetGroups":[{"Ser
 
 const actionTemplateWithExperiment = `{"Type":"forward","ForwardConfig":{"TargetGroups":[{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d}]}}`
 const actionTemplateWithExperiments = `{"Type":"forward","ForwardConfig":{"TargetGroups":[{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d}]}}`
-
 
 // TestALBUpdate is a simple integration test which verifies the controller can work in a real AWS
 // environment. It is intended to be run with the `--aws-verify-target-group` controller flag. Success of
@@ -56,6 +57,47 @@ func (s *AWSSuite) TestALBBlueGreenUpdate() {
 		WaitForRolloutStatus("Healthy")
 }
 
+func (s *AWSSuite) TestALBPingPongUpdate() {
+	s.Given().
+		RolloutObjects("@functional/alb-pingpong-rollout.yaml").
+		When().ApplyManifests().WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 100, 0)).
+		When().UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 75, 25)).
+		When().PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 0, 100))
+}
+
+func assertWeights(s *AWSSuite, groupA, groupB string, weightA, weightB int64) func(t *fixtures.Then) {
+	return func(t *fixtures.Then) {
+		ingress := t.GetALBIngress()
+		action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
+		assert.True(s.T(), ok)
+
+		var albAction ingress2.ALBAction
+		if err := json.Unmarshal([]byte(action), &albAction); err != nil {
+			panic(err)
+		}
+		assert.Equal(s.T(), action, albAction)
+		for _, targetGroup := range albAction.ForwardConfig.TargetGroups {
+			switch targetGroup.ServiceName {
+			case groupA:
+				assert.True(s.T(), *targetGroup.Weight == weightA, fmt.Sprintf("Weight doesn't match: %d and %d", *targetGroup.Weight, weightA))
+			case groupB:
+				assert.True(s.T(), *targetGroup.Weight == weightB, fmt.Sprintf("Weight doesn't match: %d and %d", *targetGroup.Weight, weightB))
+			default:
+				assert.True(s.T(), false, "Service is not expected in the target group: "+targetGroup.ServiceName)
+
+			}
+		}
+	}
+}
+
 func (s *AWSSuite) TestALBExperimentStep() {
 	s.Given().
 		RolloutObjects("@alb/rollout-alb-experiment.yaml").
@@ -65,7 +107,7 @@ func (s *AWSSuite) TestALBExperimentStep() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ingress := t.GetALBIngress()
-			action, ok :=  ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
+			action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
 			assert.True(s.T(), ok)
 
 			port := 80
@@ -76,11 +118,11 @@ func (s *AWSSuite) TestALBExperimentStep() {
 		When().
 		UpdateSpec().
 		WaitForRolloutCanaryStepIndex(1).
-		Sleep(10*time.Second).
+		Sleep(10 * time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ingress := t.GetALBIngress()
-			action, ok :=  ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
+			action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
 			assert.True(s.T(), ok)
 
 			ex := t.GetRolloutExperiments().Items[0]
@@ -93,11 +135,11 @@ func (s *AWSSuite) TestALBExperimentStep() {
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
-		Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Sleep(1 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ingress := t.GetALBIngress()
-			action, ok :=  ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
+			action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
 			assert.True(s.T(), ok)
 
 			port := 80
@@ -115,7 +157,7 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ingress := t.GetALBIngress()
-			action, ok :=  ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
+			action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
 			assert.True(s.T(), ok)
 
 			port := 80
@@ -125,11 +167,11 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 		ExpectExperimentCount(0).
 		When().
 		UpdateSpec().
-		Sleep(10*time.Second).
+		Sleep(10 * time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ingress := t.GetALBIngress()
-			action, ok :=  ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
+			action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
 			assert.True(s.T(), ok)
 
 			experiment := t.GetRolloutExperiments().Items[0]
@@ -142,11 +184,11 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
-		Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Sleep(1 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
 		Then().
 		Assert(func(t *fixtures.Then) {
 			ingress := t.GetALBIngress()
-			action, ok :=  ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
+			action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
 			assert.True(s.T(), ok)
 
 			port := 80
@@ -154,4 +196,3 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 			assert.Equal(s.T(), expectedAction, action)
 		})
 }
-
