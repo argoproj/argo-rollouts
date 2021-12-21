@@ -50,6 +50,15 @@ stringData:
 
 Learn more about supported services and configuration settings in services [documentation](../generated/notification-services/overview.md).
 
+## Default Trigger templates
+
+Currently the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
+
+* `on-rollout-completed` when a rollout is finished and all its steps are completed
+* `on-rollout-step-completed` when an individual step inside a rollout definition is completed
+* `on-rollout-updated` when a rollout definition is changed
+* `on-scaling-replica-set` when the number of replicas in a rollout is changed
+
 ## Subscriptions
 
 The end-users can start leveraging notifications using `notifications.argoproj.io/subscribe.<trigger>.<service>: <recipient>` annotation.
