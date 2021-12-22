@@ -133,7 +133,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	}
 	resourceIDToDest := map[string]v1alpha1.WeightDestination{}
 
-	canaryService, stableService := trafficrouting.GetStableAndCanaryServices(rollout)
+	stableService, canaryService := trafficrouting.GetStableAndCanaryServices(rollout)
 	canaryResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 	stableResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), stableService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 
