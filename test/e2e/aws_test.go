@@ -61,14 +61,24 @@ func (s *AWSSuite) TestALBPingPongUpdate() {
 		When().ApplyManifests().WaitForRolloutStatus("Healthy").
 		Then().
 		Assert(assertWeights(s, "ping-service", "pong-service", 100, 0)).
+		// Update 1. Test the weight switch from ping => pong
 		When().UpdateSpec().
 		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
 		Assert(assertWeights(s, "ping-service", "pong-service", 75, 25)).
 		When().PromoteRollout().
 		WaitForRolloutStatus("Healthy").
-		Sleep(1 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Sleep(1 * time.Second).
 		Then().
-		Assert(assertWeights(s, "ping-service", "pong-service", 0, 100))
+		Assert(assertWeights(s, "ping-service", "pong-service", 0, 100)).
+		// Update 2. Test the weight switch from pong => ping
+		When().UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 25, 75)).
+		When().PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
+		Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 100, 0))
 }
 
 func assertWeights(s *AWSSuite, groupA, groupB string, weightA, weightB int64) func(t *fixtures.Then) {
