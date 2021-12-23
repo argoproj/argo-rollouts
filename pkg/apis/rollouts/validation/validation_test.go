@@ -167,6 +167,33 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		assert.Equal(t, DuplicatedServicesCanaryMessage, allErrs[0].Detail)
 	})
 
+	t.Run("duplicate ping pong services", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.StableService = ""
+		invalidRo.Spec.Strategy.Canary.CanaryService = ""
+		invalidRo.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "ping", PongService: "ping"}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, DuplicatedPingPongServicesMessage, allErrs[0].Detail)
+	})
+
+	t.Run("ping services using only", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.StableService = ""
+		invalidRo.Spec.Strategy.Canary.CanaryService = ""
+		invalidRo.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "ping", PongService: ""}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidPingPongProvidedMessage, allErrs[0].Detail)
+	})
+
+	t.Run("pong service using only", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.StableService = ""
+		invalidRo.Spec.Strategy.Canary.CanaryService = ""
+		invalidRo.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "", PongService: "pong"}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidPingPongProvidedMessage, allErrs[0].Detail)
+	})
+
 	t.Run("invalid traffic routing", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		invalidRo.Spec.Strategy.Canary.CanaryService = ""
