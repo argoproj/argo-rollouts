@@ -65,6 +65,8 @@ const (
 	InvalidPingPongProvidedMessage = "Ping service and Pong service must to be set to use Ping-Pong feature"
 	// DuplicatedPingPongServicesMessage indicates that the rollout uses the same service for the ping and pong services
 	DuplicatedPingPongServicesMessage = "This rollout uses the same service for the ping and pong services, but two different services are required."
+	// MissedAlbRootServiceMessage indicates that the rollout with ALB TrafficRouting and ping pong feature enabled must have root service provided
+	MissedAlbRootServiceMessage = "Root service field is required for the configuration with ALB and ping-pong feature enabled"
 )
 
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
@@ -227,6 +229,9 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		}
 		if canary.PingPong.PingService == canary.PingPong.PongService {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("pingPong").Child("pingService"), canary.PingPong.PingService, DuplicatedPingPongServicesMessage))
+		}
+		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB != nil && canary.TrafficRouting.ALB.RootService == "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("alb").Child("rootService"), canary.TrafficRouting.ALB.RootService, MissedAlbRootServiceMessage))
 		}
 	}
 	if requireCanaryStableServices(rollout) {

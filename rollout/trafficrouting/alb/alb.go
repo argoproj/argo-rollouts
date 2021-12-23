@@ -79,7 +79,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if err != nil {
 		return err
 	}
-	actionService, _ := trafficrouting.GetStableAndCanaryServices(rollout)
+	actionService := rollout.Spec.Strategy.Canary.StableService
 	if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
 		actionService = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
 	}
