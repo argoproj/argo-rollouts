@@ -43,7 +43,7 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: |
-            quay.io/argoproj/argo-rollouts
+            quay.io/cguertin14/argo-rollouts
           # ghcr.io/argoproj/argo-rollouts
           tags: |
             type=semver,pattern={{version}},prefix=v,value=${{ github.event.inputs.tag }}
@@ -55,7 +55,7 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: |
-            quay.io/argoproj/kubectl-argo-rollouts
+            quay.io/cguertin14/kubectl-argo-rollouts
           #  ghcr.io/argoproj/kubectl-argo-rollouts
           tags: |
             type=semver,pattern={{version}},prefix=v,value=${{ github.event.inputs.tag }}
