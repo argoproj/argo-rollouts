@@ -128,8 +128,11 @@ jobs:
           draft: true
           files: |
             dist/kubectl-argo-rollouts-linux-amd64
+            dist/kubectl-argo-rollouts-linux-arm64
             dist/kubectl-argo-rollouts-darwin-amd64
+            dist/kubectl-argo-rollouts-darwin-arm64
             dist/kubectl-argo-rollouts-windows-amd64
+            dist/kubectl-argo-rollouts-windows-arm64
             manifests/dashboard-install.yaml
             manifests/install.yaml
             manifests/namespace-install.yaml
