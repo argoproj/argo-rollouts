@@ -63,7 +63,7 @@ RUN touch ui/dist/node_modules.marker && \
     touch ui/dist/app/index.html && \
     find ui/dist
 
-ARG MAKE_TARGET="controller plugin-linux plugin-darwin plugin-windows"
+ARG MAKE_TARGET="controller plugin plugin-linux plugin-darwin plugin-windows"
 RUN make ${MAKE_TARGET}
 
 ####################################################################################################
@@ -71,7 +71,7 @@ RUN make ${MAKE_TARGET}
 ####################################################################################################
 FROM docker.io/library/ubuntu:20.10 as kubectl-argo-rollouts
 
-COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts-linux-amd64 /bin/kubectl-argo-rollouts
+COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts /bin/kubectl-argo-rollouts
 
 USER 999
 
