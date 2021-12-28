@@ -1,11 +1,9 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Git tag to build release from
-        required: true
+  push:
+    tags:
+      - 'v*.*.*'  
 
 jobs:
   release-images:
