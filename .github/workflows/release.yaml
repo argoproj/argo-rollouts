@@ -1,10 +1,11 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'  
-
+  workflow_dispatch:                                                                                                         
+    inputs:                                                                                                                  
+      tag:                                                                                                                   
+        description: Git tag to build release from                                                                           
+        required: true  
 jobs:
   release-images:
     runs-on: ubuntu-latest
