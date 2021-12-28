@@ -191,16 +191,19 @@ ui/dist:
 plugin-linux: ui/dist
 	cp -r ui/dist/app/* server/static
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-linux-amd64 ./cmd/kubectl-argo-rollouts
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-linux-arm64 ./cmd/kubectl-argo-rollouts
 
 .PHONY: plugin-darwin
 plugin-darwin: ui/dist
 	cp -r ui/dist/app/* server/static
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-amd64 ./cmd/kubectl-argo-rollouts
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-darwin-arm64 ./cmd/kubectl-argo-rollouts
 
 .PHONY: plugin-windows
 plugin-windows: ui/dist
 	cp -r ui/dist/app/* server/static
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-windows-amd64 ./cmd/kubectl-argo-rollouts
+	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${PLUGIN_CLI_NAME}-windows-arm64 ./cmd/kubectl-argo-rollouts
 
 .PHONY: docs
 docs:
