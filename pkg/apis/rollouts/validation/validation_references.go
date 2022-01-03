@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -212,7 +211,7 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 	} else if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
 		fldPath = fldPath.Child("alb").Child("ingress")
 		ingressName = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
-		serviceName, _ = trafficrouting.GetStableAndCanaryServices(rollout)
+		serviceName = rollout.Spec.Strategy.Canary.StableService
 		if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
 			serviceName = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
 		}
