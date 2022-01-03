@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -590,4 +591,48 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		WaitForRevisionPodCount("2", 0).
 		Then().
 		ExpectRevisionPodCount("1", 4)
+}
+
+func (s *CanarySuite) TestSinglePodWithMinimumWeight() {
+	s.Given().
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: single-pod
+spec:
+  replicas: 15
+  strategy:
+    canary:
+      steps:
+      - setWeight: 1
+      - pause: {}
+  selector:
+    matchLabels:
+      app: single-pod
+  template:
+    metadata:
+      labels:
+        app: single-pod
+    spec:
+      containers:
+      - name: single-pod
+        image: nginx:1.19-alpine
+        # slow down the start/stop of pods so our pod count checks will not flake
+        lifecycle:
+          postStart:
+            exec:
+              command: [sleep, "5"]
+          preStop:
+            exec:
+              command: [sleep, "5"]
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m`).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectCanaryStablePodCount(1, 14)
 }

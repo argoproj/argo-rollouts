@@ -128,12 +128,35 @@ func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *a
 // replicas 1 currentWeight 5 NewRS 0 stableRS 1 max unavailable 0, surge 1 - should return newRS 1 stableRS 1
 // replicas 1 currentWeight 95 NewRS 0 stableRS 1 max unavailable 0, surge 1 - should return newRS 1 stableRS 1
 // For more examples, check the CalculateReplicaCountsForBasicCanary test in canary/canary_test.go
+
+func calculateRolloutSteps(rolloutSpecReplica int, desiredWeight float64) (int32, int32) {
+	if int32(desiredWeight) == 0 {
+		desiredStableRSReplicaCount := int32(rolloutSpecReplica)
+		desiredNewRSReplicaCount := int32(0)
+		return desiredNewRSReplicaCount, desiredStableRSReplicaCount
+	} else {
+		log.Infof("Total replica count is: %d", rolloutSpecReplica)
+		desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(desiredWeight) / 100))))
+		desiredNewRSReplicaCount := int32(int32(rolloutSpecReplica) - desiredStableRSReplicaCount)
+		if (desiredNewRSReplicaCount == 0) && (desiredStableRSReplicaCount > 3) {
+			desiredNewRSReplicaCount++
+			desiredStableRSReplicaCount--
+		} else if desiredNewRSReplicaCount == 0 {
+			desiredNewRSReplicaCount++
+		}
+		return desiredNewRSReplicaCount, desiredStableRSReplicaCount
+	}
+}
+
 func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) (int32, int32) {
 	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	_, desiredWeight := GetCanaryReplicasOrWeight(rollout)
 
-	desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(desiredWeight) / 100))))
-	desiredNewRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (float64(desiredWeight) / 100)))
+	desiredNewRSReplicaCount, desiredStableRSReplicaCount := calculateRolloutSteps(int(rolloutSpecReplica), float64(desiredWeight))
+	log.Infof("Desired Weight: %d", desiredWeight)
+	log.Infof("Spec Replica: %d", rolloutSpecReplica)
+	log.Infof("desiredStableRSReplicaCount: %d", desiredStableRSReplicaCount)
+	log.Infof("desiredNewRSReplicaCount: %d", desiredNewRSReplicaCount)
 
 	stableRSReplicaCount := int32(0)
 	newRSReplicaCount := int32(0)
