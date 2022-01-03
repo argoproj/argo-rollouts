@@ -21,7 +21,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -527,26 +527,26 @@ func (c *Common) GetServices() (*corev1.Service, *corev1.Service) {
 	return desiredSvc, stableSvc
 }
 
-func (c *Common) GetALBIngress() *extensionsv1beta1.Ingress {
+func (c *Common) GetALBIngress() *networkingv1.Ingress {
 	ro := c.Rollout()
 	name := ro.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
-	ingress, err := c.kubeClient.ExtensionsV1beta1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	ingress, err := c.kubeClient.NetworkingV1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
 	c.CheckError(err)
 	return ingress
 }
 
-func (c *Common) GetNginxIngressStable() *extensionsv1beta1.Ingress {
+func (c *Common) GetNginxIngressStable() *networkingv1.Ingress {
 	ro := c.Rollout()
 	name := ro.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
-	ingress, err := c.kubeClient.ExtensionsV1beta1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	ingress, err := c.kubeClient.NetworkingV1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
 	c.CheckError(err)
 	return ingress
 }
 
-func (c *Common) GetNginxIngressCanary() *extensionsv1beta1.Ingress {
+func (c *Common) GetNginxIngressCanary() *networkingv1.Ingress {
 	ro := c.Rollout()
 	name := ro.Name + "-" + ro.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress + "-canary"
-	ingress, err := c.kubeClient.ExtensionsV1beta1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	ingress, err := c.kubeClient.NetworkingV1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
 	c.CheckError(err)
 	return ingress
 }
