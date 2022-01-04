@@ -138,7 +138,7 @@ func calculateRolloutSteps(rolloutSpecReplica int, desiredWeight float64) (int32
 		log.Infof("Total replica count is: %d", rolloutSpecReplica)
 		desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(desiredWeight) / 100))))
 		desiredNewRSReplicaCount := int32(int32(rolloutSpecReplica) - desiredStableRSReplicaCount)
-		if (desiredNewRSReplicaCount == 0) && (desiredStableRSReplicaCount > 3) {
+		if (desiredNewRSReplicaCount == 0) && (desiredStableRSReplicaCount > 1) {
 			desiredNewRSReplicaCount++
 			desiredStableRSReplicaCount--
 		} else if desiredNewRSReplicaCount == 0 {

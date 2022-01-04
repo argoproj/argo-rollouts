@@ -457,7 +457,7 @@ spec:
 		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Paused").
 		Then().
-		ExpectCanaryStablePodCount(1, 3).
+		ExpectCanaryStablePodCount(1, 2).
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Degraded").
@@ -593,13 +593,13 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		ExpectRevisionPodCount("1", 4)
 }
 
-func (s *CanarySuite) TestSinglePodWithMinimumWeight() {
+func (s *CanarySuite) TestReplicasCapping() {
 	s.Given().
 		HealthyRollout(`
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: single-pod
+  name: replicas-capping
 spec:
   replicas: 15
   strategy:
@@ -607,25 +607,19 @@ spec:
       steps:
       - setWeight: 1
       - pause: {}
+      - setWeight: 50
+      - pause: {}
   selector:
     matchLabels:
-      app: single-pod
+      app: replicas-capping
   template:
     metadata:
       labels:
-        app: single-pod
+        app: replicas-capping
     spec:
       containers:
-      - name: single-pod
+      - name: replicas-capping
         image: nginx:1.19-alpine
-        # slow down the start/stop of pods so our pod count checks will not flake
-        lifecycle:
-          postStart:
-            exec:
-              command: [sleep, "5"]
-          preStop:
-            exec:
-              command: [sleep, "5"]
         resources:
           requests:
             memory: 16Mi
@@ -634,5 +628,10 @@ spec:
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
 		Then().
-		ExpectCanaryStablePodCount(1, 14)
+		ExpectCanaryStablePodCount(1, 14).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectCanaryStablePodCount(7, 8)
 }
