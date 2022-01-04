@@ -37,6 +37,24 @@ func TestCanaryRolloutInfo(t *testing.T) {
 	})
 }
 
+func TestPingPongCanaryRolloutInfo(t *testing.T) {
+	rolloutObjs := testdata.NewCanaryRollout()
+	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[3], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
+	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[3].Name)
+	assert.Len(t, Revisions(roInfo), 3)
+
+	assert.Equal(t, Images(roInfo), []ImageInfo{
+		{
+			Image: "argoproj/rollouts-demo:does-not-exist",
+			Tags:  []string{InfoTagCanary, InfoTagPing},
+		},
+		{
+			Image: "argoproj/rollouts-demo:green",
+			Tags:  []string{InfoTagStable, InfoTagPong},
+		},
+	})
+}
+
 func TestBlueGreenRolloutInfo(t *testing.T) {
 	{
 		rolloutObjs := testdata.NewBlueGreenRollout()

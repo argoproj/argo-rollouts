@@ -43,16 +43,18 @@ func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 		if ro != nil {
 			podTemplateHash := replicasetutil.GetPodTemplateHash(rs)
 			if ro.Spec.Strategy.Canary != nil {
+				stableRsIsPing := trafficrouting.IsStablePing(ro)
 				if ro.Status.StableRS == podTemplateHash {
 					rsInfo.Stable = true
 					if trafficrouting.IsPingPongEnabled(ro) {
-						fillPingPong(trafficrouting.IsStablePing(ro), rsInfo)
+						rsInfo.Ping = stableRsIsPing
+						rsInfo.Pong = !stableRsIsPing
 					}
 				} else if ro.Status.CurrentPodHash == podTemplateHash {
 					rsInfo.Canary = true
 					if trafficrouting.IsPingPongEnabled(ro) {
-						canaryRsIsPing := !trafficrouting.IsStablePing(ro)
-						fillPingPong(canaryRsIsPing, rsInfo)
+						rsInfo.Ping = !stableRsIsPing
+						rsInfo.Pong = stableRsIsPing
 					}
 				}
 			}
@@ -83,14 +85,6 @@ func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 		return rsInfos[i].ObjectMeta.Name < rsInfos[j].ObjectMeta.Name
 	})
 	return addPodInfos(rsInfos, allPods)
-}
-
-func fillPingPong(rsIsPing bool, rsInfo *rollout.ReplicaSetInfo) {
-	if rsIsPing {
-		rsInfo.Ping = true
-	} else {
-		rsInfo.Pong = true
-	}
 }
 
 func getReplicaSetHealth(rs *appsv1.ReplicaSet) string {
