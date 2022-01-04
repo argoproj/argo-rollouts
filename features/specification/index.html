@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/features/specification/">
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.3">
+      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.4">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.edf004c2.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.bb3983ee.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.e6a45f82.min.css">
@@ -2031,338 +2031,338 @@
 
 <h1 id="rollout-specification">Rollout Specification<a class="headerlink" href="#rollout-specification" title="Permanent link">&para;</a></h1>
 <p>The following describes all the available fields of a rollout:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example-rollout-canary</span>
-<span class="nt">spec</span><span class="p">:</span>
-  <span class="c1"># Number of desired pods.</span>
-  <span class="c1"># Defaults to 1.</span>
-  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5</span>
-  <span class="nt">analysis</span><span class="p">:</span>
-    <span class="c1"># limits the number of successful analysis runs and experiments to be stored in a history</span>
-    <span class="c1"># Defaults to 5.</span>
-    <span class="nt">successfulRunHistoryLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10</span>
-    <span class="c1"># limits the number of unsuccessful analysis runs and experiments to be stored in a history. </span>
-    <span class="c1"># Stages for unsuccessful: &quot;Error&quot;, &quot;Failed&quot;, &quot;Inconclusive&quot;</span>
-    <span class="c1"># Defaults to 5.</span>
-    <span class="nt">unsuccessfulRunHistoryLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example-rollout-canary</span><span class="w"></span>
+<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># Number of desired pods.</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># Defaults to 1.</span><span class="w"></span>
+<span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
+<span class="w">  </span><span class="nt">analysis</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="c1"># limits the number of successful analysis runs and experiments to be stored in a history</span><span class="w"></span>
+<span class="w">    </span><span class="c1"># Defaults to 5.</span><span class="w"></span>
+<span class="w">    </span><span class="nt">successfulRunHistoryLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w"></span>
+<span class="w">    </span><span class="c1"># limits the number of unsuccessful analysis runs and experiments to be stored in a history. </span><span class="w"></span>
+<span class="w">    </span><span class="c1"># Stages for unsuccessful: &quot;Error&quot;, &quot;Failed&quot;, &quot;Inconclusive&quot;</span><span class="w"></span>
+<span class="w">    </span><span class="c1"># Defaults to 5.</span><span class="w"></span>
+<span class="w">    </span><span class="nt">unsuccessfulRunHistoryLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w"></span>
 
-  <span class="c1"># Label selector for pods. Existing ReplicaSets whose pods are selected by</span>
-  <span class="c1"># this will be the ones affected by this rollout. It must match the pod</span>
-  <span class="c1"># template&#39;s labels.</span>
-  <span class="nt">selector</span><span class="p">:</span>
-    <span class="nt">matchLabels</span><span class="p">:</span>
-      <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="w">  </span><span class="c1"># Label selector for pods. Existing ReplicaSets whose pods are selected by</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># this will be the ones affected by this rollout. It must match the pod</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># template&#39;s labels.</span><span class="w"></span>
+<span class="w">  </span><span class="nt">selector</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span><span class="w"></span>
 
-  <span class="c1"># Template describes the pods that will be created. Same as deployment</span>
-  <span class="nt">template</span><span class="p">:</span>
-    <span class="nt">spec</span><span class="p">:</span>
-      <span class="nt">containers</span><span class="p">:</span>
-      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
-        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:blue</span>
+<span class="w">  </span><span class="c1"># Template describes the pods that will be created. Same as deployment</span><span class="w"></span>
+<span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span><span class="w"></span>
+<span class="w">        </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:blue</span><span class="w"></span>
 
-  <span class="c1"># Minimum number of seconds for which a newly created pod should be ready</span>
-  <span class="c1"># without any of its container crashing, for it to be considered available.</span>
-  <span class="c1"># Defaults to 0 (pod will be considered available as soon as it is ready)</span>
-  <span class="nt">minReadySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="w">  </span><span class="c1"># Minimum number of seconds for which a newly created pod should be ready</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># without any of its container crashing, for it to be considered available.</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># Defaults to 0 (pod will be considered available as soon as it is ready)</span><span class="w"></span>
+<span class="w">  </span><span class="nt">minReadySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w"></span>
 
-  <span class="c1"># The number of old ReplicaSets to retain.</span>
-  <span class="c1"># Defaults to 10</span>
-  <span class="nt">revisionHistoryLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">  </span><span class="c1"># The number of old ReplicaSets to retain.</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># Defaults to 10</span><span class="w"></span>
+<span class="w">  </span><span class="nt">revisionHistoryLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w"></span>
 
-  <span class="c1"># Pause allows a user to manually pause a rollout at any time. A rollout</span>
-  <span class="c1"># will not advance through its steps while it is manually paused, but HPA</span>
-  <span class="c1"># auto-scaling will still occur. Typically not explicitly set the manifest,</span>
-  <span class="c1"># but controlled via tools (e.g. kubectl argo rollouts pause). If true at</span>
-  <span class="c1"># initial creation of Rollout, replicas are not scaled up automatically</span>
-  <span class="c1"># from zero unless manually promoted.</span>
-  <span class="nt">paused</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="c1"># Pause allows a user to manually pause a rollout at any time. A rollout</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># will not advance through its steps while it is manually paused, but HPA</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># auto-scaling will still occur. Typically not explicitly set the manifest,</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># but controlled via tools (e.g. kubectl argo rollouts pause). If true at</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># initial creation of Rollout, replicas are not scaled up automatically</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># from zero unless manually promoted.</span><span class="w"></span>
+<span class="w">  </span><span class="nt">paused</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w"></span>
 
-  <span class="c1"># The maximum time in seconds in which a rollout must make progress during</span>
-  <span class="c1"># an update, before it is considered to be failed. Argo Rollouts will</span>
-  <span class="c1"># continue to process failed rollouts and a condition with a</span>
-  <span class="c1"># ProgressDeadlineExceeded reason will be surfaced in the rollout status.</span>
-  <span class="c1"># Note that progress will not be estimated during the time a rollout is</span>
-  <span class="c1"># paused.</span>
-  <span class="c1"># Defaults to 600s</span>
-  <span class="nt">progressDeadlineSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">600</span>
+<span class="w">  </span><span class="c1"># The maximum time in seconds in which a rollout must make progress during</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># an update, before it is considered to be failed. Argo Rollouts will</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># continue to process failed rollouts and a condition with a</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># ProgressDeadlineExceeded reason will be surfaced in the rollout status.</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># Note that progress will not be estimated during the time a rollout is</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># paused.</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># Defaults to 600s</span><span class="w"></span>
+<span class="w">  </span><span class="nt">progressDeadlineSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">600</span><span class="w"></span>
 
-  <span class="c1"># Whether to abort the update when ProgressDeadlineSeconds</span>
-  <span class="c1"># is exceeded if analysis or experiment is not used.</span>
-  <span class="c1"># Optional and default is false.</span>
-  <span class="nt">progressDeadlineAbort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="c1"># Whether to abort the update when ProgressDeadlineSeconds</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># is exceeded if analysis or experiment is not used.</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># Optional and default is false.</span><span class="w"></span>
+<span class="w">  </span><span class="nt">progressDeadlineAbort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w"></span>
 
-  <span class="c1"># UTC timestamp in which a Rollout should sequentially restart all of</span>
-  <span class="c1"># its pods. Used by the `kubectl argo rollouts restart ROLLOUT` command.</span>
-  <span class="c1"># The controller will ensure all pods have a creationTimestamp greater</span>
-  <span class="c1"># than or equal to this value.</span>
-  <span class="nt">restartAt</span><span class="p">:</span> <span class="s">&quot;2020-03-30T21:19:35Z&quot;</span>
+<span class="w">  </span><span class="c1"># UTC timestamp in which a Rollout should sequentially restart all of</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># its pods. Used by the `kubectl argo rollouts restart ROLLOUT` command.</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># The controller will ensure all pods have a creationTimestamp greater</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># than or equal to this value.</span><span class="w"></span>
+<span class="w">  </span><span class="nt">restartAt</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2020-03-30T21:19:35Z&quot;</span><span class="w"></span>
 
-  <span class="nt">strategy</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
 
-    <span class="c1"># Blue-green update strategy</span>
-    <span class="nt">blueGreen</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># Blue-green update strategy</span><span class="w"></span>
+<span class="w">    </span><span class="nt">blueGreen</span><span class="p">:</span><span class="w"></span>
 
-      <span class="c1"># Reference to service that the rollout modifies as the active service.</span>
-      <span class="c1"># Required.</span>
-      <span class="nt">activeService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">active-service</span>
+<span class="w">      </span><span class="c1"># Reference to service that the rollout modifies as the active service.</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># Required.</span><span class="w"></span>
+<span class="w">      </span><span class="nt">activeService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">active-service</span><span class="w"></span>
 
-      <span class="c1"># Pre-promotion analysis run which performs analysis before the service</span>
-      <span class="c1"># cutover. +optional</span>
-      <span class="nt">prePromotionAnalysis</span><span class="p">:</span>
-        <span class="nt">templates</span><span class="p">:</span>
-        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-        <span class="nt">args</span><span class="p">:</span>
-        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
-          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
+<span class="w">      </span><span class="c1"># Pre-promotion analysis run which performs analysis before the service</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># cutover. +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">prePromotionAnalysis</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">templates</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span><span class="w"></span>
+<span class="w">        </span><span class="nt">args</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span><span class="w"></span>
+<span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span><span class="w"></span>
 
-      <span class="c1"># Post-promotion analysis run which performs analysis after the service</span>
-      <span class="c1"># cutover. +optional</span>
-      <span class="nt">postPromotionAnalysis</span><span class="p">:</span>
-        <span class="nt">templates</span><span class="p">:</span>
-        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-        <span class="nt">args</span><span class="p">:</span>
-        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
-          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
+<span class="w">      </span><span class="c1"># Post-promotion analysis run which performs analysis after the service</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># cutover. +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">postPromotionAnalysis</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">templates</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span><span class="w"></span>
+<span class="w">        </span><span class="nt">args</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span><span class="w"></span>
+<span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span><span class="w"></span>
 
-      <span class="c1"># Name of the service that the rollout modifies as the preview service.</span>
-      <span class="c1"># +optional</span>
-      <span class="nt">previewService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">preview-service</span>
+<span class="w">      </span><span class="c1"># Name of the service that the rollout modifies as the preview service.</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">previewService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">preview-service</span><span class="w"></span>
 
-      <span class="c1"># The number of replicas to run under the preview service before the</span>
-      <span class="c1"># switchover. Once the rollout is resumed the new ReplicaSet will be fully</span>
-      <span class="c1"># scaled up before the switch occurs +optional</span>
-      <span class="nt">previewReplicaCount</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">      </span><span class="c1"># The number of replicas to run under the preview service before the</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># switchover. Once the rollout is resumed the new ReplicaSet will be fully</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># scaled up before the switch occurs +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">previewReplicaCount</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
 
-      <span class="c1"># Indicates if the rollout should automatically promote the new ReplicaSet</span>
-      <span class="c1"># to the active service or enter a paused state. If not specified, the</span>
-      <span class="c1"># default value is true. +optional</span>
-      <span class="nt">autoPromotionEnabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">      </span><span class="c1"># Indicates if the rollout should automatically promote the new ReplicaSet</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># to the active service or enter a paused state. If not specified, the</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># default value is true. +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">autoPromotionEnabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w"></span>
 
-      <span class="c1"># Automatically promotes the current ReplicaSet to active after the</span>
-      <span class="c1"># specified pause delay in seconds after the ReplicaSet becomes ready.</span>
-      <span class="c1"># If omitted, the Rollout enters and remains in a paused state until</span>
-      <span class="c1"># manually resumed by resetting spec.Paused to false. +optional</span>
-      <span class="nt">autoPromotionSeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="w">      </span><span class="c1"># Automatically promotes the current ReplicaSet to active after the</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># specified pause delay in seconds after the ReplicaSet becomes ready.</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># If omitted, the Rollout enters and remains in a paused state until</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># manually resumed by resetting spec.Paused to false. +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">autoPromotionSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w"></span>
 
-      <span class="c1"># Adds a delay before scaling down the previous ReplicaSet. If omitted,</span>
-      <span class="c1"># the Rollout waits 30 seconds before scaling down the previous ReplicaSet.</span>
-      <span class="c1"># A minimum of 30 seconds is recommended to ensure IP table propagation</span>
-      <span class="c1"># across the nodes in a cluster.</span>
-      <span class="nt">scaleDownDelaySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="w">      </span><span class="c1"># Adds a delay before scaling down the previous ReplicaSet. If omitted,</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># the Rollout waits 30 seconds before scaling down the previous ReplicaSet.</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># A minimum of 30 seconds is recommended to ensure IP table propagation</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># across the nodes in a cluster.</span><span class="w"></span>
+<span class="w">      </span><span class="nt">scaleDownDelaySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w"></span>
 
-      <span class="c1"># Limits the number of old RS that can run at once before getting scaled</span>
-      <span class="c1"># down. Defaults to nil</span>
-      <span class="nt">scaleDownDelayRevisionLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">      </span><span class="c1"># Limits the number of old RS that can run at once before getting scaled</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># down. Defaults to nil</span><span class="w"></span>
+<span class="w">      </span><span class="nt">scaleDownDelayRevisionLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w"></span>
 
-      <span class="c1"># Add a delay in second before scaling down the preview replicaset</span>
-      <span class="c1"># if update is aborted. 0 means not to scale down. Default is 30 second</span>
-      <span class="nt">abortScaleDownDelaySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="w">      </span><span class="c1"># Add a delay in second before scaling down the preview replicaset</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># if update is aborted. 0 means not to scale down. Default is 30 second</span><span class="w"></span>
+<span class="w">      </span><span class="nt">abortScaleDownDelaySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w"></span>
 
-      <span class="c1"># Anti Affinity configuration between desired and previous ReplicaSet.</span>
-      <span class="c1"># Only one must be specified</span>
-      <span class="nt">antiAffinity</span><span class="p">:</span>
-        <span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
-        <span class="nt">preferredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
-          <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span> <span class="c1"># Between 1 - 100</span>
+<span class="w">      </span><span class="c1"># Anti Affinity configuration between desired and previous ReplicaSet.</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># Only one must be specified</span><span class="w"></span>
+<span class="w">      </span><span class="nt">antiAffinity</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
+<span class="w">        </span><span class="nt">preferredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"> </span><span class="c1"># Between 1 - 100</span><span class="w"></span>
 
-    <span class="c1"># Canary update strategy</span>
-    <span class="nt">canary</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># Canary update strategy</span><span class="w"></span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
 
-      <span class="c1"># Reference to a service which the controller will update to select</span>
-      <span class="c1"># canary pods. Required for traffic routing.</span>
-      <span class="nt">canaryService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary-service</span>
+<span class="w">      </span><span class="c1"># Reference to a service which the controller will update to select</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># canary pods. Required for traffic routing.</span><span class="w"></span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-service</span><span class="w"></span>
 
-      <span class="c1"># Reference to a service which the controller will update to select</span>
-      <span class="c1"># stable pods. Required for traffic routing.</span>
-      <span class="nt">stableService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-service</span>
+<span class="w">      </span><span class="c1"># Reference to a service which the controller will update to select</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># stable pods. Required for traffic routing.</span><span class="w"></span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-service</span><span class="w"></span>
 
-      <span class="c1"># Metadata which will be attached to the canary pods. This metadata will</span>
-      <span class="c1"># only exist during an update, since there are no canary pods in a fully</span>
-      <span class="c1"># promoted rollout.</span>
-      <span class="nt">canaryMetadata</span><span class="p">:</span>
-        <span class="nt">annotations</span><span class="p">:</span>
-          <span class="nt">role</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
-        <span class="nt">labels</span><span class="p">:</span>
-          <span class="nt">role</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
+<span class="w">      </span><span class="c1"># Metadata which will be attached to the canary pods. This metadata will</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># only exist during an update, since there are no canary pods in a fully</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># promoted rollout.</span><span class="w"></span>
+<span class="w">      </span><span class="nt">canaryMetadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">annotations</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span><span class="w"></span>
+<span class="w">        </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span><span class="w"></span>
 
-      <span class="c1"># metadata which will be attached to the stable pods</span>
-      <span class="nt">stableMetadata</span><span class="p">:</span>
-        <span class="nt">annotations</span><span class="p">:</span>
-          <span class="nt">role</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable</span>
-        <span class="nt">labels</span><span class="p">:</span>
-          <span class="nt">role</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable</span>
+<span class="w">      </span><span class="c1"># metadata which will be attached to the stable pods</span><span class="w"></span>
+<span class="w">      </span><span class="nt">stableMetadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">annotations</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span><span class="w"></span>
+<span class="w">        </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span><span class="w"></span>
 
-      <span class="c1"># The maximum number of pods that can be unavailable during the update.</span>
-      <span class="c1"># Value can be an absolute number (ex: 5) or a percentage of total pods</span>
-      <span class="c1"># at the start of update (ex: 10%). Absolute number is calculated from</span>
-      <span class="c1"># percentage by rounding down. This can not be 0 if  MaxSurge is 0. By</span>
-      <span class="c1"># default, a fixed value of 1 is used. Example: when this is set to 30%,</span>
-      <span class="c1"># the old RC can be scaled down by 30% immediately when the rolling</span>
-      <span class="c1"># update starts. Once new pods are ready, old RC can be scaled down</span>
-      <span class="c1"># further, followed by scaling up the new RC, ensuring that at least 70%</span>
-      <span class="c1"># of original number of pods are available at all times during the</span>
-      <span class="c1"># update. +optional</span>
-      <span class="nt">maxUnavailable</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">      </span><span class="c1"># The maximum number of pods that can be unavailable during the update.</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># Value can be an absolute number (ex: 5) or a percentage of total pods</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># at the start of update (ex: 10%). Absolute number is calculated from</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># percentage by rounding down. This can not be 0 if  MaxSurge is 0. By</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># default, a fixed value of 1 is used. Example: when this is set to 30%,</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># the old RC can be scaled down by 30% immediately when the rolling</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># update starts. Once new pods are ready, old RC can be scaled down</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># further, followed by scaling up the new RC, ensuring that at least 70%</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># of original number of pods are available at all times during the</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># update. +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">maxUnavailable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
 
-      <span class="c1"># The maximum number of pods that can be scheduled above the original</span>
-      <span class="c1"># number of pods. Value can be an absolute number (ex: 5) or a</span>
-      <span class="c1"># percentage of total pods at the start of the update (ex: 10%). This</span>
-      <span class="c1"># can not be 0 if MaxUnavailable is 0. Absolute number is calculated</span>
-      <span class="c1"># from percentage by rounding up. By default, a value of 1 is used.</span>
-      <span class="c1"># Example: when this is set to 30%, the new RC can be scaled up by 30%</span>
-      <span class="c1"># immediately when the rolling update starts. Once old pods have been</span>
-      <span class="c1"># killed, new RC can be scaled up further, ensuring that total number</span>
-      <span class="c1"># of pods running at any time during the update is at most 130% of</span>
-      <span class="c1"># original pods. +optional</span>
-      <span class="nt">maxSurge</span><span class="p">:</span> <span class="s">&quot;20%&quot;</span>
+<span class="w">      </span><span class="c1"># The maximum number of pods that can be scheduled above the original</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># number of pods. Value can be an absolute number (ex: 5) or a</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># percentage of total pods at the start of the update (ex: 10%). This</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># can not be 0 if MaxUnavailable is 0. Absolute number is calculated</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># from percentage by rounding up. By default, a value of 1 is used.</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># Example: when this is set to 30%, the new RC can be scaled up by 30%</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># immediately when the rolling update starts. Once old pods have been</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># killed, new RC can be scaled up further, ensuring that total number</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># of pods running at any time during the update is at most 130% of</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># original pods. +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">maxSurge</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;20%&quot;</span><span class="w"></span>
 
-      <span class="c1"># Adds a delay before scaling down the previous ReplicaSet when the</span>
-      <span class="c1"># canary strategy is used with traffic routing (default 30 seconds).</span>
-      <span class="c1"># A delay in scaling down the previous ReplicaSet is needed after</span>
-      <span class="c1"># switching the stable service selector to point to the new ReplicaSet,</span>
-      <span class="c1"># in order to give time for traffic providers to re-target the new pods.</span>
-      <span class="c1"># This value is ignored with basic, replica-weighted canary without</span>
-      <span class="c1"># traffic routing.</span>
-      <span class="nt">ScaleDownDelaySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="w">      </span><span class="c1"># Adds a delay before scaling down the previous ReplicaSet when the</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># canary strategy is used with traffic routing (default 30 seconds).</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># A delay in scaling down the previous ReplicaSet is needed after</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># switching the stable service selector to point to the new ReplicaSet,</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># in order to give time for traffic providers to re-target the new pods.</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># This value is ignored with basic, replica-weighted canary without</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># traffic routing.</span><span class="w"></span>
+<span class="w">      </span><span class="nt">ScaleDownDelaySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w"></span>
 
-      <span class="c1"># Limits the number of old RS that can run at one time before getting</span>
-      <span class="c1"># scaled down. Defaults to nil</span>
-      <span class="nt">ScaleDownDelayRevisionLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">      </span><span class="c1"># Limits the number of old RS that can run at one time before getting</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># scaled down. Defaults to nil</span><span class="w"></span>
+<span class="w">      </span><span class="nt">ScaleDownDelayRevisionLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w"></span>
 
-      <span class="c1"># Background analysis to run during a rollout update. Skipped upon</span>
-      <span class="c1"># initial deploy of a rollout. +optional</span>
-      <span class="nt">analysis</span><span class="p">:</span>
-        <span class="nt">templates</span><span class="p">:</span>
-        <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-        <span class="nt">args</span><span class="p">:</span>
-        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">service-name</span>
-          <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
+<span class="w">      </span><span class="c1"># Background analysis to run during a rollout update. Skipped upon</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># initial deploy of a rollout. +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">analysis</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">templates</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span><span class="w"></span>
+<span class="w">        </span><span class="nt">args</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span><span class="w"></span>
+<span class="w">          </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span><span class="w"></span>
 
-        <span class="c1"># valueFrom.podTemplateHashValue is a convenience to supply the</span>
-        <span class="c1"># rollouts-pod-template-hash value of either the Stable ReplicaSet</span>
-        <span class="c1"># or the Latest ReplicaSet</span>
-        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable-hash</span>
-          <span class="nt">valueFrom</span><span class="p">:</span>
-            <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Stable</span>
-        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">latest-hash</span>
-          <span class="nt">valueFrom</span><span class="p">:</span>
-            <span class="nt">podTemplateHashValue</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Latest</span>
+<span class="w">        </span><span class="c1"># valueFrom.podTemplateHashValue is a convenience to supply the</span><span class="w"></span>
+<span class="w">        </span><span class="c1"># rollouts-pod-template-hash value of either the Stable ReplicaSet</span><span class="w"></span>
+<span class="w">        </span><span class="c1"># or the Latest ReplicaSet</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-hash</span><span class="w"></span>
+<span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">podTemplateHashValue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Stable</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">latest-hash</span><span class="w"></span>
+<span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">podTemplateHashValue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Latest</span><span class="w"></span>
 
-        <span class="c1"># valueFrom.fieldRef allows metadata about the rollout to be</span>
-        <span class="c1"># supplied as arguments to analysis.</span>
-        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">region</span>
-          <span class="nt">valueFrom</span><span class="p">:</span>
-            <span class="nt">fieldRef</span><span class="p">:</span>
-              <span class="nt">fieldPath</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">metadata.labels[&#39;region&#39;]</span>
+<span class="w">        </span><span class="c1"># valueFrom.fieldRef allows metadata about the rollout to be</span><span class="w"></span>
+<span class="w">        </span><span class="c1"># supplied as arguments to analysis.</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">region</span><span class="w"></span>
+<span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">fieldRef</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="nt">fieldPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">metadata.labels[&#39;region&#39;]</span><span class="w"></span>
 
-      <span class="c1"># Steps define sequence of steps to take during an update of the</span>
-      <span class="c1"># canary. Skipped upon initial deploy of a rollout. +optional</span>
-      <span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># Steps define sequence of steps to take during an update of the</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># canary. Skipped upon initial deploy of a rollout. +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
 
-      <span class="c1"># Sets the ratio of canary ReplicaSet to 20%</span>
-      <span class="p p-Indicator">-</span> <span class="nt">setWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">20</span>
+<span class="w">      </span><span class="c1"># Sets the ratio of canary ReplicaSet to 20%</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w"></span>
 
-      <span class="c1"># Pauses the rollout for an hour. Supported units: s, m, h</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span>
-          <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
+<span class="w">      </span><span class="c1"># Pauses the rollout for an hour. Supported units: s, m, h</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span><span class="w"></span>
 
-      <span class="c1"># Pauses indefinitely until manually resumed</span>
-      <span class="p p-Indicator">-</span> <span class="nt">pause</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
+<span class="w">      </span><span class="c1"># Pauses indefinitely until manually resumed</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
 
-      <span class="c1"># set canary scale to a explicit count without changing traffic weight</span>
-      <span class="c1"># (supported only with trafficRouting)</span>
-      <span class="p p-Indicator">-</span> <span class="nt">setCanaryScale</span><span class="p">:</span>
-          <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">      </span><span class="c1"># set canary scale to a explicit count without changing traffic weight</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># (supported only with trafficRouting)</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setCanaryScale</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w"></span>
 
-      <span class="c1"># set canary scale to a percentage of spec.replicas without changing traffic weight</span>
-      <span class="c1"># (supported only with trafficRouting)</span>
-      <span class="p p-Indicator">-</span> <span class="nt">setCanaryScale</span><span class="p">:</span>
-          <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">25</span>
+<span class="w">      </span><span class="c1"># set canary scale to a percentage of spec.replicas without changing traffic weight</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># (supported only with trafficRouting)</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setCanaryScale</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span><span class="w"></span>
 
-      <span class="c1"># set canary scale to match the canary traffic weight (default behavior)</span>
-      <span class="p p-Indicator">-</span> <span class="nt">setCanaryScale</span><span class="p">:</span>
-          <span class="nt">matchTrafficWeight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">      </span><span class="c1"># set canary scale to match the canary traffic weight (default behavior)</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setCanaryScale</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">matchTrafficWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w"></span>
 
-      <span class="c1"># an inline analysis step</span>
-      <span class="p p-Indicator">-</span> <span class="nt">analysis</span><span class="p">:</span>
-          <span class="nt">templates</span><span class="p">:</span>
-          <span class="p p-Indicator">-</span> <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="w">      </span><span class="c1"># an inline analysis step</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">analysis</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">templates</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span><span class="w"></span>
 
-      <span class="c1"># an inline experiment step</span>
-      <span class="p p-Indicator">-</span> <span class="nt">experiment</span><span class="p">:</span>
-          <span class="nt">duration</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
-          <span class="nt">templates</span><span class="p">:</span>
-          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">baseline</span>
-            <span class="nt">specRef</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">stable</span>
-          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
-            <span class="nt">specRef</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">canary</span>
-          <span class="nt">analyses</span><span class="p">:</span>
-          <span class="p p-Indicator">-</span> <span class="nt">name </span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
-            <span class="nt">templateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
+<span class="w">      </span><span class="c1"># an inline experiment step</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">experiment</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span><span class="w"></span>
+<span class="w">          </span><span class="nt">templates</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">baseline</span><span class="w"></span>
+<span class="w">            </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span><span class="w"></span>
+<span class="w">            </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span><span class="w"></span>
+<span class="w">          </span><span class="nt">analyses</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mann-whitney</span><span class="w"></span>
+<span class="w">            </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mann-whitney</span><span class="w"></span>
 
-      <span class="c1"># Anti-affinity configuration between desired and previous ReplicaSet.</span>
-      <span class="c1"># Only one must be specified.</span>
-      <span class="nt">antiAffinity</span><span class="p">:</span>
-        <span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
-        <span class="nt">preferredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
-          <span class="nt">weight</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span> <span class="c1"># Between 1 - 100</span>
+<span class="w">      </span><span class="c1"># Anti-affinity configuration between desired and previous ReplicaSet.</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># Only one must be specified.</span><span class="w"></span>
+<span class="w">      </span><span class="nt">antiAffinity</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
+<span class="w">        </span><span class="nt">preferredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"> </span><span class="c1"># Between 1 - 100</span><span class="w"></span>
 
-      <span class="c1"># Traffic routing specifies the ingress controller or service mesh</span>
-      <span class="c1"># configuration to achieve advanced traffic splitting. If omitted,</span>
-      <span class="c1"># will achieve traffic split via a weighted replica counts between</span>
-      <span class="c1"># the canary and stable ReplicaSet.</span>
-      <span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># Traffic routing specifies the ingress controller or service mesh</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># configuration to achieve advanced traffic splitting. If omitted,</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># will achieve traffic split via a weighted replica counts between</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># the canary and stable ReplicaSet.</span><span class="w"></span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
 
-        <span class="c1"># Istio traffic routing configuration</span>
-        <span class="nt">istio</span><span class="p">:</span>
-          <span class="c1"># Either virtualService or virtualServices can be configured.</span>
-          <span class="nt">virtualService</span><span class="p">:</span> 
-            <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-vsvc</span>  <span class="c1"># required</span>
-            <span class="nt">routes</span><span class="p">:</span>
-            <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">primary</span> <span class="c1"># optional if there is a single route in VirtualService, required otherwise</span>
-          <span class="nt">virtualServices</span><span class="p">:</span>
-          <span class="c1"># One or more virtualServices can be configured</span>
-          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-vsvc1</span>  <span class="c1"># required</span>
-            <span class="nt">routes</span><span class="p">:</span>
-              <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">primary</span> <span class="c1"># optional if there is a single route in VirtualService, required otherwise</span>
-          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollouts-vsvc2</span>  <span class="c1"># required</span>
-            <span class="nt">routes</span><span class="p">:</span>
-              <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">secondary</span> <span class="c1"># optional if there is a single route in VirtualService, required otherwise</span>
+<span class="w">        </span><span class="c1"># Istio traffic routing configuration</span><span class="w"></span>
+<span class="w">        </span><span class="nt">istio</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># Either virtualService or virtualServices can be configured.</span><span class="w"></span>
+<span class="w">          </span><span class="nt">virtualService</span><span class="p">:</span><span class="w"> </span>
+<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-vsvc</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
+<span class="w">            </span><span class="nt">routes</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary</span><span class="w"> </span><span class="c1"># optional if there is a single route in VirtualService, required otherwise</span><span class="w"></span>
+<span class="w">          </span><span class="nt">virtualServices</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># One or more virtualServices can be configured</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-vsvc1</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
+<span class="w">            </span><span class="nt">routes</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary</span><span class="w"> </span><span class="c1"># optional if there is a single route in VirtualService, required otherwise</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-vsvc2</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
+<span class="w">            </span><span class="nt">routes</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">secondary</span><span class="w"> </span><span class="c1"># optional if there is a single route in VirtualService, required otherwise</span><span class="w"></span>
 
-        <span class="c1"># NGINX Ingress Controller routing configuration</span>
-        <span class="nt">nginx</span><span class="p">:</span>
-          <span class="nt">stableIngress</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">primary-ingress</span>  <span class="c1"># required</span>
-          <span class="nt">annotationPrefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">customingress.nginx.ingress.kubernetes.io</span> <span class="c1"># optional</span>
-          <span class="nt">additionalIngressAnnotations</span><span class="p">:</span>   <span class="c1"># optional</span>
-            <span class="nt">canary-by-header</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">X-Canary</span>
-            <span class="nt">canary-by-header-value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">iwantsit</span>
+<span class="w">        </span><span class="c1"># NGINX Ingress Controller routing configuration</span><span class="w"></span>
+<span class="w">        </span><span class="nt">nginx</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary-ingress</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
+<span class="w">          </span><span class="nt">annotationPrefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">customingress.nginx.ingress.kubernetes.io</span><span class="w"> </span><span class="c1"># optional</span><span class="w"></span>
+<span class="w">          </span><span class="nt">additionalIngressAnnotations</span><span class="p">:</span><span class="w">   </span><span class="c1"># optional</span><span class="w"></span>
+<span class="w">            </span><span class="nt">canary-by-header</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">X-Canary</span><span class="w"></span>
+<span class="w">            </span><span class="nt">canary-by-header-value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">iwantsit</span><span class="w"></span>
 
-        <span class="c1"># ALB Ingress Controller routing configuration</span>
-        <span class="nt">alb</span><span class="p">:</span>
-          <span class="nt">ingress</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ingress</span>  <span class="c1"># required</span>
-          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">443</span>  <span class="c1"># required</span>
-          <span class="nt">annotationPrefix</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">custom.alb.ingress.kubernetes.io</span> <span class="c1"># optional</span>
+<span class="w">        </span><span class="c1"># ALB Ingress Controller routing configuration</span><span class="w"></span>
+<span class="w">        </span><span class="nt">alb</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">ingress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
+<span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">443</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
+<span class="w">          </span><span class="nt">annotationPrefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">custom.alb.ingress.kubernetes.io</span><span class="w"> </span><span class="c1"># optional</span><span class="w"></span>
 
-        <span class="c1"># Service Mesh Interface routing configuration</span>
-        <span class="nt">smi</span><span class="p">:</span>
-          <span class="nt">rootService</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">root-svc</span> <span class="c1"># optional</span>
-          <span class="nt">trafficSplitName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rollout-example-traffic-split</span> <span class="c1"># optional</span>
+<span class="w">        </span><span class="c1"># Service Mesh Interface routing configuration</span><span class="w"></span>
+<span class="w">        </span><span class="nt">smi</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">rootService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">root-svc</span><span class="w"> </span><span class="c1"># optional</span><span class="w"></span>
+<span class="w">          </span><span class="nt">trafficSplitName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-example-traffic-split</span><span class="w"> </span><span class="c1"># optional</span><span class="w"></span>
 
-      <span class="c1"># Add a delay in second before scaling down the canary pods when update</span>
-      <span class="c1"># is aborted for canary strategy with traffic routing (not applicable for basic canary).</span>
-      <span class="c1"># 0 means canary pods are not scaled down. Default is 30 seconds.</span>
-      <span class="nt">abortScaleDownDelaySeconds</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="w">      </span><span class="c1"># Add a delay in second before scaling down the canary pods when update</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># is aborted for canary strategy with traffic routing (not applicable for basic canary).</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># 0 means canary pods are not scaled down. Default is 30 seconds.</span><span class="w"></span>
+<span class="w">      </span><span class="nt">abortScaleDownDelaySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w"></span>
 
-<span class="nt">status</span><span class="p">:</span>
-  <span class="nt">pauseConditions</span><span class="p">:</span>
-  <span class="p p-Indicator">-</span> <span class="nt">reason</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">StepPause</span>
-    <span class="nt">startTime</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2019-10-00T1234</span>
-  <span class="p p-Indicator">-</span> <span class="nt">reason</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">BlueGreenPause</span>
-    <span class="nt">startTime</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2019-10-00T1234</span>
-  <span class="p p-Indicator">-</span> <span class="nt">reason</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">AnalysisRunInconclusive</span>
-    <span class="nt">startTime</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2019-10-00T1234</span> 
+<span class="nt">status</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">pauseConditions</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">reason</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">StepPause</span><span class="w"></span>
+<span class="w">    </span><span class="nt">startTime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2019-10-00T1234</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">reason</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BlueGreenPause</span><span class="w"></span>
+<span class="w">    </span><span class="nt">startTime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2019-10-00T1234</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">reason</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisRunInconclusive</span><span class="w"></span>
+<span class="w">    </span><span class="nt">startTime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2019-10-00T1234</span><span class="w"> </span>
 </code></pre></div>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>You can find examples of Rollouts at:</p>
@@ -2435,10 +2435,10 @@
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../assets/javascripts/workers/search.0bbba5b5.min.js"}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../assets/javascripts/workers/search.361d90f1.min.js"}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e1a181d9.min.js"></script>
+      <script src="../../assets/javascripts/bundle.289a2a4b.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       

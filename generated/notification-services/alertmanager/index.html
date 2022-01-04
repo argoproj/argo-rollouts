@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/generated/notification-services/alertmanager/">
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.3">
+      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.4">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.edf004c2.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.bb3983ee.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.e6a45f82.min.css">
@@ -2142,94 +2142,94 @@
 <p><code>basicAuth</code> or <code>bearerToken</code> is used for authentication, you can choose one. If the two are set at the same time, <code>basicAuth</code> takes precedence over <code>bearerToken</code>.</p>
 <h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
 <h3 id="prometheus-alertmanager-config">Prometheus Alertmanager config<a class="headerlink" href="#prometheus-alertmanager-config" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="nt">global</span><span class="p">:</span>
-  <span class="nt">resolve_timeout</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5m</span>
+<div class="highlight"><pre><span></span><code><span class="nt">global</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">resolve_timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span><span class="w"></span>
 
-<span class="nt">route</span><span class="p">:</span>
-  <span class="nt">group_by</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&#39;alertname&#39;</span><span class="p p-Indicator">]</span>
-  <span class="nt">group_wait</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10s</span>
-  <span class="nt">group_interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10s</span>
-  <span class="nt">repeat_interval</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1h</span>
-  <span class="nt">receiver</span><span class="p">:</span> <span class="s">&#39;default&#39;</span>
-<span class="nt">receivers</span><span class="p">:</span>
-<span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="s">&#39;default&#39;</span>
-  <span class="nt">webhook_configs</span><span class="p">:</span>
-  <span class="p p-Indicator">-</span> <span class="nt">send_resolved</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">false</span>
-    <span class="nt">url</span><span class="p">:</span> <span class="s">&#39;http://10.5.39.39:10080/api/alerts/webhook&#39;</span>
+<span class="nt">route</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">group_by</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;alertname&#39;</span><span class="p p-Indicator">]</span><span class="w"></span>
+<span class="w">  </span><span class="nt">group_wait</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10s</span><span class="w"></span>
+<span class="w">  </span><span class="nt">group_interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10s</span><span class="w"></span>
+<span class="w">  </span><span class="nt">repeat_interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span><span class="w"></span>
+<span class="w">  </span><span class="nt">receiver</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;default&#39;</span><span class="w"></span>
+<span class="nt">receivers</span><span class="p">:</span><span class="w"></span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;default&#39;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">webhook_configs</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">send_resolved</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w"></span>
+<span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;http://10.5.39.39:10080/api/alerts/webhook&#39;</span><span class="w"></span>
 </code></pre></div>
 <p>You should turn off "send_resolved" or you will receive unnecessary recovery notifications after "resolve_timeout".</p>
 <h3 id="send-one-alertmanager-without-auth">Send one alertmanager without auth<a class="headerlink" href="#send-one-alertmanager-without-auth" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">service.alertmanager</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">targets:</span>
-    <span class="no">- 10.5.39.39:9093</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">service.alertmanager</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">targets:</span><span class="w"></span>
+<span class="w">    </span><span class="no">- 10.5.39.39:9093</span><span class="w"></span>
 </code></pre></div>
 <h3 id="send-alertmanager-cluster-with-custom-api-path">Send alertmanager cluster with custom api path<a class="headerlink" href="#send-alertmanager-cluster-with-custom-api-path" title="Permanent link">&para;</a></h3>
 <p>If your alertmanager has changed the default api, you can customize "apiPath".</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">service.alertmanager</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">targets:</span>
-    <span class="no">- 10.5.39.39:443</span>
-    <span class="no">scheme: https</span>
-    <span class="no">apiPath: /api/events</span>
-    <span class="no">insecureSkipVerify: true</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">service.alertmanager</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">targets:</span><span class="w"></span>
+<span class="w">    </span><span class="no">- 10.5.39.39:443</span><span class="w"></span>
+<span class="w">    </span><span class="no">scheme: https</span><span class="w"></span>
+<span class="w">    </span><span class="no">apiPath: /api/events</span><span class="w"></span>
+<span class="w">    </span><span class="no">insecureSkipVerify: true</span><span class="w"></span>
 </code></pre></div>
 <h3 id="send-high-availability-alertmanager-with-auth">Send high availability alertmanager with auth<a class="headerlink" href="#send-high-availability-alertmanager-with-auth" title="Permanent link">&para;</a></h3>
 <p>Store auth token in <code>argocd-notifications-secret</code> Secret and use configure in <code>argocd-notifications-cm</code> ConfigMap.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Secret</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;secret-name&gt;</span>
-<span class="nt">stringData</span><span class="p">:</span>
-  <span class="nt">alertmanager-username</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;username&gt;</span>
-  <span class="nt">alertmanager-password</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;password&gt;</span>
-  <span class="nt">alertmanager-bearer-token</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;token&gt;</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;secret-name&gt;</span><span class="w"></span>
+<span class="nt">stringData</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">alertmanager-username</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;username&gt;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">alertmanager-password</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;password&gt;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">alertmanager-bearer-token</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;token&gt;</span><span class="w"></span>
 </code></pre></div>
 <ul>
 <li>with basicAuth</li>
 </ul>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">service.alertmanager</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">targets:</span>
-    <span class="no">- 10.5.39.39:19093</span>
-    <span class="no">- 10.5.39.39:29093</span>
-    <span class="no">- 10.5.39.39:39093</span>
-    <span class="no">scheme: https</span>
-    <span class="no">apiPath: /api/v2/alerts</span>
-    <span class="no">insecureSkipVerify: true</span>
-    <span class="no">basicAuth:</span>
-      <span class="no">username: $alertmanager-username</span>
-      <span class="no">password: $alertmanager-password   </span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">service.alertmanager</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">targets:</span><span class="w"></span>
+<span class="w">    </span><span class="no">- 10.5.39.39:19093</span><span class="w"></span>
+<span class="w">    </span><span class="no">- 10.5.39.39:29093</span><span class="w"></span>
+<span class="w">    </span><span class="no">- 10.5.39.39:39093</span><span class="w"></span>
+<span class="w">    </span><span class="no">scheme: https</span><span class="w"></span>
+<span class="w">    </span><span class="no">apiPath: /api/v2/alerts</span><span class="w"></span>
+<span class="w">    </span><span class="no">insecureSkipVerify: true</span><span class="w"></span>
+<span class="w">    </span><span class="no">basicAuth:</span><span class="w"></span>
+<span class="w">      </span><span class="no">username: $alertmanager-username</span><span class="w"></span>
+<span class="w">      </span><span class="no">password: $alertmanager-password   </span><span class="w"></span>
 </code></pre></div>
 <ul>
 <li>with bearerToken</li>
 </ul>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">service.alertmanager</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">targets:</span>
-    <span class="no">- 10.5.39.39:19093</span>
-    <span class="no">- 10.5.39.39:29093</span>
-    <span class="no">- 10.5.39.39:39093</span>
-    <span class="no">scheme: https</span>
-    <span class="no">apiPath: /api/v2/alerts</span>
-    <span class="no">insecureSkipVerify: true</span>
-    <span class="no">bearerToken: $alertmanager-bearer-token</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">service.alertmanager</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">targets:</span><span class="w"></span>
+<span class="w">    </span><span class="no">- 10.5.39.39:19093</span><span class="w"></span>
+<span class="w">    </span><span class="no">- 10.5.39.39:29093</span><span class="w"></span>
+<span class="w">    </span><span class="no">- 10.5.39.39:39093</span><span class="w"></span>
+<span class="w">    </span><span class="no">scheme: https</span><span class="w"></span>
+<span class="w">    </span><span class="no">apiPath: /api/v2/alerts</span><span class="w"></span>
+<span class="w">    </span><span class="no">insecureSkipVerify: true</span><span class="w"></span>
+<span class="w">    </span><span class="no">bearerToken: $alertmanager-bearer-token</span><span class="w"></span>
 </code></pre></div>
 <h2 id="templates">Templates<a class="headerlink" href="#templates" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2238,30 +2238,30 @@
 <li><code>generatorURL</code> - optional, default is '{{.app.spec.source.repoURL}}', backlink used to identify the entity that caused this alert in the client</li>
 </ul>
 <p>the <code>label</code> or <code>annotations</code> or <code>generatorURL</code> values can be templated.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">context</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-  <span class="no">argocdUrl: https://example.com/argocd</span>
+<div class="highlight"><pre><span></span><code><span class="nt">context</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">  </span><span class="no">argocdUrl: https://example.com/argocd</span><span class="w"></span>
 
-<span class="nt">template.app-deployed</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-  <span class="no">message: Application {{.app.metadata.name}} has been healthy.</span>
-  <span class="no">alertmanager:</span>
-    <span class="no">labels:</span>
-      <span class="no">fault_priority: &quot;P5&quot;</span>
-      <span class="no">event_bucket: &quot;deploy&quot;</span>
-      <span class="no">event_status: &quot;succeed&quot;</span>
-      <span class="no">recipient: &quot;{{.recipient}}&quot;</span>
-    <span class="no">annotations:</span>
-      <span class="no">application: &#39;&lt;a href=&quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}&quot;&gt;{{.app.metadata.name}}&lt;/a&gt;&#39;</span>
-      <span class="no">author: &quot;{{(call .repo.GetCommitMetadata .app.status.sync.revision).Author}}&quot;</span>
-      <span class="no">message: &quot;{{(call .repo.GetCommitMetadata .app.status.sync.revision).Message}}&quot;</span>
+<span class="nt">template.app-deployed</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">  </span><span class="no">message: Application {{.app.metadata.name}} has been healthy.</span><span class="w"></span>
+<span class="w">  </span><span class="no">alertmanager:</span><span class="w"></span>
+<span class="w">    </span><span class="no">labels:</span><span class="w"></span>
+<span class="w">      </span><span class="no">fault_priority: &quot;P5&quot;</span><span class="w"></span>
+<span class="w">      </span><span class="no">event_bucket: &quot;deploy&quot;</span><span class="w"></span>
+<span class="w">      </span><span class="no">event_status: &quot;succeed&quot;</span><span class="w"></span>
+<span class="w">      </span><span class="no">recipient: &quot;{{.recipient}}&quot;</span><span class="w"></span>
+<span class="w">    </span><span class="no">annotations:</span><span class="w"></span>
+<span class="w">      </span><span class="no">application: &#39;&lt;a href=&quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}&quot;&gt;{{.app.metadata.name}}&lt;/a&gt;&#39;</span><span class="w"></span>
+<span class="w">      </span><span class="no">author: &quot;{{(call .repo.GetCommitMetadata .app.status.sync.revision).Author}}&quot;</span><span class="w"></span>
+<span class="w">      </span><span class="no">message: &quot;{{(call .repo.GetCommitMetadata .app.status.sync.revision).Message}}&quot;</span><span class="w"></span>
 </code></pre></div>
 <p>You can do targeted push on <a href="https://github.com/prometheus/alertmanager">Alertmanager</a> according to labels.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">template.app-deployed</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-  <span class="no">message: Application {{.app.metadata.name}} has been healthy.</span>
-  <span class="no">alertmanager:</span>
-    <span class="no">labels:</span>
-      <span class="no">alertname: app-deployed</span>
-      <span class="no">fault_priority: &quot;P5&quot;</span>
-      <span class="no">event_bucket: &quot;deploy&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="nt">template.app-deployed</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">  </span><span class="no">message: Application {{.app.metadata.name}} has been healthy.</span><span class="w"></span>
+<span class="w">  </span><span class="no">alertmanager:</span><span class="w"></span>
+<span class="w">    </span><span class="no">labels:</span><span class="w"></span>
+<span class="w">      </span><span class="no">alertname: app-deployed</span><span class="w"></span>
+<span class="w">      </span><span class="no">fault_priority: &quot;P5&quot;</span><span class="w"></span>
+<span class="w">      </span><span class="no">event_bucket: &quot;deploy&quot;</span><span class="w"></span>
 </code></pre></div>
 <p>There is a special label <code>alertname</code>. If you don’t set its value, it will be equal to the template name by default.</p>
 
@@ -2329,10 +2329,10 @@
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
-    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../../assets/javascripts/workers/search.0bbba5b5.min.js"}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../../assets/javascripts/workers/search.361d90f1.min.js"}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.e1a181d9.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.289a2a4b.min.js"></script>
       
         <script src="../../../assets/versions.js"></script>
       

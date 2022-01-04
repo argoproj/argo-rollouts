@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/generated/notification-services/webhook/">
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.3">
+      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.4">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.edf004c2.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.bb3983ee.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.e6a45f82.min.css">
@@ -2114,150 +2114,150 @@
 Using Webhook you might trigger a Jenkins job, update Github commit status.</p>
 <p>Use the following steps to configure webhook:</p>
 <p>1 Register webhook in <code>argocd-notifications-cm</code> ConfigMap:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">service.webhook.&lt;webhook-name&gt;</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">url: https://&lt;hostname&gt;/&lt;optional-path&gt;</span>
-    <span class="no">headers: #optional headers</span>
-    <span class="no">- name: &lt;header-name&gt;</span>
-      <span class="no">value: &lt;header-value&gt;</span>
-    <span class="no">basicAuth: #optional username password</span>
-      <span class="no">username: &lt;username&gt;</span>
-      <span class="no">password: &lt;api-key&gt;</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">service.webhook.&lt;webhook-name&gt;</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">url: https://&lt;hostname&gt;/&lt;optional-path&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="no">headers: #optional headers</span><span class="w"></span>
+<span class="w">    </span><span class="no">- name: &lt;header-name&gt;</span><span class="w"></span>
+<span class="w">      </span><span class="no">value: &lt;header-value&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="no">basicAuth: #optional username password</span><span class="w"></span>
+<span class="w">      </span><span class="no">username: &lt;username&gt;</span><span class="w"></span>
+<span class="w">      </span><span class="no">password: &lt;api-key&gt;</span><span class="w"></span>
 </code></pre></div>
 <p>2 Define template that customizes webhook request method, path and body:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">template.github-commit-status</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">webhook:</span>
-      <span class="no">&lt;webhook-name&gt;:</span>
-        <span class="no">method: POST # one of: GET, POST, PUT, PATCH. Default value: GET </span>
-        <span class="no">path: &lt;optional-path-template&gt;</span>
-        <span class="no">body: |</span>
-          <span class="no">&lt;optional-body-template&gt;</span>
-  <span class="nt">trigger.&lt;trigger-name&gt;</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">- when: app.status.operationState.phase in [&#39;Succeeded&#39;]</span>
-      <span class="no">send: [github-commit-status]</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">template.github-commit-status</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">webhook:</span><span class="w"></span>
+<span class="w">      </span><span class="no">&lt;webhook-name&gt;:</span><span class="w"></span>
+<span class="w">        </span><span class="no">method: POST # one of: GET, POST, PUT, PATCH. Default value: GET </span><span class="w"></span>
+<span class="w">        </span><span class="no">path: &lt;optional-path-template&gt;</span><span class="w"></span>
+<span class="w">        </span><span class="no">body: |</span><span class="w"></span>
+<span class="w">          </span><span class="no">&lt;optional-body-template&gt;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">trigger.&lt;trigger-name&gt;</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">- when: app.status.operationState.phase in [&#39;Succeeded&#39;]</span><span class="w"></span>
+<span class="w">      </span><span class="no">send: [github-commit-status]</span><span class="w"></span>
 </code></pre></div>
 <p>3 Create subscription for webhook integration:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Application</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">annotations</span><span class="p">:</span>
-    <span class="nt">notifications.argoproj.io/subscribe.&lt;trigger-name&gt;.&lt;webhook-name&gt;</span><span class="p">:</span> <span class="s">&quot;&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">notifications.argoproj.io/subscribe.&lt;trigger-name&gt;.&lt;webhook-name&gt;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="w"></span>
 </code></pre></div>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <h3 id="set-github-commit-status">Set Github commit status<a class="headerlink" href="#set-github-commit-status" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">service.webhook.github</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">url: https://api.github.com</span>
-    <span class="no">headers: #optional headers</span>
-    <span class="no">- name: Authorization</span>
-      <span class="no">value: token $github-token</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">service.webhook.github</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">url: https://api.github.com</span><span class="w"></span>
+<span class="w">    </span><span class="no">headers: #optional headers</span><span class="w"></span>
+<span class="w">    </span><span class="no">- name: Authorization</span><span class="w"></span>
+<span class="w">      </span><span class="no">value: token $github-token</span><span class="w"></span>
 </code></pre></div>
 <p>2 Define template that customizes webhook request method, path and body:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">service.webhook.github</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">url: https://api.github.com</span>
-    <span class="no">headers: #optional headers</span>
-    <span class="no">- name: Authorization</span>
-      <span class="no">value: token $github-token</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">service.webhook.github</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">url: https://api.github.com</span><span class="w"></span>
+<span class="w">    </span><span class="no">headers: #optional headers</span><span class="w"></span>
+<span class="w">    </span><span class="no">- name: Authorization</span><span class="w"></span>
+<span class="w">      </span><span class="no">value: token $github-token</span><span class="w"></span>
 
-  <span class="nt">template.github-commit-status</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">webhook:</span>
-      <span class="no">github:</span>
-        <span class="no">method: POST</span>
-        <span class="no">path: /repos/{{call .repo.FullNameByRepoURL .app.spec.source.repoURL}}/statuses/{{.app.status.operationState.operation.sync.revision}}</span>
-        <span class="no">body: |</span>
-          <span class="no">{</span>
-            <span class="no">{{if eq .app.status.operationState.phase &quot;Running&quot;}} &quot;state&quot;: &quot;pending&quot;{{end}}</span>
-            <span class="no">{{if eq .app.status.operationState.phase &quot;Succeeded&quot;}} &quot;state&quot;: &quot;success&quot;{{end}}</span>
-            <span class="no">{{if eq .app.status.operationState.phase &quot;Error&quot;}} &quot;state&quot;: &quot;error&quot;{{end}}</span>
-            <span class="no">{{if eq .app.status.operationState.phase &quot;Failed&quot;}} &quot;state&quot;: &quot;error&quot;{{end}},</span>
-            <span class="no">&quot;description&quot;: &quot;ArgoCD&quot;,</span>
-            <span class="no">&quot;target_url&quot;: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}&quot;,</span>
-            <span class="no">&quot;context&quot;: &quot;continuous-delivery/{{.app.metadata.name}}&quot;</span>
-          <span class="no">}</span>
+<span class="w">  </span><span class="nt">template.github-commit-status</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">webhook:</span><span class="w"></span>
+<span class="w">      </span><span class="no">github:</span><span class="w"></span>
+<span class="w">        </span><span class="no">method: POST</span><span class="w"></span>
+<span class="w">        </span><span class="no">path: /repos/{{call .repo.FullNameByRepoURL .app.spec.source.repoURL}}/statuses/{{.app.status.operationState.operation.sync.revision}}</span><span class="w"></span>
+<span class="w">        </span><span class="no">body: |</span><span class="w"></span>
+<span class="w">          </span><span class="no">{</span><span class="w"></span>
+<span class="w">            </span><span class="no">{{if eq .app.status.operationState.phase &quot;Running&quot;}} &quot;state&quot;: &quot;pending&quot;{{end}}</span><span class="w"></span>
+<span class="w">            </span><span class="no">{{if eq .app.status.operationState.phase &quot;Succeeded&quot;}} &quot;state&quot;: &quot;success&quot;{{end}}</span><span class="w"></span>
+<span class="w">            </span><span class="no">{{if eq .app.status.operationState.phase &quot;Error&quot;}} &quot;state&quot;: &quot;error&quot;{{end}}</span><span class="w"></span>
+<span class="w">            </span><span class="no">{{if eq .app.status.operationState.phase &quot;Failed&quot;}} &quot;state&quot;: &quot;error&quot;{{end}},</span><span class="w"></span>
+<span class="w">            </span><span class="no">&quot;description&quot;: &quot;ArgoCD&quot;,</span><span class="w"></span>
+<span class="w">            </span><span class="no">&quot;target_url&quot;: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}&quot;,</span><span class="w"></span>
+<span class="w">            </span><span class="no">&quot;context&quot;: &quot;continuous-delivery/{{.app.metadata.name}}&quot;</span><span class="w"></span>
+<span class="w">          </span><span class="no">}</span><span class="w"></span>
 </code></pre></div>
 <h3 id="start-jenkins-job">Start Jenkins Job<a class="headerlink" href="#start-jenkins-job" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">service.webhook.jenkins</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">url: http://&lt;jenkins-host&gt;/job/&lt;job-name&gt;/build?token=&lt;job-secret&gt;</span>
-    <span class="no">basicAuth:</span>
-      <span class="no">username: &lt;username&gt;</span>
-      <span class="no">password: &lt;api-key&gt;</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">service.webhook.jenkins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">url: http://&lt;jenkins-host&gt;/job/&lt;job-name&gt;/build?token=&lt;job-secret&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="no">basicAuth:</span><span class="w"></span>
+<span class="w">      </span><span class="no">username: &lt;username&gt;</span><span class="w"></span>
+<span class="w">      </span><span class="no">password: &lt;api-key&gt;</span><span class="w"></span>
 
-<span class="nt">type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Opaque</span><span class="w"></span>
 </code></pre></div>
 <h3 id="send-form-data">Send form-data<a class="headerlink" href="#send-form-data" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">service.webhook.form</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">url: https://form.example.com</span>
-    <span class="no">headers:</span>
-    <span class="no">- name: Content-Type</span>
-      <span class="no">value: application/x-www-form-urlencoded</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">service.webhook.form</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">url: https://form.example.com</span><span class="w"></span>
+<span class="w">    </span><span class="no">headers:</span><span class="w"></span>
+<span class="w">    </span><span class="no">- name: Content-Type</span><span class="w"></span>
+<span class="w">      </span><span class="no">value: application/x-www-form-urlencoded</span><span class="w"></span>
 
-  <span class="nt">template.form-data</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">webhook:</span>
-      <span class="no">form:</span>
-        <span class="no">method: POST</span>
-        <span class="no">body: key1=value1&amp;key2=value2</span>
+<span class="w">  </span><span class="nt">template.form-data</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">webhook:</span><span class="w"></span>
+<span class="w">      </span><span class="no">form:</span><span class="w"></span>
+<span class="w">        </span><span class="no">method: POST</span><span class="w"></span>
+<span class="w">        </span><span class="no">body: key1=value1&amp;key2=value2</span><span class="w"></span>
 </code></pre></div>
 <h3 id="send-slack">Send Slack<a class="headerlink" href="#send-slack" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
-<span class="nt">data</span><span class="p">:</span>
-  <span class="nt">service.webhook.slack_webhook</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">url: https://hooks.slack.com/services/xxxxx</span>
-    <span class="no">headers:</span>
-    <span class="no">- name: Content-Type</span>
-      <span class="no">value: application/json</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span><span class="w"></span>
+<span class="nt">data</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">service.webhook.slack_webhook</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">url: https://hooks.slack.com/services/xxxxx</span><span class="w"></span>
+<span class="w">    </span><span class="no">headers:</span><span class="w"></span>
+<span class="w">    </span><span class="no">- name: Content-Type</span><span class="w"></span>
+<span class="w">      </span><span class="no">value: application/json</span><span class="w"></span>
 
-  <span class="nt">template.send-slack</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">webhook:</span>
-      <span class="no">slack_webhook:</span>
-        <span class="no">method: POST</span>
-        <span class="no">body: |</span>
-          <span class="no">{</span>
-            <span class="no">&quot;attachments&quot;: [{</span>
-              <span class="no">&quot;title&quot;: &quot;{{.app.metadata.name}}&quot;,</span>
-              <span class="no">&quot;title_link&quot;: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}&quot;,</span>
-              <span class="no">&quot;color&quot;: &quot;#18be52&quot;,</span>
-              <span class="no">&quot;fields&quot;: [{</span>
-                <span class="no">&quot;title&quot;: &quot;Sync Status&quot;,</span>
-                <span class="no">&quot;value&quot;: &quot;{{.app.status.sync.status}}&quot;,</span>
-                <span class="no">&quot;short&quot;: true</span>
-              <span class="no">}, {</span>
-                <span class="no">&quot;title&quot;: &quot;Repository&quot;,</span>
-                <span class="no">&quot;value&quot;: &quot;{{.app.spec.source.repoURL}}&quot;,</span>
-                <span class="no">&quot;short&quot;: true</span>
-              <span class="no">}]</span>
-            <span class="no">}]</span>
-          <span class="no">}</span>
+<span class="w">  </span><span class="nt">template.send-slack</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
+<span class="w">    </span><span class="no">webhook:</span><span class="w"></span>
+<span class="w">      </span><span class="no">slack_webhook:</span><span class="w"></span>
+<span class="w">        </span><span class="no">method: POST</span><span class="w"></span>
+<span class="w">        </span><span class="no">body: |</span><span class="w"></span>
+<span class="w">          </span><span class="no">{</span><span class="w"></span>
+<span class="w">            </span><span class="no">&quot;attachments&quot;: [{</span><span class="w"></span>
+<span class="w">              </span><span class="no">&quot;title&quot;: &quot;{{.app.metadata.name}}&quot;,</span><span class="w"></span>
+<span class="w">              </span><span class="no">&quot;title_link&quot;: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}&quot;,</span><span class="w"></span>
+<span class="w">              </span><span class="no">&quot;color&quot;: &quot;#18be52&quot;,</span><span class="w"></span>
+<span class="w">              </span><span class="no">&quot;fields&quot;: [{</span><span class="w"></span>
+<span class="w">                </span><span class="no">&quot;title&quot;: &quot;Sync Status&quot;,</span><span class="w"></span>
+<span class="w">                </span><span class="no">&quot;value&quot;: &quot;{{.app.status.sync.status}}&quot;,</span><span class="w"></span>
+<span class="w">                </span><span class="no">&quot;short&quot;: true</span><span class="w"></span>
+<span class="w">              </span><span class="no">}, {</span><span class="w"></span>
+<span class="w">                </span><span class="no">&quot;title&quot;: &quot;Repository&quot;,</span><span class="w"></span>
+<span class="w">                </span><span class="no">&quot;value&quot;: &quot;{{.app.spec.source.repoURL}}&quot;,</span><span class="w"></span>
+<span class="w">                </span><span class="no">&quot;short&quot;: true</span><span class="w"></span>
+<span class="w">              </span><span class="no">}]</span><span class="w"></span>
+<span class="w">            </span><span class="no">}]</span><span class="w"></span>
+<span class="w">          </span><span class="no">}</span><span class="w"></span>
 </code></pre></div>
 
               
@@ -2324,10 +2324,10 @@ Using Webhook you might trigger a Jenkins job, update Github commit status.</p>
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
-    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../../assets/javascripts/workers/search.0bbba5b5.min.js"}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../../assets/javascripts/workers/search.361d90f1.min.js"}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.e1a181d9.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.289a2a4b.min.js"></script>
       
         <script src="../../../assets/versions.js"></script>
       

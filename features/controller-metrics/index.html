@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/features/controller-metrics/">
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.3">
+      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.4">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.edf004c2.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.bb3983ee.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.e6a45f82.min.css">
@@ -2079,11 +2079,11 @@ you can use any of the common methods to install it in your cluster. Popular opt
 <p>Once Prometheus is running in your cluster you need to make sure that it scrapes the Argo Rollouts endpoint. Prometheus already contains a service discovery mechanism
 for Kubernetes, but you need to <a href="https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config">configure it first</a>. Depending on your installation method you might need to take additional actions to scrape the Argo Rollouts endpoint.</p>
 <p>For example, if you used the Helm chart of Prometheus you need to annotate your Argo Rollouts Controller with the following:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">annotations</span><span class="p">:</span>
-    <span class="nt">prometheus.io/scrape</span><span class="p">:</span> <span class="s">&quot;true&quot;</span>
-    <span class="nt">prometheus.io/path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/metrics</span>
-    <span class="nt">prometheus.io/port</span><span class="p">:</span> <span class="s">&quot;8090&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">prometheus.io/scrape</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span><span class="w"></span>
+<span class="w">    </span><span class="nt">prometheus.io/path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/metrics</span><span class="w"></span>
+<span class="w">    </span><span class="nt">prometheus.io/port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8090&quot;</span><span class="w"></span>
 </code></pre></div>
 <p>You can always see if the controller is reached successfully in the Prometheus "Targets" screen:</p>
 <p><a href="../controller-metrics-assets/prometheus-target.png"><img alt="Prometheus Scraping Argo Rollouts metrics" src="../controller-metrics-assets/prometheus-target.png" /></a></p>
@@ -2280,10 +2280,10 @@ Then you can create any dashboard by using the available metrics (described in d
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../assets/javascripts/workers/search.0bbba5b5.min.js"}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../assets/javascripts/workers/search.361d90f1.min.js"}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e1a181d9.min.js"></script>
+      <script src="../../assets/javascripts/bundle.289a2a4b.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       

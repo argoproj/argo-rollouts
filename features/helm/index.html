@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/features/helm/">
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.3">
+      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.4">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.edf004c2.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.bb3983ee.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.e6a45f82.min.css">
@@ -1991,62 +1991,62 @@ your deployments.</p>
 then as soon as you install/upgrade your chart, Argo Rollouts will take over and initiate the progressive delivery
 process.</p>
 <p>Here is an example Rollout that is managed with Helm:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
-<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Rollout</span>
-<span class="nt">metadata</span><span class="p">:</span>
-  <span class="nt">name</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">template &quot;helm-guestbook.fullname&quot; .</span> <span class="p p-Indicator">}}</span>
-  <span class="nt">labels</span><span class="p">:</span>
-    <span class="nt">app</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">template &quot;helm-guestbook.name&quot; .</span> <span class="p p-Indicator">}}</span>
-    <span class="nt">chart</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">template &quot;helm-guestbook.chart&quot; .</span> <span class="p p-Indicator">}}</span>
-    <span class="nt">release</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">.Release.Name</span> <span class="p p-Indicator">}}</span>
-    <span class="nt">heritage</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">.Release.Service</span> <span class="p p-Indicator">}}</span>
-<span class="nt">spec</span><span class="p">:</span>
-  <span class="nt">replicas</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">.Values.replicaCount</span> <span class="p p-Indicator">}}</span>
-  <span class="nt">revisionHistoryLimit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3</span>
-  <span class="nt">selector</span><span class="p">:</span>
-    <span class="nt">matchLabels</span><span class="p">:</span>
-      <span class="nt">app</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">template &quot;helm-guestbook.name&quot; .</span> <span class="p p-Indicator">}}</span>
-      <span class="nt">release</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">.Release.Name</span> <span class="p p-Indicator">}}</span>
-  <span class="nt">strategy</span><span class="p">:</span>
-    <span class="nt">blueGreen</span><span class="p">:</span>
-      <span class="nt">activeService</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">template &quot;helm-guestbook.fullname&quot; .</span> <span class="p p-Indicator">}}</span>
-      <span class="nt">previewService</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">template &quot;helm-guestbook.fullname&quot; .</span> <span class="p p-Indicator">}}</span><span class="l l-Scalar l-Scalar-Plain">-preview</span>
-  <span class="nt">template</span><span class="p">:</span>
-    <span class="nt">metadata</span><span class="p">:</span>
-      <span class="nt">labels</span><span class="p">:</span>
-        <span class="nt">app</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">template &quot;helm-guestbook.name&quot; .</span> <span class="p p-Indicator">}}</span>
-        <span class="nt">release</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">.Release.Name</span> <span class="p p-Indicator">}}</span>
-    <span class="nt">spec</span><span class="p">:</span>
-      <span class="nt">containers</span><span class="p">:</span>
-        <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">.Chart.Name</span> <span class="p p-Indicator">}}</span>
-          <span class="nt">image</span><span class="p">:</span> <span class="s">&quot;{{</span><span class="nv"> </span><span class="s">.Values.image.repository</span><span class="nv"> </span><span class="s">}}:{{</span><span class="nv"> </span><span class="s">.Values.image.tag</span><span class="nv"> </span><span class="s">}}&quot;</span>
-          <span class="nt">imagePullPolicy</span><span class="p">:</span> <span class="p p-Indicator">{{</span> <span class="nv">.Values.image.pullPolicy</span> <span class="p p-Indicator">}}</span>
-          <span class="nt">ports</span><span class="p">:</span>
-            <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http</span>
-              <span class="nt">containerPort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
-              <span class="nt">protocol</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">TCP</span>
-          <span class="nt">livenessProbe</span><span class="p">:</span>
-            <span class="nt">httpGet</span><span class="p">:</span>
-              <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
-              <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http</span>
-          <span class="nt">readinessProbe</span><span class="p">:</span>
-            <span class="nt">httpGet</span><span class="p">:</span>
-              <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
-              <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http</span>
-          <span class="nt">resources</span><span class="p">:</span>
-<span class="p p-Indicator">{{</span> <span class="nv">toYaml .Values.resources | indent 12</span> <span class="p p-Indicator">}}</span>
-    <span class="p p-Indicator">{{</span><span class="nv">- with .Values.nodeSelector</span> <span class="p p-Indicator">}}</span>
-      <span class="nt">nodeSelector</span><span class="p">:</span>
-<span class="p p-Indicator">{{</span> <span class="nv">toYaml . | indent 8</span> <span class="p p-Indicator">}}</span>
-    <span class="p p-Indicator">{{</span><span class="nv">- end</span> <span class="p p-Indicator">}}</span>
-    <span class="p p-Indicator">{{</span><span class="nv">- with .Values.affinity</span> <span class="p p-Indicator">}}</span>
-      <span class="nt">affinity</span><span class="p">:</span>
-<span class="p p-Indicator">{{</span> <span class="nv">toYaml . | indent 8</span> <span class="p p-Indicator">}}</span>
-    <span class="p p-Indicator">{{</span><span class="nv">- end</span> <span class="p p-Indicator">}}</span>
-    <span class="p p-Indicator">{{</span><span class="nv">- with .Values.tolerations</span> <span class="p p-Indicator">}}</span>
-      <span class="nt">tolerations</span><span class="p">:</span>
-<span class="p p-Indicator">{{</span> <span class="nv">toYaml . | indent 8</span> <span class="p p-Indicator">}}</span>
-    <span class="p p-Indicator">{{</span><span class="nv">- end</span> <span class="p p-Indicator">}}</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">template &quot;helm-guestbook.fullname&quot; .</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">template &quot;helm-guestbook.name&quot; .</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">template &quot;helm-guestbook.chart&quot; .</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">    </span><span class="nt">release</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">.Release.Name</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">    </span><span class="nt">heritage</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">.Release.Service</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">.Values.replicaCount</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">  </span><span class="nt">revisionHistoryLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w"></span>
+<span class="w">  </span><span class="nt">selector</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">template &quot;helm-guestbook.name&quot; .</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">      </span><span class="nt">release</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">.Release.Name</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">blueGreen</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">activeService</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">template &quot;helm-guestbook.fullname&quot; .</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">      </span><span class="nt">previewService</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">template &quot;helm-guestbook.fullname&quot; .</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="l l-Scalar l-Scalar-Plain">-preview</span><span class="w"></span>
+<span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">template &quot;helm-guestbook.name&quot; .</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">        </span><span class="nt">release</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">.Release.Name</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">.Chart.Name</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">          </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{</span><span class="nv"> </span><span class="s">.Values.image.repository</span><span class="nv"> </span><span class="s">}}:{{</span><span class="nv"> </span><span class="s">.Values.image.tag</span><span class="nv"> </span><span class="s">}}&quot;</span><span class="w"></span>
+<span class="w">          </span><span class="nt">imagePullPolicy</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">.Values.image.pullPolicy</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">          </span><span class="nt">ports</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http</span><span class="w"></span>
+<span class="w">              </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
+<span class="w">              </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TCP</span><span class="w"></span>
+<span class="w">          </span><span class="nt">livenessProbe</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">httpGet</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span><span class="w"></span>
+<span class="w">              </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http</span><span class="w"></span>
+<span class="w">          </span><span class="nt">readinessProbe</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">httpGet</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span><span class="w"></span>
+<span class="w">              </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http</span><span class="w"></span>
+<span class="w">          </span><span class="nt">resources</span><span class="p">:</span><span class="w"></span>
+<span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">toYaml .Values.resources | indent 12</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">{{</span><span class="nv">- with .Values.nodeSelector</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">      </span><span class="nt">nodeSelector</span><span class="p">:</span><span class="w"></span>
+<span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">toYaml . | indent 8</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">{{</span><span class="nv">- end</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">{{</span><span class="nv">- with .Values.affinity</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">      </span><span class="nt">affinity</span><span class="p">:</span><span class="w"></span>
+<span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">toYaml . | indent 8</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">{{</span><span class="nv">- end</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">{{</span><span class="nv">- with .Values.tolerations</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">      </span><span class="nt">tolerations</span><span class="p">:</span><span class="w"></span>
+<span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">toYaml . | indent 8</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">{{</span><span class="nv">- end</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
 </code></pre></div>
 <p>You can find the full example at <a href="https://github.com/argoproj/argo-rollouts/tree/master/examples/helm-blue-green">https://github.com/argoproj/argo-rollouts/tree/master/examples/helm-blue-green</a>.</p>
 
@@ -2114,10 +2114,10 @@ process.</p>
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../assets/javascripts/workers/search.0bbba5b5.min.js"}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../assets/javascripts/workers/search.361d90f1.min.js"}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e1a181d9.min.js"></script>
+      <script src="../../assets/javascripts/bundle.289a2a4b.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
