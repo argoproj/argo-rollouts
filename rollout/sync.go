@@ -947,7 +947,7 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 	if previousStableHash != newStatus.CurrentPodHash {
 		// only emit this event when we switched stable
 		if trafficrouting.IsPingPongEnabled(c.rollout) {
-			newStatus.Canary.StablePingPong = trafficrouting.PingPongOpposite(c.rollout.Status.Canary.StablePingPong)
+			newStatus.Canary.StablePingPong = trafficrouting.PingPongOpposite(c.rollout)
 		}
 		newStatus.StableRS = newStatus.CurrentPodHash
 		revision, _ := replicasetutil.Revision(c.rollout)

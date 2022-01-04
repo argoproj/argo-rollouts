@@ -118,6 +118,33 @@ func TestGetPreviewAndActiveServices(t *testing.T) {
 	})
 }
 
+func TestReconcilePingAndPongService(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromString("25%"), intstr.FromString("25%"))
+	r.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "ping-service", PongService: "pong-service"}
+	pingSvc := newService("ping-service", 80, nil, r)
+	pongSvc := newService("pong-service", 80, nil, r)
+	f.serviceLister = append(f.serviceLister, pingSvc, pongSvc)
+	f.kubeobjects = append(f.kubeobjects, pingSvc, pongSvc)
+
+	ctrl, _, _ := f.newController(noResyncPeriodFunc)
+	c, err := ctrl.newRolloutContext(r)
+
+	assert.NoError(t, err)
+	c.newRS = newReplicaSetWithStatus(r, 3, 3)
+	//stableSvc := newService("stable", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
+	r.Status.CurrentPodHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	assert.NotEqual(t, r.Status.CurrentPodHash, pongSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+	// testing method
+	err = c.reconcilePingAndPongService()
+
+	assert.NoError(t, err)
+	assert.Equal(t, r.Status.CurrentPodHash, pongSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+}
+
 func TestActiveServiceNotFound(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
