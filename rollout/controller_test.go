@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ghodss/yaml"
 	routev1 "github.com/openshift/api/route/v1"
 	openshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
 
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"

@@ -17,6 +17,7 @@ import (
 
 	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
+	openshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 
 	openshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	"github.com/pkg/errors"

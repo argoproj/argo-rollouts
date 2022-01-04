@@ -14726,13 +14726,11 @@ rules:
     resources:
       - routes
     verbs:
-      - create
-      - watch
+          - watch
       - get
       - update
       - list
-      - delete
-  - apiGroups:
+      - apiGroups:
       - apisix.apache.org
     resources:
       - apisixroutes

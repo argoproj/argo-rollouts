@@ -82,57 +82,6 @@ func TestReconcilerSetWeight(t *testing.T) {
 	}
 }
 
-func TestVerifyWeight(t *testing.T) {
-	t.Parallel()
-	rollout := newRollout()
-	rec := record.NewFakeEventRecorder()
-	tests := []struct {
-		title     string
-		clientset openshiftclientset.Interface
-		weight    int
-		expected  bool
-	}{
-
-		{
-			title:     "Fail: Routes have wrong weight",
-			clientset: fake.NewSimpleClientset(runtimeObj(routesNoCanary(100))...),
-			weight:    50,
-			expected:  false,
-		},
-		{
-			title:     "Fail: Routes have alternate backends",
-			clientset: fake.NewSimpleClientset(runtimeObj(routesWithCanary(50))...),
-			weight:    0,
-			expected:  false,
-		},
-		{
-			title:     "Success: Routes have right weight",
-			clientset: fake.NewSimpleClientset(runtimeObj(routesWithCanary(45))...),
-			weight:    45,
-			expected:  true,
-		},
-		{
-			title:     "Success: Routes have no alternate backends",
-			clientset: fake.NewSimpleClientset(runtimeObj(routesNoCanary(100))...),
-			weight:    0,
-			expected:  true,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.title, func(t *testing.T) {
-			r := NewReconciler(ReconcilerConfig{
-				Rollout:  rollout,
-				Client:   test.clientset,
-				Recorder: rec,
-			})
-			result, err := r.VerifyWeight(int32(test.weight))
-			assert.NoError(t, err)
-			assert.Equal(t, test.expected, result)
-		})
-
-	}
-}
-
 func newRollout() *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
