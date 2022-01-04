@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -456,7 +457,7 @@ spec:
 		WaitForRolloutStatus("Degraded").
 		WaitForRolloutStatus("Paused").
 		Then().
-		ExpectCanaryStablePodCount(1, 3).
+		ExpectCanaryStablePodCount(1, 2).
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Degraded").
@@ -563,7 +564,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		ApplyManifests().
 		MarkPodsReady("1", 4). // mark all 4 pods ready
 		WaitForRolloutStatus("Healthy").
-		UpdateSpec().          // update to revision 2
+		UpdateSpec(). // update to revision 2
 		MarkPodsReady("2", 1). // mark 1 of 1 canary pods ready
 		WaitForRolloutStatus("Paused").
 		Sleep(2*time.Second).
@@ -590,4 +591,47 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		WaitForRevisionPodCount("2", 0).
 		Then().
 		ExpectRevisionPodCount("1", 4)
+}
+
+func (s *CanarySuite) TestReplicasCapping() {
+	s.Given().
+		HealthyRollout(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: replicas-capping
+spec:
+  replicas: 15
+  strategy:
+    canary:
+      steps:
+      - setWeight: 1
+      - pause: {}
+      - setWeight: 50
+      - pause: {}
+  selector:
+    matchLabels:
+      app: replicas-capping
+  template:
+    metadata:
+      labels:
+        app: replicas-capping
+    spec:
+      containers:
+      - name: replicas-capping
+        image: nginx:1.19-alpine
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 1m`).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectCanaryStablePodCount(1, 14).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectCanaryStablePodCount(7, 8)
 }
