@@ -1,12 +1,11 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Git tag to build release from
-        required: true
-
+  workflow_dispatch:                                                                                                         
+    inputs:                                                                                                                  
+      tag:                                                                                                                   
+        description: Git tag to build release from                                                                           
+        required: true  
 jobs:
   release-images:
     runs-on: ubuntu-latest
@@ -128,6 +127,7 @@ jobs:
           draft: true
           files: |
             dist/kubectl-argo-rollouts-linux-amd64
+            dist/kubectl-argo-rollouts-linux-arm64
             dist/kubectl-argo-rollouts-darwin-amd64
             dist/kubectl-argo-rollouts-windows-amd64
             manifests/dashboard-install.yaml
