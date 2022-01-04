@@ -92,9 +92,11 @@ spec:
           rootService: alb-rollout-root
           servicePort: 80
       steps:
-        - setWeight: 10
-        - experiment:
-            templates:
-            - name: experiment-alb
-              specRef: canary
-              weight: 20
+      - experiment:
+          templates:
+          - name: experiment-alb-canary
+            specRef: canary
+            weight: 20
+          - name: experiment-alb-stable
+            specRef: stable
+            weight: 20
