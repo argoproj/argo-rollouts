@@ -8,7 +8,7 @@ metadata:
   labels:
     app: canary-demo
     app.kubernetes.io/instance: jesse-test
-  name: canary-demo
+  name: canary-demo-pingpong
   namespace: jesse-test
   resourceVersion: "28253567"
   selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/rollouts/canary-demo

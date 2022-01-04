@@ -264,7 +264,7 @@ func TestPersistWorkloadRefGeneration(t *testing.T) {
 	}
 }
 
-func TestPromoteStable(t *testing.T) {
+func TestPingPongCanaryPromoteStable(t *testing.T) {
 	ro := &v1alpha1.Rollout{}
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{PingPong: &v1alpha1.PingPongSpec{}}
 	ro.Status.Canary.StablePingPong = v1alpha1.PPPing
@@ -342,69 +342,6 @@ func TestCanaryPromoteFull(t *testing.T) {
 
 	patchedRollout := f.getPatchedRolloutAsObject(patchedRolloutIndex)
 	assert.Equal(t, int32(2), *patchedRollout.Status.CurrentStepIndex) // verify we updated to last step
-	assert.False(t, patchedRollout.Status.PromoteFull)
-}
-
-// TestPingPongCanaryPromoteFull verifies skip pause, analysis, steps when promote full is set for a canary rollout
-func TestPingPongCanaryPromoteFull(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
-	// these steps should be ignored
-	steps := []v1alpha1.CanaryStep{
-		{
-			SetWeight: int32Ptr(10),
-		},
-		{
-			Pause: &v1alpha1.RolloutPause{
-				Duration: v1alpha1.DurationFromInt(60),
-			},
-		},
-	}
-
-	at := analysisTemplate("bar")
-	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(10), intstr.FromInt(0))
-	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
-		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
-				{
-					TemplateName: at.Name,
-				},
-			},
-		},
-	}
-	r1.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{
-		PingService: "",
-		PongService: "",
-	}
-
-	rs1 := newReplicaSetWithStatus(r1, 10, 10)
-	r1.Status.StableRS = rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r2 := bumpVersion(r1)
-	r2.Status.PromoteFull = true
-	r2.Annotations[annotations.RevisionAnnotation] = "1"
-	rs2 := newReplicaSetWithStatus(r2, 1, 0)
-
-	f.rolloutLister = append(f.rolloutLister, r2)
-	f.objects = append(f.objects, r2, at)
-	f.kubeobjects = append(f.kubeobjects, rs1)
-	f.replicaSetLister = append(f.replicaSetLister, rs1)
-
-	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // create new ReplicaSet (size 0)
-	f.expectUpdateRolloutAction(r2)                        // update rollout revision
-	f.expectUpdateRolloutStatusAction(r2)                  // update rollout conditions
-	updatedRS2Index := f.expectUpdateReplicaSetAction(rs2) // scale new ReplicaSet to 10
-	patchedRolloutIndex := f.expectPatchRolloutAction(r2)
-	f.run(getKey(r2, t))
-
-	createdRS2 := f.getCreatedReplicaSet(createdRS2Index)
-	assert.Equal(t, int32(0), *createdRS2.Spec.Replicas)
-	updatedRS2 := f.getUpdatedReplicaSet(updatedRS2Index)
-	assert.Equal(t, int32(10), *updatedRS2.Spec.Replicas) // verify we ignored steps and fully scaled it
-
-	patchedRollout := f.getPatchedRolloutAsObject(patchedRolloutIndex)
-	assert.Equal(t, int32(2), *patchedRollout.Status.CurrentStepIndex)            // verify we updated to last step
-	assert.Equal(t, v1alpha1.PPPong, patchedRollout.Status.Canary.StablePingPong) // verify we updated to last step
 	assert.False(t, patchedRollout.Status.PromoteFull)
 }
 
