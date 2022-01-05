@@ -237,6 +237,7 @@ func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1
 func (c *rolloutContext) reconcilePingAndPongService() error {
 	if trafficrouting.IsPingPongEnabled(c.rollout) && !rolloututils.IsFullyPromoted(c.rollout) {
 		_, canaryService := trafficrouting.GetStableAndCanaryServices(c.rollout)
+		// "pong", "ping"
 		return c.ensureSVCTargets(canaryService, c.newRS)
 	}
 	return nil
