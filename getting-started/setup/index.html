@@ -2276,19 +2276,24 @@ basic ingress support, only the "ingress" addon needs to be enabled:</p>
 <div class="highlight"><pre><span></span><code>minikube addons <span class="nb">enable</span> ingress
 </code></pre></div>
 <p>Optionally, Prometheus and Grafana can be installed to utilize progressive delivery functionality:</p>
-<div class="highlight"><pre><span></span><code># Install Prometheus
+<div class="highlight"><pre><span></span><code><span class="c1"># Install Prometheus</span>
 kubectl create ns monitoring
 helm install prometheus prometheus-community/prometheus -n monitoring -f docs/getting-started/setup/values-prometheus.yaml
 
-# Patch the ingress-nginx-controller pod so that it has the required
-# prometheus annotations. This allows the pod to be scraped by the
-# prometheus server.
-kubectl patch deploy ingress-nginx-controller -n kube-system -p &quot;$(cat docs/getting-started/setup/ingress-nginx-controller-metrics-scrape.yaml)&quot;
-
-# Install grafana along with nginx ingress dashboards
+<span class="c1"># Patch the ingress-nginx-controller pod so that it has the required</span>
+<span class="c1"># prometheus annotations. This allows the pod to be scraped by the</span>
+<span class="c1"># prometheus server.</span>
+kubectl patch deploy ingress-nginx-controller -n ingress-nginx -p <span class="s2">&quot;</span><span class="k">$(</span>cat docs/getting-started/setup/ingress-nginx-controller-metrics-scrape.yaml<span class="k">)</span><span class="s2">&quot;</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><a href="https://kubernetes.io/docs/tasks/access-application-cluster/ingress-minikube/#enable-the-ingress-controller">For Minikube version 1.18.1 or earlier</a>, 
+change the <code>-n</code> parameter value (namespace) to <code>kube-system</code>.</p>
+</div>
+<div class="highlight"><pre><span></span><code><span class="c1"># Install grafana along with nginx ingress dashboards</span>
 helm install grafana grafana/grafana -n monitoring -f docs/getting-started/setup/values-grafana-nginx.yaml
 
-# Grafana UI can be accessed by running:
+<span class="c1"># Grafana UI can be accessed by running:</span>
 minikube service grafana -n monitoring
 </code></pre></div>
 <h3 id="istio-setup">Istio Setup<a class="headerlink" href="#istio-setup" title="Permanent link">&para;</a></h3>
