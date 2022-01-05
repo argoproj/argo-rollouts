@@ -219,6 +219,12 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.Provider.CloudWatch != nil {
 		numProviders++
 	}
+	if metric.Provider.Graphite != nil {
+		numProviders++
+	}
+	if metric.Provider.Influxdb != nil {
+		numProviders++
+	}
 	if numProviders == 0 {
 		return fmt.Errorf("no provider specified")
 	}
