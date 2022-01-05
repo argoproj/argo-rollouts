@@ -2,6 +2,7 @@ package metricproviders
 
 import (
 	"fmt"
+
 	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
