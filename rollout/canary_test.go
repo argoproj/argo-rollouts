@@ -1355,6 +1355,89 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.stableService: Invalid value: \"invalid-stable\": service \"invalid-stable\" not found", condition["message"])
 }
 
+func TestCanaryRolloutWithPingPongServices(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	pingSvc := newService("ping-service", 80, nil, r)
+	pongSvc := newService("pong-service", 80, nil, r)
+	rs1 := newReplicaSetWithStatus(r, 1, 1)
+	r.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: pingSvc.Name, PongService: pongSvc.Name}
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, pingSvc, pongSvc, rs1)
+	f.serviceLister = append(f.serviceLister, pingSvc, pongSvc)
+
+	_ = f.expectPatchServiceAction(pingSvc, r.Status.CurrentPodHash)
+	_ = f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+}
+
+func TestCanaryRolloutWithInvalidPingServiceName(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	r.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "ping-service", PongService: "pong-service"}
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects)
+	f.serviceLister = append(f.serviceLister)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	patch := make(map[string]interface{})
+	patchData := f.getPatchedRollout(patchIndex)
+	err := json.Unmarshal([]byte(patchData), &patch)
+	assert.NoError(t, err)
+
+	c, ok, err := unstructured.NestedSlice(patch, "status", "conditions")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Len(t, c, 2)
+
+	condition, ok := c[1].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
+	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.pingPong.pingService: Invalid value: \"ping-service\": service \"ping-service\" not found", condition["message"])
+}
+
+func TestCanaryRolloutWithInvalidPongServiceName(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	pingSvc := newService("ping-service", 80, nil, r)
+	r.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: pingSvc.Name, PongService: "pong-service"}
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, pingSvc)
+	f.serviceLister = append(f.serviceLister, pingSvc)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	patch := make(map[string]interface{})
+	patchData := f.getPatchedRollout(patchIndex)
+	err := json.Unmarshal([]byte(patchData), &patch)
+	assert.NoError(t, err)
+
+	c, ok, err := unstructured.NestedSlice(patch, "status", "conditions")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Len(t, c, 2)
+
+	condition, ok := c[1].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
+	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.pingPong.pongService: Invalid value: \"pong-service\": service \"pong-service\" not found", condition["message"])
+}
+
 func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

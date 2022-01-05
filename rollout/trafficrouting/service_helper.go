@@ -21,11 +21,11 @@ func GetStableAndCanaryServices(ro *v1alpha1.Rollout) (string, string) {
 }
 
 func IsStablePing(ro *v1alpha1.Rollout) bool {
-	return ro.Status.Canary.StablePingPong == "" || ro.Status.Canary.StablePingPong == v1alpha1.PPPing
+	return ro.Status.Canary.StablePingPong == v1alpha1.PPPing
 }
 
 func PingPongOpposite(ro *v1alpha1.Rollout) v1alpha1.PingPongType {
-	if ro.Status.Canary.StablePingPong != "" && IsStablePing(ro) {
+	if IsStablePing(ro) {
 		return v1alpha1.PPPong
 	} else {
 		return v1alpha1.PPPing
