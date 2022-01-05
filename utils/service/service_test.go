@@ -63,6 +63,25 @@ func TestGetRolloutServiceKeysForCanaryWithCanaryService(t *testing.T) {
 	assert.Equal(t, keys, []string{"default/canary-service", "default/stable-service"})
 }
 
+func TestGetRolloutServiceKeysForPingPongCanaryService(t *testing.T) {
+	keys := GetRolloutServiceKeys(&v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					PingPong: &v1alpha1.PingPongSpec{
+						PingService: "ping-service",
+						PongService: "pong-service",
+					},
+				},
+			},
+		},
+	})
+	assert.Equal(t, keys, []string{"default/ping-service", "default/pong-service"})
+}
+
 func TestGetRolloutServiceKeysForBlueGreen(t *testing.T) {
 	keys := GetRolloutServiceKeys(&v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
