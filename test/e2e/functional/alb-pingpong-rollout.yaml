@@ -27,7 +27,7 @@ spec:
   selector:
     app: alb-canary
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: alb-canary-ingress
@@ -39,8 +39,11 @@ spec:
       paths:
       - path: /*
         backend:
-          serviceName: alb-rollout-root
-          servicePort: use-annotation
+          service:
+            name: alb-rollout-root
+            port:
+              name: use-annotation
+        pathType: ImplementationSpecific
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
