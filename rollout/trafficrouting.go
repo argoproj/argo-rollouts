@@ -148,6 +148,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				// weight of the traffic routing service should be at the value of the
 				// last setWeight step, which is set by GetCurrentSetWeight.
 				desiredWeight = replicasetutil.GetCurrentSetWeight(c.rollout)
+			} else if *index == int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
+				desiredWeight = 100
 			}
 			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
 		}
