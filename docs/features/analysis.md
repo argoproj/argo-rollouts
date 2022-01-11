@@ -633,8 +633,7 @@ Metric Results:
 
 ### Dry-Run Rollouts
 
-If a rollout wants to dry run its analysis, it simply needs to specify the `dryRun` field to its `analysis` stanza. If a
-rollout wants to dry run its analysis, it simply needs to specify the `dryRun` field to its `analysis` stanza. In the 
+If a rollout wants to dry run its analysis, it simply needs to specify the `dryRun` field to its `analysis` stanza. In the 
 following example, all the metrics from `random-fail` and `always-pass` get merged and executed in the dry-run mode.
 
 ```yaml hl_lines="9 10"
