@@ -20,17 +20,12 @@ func GetStableAndCanaryServices(ro *v1alpha1.Rollout) (string, string) {
 	}
 }
 
-func IsStablePing(ro *v1alpha1.Rollout) bool { // reurn "stable is ping"
+// IsStablePing return true if the 'ping' service is pointing to the stable replica set.
+// Which of the service currently is using is stored in a status.canary.stablePingPong.
+// Return true in a case if status StablePingPong value equal to 'ping'. Return false in
+// case when the status value is 'pong' or empty
+func IsStablePing(ro *v1alpha1.Rollout) bool {
 	return ro.Status.Canary.StablePingPong == v1alpha1.PPPing
-}
-
-func PingPongOpposite(ro *v1alpha1.Rollout) v1alpha1.PingPongType {
-	//status.stablePingPong == ""
-	if IsStablePing(ro) {
-		return v1alpha1.PPPong
-	} else {
-		return v1alpha1.PPPing
-	}
 }
 
 func IsPingPongEnabled(ro *v1alpha1.Rollout) bool {
