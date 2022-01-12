@@ -983,6 +983,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#default-trigger-templates" class="md-nav__link">
+    Default Trigger templates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#subscriptions" class="md-nav__link">
     Subscriptions
   </a>
@@ -2047,6 +2054,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#default-trigger-templates" class="md-nav__link">
+    Default Trigger templates
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#subscriptions" class="md-nav__link">
     Subscriptions
   </a>
@@ -2139,6 +2153,14 @@ with the required notifications service such as Slack or MS Teams. An example be
 <span class="w">  </span><span class="nt">slack-token</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;my-slack-token&gt;</span><span class="w"></span>
 </code></pre></div>
 <p>Learn more about supported services and configuration settings in services <a href="../../generated/notification-services/overview/">documentation</a>.</p>
+<h2 id="default-trigger-templates">Default Trigger templates<a class="headerlink" href="#default-trigger-templates" title="Permanent link">&para;</a></h2>
+<p>Currently the following triggers have <a href="https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications">built-in templates</a>.</p>
+<ul>
+<li><code>on-rollout-completed</code> when a rollout is finished and all its steps are completed</li>
+<li><code>on-rollout-step-completed</code> when an individual step inside a rollout definition is completed</li>
+<li><code>on-rollout-updated</code> when a rollout definition is changed</li>
+<li><code>on-scaling-replica-set</code> when the number of replicas in a rollout is changed</li>
+</ul>
 <h2 id="subscriptions">Subscriptions<a class="headerlink" href="#subscriptions" title="Permanent link">&para;</a></h2>
 <p>The end-users can start leveraging notifications using <code>notifications.argoproj.io/subscribe.&lt;trigger&gt;.&lt;service&gt;: &lt;recipient&gt;</code> annotation.
 For example, the following annotation subscribes two Slack channels to notifications about canary rollout step completion:</p>
