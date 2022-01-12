@@ -52,6 +52,8 @@ const (
 	ScaleDownLimitLargerThanRevisionLimit = "This rollout's revision history limit can not be smaller than the rollout's scale down limit"
 	// InvalidTrafficRoutingMessage indicates that both canary and stable service must be set to use Traffic Routing
 	InvalidTrafficRoutingMessage = "Canary service and Stable service must to be set to use Traffic Routing"
+	// MissingTrafficRoutingMessage indicates that if canary or stable service defined, Traffic Routing must be set.
+	MissingTrafficRoutingMessage = "Canary service or Stable service defined but Traffic Routing is missing"
 	// InvalidAnalysisArgsMessage indicates that arguments provided in analysis steps are refrencing un-supported metadatafield.
 	//supported fields are "metadata.annotations", "metadata.labels", "metadata.name", "metadata.namespace", "metadata.uid"
 	InvalidAnalysisArgsMessage = "Analyses arguments must refer to valid object metadata supported by downwardAPI"
@@ -220,6 +222,13 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		}
 		if canary.CanaryService == "" {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("canaryService"), canary.CanaryService, InvalidTrafficRoutingMessage))
+		}
+	}
+
+	// canary.TrafficRouting must be defined if canary.StableService or canary.CanaryService is defined
+	if canary.StableService != "" || canary.CanaryService != "" {
+		if canary.TrafficRouting == nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("TrafficRouting"), canary.TrafficRouting, MissingTrafficRoutingMessage))
 		}
 	}
 
