@@ -2774,8 +2774,9 @@ templates together. The controller combines the <code>metrics</code> and <code>a
 <span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w"></span>
 <span class="w">            </span><span class="nt">podTemplateHashValue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Latest</span><span class="w"></span>
 </code></pre></div>
-Analysis arguments also support valueFrom for reading metadata fields and passing them as arguments to AnalysisTemplate.
-An example would be to reference metadata labels like env and region and passing them along to AnalysisTemplate.
+Analysis arguments also support valueFrom for reading any Rollout fields and passing them as arguments to AnalysisTemplate.
+An example would be to reference metadata labels like env and region and passing them along to AnalysisTemplate, or any field
+from the Rollout status
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
 <span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
@@ -2804,6 +2805,10 @@ An example would be to reference metadata labels like env and region and passing
 <span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w"></span>
 <span class="w">            </span><span class="nt">fieldRef</span><span class="p">:</span><span class="w"></span>
 <span class="w">              </span><span class="nt">fieldPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">metadata.labels[&#39;region&#39;]</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-hash</span><span class="w"></span>
+<span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">fieldRef</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="nt">fieldPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">status.canary.weights.canary.podTemplateHash</span><span class="w"></span>
 </code></pre></div></p>
 <h2 id="bluegreen-pre-promotion-analysis">BlueGreen Pre Promotion Analysis<a class="headerlink" href="#bluegreen-pre-promotion-analysis" title="Permanent link">&para;</a></h2>
 <p>A Rollout using the BlueGreen strategy can launch an AnalysisRun <em>before</em> it switches traffic to the new version using
