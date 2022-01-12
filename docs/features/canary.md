@@ -86,12 +86,12 @@ match the traffic weight. Some use cases for this:
   Setting canary scale is only available when using the canary strategy with a traffic router, since
   the basic canary needs to control canary scale in order to approximate canary weight.
 
-To control canary weights during steps, use the `setCanaryScale` step and indicate which scale the
+To control canary scales and weights during steps, use the `setCanaryScale` step and indicate which scale the
 the canary should use:
 
-* explicit replica count
-* explicit weight percentage of total spec.replicas
-* to match current canary setWeight
+* explicit replica count without changing traffic weight (`replicas`)
+* explicit weight percentage of total spec.replicas without changing traffic weight(`weight`)
+* to or not to match current canary's `setWeight` step (`matchTrafficWeight: true or false`)
 
 ```yaml
 spec:
@@ -120,11 +120,15 @@ spec:
   strategy:
     canary:
       steps:
+      # 1 canary pod (10% of spec.replicas)
       - setCanaryScale:
           weight: 10
+      # 90% of traffic to the 1 canary pod
       - setWeight: 90
       - pause: {}
 ```
+
+The above situation is caused by the changed behvaior of `setWeight` after `setCanaryScale`. To reset, set `matchTrafficWeight: true` and the `setWeight` behavior will be restored, i.e., subsequent `setWeight` will create canary replicas matching the traffic weight.
 
 ## Dynamic Stable Scale (with Traffic Routing)
 
