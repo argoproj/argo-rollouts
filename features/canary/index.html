@@ -2301,12 +2301,12 @@ match the traffic weight. Some use cases for this:</p>
 </div>
 <p>Setting canary scale is only available when using the canary strategy with a traffic router, since
   the basic canary needs to control canary scale in order to approximate canary weight.</p>
-<p>To control canary weights during steps, use the <code>setCanaryScale</code> step and indicate which scale the
+<p>To control canary scales and weights during steps, use the <code>setCanaryScale</code> step and indicate which scale the
 the canary should use:</p>
 <ul>
-<li>explicit replica count</li>
-<li>explicit weight percentage of total spec.replicas</li>
-<li>to match current canary setWeight</li>
+<li>explicit replica count without changing traffic weight (<code>replicas</code>)</li>
+<li>explicit weight percentage of total spec.replicas without changing traffic weight(<code>weight</code>)</li>
+<li>to or not to match current canary's <code>setWeight</code> step (<code>matchTrafficWeight: true or false</code>)</li>
 </ul>
 <div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span><span class="w"></span>
 <span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
@@ -2331,11 +2331,14 @@ of steps would cause 90% of traffic to only be served by 10% of pods:</p>
 <span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
 <span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
 <span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># 1 canary pod (10% of spec.replicas)</span><span class="w"></span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setCanaryScale</span><span class="p">:</span><span class="w"></span>
 <span class="w">          </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># 90% of traffic to the 1 canary pod</span><span class="w"></span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">90</span><span class="w"></span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
 </code></pre></div>
+<p>The above situation is caused by the changed behvaior of <code>setWeight</code> after <code>setCanaryScale</code>. To reset, set <code>matchTrafficWeight: true</code> and the <code>setWeight</code> behavior will be restored, i.e., subsequent <code>setWeight</code> will create canary replicas matching the traffic weight.</p>
 <h2 id="dynamic-stable-scale-with-traffic-routing">Dynamic Stable Scale (with Traffic Routing)<a class="headerlink" href="#dynamic-stable-scale-with-traffic-routing" title="Permanent link">&para;</a></h2>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
