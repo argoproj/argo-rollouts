@@ -530,7 +530,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 		},
 	}}
 
-	clustertemplates := []*v1alpha1.ClusterAnalysisTemplate{}
+	var clusterTemplates []*v1alpha1.ClusterAnalysisTemplate
 
 	arg := v1alpha1.Argument{
 		Name:  "my-arg",
@@ -547,7 +547,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	}
 
 	args := []v1alpha1.Argument{arg, secretArg}
-	run, err := NewAnalysisRunFromTemplates(templates, clustertemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
+	run, err := NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -560,7 +560,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	// Fail Merge Args
 	unresolvedArg := v1alpha1.Argument{Name: "unresolved"}
 	templates[0].Spec.Args = append(templates[0].Spec.Args, unresolvedArg)
-	run, err = NewAnalysisRunFromTemplates(templates, clustertemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
+	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
 	assert.Equal(t, fmt.Errorf("args.unresolved was not resolved"), err)
 	// Fail flatten metric
@@ -573,7 +573,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	}
 	// Fail Flatten Templates
 	templates = append(templates, matchingMetric)
-	run, err = NewAnalysisRunFromTemplates(templates, clustertemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
+	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
 	assert.Equal(t, fmt.Errorf("two metrics have the same name 'success-rate'"), err)
 }
@@ -895,5 +895,91 @@ func TestGetDryRunMetrics(t *testing.T) {
 		dryRunMetricNamesMap, err := GetDryRunMetrics(spec.DryRun, spec.Metrics)
 		assert.EqualError(t, err, "dryRun[0]: Rule didn't match any metric name(s)")
 		assert.Equal(t, len(dryRunMetricNamesMap), 0)
+	})
+}
+
+func TestGetMeasurementRetentionMetrics(t *testing.T) {
+	t.Run("GetMeasurementRetentionMetrics returns the metric names map", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			MeasurementRetention: []v1alpha1.MeasurementRetention{
+				{
+					MetricName: "success-rate",
+					Limit:      10,
+				},
+			},
+		}
+		measurementRetentionMetricNamesMap, err := GetMeasurementRetentionMetrics(spec.MeasurementRetention, spec.Metrics)
+		assert.Nil(t, err)
+		assert.NotNil(t, measurementRetentionMetricNamesMap["success-rate"])
+	})
+	t.Run("GetMeasurementRetentionMetrics handles the RegEx rules", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+				{
+					Name:         "error-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			MeasurementRetention: []v1alpha1.MeasurementRetention{
+				{
+					MetricName: ".*",
+					Limit:      15,
+				},
+			},
+		}
+		measurementRetentionMetricNamesMap, err := GetMeasurementRetentionMetrics(spec.MeasurementRetention, spec.Metrics)
+		assert.Nil(t, err)
+		assert.Equal(t, len(measurementRetentionMetricNamesMap), 2)
+	})
+	t.Run("GetMeasurementRetentionMetrics throw error when a rule doesn't get matched", func(t *testing.T) {
+		failureLimit := intstr.FromInt(2)
+		count := intstr.FromInt(1)
+		spec := v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:         "success-rate",
+					Count:        &count,
+					FailureLimit: &failureLimit,
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{},
+					},
+				},
+			},
+			MeasurementRetention: []v1alpha1.MeasurementRetention{
+				{
+					MetricName: "error-rate",
+					Limit:      11,
+				},
+			},
+		}
+		measurementRetentionMetricNamesMap, err := GetMeasurementRetentionMetrics(spec.MeasurementRetention, spec.Metrics)
+		assert.EqualError(t, err, "measurementRetention[0]: Rule didn't match any metric name(s)")
+		assert.Equal(t, len(measurementRetentionMetricNamesMap), 0)
 	})
 }
