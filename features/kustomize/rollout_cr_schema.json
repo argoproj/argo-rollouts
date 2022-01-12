@@ -2834,9 +2834,12 @@
                                             "x-kubernetes-patch-strategy": "merge"
                                         },
                                         "volumes": {
+                                            "items": {
+                                                "x-kubernetes-preserve-unknown-fields": true
+                                            },
+                                            "type": "array",
                                             "x-kubernetes-patch-merge-key": "name",
-                                            "x-kubernetes-patch-strategy": "merge,retainKeys",
-                                            "x-kubernetes-preserve-unknown-fields": true
+                                            "x-kubernetes-patch-strategy": "merge,retainKeys"
                                         }
                                     },
                                     "required": [
