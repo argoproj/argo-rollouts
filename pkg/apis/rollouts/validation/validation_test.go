@@ -182,6 +182,22 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		assert.Equal(t, InvalidSetCanaryScaleTrafficPolicy, allErrs[0].Detail)
 	})
 
+	t.Run("invalid StableService without trafficRouting", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.StableService = "stable"
+		invalidRo.Spec.Strategy.Canary.TrafficRouting = nil
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, MissingTrafficRoutingMessage, allErrs[0].Detail)
+	})
+
+	t.Run("invalid CanaryService without trafficRouting", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.StableService = "canary"
+		invalidRo.Spec.Strategy.Canary.TrafficRouting = nil
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, MissingTrafficRoutingMessage, allErrs[0].Detail)
+	})
+
 	t.Run("invalid canary step", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
