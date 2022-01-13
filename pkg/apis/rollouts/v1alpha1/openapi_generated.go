@@ -3795,7 +3795,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					"alb": {
 						SchemaProps: spec.SchemaProps{
 							Description: "/ ALB keeps information regarding the ALB and TargetGroups",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBStatus"),
 						},
 					},

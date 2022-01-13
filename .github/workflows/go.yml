@@ -71,6 +71,12 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: 1.16.2
+      # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
+      # This symlink is necessary to ensure that `git diff` detects changes
+      - name: Create symlink in GOPATH
+        run: |
+          mkdir -p ~/go/src/github.com/argoproj
+          ln -s $(pwd) ~/go/src/github.com/argoproj/argo-rollouts
       - uses: actions/cache@v2
         with:
           path: /home/runner/.cache/go-build
@@ -92,10 +98,6 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
-      - name: Create links
-        run: |
-          mkdir -p ~/go/src/github.com/argoproj
-          cp -a ../argo-rollouts ~/go/src/github.com/argoproj
 
       - name: Run codegen
         run: |

@@ -1988,7 +1988,11 @@ func (in *RolloutStatus) DeepCopyInto(out *RolloutStatus) {
 		in, out := &in.RestartedAt, &out.RestartedAt
 		*out = (*in).DeepCopy()
 	}
-	out.ALB = in.ALB
+	if in.ALB != nil {
+		in, out := &in.ALB, &out.ALB
+		*out = new(ALBStatus)
+		**out = **in
+	}
 	return
 }
 
