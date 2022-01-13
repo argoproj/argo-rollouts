@@ -81,6 +81,7 @@ spec:
                 items:
                   properties:
                     limit:
+                      format: int32
                       type: integer
                     metricName:
                       type: string

@@ -716,7 +716,7 @@ func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, measu
 		measurementRetentionObject := measurementRetentionMetricNamesMap[result.Name]
 		measurementsLimit := limit
 		if measurementRetentionObject != nil && measurementRetentionObject.Limit > 0 {
-			measurementsLimit = measurementRetentionObject.Limit
+			measurementsLimit = int(measurementRetentionObject.Limit)
 		}
 		if length > measurementsLimit {
 			metric, ok := metricsByName[result.Name]

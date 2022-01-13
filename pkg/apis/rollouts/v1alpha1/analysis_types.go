@@ -130,7 +130,7 @@ type MeasurementRetention struct {
 	// MetricName is the name of the metric on which this retention policy should be applied.
 	MetricName string `json:"metricName" protobuf:"bytes,1,opt,name=metricName"`
 	// Limit is the maximum number of measurements to be retained for this given metric.
-	Limit int `json:"limit" protobuf:"varint,2,opt,name=limit"`
+	Limit int32 `json:"limit" protobuf:"varint,2,opt,name=limit"`
 }
 
 // EffectiveCount is the effective count based on whether or not count/interval is specified

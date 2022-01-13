@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kubernetes sample-controller Authors.
+Copyright 2022 The Kubernetes sample-controller Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ package github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1;
 import "k8s.io/api/batch/v1/generated.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
+import "k8s.io/apimachinery/pkg/runtime/generated.proto";
+import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 
 // Package-wide variables from generator "generated".
@@ -114,6 +116,18 @@ message AnalysisRunSpec {
 
   // Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
   optional bool terminate = 3;
+
+  // DryRun object contains the settings for running the analysis in Dry-Run mode
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated DryRun dryRun = 4;
+
+  // MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated MeasurementRetention measurementRetention = 5;
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource
@@ -129,6 +143,12 @@ message AnalysisRunStatus {
 
   // StartedAt indicates when the analysisRun first started
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 4;
+
+  // RunSummary contains the final results from the metric executions
+  optional RunSummary runSummary = 5;
+
+  // DryRunSummary contains the final results from the metric executions in the dry-run mode
+  optional RunSummary dryRunSummary = 6;
 }
 
 // AnalysisRunStrategy configuration for the analysis runs and experiments to retain
@@ -172,6 +192,18 @@ message AnalysisTemplateSpec {
   // +patchStrategy=merge
   // +optional
   repeated Argument args = 2;
+
+  // DryRun object contains the settings for running the analysis in Dry-Run mode
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated DryRun dryRun = 3;
+
+  // MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated MeasurementRetention measurementRetention = 4;
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
@@ -492,6 +524,13 @@ message DatadogMetric {
   optional string query = 2;
 }
 
+// DryRun defines the settings for running the analysis in Dry-Run mode.
+message DryRun {
+  // Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
+  // the available metrics.
+  optional string metricName = 1;
+}
+
 // Experiment is a specification for an Experiment resource
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -604,6 +643,12 @@ message ExperimentSpec {
   // more information
   // +optional
   optional int32 scaleDownDelaySeconds = 6;
+
+  // DryRun object contains the settings for running the analysis in Dry-Run mode
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated DryRun dryRun = 7;
 }
 
 // ExperimentStatus is the status for a Experiment resource
@@ -748,6 +793,15 @@ message Measurement {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time resumeAt = 7;
 }
 
+// MeasurementRetention defines the settings for retaining the number of measurements during the analysis.
+message MeasurementRetention {
+  // MetricName is the name of the metric on which this retention policy should be applied.
+  optional string metricName = 1;
+
+  // Limit is the maximum number of measurements to be retained for this given metric.
+  optional int32 limit = 2;
+}
+
 // Metric defines a metric in which to perform analysis
 message Metric {
   // Name is the name of the metric
@@ -859,6 +913,9 @@ message MetricResult {
   // ConsecutiveError is the number of times an error was encountered during measurement in succession
   // Resets to zero when non-errors are encountered
   optional int32 consecutiveError = 10;
+
+  // DryRun indicates whether this metric is running in a dry-run mode or not
+  optional bool dryRun = 11;
 }
 
 // NewRelicMetric defines the newrelic query to perform canary analysis
@@ -950,6 +1007,12 @@ message RolloutAnalysis {
   // +patchMergeKey=name
   // +patchStrategy=merge
   repeated AnalysisRunArgument args = 2;
+
+  // DryRun object contains the settings for running the analysis in Dry-Run mode
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated DryRun dryRun = 3;
 }
 
 // RolloutAnalysisBackground defines a template that is used to create a background analysisRun
@@ -1263,6 +1326,24 @@ message RolloutTrafficRouting {
 
   // Ambassador holds specific configuration to use Ambassador to route traffic
   optional AmbassadorTrafficRouting ambassador = 5;
+}
+
+// RunSummary contains the final results from the metric executions
+message RunSummary {
+  // This is equal to the sum of Successful, Failed, Inconclusive
+  optional int32 count = 1;
+
+  // Successful is the number of times the metric was measured Successful
+  optional int32 successful = 2;
+
+  // Failed is the number of times the metric was measured Failed
+  optional int32 failed = 3;
+
+  // Inconclusive is the number of times the metric was measured Inconclusive
+  optional int32 inconclusive = 4;
+
+  // Error is the number of times an error was encountered during measurement
+  optional int32 error = 5;
 }
 
 // SMITrafficRouting configuration for TrafficSplit Custom Resource to control traffic routing
