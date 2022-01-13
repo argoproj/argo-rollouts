@@ -630,5 +630,5 @@ func IsReplicaSetReady(rs *appsv1.ReplicaSet) bool {
 	}
 	replicas := rs.Spec.Replicas
 	readyReplicas := rs.Status.ReadyReplicas
-	return replicas != nil && *replicas != 0 && readyReplicas != 0 && *replicas <= readyReplicas
+	return (replicas != nil && *replicas != 0 && readyReplicas != 0 && *replicas <= readyReplicas) || (replicas != nil && *replicas == 0)
 }

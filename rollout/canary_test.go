@@ -1184,7 +1184,7 @@ func TestCanarySVCSelectors(t *testing.T) {
 
 		shouldTargetNewRS bool
 	}{
-		{0, 0, false},
+		{0, 0, true},
 		{2, 0, false},
 		{2, 1, false},
 		{2, 2, true},
