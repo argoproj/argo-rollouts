@@ -3,15 +3,17 @@ package options
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 	cmdtesting "k8s.io/kubectl/pkg/cmd/testing"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	fakeroclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 // NewFakeArgoRolloutsOptions returns a options.ArgoRolloutsOptions suitable for testing
@@ -71,6 +73,14 @@ func NewFakeArgoRolloutsOptions(obj ...runtime.Object) (*cmdtesting.TestFactory,
 	if err != nil {
 		panic(err)
 	}
-	o.DynamicClient = dynamicfake.NewSimpleDynamicClient(scheme.Scheme, allObjs...)
+	listMapping := map[schema.GroupVersionResource]string{
+		v1alpha1.RolloutGVR:                 rollouts.RolloutKind + "List",
+		v1alpha1.AnalysisTemplateGVR:        rollouts.AnalysisTemplateKind + "List",
+		v1alpha1.AnalysisRunGVR:             rollouts.AnalysisRunKind + "List",
+		v1alpha1.ExperimentGVR:              rollouts.ExperimentKind + "List",
+		v1alpha1.ClusterAnalysisTemplateGVR: rollouts.ClusterAnalysisTemplateKind + "List",
+	}
+
+	o.DynamicClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme.Scheme, listMapping, allObjs...)
 	return tf, o
 }
