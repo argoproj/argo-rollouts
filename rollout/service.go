@@ -76,6 +76,10 @@ func (c *rolloutContext) reconcilePreviewService(previewSvc *corev1.Service) err
 	if previewSvc == nil {
 		return nil
 	}
+	if haltReason := c.haltProgress(); haltReason != "" {
+		c.log.Infof("Skipping preview service reconciliation: %s", haltReason)
+		return nil
+	}
 	newPodHash := c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	err := c.switchServiceSelector(previewSvc, newPodHash, c.rollout)
 	if err != nil {
@@ -86,6 +90,10 @@ func (c *rolloutContext) reconcilePreviewService(previewSvc *corev1.Service) err
 }
 
 func (c *rolloutContext) reconcileActiveService(activeSvc *corev1.Service) error {
+	if haltReason := c.haltProgress(); haltReason != "" {
+		c.log.Infof("Skipping active service reconciliation: %s", haltReason)
+		return nil
+	}
 	if !replicasetutil.ReadyForPause(c.rollout, c.newRS, c.allRSs) || !annotations.IsSaturated(c.rollout, c.newRS) {
 		c.log.Infof("skipping active service switch: New RS '%s' is not fully saturated", c.newRS.Name)
 		return nil

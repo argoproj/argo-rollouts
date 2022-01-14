@@ -394,6 +394,10 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 }
 
 func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
+	if haltReason := c.haltProgress(); haltReason != "" {
+		c.log.Infof("Skipping canary/stable ReplicaSet reconciliation: %s", haltReason)
+		return false, nil
+	}
 	err := c.removeScaleDownDeadlines()
 	if err != nil {
 		return false, err
