@@ -80,6 +80,16 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		return run
 	}
 
+	measurementRetentionMetricsMap, err := analysisutil.GetMeasurementRetentionMetrics(run.Spec.MeasurementRetention, resolvedMetrics)
+	if err != nil {
+		message := fmt.Sprintf("Analysis spec invalid: %v", err)
+		logger.Warn(message)
+		run.Status.Phase = v1alpha1.AnalysisPhaseError
+		run.Status.Message = message
+		c.recordAnalysisRunCompletionEvent(run)
+		return run
+	}
+
 	tasks := generateMetricTasks(run, resolvedMetrics)
 	logger.Infof("Taking %d Measurement(s)...", len(tasks))
 	err = c.runMeasurements(run, tasks, dryRunMetricsMap)
@@ -101,7 +111,7 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		}
 	}
 
-	err = c.garbageCollectMeasurements(run, DefaultMeasurementHistoryLimit)
+	err = c.garbageCollectMeasurements(run, measurementRetentionMetricsMap, DefaultMeasurementHistoryLimit)
 	if err != nil {
 		// TODO(jessesuen): surface errors to controller so they can be retried
 		logger.Warnf("Failed to garbage collect measurements: %v", err)
@@ -693,7 +703,7 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Me
 }
 
 // garbageCollectMeasurements trims the measurement history to the specified limit and GCs old measurements
-func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit int) error {
+func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, measurementRetentionMetricNamesMap map[string]*v1alpha1.MeasurementRetention, limit int) error {
 	var errors []error
 
 	metricsByName := make(map[string]v1alpha1.Metric)
@@ -703,7 +713,12 @@ func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit
 
 	for i, result := range run.Status.MetricResults {
 		length := len(result.Measurements)
-		if length > limit {
+		measurementRetentionObject := measurementRetentionMetricNamesMap[result.Name]
+		measurementsLimit := limit
+		if measurementRetentionObject != nil && measurementRetentionObject.Limit > 0 {
+			measurementsLimit = int(measurementRetentionObject.Limit)
+		}
+		if length > measurementsLimit {
 			metric, ok := metricsByName[result.Name]
 			if !ok {
 				continue
@@ -714,11 +729,11 @@ func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, limit
 				errors = append(errors, err)
 				continue
 			}
-			err = provider.GarbageCollect(run, metric, limit)
+			err = provider.GarbageCollect(run, metric, measurementsLimit)
 			if err != nil {
 				return err
 			}
-			result.Measurements = result.Measurements[length-limit : length]
+			result.Measurements = result.Measurements[length-measurementsLimit : length]
 		}
 		run.Status.MetricResults[i] = result
 	}

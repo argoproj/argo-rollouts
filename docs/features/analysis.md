@@ -426,8 +426,9 @@ spec:
           valueFrom:
             podTemplateHashValue: Latest
 ```
-Analysis arguments also support valueFrom for reading metadata fields and passing them as arguments to AnalysisTemplate.
-An example would be to reference metadata labels like env and region and passing them along to AnalysisTemplate.
+Analysis arguments also support valueFrom for reading any Rollout fields and passing them as arguments to AnalysisTemplate.
+An example would be to reference metadata labels like env and region and passing them along to AnalysisTemplate, or any field
+from the Rollout status
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -457,6 +458,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.labels['region']
+        - name: canary-hash
+          valueFrom:
+            fieldRef:
+              fieldPath: status.canary.weights.canary.podTemplateHash
 ```
 
 ## BlueGreen Pre Promotion Analysis
@@ -633,8 +638,7 @@ Metric Results:
 
 ### Dry-Run Rollouts
 
-If a rollout wants to dry run its analysis, it simply needs to specify the `dryRun` field to its `analysis` stanza. If a
-rollout wants to dry run its analysis, it simply needs to specify the `dryRun` field to its `analysis` stanza. In the 
+If a rollout wants to dry run its analysis, it simply needs to specify the `dryRun` field to its `analysis` stanza. In the 
 following example, all the metrics from `random-fail` and `always-pass` get merged and executed in the dry-run mode.
 
 ```yaml hl_lines="9 10"
@@ -677,6 +681,79 @@ spec:
     templateName: analyze-job
   dryRun:
   - metricName: test.*
+```
+
+## Measurements Retention
+
+!!! important
+Available since v1.2
+
+`measurementRetention` can be used to retain other than the latest ten results for the metrics running in any mode 
+(dry/non-dry). Setting this option to `0` would disable it and, the controller will revert to the existing behavior of 
+retaining the latest ten measurements.
+
+The following example queries Prometheus every 5 minutes to get the total number of 4XX and 5XX errors and retains the 
+latest twenty measurements for the 5XX metric run results instead of the default ten.
+
+```yaml hl_lines="1 2 3"
+  measurementRetention:
+  - metricName: total-5xx-errors
+    limit: 20
+  metrics:
+  - name: total-5xx-errors
+    interval: 5m
+    failureCondition: result[0] >= 10
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code~"5.*"}[5m]
+          ))
+  - name: total-4xx-errors
+    interval: 5m
+    failureCondition: result[0] >= 10
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code~"4.*"}[5m]
+          ))
+```
+
+RegEx matches are also supported. `.*` can be used to apply the same retention rule to all the metrics. In the following 
+example, the controller will retain the latest twenty run results for all the metrics instead of the default ten results.
+
+```yaml hl_lines="1 2 3"
+  measurementRetention:
+  - metricName: .*
+    limit: 20
+  metrics:
+  - name: total-5xx-errors
+    interval: 5m
+    failureCondition: result[0] >= 10
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code~"5.*"}[5m]
+          ))
+  - name: total-4xx-errors
+    interval: 5m
+    failureCondition: result[0] >= 10
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus.example.com:9090
+        query: |
+          sum(irate(
+            istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code~"4.*"}[5m]
+          ))
 ```
 
 ## Inconclusive Runs

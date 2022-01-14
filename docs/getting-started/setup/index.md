@@ -27,7 +27,7 @@ minikube addons enable ingress
 
 Optionally, Prometheus and Grafana can be installed to utilize progressive delivery functionality:
 
-```
+```shell
 # Install Prometheus
 kubectl create ns monitoring
 helm install prometheus prometheus-community/prometheus -n monitoring -f docs/getting-started/setup/values-prometheus.yaml
@@ -35,8 +35,14 @@ helm install prometheus prometheus-community/prometheus -n monitoring -f docs/ge
 # Patch the ingress-nginx-controller pod so that it has the required
 # prometheus annotations. This allows the pod to be scraped by the
 # prometheus server.
-kubectl patch deploy ingress-nginx-controller -n kube-system -p "$(cat docs/getting-started/setup/ingress-nginx-controller-metrics-scrape.yaml)"
+kubectl patch deploy ingress-nginx-controller -n ingress-nginx -p "$(cat docs/getting-started/setup/ingress-nginx-controller-metrics-scrape.yaml)"
+```
 
+!!! note
+    [For Minikube version 1.18.1 or earlier](https://kubernetes.io/docs/tasks/access-application-cluster/ingress-minikube/#enable-the-ingress-controller), 
+    change the `-n` parameter value (namespace) to `kube-system`.
+
+```shell
 # Install grafana along with nginx ingress dashboards
 helm install grafana grafana/grafana -n monitoring -f docs/getting-started/setup/values-grafana-nginx.yaml
 

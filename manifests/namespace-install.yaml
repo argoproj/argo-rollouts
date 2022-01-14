@@ -78,6 +78,19 @@ spec:
                   - metricName
                   type: object
                 type: array
+              measurementRetention:
+                items:
+                  properties:
+                    limit:
+                      format: int32
+                      type: integer
+                    metricName:
+                      type: string
+                  required:
+                  - limit
+                  - metricName
+                  type: object
+                type: array
               metrics:
                 items:
                   properties:
@@ -2815,6 +2828,19 @@ spec:
                   - metricName
                   type: object
                 type: array
+              measurementRetention:
+                items:
+                  properties:
+                    limit:
+                      format: int32
+                      type: integer
+                    metricName:
+                      type: string
+                  required:
+                  - limit
+                  - metricName
+                  type: object
+                type: array
               metrics:
                 items:
                   properties:
@@ -5439,6 +5465,19 @@ spec:
                     metricName:
                       type: string
                   required:
+                  - metricName
+                  type: object
+                type: array
+              measurementRetention:
+                items:
+                  properties:
+                    limit:
+                      format: int32
+                      type: integer
+                    metricName:
+                      type: string
+                  required:
+                  - limit
                   - metricName
                   type: object
                 type: array
@@ -13364,7 +13403,9 @@ spec:
                         - whenUnsatisfiable
                         x-kubernetes-list-type: map
                       volumes:
-                        x-kubernetes-preserve-unknown-fields: true
+                        items:
+                          x-kubernetes-preserve-unknown-fields: true
+                        type: array
                     required:
                     - containers
                     type: object

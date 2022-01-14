@@ -122,6 +122,12 @@ message AnalysisRunSpec {
   // +patchStrategy=merge
   // +optional
   repeated DryRun dryRun = 4;
+
+  // MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated MeasurementRetention measurementRetention = 5;
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource
@@ -192,6 +198,12 @@ message AnalysisTemplateSpec {
   // +patchStrategy=merge
   // +optional
   repeated DryRun dryRun = 3;
+
+  // MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated MeasurementRetention measurementRetention = 4;
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
@@ -333,9 +345,6 @@ message CanaryStatus {
 
   // Weights records the weights which have been set on traffic provider. Only valid when using traffic routing
   optional TrafficWeights weights = 4;
-
-  // StablePingPong For the ping-pong feature holds the current stable service, ping or pong
-  optional string stablePingPong = 5;
 }
 
 // CanaryStep defines a step of a canary deployment.
@@ -441,9 +450,6 @@ message CanaryStrategy {
   // scaling down the stable as traffic is increased to canary. When disabled (the default behavior)
   // the stable ReplicaSet remains fully scaled to support instantaneous aborts.
   optional bool dynamicStableScale = 14;
-
-  // PingPongSpec holds the ping and pong services
-  optional PingPongSpec pingPong = 15;
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
@@ -787,6 +793,15 @@ message Measurement {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time resumeAt = 7;
 }
 
+// MeasurementRetention defines the settings for retaining the number of measurements during the analysis.
+message MeasurementRetention {
+  // MetricName is the name of the metric on which this retention policy should be applied.
+  optional string metricName = 1;
+
+  // Limit is the maximum number of measurements to be retained for this given metric.
+  optional int32 limit = 2;
+}
+
 // Metric defines a metric in which to perform analysis
 message Metric {
   // Name is the name of the metric
@@ -942,15 +957,6 @@ message PauseCondition {
   optional string reason = 1;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startTime = 2;
-}
-
-// PingPongSpec holds the ping and pong service name.
-message PingPongSpec {
-  // name of the ping service
-  optional string pingService = 1;
-
-  // name of the pong service
-  optional string pongService = 2;
 }
 
 // PodTemplateMetadata extra labels to add to the template

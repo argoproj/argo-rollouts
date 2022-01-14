@@ -64,7 +64,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOPATH: /home/runner/go
-      PROTOC_ZIP: protoc-3.12.3-linux-x86_64.zip
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -72,6 +71,12 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: 1.16.2
+      # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
+      # This symlink is necessary to ensure that `git diff` detects changes
+      - name: Create symlink in GOPATH
+        run: |
+          mkdir -p ~/go/src/github.com/argoproj
+          ln -s $(pwd) ~/go/src/github.com/argoproj/argo-rollouts
       - uses: actions/cache@v2
         with:
           path: /home/runner/.cache/go-build
@@ -84,21 +89,9 @@ jobs:
         with:
           path: /home/runner/go/bin
           key: go-bin-v1-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v2
-        with:
-          path: protoc-3.12.3-linux-x86_64.zip
-          key: protoc-3.12.3-linux-x86_64.zip
       - name: Install protoc
         run: |
-          set -eux -o pipefail
-          curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.12.3/$PROTOC_ZIP
-          sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
-          sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
-          sudo chmod +x /usr/local/bin/protoc
-          sudo find /usr/local/include -type f | xargs sudo chmod a+r
-          sudo find /usr/local/include -type d | xargs sudo chmod a+rx
-          ls /usr/local/include/google/protobuf/
-
+          make install-toolchain
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
@@ -106,31 +99,9 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
 
-      - name: Create links
-        run: |
-          mkdir -p ~/go/src/github.com/argoproj
-          cp -a ../argo-rollouts ~/go/src/github.com/argoproj
-
-      - name: Vendor and Download
-        run: |
-          go mod vendor -v
-          go mod download
-
-      - name: Install UI code generator
-        run: |
-          wget https://repo1.maven.org/maven2/io/swagger/codegen/v3/swagger-codegen-cli/3.0.25/swagger-codegen-cli-3.0.25.jar -O swagger-codegen-cli.jar
-          echo "#!/usr/bin/java -jar" > swagger-codegen
-          cat swagger-codegen-cli.jar >> swagger-codegen
-          chmod +x swagger-codegen
-          sudo mv swagger-codegen /usr/local/bin/swagger-codegen
-          rm swagger-codegen-cli.jar
-
-      - uses: actions/setup-java@v1
-        with:
-          java-version: "9.0.4"
-
       - name: Run codegen
         run: |
+          make go-mod-vendor
           make codegen
           make manifests
           make docs

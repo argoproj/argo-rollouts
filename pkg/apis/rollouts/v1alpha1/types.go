@@ -763,7 +763,7 @@ type RolloutStatus struct {
 	// +optional
 	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
 	/// ALB keeps information regarding the ALB and TargetGroups
-	ALB ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
+	ALB *ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout

@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-notification-configmap
+data:
+  trigger.on-analysis-run-failed: |
+    - send: [analysis-run-failed]
+  template.analysis-run-failed: |
+    message: Rollout {{.rollout.metadata.name}}'s analysis run failed.
+    email:
+      subject: Rollout {{.rollout.metadata.name}}'s analysis run failed.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#E01E5A",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]

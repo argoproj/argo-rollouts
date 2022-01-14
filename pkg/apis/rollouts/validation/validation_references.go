@@ -387,7 +387,8 @@ func buildAnalysisArgs(args []v1alpha1.AnalysisRunArgument, r *v1alpha1.Rollout)
 			},
 		},
 	}
-	return analysisutil.BuildArgumentsForRolloutAnalysisRun(args, &stableRSDummy, &newRSDummy, r)
+	res, _ := analysisutil.BuildArgumentsForRolloutAnalysisRun(args, &stableRSDummy, &newRSDummy, r)
+	return res
 }
 
 // validateAnalysisMetrics validates the metrics of an Analysis object

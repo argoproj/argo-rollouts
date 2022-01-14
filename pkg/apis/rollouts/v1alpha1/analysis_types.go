@@ -66,6 +66,11 @@ type AnalysisTemplateSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,3,rep,name=dryRun"`
+	// MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
 }
 
 // DurationString is a string representing a duration (e.g. 30s, 5m, 1h)
@@ -118,6 +123,14 @@ type DryRun struct {
 	// Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
 	// the available metrics.
 	MetricName string `json:"metricName" protobuf:"bytes,1,opt,name=metricName"`
+}
+
+// MeasurementRetention defines the settings for retaining the number of measurements during the analysis.
+type MeasurementRetention struct {
+	// MetricName is the name of the metric on which this retention policy should be applied.
+	MetricName string `json:"metricName" protobuf:"bytes,1,opt,name=metricName"`
+	// Limit is the maximum number of measurements to be retained for this given metric.
+	Limit int32 `json:"limit" protobuf:"varint,2,opt,name=limit"`
 }
 
 // EffectiveCount is the effective count based on whether or not count/interval is specified
@@ -292,6 +305,11 @@ type AnalysisRunSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=dryRun"`
+	// MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,5,rep,name=measurementRetention"`
 }
 
 // Argument is an argument to an AnalysisRun

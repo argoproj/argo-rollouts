@@ -77,6 +77,19 @@ spec:
                   - metricName
                   type: object
                 type: array
+              measurementRetention:
+                items:
+                  properties:
+                    limit:
+                      format: int32
+                      type: integer
+                    metricName:
+                      type: string
+                  required:
+                  - limit
+                  - metricName
+                  type: object
+                type: array
               metrics:
                 items:
                   properties:

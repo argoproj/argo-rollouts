@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -298,7 +299,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		for _, arg := range analysisRunArgs {
 			if arg.ValueFrom != nil {
-				if arg.ValueFrom.FieldRef != nil {
+				if arg.ValueFrom.FieldRef != nil && strings.HasPrefix(arg.ValueFrom.FieldRef.FieldPath, "metadata") {
 					_, err := fieldpath.ExtractFieldPathAsString(rollout, arg.ValueFrom.FieldRef.FieldPath)
 					if err != nil {
 						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("analyses"), analysisRunArgs, InvalidAnalysisArgsMessage))

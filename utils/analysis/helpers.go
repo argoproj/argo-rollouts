@@ -93,6 +93,28 @@ func IsTerminating(run *v1alpha1.AnalysisRun) bool {
 	return false
 }
 
+// GetMeasurementRetentionMetrics returns an array of metric names matching the RegEx rules from the MeasurementRetention rules.
+func GetMeasurementRetentionMetrics(measurementRetentionMetrics []v1alpha1.MeasurementRetention, metrics []v1alpha1.Metric) (map[string]*v1alpha1.MeasurementRetention, error) {
+	metricsMap := make(map[string]*v1alpha1.MeasurementRetention)
+	if len(measurementRetentionMetrics) == 0 {
+		return metricsMap, nil
+	}
+	// Iterate all the rules in `measurementRetentionMetrics` and try to match the `metrics` one by one
+	for index, measurementRetentionObject := range measurementRetentionMetrics {
+		matchCount := 0
+		for _, metric := range metrics {
+			if matched, _ := regexp.MatchString(measurementRetentionObject.MetricName, metric.Name); matched {
+				metricsMap[metric.Name] = &measurementRetentionObject
+				matchCount++
+			}
+		}
+		if matchCount < 1 {
+			return metricsMap, fmt.Errorf("measurementRetention[%d]: Rule didn't match any metric name(s)", index)
+		}
+	}
+	return metricsMap, nil
+}
+
 // GetDryRunMetrics returns an array of metric names matching the RegEx rules from the Dry-Run metrics.
 func GetDryRunMetrics(dryRunMetrics []v1alpha1.DryRun, metrics []v1alpha1.Metric) (map[string]bool, error) {
 	metricsMap := make(map[string]bool)
