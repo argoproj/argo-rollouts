@@ -1813,7 +1813,7 @@
           "title": "Specify whether the ConfigMap or its key must be defined\n+optional"
         }
       },
-      "description": "Selects a key from a ConfigMap."
+      "title": "Selects a key from a ConfigMap.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.ConfigMapProjection": {
       "type": "object",
@@ -1876,14 +1876,14 @@
           "items": {
             "type": "string"
           },
-          "title": "Entrypoint array. Not executed within a shell.\nThe docker image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax\ncan be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded,\nregardless of whether the variable exists or not.\nCannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
+          "title": "Entrypoint array. Not executed within a shell.\nThe docker image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
         },
         "args": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "title": "Arguments to the entrypoint.\nThe docker image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax\ncan be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded,\nregardless of whether the variable exists or not.\nCannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
+          "title": "Arguments to the entrypoint.\nThe docker image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
         },
         "workingDir": {
           "type": "string",
@@ -1958,7 +1958,7 @@
         },
         "securityContext": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SecurityContext",
-          "title": "Security options the pod should run with.\nMore info: https://kubernetes.io/docs/concepts/policy/security-context/\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/\n+optional"
+          "title": "SecurityContext defines the security options the container should be run with.\nIf set, the fields of SecurityContext override the equivalent fields of PodSecurityContext.\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/\n+optional"
         },
         "stdin": {
           "type": "boolean",
@@ -2098,7 +2098,7 @@
         },
         "value": {
           "type": "string",
-          "title": "Variable references $(VAR_NAME) are expanded\nusing the previous defined environment variables in the container and\nany service environment variables. If a variable cannot be resolved,\nthe reference in the input string will be unchanged. The $(VAR_NAME)\nsyntax can be escaped with a double $$, ie: $$(VAR_NAME). Escaped\nreferences will never be expanded, regardless of whether the variable\nexists or not.\nDefaults to \"\".\n+optional"
+          "title": "Variable references $(VAR_NAME) are expanded\nusing the previously defined environment variables in the container and\nany service environment variables. If a variable cannot be resolved,\nthe reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.\n\"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\".\nEscaped references will never be expanded, regardless of whether the variable\nexists or not.\nDefaults to \"\".\n+optional"
         },
         "valueFrom": {
           "$ref": "#/definitions/k8s.io.api.core.v1.EnvVarSource",
@@ -2159,14 +2159,14 @@
           "items": {
             "type": "string"
           },
-          "title": "Entrypoint array. Not executed within a shell.\nThe docker image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax\ncan be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded,\nregardless of whether the variable exists or not.\nCannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
+          "title": "Entrypoint array. Not executed within a shell.\nThe docker image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
         },
         "args": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "title": "Arguments to the entrypoint.\nThe docker image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax\ncan be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded,\nregardless of whether the variable exists or not.\nCannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
+          "title": "Arguments to the entrypoint.\nThe docker image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
         },
         "workingDir": {
           "type": "string",
@@ -2241,7 +2241,7 @@
         },
         "securityContext": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SecurityContext",
-          "title": "SecurityContext is not allowed for ephemeral containers.\n+optional"
+          "title": "Optional: SecurityContext defines the security options the ephemeral container should be run with.\nIf set, the fields of SecurityContext override the equivalent fields of PodSecurityContext.\n+optional"
         },
         "stdin": {
           "type": "boolean",
@@ -2603,7 +2603,7 @@
           "title": "Name of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names\nTODO: Add other useful fields. apiVersion, kind, uid?\n+optional"
         }
       },
-      "description": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace."
+      "title": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.NFSVolumeSource": {
       "type": "object",
@@ -2651,7 +2651,7 @@
           "description": "Required. A list of node selector terms. The terms are ORed."
         }
       },
-      "description": "A node selector represents the union of the results of one or more label queries\nover a set of nodes; that is, it represents the OR of the selectors represented\nby the node selector terms."
+      "title": "A node selector represents the union of the results of one or more label queries\nover a set of nodes; that is, it represents the OR of the selectors represented\nby the node selector terms.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.NodeSelectorRequirement": {
       "type": "object",
@@ -2692,7 +2692,7 @@
           "title": "A list of node selector requirements by node's fields.\n+optional"
         }
       },
-      "description": "A null or empty node selector term matches no objects. The requirements of\nthem are ANDed.\nThe TopologySelectorTerm type implements a subset of the NodeSelectorTerm."
+      "title": "A null or empty node selector term matches no objects. The requirements of\nthem are ANDed.\nThe TopologySelectorTerm type implements a subset of the NodeSelectorTerm.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.ObjectFieldSelector": {
       "type": "object",
@@ -2706,7 +2706,7 @@
           "description": "Path of the field to select in the specified API version."
         }
       },
-      "description": "ObjectFieldSelector selects an APIVersioned field of an object."
+      "title": "ObjectFieldSelector selects an APIVersioned field of an object.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.PersistentVolumeClaimSpec": {
       "type": "object",
@@ -2740,7 +2740,11 @@
         },
         "dataSource": {
           "$ref": "#/definitions/k8s.io.api.core.v1.TypedLocalObjectReference",
-          "title": "This field can be used to specify either:\n* An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)\n* An existing PVC (PersistentVolumeClaim)\n* An existing custom resource that implements data population (Alpha)\nIn order to use custom resource types that implement data population,\nthe AnyVolumeDataSource feature gate must be enabled.\nIf the provisioner or an external controller can support the specified data source,\nit will create a new volume based on the contents of the specified data source.\n+optional"
+          "title": "This field can be used to specify either:\n* An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)\n* An existing PVC (PersistentVolumeClaim)\nIf the provisioner or an external controller can support the specified data source,\nit will create a new volume based on the contents of the specified data source.\nIf the AnyVolumeDataSource feature gate is enabled, this field will always have\nthe same contents as the DataSourceRef field.\n+optional"
+        },
+        "dataSourceRef": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.TypedLocalObjectReference",
+          "title": "Specifies the object from which to populate the volume with data, if a non-empty\nvolume is desired. This may be any local object from a non-empty API group (non\ncore object) or a PersistentVolumeClaim object.\nWhen this field is specified, volume binding will only succeed if the type of\nthe specified object matches some installed volume populator or dynamic\nprovisioner.\nThis field will replace the functionality of the DataSource field and as such\nif both fields are non-empty, they must have the same value. For backwards\ncompatibility, both fields (DataSource and DataSourceRef) will be set to the same\nvalue automatically if one of them is empty and the other is non-empty.\nThere are two important differences between DataSource and DataSourceRef:\n* While DataSource only allows two specific types of objects, DataSourceRef\n  allows any non-core object, as well as PersistentVolumeClaim objects.\n* While DataSource ignores disallowed values (dropping them), DataSourceRef\n  preserves all values, and generates an error if a disallowed value is\n  specified.\n(Alpha) Using this field requires the AnyVolumeDataSource feature gate to be enabled.\n+optional"
         }
       },
       "title": "PersistentVolumeClaimSpec describes the common attributes of storage devices\nand allows a Source for provider-specific attributes"
@@ -2827,7 +2831,7 @@
         },
         "namespaceSelector": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector",
-          "title": "A label query over the set of namespaces that the term applies to.\nThe term is applied to the union of the namespaces selected by this field\nand the ones listed in the namespaces field.\nnull selector and null or empty namespaces list means \"this pod's namespace\".\nAn empty selector ({}) matches all namespaces.\nThis field is alpha-level and is only honored when PodAffinityNamespaceSelector feature is enabled.\n+optional"
+          "title": "A label query over the set of namespaces that the term applies to.\nThe term is applied to the union of the namespaces selected by this field\nand the ones listed in the namespaces field.\nnull selector and null or empty namespaces list means \"this pod's namespace\".\nAn empty selector ({}) matches all namespaces.\nThis field is beta-level and is only honored when PodAffinityNamespaceSelector feature is enabled.\n+optional"
         }
       },
       "title": "Defines a set of pods (namely those matching the labelSelector\nrelative to the given namespace(s)) that this pod should be\nco-located (affinity) or not co-located (anti-affinity) with,\nwhere co-located is defined as running on a node whose value of\nthe label with key \u003ctopologyKey\u003e matches that of any node on which\na pod of the set of pods is running"
@@ -3014,7 +3018,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "title": "NodeSelector is a selector which must be true for the pod to fit on a node.\nSelector which must match a node's labels for the pod to be scheduled on that node.\nMore info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/\n+optional"
+          "title": "NodeSelector is a selector which must be true for the pod to fit on a node.\nSelector which must match a node's labels for the pod to be scheduled on that node.\nMore info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/\n+optional\n+mapType=atomic"
         },
         "serviceAccountName": {
           "type": "string",
@@ -3107,11 +3111,11 @@
           "items": {
             "$ref": "#/definitions/k8s.io.api.core.v1.PodReadinessGate"
           },
-          "title": "If specified, all readiness gates will be evaluated for pod readiness.\nA pod is ready when all its containers are ready AND\nall conditions specified in the readiness gates have status equal to \"True\"\nMore info: https://git.k8s.io/enhancements/keps/sig-network/0007-pod-ready%2B%2B.md\n+optional"
+          "title": "If specified, all readiness gates will be evaluated for pod readiness.\nA pod is ready when all its containers are ready AND\nall conditions specified in the readiness gates have status equal to \"True\"\nMore info: https://git.k8s.io/enhancements/keps/sig-network/580-pod-readiness-gates\n+optional"
         },
         "runtimeClassName": {
           "type": "string",
-          "title": "RuntimeClassName refers to a RuntimeClass object in the node.k8s.io group, which should be used\nto run this pod.  If no RuntimeClass resource matches the named class, the pod will not be run.\nIf unset or empty, the \"legacy\" RuntimeClass will be used, which is an implicit class with an\nempty definition that uses the default runtime handler.\nMore info: https://git.k8s.io/enhancements/keps/sig-node/runtime-class.md\nThis is a beta feature as of Kubernetes v1.14.\n+optional"
+          "title": "RuntimeClassName refers to a RuntimeClass object in the node.k8s.io group, which should be used\nto run this pod.  If no RuntimeClass resource matches the named class, the pod will not be run.\nIf unset or empty, the \"legacy\" RuntimeClass will be used, which is an implicit class with an\nempty definition that uses the default runtime handler.\nMore info: https://git.k8s.io/enhancements/keps/sig-node/585-runtime-class\nThis is a beta feature as of Kubernetes v1.14.\n+optional"
         },
         "enableServiceLinks": {
           "type": "boolean",
@@ -3126,7 +3130,7 @@
           "additionalProperties": {
             "$ref": "#/definitions/k8s.io.apimachinery.pkg.api.resource.Quantity"
           },
-          "title": "Overhead represents the resource overhead associated with running a pod for a given RuntimeClass.\nThis field will be autopopulated at admission time by the RuntimeClass admission controller. If\nthe RuntimeClass admission controller is enabled, overhead must not be set in Pod create requests.\nThe RuntimeClass admission controller will reject Pod create requests which have the overhead already\nset. If RuntimeClass is configured and selected in the PodSpec, Overhead will be set to the value\ndefined in the corresponding RuntimeClass, otherwise it will remain unset and treated as zero.\nMore info: https://git.k8s.io/enhancements/keps/sig-node/20190226-pod-overhead.md\nThis field is alpha-level as of Kubernetes v1.16, and is only honored by servers that enable the PodOverhead feature.\n+optional"
+          "title": "Overhead represents the resource overhead associated with running a pod for a given RuntimeClass.\nThis field will be autopopulated at admission time by the RuntimeClass admission controller. If\nthe RuntimeClass admission controller is enabled, overhead must not be set in Pod create requests.\nThe RuntimeClass admission controller will reject Pod create requests which have the overhead already\nset. If RuntimeClass is configured and selected in the PodSpec, Overhead will be set to the value\ndefined in the corresponding RuntimeClass, otherwise it will remain unset and treated as zero.\nMore info: https://git.k8s.io/enhancements/keps/sig-node/688-pod-overhead/README.md\nThis field is beta-level as of Kubernetes v1.18, and is only honored by servers that enable the PodOverhead feature.\n+optional"
         },
         "topologySpreadConstraints": {
           "type": "array",
@@ -3224,7 +3228,7 @@
         "terminationGracePeriodSeconds": {
           "type": "string",
           "format": "int64",
-          "title": "Optional duration in seconds the pod needs to terminate gracefully upon probe failure.\nThe grace period is the duration in seconds after the processes running in the pod are sent\na termination signal and the time when the processes are forcibly halted with a kill signal.\nSet this value longer than the expected cleanup time for your process.\nIf this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this\nvalue overrides the value provided by the pod spec.\nValue must be non-negative integer. The value zero indicates stop immediately via\nthe kill signal (no opportunity to shut down).\nThis is an alpha field and requires enabling ProbeTerminationGracePeriod feature gate.\n+optional"
+          "title": "Optional duration in seconds the pod needs to terminate gracefully upon probe failure.\nThe grace period is the duration in seconds after the processes running in the pod are sent\na termination signal and the time when the processes are forcibly halted with a kill signal.\nSet this value longer than the expected cleanup time for your process.\nIf this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this\nvalue overrides the value provided by the pod spec.\nValue must be non-negative integer. The value zero indicates stop immediately via\nthe kill signal (no opportunity to shut down).\nThis is a beta field and requires enabling ProbeTerminationGracePeriod feature gate.\nMinimum value is 1. spec.terminationGracePeriodSeconds is used if unset.\n+optional"
         }
       },
       "description": "Probe describes a health check to be performed against a container to determine whether it is\nalive or ready to receive traffic."
@@ -3334,7 +3338,7 @@
           "title": "Specifies the output format of the exposed resources, defaults to \"1\"\n+optional"
         }
       },
-      "title": "ResourceFieldSelector represents container resources (cpu, memory) and their output format"
+      "title": "ResourceFieldSelector represents container resources (cpu, memory) and their output format\n+structType=atomic"
     },
     "k8s.io.api.core.v1.ResourceRequirements": {
       "type": "object",
@@ -3469,7 +3473,7 @@
           "title": "Specify whether the Secret or its key must be defined\n+optional"
         }
       },
-      "description": "SecretKeySelector selects a key of a Secret."
+      "title": "SecretKeySelector selects a key of a Secret.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.SecretProjection": {
       "type": "object",
@@ -3708,7 +3712,7 @@
           "title": "Name is the name of resource being referenced"
         }
       },
-      "description": "TypedLocalObjectReference contains enough information to let you locate the\ntyped referenced object inside the same namespace."
+      "title": "TypedLocalObjectReference contains enough information to let you locate the\ntyped referenced object inside the same namespace.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.Volume": {
       "type": "object",
@@ -3963,6 +3967,10 @@
         "runAsUserName": {
           "type": "string",
           "title": "The UserName in Windows to run the entrypoint of the container process.\nDefaults to the user specified in image metadata if unspecified.\nMay also be set in PodSecurityContext. If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\n+optional"
+        },
+        "hostProcess": {
+          "type": "boolean",
+          "title": "HostProcess determines if a container should be run as a 'Host Process' container.\nThis field is alpha-level and will only be honored by components that enable the\nWindowsHostProcessContainers feature flag. Setting this field without the feature\nflag will result in errors when validating the Pod. All of a Pod's containers must\nhave the same effective HostProcess value (it is not allowed to have a mix of HostProcess\ncontainers and non-HostProcess containers).  In addition, if HostProcess is true\nthen HostNetwork must also be set to true.\n+optional"
         }
       },
       "description": "WindowsSecurityContextOptions contain Windows-specific options and credentials."
@@ -4054,6 +4062,10 @@
         "fieldsV1": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.FieldsV1",
           "title": "FieldsV1 holds the first JSON version format as described in the \"FieldsV1\" type.\n+optional"
+        },
+        "subresource": {
+          "type": "string",
+          "description": "Subresource is the name of the subresource used to update that object, or\nempty string if the object was updated through the main resource. The\nvalue of this field is used to distinguish between managers, even if they\nshare the same name. For example, a status update will be distinct from a\nregular update using the same manager name.\nNote that the APIVersion field is not related to the Subresource field and\nit always corresponds to the version of the main resource."
         }
       },
       "description": "ManagedFieldsEntry is a workflow-id, a FieldSet and the group version of the resource\nthat the fieldset applies to."
@@ -4173,7 +4185,7 @@
           "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
         }
       },
-      "description": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field."
+      "title": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field.\n+structType=atomic"
     },
     "k8s.io.apimachinery.pkg.apis.meta.v1.Time": {
       "type": "object",

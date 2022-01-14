@@ -871,6 +871,9 @@
                                                                     "gmsaCredentialSpecName": {
                                                                         "type": "string"
                                                                     },
+                                                                    "hostProcess": {
+                                                                        "type": "boolean"
+                                                                    },
                                                                     "runAsUserName": {
                                                                         "type": "string"
                                                                     }
@@ -1726,6 +1729,9 @@
                                                                     },
                                                                     "gmsaCredentialSpecName": {
                                                                         "type": "string"
+                                                                    },
+                                                                    "hostProcess": {
+                                                                        "type": "boolean"
                                                                     },
                                                                     "runAsUserName": {
                                                                         "type": "string"
@@ -2622,6 +2628,9 @@
                                                                     },
                                                                     "gmsaCredentialSpecName": {
                                                                         "type": "string"
+                                                                    },
+                                                                    "hostProcess": {
+                                                                        "type": "boolean"
                                                                     },
                                                                     "runAsUserName": {
                                                                         "type": "string"

@@ -64,6 +64,19 @@ const (
 	InvalidCanaryDynamicStableScaleWithScaleDownDelay = "Canary dynamicStableScale cannot be used with scaleDownDelaySeconds"
 )
 
+// allowAllPodValidationOptions allows all pod options to be true for the purposes of rollout pod
+// spec validation. We allow everything because we don't know what is truly allowed in the cluster
+// and rely on ReplicaSet/Pod creation to enforce if these options are truly allowed.
+// NOTE: this variable may need to be updated whenever we update our k8s libraries as new options
+// are introduced or removed.
+var allowAllPodValidationOptions = apivalidation.PodValidationOptions{
+	AllowDownwardAPIHugePages:       true,
+	AllowInvalidPodDeletionCost:     true,
+	AllowIndivisibleHugePagesValues: true,
+	AllowWindowsHostProcessField:    true,
+	AllowExpandedDNSConfig:          true,
+}
+
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, ValidateRolloutSpec(rollout, field.NewPath("spec"))...)
@@ -124,14 +137,10 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 		}
 		template.ObjectMeta = spec.Template.ObjectMeta
 		removeSecurityContextPrivileged(&template)
-		opts := apivalidation.PodValidationOptions{
-			AllowMultipleHugePageResources: true,
-			AllowDownwardAPIHugePages:      true,
-		}
 
 		// Skip validating empty template for rollout resolved from ref
 		if rollout.Spec.TemplateResolvedFromRef || spec.WorkloadRef == nil {
-			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), opts)...)
+			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), allowAllPodValidationOptions)...)
 		}
 	}
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(spec.MinReadySeconds), fldPath.Child("minReadySeconds"))...)
