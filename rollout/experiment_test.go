@@ -322,7 +322,7 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 		Experiment: &v1alpha1.RolloutExperimentStep{},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
@@ -373,7 +373,7 @@ func TestRolloutExperimentScaleDownExperimentFromPreviousStep(t *testing.T) {
 		{SetWeight: pointer.Int32Ptr(1)},
 	}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
