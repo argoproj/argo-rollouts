@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,6 +63,19 @@ const (
 	// InvalidCanaryDynamicStableScaleWithScaleDownDelay indicates that canary.dynamicStableScale cannot be used with scaleDownDelaySeconds
 	InvalidCanaryDynamicStableScaleWithScaleDownDelay = "Canary dynamicStableScale cannot be used with scaleDownDelaySeconds"
 )
+
+// allowAllPodValidationOptions allows all pod options to be true for the purposes of rollout pod
+// spec validation. We allow everything because we don't know what is truly allowed in the cluster
+// and rely on ReplicaSet/Pod creation to enforce if these options are truly allowed.
+// NOTE: this variable may need to be updated whenever we update our k8s libraries as new options
+// are introduced or removed.
+var allowAllPodValidationOptions = apivalidation.PodValidationOptions{
+	AllowDownwardAPIHugePages:       true,
+	AllowInvalidPodDeletionCost:     true,
+	AllowIndivisibleHugePagesValues: true,
+	AllowWindowsHostProcessField:    true,
+	AllowExpandedDNSConfig:          true,
+}
 
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -123,14 +137,10 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 		}
 		template.ObjectMeta = spec.Template.ObjectMeta
 		removeSecurityContextPrivileged(&template)
-		opts := apivalidation.PodValidationOptions{
-			AllowMultipleHugePageResources: true,
-			AllowDownwardAPIHugePages:      true,
-		}
 
 		// Skip validating empty template for rollout resolved from ref
 		if rollout.Spec.TemplateResolvedFromRef || spec.WorkloadRef == nil {
-			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), opts)...)
+			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), allowAllPodValidationOptions)...)
 		}
 	}
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(spec.MinReadySeconds), fldPath.Child("minReadySeconds"))...)
@@ -278,7 +288,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		for _, arg := range analysisRunArgs {
 			if arg.ValueFrom != nil {
-				if arg.ValueFrom.FieldRef != nil {
+				if arg.ValueFrom.FieldRef != nil && strings.HasPrefix(arg.ValueFrom.FieldRef.FieldPath, "metadata") {
 					_, err := fieldpath.ExtractFieldPathAsString(rollout, arg.ValueFrom.FieldRef.FieldPath)
 					if err != nil {
 						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("analyses"), analysisRunArgs, InvalidAnalysisArgsMessage))

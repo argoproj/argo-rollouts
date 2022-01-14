@@ -1,10 +1,140 @@
 # This is an auto-generated file. DO NOT EDIT
 apiVersion: v1
 data:
+  template.analysis-run-error: |
+    message: Rollout {{.rollout.metadata.name}}'s analysis run is in error state.
+    email:
+      subject: Rollout {{.rollout.metadata.name}}'s analysis run is in error state.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#ECB22E",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]
+  template.analysis-run-failed: |
+    message: Rollout {{.rollout.metadata.name}}'s analysis run failed.
+    email:
+      subject: Rollout {{.rollout.metadata.name}}'s analysis run failed.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#E01E5A",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]
+  template.analysis-run-running: |
+    message: Rollout {{.rollout.metadata.name}}'s analysis run is running.
+    email:
+      subject: Rollout {{.rollout.metadata.name}}'s analysis run is running.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#18be52",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]
+  template.rollout-aborted: |
+    message: Rollout {{.rollout.metadata.name}} has been aborted.
+    email:
+      subject: Rollout {{.rollout.metadata.name}} has been aborted.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#E01E5A",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]
   template.rollout-completed: |
     message: Rollout {{.rollout.metadata.name}} has been completed.
     email:
       subject: Rollout {{.rollout.metadata.name}} has been completed.
+    slack:
+      attachments: |
+          [{
+            "title": "{{ .rollout.metadata.name}}",
+            "color": "#18be52",
+            "fields": [
+            {
+              "title": "Strategy",
+              "value": "{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}",
+              "short": true
+            }
+            {{range $index, $c := .rollout.spec.template.spec.containers}}
+              {{if not $index}},{{end}}
+              {{if $index}},{{end}}
+              {
+                "title": "{{$c.name}}",
+                "value": "{{$c.image}}",
+                "short": true
+              }
+            {{end}}
+            ]
+          }]
+  template.rollout-paused: |
+    message: Rollout {{.rollout.metadata.name}} has been paused.
+    email:
+      subject: Rollout {{.rollout.metadata.name}} has been paused.
     slack:
       attachments: |
           [{
@@ -120,8 +250,18 @@ data:
             {{end}}
             ]
           }]
+  trigger.on-analysis-run-error: |
+    - send: [analysis-run-error]
+  trigger.on-analysis-run-failed: |
+    - send: [analysis-run-failed]
+  trigger.on-analysis-run-running: |
+    - send: [analysis-run-running]
+  trigger.on-rollout-aborted: |
+    - send: [rollout-aborted]
   trigger.on-rollout-completed: |
     - send: [rollout-completed]
+  trigger.on-rollout-paused: |
+    - send: [rollout-paused]
   trigger.on-rollout-step-completed: |
     - send: [rollout-step-completed]
   trigger.on-rollout-updated: |

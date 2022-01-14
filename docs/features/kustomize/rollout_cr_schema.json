@@ -47,6 +47,22 @@
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "name",
                                                     "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "dryRun": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
                                             "type": "object"
@@ -89,6 +105,22 @@
                                                     },
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "name",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "dryRun": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
                                                     "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
@@ -140,6 +172,22 @@
                                                     },
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "name",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "dryRun": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
                                                     "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
@@ -822,6 +870,9 @@
                                                                     },
                                                                     "gmsaCredentialSpecName": {
                                                                         "type": "string"
+                                                                    },
+                                                                    "hostProcess": {
+                                                                        "type": "boolean"
                                                                     },
                                                                     "runAsUserName": {
                                                                         "type": "string"
@@ -1678,6 +1729,9 @@
                                                                     },
                                                                     "gmsaCredentialSpecName": {
                                                                         "type": "string"
+                                                                    },
+                                                                    "hostProcess": {
+                                                                        "type": "boolean"
                                                                     },
                                                                     "runAsUserName": {
                                                                         "type": "string"
@@ -2575,6 +2629,9 @@
                                                                     "gmsaCredentialSpecName": {
                                                                         "type": "string"
                                                                     },
+                                                                    "hostProcess": {
+                                                                        "type": "boolean"
+                                                                    },
                                                                     "runAsUserName": {
                                                                         "type": "string"
                                                                     }
@@ -2834,9 +2891,12 @@
                                             "x-kubernetes-patch-strategy": "merge"
                                         },
                                         "volumes": {
+                                            "items": {
+                                                "x-kubernetes-preserve-unknown-fields": true
+                                            },
+                                            "type": "array",
                                             "x-kubernetes-patch-merge-key": "name",
-                                            "x-kubernetes-patch-strategy": "merge,retainKeys",
-                                            "x-kubernetes-preserve-unknown-fields": true
+                                            "x-kubernetes-patch-strategy": "merge,retainKeys"
                                         }
                                     },
                                     "required": [

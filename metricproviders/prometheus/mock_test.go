@@ -95,3 +95,7 @@ func (m mockAPI) TSDB(ctx context.Context) (v1.TSDBResult, error) {
 func (m mockAPI) Buildinfo(ctx context.Context) (v1.BuildinfoResult, error) {
 	panic("Not used")
 }
+
+func (m mockAPI) QueryExemplars(ctx context.Context, query string, startTime time.Time, endTime time.Time) ([]v1.ExemplarQueryResult, error) {
+	panic("Not used")
+}

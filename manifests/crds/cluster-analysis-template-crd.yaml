@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.7.0
   name: clusteranalysistemplates.argoproj.io
 spec:
   group: argoproj.io
@@ -70,6 +70,19 @@ spec:
                     metricName:
                       type: string
                   required:
+                  - metricName
+                  type: object
+                type: array
+              measurementRetention:
+                items:
+                  properties:
+                    limit:
+                      format: int32
+                      type: integer
+                    metricName:
+                      type: string
+                  required:
+                  - limit
                   - metricName
                   type: object
                 type: array
@@ -1028,6 +1041,8 @@ spec:
                                                         type: string
                                                       gmsaCredentialSpecName:
                                                         type: string
+                                                      hostProcess:
+                                                        type: boolean
                                                       runAsUserName:
                                                         type: string
                                                     type: object
@@ -1591,6 +1606,8 @@ spec:
                                                         type: string
                                                       gmsaCredentialSpecName:
                                                         type: string
+                                                      hostProcess:
+                                                        type: boolean
                                                       runAsUserName:
                                                         type: string
                                                     type: object
@@ -2162,6 +2179,8 @@ spec:
                                                         type: string
                                                       gmsaCredentialSpecName:
                                                         type: string
+                                                      hostProcess:
+                                                        type: boolean
                                                       runAsUserName:
                                                         type: string
                                                     type: object
@@ -2288,6 +2307,7 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                          x-kubernetes-map-type: atomic
                                         overhead:
                                           additionalProperties:
                                             anyOf:
@@ -2376,6 +2396,8 @@ spec:
                                                   type: string
                                                 gmsaCredentialSpecName:
                                                   type: string
+                                                hostProcess:
+                                                  type: boolean
                                                 runAsUserName:
                                                   type: string
                                               type: object
