@@ -7,16 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/pointer"
-
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -412,6 +413,32 @@ func TestFailAddScaleDownDelay(t *testing.T) {
 	assert.Equal(t, v1alpha1.TemplateStatusError, newStatus.TemplateStatuses[0].Status)
 	assert.Contains(t, newStatus.TemplateStatuses[0].Message, "Unable to scale ReplicaSet for template 'bar' to desired replica count '0'")
 	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseError)
+}
+
+func TestFailAddScaleDownDelayIsConflict(t *testing.T) {
+	templates := generateTemplates("bar")
+	ex := newExperiment("foo", templates, "")
+	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
+	}
+	rs := templateToRS(ex, templates[0], 1)
+	rs.Spec.Replicas = pointer.Int32(0)
+
+	exCtx := newTestContext(ex, rs)
+	exCtx.templateRSs["bar"] = rs
+
+	fakeClient := exCtx.kubeclientset.(*k8sfake.Clientset)
+	updateCalled := false
+	fakeClient.PrependReactor("update", "replicasets", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		updateCalled = true
+		return true, nil, k8serrors.NewConflict(schema.GroupResource{}, "guestbook", errors.New("intentional-error"))
+	})
+	newStatus := exCtx.reconcile()
+	assert.True(t, updateCalled)
+	assert.Equal(t, v1alpha1.TemplateStatusRunning, newStatus.TemplateStatuses[0].Status)
+	assert.Equal(t, "", newStatus.TemplateStatuses[0].Message)
+	assert.Equal(t, newStatus.Phase, v1alpha1.AnalysisPhaseRunning)
 }
 
 // TestDeleteOutdatedService verifies that outdated service for Template in templateServices map is deleted and new service is created
