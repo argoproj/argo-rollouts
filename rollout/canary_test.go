@@ -1186,13 +1186,13 @@ func TestCanaryRolloutWithCanaryService(t *testing.T) {
 func TestCanarySVCSelectors(t *testing.T) {
 	for _, tc := range []struct {
 		canaryReplicas      int32
-		canaryReadyReplicas int32
+		canaryAvailReplicas int32
 
 		shouldTargetNewRS bool
 	}{
 		{0, 0, false},
 		{2, 0, false},
-		{2, 1, false},
+		{2, 1, true},
 		{2, 2, true},
 	} {
 		namespace := "namespace"
@@ -1247,7 +1247,7 @@ func TestCanarySVCSelectors(t *testing.T) {
 					Replicas: pointer.Int32Ptr(tc.canaryReplicas),
 				},
 				Status: v1.ReplicaSetStatus{
-					ReadyReplicas: tc.canaryReadyReplicas,
+					AvailableReplicas: tc.canaryAvailReplicas,
 				},
 			},
 			stableRS: &v1.ReplicaSet{
@@ -1267,12 +1267,12 @@ func TestCanarySVCSelectors(t *testing.T) {
 		assert.NoError(t, err, "unable to get updated canary service")
 		if tc.shouldTargetNewRS {
 			assert.Equal(t, selectorNewRSVal, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
-				"canary SVC should have newRS selector label when newRS has %d replicas and %d ReadyReplicas",
-				tc.canaryReplicas, tc.canaryReadyReplicas)
+				"canary SVC should have newRS selector label when newRS has %d replicas and %d AvailableReplicas",
+				tc.canaryReplicas, tc.canaryAvailReplicas)
 		} else {
 			assert.Empty(t, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
-				"canary SVC should not have newRS selector label when newRS has %d replicas and %d ReadyReplicas",
-				tc.canaryReplicas, tc.canaryReadyReplicas)
+				"canary SVC should not have newRS selector label when newRS has %d replicas and %d AvailableReplicas",
+				tc.canaryReplicas, tc.canaryAvailReplicas)
 		}
 	}
 }
