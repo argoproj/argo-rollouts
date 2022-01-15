@@ -1295,6 +1295,7 @@ func TestIsReplicaSetReady(t *testing.T) {
 				ReadyReplicas: 0,
 			},
 		}
-		assert.True(t, IsReplicaSetReady(&rs))
+		// NOTE: currently consider scaled down replicas as not ready
+		assert.False(t, IsReplicaSetReady(&rs))
 	}
 }
