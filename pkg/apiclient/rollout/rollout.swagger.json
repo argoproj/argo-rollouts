@@ -915,6 +915,21 @@
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MeasurementRetention": {
+      "type": "object",
+      "properties": {
+        "metricName": {
+          "type": "string",
+          "description": "MetricName is the name of the metric on which this retention policy should be applied."
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Limit is the maximum number of measurements to be retained for this given metric."
+        }
+      },
+      "description": "MeasurementRetention defines the settings for retaining the number of measurements during the analysis."
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.NginxTrafficRouting": {
       "type": "object",
       "properties": {
@@ -1039,6 +1054,13 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DryRun"
           },
           "title": "DryRun object contains the settings for running the analysis in Dry-Run mode\n+patchMergeKey=metricName\n+patchStrategy=merge\n+optional"
+        },
+        "measurementRetention": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MeasurementRetention"
+          },
+          "title": "MeasurementRetention object contains the settings for retaining the number of measurements during the analysis\n+patchMergeKey=metricName\n+patchStrategy=merge\n+optional"
         }
       },
       "title": "RolloutAnalysis defines a template that is used to create a analysisRun"
