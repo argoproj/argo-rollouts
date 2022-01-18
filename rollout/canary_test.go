@@ -1192,7 +1192,7 @@ func TestCanarySVCSelectors(t *testing.T) {
 	}{
 		{0, 0, false},
 		{2, 0, false},
-		{2, 1, true},
+		{2, 1, false},
 		{2, 2, true},
 	} {
 		namespace := "namespace"

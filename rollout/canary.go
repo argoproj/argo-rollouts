@@ -220,10 +220,9 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 					// It is safe to scale the intermediate RS down, if no traffic is directed to it.
 					c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
 				} else {
-					c.log.Infof("DEBUG CANNOT scaling down intermediate RS '%s'", targetRS.Name)
-					// The current and stable ReplicaSets have not reached readiness. This implies
-					// we might not have shifted traffic away from this ReplicaSet so we need to
-					// keep this scaled up.
+					c.log.Infof("Skip scaling down intermediate RS '%s': still referenced by service", targetRS.Name)
+					// This ReplicaSet is still referenced by the service. It is not safe to scale
+					// this down.
 					continue
 				}
 			}
