@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -738,6 +739,11 @@ func TestCanaryDontScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 	rs1 := newReplicaSetWithStatus(r1, 5, 5)
 	rs2 := newReplicaSetWithStatus(r2, 5, 5)
 	rs3 := newReplicaSetWithStatus(r3, 5, 0)
+	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			PodTemplateHash: replicasetutil.GetPodTemplateHash(rs2),
+		},
+	}
 
 	f.objects = append(f.objects, r3)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
@@ -751,7 +757,7 @@ func TestCanaryDontScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 // TestCanaryScaleDownOldRsDuringInterruptedUpdate tests that we proceed with scale down of an
 // intermediate V2 ReplicaSet when applying a V3 spec in the middle of updating a traffic routed
 // canary going from V1 -> V2 (i.e. after we have shifted traffic away from V2). This test is the
-// same as TestCanaryDontScaleDownOldRsDuringUpdate but rs3 is fully available
+// same as TestCanaryDontScaleDownOldRsDuringInterruptedUpdate but rs3 is fully available
 func TestCanaryScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

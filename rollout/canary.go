@@ -216,15 +216,11 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 				// and doesn't yet have scale down deadline. This happens when a user changes their
 				// mind in the middle of an V1 -> V2 update, and then applies a V3. We are deciding
 				// what to do with the defunct, intermediate V2 ReplicaSet right now.
-				if replicasetutil.IsReplicaSetReady(c.newRS) && replicasetutil.IsReplicaSetReady(c.stableRS) {
-					// If the both new and old RS are available, we can infer that it is safe to
-					// scale down this ReplicaSet, since traffic should have shifted away from this RS.
-					// TODO: instead of checking availability of canary/stable, a better way to determine
-					// if it is safe to scale this down, is to check if traffic is directed to the RS.
-					// In other words, we can check c.rollout.Status.Canary.Weights to see if this
-					// ReplicaSet hash is still referenced, and scale it down otherwise.
+				if !c.replicaSetReferencedByCanaryTraffic(targetRS) {
+					// It is safe to scale the intermediate RS down, if no traffic is directed to it.
 					c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
 				} else {
+					c.log.Infof("DEBUG CANNOT scaling down intermediate RS '%s'", targetRS.Name)
 					// The current and stable ReplicaSets have not reached readiness. This implies
 					// we might not have shifted traffic away from this ReplicaSet so we need to
 					// keep this scaled up.
@@ -247,6 +243,21 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 	}
 
 	return totalScaledDown, nil
+}
+
+func (c *rolloutContext) replicaSetReferencedByCanaryTraffic(rs *appsv1.ReplicaSet) bool {
+	rsPodHash := replicasetutil.GetPodTemplateHash(rs)
+	ro := c.rollout
+
+	if ro.Status.Canary.Weights == nil {
+		return false
+	}
+
+	if ro.Status.Canary.Weights.Canary.PodTemplateHash == rsPodHash || ro.Status.Canary.Weights.Stable.PodTemplateHash == rsPodHash {
+		return true
+	}
+
+	return false
 }
 
 // canProceedWithScaleDownAnnotation returns whether or not it is safe to proceed with annotating
