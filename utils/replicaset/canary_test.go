@@ -1,6 +1,7 @@
 package replicaset
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -374,7 +375,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			olderRS: newRS("older", 3, 3),
 		},
 		{
-			name:                "Add an extra replica to surge when the setWeight rounding adds another instance",
+			name:                "Do not round past maxSurge with uneven setWeight divisor",
 			rolloutSpecReplicas: 10,
 			setWeight:           5,
 			maxSurge:            intstr.FromInt(0),
@@ -386,7 +387,23 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
-			expectedStableReplicaCount: 10,
+			expectedStableReplicaCount: 9,
+			expectedCanaryReplicaCount: 0,
+		},
+		{
+			name:                "Do not round past maxSurge with uneven setWeight divisor (part 2)",
+			rolloutSpecReplicas: 10,
+			setWeight:           5,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      9,
+			stableAvailableReplica: 9,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 9,
 			expectedCanaryReplicaCount: 1,
 		},
 		{
@@ -487,6 +504,37 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 1, // should only surge by 1 to honor maxSurge: 1
 		},
 		{
+			name:                "scale down to maxunavailable without exceeding maxSurge",
+			rolloutSpecReplicas: 3,
+			setWeight:           99,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(2),
+
+			stableSpecReplica:      3,
+			stableAvailableReplica: 3,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 0,
+		},
+		{
+			name:                "scale down to maxunavailable without exceeding maxSurge (part 2)",
+			rolloutSpecReplicas: 3,
+			setWeight:           99,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(2),
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 2,
+		}, {
 			// verify we scale down stableRS while honoring maxUnavailable even when stableRS unavailable
 			name:                "honor maxUnavailable during scale down stableRS unavailable",
 			rolloutSpecReplicas: 4,
@@ -648,6 +696,91 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 	}
 }
 
+func TestApproximateWeightedNewStableReplicaCounts(t *testing.T) {
+	tests := []struct {
+		replicas  int32
+		weight    int32
+		maxSurge  int32
+		expCanary int32
+		expStable int32
+	}{
+		{replicas: 0, weight: 0, maxSurge: 0, expCanary: 0, expStable: 0},   // 0%
+		{replicas: 0, weight: 50, maxSurge: 0, expCanary: 0, expStable: 0},  // 0%
+		{replicas: 0, weight: 100, maxSurge: 0, expCanary: 0, expStable: 0}, // 0%
+
+		{replicas: 0, weight: 0, maxSurge: 1, expCanary: 0, expStable: 0},   // 0%
+		{replicas: 0, weight: 50, maxSurge: 1, expCanary: 0, expStable: 0},  // 0%
+		{replicas: 0, weight: 100, maxSurge: 1, expCanary: 0, expStable: 0}, // 0%
+
+		{replicas: 1, weight: 0, maxSurge: 0, expCanary: 0, expStable: 1},   // 0%
+		{replicas: 1, weight: 1, maxSurge: 0, expCanary: 0, expStable: 1},   // 0%
+		{replicas: 1, weight: 49, maxSurge: 0, expCanary: 0, expStable: 1},  // 0%
+		{replicas: 1, weight: 50, maxSurge: 0, expCanary: 1, expStable: 0},  // 100%
+		{replicas: 1, weight: 99, maxSurge: 0, expCanary: 1, expStable: 0},  // 100%
+		{replicas: 1, weight: 100, maxSurge: 0, expCanary: 1, expStable: 0}, // 100%
+
+		{replicas: 1, weight: 0, maxSurge: 1, expCanary: 0, expStable: 1},   // 0%
+		{replicas: 1, weight: 1, maxSurge: 1, expCanary: 1, expStable: 1},   // 50%
+		{replicas: 1, weight: 49, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 1, weight: 50, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 1, weight: 99, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 1, weight: 100, maxSurge: 1, expCanary: 1, expStable: 0}, // 100%
+
+		{replicas: 2, weight: 0, maxSurge: 0, expCanary: 0, expStable: 2},   // 0%
+		{replicas: 2, weight: 1, maxSurge: 0, expCanary: 1, expStable: 1},   // 50%
+		{replicas: 2, weight: 50, maxSurge: 0, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 2, weight: 99, maxSurge: 0, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 2, weight: 100, maxSurge: 0, expCanary: 2, expStable: 0}, // 100%
+
+		{replicas: 2, weight: 0, maxSurge: 1, expCanary: 0, expStable: 2},   // 0%
+		{replicas: 2, weight: 1, maxSurge: 1, expCanary: 1, expStable: 2},   // 33.3%
+		{replicas: 2, weight: 50, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 2, weight: 99, maxSurge: 1, expCanary: 2, expStable: 1},  // 66.6%
+		{replicas: 2, weight: 100, maxSurge: 1, expCanary: 2, expStable: 0}, // 100%
+
+		{replicas: 3, weight: 10, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 25, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 33, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 34, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 49, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 50, maxSurge: 0, expCanary: 2, expStable: 1}, // 66.6%
+
+		{replicas: 3, weight: 10, maxSurge: 1, expCanary: 1, expStable: 3}, // 25%
+		{replicas: 3, weight: 25, maxSurge: 1, expCanary: 1, expStable: 3}, // 25%
+		{replicas: 3, weight: 33, maxSurge: 1, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 34, maxSurge: 1, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 49, maxSurge: 1, expCanary: 2, expStable: 2}, // 50%
+		{replicas: 3, weight: 50, maxSurge: 1, expCanary: 2, expStable: 2}, // 50%
+
+		{replicas: 10, weight: 0, maxSurge: 1, expCanary: 0, expStable: 10},   // 0%
+		{replicas: 10, weight: 1, maxSurge: 0, expCanary: 1, expStable: 9},    // 10%
+		{replicas: 10, weight: 14, maxSurge: 0, expCanary: 1, expStable: 9},   // 10%
+		{replicas: 10, weight: 15, maxSurge: 0, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 16, maxSurge: 0, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 99, maxSurge: 0, expCanary: 9, expStable: 1},   // 90%
+		{replicas: 10, weight: 100, maxSurge: 1, expCanary: 10, expStable: 0}, // 100%
+
+		{replicas: 10, weight: 0, maxSurge: 1, expCanary: 0, expStable: 10},   // 0%
+		{replicas: 10, weight: 1, maxSurge: 1, expCanary: 1, expStable: 10},   // 9.1%
+		{replicas: 10, weight: 18, maxSurge: 1, expCanary: 2, expStable: 9},   // 18.1%
+		{replicas: 10, weight: 19, maxSurge: 1, expCanary: 2, expStable: 9},   // 18.1%
+		{replicas: 10, weight: 20, maxSurge: 1, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 23, maxSurge: 1, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 24, maxSurge: 1, expCanary: 3, expStable: 8},   // 27.2%
+		{replicas: 10, weight: 25, maxSurge: 1, expCanary: 3, expStable: 8},   // 27.2%
+		{replicas: 10, weight: 99, maxSurge: 1, expCanary: 10, expStable: 1},  // 90.9%
+		{replicas: 10, weight: 100, maxSurge: 1, expCanary: 10, expStable: 0}, // 100%
+
+	}
+	for i := range tests {
+		test := tests[i]
+		t.Run(fmt.Sprintf("%s_replicas:%d_weight:%d_surge:%d", t.Name(), test.replicas, test.weight, test.maxSurge), func(t *testing.T) {
+			newRSReplicaCount, stableRSReplicaCount := approximateWeightedCanaryStableReplicaCounts(test.replicas, test.weight, test.maxSurge)
+			assert.Equal(t, test.expCanary, newRSReplicaCount, "check canary replica count")
+			assert.Equal(t, test.expStable, stableRSReplicaCount, "check stable replica count")
+		})
+	}
+}
 func TestCalculateReplicaCountsForNewDeployment(t *testing.T) {
 	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
 	stableRS := newRS("stable", 10, 0)
