@@ -255,3 +255,8 @@ release-plugins:
 
 .PHONY: release
 release: release-precheck precheckin image plugin-image release-plugins
+
+.PHONY: trivy
+trivy:
+	@trivy fs --clear-cache
+	@trivy fs .
