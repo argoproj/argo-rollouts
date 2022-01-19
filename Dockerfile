@@ -3,7 +3,7 @@
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.16.3 as builder
+FROM golang:1.17.6 as builder
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -42,7 +42,7 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM golang:1.16.3 as argo-rollouts-build
+FROM golang:1.17.6 as argo-rollouts-build
 
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
 
