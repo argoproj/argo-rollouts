@@ -426,9 +426,9 @@ spec:
           valueFrom:
             podTemplateHashValue: Latest
 ```
-Analysis arguments also support valueFrom for reading any Rollout fields and passing them as arguments to AnalysisTemplate.
-An example would be to reference metadata labels like env and region and passing them along to AnalysisTemplate, or any field
-from the Rollout status
+Analysis arguments also support valueFrom for reading metadata fields and passing them as arguments to AnalysisTemplate.
+An example would be to reference metadata labels like env and region and passing them along to AnalysisTemplate.
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -458,10 +458,38 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.labels['region']
-        - name: canary-hash
+```
+
+!!! important
+    Available since v1.2
+Analysis arguments also support valueFrom for reading any field from Rollout status and passing them as arguments to AnalysisTemplate.
+Following example references Rollout status field like aws canaryTargetGroup name and passing them along to AnalysisTemplate
+
+from the Rollout status
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+  labels:
+    appType: demo-app
+    buildType: nginx-app
+    ...
+    env: dev
+    region: us-west-2
+spec:
+...
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: args-example
+        args:
+        ...
+        - name: canary-targetgroup-name
           valueFrom:
             fieldRef:
-              fieldPath: status.canary.weights.canary.podTemplateHash
+              fieldPath: status.alb.canaryTargetGroup.name
 ```
 
 ## BlueGreen Pre Promotion Analysis
@@ -754,6 +782,26 @@ example, the controller will retain the latest twenty run results for all the me
           sum(irate(
             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code~"4.*"}[5m]
           ))
+```
+
+### Measurements Retention for Rollouts Analysis
+
+If a rollout wants to retain more results of its analysis metrics, it simply needs to specify the `measurementRetention` 
+field to its `analysis` stanza. In the following example, all the metrics from `random-fail` and `always-pass` get 
+merged, and their latest twenty measurements get retained instead of the default ten.
+
+```yaml hl_lines="9 10 11"
+kind: Rollout
+spec:
+...
+  steps:
+  - analysis:
+      templates:
+      - templateName: random-fail
+      - templateName: always-pass
+      measurementRetention:
+      - metricName: .*
+        limit: 20
 ```
 
 ## Inconclusive Runs

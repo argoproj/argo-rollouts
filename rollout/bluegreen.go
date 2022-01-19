@@ -127,6 +127,8 @@ func (c *rolloutContext) isBlueGreenFastTracked(activeSvc *corev1.Service) bool 
 	return false
 }
 
+// reconcileBlueGreenPause will automatically pause or resume the blue-green rollout
+// depending if auto-promotion is enabled and we have passedAutoPromotionSeconds
 func (c *rolloutContext) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.Service) {
 	if c.rollout.Status.Abort {
 		return
@@ -136,8 +138,8 @@ func (c *rolloutContext) reconcileBlueGreenPause(activeSvc, previewSvc *corev1.S
 		c.log.Infof("New RS '%s' is not ready to pause", c.newRS.Name)
 		return
 	}
-	if c.rollout.Spec.Paused {
-		c.log.Info("rollout has been paused by user")
+	if reason := c.haltProgress(); reason != "" {
+		c.log.Infof("skipping pause reconciliation: %s", reason)
 		return
 	}
 	if c.isBlueGreenFastTracked(activeSvc) {

@@ -10726,6 +10726,19 @@ spec:
                               - metricName
                               type: object
                             type: array
+                          measurementRetention:
+                            items:
+                              properties:
+                                limit:
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  type: string
+                              required:
+                              - limit
+                              - metricName
+                              type: object
+                            type: array
                           templates:
                             items:
                               properties:
@@ -10767,6 +10780,19 @@ spec:
                                 metricName:
                                   type: string
                               required:
+                              - metricName
+                              type: object
+                            type: array
+                          measurementRetention:
+                            items:
+                              properties:
+                                limit:
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  type: string
+                              required:
+                              - limit
                               - metricName
                               type: object
                             type: array
@@ -10841,6 +10867,19 @@ spec:
                                 metricName:
                                   type: string
                               required:
+                              - metricName
+                              type: object
+                            type: array
+                          measurementRetention:
+                            items:
+                              properties:
+                                limit:
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  type: string
+                              required:
+                              - limit
                               - metricName
                               type: object
                             type: array
@@ -10958,6 +10997,19 @@ spec:
                                       metricName:
                                         type: string
                                     required:
+                                    - metricName
+                                    type: object
+                                  type: array
+                                measurementRetention:
+                                  items:
+                                    properties:
+                                      limit:
+                                        format: int32
+                                        type: integer
+                                      metricName:
+                                        type: string
+                                    required:
+                                    - limit
                                     - metricName
                                     type: object
                                   type: array

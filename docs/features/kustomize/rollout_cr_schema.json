@@ -63,6 +63,27 @@
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "metricName",
                                                     "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "measurementRetention": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "limit": {
+                                                                "format": "int32",
+                                                                "type": "integer"
+                                                            },
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "limit",
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
                                             "type": "object"
@@ -115,6 +136,27 @@
                                                             }
                                                         },
                                                         "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "measurementRetention": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "limit": {
+                                                                "format": "int32",
+                                                                "type": "integer"
+                                                            },
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "limit",
                                                             "metricName"
                                                         ],
                                                         "type": "object"
@@ -182,6 +224,27 @@
                                                             }
                                                         },
                                                         "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "measurementRetention": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "limit": {
+                                                                "format": "int32",
+                                                                "type": "integer"
+                                                            },
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "limit",
                                                             "metricName"
                                                         ],
                                                         "type": "object"

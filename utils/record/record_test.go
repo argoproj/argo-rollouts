@@ -16,7 +16,9 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -170,4 +172,49 @@ func TestNewAPIFactorySettings(t *testing.T) {
 	vars := getVars(rollout, services.Destination{})
 
 	assert.Equal(t, map[string]interface{}{"rollout": rollout}, vars)
+}
+
+func TestWorkloadRefObjectMap(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "guestbook",
+			Namespace:   "default",
+			Annotations: map[string]string{"notifications.argoproj.io/subscribe.on-missing-reason.console": "console"},
+		},
+		Spec: v1alpha1.RolloutSpec{
+			TemplateResolvedFromRef: true,
+			SelectorResolvedFromRef: true,
+			WorkloadRef: &v1alpha1.ObjectRef{
+				Kind:       "Deployment",
+				Name:       "foo",
+				APIVersion: "apps/v1",
+			},
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "foo",
+						},
+					},
+				},
+			},
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"foo": "bar",
+				},
+			},
+		},
+	}
+	objMap, err := toObjectMap(&ro)
+	assert.NoError(t, err)
+
+	templateMap, ok, err := unstructured.NestedMap(objMap, "spec", "template")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.NotNil(t, templateMap)
+
+	selectorMap, ok, err := unstructured.NestedMap(objMap, "spec", "selector")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.NotNil(t, selectorMap)
 }

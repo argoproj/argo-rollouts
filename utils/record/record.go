@@ -3,31 +3,30 @@ package record
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/argoproj/notifications-engine/pkg/services"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/tools/cache"
-
 	"regexp"
 	"strings"
 	"time"
 
-	k8sinformers "k8s.io/client-go/informers"
-
 	"github.com/argoproj/notifications-engine/pkg/api"
+	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	k8sinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubectl/pkg/scheme"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
@@ -235,15 +234,11 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 		return nil
 	}
 
-	objBytes, err := json.Marshal(object)
+	objMap, err := toObjectMap(object)
 	if err != nil {
 		return err
 	}
-	var objMap map[string]interface{}
-	err = json.Unmarshal(objBytes, &objMap)
-	if err != nil {
-		return err
-	}
+
 	for _, dest := range destinations {
 		err = notificationsAPI.Send(objMap, triggerActions[0].Send, dest)
 		if err != nil {
@@ -252,6 +247,53 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 		}
 	}
 	return nil
+}
+
+// toObjectMap converts an object to a map for the purposes of sending to the notification engine
+func toObjectMap(object interface{}) (map[string]interface{}, error) {
+	objBytes, err := json.Marshal(object)
+	if err != nil {
+		return nil, err
+	}
+	var objMap map[string]interface{}
+	err = json.Unmarshal(objBytes, &objMap)
+	if err != nil {
+		return nil, err
+	}
+
+	// The JSON marshalling above drops the `spec.template` and `spec.selectors` fields if the rollout
+	// is using workload referencing. The following restores those fields in the returned object map
+	// so that notification templates can refer to them (as if workload ref was not used).
+	if ro, ok := object.(*v1alpha1.Rollout); ok && ro.Spec.WorkloadRef != nil {
+		templateBytes, err := json.Marshal(ro.Spec.Template)
+		if err != nil {
+			return nil, err
+		}
+		var templateMap map[string]interface{}
+		err = json.Unmarshal(templateBytes, &templateMap)
+		if err != nil {
+			return nil, err
+		}
+		err = unstructured.SetNestedMap(objMap, templateMap, "spec", "template")
+		if err != nil {
+			return nil, err
+		}
+
+		selectorBytes, err := json.Marshal(ro.Spec.Selector)
+		if err != nil {
+			return nil, err
+		}
+		var selectorMap map[string]interface{}
+		err = json.Unmarshal(selectorBytes, &selectorMap)
+		if err != nil {
+			return nil, err
+		}
+		err = unstructured.SetNestedMap(objMap, selectorMap, "spec", "selector")
+		if err != nil {
+			return nil, err
+		}
+	}
+	return objMap, nil
 }
 
 func translateReasonToTrigger(reason string) string {

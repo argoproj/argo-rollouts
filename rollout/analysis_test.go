@@ -33,6 +33,12 @@ func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
 			Metrics: []v1alpha1.Metric{{
 				Name: "example",
 			}},
+			DryRun: []v1alpha1.DryRun{{
+				MetricName: "example",
+			}},
+			MeasurementRetention: []v1alpha1.MeasurementRetention{{
+				MetricName: "example",
+			}},
 		},
 	}
 }
@@ -106,8 +112,10 @@ func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alp
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: at.Spec.Metrics,
-			Args:    at.Spec.Args,
+			Metrics:              at.Spec.Metrics,
+			DryRun:               at.Spec.DryRun,
+			MeasurementRetention: at.Spec.MeasurementRetention,
+			Args:                 at.Spec.Args,
 		},
 	}
 }
