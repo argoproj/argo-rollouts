@@ -248,16 +248,15 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 	if err != nil {
 		return err
 	}
-
-	if replicasetutil.IsReplicaSetReady(c.newRS) {
-		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS)
-		if err != nil {
-			return err
-		}
+	err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
+// ensureSVCTargets updates the service with the given name to point to the given ReplicaSet,
+// but only if that ReplicaSet has full availability.
 func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet) error {
 	if rs == nil || svcName == "" {
 		return nil
@@ -266,8 +265,16 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet)
 	if err != nil {
 		return err
 	}
-	if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-		err = c.switchServiceSelector(svc, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], c.rollout)
+	currSelector := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	desiredSelector := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	if currSelector != desiredSelector {
+		// ensure ReplicaSet is fully available, otherwise we will point the service to nothing or an underprovisioned ReplicaSet
+		if !replicasetutil.IsReplicaSetAvailable(rs) {
+			logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
+			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
+			return nil
+		}
+		err = c.switchServiceSelector(svc, desiredSelector, c.rollout)
 		if err != nil {
 			return err
 		}

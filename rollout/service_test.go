@@ -738,3 +738,53 @@ func TestShouldVerifyTargetGroups(t *testing.T) {
 		assert.True(t, roCtx.shouldVerifyTargetGroup(activeSvc))
 	})
 }
+
+// TestDelayCanaryStableServiceLabelInjection verifies we don't inject pod hash labels to the canary
+// or stable service before the pods for them are ready.
+func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
+	ro1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	ro1.Spec.Strategy.Canary.CanaryService = "canary"
+	ro1.Spec.Strategy.Canary.StableService = "stable"
+	canarySvc := newService("canary", 80, ro1.Spec.Selector.MatchLabels, nil)
+	stableSvc := newService("stable", 80, ro1.Spec.Selector.MatchLabels, nil)
+	ro2 := bumpVersion(ro1)
+
+	f := newFixture(t)
+	defer f.Close()
+	f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	{
+		// first ensure we don't update service because new/stable are both not available
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 0)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 0)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		_, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, canaryInjected)
+		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, stableInjected)
+	}
+	{
+		// next ensure we do update service because new/stable are now available
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 3)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 3)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		_, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, canaryInjected)
+		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, stableInjected)
+	}
+
+}
