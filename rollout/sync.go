@@ -266,8 +266,8 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 }
 
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
-func (c *rolloutContext) syncReplicasOnly(isScaling bool) error {
-	c.log.Infof("Syncing replicas only (userPaused %v, isScaling: %v)", c.rollout.Spec.Paused, isScaling)
+func (c *rolloutContext) syncReplicasOnly() error {
+	c.log.Infof("Syncing replicas only due to scaling event")
 	_, err := c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
 		return err
@@ -276,14 +276,8 @@ func (c *rolloutContext) syncReplicasOnly(isScaling bool) error {
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
 		previewSvc, activeSvc, err := c.getPreviewAndActiveServices()
-		// Keep existing analysis runs if the rollout is paused
-		c.SetCurrentAnalysisRuns(c.currentArs)
 		if err != nil {
 			return nil
-		}
-		err = c.podRestarter.Reconcile(c)
-		if err != nil {
-			return err
 		}
 		if err := c.reconcileBlueGreenReplicaSets(activeSvc); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
@@ -295,37 +289,11 @@ func (c *rolloutContext) syncReplicasOnly(isScaling bool) error {
 	// The controller wants to use the rolloutCanary method to reconcile the rollout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
 	if c.rollout.Spec.Strategy.Canary != nil {
-		err = c.podRestarter.Reconcile(c)
-		if err != nil {
+		if _, err := c.reconcileCanaryReplicaSets(); err != nil {
+			// If we get an error while trying to scale, the rollout will be requeued
+			// so we can abort this resync
 			return err
 		}
-
-		if isScaling {
-			if _, err := c.reconcileCanaryReplicaSets(); err != nil {
-				// If we get an error while trying to scale, the rollout will be requeued
-				// so we can abort this resync
-				return err
-			}
-		}
-		// Reconciling AnalysisRuns to manage Background AnalysisRun if necessary
-		err = c.reconcileAnalysisRuns()
-		if err != nil {
-			return err
-		}
-
-		// reconcileCanaryPause will ensure we will requeue this rollout at the appropriate time
-		// if we are at a pause step with a duration.
-		c.reconcileCanaryPause()
-		err = c.reconcileStableAndCanaryService()
-		if err != nil {
-			return err
-		}
-
-		err = c.reconcileTrafficRouting()
-		if err != nil {
-			return err
-		}
-
 		return c.syncRolloutStatusCanary()
 	}
 	return fmt.Errorf("no rollout strategy provided")

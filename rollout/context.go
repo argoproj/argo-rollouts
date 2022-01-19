@@ -74,8 +74,8 @@ func (c *rolloutContext) reconcile() error {
 		return err
 	}
 
-	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil || c.rollout.Spec.Paused || isScalingEvent {
-		return c.syncReplicasOnly(isScalingEvent)
+	if isScalingEvent {
+		return c.syncReplicasOnly()
 	}
 
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
@@ -140,4 +140,17 @@ func (c *rolloutContext) SetCurrentAnalysisRuns(currARs analysisutil.CurrentAnal
 			}
 		}
 	}
+}
+
+// haltProgress returns a reason on whether or not we should halt all progress with an update
+// to ReplicaSet counts (e.g. due to canary steps or blue-green promotion). This is either because
+// user explicitly paused the rollout by setting `spec.paused`, or the analysis was inconclusive
+func (c *rolloutContext) haltProgress() string {
+	if c.rollout.Spec.Paused {
+		return "user paused"
+	}
+	if getPauseCondition(c.rollout, v1alpha1.PauseReasonInconclusiveAnalysis) != nil {
+		return "inconclusive analysis"
+	}
+	return ""
 }
