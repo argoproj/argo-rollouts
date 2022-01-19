@@ -397,7 +397,10 @@ func (s *ArgoRolloutsServer) getRollout(namespace string, name string) (*v1alpha
 
 func (s *ArgoRolloutsServer) SetRolloutImage(ctx context.Context, q *rollout.SetImageRequest) (*v1alpha1.Rollout, error) {
 	imageString := fmt.Sprintf("%s:%s", q.GetImage(), q.GetTag())
-	set.SetImage(s.Options.DynamicClientset, q.GetNamespace(), q.GetRollout(), q.GetContainer(), imageString)
+	_, err := set.SetImage(s.Options.DynamicClientset, q.GetNamespace(), q.GetRollout(), q.GetContainer(), imageString)
+	if err != nil {
+		return nil, err
+	}
 	return s.getRollout(q.GetNamespace(), q.GetRollout())
 }
 
