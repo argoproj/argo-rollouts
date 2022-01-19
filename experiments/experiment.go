@@ -100,7 +100,7 @@ func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
 	}
 
 	for _, analysis := range ec.ex.Spec.Analyses {
-		ec.reconcileAnalysisRun(analysis, ec.ex.Spec.DryRun)
+		ec.reconcileAnalysisRun(analysis, ec.ex.Spec.DryRun, ec.ex.Spec.MeasurementRetention)
 	}
 
 	newStatus := ec.calculateStatus()
@@ -371,7 +371,7 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 
 // reconcileAnalysisRun reconciles a single analysis run, creating or terminating it as necessary.
 // Updates the analysis run statuses, which may subsequently fail the experiment.
-func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun) {
+func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) {
 	logCtx := ec.log.WithField("analysis", analysis.Name)
 	logCtx.Infof("Reconciling analysis")
 	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.Name)
@@ -427,7 +427,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 			logCtx.Warnf("Skipping AnalysisRun creation for analysis %s: experiment is terminating", analysis.Name)
 			return
 		}
-		run, err := ec.createAnalysisRun(analysis, dryRunMetrics)
+		run, err := ec.createAnalysisRun(analysis, dryRunMetrics, measurementRetentionMetrics)
 		if err != nil {
 			msg := fmt.Sprintf("Failed to create AnalysisRun for analysis '%s': %v", analysis.Name, err.Error())
 			newStatus.Phase = v1alpha1.AnalysisPhaseError
@@ -474,13 +474,13 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 // createAnalysisRun creates the analysis run. If an existing runs exists with same name, is
 // semantically equal, and is not complete, returns the existing one, otherwise creates a new
 // run with a collision counter increase.
-func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun) (*v1alpha1.AnalysisRun, error) {
+func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) (*v1alpha1.AnalysisRun, error) {
 	analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
 	args, err := ec.ResolveAnalysisRunArgs(analysis.Args)
 	if err != nil {
 		return nil, err
 	}
-	run, err := ec.newAnalysisRun(analysis, args, dryRunMetrics)
+	run, err := ec.newAnalysisRun(analysis, args, dryRunMetrics, measurementRetentionMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -616,7 +616,7 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 }
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template
-func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun) (*v1alpha1.AnalysisRun, error) {
+func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) (*v1alpha1.AnalysisRun, error) {
 
 	if analysis.ClusterScope {
 		clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.TemplateName)
@@ -626,7 +626,7 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
 		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{clusterTemplate}
-		run, err := analysisutil.NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, dryRunMetrics, []v1alpha1.MeasurementRetention{}, name, "", ec.ex.Namespace)
+		run, err := analysisutil.NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, dryRunMetrics, measurementRetentionMetrics, name, "", ec.ex.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -644,7 +644,7 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
 		analysisTemplates := []*v1alpha1.AnalysisTemplate{template}
-		run, err := analysisutil.NewAnalysisRunFromTemplates(analysisTemplates, nil, args, dryRunMetrics, []v1alpha1.MeasurementRetention{}, name, "", ec.ex.Namespace)
+		run, err := analysisutil.NewAnalysisRunFromTemplates(analysisTemplates, nil, args, dryRunMetrics, measurementRetentionMetrics, name, "", ec.ex.Namespace)
 		if err != nil {
 			return nil, err
 		}
