@@ -99,7 +99,7 @@ func (c *FakeClusterAnalysisTemplates) Update(ctx context.Context, clusterAnalys
 // Delete takes name of the clusterAnalysisTemplate and deletes it. Returns an error if one occurs.
 func (c *FakeClusterAnalysisTemplates) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(clusteranalysistemplatesResource, name), &v1alpha1.ClusterAnalysisTemplate{})
+		Invokes(testing.NewRootDeleteActionWithOptions(clusteranalysistemplatesResource, name, opts), &v1alpha1.ClusterAnalysisTemplate{})
 	return err
 }
 
