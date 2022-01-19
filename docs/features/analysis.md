@@ -756,6 +756,26 @@ example, the controller will retain the latest twenty run results for all the me
           ))
 ```
 
+### Measurements Retention for Rollouts Analysis
+
+If a rollout wants to retain more results of its analysis metrics, it simply needs to specify the `measurementRetention` 
+field to its `analysis` stanza. In the following example, all the metrics from `random-fail` and `always-pass` get 
+merged, and their latest twenty measurements get retained instead of the default ten.
+
+```yaml hl_lines="9 10 11"
+kind: Rollout
+spec:
+...
+  steps:
+  - analysis:
+      templates:
+      - templateName: random-fail
+      - templateName: always-pass
+      measurementRetention:
+      - metricName: .*
+        limit: 20
+```
+
 ## Inconclusive Runs
 
 Analysis runs can also be considered `Inconclusive`, which indicates the run was neither successful,

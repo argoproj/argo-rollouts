@@ -349,12 +349,24 @@ func TestFlattenTemplates(t *testing.T) {
 			{
 				Spec: v1alpha1.AnalysisTemplateSpec{
 					Metrics: []v1alpha1.Metric{fooMetric},
-					Args:    nil,
+					DryRun: []v1alpha1.DryRun{{
+						MetricName: "foo",
+					}},
+					MeasurementRetention: []v1alpha1.MeasurementRetention{{
+						MetricName: "foo",
+					}},
+					Args: nil,
 				},
 			}, {
 				Spec: v1alpha1.AnalysisTemplateSpec{
 					Metrics: []v1alpha1.Metric{barMetric},
-					Args:    nil,
+					DryRun: []v1alpha1.DryRun{{
+						MetricName: "bar",
+					}},
+					MeasurementRetention: []v1alpha1.MeasurementRetention{{
+						MetricName: "bar",
+					}},
+					Args: nil,
 				},
 			},
 		}, []*v1alpha1.ClusterAnalysisTemplate{})
@@ -376,6 +388,11 @@ func TestFlattenTemplates(t *testing.T) {
 							MetricName: "foo",
 						},
 					},
+					MeasurementRetention: []v1alpha1.MeasurementRetention{
+						{
+							MetricName: "foo",
+						},
+					},
 					Args: nil,
 				},
 			},
@@ -384,6 +401,11 @@ func TestFlattenTemplates(t *testing.T) {
 				Spec: v1alpha1.AnalysisTemplateSpec{
 					Metrics: []v1alpha1.Metric{barMetric},
 					DryRun: []v1alpha1.DryRun{
+						{
+							MetricName: "bar",
+						},
+					},
+					MeasurementRetention: []v1alpha1.MeasurementRetention{
 						{
 							MetricName: "bar",
 						},
@@ -444,6 +466,35 @@ func TestFlattenTemplates(t *testing.T) {
 		}, []*v1alpha1.ClusterAnalysisTemplate{})
 		assert.Nil(t, template)
 		assert.Equal(t, err, fmt.Errorf("two Dry-Run metric rules have the same name 'foo'"))
+	})
+	t.Run("Merge fail with measurement retention metrics name collision", func(t *testing.T) {
+		fooMetric := metric("foo", "true")
+		barMetric := metric("bar", "true")
+		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
+			{
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: []v1alpha1.Metric{fooMetric},
+					MeasurementRetention: []v1alpha1.MeasurementRetention{
+						{
+							MetricName: "foo",
+						},
+					},
+					Args: nil,
+				},
+			}, {
+				Spec: v1alpha1.AnalysisTemplateSpec{
+					Metrics: []v1alpha1.Metric{barMetric},
+					MeasurementRetention: []v1alpha1.MeasurementRetention{
+						{
+							MetricName: "foo",
+						},
+					},
+					Args: nil,
+				},
+			},
+		}, []*v1alpha1.ClusterAnalysisTemplate{})
+		assert.Nil(t, template)
+		assert.Equal(t, err, fmt.Errorf("two Measurement Retention metric rules have the same name 'foo'"))
 	})
 	t.Run("Merge multiple args successfully", func(t *testing.T) {
 		fooArgs := arg("foo", pointer.StringPtr("true"))
@@ -547,7 +598,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	}
 
 	args := []v1alpha1.Argument{arg, secretArg}
-	run, err := NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
+	run, err := NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -560,7 +611,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	// Fail Merge Args
 	unresolvedArg := v1alpha1.Argument{Name: "unresolved"}
 	templates[0].Spec.Args = append(templates[0].Spec.Args, unresolvedArg)
-	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
+	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
 	assert.Equal(t, fmt.Errorf("args.unresolved was not resolved"), err)
 	// Fail flatten metric
@@ -573,7 +624,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 	}
 	// Fail Flatten Templates
 	templates = append(templates, matchingMetric)
-	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, "foo-run", "foo-run-generate-", "my-ns")
+	run, err = NewAnalysisRunFromTemplates(templates, clusterTemplates, args, []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, "foo-run", "foo-run-generate-", "my-ns")
 	assert.Nil(t, run)
 	assert.Equal(t, fmt.Errorf("two metrics have the same name 'success-rate'"), err)
 }
@@ -754,7 +805,7 @@ func TestCompatibilityNewAnalysisRunFromTemplate(t *testing.T) {
 		},
 	}
 	analysisTemplates := []*v1alpha1.AnalysisTemplate{&template}
-	run, err := NewAnalysisRunFromTemplates(analysisTemplates, nil, args, nil, "foo-run", "foo-run-generate-", "my-ns")
+	run, err := NewAnalysisRunFromTemplates(analysisTemplates, nil, args, nil, nil, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)
@@ -789,7 +840,7 @@ func TestCompatibilityNewAnalysisRunFromClusterTemplate(t *testing.T) {
 		},
 	}
 	clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{&clusterTemplate}
-	run, err := NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, nil, "foo-run", "foo-run-generate-", "my-ns")
+	run, err := NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, nil, nil, "foo-run", "foo-run-generate-", "my-ns")
 	assert.NoError(t, err)
 	assert.Equal(t, "foo-run", run.Name)
 	assert.Equal(t, "foo-run-generate-", run.GenerateName)

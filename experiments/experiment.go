@@ -626,7 +626,7 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
 		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{clusterTemplate}
-		run, err := analysisutil.NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, dryRunMetrics, name, "", ec.ex.Namespace)
+		run, err := analysisutil.NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, dryRunMetrics, []v1alpha1.MeasurementRetention{}, name, "", ec.ex.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -644,7 +644,7 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
 		analysisTemplates := []*v1alpha1.AnalysisTemplate{template}
-		run, err := analysisutil.NewAnalysisRunFromTemplates(analysisTemplates, nil, args, dryRunMetrics, name, "", ec.ex.Namespace)
+		run, err := analysisutil.NewAnalysisRunFromTemplates(analysisTemplates, nil, args, dryRunMetrics, []v1alpha1.MeasurementRetention{}, name, "", ec.ex.Namespace)
 		if err != nil {
 			return nil, err
 		}

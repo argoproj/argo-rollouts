@@ -540,6 +540,11 @@ type RolloutAnalysis struct {
 	// +patchStrategy=merge
 	// +optional
 	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,3,rep,name=dryRun"`
+	// MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
 }
 
 type RolloutAnalysisTemplate struct {

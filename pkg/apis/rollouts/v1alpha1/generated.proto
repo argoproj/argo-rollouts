@@ -1013,6 +1013,12 @@ message RolloutAnalysis {
   // +patchStrategy=merge
   // +optional
   repeated DryRun dryRun = 3;
+
+  // MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated MeasurementRetention measurementRetention = 4;
 }
 
 // RolloutAnalysisBackground defines a template that is used to create a background analysisRun
