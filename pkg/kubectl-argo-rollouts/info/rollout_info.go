@@ -89,8 +89,6 @@ func NewRolloutInfo(
 		}
 	}
 
-	
-
 	if ro.Status.RestartedAt != nil {
 		roInfo.RestartedAt = ro.Status.RestartedAt.String()
 	} else {
