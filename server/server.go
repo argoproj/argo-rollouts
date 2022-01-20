@@ -269,7 +269,7 @@ func (s *ArgoRolloutsServer) ListRolloutInfos(ctx context.Context, q *rollout.Ro
 	var riList []*rollout.RolloutInfo
 	for i := range rolloutList.Items {
 		cur := rolloutList.Items[i]
-		ri := info.NewRolloutInfo(&cur, nil, nil, nil, nil)
+		ri := info.NewRolloutInfo(&cur, nil, nil, nil, nil, nil)
 		ri.ReplicaSets = info.GetReplicaSetInfo(cur.UID, &cur, allReplicaSets, allPods)
 		riList = append(riList, ri)
 	}
@@ -346,7 +346,7 @@ func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, 
 			}
 
 			// get shallow rollout info
-			ri := info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil)
+			ri := info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil, nil)
 			send(ri)
 		}
 	}
@@ -358,7 +358,7 @@ func (s *ArgoRolloutsServer) RolloutToRolloutInfo(ro *v1alpha1.Rollout) (*rollou
 	if err != nil {
 		return nil, err
 	}
-	return info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil), nil
+	return info.NewRolloutInfo(ro, allReplicaSets, allPods, nil, nil, nil), nil
 }
 
 func (s *ArgoRolloutsServer) GetNamespace(ctx context.Context, e *empty.Empty) (*rollout.NamespaceInfo, error) {

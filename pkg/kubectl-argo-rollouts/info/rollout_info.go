@@ -22,6 +22,7 @@ func NewRolloutInfo(
 	allPods []*corev1.Pod,
 	allExperiments []*v1alpha1.Experiment,
 	allARs []*v1alpha1.AnalysisRun,
+	workloadRef *appsv1.Deployment,
 ) *rollout.RolloutInfo {
 
 	roInfo := rollout.RolloutInfo{
@@ -75,10 +76,20 @@ func NewRolloutInfo(
 	roInfo.Message = message
 	roInfo.Icon = rolloutIcon(roInfo.Status)
 	roInfo.Containers = []*rollout.ContainerInfo{}
-	for c := range ro.Spec.Template.Spec.Containers {
-		curContainer := ro.Spec.Template.Spec.Containers[c]
-		roInfo.Containers = append(roInfo.Containers, &rollout.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image})
+
+	if workloadRef != nil {
+		for c := range workloadRef.Spec.Template.Spec.Containers {
+			curContainer := workloadRef.Spec.Template.Spec.Containers[c]
+			roInfo.Containers = append(roInfo.Containers, &rollout.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image})
+		}
+	} else {
+		for c := range ro.Spec.Template.Spec.Containers {
+			curContainer := ro.Spec.Template.Spec.Containers[c]
+			roInfo.Containers = append(roInfo.Containers, &rollout.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image})
+		}
 	}
+
+	
 
 	if ro.Status.RestartedAt != nil {
 		roInfo.RestartedAt = ro.Status.RestartedAt.String()
