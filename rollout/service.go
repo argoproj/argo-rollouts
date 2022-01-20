@@ -245,7 +245,7 @@ func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1
 func (c *rolloutContext) reconcilePingAndPongService() error {
 	if trafficrouting.IsPingPongEnabled(c.rollout) && !rolloututils.IsFullyPromoted(c.rollout) {
 		_, canaryService := trafficrouting.GetStableAndCanaryServices(c.rollout)
-		return c.ensureSVCTargets(canaryService, c.newRS)
+		return c.ensureSVCTargets(canaryService, c.newRS, false)
 	}
 	return nil
 }
@@ -254,11 +254,11 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 	if c.rollout.Spec.Strategy.Canary == nil {
 		return nil
 	}
-	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS)
+	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS, true)
 	if err != nil {
 		return err
 	}
-	err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS)
+	err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS, true)
 	if err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 
 // ensureSVCTargets updates the service with the given name to point to the given ReplicaSet,
 // but only if that ReplicaSet has full availability.
-func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet) error {
+func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet, checkRsAvailability bool) error {
 	if rs == nil || svcName == "" {
 		return nil
 	}
@@ -279,7 +279,7 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet)
 	desiredSelector := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	if currSelector != desiredSelector {
 		// ensure ReplicaSet is fully available, otherwise we will point the service to nothing or an underprovisioned ReplicaSet
-		if !replicasetutil.IsReplicaSetAvailable(rs) {
+		if checkRsAvailability && !replicasetutil.IsReplicaSetAvailable(rs) {
 			logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
 			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
 			return nil
