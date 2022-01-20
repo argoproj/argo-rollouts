@@ -77,16 +77,15 @@ func NewRolloutInfo(
 	roInfo.Icon = rolloutIcon(roInfo.Status)
 	roInfo.Containers = []*rollout.ContainerInfo{}
 
+	var containerList []corev1.Container
 	if workloadRef != nil {
-		for c := range workloadRef.Spec.Template.Spec.Containers {
-			curContainer := workloadRef.Spec.Template.Spec.Containers[c]
-			roInfo.Containers = append(roInfo.Containers, &rollout.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image})
-		}
+		containerList = workloadRef.Spec.Template.Spec.Containers
 	} else {
-		for c := range ro.Spec.Template.Spec.Containers {
-			curContainer := ro.Spec.Template.Spec.Containers[c]
-			roInfo.Containers = append(roInfo.Containers, &rollout.ContainerInfo{Name: curContainer.Name, Image: curContainer.Image})
-		}
+		containerList = ro.Spec.Template.Spec.Containers
+	}
+
+	for _, c := range containerList {
+		roInfo.Containers = append(roInfo.Containers, &rollout.ContainerInfo{Name: c.Name, Image: c.Image})
 	}
 
 	if ro.Status.RestartedAt != nil {
