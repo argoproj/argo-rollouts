@@ -3,10 +3,10 @@ module github.com/argoproj/argo-rollouts
 go 1.16
 
 require (
-	github.com/antonmedv/expr v1.8.9
+	github.com/antonmedv/expr v1.9.0
 	github.com/argoproj/notifications-engine v0.3.0
 	github.com/argoproj/pkg v0.9.0
-	github.com/aws/aws-sdk-go-v2/config v1.8.1
+	github.com/aws/aws-sdk-go-v2/config v1.13.0
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.5.0
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.6.1
 	github.com/blang/semver v3.5.1+incompatible
