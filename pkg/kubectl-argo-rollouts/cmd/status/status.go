@@ -72,7 +72,7 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 				})
 				go controller.Run(ctx)
 				statusOptions.WatchStatus(ctx.Done(), rolloutUpdates)
-				close(rolloutUpdates)
+				defer close(rolloutUpdates)
 
 				// the final rollout info after timeout or reach Healthy or Degraded status
 				ri, err = controller.GetRolloutInfo()
@@ -98,7 +98,7 @@ func NewCmdStatus(o *options.ArgoRolloutsOptions) *cobra.Command {
 func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, rolloutUpdates <-chan *rollout.RolloutInfo) string {
 	timeout := make(chan bool)
 	var roInfo *rollout.RolloutInfo
-	var preventFlicker time.Time
+	var prevMessage string
 
 	if o.Timeout != 0 {
 		go func() {
@@ -107,16 +107,25 @@ func (o *StatusOptions) WatchStatus(stopCh <-chan struct{}, rolloutUpdates <-cha
 		}()
 	}
 
+	printStatus := func(roInfo rollout.RolloutInfo) {
+		message := roInfo.Status
+		if roInfo.Message != "" {
+			message = fmt.Sprintf("%s - %s", roInfo.Status, roInfo.Message)
+		}
+		if message != prevMessage {
+			fmt.Fprintln(o.Out, message)
+			prevMessage = message
+		}
+	}
+
 	for {
 		select {
 		case roInfo = <-rolloutUpdates:
-			if roInfo != nil && roInfo.Status == "Healthy" || roInfo.Status == "Degraded" {
-				fmt.Fprintln(o.Out, roInfo.Status)
-				return roInfo.Status
-			}
-			if roInfo != nil && time.Now().After(preventFlicker.Add(200*time.Millisecond)) {
-				fmt.Fprintf(o.Out, "%s - %s\n", roInfo.Status, roInfo.Message)
-				preventFlicker = time.Now()
+			if roInfo != nil {
+				printStatus(*roInfo)
+				if roInfo.Status == "Healthy" || roInfo.Status == "Degraded" {
+					return roInfo.Status
+				}
 			}
 		case <-stopCh:
 			return ""
