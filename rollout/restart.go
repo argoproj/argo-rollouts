@@ -143,6 +143,13 @@ func maxInt(left, right int32) int32 {
 	return right
 }
 
+func minInt(left, right int32) int32 {
+	if left < right {
+		return left
+	}
+	return right
+}
+
 // getRolloutPods returns all pods associated with a rollout
 func (p *RolloutPodRestarter) getRolloutPods(ctx context.Context, ro *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet) ([]*corev1.Pod, error) {
 	pods, err := p.client.CoreV1().Pods(ro.Namespace).List(ctx, metav1.ListOptions{

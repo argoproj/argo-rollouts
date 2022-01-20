@@ -215,11 +215,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if !isControlledBy {
 		return fmt.Errorf("Rollout does not own TrafficSplit `%s`", trafficSplitName)
 	}
-	err = r.patchTrafficSplit(existingTrafficSplit, trafficSplits)
-	if err == nil {
-		r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "TrafficSplitModified"}, "TrafficSplit `%s` modified", trafficSplitName)
-	}
-	return err
+	return r.patchTrafficSplit(existingTrafficSplit, trafficSplits)
 }
 
 func (r *Reconciler) generateTrafficSplits(trafficSplitName string, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) VersionedTrafficSplits {
