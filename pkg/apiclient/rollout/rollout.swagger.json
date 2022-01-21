@@ -1300,7 +1300,7 @@
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PauseCondition"
           },
-          "title": "PauseConditions indicates why the rollout is currently paused"
+          "title": "PauseConditions is a list of reasons why rollout became automatically paused (e.g.\nCanaryPauseStep, BlueGreenPause, InconclusiveAnalysis). The items in this list are populated\nby the controller but are cleared by the user (e.g. plugin, argo-cd resume action) when they\nwish to unpause. If pause conditions is empty, but controllerPause is true, it indicates\nthe user manually unpaused the Rollout"
         },
         "controllerPause": {
           "type": "boolean",

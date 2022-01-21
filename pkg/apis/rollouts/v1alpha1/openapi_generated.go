@@ -3661,7 +3661,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 					},
 					"pauseConditions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PauseConditions indicates why the rollout is currently paused",
+							Description: "PauseConditions is a list of reasons why rollout became automatically paused (e.g. CanaryPauseStep, BlueGreenPause, InconclusiveAnalysis). The items in this list are populated by the controller but are cleared by the user (e.g. plugin, argo-cd resume action) when they wish to unpause. If pause conditions is empty, but controllerPause is true, it indicates the user manually unpaused the Rollout",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
