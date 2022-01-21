@@ -147,6 +147,7 @@ func (c *viewController) Run(ctx context.Context) error {
 		}
 	}, time.Second, ctx.Done())
 	<-ctx.Done()
+	c.DeregisterCallbacks()
 	return nil
 }
 
@@ -169,6 +170,10 @@ func (c *viewController) processNextWorkItem() bool {
 		c.prevObj = newObj
 	}
 	return true
+}
+
+func (c *viewController) DeregisterCallbacks() {
+	c.callbacks = nil
 }
 
 func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {

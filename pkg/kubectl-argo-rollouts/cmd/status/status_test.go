@@ -120,7 +120,7 @@ func TestWatchAbortedRollout(t *testing.T) {
 	assert.Error(t, err)
 	stdout := o.Out.(*bytes.Buffer).String()
 	stderr := o.ErrOut.(*bytes.Buffer).String()
-	assert.Equal(t, "Degraded\n", stdout)
+	assert.Equal(t, "Degraded - RolloutAborted: metric \"web\" assessed Failed due to failed (1) > failureLimit (0)\n", stdout)
 	assert.Equal(t, "Error: The rollout is in a degraded state with message: RolloutAborted: metric \"web\" assessed Failed due to failed (1) > failureLimit (0)\n", stderr)
 }
 
