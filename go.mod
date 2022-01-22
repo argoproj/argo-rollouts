@@ -36,16 +36,16 @@ require (
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.23.1
-	k8s.io/apiextensions-apiserver v0.21.0
-	k8s.io/apimachinery v0.23.1
+	k8s.io/apiextensions-apiserver v0.23.1
+	k8s.io/apimachinery v0.23.2-rc.0
 	k8s.io/apiserver v0.23.1
 	k8s.io/cli-runtime v0.23.1
 	k8s.io/client-go v0.23.1
-	k8s.io/code-generator v0.23.1
+	k8s.io/code-generator v0.23.2-rc.0
 	k8s.io/component-base v0.23.1
 	k8s.io/klog/v2 v2.30.0
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65
-	k8s.io/kubectl v0.21.0
+	k8s.io/kubectl v0.23.1
 	k8s.io/kubernetes v1.23.1
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
 )
