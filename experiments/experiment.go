@@ -618,6 +618,17 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 // newAnalysisRun generates an AnalysisRun from the experiment and template
 func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) (*v1alpha1.AnalysisRun, error) {
 
+	// copy ex DefaultRolloutUniqueLabelKey label to analysisrun
+	var addExRolloutLabels func(ar *v1alpha1.AnalysisRun)
+	addExRolloutLabels = func(ar *v1alpha1.AnalysisRun) {
+		if key, ok := ec.ex.ObjectMeta.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+			if ar.ObjectMeta.Labels == nil {
+				ar.ObjectMeta.Labels = map[string]string{}
+			}
+			ar.ObjectMeta.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = key
+		}
+	}
+
 	if analysis.ClusterScope {
 		clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.TemplateName)
 		if err != nil {
@@ -635,6 +646,7 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 			run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
 		}
 		run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
+		addExRolloutLabels(run)
 		return run, nil
 	} else {
 		template, err := ec.analysisTemplateLister.AnalysisTemplates(ec.ex.Namespace).Get(analysis.TemplateName)
@@ -653,6 +665,7 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 			run.Labels = map[string]string{v1alpha1.LabelKeyControllerInstanceID: ec.ex.Labels[v1alpha1.LabelKeyControllerInstanceID]}
 		}
 		run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ec.ex, controllerKind)}
+		addExRolloutLabels(run)
 		return run, nil
 	}
 }

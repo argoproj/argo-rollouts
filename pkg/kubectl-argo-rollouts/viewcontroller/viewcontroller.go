@@ -9,6 +9,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -19,12 +20,15 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	k8scontroller "k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	rolloutlisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
+	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
 )
 
 // viewController is a mini controller which allows printing of live updates to rollouts
@@ -193,19 +197,69 @@ func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 		return nil, err
 	}
 
-	allPods, err := c.podLister.List(selector)
-	if err != nil {
-		return nil, err
+	podTemplateHashes := map[string]int{}
+	for i, rs := range allReplicaSets {
+		if hash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+			podTemplateHashes[hash] = i
+		}
 	}
 
-	allExps, err := c.experimentLister.List(selector)
-	if err != nil {
-		return nil, err
+	// get all experiments and add each experiment's replicaSets to allReplicaSets
+	allExps := []*v1alpha1.Experiment{}
+	for hash := range podTemplateHashes {
+		selector := labels.SelectorFromSet(map[string]string{
+			v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+		})
+		exps, err := c.experimentLister.List(selector)
+		if err != nil {
+			return nil, err
+		}
+		allExps = append(allExps, exps...)
+
+		for _, ex := range exps {
+
+			for _, template := range ex.Spec.Templates {
+				templateStatus := experimentutil.GetTemplateStatus(ex.Status, template.Name)
+				newRSTemplate := *template.Template.DeepCopy()
+				newReplicaSetAnnotations(ex.Name, template.Name)
+				if newRSTemplate.Labels != nil {
+					if _, ok := newRSTemplate.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+						delete(newRSTemplate.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
+					}
+				}
+				podHash := k8scontroller.ComputeHash(&newRSTemplate, templateStatus.CollisionCount)
+				selector := labels.SelectorFromSet(map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+				})
+				rs, _ := c.replicaSetLister.List(selector)
+				allReplicaSets = append(allReplicaSets, rs...)
+			}
+		}
+	}
+	for i, rs := range allReplicaSets {
+		if hash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
+			podTemplateHashes[hash] = i
+		}
 	}
 
-	allAnalysisRuns, err := c.analysisRunLister.List(selector)
-	if err != nil {
-		return nil, err
+	allAnalysisRuns := []*v1alpha1.AnalysisRun{}
+	allPods := []*corev1.Pod{}
+	for hash := range podTemplateHashes {
+		selector := labels.SelectorFromSet(map[string]string{
+			v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+		})
+
+		ars, err := c.analysisRunLister.List(selector)
+		if err != nil {
+			return nil, err
+		}
+		allAnalysisRuns = append(allAnalysisRuns, ars...)
+
+		pods, err := c.podLister.List(selector)
+		if err != nil {
+			return nil, err
+		}
+		allPods = append(allPods, pods...)
 	}
 
 	var workloadRef *v1.Deployment
@@ -218,6 +272,13 @@ func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 
 	roInfo := info.NewRolloutInfo(ro, allReplicaSets, allPods, allExps, allAnalysisRuns, workloadRef)
 	return roInfo, nil
+}
+
+func newReplicaSetAnnotations(experimentName, templateName string) map[string]string {
+	return map[string]string{
+		v1alpha1.ExperimentNameAnnotationKey:         experimentName,
+		v1alpha1.ExperimentTemplateNameAnnotationKey: templateName,
+	}
 }
 
 func (c *RolloutViewController) RegisterCallback(callback RolloutInfoCallback) {
