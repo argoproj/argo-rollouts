@@ -76,3 +76,4 @@ status:
     replicas: 1
     status: Running
     updatedReplicas: 1
+    collisionCount: 1

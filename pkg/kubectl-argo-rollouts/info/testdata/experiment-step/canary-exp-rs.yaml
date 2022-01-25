@@ -8,6 +8,8 @@ metadata:
   generation: 1
   name: canary-demo-645d5dbc4c-2-0-canary-preview
   namespace: jesse-test
+  labels:
+    rollouts-pod-template-hash: 76f8bd57fd
   ownerReferences:
   - apiVersion: argoproj.io/v1alpha1
     blockOwnerDeletion: true

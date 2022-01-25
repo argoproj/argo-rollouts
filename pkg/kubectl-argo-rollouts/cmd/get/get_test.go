@@ -164,7 +164,7 @@ func TestGetBlueGreenRolloutScaleDownDelay(t *testing.T) {
 	rolloutObjs := testdata.NewBlueGreenRollout()
 	inFourHours := timeutil.Now().Add(4 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
 	rolloutObjs.ReplicaSets[2].Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inFourHours
-	delete(rolloutObjs.ReplicaSets[2].Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
+	// delete(rolloutObjs.ReplicaSets[2].Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 
 	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
 	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
@@ -182,7 +182,7 @@ Status:          ॥ Paused
 Message:         BlueGreenPause
 Strategy:        BlueGreen
 Images:          argoproj/rollouts-demo:blue (stable, active)
-                 argoproj/rollouts-demo:green
+                 argoproj/rollouts-demo:green (preview)
 Replicas:
   Desired:       3
   Current:       6
@@ -193,7 +193,7 @@ Replicas:
 NAME                                        KIND        STATUS        AGE  INFO
 ⟳ bluegreen-demo                            Rollout     ॥ Paused      7d
 ├──# revision:11
-│  └──⧉ bluegreen-demo-74b948fccb           ReplicaSet  ✔ Healthy     7d   delay:3h59m
+│  └──⧉ bluegreen-demo-74b948fccb           ReplicaSet  ✔ Healthy     7d   preview,delay:3h59m
 │     ├──□ bluegreen-demo-74b948fccb-5jz59  Pod         ✔ Running     7d   ready:1/1
 │     ├──□ bluegreen-demo-74b948fccb-mkhrl  Pod         ✔ Running     7d   ready:1/1
 │     └──□ bluegreen-demo-74b948fccb-vvj2t  Pod         ✔ Running     7d   ready:1/1
@@ -212,7 +212,7 @@ func TestGetBlueGreenRolloutScaleDownDelayPassed(t *testing.T) {
 	rolloutObjs := testdata.NewBlueGreenRollout()
 	anHourAgo := timeutil.Now().Add(-1 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
 	rolloutObjs.ReplicaSets[2].Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = anHourAgo
-	delete(rolloutObjs.ReplicaSets[2].Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
+	// delete(rolloutObjs.ReplicaSets[2].Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 
 	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
 	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
@@ -230,7 +230,7 @@ Status:          ॥ Paused
 Message:         BlueGreenPause
 Strategy:        BlueGreen
 Images:          argoproj/rollouts-demo:blue (stable, active)
-                 argoproj/rollouts-demo:green
+                 argoproj/rollouts-demo:green (preview)
 Replicas:
   Desired:       3
   Current:       6
@@ -241,7 +241,7 @@ Replicas:
 NAME                                        KIND        STATUS        AGE  INFO
 ⟳ bluegreen-demo                            Rollout     ॥ Paused      7d
 ├──# revision:11
-│  └──⧉ bluegreen-demo-74b948fccb           ReplicaSet  ✔ Healthy     7d   delay:passed
+│  └──⧉ bluegreen-demo-74b948fccb           ReplicaSet  ✔ Healthy     7d   preview,delay:passed
 │     ├──□ bluegreen-demo-74b948fccb-5jz59  Pod         ✔ Running     7d   ready:1/1
 │     ├──□ bluegreen-demo-74b948fccb-mkhrl  Pod         ✔ Running     7d   ready:1/1
 │     └──□ bluegreen-demo-74b948fccb-vvj2t  Pod         ✔ Running     7d   ready:1/1

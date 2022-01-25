@@ -90,6 +90,7 @@ status:
     replicas: 1
     status: Running
     updatedReplicas: 1
+    collisionCount: 1
   - availableReplicas: 1
     lastTransitionTime: "2019-10-30T07:28:43Z"
     name: canary
@@ -97,3 +98,4 @@ status:
     replicas: 1
     status: Running
     updatedReplicas: 1
+    collisionCount: 1
