@@ -4,6 +4,9 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    ignore:
+    - dependency-name: k8s.io/*
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
