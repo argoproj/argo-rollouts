@@ -295,7 +295,6 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
         icon = 'fa-flask';
     }
 
-
     return (
         <React.Fragment>
             <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>

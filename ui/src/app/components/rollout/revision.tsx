@@ -36,17 +36,12 @@ interface RevisionWidgetProps {
     current: boolean;
 }
 
-
-
-
-
 export const RevisionWidget = (props: RevisionWidgetProps) => {
     const {revision, initCollapsed} = props;
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
     const icon = collapsed ? 'fa-chevron-circle-down' : 'fa-chevron-circle-up';
     const images = parseImages(revision.replicaSets);
-    
-        
+
     return (
         <EffectDiv key={revision.number} className='revision'>
             <ThemeDiv className='revision__header'>
