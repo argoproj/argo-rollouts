@@ -117,7 +117,7 @@ func (c *FakeAnalysisRuns) UpdateStatus(ctx context.Context, analysisRun *v1alph
 // Delete takes name of the analysisRun and deletes it. Returns an error if one occurs.
 func (c *FakeAnalysisRuns) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(analysisrunsResource, c.ns, name), &v1alpha1.AnalysisRun{})
+		Invokes(testing.NewDeleteActionWithOptions(analysisrunsResource, c.ns, name, opts), &v1alpha1.AnalysisRun{})
 
 	return err
 }

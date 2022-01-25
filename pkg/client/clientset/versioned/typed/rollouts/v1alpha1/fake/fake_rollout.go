@@ -117,7 +117,7 @@ func (c *FakeRollouts) UpdateStatus(ctx context.Context, rollout *v1alpha1.Rollo
 // Delete takes name of the rollout and deletes it. Returns an error if one occurs.
 func (c *FakeRollouts) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(rolloutsResource, c.ns, name), &v1alpha1.Rollout{})
+		Invokes(testing.NewDeleteActionWithOptions(rolloutsResource, c.ns, name, opts), &v1alpha1.Rollout{})
 
 	return err
 }

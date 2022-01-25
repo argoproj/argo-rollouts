@@ -26,7 +26,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: 1.17
         id: go
 
       - name: Check out code into the Go module directory
@@ -70,7 +70,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: 1.16.2
+          go-version: 1.17.6
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
       # This symlink is necessary to ensure that `git diff` detects changes
       - name: Create symlink in GOPATH
