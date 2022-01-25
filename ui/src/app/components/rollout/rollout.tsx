@@ -145,7 +145,8 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                                     rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
                                     current={i === 0}
                                 />
-                            ))}
+                            )
+                            )}
                         </div>
                     </ThemeDiv>
                 )}
@@ -293,6 +294,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
         content = 'Experiment';
         icon = 'fa-flask';
     }
+
 
     return (
         <React.Fragment>

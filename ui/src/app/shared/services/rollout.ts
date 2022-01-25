@@ -54,6 +54,8 @@ export const useWatchRollout = (name: string, subscribe: boolean, timeoutAfter?:
     }, []);
     const streamUrl = RolloutServiceApiFetchParamCreator().rolloutServiceWatchRolloutInfo(namespaceCtx.namespace, name).url;
     const ri = useWatch<RolloutInfo>(streamUrl, subscribe, isEqual, timeoutAfter);
+    console.log(streamUrl)
+    console.log(ri)
     if (callback && ri.objectMeta) {
         callback(ri);
     }

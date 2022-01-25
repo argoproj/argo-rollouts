@@ -18,12 +18,13 @@ spec:
     spec:
       containers:
       - name: rollouts-demo
-        image: argoproj/rollouts-demo:blue
+        image: argoproj/rollouts-demo:red
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
   strategy:
     canary:
+      scaleDownDelaySeconds: 30
       steps:
       - setWeight: 20
       # The following pause step will pause the rollout indefinitely until manually resumed.

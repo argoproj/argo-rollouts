@@ -26,7 +26,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
     return (
         <GenericHeader>
             <Link to='/'>
-                <Brand path={name} brandName='Argo Rollouts' logo={<Logo />} />
+                <Brand path={name} brandName='Argo' logo={<Logo />} />
             </Link>
             <div className='rollouts-header__info'>
                 {props.pageHasShortcuts && (

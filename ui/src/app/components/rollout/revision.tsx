@@ -1,5 +1,6 @@
 import {ActionButton, EffectDiv, formatTimestamp, InfoItemProps, InfoItemRow, ThemeDiv, Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
+
 import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {IconForTag} from '../../shared/utils/utils';
 import {ReplicaSets} from '../pods/pods';
@@ -35,16 +36,23 @@ interface RevisionWidgetProps {
     current: boolean;
 }
 
+
+
+
+
 export const RevisionWidget = (props: RevisionWidgetProps) => {
     const {revision, initCollapsed} = props;
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
     const icon = collapsed ? 'fa-chevron-circle-down' : 'fa-chevron-circle-up';
     const images = parseImages(revision.replicaSets);
+    
+        
     return (
         <EffectDiv key={revision.number} className='revision'>
             <ThemeDiv className='revision__header'>
                 Revision {revision.number}
                 <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
+                
                     {!props.current && props.rollback && (
                         <ActionButton action={() => props.rollback(revision.number)} label='ROLLBACK' icon='fa-undo-alt' style={{fontSize: '13px'}} indicateLoading shouldConfirm />
                     )}
@@ -56,7 +64,7 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
             <ThemeDiv className='revision__images'>
                 <ImageItems images={images} />
             </ThemeDiv>
-
+           
             {!collapsed && (
                 <React.Fragment>
                     <ReplicaSets replicaSets={revision.replicaSets} />

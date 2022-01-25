@@ -56,16 +56,12 @@ spec:
       trafficRouting:
         istio:
           virtualService:
+
             name: istio-host-split-vsvc
             routes:
               - primary
       steps:
         - setWeight: 10
-        - experiment:
-            templates:
-            - name: experiment-istio
-              specRef: canary
-              weight: 20
   selector:
     matchLabels:
       app: istio-host-split
@@ -76,7 +72,7 @@ spec:
     spec:
       containers:
         - name: istio-host-split
-          image: argoproj/rollouts-demo:blue
+          image: argoproj/rollouts-demo:green
           ports:
             - name: http
               containerPort: 80

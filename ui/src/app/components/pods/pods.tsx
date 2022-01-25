@@ -3,6 +3,7 @@ import * as React from 'react';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {Pod} from '../../../models/rollout/rollout';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
+import { Timer } from '../Timer/timer';
 import './pods.scss';
 
 export enum PodStatus {
@@ -83,7 +84,7 @@ export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRe
     if (!replicaSets || replicaSets.length < 1) {
         return <div>No replica sets!</div>;
     }
-
+     
     return (
         <div>
             {replicaSets?.map(
@@ -101,12 +102,14 @@ export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRe
 
 export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boolean}) => {
     const rsName = props.rs.objectMeta.name;
+    console.error(props.rs.scaleDownDeadline);
     return (
         <ThemeDiv className='pods'>
             {rsName && (
                 <ThemeDiv className='pods__header'>
                     <span style={{marginRight: '5px'}}>{rsName}</span> <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
                     {props.showRevision && <div style={{marginLeft: 'auto'}}>Revision {props.rs.revision}</div>}
+                    {props.rs.scaleDownDeadline && <div style={{marginLeft: 'auto'}}><Timer date={props.rs.scaleDownDeadline}/></div>}
                 </ThemeDiv>
             )}
 

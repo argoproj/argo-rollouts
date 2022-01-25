@@ -16,6 +16,9 @@ Argo Rollouts (optionally) integrates with ingress controllers and service meshe
 ```
 kubectl create namespace argo-rollouts
 kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+
+
+kubectl apply -f  examples/rollout-canary.yaml
 ```
 
 Follow the full [getting started guide](docs/getting-started.md) to walk through creating and then updating a rollout object. 
