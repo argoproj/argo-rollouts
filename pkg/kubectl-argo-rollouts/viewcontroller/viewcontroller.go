@@ -219,9 +219,7 @@ func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 
 	podTemplateHashes := map[string]int{}
 	for i, rs := range allReplicaSets {
-		if hash, ok := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]; ok {
-			podTemplateHashes[hash] = i
-		}
+		podTemplateHashes[rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]] = i
 	}
 
 	allPods := []*corev1.Pod{}

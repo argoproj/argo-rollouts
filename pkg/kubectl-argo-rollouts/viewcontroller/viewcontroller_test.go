@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	rolloutsfake "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -16,8 +17,25 @@ import (
 )
 
 func newFakeRolloutController(namespace string, name string, objects ...runtime.Object) *RolloutViewController {
-	rolloutsClientset := rolloutsfake.NewSimpleClientset(objects...)
-	kubeClientset := k8sfake.NewSimpleClientset()
+
+	var rolloutObjs []runtime.Object
+	var kubeObjs []runtime.Object
+
+	for _, o := range objects {
+		switch typedO := o.(type) {
+		case *v1alpha1.Rollout:
+			typedO.TypeMeta = metav1.TypeMeta{
+				Kind:       "Rollout",
+				APIVersion: "argoproj.io/v1alpha1",
+			}
+			rolloutObjs = append(rolloutObjs, o)
+		default:
+			kubeObjs = append(kubeObjs, o)
+		}
+	}
+
+	rolloutsClientset := rolloutsfake.NewSimpleClientset(rolloutObjs...)
+	kubeClientset := k8sfake.NewSimpleClientset(kubeObjs...)
 	return NewRolloutViewController(namespace, name, kubeClientset, rolloutsClientset)
 }
 
@@ -32,9 +50,33 @@ func TestRolloutController(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "test",
+			UID:       "a17d1089-fae6-11e9-a15b-42010aa80033",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "foo",
+				},
+			},
 		},
 	}
-	c := newFakeRolloutController(ro.Namespace, ro.Name, ro)
+
+	rs := &appsv1.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rs1",
+			Namespace: "test",
+			Labels: map[string]string{
+				"app": "foo",
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					UID: "a17d1089-fae6-11e9-a15b-42010aa80033",
+				},
+			},
+		},
+	}
+
+	c := newFakeRolloutController(ro.Namespace, ro.Name, ro, rs)
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	c.Start(ctx)
@@ -42,6 +84,7 @@ func TestRolloutController(t *testing.T) {
 	roInfo, err := c.GetRolloutInfo()
 	assert.NoError(t, err)
 	assert.Equal(t, roInfo.ObjectMeta.Name, "foo")
+	assert.Equal(t, 1, len(roInfo.GetReplicaSets()))
 }
 
 func TestRolloutControllerCallback(t *testing.T) {

@@ -618,7 +618,6 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 // newAnalysisRun generates an AnalysisRun from the experiment and template
 func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) (*v1alpha1.AnalysisRun, error) {
 
-	ec.log.Infoln("DEBUG newAnalysisRun")
 	// copy ex DefaultRolloutLabelKey and DefaultRolloutNamespaceLabelKey label to analysisrun
 	var addExRolloutLabels func(ar *v1alpha1.AnalysisRun)
 	addExRolloutLabels = func(ar *v1alpha1.AnalysisRun) {
