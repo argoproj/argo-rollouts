@@ -1,4 +1,4 @@
-import {EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, WaitFor } from 'argo-ui/v2';
+import {EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, WaitFor} from 'argo-ui/v2';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Key, KeybindingContext} from 'react-keyhooks';
