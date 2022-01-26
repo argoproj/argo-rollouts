@@ -1,6 +1,5 @@
 import {ActionButton, EffectDiv, formatTimestamp, InfoItemProps, InfoItemRow, ThemeDiv, Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
-
 import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {IconForTag} from '../../shared/utils/utils';
 import {ReplicaSets} from '../pods/pods';
@@ -41,7 +40,6 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
     const icon = collapsed ? 'fa-chevron-circle-down' : 'fa-chevron-circle-up';
     const images = parseImages(revision.replicaSets);
-
     return (
         <EffectDiv key={revision.number} className='revision'>
             <ThemeDiv className='revision__header'>
@@ -59,7 +57,7 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
             <ThemeDiv className='revision__images'>
                 <ImageItems images={images} />
             </ThemeDiv>
-           
+
             {!collapsed && (
                 <React.Fragment>
                     <ReplicaSets replicaSets={revision.replicaSets} />
