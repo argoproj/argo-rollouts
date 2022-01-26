@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
@@ -60,14 +61,14 @@ func generateRollout(image string) v1alpha1.Rollout {
 // generateRS creates a replica set, with the input rollout's template as its template
 func generateRS(rollout v1alpha1.Rollout) appsv1.ReplicaSet {
 	template := rollout.Spec.Template.DeepCopy()
-	podTemplateHash := controller.ComputeHash(&rollout.Spec.Template, nil)
+	podTemplateHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, nil)
 	template.Labels = map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podTemplateHash,
 	}
 	return appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:    uuid.NewUUID(),
-			Name:   fmt.Sprintf("%s-%s", rollout.Name, controller.ComputeHash(&rollout.Spec.Template, nil)),
+			Name:   fmt.Sprintf("%s-%s", rollout.Name, podTemplateHash),
 			Labels: template.Labels,
 		},
 		Spec: appsv1.ReplicaSetSpec{
@@ -637,7 +638,7 @@ func TestCheckPodSpecChange(t *testing.T) {
 	ro := generateRollout("nginx")
 	rs := generateRS(ro)
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
-	ro.Status.CurrentPodHash = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
+	ro.Status.CurrentPodHash = hash.ComputePodTemplateHash(&ro.Spec.Template, ro.Status.CollisionCount)
 	assert.False(t, CheckPodSpecChange(&ro, &rs))
 
 	ro.Status.CurrentPodHash = "different-hash"
@@ -828,7 +829,7 @@ func TestGenerateReplicaSetAffinity(t *testing.T) {
 	assert.Equal(t, "", ro.Status.StableRS)
 	assert.Nil(t, GenerateReplicaSetAffinity(ro))
 	// StableRS is equal to CurrentPodHash
-	ro.Status.StableRS = controller.ComputeHash(&ro.Spec.Template, nil)
+	ro.Status.StableRS = hash.ComputePodTemplateHash(&ro.Spec.Template, nil)
 	assert.Nil(t, GenerateReplicaSetAffinity(ro))
 
 	// Injects anti-affinity rule with RequiredDuringSchedulingIgnoredDuringExecution into empty RS Affinity object
