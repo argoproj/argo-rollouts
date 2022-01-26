@@ -1,4 +1,4 @@
-import {EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, WaitFor} from 'argo-ui/v2';
+import {EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, WaitFor } from 'argo-ui/v2';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Key, KeybindingContext} from 'react-keyhooks';
@@ -145,8 +145,7 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                                     rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
                                     current={i === 0}
                                 />
-                            )
-                            )}
+                            ))}
                         </div>
                     </ThemeDiv>
                 )}
