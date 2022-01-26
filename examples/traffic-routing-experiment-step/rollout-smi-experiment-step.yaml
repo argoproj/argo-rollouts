@@ -64,7 +64,7 @@ spec:
           templates:
             - name: experiment-smi
               specRef: canary
-              weight: 10
+              weight: 5
   revisionHistoryLimit: 2
   selector:
     matchLabels:
