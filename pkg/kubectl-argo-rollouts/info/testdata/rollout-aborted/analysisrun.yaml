@@ -8,6 +8,8 @@ metadata:
   labels:
     rollout-type: Background
     rollouts-pod-template-hash: db976bc44
+    rollout: rollout-background-analysis
+    rollout-namespace: default
   name: rollout-background-analysis-db976bc44-2
   namespace: default
   ownerReferences:

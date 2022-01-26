@@ -6,7 +6,8 @@ metadata:
   labels:
     experiment.argoproj.io/name: rollout-experiment-analysis-6f646bf7b7-1-vcv27
     experiment.argoproj.io/template-name: canary
-    rollouts-pod-template-hash: 748f488c6d
+    rollout: rollout-experiment-analysis
+    rollout-namespace: jesse-test
   name: rollout-experiment-analysis-6f646bf7b7-1-vcv27-canary-7699dcf5d
   namespace: jesse-test
   ownerReferences:

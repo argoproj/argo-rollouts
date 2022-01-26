@@ -6,7 +6,8 @@ metadata:
   labels:
     experiment.argoproj.io/name: rollout-experiment-analysis-6f646bf7b7-1-vcv27
     experiment.argoproj.io/template-name: baseline
-    rollouts-pod-template-hash: 68b5f59dfb
+    rollout: rollout-experiment-analysis
+    rollout-namespace: jesse-test
   name: rollout-experiment-analysis-6f646bf7b7-1-vcv27-baseline-7d768b8b5f
   namespace: jesse-test
   ownerReferences:

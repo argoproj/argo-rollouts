@@ -9,7 +9,8 @@ metadata:
   name: canary-demo-645d5dbc4c-2-0-canary-preview
   namespace: jesse-test
   labels:
-    rollouts-pod-template-hash: 76f8bd57fd
+    rollout: canary-demo
+    rollout-namespace: jesse-test
   ownerReferences:
   - apiVersion: argoproj.io/v1alpha1
     blockOwnerDeletion: true

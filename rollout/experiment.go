@@ -41,7 +41,9 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			Namespace:       r.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
 			Labels: map[string]string{
-				v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
+				v1alpha1.DefaultRolloutUniqueLabelKey:    podHash,
+				v1alpha1.DefaultRolloutLabelKey:          r.Name,
+				v1alpha1.DefaultRolloutNamespaceLabelKey: r.Namespace,
 			},
 			Annotations: map[string]string{
 				annotations.RevisionAnnotation: revision,

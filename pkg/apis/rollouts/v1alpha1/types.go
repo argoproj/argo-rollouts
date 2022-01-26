@@ -152,6 +152,10 @@ const (
 	// LabelKeyControllerInstanceID is the label the controller uses for the rollout, experiment, analysis segregation
 	// between controllers. Controllers will only operate on objects with the same instanceID as the controller.
 	LabelKeyControllerInstanceID = "argo-rollouts.argoproj.io/controller-instance-id"
+	// DefaultRolloutLabelKey is the label of rollout name added to experiments, analysisrun
+	DefaultRolloutLabelKey string = "rollout"
+	// DefaultRolloutNamespaceLabelKey is the label of rollout namespace added to experiments, analysisrun
+	DefaultRolloutNamespaceLabelKey string = "rollout-namespace"
 )
 
 // RolloutStrategy defines strategy to apply during next rollout

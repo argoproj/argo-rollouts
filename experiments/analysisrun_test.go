@@ -118,6 +118,40 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
 }
 
+func TestCreateAnalysisRunFromExperimentRolloutLabels(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+		},
+	}
+	e.ObjectMeta.Labels = map[string]string{
+		v1alpha1.DefaultRolloutLabelKey:          "my-app",
+		v1alpha1.DefaultRolloutNamespaceLabelKey: "test",
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+
+	f := newFixture(t, e, rs, &aTemplates[0])
+	defer f.Close()
+
+	createdIndex := f.expectCreateAnalysisRunAction(ar)
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
+
+	createdAr := f.getCreatedAnalysisRun(createdIndex)
+	assert.Equal(t, "my-app", createdAr.ObjectMeta.Labels[v1alpha1.DefaultRolloutLabelKey])
+	assert.Equal(t, "test", createdAr.ObjectMeta.Labels[v1alpha1.DefaultRolloutNamespaceLabelKey])
+}
+
 // TestCreateAnalysisRunWithInstanceID ensures we add an instance ID to the AnalysisRun
 func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
 	templates := generateTemplates("bar")
