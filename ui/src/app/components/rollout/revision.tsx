@@ -45,7 +45,6 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
             <ThemeDiv className='revision__header'>
                 Revision {revision.number}
                 <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
-                
                     {!props.current && props.rollback && (
                         <ActionButton action={() => props.rollback(revision.number)} label='ROLLBACK' icon='fa-undo-alt' style={{fontSize: '13px'}} indicateLoading shouldConfirm />
                     )}
