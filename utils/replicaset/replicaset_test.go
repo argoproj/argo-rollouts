@@ -79,6 +79,26 @@ func generateRS(rollout v1alpha1.Rollout) appsv1.ReplicaSet {
 	}
 }
 
+func TestFindNewReplicaSet(t *testing.T) {
+	ro := generateRollout("red")
+	rs1 := generateRS(ro)
+	rs1.Labels["name"] = "red"
+	*(rs1.Spec.Replicas) = 1
+
+	t.Run("FindNewReplicaSet by hash", func(t *testing.T) {
+		// rs has the current hash
+		rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = hash.ComputePodTemplateHash(&ro.Spec.Template, ro.Status.CollisionCount)
+		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs1})
+		assert.Equal(t, &rs1, actual)
+	})
+	t.Run("FindNewReplicaSet by deprecated hash", func(t *testing.T) {
+		// rs has the deprecated hash
+		rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = controller.ComputeHash(&ro.Spec.Template, ro.Status.CollisionCount)
+		actual := FindNewReplicaSet(&ro, []*appsv1.ReplicaSet{&rs1})
+		assert.Equal(t, &rs1, actual)
+	})
+}
+
 func TestFindOldReplicaSets(t *testing.T) {
 	now := metav1.Now()
 	before := metav1.Time{Time: now.Add(-time.Minute)}
@@ -86,7 +106,7 @@ func TestFindOldReplicaSets(t *testing.T) {
 	rollout := generateRollout("nginx")
 	newRS := generateRS(rollout)
 	*(newRS.Spec.Replicas) = 1
-	newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = "hash"
+	newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] = hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	newRS.CreationTimestamp = now
 
 	oldRollout := generateRollout("nginx")
