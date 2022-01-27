@@ -2209,7 +2209,12 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 <p><code>go.mod</code> is used, so the <code>go build/test</code> commands automatically install the needed dependencies</p>
 <p>The <code>make controller</code> command will build the controller.</p>
 <ul>
-<li><code>make codegen</code> - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go and modifies the open-api spec.</li>
+<li>
+<p><code>make install-tools-local</code> - Runs scripts to install codegen utility CLIs necessary for codegen.</p>
+</li>
+<li>
+<p><code>make codegen</code> - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go and modifies the open-api spec.</p>
+</li>
 </ul>
 <h2 id="running-controller-locally">Running Controller Locally<a class="headerlink" href="#running-controller-locally" title="Permanent link">&para;</a></h2>
 <p>It is much easier to run and debug if you run Argo Rollout in your local machine than in the Kubernetes cluster.</p>
