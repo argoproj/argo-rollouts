@@ -56,6 +56,8 @@ cd ~/go/src/github.com/argoproj/argo-rollouts
 
 The `make controller` command will build the controller.
 
+* `make install-tools-local` - Runs scripts to install codegen utility CLIs necessary for codegen.
+
 * `make codegen` - Runs the code generator that creates the informers, client, lister, and deepcopies from the types.go and modifies the open-api spec.
 
 
