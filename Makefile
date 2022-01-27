@@ -123,12 +123,12 @@ gen-k8scodegen: go-mod-vendor
 
 # generates ./manifests/crds/
 .PHONY: gen-crd
-gen-crd: $(DIST_DIR)/controller-gen
+gen-crd: install-go-tools-local
 	go run ./hack/gen-crd-spec/main.go
 
 # generates mock files from interfaces
 .PHONY: gen-mocks
-gen-mocks: $(DIST_DIR)/mockery
+gen-mocks: install-go-tools-local
 	./hack/update-mocks.sh
 
 # generates openapi_generated.go
