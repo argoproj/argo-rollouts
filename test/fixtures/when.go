@@ -75,7 +75,7 @@ func (w *When) injectDelays(un *unstructured.Unstructured) {
 	if E2EPodDelay == 0 {
 		return
 	}
-	sleepHandler := corev1.Handler{
+	sleepHandler := corev1.LifecycleHandler{
 		Exec: &corev1.ExecAction{
 			Command: []string{"sleep", strconv.Itoa(E2EPodDelay)},
 		},
