@@ -4,9 +4,13 @@ owners:
 
 approvers:
 - alexmt
+- huikang
 - jessesuen
 - khhirani
 
 reviewers:
+- agrawroh
 - dthomson25
-- huikang
+- harikrongali
+- kostis-codefresh
+- perenesenko
