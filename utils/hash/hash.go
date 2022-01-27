@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
-// ComputePodTemplateHash returns a hash value calculated from the Rollout's pod template.
+// ComputePodTemplateHash returns a hash value calculated from pod template.
 // The hash will be safe encoded to avoid bad words.
 func ComputePodTemplateHash(template *corev1.PodTemplateSpec, collisionCount *int32) string {
 	podTemplateSpecHasher := fnv.New32a()
