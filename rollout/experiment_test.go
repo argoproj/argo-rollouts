@@ -358,9 +358,9 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 			"message": "%s"
 		}
 	}`
-	now := metav1.Now().UTC().Format(time.RFC3339)
-	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
-	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchFmt, v1alpha1.PauseReasonInconclusiveExperiment, now, conditions, v1alpha1.PauseReasonInconclusiveExperiment))
+	now := timeutil.Now().UTC().Format(time.RFC3339)
+	c := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchFmt, v1alpha1.PauseReasonInconclusiveExperiment, now, c, v1alpha1.PauseReasonInconclusiveExperiment))
 	assert.Equal(t, expectedPatch, patch)
 }
 
