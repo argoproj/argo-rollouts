@@ -143,7 +143,7 @@ func TestFindOldReplicaSets(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			allRS := FindOldReplicaSets(&test.rollout, test.rsList)
+			allRS := FindOldReplicaSets(&test.rollout, test.rsList, &newRS)
 			sort.Sort(controller.ReplicaSetsByCreationTimestamp(allRS))
 			sort.Sort(controller.ReplicaSetsByCreationTimestamp(test.expected))
 			if !reflect.DeepEqual(allRS, test.expected) {
