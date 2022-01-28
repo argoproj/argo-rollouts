@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
@@ -36,7 +37,9 @@ import (
 
 const (
 	// CLIName is the name of the CLI
-	cliName = "argo-rollouts"
+	cliName    = "argo-rollouts"
+	jsonFormat = "json"
+	textFormat = "text"
 )
 
 func newCommand() *cobra.Command {
@@ -44,6 +47,7 @@ func newCommand() *cobra.Command {
 		clientConfig         clientcmd.ClientConfig
 		rolloutResyncPeriod  int64
 		logLevel             string
+		logFormat            string
 		klogLevel            int
 		metricsPort          int
 		healthzPort          int
@@ -75,10 +79,7 @@ func newCommand() *cobra.Command {
 				return nil
 			}
 			setLogLevel(logLevel)
-			formatter := &log.TextFormatter{
-				FullTimestamp: true,
-			}
-			log.SetFormatter(formatter)
+			log.SetFormatter(createFormatter(logFormat))
 			logutil.SetKLogLevel(klogLevel)
 			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
@@ -213,6 +214,7 @@ func newCommand() *cobra.Command {
 	command.Flags().Int64Var(&rolloutResyncPeriod, "rollout-resync", controller.DefaultRolloutResyncPeriod, "Time period in seconds for rollouts resync.")
 	command.Flags().BoolVar(&namespaced, "namespaced", false, "runs controller in namespaced mode (does not require cluster RBAC)")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&logFormat, "logformat", "info", "Set the logging format. One of: text|json")
 	command.Flags().IntVar(&klogLevel, "kloglevel", 0, "Set the klog logging level")
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
 	command.Flags().IntVar(&healthzPort, "healthzPort", controller.DefaultHealthzPort, "Set the port the healthz endpoint should be exposed over")
@@ -265,6 +267,22 @@ func setLogLevel(logLevel string) {
 		log.Fatal(err)
 	}
 	log.SetLevel(level)
+}
+
+func createFormatter(logFormat string) log.Formatter {
+	var formatType log.Formatter
+	switch strings.ToLower(logFormat) {
+	case jsonFormat:
+		formatType = &log.JSONFormatter{}
+	case textFormat:
+		formatType = &log.TextFormatter{
+			FullTimestamp: true,
+		}
+	default:
+		formatType = &log.TextFormatter{}
+	}
+
+	return formatType
 }
 
 func checkError(err error) {
