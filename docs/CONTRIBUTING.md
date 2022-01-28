@@ -93,6 +93,21 @@ Then run the e2e tests:
 make test-e2e
 ```
 
+## Controller architecture
+
+Argo Rollouts is actually a collection of individual controllers
+that handle a specific aspect of Progressive Delivery.
+
+[![Internal Architecture](architecture-assets/internal-architecture.png)](architecture-assets/internal-architecture.png)
+
+The controllers are:
+
+* [Rollout Controller](https://github.com/argoproj/argo-rollouts/blob/master/controller/controller.go)
+* [Service Controller](https://github.com/argoproj/argo-rollouts/blob/master/service/service.go)
+* [Ingress Controller](https://github.com/argoproj/argo-rollouts/blob/master/ingress/ingress.go)
+* [Experiment Controller](https://github.com/argoproj/argo-rollouts/blob/master/experiments/controller.go)
+* [AnalysisRun Controller](https://github.com/argoproj/argo-rollouts/blob/master/analysis/controller.go)
+
 ### Tips
 
 1. You can run the tests using a different kubeconfig by setting the `KUBECONFIG` environment variable:
