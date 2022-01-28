@@ -6,21 +6,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 )
 
 func TestHashUtils(t *testing.T) {
 	templateRed := generatePodTemplate("red")
-
 	hashRed := ComputePodTemplateHash(&templateRed, nil)
+	template := generatePodTemplate("red")
 
 	t.Run("HashForSameTemplates", func(t *testing.T) {
-		template := generatePodTemplate("red")
 		podHash := ComputePodTemplateHash(&template, nil)
 		assert.Equal(t, hashRed, podHash)
 	})
 	t.Run("HashForDifferentTemplates", func(t *testing.T) {
-		template := generatePodTemplate("blue")
-		podHash := ComputePodTemplateHash(&template, nil)
+		podHash := ComputePodTemplateHash(&template, pointer.Int32(1))
 		assert.NotEqual(t, hashRed, podHash)
 	})
 }
