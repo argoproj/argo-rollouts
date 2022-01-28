@@ -23,7 +23,9 @@ func GetRolloutPhase(ro *v1alpha1.Rollout) (v1alpha1.RolloutPhase, string) {
 	if !isGenerationObserved(ro) {
 		return v1alpha1.RolloutPhaseProgressing, "waiting for rollout spec update to be observed"
 	}
-
+	if IsUnpausing(ro) {
+		return v1alpha1.RolloutPhaseProgressing, "waiting for rollout to unpause"
+	}
 	if ro.Spec.TemplateResolvedFromRef && !isWorkloadGenerationObserved(ro) {
 		return v1alpha1.RolloutPhaseProgressing, "waiting for rollout spec update to be observed for the reference workload"
 	}
@@ -49,6 +51,17 @@ func isGenerationObserved(ro *v1alpha1.Rollout) bool {
 		return true
 	}
 	return int64(observedGen) == ro.Generation
+}
+
+// IsUnpausing detects if we are in the process of unpausing a rollout. This is determined by seeing
+// if status.controllerPause is true, but the list of pause conditions (status.pauseConditions)
+// is empty. This implies that a user cleared the pause conditions but controller has not yet
+// observed or reacted to it.
+// NOTE: this function is necessary because unlike metadata.generation & status.observedGeneration
+// status.controllerPause & status.pauseConditions are both status fields and does not benefit from
+// the auto-incrementing behavior of metadata.generation.
+func IsUnpausing(ro *v1alpha1.Rollout) bool {
+	return ro.Status.ControllerPause && len(ro.Status.PauseConditions) == 0
 }
 
 func isWorkloadGenerationObserved(ro *v1alpha1.Rollout) bool {
