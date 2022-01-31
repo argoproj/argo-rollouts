@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -39,6 +40,7 @@ type viewController struct {
 	rolloutLister     rolloutlisters.RolloutNamespaceLister
 	experimentLister  rolloutlisters.ExperimentNamespaceLister
 	analysisRunLister rolloutlisters.AnalysisRunNamespaceLister
+	deploymentLister  appslisters.DeploymentNamespaceLister
 
 	cacheSyncs []cache.InformerSynced
 
@@ -100,6 +102,7 @@ func newViewController(namespace string, name string, kubeClient kubernetes.Inte
 		rolloutLister:           rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace),
 		experimentLister:        rolloutsInformerFactory.Argoproj().V1alpha1().Experiments().Lister().Experiments(namespace),
 		analysisRunLister:       rolloutsInformerFactory.Argoproj().V1alpha1().AnalysisRuns().Lister().AnalysisRuns(namespace),
+		deploymentLister:        kubeInformerFactory.Apps().V1().Deployments().Lister().Deployments(namespace),
 		workqueue:               workqueue.NewRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter()),
 	}
 
@@ -144,6 +147,7 @@ func (c *viewController) Run(ctx context.Context) error {
 		}
 	}, time.Second, ctx.Done())
 	<-ctx.Done()
+	c.DeregisterCallbacks()
 	return nil
 }
 
@@ -166,6 +170,10 @@ func (c *viewController) processNextWorkItem() bool {
 		c.prevObj = newObj
 	}
 	return true
+}
+
+func (c *viewController) DeregisterCallbacks() {
+	c.callbacks = nil
 }
 
 func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
@@ -194,7 +202,15 @@ func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 		return nil, err
 	}
 
-	roInfo := info.NewRolloutInfo(ro, allReplicaSets, allPods, allExps, allAnalysisRuns)
+	var workloadRef *v1.Deployment
+	if ro.Spec.WorkloadRef != nil {
+		workloadRef, err = c.deploymentLister.Get(ro.Spec.WorkloadRef.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	roInfo := info.NewRolloutInfo(ro, allReplicaSets, allPods, allExps, allAnalysisRuns, workloadRef)
 	return roInfo, nil
 }
 

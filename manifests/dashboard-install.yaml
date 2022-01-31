@@ -53,6 +53,13 @@ rules:
 - apiGroups:
   - apps
   resources:
+  - deployments
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - apps
+  resources:
   - replicasets
   verbs:
   - get

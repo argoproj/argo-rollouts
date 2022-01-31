@@ -100,14 +100,14 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 			Name: "foo",
 		},
 	}
-	assert.Equal(t, "foo-template-85f7cf5fc7", ReplicasetNameFromExperiment(e, template))
+	assert.Equal(t, "foo-template-78957574d7", ReplicasetNameFromExperiment(e, template))
 
 	newTemplateStatus := v1alpha1.TemplateStatus{
 		Name:           templateName,
 		CollisionCount: pointer.Int32Ptr(1),
 	}
 	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, newTemplateStatus)
-	assert.Equal(t, "foo-template-56ccbc9b64", ReplicasetNameFromExperiment(e, template))
+	assert.Equal(t, "foo-template-db98f55f8", ReplicasetNameFromExperiment(e, template))
 }
 
 func TestExperimentByCreationTimestamp(t *testing.T) {

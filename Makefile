@@ -53,7 +53,7 @@ define protoc
       -I . \
       -I ./vendor \
       -I ${GOPATH}/src \
-      -I ${GOPATH}/pkg/mod/github.com/gogo/protobuf@v1.3.1/gogoproto \
+      -I ${GOPATH}/pkg/mod/github.com/gogo/protobuf@v1.3.2/gogoproto \
       -I ${GOPATH}/pkg/mod/github.com/grpc-ecosystem/grpc-gateway@v1.16.0/third_party/googleapis \
       --gogofast_out=plugins=grpc:${GOPATH}/src \
       --grpc-gateway_out=logtostderr=true:${GOPATH}/src \
@@ -123,12 +123,12 @@ gen-k8scodegen: go-mod-vendor
 
 # generates ./manifests/crds/
 .PHONY: gen-crd
-gen-crd: $(DIST_DIR)/controller-gen
+gen-crd: install-go-tools-local
 	go run ./hack/gen-crd-spec/main.go
 
 # generates mock files from interfaces
 .PHONY: gen-mocks
-gen-mocks: $(DIST_DIR)/mockery
+gen-mocks: install-go-tools-local
 	./hack/update-mocks.sh
 
 # generates openapi_generated.go
@@ -255,3 +255,8 @@ release-plugins:
 
 .PHONY: release
 release: release-precheck precheckin image plugin-image release-plugins
+
+.PHONY: trivy
+trivy:
+	@trivy fs --clear-cache
+	@trivy fs .

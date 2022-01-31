@@ -99,12 +99,13 @@ const (
 	// rollout that paused amidst a rollout and are bounded by a deadline.
 	RolloutResumedMessage = "Rollout is resumed"
 
-	// ResumedRolloutReason is added in a rollout when it is resumed. Useful for not failing accidentally
-	// rollout that paused amidst a rollout and are bounded by a deadline.
-	RolloutStepCompletedReason = "RolloutStepCompleted"
-	// ResumeRolloutMessage is added in a rollout when it is resumed. Useful for not failing accidentally
-	// rollout that paused amidst a rollout and are bounded by a deadline.
+	// RolloutStepCompleted indicates when a canary step has completed
+	RolloutStepCompletedReason  = "RolloutStepCompleted"
 	RolloutStepCompletedMessage = "Rollout step %d/%d completed (%s)"
+
+	// TrafficWeightUpdated is emitted any time traffic weight is modified
+	TrafficWeightUpdatedReason  = "TrafficWeightUpdated"
+	TrafficWeightUpdatedMessage = "Traffic weight updated %s"
 
 	// NewRSAvailableReason is added in a rollout when its newest replica set is made available
 	// ie. the number of new pods that have passed readiness checks and run for at least minReadySeconds

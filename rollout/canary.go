@@ -179,7 +179,6 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 	}
 
 	annotationedRSs := int32(0)
-	rolloutReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
 	for _, targetRS := range oldRSs {
 		if replicasetutil.IsStillReferenced(c.rollout.Status, targetRS) {
 			// We should technically never get here because we shouldn't be passing a replicaset list
@@ -209,8 +208,8 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 					// 1. if we are using dynamic scaling, then this should be scaled down to 0 now
 					desiredReplicaCount = 0
 				} else {
-					// 2. otherwise, honor scaledown delay second
-					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
+					// 2. otherwise, honor scaledown delay second and keep replicas of the current step
+					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
 					if err != nil {
 						return totalScaledDown, err
 					}

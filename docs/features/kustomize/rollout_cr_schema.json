@@ -606,6 +606,21 @@
                                                                 "format": "int32",
                                                                 "type": "integer"
                                                             },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "httpGet": {
                                                                 "properties": {
                                                                     "host": {
@@ -750,6 +765,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {
@@ -962,6 +992,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {
@@ -1470,6 +1515,21 @@
                                                                 "format": "int32",
                                                                 "type": "integer"
                                                             },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "httpGet": {
                                                                 "properties": {
                                                                     "host": {
@@ -1591,7 +1651,12 @@
                                                             ],
                                                             "type": "object"
                                                         },
-                                                        "type": "array"
+                                                        "type": "array",
+                                                        "x-kubernetes-list-map-keys": [
+                                                            "containerPort",
+                                                            "protocol"
+                                                        ],
+                                                        "x-kubernetes-list-type": "map"
                                                     },
                                                     "readinessProbe": {
                                                         "properties": {
@@ -1609,6 +1674,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {
@@ -1821,6 +1901,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {
@@ -2364,6 +2459,21 @@
                                                                 "format": "int32",
                                                                 "type": "integer"
                                                             },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "httpGet": {
                                                                 "properties": {
                                                                     "host": {
@@ -2508,6 +2618,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {
@@ -2720,6 +2845,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {

@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -288,10 +289,6 @@ func (s *IstioSuite) TestIstioAbortUpdateDeleteAllCanaryPods() {
 		WaitForRolloutStatus("Paused").
 		Then().
 		ExpectRevisionPodCount("2", 2).
-		When().
-		PromoteRollout().
-		WaitForRolloutStatus("Paused").
-		Then().
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Paused").

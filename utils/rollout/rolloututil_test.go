@@ -394,3 +394,23 @@ func TestCanaryStepString(t *testing.T) {
 		assert.Equal(t, test.expectedString, CanaryStepString(test.step))
 	}
 }
+
+func TestIsUnpausing(t *testing.T) {
+	ro := newCanaryRollout()
+	ro.Status.Phase = v1alpha1.RolloutPhasePaused
+	ro.Status.Message = "canary pause"
+	ro.Status.PauseConditions = []v1alpha1.PauseCondition{
+		{
+			Reason: v1alpha1.PauseReasonCanaryPauseStep,
+		},
+	}
+	ro.Status.ControllerPause = true
+	status, message := GetRolloutPhase(ro)
+	assert.Equal(t, v1alpha1.RolloutPhasePaused, status)
+	assert.Equal(t, "canary pause", message)
+
+	ro.Status.PauseConditions = nil
+	status, message = GetRolloutPhase(ro)
+	assert.Equal(t, v1alpha1.RolloutPhaseProgressing, status)
+	assert.Equal(t, "waiting for rollout to unpause", message)
+}
