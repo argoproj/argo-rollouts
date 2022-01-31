@@ -102,7 +102,7 @@ that handle a specific aspect of Progressive Delivery.
 
 The controllers are:
 
-* [Rollout Controller](https://github.com/argoproj/argo-rollouts/blob/master/controller/controller.go)
+* [Rollout Controller](https://github.com/argoproj/argo-rollouts/blob/master/rollout/controller.go)
 * [Service Controller](https://github.com/argoproj/argo-rollouts/blob/master/service/service.go)
 * [Ingress Controller](https://github.com/argoproj/argo-rollouts/blob/master/ingress/ingress.go)
 * [Experiment Controller](https://github.com/argoproj/argo-rollouts/blob/master/experiments/controller.go)
