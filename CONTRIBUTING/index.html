@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/CONTRIBUTING/">
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.8">
+      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.1.9">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.6e60f8b8.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.2b4465f4.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.e6a45f82.min.css">
@@ -1924,7 +1924,14 @@
     Running E2E tests
   </a>
   
-    <nav class="md-nav" aria-label="Running E2E tests">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#controller-architecture" class="md-nav__link">
+    Controller architecture
+  </a>
+  
+    <nav class="md-nav" aria-label="Controller architecture">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2114,7 +2121,14 @@
     Running E2E tests
   </a>
   
-    <nav class="md-nav" aria-label="Running E2E tests">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#controller-architecture" class="md-nav__link">
+    Controller architecture
+  </a>
+  
+    <nav class="md-nav" aria-label="Controller architecture">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2233,6 +2247,18 @@ running. The rollout controller can be started with the command:</p>
 <p>Then run the e2e tests:</p>
 <div class="highlight"><pre><span></span><code>make test-e2e
 </code></pre></div>
+<h2 id="controller-architecture">Controller architecture<a class="headerlink" href="#controller-architecture" title="Permanent link">&para;</a></h2>
+<p>Argo Rollouts is actually a collection of individual controllers
+that handle a specific aspect of Progressive Delivery.</p>
+<p><a href="../architecture-assets/internal-architecture.png"><img alt="Internal Architecture" src="../architecture-assets/internal-architecture.png" /></a></p>
+<p>The controllers are:</p>
+<ul>
+<li><a href="https://github.com/argoproj/argo-rollouts/blob/master/rollout/controller.go">Rollout Controller</a></li>
+<li><a href="https://github.com/argoproj/argo-rollouts/blob/master/service/service.go">Service Controller</a></li>
+<li><a href="https://github.com/argoproj/argo-rollouts/blob/master/ingress/ingress.go">Ingress Controller</a></li>
+<li><a href="https://github.com/argoproj/argo-rollouts/blob/master/experiments/controller.go">Experiment Controller</a></li>
+<li><a href="https://github.com/argoproj/argo-rollouts/blob/master/analysis/controller.go">AnalysisRun Controller</a></li>
+</ul>
 <h3 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h3>
 <ol>
 <li>You can run the tests using a different kubeconfig by setting the <code>KUBECONFIG</code> environment variable:</li>
