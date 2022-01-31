@@ -1,7 +1,9 @@
 package rollout
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -120,15 +122,29 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		if rolloututil.IsFullyPromoted(c.rollout) {
 			// when we are fully promoted. desired canary weight should be 0
 		} else if c.pauseContext.IsAborted() {
-			// when aborted, desired canary weight should be 0 (100% to stable), *unless* we
-			// are using dynamic stable scaling. In that case, we can only decrease canary weight
-			// according to available replica counts of the stable.
+			// when aborted, desired canary weight should immediately be 0 (100% to stable), *unless*
+			// we are using dynamic stable scaling. In that case, we are dynamically decreasing the
+			// weight to the canary according to the availability of the stable (whatever it can support).
 			if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
 				desiredWeight = 100 - ((100 * c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas)
+				if c.rollout.Status.Canary.Weights != nil {
+					// This ensures that if we are already at a lower weight, then we will not
+					// increase the weight because stable availability is flapping (e.g. pod restarts)
+					desiredWeight = minInt(desiredWeight, c.rollout.Status.Canary.Weights.Canary.Weight)
+				}
 			}
 		} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 			// when newRS is not available or replicas num is 0. never weight to canary
 			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
+		} else if c.rollout.Status.PromoteFull {
+			// on a promote full, desired stable weight should be 0 (100% to canary),
+			// But we can only increase canary weight according to available replica counts of the canary.
+			// we will need to set the desiredWeight to 0 when the newRS is not available.
+			if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+				desiredWeight = (100 * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+			} else if c.rollout.Status.Canary.Weights != nil {
+				desiredWeight = c.rollout.Status.Canary.Weights.Canary.Weight
+			}
 		} else if index != nil {
 			atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, nil)
 			if !atDesiredReplicaCount && !c.rollout.Status.PromoteFull {
@@ -165,6 +181,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		if modified, newWeights := calculateWeightStatus(c.rollout, canaryHash, stableHash, desiredWeight, weightDestinations...); modified {
 			c.log.Infof("Previous weights: %v", c.rollout.Status.Canary.Weights)
 			c.log.Infof("New weights: %v", newWeights)
+			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.TrafficWeightUpdatedReason}, trafficWeightUpdatedMessage(c.rollout.Status.Canary.Weights, newWeights))
 			c.newStatus.Canary.Weights = newWeights
 		}
 
@@ -193,6 +210,20 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		}
 	}
 	return nil
+}
+
+// trafficWeightUpdatedMessage returns a message we emit for the kubernetes event whenever we adjust traffic weights
+func trafficWeightUpdatedMessage(prev, new *v1alpha1.TrafficWeights) string {
+	var details []string
+	if prev == nil {
+		details = append(details, fmt.Sprintf("to %d", new.Canary.Weight))
+	} else if prev.Canary.Weight != new.Canary.Weight {
+		details = append(details, fmt.Sprintf("from %d to %d", prev.Canary.Weight, new.Canary.Weight))
+	}
+	if prev != nil && new != nil && !reflect.DeepEqual(prev.Additional, new.Additional) {
+		details = append(details, fmt.Sprintf("additional: %v", new.Additional))
+	}
+	return fmt.Sprintf(conditions.TrafficWeightUpdatedMessage, strings.Join(details, ", "))
 }
 
 // calculateWeightStatus calculates the Rollout's `status.canary.weights` values. Returns true if

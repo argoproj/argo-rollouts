@@ -47,6 +47,43 @@
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "name",
                                                     "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "dryRun": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "measurementRetention": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "limit": {
+                                                                "format": "int32",
+                                                                "type": "integer"
+                                                            },
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "limit",
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
                                             "type": "object"
@@ -89,6 +126,43 @@
                                                     },
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "name",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "dryRun": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "measurementRetention": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "limit": {
+                                                                "format": "int32",
+                                                                "type": "integer"
+                                                            },
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "limit",
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
                                                     "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
@@ -140,6 +214,43 @@
                                                     },
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "name",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "dryRun": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "measurementRetention": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "limit": {
+                                                                "format": "int32",
+                                                                "type": "integer"
+                                                            },
+                                                            "metricName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "limit",
+                                                            "metricName"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "metricName",
                                                     "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
@@ -495,6 +606,21 @@
                                                                 "format": "int32",
                                                                 "type": "integer"
                                                             },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "httpGet": {
                                                                 "properties": {
                                                                     "host": {
@@ -639,6 +765,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {
@@ -823,6 +964,9 @@
                                                                     "gmsaCredentialSpecName": {
                                                                         "type": "string"
                                                                     },
+                                                                    "hostProcess": {
+                                                                        "type": "boolean"
+                                                                    },
                                                                     "runAsUserName": {
                                                                         "type": "string"
                                                                     }
@@ -848,6 +992,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {
@@ -1356,6 +1515,21 @@
                                                                 "format": "int32",
                                                                 "type": "integer"
                                                             },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "httpGet": {
                                                                 "properties": {
                                                                     "host": {
@@ -1477,7 +1651,12 @@
                                                             ],
                                                             "type": "object"
                                                         },
-                                                        "type": "array"
+                                                        "type": "array",
+                                                        "x-kubernetes-list-map-keys": [
+                                                            "containerPort",
+                                                            "protocol"
+                                                        ],
+                                                        "x-kubernetes-list-type": "map"
                                                     },
                                                     "readinessProbe": {
                                                         "properties": {
@@ -1495,6 +1674,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {
@@ -1679,6 +1873,9 @@
                                                                     "gmsaCredentialSpecName": {
                                                                         "type": "string"
                                                                     },
+                                                                    "hostProcess": {
+                                                                        "type": "boolean"
+                                                                    },
                                                                     "runAsUserName": {
                                                                         "type": "string"
                                                                     }
@@ -1704,6 +1901,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {
@@ -2247,6 +2459,21 @@
                                                                 "format": "int32",
                                                                 "type": "integer"
                                                             },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "httpGet": {
                                                                 "properties": {
                                                                     "host": {
@@ -2391,6 +2618,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {
@@ -2575,6 +2817,9 @@
                                                                     "gmsaCredentialSpecName": {
                                                                         "type": "string"
                                                                     },
+                                                                    "hostProcess": {
+                                                                        "type": "boolean"
+                                                                    },
                                                                     "runAsUserName": {
                                                                         "type": "string"
                                                                     }
@@ -2600,6 +2845,21 @@
                                                             "failureThreshold": {
                                                                 "format": "int32",
                                                                 "type": "integer"
+                                                            },
+                                                            "grpc": {
+                                                                "properties": {
+                                                                    "port": {
+                                                                        "format": "int32",
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "service": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "port"
+                                                                ],
+                                                                "type": "object"
                                                             },
                                                             "httpGet": {
                                                                 "properties": {

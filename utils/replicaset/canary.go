@@ -43,56 +43,6 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 	return true
 }
 
-/*
-// AtDesiredReplicaCountsForCanary indicates if the rollout is at the desired state for the current step
-func AtDesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet) bool {
-	desiredNewRSReplicaCount, desiredStableRSReplicaCount := DesiredReplicaCountsForCanary(rollout, newRS, stableRS)
-	if newRS == nil || desiredNewRSReplicaCount != *newRS.Spec.Replicas || desiredNewRSReplicaCount != newRS.Status.AvailableReplicas {
-		return false
-	}
-	if stableRS == nil || desiredStableRSReplicaCount != *stableRS.Spec.Replicas || desiredStableRSReplicaCount != stableRS.Status.AvailableReplicas {
-		return false
-	}
-	if GetAvailableReplicaCountForReplicaSets(olderRSs) != int32(0) {
-		return false
-	}
-	return true
-}
-*/
-
-/*
-//DesiredReplicaCountsForCanary calculates the desired endstate replica count for the new and stable replicasets
-func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet) (int32, int32) {
-	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
-	replicas, weight := GetCanaryReplicasOrWeight(rollout)
-
-	desiredNewRSReplicaCount := int32(0)
-	desiredStableRSReplicaCount := int32(0)
-	if replicas != nil {
-		desiredNewRSReplicaCount = *replicas
-		desiredStableRSReplicaCount = rolloutSpecReplica
-	} else {
-		desiredNewRSReplicaCount = int32(math.Ceil(float64(rolloutSpecReplica) * (float64(weight) / 100)))
-		desiredStableRSReplicaCount = int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(weight) / 100))))
-	}
-
-	if !CheckStableRSExists(newRS, stableRS) {
-		// If there is no stableRS or it is the same as the newRS, then the rollout does not follow the canary steps.
-		// Instead the controller tries to get the newRS to 100% traffic.
-		desiredNewRSReplicaCount = rolloutSpecReplica
-		desiredStableRSReplicaCount = 0
-	}
-	// Unlike the ReplicaSet based weighted canary, a service mesh/ingress
-	// based canary leaves the stable as 100% scaled until the rollout completes.
-	if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
-		desiredStableRSReplicaCount = rolloutSpecReplica
-	}
-
-	return desiredNewRSReplicaCount, desiredStableRSReplicaCount
-
-}
-*/
-
 // CalculateReplicaCountsForBasicCanary calculates the number of replicas for the newRS and the stableRS
 // when using the basic canary strategy. The function calculates the desired number of replicas for
 // the new and stable RS using the following equations:
@@ -131,9 +81,9 @@ func DesiredReplicaCountsForCanary(rollout *v1alpha1.Rollout, newRS, stableRS *a
 func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) (int32, int32) {
 	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 	_, desiredWeight := GetCanaryReplicasOrWeight(rollout)
+	maxSurge := MaxSurge(rollout)
 
-	desiredStableRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (1 - (float64(desiredWeight) / 100))))
-	desiredNewRSReplicaCount := int32(math.Ceil(float64(rolloutSpecReplica) * (float64(desiredWeight) / 100)))
+	desiredNewRSReplicaCount, desiredStableRSReplicaCount := approximateWeightedCanaryStableReplicaCounts(rolloutSpecReplica, desiredWeight, maxSurge)
 
 	stableRSReplicaCount := int32(0)
 	newRSReplicaCount := int32(0)
@@ -151,13 +101,6 @@ func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *apps
 		desiredStableRSReplicaCount = 0
 	}
 
-	maxSurge := MaxSurge(rollout)
-
-	if extraReplicaAdded(rolloutSpecReplica, desiredWeight) {
-		// In the case where the weight of the stable and canary replica counts cannot be divided evenly,
-		// the controller needs to surges by one to account for both replica counts being rounded up.
-		maxSurge = maxSurge + 1
-	}
 	maxReplicaCountAllowed := rolloutSpecReplica + maxSurge
 
 	allRSs := append(oldRSs, newRS)
@@ -221,6 +164,84 @@ func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *apps
 		stableRSReplicaCount, newRSReplicaCount = adjustReplicaWithinLimits(stableRS, newRS, stableRSReplicaCount, newRSReplicaCount, maxReplicaCountAllowed, minAvailableReplicaCount)
 	}
 	return newRSReplicaCount, stableRSReplicaCount
+}
+
+// approximateWeightedCanaryStableReplicaCounts approximates the desired canary weight and returns
+// the closest replica count values for the canary and stable to reach the desired weight. The
+// canary/stable replica counts might sum to either spec.replicas or spec.replicas + 1 but will not
+// exceed spec.replicas if maxSurge is 0. If the canary weight is between 1-99, and spec.replicas is > 1,
+// we will always return a minimum of 1 for stable and canary as to not return 0.
+func approximateWeightedCanaryStableReplicaCounts(specReplicas, desiredWeight, maxSurge int32) (int32, int32) {
+	if specReplicas == 0 {
+		return 0, 0
+	}
+	// canaryOption is one potential return value of this function. We will evaluate multiple options
+	// for the canary count in order to best approximate the desired weight.
+	type canaryOption struct {
+		canary int32
+		total  int32
+	}
+	var options []canaryOption
+
+	ceilWeightedCanaryCount := int32(math.Ceil(float64(specReplicas*desiredWeight) / 100.0))
+	floorWeightedCanaryCount := int32(math.Floor(float64(specReplicas*desiredWeight) / 100.0))
+
+	tied := floorCeilingTied(desiredWeight, specReplicas)
+
+	// zeroAllowed indicates if are allowed to return the floored value if it is zero. We don't allow
+	// the value to be zero if when user has a weight from 1-99, and they run 2+ replicas (surge included)
+	zeroAllowed := desiredWeight == 100 || desiredWeight == 0 || (specReplicas == 1 && maxSurge == 0)
+
+	if ceilWeightedCanaryCount < specReplicas || zeroAllowed {
+		options = append(options, canaryOption{ceilWeightedCanaryCount, specReplicas})
+	}
+
+	if !tied && (floorWeightedCanaryCount != 0 || zeroAllowed) {
+		options = append(options, canaryOption{floorWeightedCanaryCount, specReplicas})
+	}
+
+	// check if we are allowed to surge. if we are, we can also consider rounding up to spec.replicas + 1
+	// in order to achieve a closer canary weight
+	if maxSurge > 0 {
+		options = append(options, canaryOption{ceilWeightedCanaryCount, specReplicas + 1})
+		surgeIsTied := floorCeilingTied(desiredWeight, specReplicas+1)
+		if !surgeIsTied && (floorWeightedCanaryCount != 0 || zeroAllowed) {
+			options = append(options, canaryOption{floorWeightedCanaryCount, specReplicas + 1})
+		}
+	}
+
+	if len(options) == 0 {
+		// should not get here
+		return 0, specReplicas
+	}
+
+	bestOption := options[0]
+	bestDelta := weightDelta(desiredWeight, bestOption.canary, bestOption.total)
+	for i := 1; i < len(options); i++ {
+		currOption := options[i]
+		currDelta := weightDelta(desiredWeight, currOption.canary, currOption.total)
+		if currDelta < bestDelta {
+			bestOption = currOption
+			bestDelta = currDelta
+		}
+	}
+	return bestOption.canary, bestOption.total - bestOption.canary
+}
+
+// floorCeilingTied indicates if the ceiling and floor values are equidistant from the desired weight
+// For example: replicas: 3, desiredWeight: 50%
+// A canary count of 1 (33.33%) or 2 (66.66%) are both equidistant from desired weight of 50%.
+// When this happens, we will pick the larger canary count
+func floorCeilingTied(desiredWeight, totalReplicas int32) bool {
+	_, frac := math.Modf(float64(totalReplicas) * (float64(desiredWeight) / 100))
+	return frac == 0.5
+}
+
+// weightDelta calculates the difference that the canary replicas will be from the desired weight
+// This is used to pick the closest approximation of canary counts.
+func weightDelta(desiredWeight, canaryReplicas, totalReplicas int32) float64 {
+	actualWeight := float64(canaryReplicas*100) / float64(totalReplicas)
+	return math.Abs(actualWeight - float64(desiredWeight))
 }
 
 // calculateScaleDownReplicaCount calculates drainRSReplicaCount
@@ -397,14 +418,6 @@ func GetReplicasForScaleDown(rs *appsv1.ReplicaSet, ignoreAvailability bool) int
 	return rs.Status.AvailableReplicas
 }
 
-// extraReplicaAdded checks if an extra replica is added because the stable and canary replicas count are both
-// rounded up. The controller rounds both of the replica counts when the setWeight does not distribute evenly
-// in order to prevent either from having a 0 replica count.
-func extraReplicaAdded(replicas int32, setWeight int32) bool {
-	_, frac := math.Modf(float64(replicas) * (float64(setWeight) / 100))
-	return frac != 0.0
-}
-
 // GetCurrentCanaryStep returns the current canary step. If there are no steps or the rollout
 // has already executed the last step, the func returns nil
 func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int32) {
@@ -423,7 +436,7 @@ func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int
 
 // GetCanaryReplicasOrWeight either returns a static set of replicas or a weight percentage
 func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32) {
-	if rollout.Status.PromoteFull || rollout.Status.CurrentPodHash == rollout.Status.StableRS {
+	if rollout.Status.PromoteFull || rollout.Status.StableRS == "" || rollout.Status.CurrentPodHash == rollout.Status.StableRS {
 		return nil, 100
 	}
 	if scs := UseSetCanaryScale(rollout); scs != nil {

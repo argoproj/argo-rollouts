@@ -242,16 +242,22 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 		}
 	}
 
+	// Generate Patches
 	patches := r.generateVirtualServicePatches(vsvcRouteNames, httpRoutes, vsvcTLSRoutes, tlsRoutes, int64(desiredWeight), additionalDestinations...)
 	err = patches.patchVirtualService(httpRoutesI, tlsRoutesI)
 	if err != nil {
 		return nil, false, err
 	}
 
-	err = unstructured.SetNestedSlice(newObj.Object, httpRoutesI, "spec", Http)
-	if err != nil {
-		return newObj, len(patches) > 0, err
+	// Set HTTP Route Slice
+	if len(httpRoutes) > 0 {
+		err = unstructured.SetNestedSlice(newObj.Object, httpRoutesI, "spec", Http)
+		if err != nil {
+			return newObj, len(patches) > 0, err
+		}
 	}
+
+	// Set TLS Route Slice
 	if tlsRoutesI != nil {
 		err = unstructured.SetNestedSlice(newObj.Object, tlsRoutesI, "spec", Tls)
 	}

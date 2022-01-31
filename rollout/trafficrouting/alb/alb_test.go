@@ -464,7 +464,8 @@ func TestVerifyWeight(t *testing.T) {
 
 	// LoadBalancer not found
 	{
-		r, _ := newFakeReconciler(nil)
+		var status v1alpha1.RolloutStatus
+		r, _ := newFakeReconciler(&status)
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
@@ -505,7 +506,7 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
-		assert.Equal(t, status.ALB, *fakeClient.getAlbStatus())
+		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 
 	// LoadBalancer found, at weight
@@ -543,7 +544,7 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
-		assert.Equal(t, status.ALB, *fakeClient.getAlbStatus())
+		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 }
 
@@ -677,7 +678,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
-		assert.Equal(t, status.ALB, *fakeClient.getAlbStatus())
+		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 
 	// LoadBalancer found, with incorrect weights
@@ -735,7 +736,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
-		assert.Equal(t, status.ALB, *fakeClient.getAlbStatus())
+		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 
 	// LoadBalancer found, with all correct weights
@@ -793,6 +794,6 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
-		assert.Equal(t, status.ALB, *fakeClient.getAlbStatus())
+		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 }

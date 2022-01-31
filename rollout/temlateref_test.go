@@ -159,7 +159,7 @@ func TestResolve_UnknownAPIResource(t *testing.T) {
 	err := resolver.Resolve(&rollout)
 
 	assert.Error(t, err)
-	assert.Equal(t, `GroupVersion "apps/v1" not found`, err.Error())
+	assert.Equal(t, `the server could not find the requested resource, GroupVersion "apps/v1" not found`, err.Error())
 }
 
 func TestResolve_RefDoesNotExists(t *testing.T) {

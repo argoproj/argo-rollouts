@@ -540,6 +540,11 @@ type RolloutAnalysis struct {
 	// +patchStrategy=merge
 	// +optional
 	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,3,rep,name=dryRun"`
+	// MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
 }
 
 type RolloutAnalysisTemplate struct {
@@ -679,7 +684,11 @@ const (
 type RolloutStatus struct {
 	// Abort cancel the current rollout progression
 	Abort bool `json:"abort,omitempty" protobuf:"varint,1,opt,name=abort"`
-	// PauseConditions indicates why the rollout is currently paused
+	// PauseConditions is a list of reasons why rollout became automatically paused (e.g.
+	// CanaryPauseStep, BlueGreenPause, InconclusiveAnalysis). The items in this list are populated
+	// by the controller but are cleared by the user (e.g. plugin, argo-cd resume action) when they
+	// wish to unpause. If pause conditions is empty, but controllerPause is true, it indicates
+	// the user manually unpaused the Rollout
 	PauseConditions []PauseCondition `json:"pauseConditions,omitempty" protobuf:"bytes,2,rep,name=pauseConditions"`
 	// ControllerPause indicates the controller has paused the rollout. It is set to true when
 	// the controller adds a pause condition. This field helps to discern the scenario where a
@@ -753,7 +762,7 @@ type RolloutStatus struct {
 	// +optional
 	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
 	/// ALB keeps information regarding the ALB and TargetGroups
-	ALB ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
+	ALB *ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout

@@ -60,12 +60,23 @@ const App = () => {
     const [namespace, setNamespace] = React.useState(init);
     const [availableNamespaces, setAvailableNamespaces] = React.useState([]);
     React.useEffect(() => {
-        RolloutAPI.rolloutServiceGetNamespace().then((info) => {
-            if (!namespace) {
-                setNamespace(info.namespace);
-            }
-            setAvailableNamespaces(info.availableNamespaces);
-        });
+        try {
+            RolloutAPI.rolloutServiceGetNamespace()
+                .then((info) => {
+                    if (!info) {
+                        throw new Error();
+                    }
+                    if (!namespace) {
+                        setNamespace(info.namespace);
+                    }
+                    setAvailableNamespaces(info.availableNamespaces);
+                })
+                .catch((e) => {
+                    setAvailableNamespaces([namespace]);
+                });
+        } catch (e) {
+            setAvailableNamespaces([namespace]);
+        }
     }, []);
     const changeNamespace = (val: string) => {
         setNamespace(val);

@@ -121,7 +121,11 @@ func (r *Reconciler) shouldVerifyWeight() bool {
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
 	if !r.shouldVerifyWeight() {
+		r.cfg.Status.ALB = nil
 		return nil, nil
+	}
+	if r.cfg.Status.ALB == nil {
+		r.cfg.Status.ALB = &v1alpha1.ALBStatus{}
 	}
 	ctx := context.TODO()
 	rollout := r.cfg.Rollout

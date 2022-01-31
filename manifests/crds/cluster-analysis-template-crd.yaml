@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.7.0
   name: clusteranalysistemplates.argoproj.io
 spec:
   group: argoproj.io
@@ -77,6 +77,7 @@ spec:
                 items:
                   properties:
                     limit:
+                      format: int32
                       type: integer
                     metricName:
                       type: string
@@ -828,6 +829,16 @@ spec:
                                                   failureThreshold:
                                                     format: int32
                                                     type: integer
+                                                  grpc:
+                                                    properties:
+                                                      port:
+                                                        format: int32
+                                                        type: integer
+                                                      service:
+                                                        type: string
+                                                    required:
+                                                    - port
+                                                    type: object
                                                   httpGet:
                                                     properties:
                                                       host:
@@ -922,6 +933,16 @@ spec:
                                                   failureThreshold:
                                                     format: int32
                                                     type: integer
+                                                  grpc:
+                                                    properties:
+                                                      port:
+                                                        format: int32
+                                                        type: integer
+                                                      service:
+                                                        type: string
+                                                    required:
+                                                    - port
+                                                    type: object
                                                   httpGet:
                                                     properties:
                                                       host:
@@ -1040,6 +1061,8 @@ spec:
                                                         type: string
                                                       gmsaCredentialSpecName:
                                                         type: string
+                                                      hostProcess:
+                                                        type: boolean
                                                       runAsUserName:
                                                         type: string
                                                     type: object
@@ -1056,6 +1079,16 @@ spec:
                                                   failureThreshold:
                                                     format: int32
                                                     type: integer
+                                                  grpc:
+                                                    properties:
+                                                      port:
+                                                        format: int32
+                                                        type: integer
+                                                      service:
+                                                        type: string
+                                                    required:
+                                                    - port
+                                                    type: object
                                                   httpGet:
                                                     properties:
                                                       host:
@@ -1395,6 +1428,16 @@ spec:
                                                   failureThreshold:
                                                     format: int32
                                                     type: integer
+                                                  grpc:
+                                                    properties:
+                                                      port:
+                                                        format: int32
+                                                        type: integer
+                                                      service:
+                                                        type: string
+                                                    required:
+                                                    - port
+                                                    type: object
                                                   httpGet:
                                                     properties:
                                                       host:
@@ -1473,6 +1516,10 @@ spec:
                                                   - containerPort
                                                   type: object
                                                 type: array
+                                                x-kubernetes-list-map-keys:
+                                                - containerPort
+                                                - protocol
+                                                x-kubernetes-list-type: map
                                               readinessProbe:
                                                 properties:
                                                   exec:
@@ -1485,6 +1532,16 @@ spec:
                                                   failureThreshold:
                                                     format: int32
                                                     type: integer
+                                                  grpc:
+                                                    properties:
+                                                      port:
+                                                        format: int32
+                                                        type: integer
+                                                      service:
+                                                        type: string
+                                                    required:
+                                                    - port
+                                                    type: object
                                                   httpGet:
                                                     properties:
                                                       host:
@@ -1603,6 +1660,8 @@ spec:
                                                         type: string
                                                       gmsaCredentialSpecName:
                                                         type: string
+                                                      hostProcess:
+                                                        type: boolean
                                                       runAsUserName:
                                                         type: string
                                                     type: object
@@ -1619,6 +1678,16 @@ spec:
                                                   failureThreshold:
                                                     format: int32
                                                     type: integer
+                                                  grpc:
+                                                    properties:
+                                                      port:
+                                                        format: int32
+                                                        type: integer
+                                                      service:
+                                                        type: string
+                                                    required:
+                                                    - port
+                                                    type: object
                                                   httpGet:
                                                     properties:
                                                       host:
@@ -1962,6 +2031,16 @@ spec:
                                                   failureThreshold:
                                                     format: int32
                                                     type: integer
+                                                  grpc:
+                                                    properties:
+                                                      port:
+                                                        format: int32
+                                                        type: integer
+                                                      service:
+                                                        type: string
+                                                    required:
+                                                    - port
+                                                    type: object
                                                   httpGet:
                                                     properties:
                                                       host:
@@ -2056,6 +2135,16 @@ spec:
                                                   failureThreshold:
                                                     format: int32
                                                     type: integer
+                                                  grpc:
+                                                    properties:
+                                                      port:
+                                                        format: int32
+                                                        type: integer
+                                                      service:
+                                                        type: string
+                                                    required:
+                                                    - port
+                                                    type: object
                                                   httpGet:
                                                     properties:
                                                       host:
@@ -2174,6 +2263,8 @@ spec:
                                                         type: string
                                                       gmsaCredentialSpecName:
                                                         type: string
+                                                      hostProcess:
+                                                        type: boolean
                                                       runAsUserName:
                                                         type: string
                                                     type: object
@@ -2190,6 +2281,16 @@ spec:
                                                   failureThreshold:
                                                     format: int32
                                                     type: integer
+                                                  grpc:
+                                                    properties:
+                                                      port:
+                                                        format: int32
+                                                        type: integer
+                                                      service:
+                                                        type: string
+                                                    required:
+                                                    - port
+                                                    type: object
                                                   httpGet:
                                                     properties:
                                                       host:
@@ -2300,6 +2401,14 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                          x-kubernetes-map-type: atomic
+                                        os:
+                                          properties:
+                                            name:
+                                              type: string
+                                          required:
+                                          - name
+                                          type: object
                                         overhead:
                                           additionalProperties:
                                             anyOf:
@@ -2388,6 +2497,8 @@ spec:
                                                   type: string
                                                 gmsaCredentialSpecName:
                                                   type: string
+                                                hostProcess:
+                                                  type: boolean
                                                 runAsUserName:
                                                   type: string
                                               type: object

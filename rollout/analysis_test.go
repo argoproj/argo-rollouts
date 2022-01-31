@@ -33,6 +33,12 @@ func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
 			Metrics: []v1alpha1.Metric{{
 				Name: "example",
 			}},
+			DryRun: []v1alpha1.DryRun{{
+				MetricName: "example",
+			}},
+			MeasurementRetention: []v1alpha1.MeasurementRetention{{
+				MetricName: "example",
+			}},
 		},
 	}
 }
@@ -106,8 +112,10 @@ func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alp
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(r, controllerKind)},
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: at.Spec.Metrics,
-			Args:    at.Spec.Args,
+			Metrics:              at.Spec.Metrics,
+			DryRun:               at.Spec.DryRun,
+			MeasurementRetention: at.Spec.MeasurementRetention,
+			Args:                 at.Spec.Args,
 		},
 	}
 }
@@ -735,7 +743,7 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 		SetWeight: pointer.Int32Ptr(10),
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
@@ -792,7 +800,7 @@ func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 		},
 	}}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
 	ar.Status.Phase = v1alpha1.AnalysisPhaseRunning
@@ -1067,7 +1075,7 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 		{SetWeight: pointer.Int32Ptr(30)},
 	}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -1447,7 +1455,7 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 		{SetWeight: pointer.Int32Ptr(10)},
 	}
 
-	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
 	r2 := bumpVersion(r1)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{

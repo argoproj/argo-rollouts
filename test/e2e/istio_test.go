@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -257,6 +258,25 @@ func (s *IstioSuite) TestIstioAbortUpdate() {
 		ExpectRevisionPodCount("2", 1)
 }
 
+func (s *IstioSuite) TestIstioUpdateInMiddleZeroCanaryReplicas() {
+	s.Given().
+		RolloutObjects("@istio/istio-host-split-update-in-middle.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("2", 1).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("3", 1)
+}
+
 func (s *IstioSuite) TestIstioAbortUpdateDeleteAllCanaryPods() {
 	s.Given().
 		RolloutObjects("@istio/istio-rollout-abort-delete-all-canary-pods.yaml").
@@ -269,10 +289,6 @@ func (s *IstioSuite) TestIstioAbortUpdateDeleteAllCanaryPods() {
 		WaitForRolloutStatus("Paused").
 		Then().
 		ExpectRevisionPodCount("2", 2).
-		When().
-		PromoteRollout().
-		WaitForRolloutStatus("Paused").
-		Then().
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Paused").
@@ -361,17 +377,17 @@ func (s *IstioSuite) TestIstioSubsetSplitExperimentStep() {
 		WaitForRolloutStatus("Healthy").
 		Then().
 		Assert(func(t *fixtures.Then) {
-		vsvc := t.GetVirtualService()
-		assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight) // stable
-		assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight) // canary
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight) // stable
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)   // canary
 
-		rs1 := t.GetReplicaSetByRevision("1")
-		destrule := t.GetDestinationRule()
-		assert.Len(s.T(), destrule.Spec.Subsets, 2)
-		assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // stable
-		assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // canary
+			rs1 := t.GetReplicaSetByRevision("1")
+			destrule := t.GetDestinationRule()
+			assert.Len(s.T(), destrule.Spec.Subsets, 2)
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[0].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // stable
+			assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // canary
 
-	}).
+		}).
 		When().
 		UpdateSpec().
 		WaitForRolloutCanaryStepIndex(1).
@@ -401,7 +417,7 @@ func (s *IstioSuite) TestIstioSubsetSplitExperimentStep() {
 		Assert(func(t *fixtures.Then) {
 			vsvc := t.GetVirtualService()
 			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight) // stable
-			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight) // canary
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)   // canary
 
 			destrule := t.GetDestinationRule()
 			rs2 := t.GetReplicaSetByRevision("2")
@@ -413,5 +429,3 @@ func (s *IstioSuite) TestIstioSubsetSplitExperimentStep() {
 
 	s.TearDownSuite()
 }
-
-

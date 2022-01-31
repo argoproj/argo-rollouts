@@ -98,8 +98,12 @@ const ContainerWidget = (props: {container: RolloutContainerInfo; images: ImageI
     return (
         <div style={{margin: '1em 0', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap'}}>
             <div style={{paddingRight: '20px'}}>{container.name}</div>
-            <div style={{width: '100%', display: 'flex', alignItems: 'center', height: '2em'}}>
-                {!editing ? <InfoItem content={container.image} /> : <Autocomplete items={props.images.map((img) => img.image)} placeholder='New Image' {...newImageInput} />}
+            <div style={{width: '100%', display: 'flex', alignItems: 'center', height: '2em', minWidth: 0}}>
+                {!editing ? (
+                    <InfoItem content={container.image} truncate={true} />
+                ) : (
+                    <Autocomplete items={props.images.map((img) => img.image)} placeholder='New Image' {...newImageInput} />
+                )}
             </div>
         </div>
     );
