@@ -785,6 +785,7 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
+/*
 func TestInvalidMeasurementRetentionCreatingStepBasedAnalysisRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -840,6 +841,7 @@ func TestInvalidMeasurementRetentionCreatingStepBasedAnalysisRun(t *testing.T) {
 
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
+*/
 
 func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	f := newFixture(t)

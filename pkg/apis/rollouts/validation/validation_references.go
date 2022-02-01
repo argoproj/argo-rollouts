@@ -127,6 +127,18 @@ func ValidateAnalysisTemplatesWithType(rollout *v1alpha1.Rollout, templates Anal
 		return allErrs
 	}
 
+	if rollout.Spec.Strategy.Canary != nil {
+		for _, step := range rollout.Spec.Strategy.Canary.Steps {
+			if step.Analysis != nil {
+				_, err := analysisutil.NewAnalysisRunFromTemplates(templates.AnalysisTemplates, templates.ClusterAnalysisTemplates, buildAnalysisArgs(templates.Args, rollout), step.Analysis.DryRun, step.Analysis.MeasurementRetention, "", "", "")
+				if err != nil {
+					allErrs = append(allErrs, field.Invalid(fldPath, value, err.Error()))
+					return allErrs
+				}
+			}
+		}
+	}
+
 	for _, template := range templates.AnalysisTemplates {
 		allErrs = append(allErrs, ValidateAnalysisTemplateWithType(rollout, template, nil, templates.TemplateType, fldPath)...)
 	}
