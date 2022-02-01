@@ -2197,6 +2197,7 @@ Furthermore, the messages can be broadcast to the channel at the specific templa
 <span class="w">    </span><span class="no">groupingKey: &quot;{{.app.status.sync.revision}}&quot;</span><span class="w"></span>
 <span class="w">    </span><span class="no">notifyBroadcast: true</span><span class="w"></span>
 </code></pre></div>
+<p>The message is sent according to the <code>deliveryPolicy</code> string field under the <code>slack</code> field. The available modes are <code>Post</code> (default), <code>PostAndUpdate</code>, and <code>Update</code>. The <code>PostAndUpdate</code> and <code>Update</code> settings require <code>groupingKey</code> to be set.</p>
 
               
             </article>
