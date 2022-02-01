@@ -350,7 +350,6 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 			},
 			"pauseConditions": [{
 				"reason": "%s",
-				"startTime": "%s"
 			}],
 			"conditions": %s,
 			"controllerPause": true,
@@ -360,7 +359,7 @@ func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
 	}`
 	now := metav1.Now().UTC().Format(time.RFC3339)
 	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
-	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchFmt, v1alpha1.PauseReasonInconclusiveExperiment, now, conditions, v1alpha1.PauseReasonInconclusiveExperiment))
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchFmt, v1alpha1.PauseReasonInconclusiveExperiment, conditions, v1alpha1.PauseReasonInconclusiveExperiment))
 	assert.Equal(t, expectedPatch, patch)
 }
 
