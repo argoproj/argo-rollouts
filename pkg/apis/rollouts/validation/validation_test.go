@@ -135,6 +135,9 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 	}
 	ro := &v1alpha1.Rollout{}
 	ro.Spec.Strategy.Canary = canaryStrategy
+	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{RootService: "root-service"},
+	}
 
 	invalidArgs := []v1alpha1.AnalysisRunArgument{
 		{
@@ -196,6 +199,16 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, MissedAlbRootServiceMessage, allErrs[0].Detail)
+	})
+
+	t.Run("ping-pong feature without the ALB traffic routing", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "ping", PongService: "pong"}
+		invalidRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Nginx: &v1alpha1.NginxTrafficRouting{StableIngress: "stable-ingress"},
+		}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, PingPongWithAlbOnlyMessage, allErrs[0].Detail)
 	})
 
 	t.Run("invalid traffic routing", func(t *testing.T) {
