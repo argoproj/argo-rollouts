@@ -912,6 +912,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#measurements-retention-for-experiments" class="md-nav__link">
+    Measurements Retention for Experiments
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2295,6 +2302,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#measurements-retention-for-experiments" class="md-nav__link">
+    Measurements Retention for Experiments
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3051,8 +3065,8 @@ mode.</p>
 <h2 id="measurements-retention">Measurements Retention<a class="headerlink" href="#measurements-retention" title="Permanent link">&para;</a></h2>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-</div>
 <p>Available since v1.2</p>
+</div>
 <p><code>measurementRetention</code> can be used to retain other than the latest ten results for the metrics running in any mode 
 (dry/non-dry). Setting this option to <code>0</code> would disable it and, the controller will revert to the existing behavior of 
 retaining the latest ten measurements.</p>
@@ -3129,6 +3143,32 @@ merged, and their latest twenty measurements get retained instead of the default
 <span class="hll"><span class="w">      </span><span class="nt">measurementRetention</span><span class="p">:</span><span class="w"></span>
 </span><span class="hll"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">metricName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.*</span><span class="w"></span>
 </span><span class="hll"><span class="w">        </span><span class="nt">limit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w"></span>
+</span></code></pre></div>
+<h3 id="measurements-retention-for-experiments">Measurements Retention for Experiments<a class="headerlink" href="#measurements-retention-for-experiments" title="Permanent link">&para;</a></h3>
+<p>If an experiment wants to retain more results of its analysis metrics, it simply needs to specify the 
+<code>measurementRetention</code> field under its specs. In the following example, all the metrics from <code>analyze-job</code> matching the 
+RegEx rule <code>test.*</code> will have their latest twenty measurements get retained instead of the default ten.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Experiment</span><span class="w"></span>
+<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">templates</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">baseline</span><span class="w"></span>
+<span class="w">    </span><span class="nt">selector</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
+<span class="w">    </span><span class="nt">template</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
+<span class="w">      </span><span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">containers</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
+<span class="w">          </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:blue</span><span class="w"></span>
+<span class="w">  </span><span class="nt">analyses</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">analyze-job</span><span class="w"></span>
+<span class="w">    </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">analyze-job</span><span class="w"></span>
+<span class="w">  </span><span class="nt">measurementRetention</span><span class="p">:</span><span class="w"></span>
+<span class="hll"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">metricName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test.*</span><span class="w"></span>
+</span><span class="hll"><span class="w">    </span><span class="nt">limit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w"></span>
 </span></code></pre></div>
 <h2 id="inconclusive-runs">Inconclusive Runs<a class="headerlink" href="#inconclusive-runs" title="Permanent link">&para;</a></h2>
 <p>Analysis runs can also be considered <code>Inconclusive</code>, which indicates the run was neither successful,
