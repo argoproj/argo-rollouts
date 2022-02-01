@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
@@ -431,7 +430,6 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 	var err error
 	templates := make([]*v1alpha1.AnalysisTemplate, 0)
 	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
-	values := "templateNames: "
 	for _, templateRef := range rolloutAnalysis.Templates {
 		if templateRef.ClusterScope {
 			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
@@ -442,7 +440,6 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 				return nil, err
 			}
 			clusterTemplates = append(clusterTemplates, template)
-			values = fmt.Sprintf("%s %s", values, template.Name)
 		} else {
 			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
 			if err != nil {
@@ -452,13 +449,12 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 				return nil, err
 			}
 			templates = append(templates, template)
-			values = fmt.Sprintf("%s %s", values, template.Name)
 		}
 
 	}
 	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention, name, "", c.rollout.Namespace)
 	if err != nil {
-		return nil, field.Invalid(field.NewPath(""), values, err.Error())
+		return nil, err
 	}
 	run.Labels = labels
 	run.Annotations = map[string]string{
