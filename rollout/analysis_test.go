@@ -785,7 +785,6 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
-/*
 func TestInvalidMeasurementRetentionCreatingStepBasedAnalysisRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -833,7 +832,7 @@ func TestInvalidMeasurementRetentionCreatingStepBasedAnalysisRun(t *testing.T) {
 			"message": "InvalidSpec: %s"
 		}
 	}`
-	errmsg := "The Rollout \"foo\" is invalid: []: Invalid value: \"templateNames:  bar\": two Measurement Retention metric rules have the same name 'example'"
+	errmsg := "The Rollout \"foo\" is invalid: spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [bar]\": two Measurement Retention metric rules have the same name 'example'"
 	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r2, "")
 	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
@@ -841,7 +840,6 @@ func TestInvalidMeasurementRetentionCreatingStepBasedAnalysisRun(t *testing.T) {
 
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
-*/
 
 func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	f := newFixture(t)
