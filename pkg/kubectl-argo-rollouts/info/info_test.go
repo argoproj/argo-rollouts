@@ -39,7 +39,7 @@ func TestCanaryRolloutInfo(t *testing.T) {
 
 func TestPingPongCanaryRolloutInfo(t *testing.T) {
 	rolloutObjs := testdata.NewCanaryRollout()
-	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[3], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
+	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[3], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
 	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[3].Name)
 	assert.Len(t, Revisions(roInfo), 3)
 
