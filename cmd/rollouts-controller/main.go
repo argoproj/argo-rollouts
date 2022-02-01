@@ -214,7 +214,7 @@ func newCommand() *cobra.Command {
 	command.Flags().Int64Var(&rolloutResyncPeriod, "rollout-resync", controller.DefaultRolloutResyncPeriod, "Time period in seconds for rollouts resync.")
 	command.Flags().BoolVar(&namespaced, "namespaced", false, "runs controller in namespaced mode (does not require cluster RBAC)")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
-	command.Flags().StringVar(&logFormat, "logformat", "info", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&logFormat, "logformat", "", "Set the logging format. One of: text|json")
 	command.Flags().IntVar(&klogLevel, "kloglevel", 0, "Set the klog logging level")
 	command.Flags().IntVar(&metricsPort, "metricsport", controller.DefaultMetricsPort, "Set the port the metrics endpoint should be exposed over")
 	command.Flags().IntVar(&healthzPort, "healthzPort", controller.DefaultHealthzPort, "Set the port the healthz endpoint should be exposed over")
