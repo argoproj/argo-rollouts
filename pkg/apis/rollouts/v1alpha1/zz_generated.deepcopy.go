@@ -1076,6 +1076,11 @@ func (in *ExperimentSpec) DeepCopyInto(out *ExperimentSpec) {
 		*out = make([]DryRun, len(*in))
 		copy(*out, *in)
 	}
+	if in.MeasurementRetention != nil {
+		in, out := &in.MeasurementRetention, &out.MeasurementRetention
+		*out = make([]MeasurementRetention, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

@@ -655,6 +655,12 @@ message ExperimentSpec {
   // +patchStrategy=merge
   // +optional
   repeated DryRun dryRun = 7;
+
+  // MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated MeasurementRetention measurementRetention = 8;
 }
 
 // ExperimentStatus is the status for a Experiment resource
