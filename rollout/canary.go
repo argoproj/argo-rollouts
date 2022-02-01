@@ -5,6 +5,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -63,6 +64,9 @@ func (c *rolloutContext) rolloutCanary() error {
 		return c.syncRolloutStatusCanary()
 	}
 	if err != nil {
+		if vErr, ok := err.(*field.Error); ok {
+			return c.createInvalidRolloutCondition(vErr, c.rollout)
+		}
 		return err
 	}
 

@@ -785,6 +785,62 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
+func TestInvalidMeasurementRetentionCreatingStepBasedAnalysisRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{{
+		Analysis: &v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
+			MeasurementRetention: []v1alpha1.MeasurementRetention{{
+				MetricName: "example",
+				Limit:      2,
+			}},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r2, at)
+
+	index := f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	patch := f.getPatchedRollout(index)
+	expectedPatchWithoutSub := `{
+		"status": {
+			"conditions": [%s,%s],
+			"phase": "Degraded",
+			"message": "InvalidSpec: %s"
+		}
+	}`
+	errmsg := "The Rollout \"foo\" is invalid: []: Invalid value: \"templateNames:  bar\": two Measurement Retention metric rules have the same name 'example'"
+	_, progressingCond := newProgressingCondition(conditions.ReplicaSetUpdatedReason, r2, "")
+	invalidSpecCond := conditions.NewRolloutCondition(v1alpha1.InvalidSpec, corev1.ConditionTrue, conditions.InvalidSpecReason, errmsg)
+	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), strings.ReplaceAll(errmsg, "\"", "\\\""))
+
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+}
+
 func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
