@@ -1071,6 +1071,11 @@ func (in *ExperimentSpec) DeepCopyInto(out *ExperimentSpec) {
 		*out = make([]DryRun, len(*in))
 		copy(*out, *in)
 	}
+	if in.MeasurementRetention != nil {
+		in, out := &in.MeasurementRetention, &out.MeasurementRetention
+		*out = make([]MeasurementRetention, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -1463,6 +1468,13 @@ func (in *MetricResult) DeepCopyInto(out *MetricResult) {
 		*out = make([]Measurement, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.Metadata != nil {
+		in, out := &in.Metadata, &out.Metadata
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
 		}
 	}
 	return

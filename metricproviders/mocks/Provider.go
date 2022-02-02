@@ -26,6 +26,22 @@ func (_m *Provider) GarbageCollect(_a0 *v1alpha1.AnalysisRun, _a1 v1alpha1.Metri
 	return r0
 }
 
+// GetMetadata provides a mock function with given fields: metric
+func (_m *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	ret := _m.Called(metric)
+
+	var r0 map[string]string
+	if rf, ok := ret.Get(0).(func(v1alpha1.Metric) map[string]string); ok {
+		r0 = rf(metric)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]string)
+		}
+	}
+
+	return r0
+}
+
 // Resume provides a mock function with given fields: _a0, _a1, _a2
 func (_m *Provider) Resume(_a0 *v1alpha1.AnalysisRun, _a1 v1alpha1.Metric, _a2 v1alpha1.Measurement) v1alpha1.Measurement {
 	ret := _m.Called(_a0, _a1, _a2)

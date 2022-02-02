@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -106,6 +107,16 @@ func (s *ExperimentSuite) TestExperimentWithDryRunMetrics() {
 		Sleep(time.Second*3).
 		Then().
 		ExpectExperimentDryRunSummary(1, 0, 1, "experiment-with-dry-run")
+}
+
+func (s *ExperimentSuite) TestExperimentWithMeasurementRetentionMetrics() {
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-measurement-retention-analysis.yaml")
+	g.When().
+		WaitForExperimentPhase("experiment-with-mr", "Successful").
+		Sleep(time.Second*3).
+		Then().
+		ExpectExperimentMeasurementsLength(0, 2, "experiment-with-mr")
 }
 
 func TestExperimentSuite(t *testing.T) {

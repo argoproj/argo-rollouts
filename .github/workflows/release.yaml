@@ -1,11 +1,11 @@
 name: Release
 
 on:
-  workflow_dispatch:                                                                                                         
-    inputs:                                                                                                                  
-      tag:                                                                                                                   
-        description: Git tag to build release from                                                                           
-        required: true  
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag to build release from
+        required: true
 jobs:
   release-images:
     runs-on: ubuntu-latest
@@ -120,6 +120,25 @@ jobs:
           make release-plugins
           make manifests IMAGE_TAG=${{ github.event.inputs.tag }}
 
+      - name: Generate SBOM (spdx)
+        id: spdx-builder
+        env:
+          # defines the https://github.com/opensbom-generator/spdx-sbom-generator
+          # to use.
+          SPDX_GEN_VERSION: v0.0.13
+          # comma delimited list of project relative folders to inspect for package
+          # managers (gomod, yarn, npm).
+          PROJECT_FOLDERS: ".,./ui" 
+        run: |
+          yarn install --cwd ./ui
+          wget -q https://github.com/opensbom-generator/spdx-sbom-generator/releases/download/$SPDX_GEN_VERSION/spdx-sbom-generator-$SPDX_GEN_VERSION-linux-386.tar.gz -O generator.tar.gz
+          tar -zxf generator.tar.gz
+          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
+          do
+            ./spdx-sbom-generator -p $folder -o /tmp
+          done
+          tar -zcf /tmp/sbom.tar.gz /tmp/*.spdx
+
       - name: Draft release
         uses: softprops/action-gh-release@v1
         with:
@@ -135,5 +154,6 @@ jobs:
             manifests/namespace-install.yaml
             manifests/notifications-install.yaml
             docs/features/kustomize/rollout_cr_schema.json
+            /tmp/sbom.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

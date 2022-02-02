@@ -714,7 +714,7 @@ spec:
 ## Measurements Retention
 
 !!! important
-Available since v1.2
+    Available since v1.2
 
 `measurementRetention` can be used to retain other than the latest ten results for the metrics running in any mode 
 (dry/non-dry). Setting this option to `0` would disable it and, the controller will revert to the existing behavior of 
@@ -802,6 +802,36 @@ spec:
       measurementRetention:
       - metricName: .*
         limit: 20
+```
+
+### Measurements Retention for Experiments
+
+If an experiment wants to retain more results of its analysis metrics, it simply needs to specify the 
+`measurementRetention` field under its specs. In the following example, all the metrics from `analyze-job` matching the 
+RegEx rule `test.*` will have their latest twenty measurements get retained instead of the default ten.
+
+```yaml hl_lines="20 21 22"
+kind: Experiment
+spec:
+  templates:
+  - name: baseline
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+      spec:
+        containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:blue
+  analyses:
+  - name: analyze-job
+    templateName: analyze-job
+  measurementRetention:
+  - metricName: test.*
+    limit: 20
 ```
 
 ## Inconclusive Runs

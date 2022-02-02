@@ -31,7 +31,7 @@ const (
 var userAgent = fmt.Sprintf("argo-rollouts/%s (%s)", version.GetVersion(), repoURL)
 
 type NewRelicClientAPI interface {
-	Query(query string) ([]nrdb.NrdbResult, error)
+	Query(query string) ([]nrdb.NRDBResult, error)
 }
 
 type NewRelicClient struct {
@@ -40,8 +40,8 @@ type NewRelicClient struct {
 }
 
 //Query executes a NRQL query against the given New Relic account
-func (n *NewRelicClient) Query(query string) ([]nrdb.NrdbResult, error) {
-	results, err := n.Nrdb.Query(n.AccountID, nrdb.Nrql(query))
+func (n *NewRelicClient) Query(query string) ([]nrdb.NRDBResult, error) {
+	results, err := n.Nrdb.Query(n.AccountID, nrdb.NRQL(query))
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func toJSONString(v interface{}) (string, error) {
 	return string(b), nil
 }
 
-func (p *Provider) processResponse(metric v1alpha1.Metric, results []nrdb.NrdbResult) (string, v1alpha1.AnalysisPhase, error) {
+func (p *Provider) processResponse(metric v1alpha1.Metric, results []nrdb.NRDBResult) (string, v1alpha1.AnalysisPhase, error) {
 	if len(results) == 1 {
 		result := results[0]
 		if len(result) == 0 {
@@ -129,6 +129,11 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 
 func (p *Provider) Type() string {
 	return ProviderType
+}
+
+// GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
+func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	return nil
 }
 
 //NewNewRelicProvider creates a new NewRelic provider

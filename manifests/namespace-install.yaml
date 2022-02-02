@@ -2818,6 +2818,10 @@ spec:
                       type: array
                     message:
                       type: string
+                    metadata:
+                      additionalProperties:
+                        type: string
+                      type: object
                     name:
                       type: string
                     phase:
@@ -8460,6 +8464,19 @@ spec:
                 type: array
               duration:
                 type: string
+              measurementRetention:
+                items:
+                  properties:
+                    limit:
+                      format: int32
+                      type: integer
+                    metricName:
+                      type: string
+                  required:
+                  - limit
+                  - metricName
+                  type: object
+                type: array
               progressDeadlineSeconds:
                 format: int32
                 type: integer

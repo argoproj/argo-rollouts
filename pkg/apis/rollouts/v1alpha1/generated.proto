@@ -649,6 +649,12 @@ message ExperimentSpec {
   // +patchStrategy=merge
   // +optional
   repeated DryRun dryRun = 7;
+
+  // MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated MeasurementRetention measurementRetention = 8;
 }
 
 // ExperimentStatus is the status for a Experiment resource
@@ -916,6 +922,11 @@ message MetricResult {
 
   // DryRun indicates whether this metric is running in a dry-run mode or not
   optional bool dryRun = 11;
+
+  // Metadata stores additional metadata about this metric. It is used by different providers to store
+  // the final state which gets used while taking measurements. For example, Prometheus uses this field
+  // to store the final resolved query after substituting the template arguments.
+  map<string, string> metadata = 12;
 }
 
 // NewRelicMetric defines the newrelic query to perform canary analysis
