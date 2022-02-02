@@ -79,7 +79,9 @@ func newCommand() *cobra.Command {
 				return nil
 			}
 			setLogLevel(logLevel)
-			log.SetFormatter(createFormatter(logFormat))
+			if logFormat != "" {
+				log.SetFormatter(createFormatter(logFormat))
+			}
 			logutil.SetKLogLevel(klogLevel)
 			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
@@ -279,7 +281,10 @@ func createFormatter(logFormat string) log.Formatter {
 			FullTimestamp: true,
 		}
 	default:
-		formatType = &log.TextFormatter{}
+		log.Infof("Unknown format: %s. Using text logformat", logFormat)
+		formatType = &log.TextFormatter{
+			FullTimestamp: true,
+		}
 	}
 
 	return formatType
