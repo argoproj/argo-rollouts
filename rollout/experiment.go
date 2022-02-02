@@ -4,19 +4,20 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
-	"github.com/argoproj/argo-rollouts/utils/record"
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/kubernetes/pkg/controller"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	"github.com/argoproj/argo-rollouts/utils/hash"
+	"github.com/argoproj/argo-rollouts/utils/record"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 // GetExperimentFromTemplate takes the canary experiment step and converts it to an experiment
@@ -25,7 +26,7 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	if step == nil {
 		return nil, nil
 	}
-	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 	currentStep := int32(0)
 	if r.Status.CurrentStepIndex != nil {
 		currentStep = *r.Status.CurrentStepIndex

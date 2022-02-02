@@ -34,7 +34,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
-	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -47,6 +46,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"github.com/argoproj/argo-rollouts/utils/queue"
@@ -401,7 +401,7 @@ func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedRepl
 }
 
 func newReplicaSet(r *v1alpha1.Rollout, replicas int) *appsv1.ReplicaSet {
-	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 	rsLabels := map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 	}
@@ -1300,7 +1300,7 @@ func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-859fc5d686"
+	expectedReplicaSetName := "guestbook-6c5667f666"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `

@@ -433,7 +433,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	}
 
 	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
-	olderRSs := replicasetutil.FindOldReplicaSets(rollout, rsList)
+	olderRSs := replicasetutil.FindOldReplicaSets(rollout, rsList, newRS)
 	stableRS := replicasetutil.GetStableRS(rollout, newRS, olderRSs)
 	otherRSs := replicasetutil.GetOtherRSs(rollout, newRS, stableRS, rsList)
 
