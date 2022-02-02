@@ -238,6 +238,8 @@ func (r *Reconciler) reconcileRoute(ctx context.Context, uVr *unstructured.Unstr
 		}
 		wtVnName, _ := wtVnRef["name"].(string)
 		wtVnNamespace := defaultIfEmpty(wtVnRef["namespace"], r.rollout.Namespace)
+		// weight in AppMesh CRD is int64
+		//https://aws.github.io/aws-app-mesh-controller-for-k8s/reference/api_spec/#appmesh.k8s.aws/v1beta2.WeightedTarget
 		weight, err := toInt64(wt["weight"])
 		if err != nil {
 			return false, field.Invalid(wtFldPath.Child("weight"), uVr.GetName(), ErrNotWellFormed)
