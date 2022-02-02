@@ -1,12 +1,12 @@
 import {Menu, ThemeDiv, Tooltip, WaitFor} from 'argo-ui/v2';
 import * as React from 'react';
+import * as moment from 'moment';
+import {Ticker} from 'argo-ui';
+import {ActionButton} from 'argo-ui/v2';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {Pod} from '../../../models/rollout/rollout';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
-import {Ticker} from 'argo-ui';
-import {ActionButton} from 'argo-ui/v2';
 import './pods.scss';
-import * as moment from 'moment';
 
 export enum PodStatus {
     Pending = 'pending',
