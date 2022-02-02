@@ -129,15 +129,12 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		CanaryService: "canary",
 		StableService: "stable",
 		TrafficRouting: &v1alpha1.RolloutTrafficRouting{
-			SMI: &v1alpha1.SMITrafficRouting{},
+			ALB: &v1alpha1.ALBTrafficRouting{RootService: "root-service"},
 		},
 		Steps: []v1alpha1.CanaryStep{{}},
 	}
 	ro := &v1alpha1.Rollout{}
 	ro.Spec.Strategy.Canary = canaryStrategy
-	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-		ALB: &v1alpha1.ALBTrafficRouting{RootService: "root-service"},
-	}
 
 	invalidArgs := []v1alpha1.AnalysisRunArgument{
 		{

@@ -233,7 +233,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
 	}
 	if canary.PingPong != nil {
-		if canary.TrafficRouting == nil || canary.TrafficRouting.ALB == nil {
+		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB == nil {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("alb"), canary.TrafficRouting.ALB, PingPongWithAlbOnlyMessage))
 		}
 		if canary.PingPong.PingService == "" {
