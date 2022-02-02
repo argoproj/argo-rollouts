@@ -44,6 +44,9 @@ func TestRunSuccessfully(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, `{"count":10}`, measurement.Value)
@@ -70,6 +73,9 @@ func TestRunWithTimeseries(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, `[{"count":10},{"count":20},{"count":30}]`, measurement.Value)
@@ -93,6 +99,9 @@ func TestRunWithFacet(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, `{"average.duration":12.34,"count":10}`, measurement.Value)
@@ -116,6 +125,9 @@ func TestRunWithMultipleSelectTerms(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, `{"count":10}`, measurement.Value)

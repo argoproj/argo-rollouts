@@ -1475,6 +1475,13 @@ func (in *MetricResult) DeepCopyInto(out *MetricResult) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Metadata != nil {
+		in, out := &in.Metadata, &out.Metadata
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

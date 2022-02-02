@@ -131,6 +131,23 @@ func TestRunWithResolveArgsError(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, measurement.Phase)
 }
 
+func TestGetStatusReturnsResolvedQuery(t *testing.T) {
+	e := log.Entry{}
+	mock := mockAPI{}
+	p := NewPrometheusProvider(mock, e)
+	metric := v1alpha1.Metric{
+		Name: "foo",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "resolved-query",
+			},
+		},
+	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.NotNil(t, metricsMetadata)
+	assert.Equal(t, "resolved-query", metricsMetadata["ResolvedPrometheusQuery"])
+}
+
 func TestRunWithEvaluationError(t *testing.T) {
 	e := log.WithField("", "")
 	mock := mockAPI{}

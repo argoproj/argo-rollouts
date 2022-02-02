@@ -55,6 +55,11 @@ func (p *JobProvider) Type() string {
 	return ProviderType
 }
 
+// GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
+func (p *JobProvider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	return nil
+}
+
 // newJobName returns a new job name for the run and metric. Names must be shortened so that it can
 // fit into a 63 character label, since the k8s job controller incorporates the job name into the
 // pod spec labels.
