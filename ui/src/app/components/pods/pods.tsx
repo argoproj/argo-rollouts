@@ -3,8 +3,10 @@ import * as React from 'react';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {Pod} from '../../../models/rollout/rollout';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
-import { Timer } from '../Timer/timer';
+import {Ticker} from 'argo-ui';
+import {ActionButton} from 'argo-ui/v2';
 import './pods.scss';
+import * as moment from 'moment';
 
 export enum PodStatus {
     Pending = 'pending',
@@ -84,7 +86,7 @@ export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRe
     if (!replicaSets || replicaSets.length < 1) {
         return <div>No replica sets!</div>;
     }
-     
+
     return (
         <div>
             {replicaSets?.map(
@@ -108,7 +110,16 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                 <ThemeDiv className='pods__header'>
                     <span style={{marginRight: '5px'}}>{rsName}</span> <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
                     {props.showRevision && <div style={{marginLeft: 'auto'}}>Revision {props.rs.revision}</div>}
-                    {props.rs.scaleDownDeadline && <div style={{marginLeft: 'auto'}}><Timer date={props.rs.scaleDownDeadline}/></div>}
+                    {props.rs.scaleDownDeadline && (
+                        <div style={{marginLeft: 'auto'}}>
+                            <Ticker>
+                                {(now) => {
+                                    const time = moment(props.rs.scaleDownDeadline).diff(now, 'second');
+                                    return time === 0 ? null : <ActionButton label={`delay: ${time}s`} />;
+                                }}
+                            </Ticker>
+                        </div>
+                    )}
                 </ThemeDiv>
             )}
 
