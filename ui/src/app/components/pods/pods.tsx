@@ -1,8 +1,7 @@
-import {Menu, ThemeDiv, Tooltip, WaitFor} from 'argo-ui/v2';
+import {Menu, ThemeDiv, Tooltip, WaitFor, InfoItem} from 'argo-ui/v2';
 import * as React from 'react';
-import * as moment from 'moment';
+import moment from 'moment';
 import {Ticker} from 'argo-ui';
-import {ActionButton} from 'argo-ui/v2';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {Pod} from '../../../models/rollout/rollout';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
@@ -115,7 +114,11 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                             <Ticker>
                                 {(now) => {
                                     const time = moment(props.rs.scaleDownDeadline).diff(now, 'second');
-                                    return time === 0 ? null : <ActionButton label={`delay: ${time}s`} />;
+                                    return time === 0 ? null : (
+                                        <Tooltip content={`scalesDown in ${time}`}>
+                                            <InfoItem content={`${time}`} icon='fa fa-clock'></InfoItem>
+                                        </Tooltip>
+                                    );
                                 }}
                             </Ticker>
                         </div>
