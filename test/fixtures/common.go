@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
@@ -569,6 +570,19 @@ func (c *Common) GetVirtualService() *istio.VirtualService {
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(vsvcUn.Object, &vsvc)
 	c.CheckError(err)
 	return &vsvc
+}
+
+func (c *Common) GetAppMeshVirtualRouter() *unstructured.Unstructured {
+	ro := c.Rollout()
+	ctx := context.TODO()
+	resClient := appmesh.NewResourceClient(c.dynamicClient)
+	name := ro.Spec.Strategy.Canary.TrafficRouting.AppMesh.VirtualService.Name
+	c.log.Infof("GetVirtualServiceCR with namespace(%s), name(%s)", c.namespace, name)
+	uVsvc, err := resClient.GetVirtualServiceCR(ctx, c.namespace, name)
+	c.CheckError(err)
+	uVr, err := resClient.GetVirtualRouterCRForVirtualService(ctx, uVsvc)
+	c.CheckError(err)
+	return uVr
 }
 
 func (c *Common) GetDestinationRule() *istio.DestinationRule {

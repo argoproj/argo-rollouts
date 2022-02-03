@@ -40,6 +40,7 @@ import (
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -557,7 +558,47 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 	}
 	refResources.AmbassadorMappings = ambassadorMappings
 
+	appmeshResources, err := c.getReferencedAppMeshResources()
+	if err != nil {
+		return nil, err
+	}
+	refResources.AppMeshResources = appmeshResources
+
 	return &refResources, nil
+}
+
+func (c *rolloutContext) getReferencedAppMeshResources() ([]unstructured.Unstructured, error) {
+	ctx := context.TODO()
+	appmeshClient := appmesh.NewResourceClient(c.dynamicclientset)
+	rollout := c.rollout
+	refResources := []unstructured.Unstructured{}
+	if rollout.Spec.Strategy.Canary != nil {
+		canary := rollout.Spec.Strategy.Canary
+		if canary.TrafficRouting != nil && canary.TrafficRouting.AppMesh != nil {
+			fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService")
+			tr := canary.TrafficRouting.AppMesh
+			if tr.VirtualService == nil {
+				return nil, field.Invalid(fldPath, nil, "must provide virtual-service")
+			}
+
+			vsvc, err := appmeshClient.GetVirtualServiceCR(ctx, c.rollout.Namespace, tr.VirtualService.Name)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, field.Invalid(fldPath, fmt.Sprintf("%s.%s", tr.VirtualService.Name, c.rollout.Namespace), err.Error())
+				}
+				return nil, err
+			}
+			vr, err := appmeshClient.GetVirtualRouterCRForVirtualService(ctx, vsvc)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, field.Invalid(fldPath, fmt.Sprintf("%s.%s", tr.VirtualService.Name, c.rollout.Namespace), err.Error())
+				}
+				return nil, err
+			}
+			refResources = append(refResources, *vr)
+		}
+	}
+	return refResources, nil
 }
 
 func (c *rolloutContext) getAmbassadorMappings() ([]unstructured.Unstructured, error) {

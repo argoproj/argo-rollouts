@@ -1,0 +1,163 @@
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: Mesh
+metadata:
+  name: appmesh-canary-rollout
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: default
+
+---
+# This service is used by virtual-service to resolve initial dns requests done by app container
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: my-app
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc-canary
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    # This selector will be updated with the pod-template-hash of the canary ReplicaSet.
+    app: my-app
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc-stable
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    # This selector will be updated with the pod-template-hash of the stable ReplicaSet.
+    app: my-app
+
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  name: my-svc
+spec:
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: my-vrouter
+
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  name: my-vrouter
+spec:
+  listeners:
+    - portMapping:
+        port: 80
+        protocol: http
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: my-vn-canary
+              weight: 0
+            - virtualNodeRef:
+                name: my-vn-stable
+              weight: 100
+
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualNode
+metadata:
+  name: my-vn-canary
+spec:
+  podSelector:
+    matchLabels:
+      app: my-app
+      rollouts-pod-template-hash: canary-tbd
+  listeners:
+    - portMapping:
+        port: 80
+        protocol: http
+  serviceDiscovery:
+    dns:
+      hostname: my-svc-canary.appmesh-canary-rollout.svc.cluster.local
+
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualNode
+metadata:
+  name: my-vn-stable
+spec:
+  podSelector:
+    matchLabels:
+      app: my-app
+      rollouts-pod-template-hash: stable-tbd
+  listeners:
+    - portMapping:
+        port: 80
+        protocol: http
+  serviceDiscovery:
+    dns:
+      hostname: my-svc-stable.appmesh-canary-rollout.svc.cluster.local
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: my-rollout
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: demo
+        image: argoproj/rollouts-demo:blue
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+  strategy:
+    canary:
+      canaryService: my-svc-canary
+      stableService: my-svc-stable
+      trafficRouting:
+        appMesh:
+          virtualService: 
+            name: my-svc
+          virtualNodeGroup:
+            canaryVirtualNodeRef:
+              name: my-vn-canary
+            stableVirtualNodeRef:
+              name: my-vn-stable
+      steps:
+      - setWeight: 50
+      - pause: {}

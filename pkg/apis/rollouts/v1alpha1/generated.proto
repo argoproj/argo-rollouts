@@ -215,6 +215,39 @@ message AntiAffinity {
   optional RequiredDuringSchedulingIgnoredDuringExecution requiredDuringSchedulingIgnoredDuringExecution = 2;
 }
 
+// AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration
+message AppMeshTrafficRouting {
+  // VirtualService references an AppMesh VirtualService and VirtualRouter to modify to shape traffic
+  optional AppMeshVirtualService virtualService = 1;
+
+  // VirtualNodeGroup references an AppMesh Route targets that are formed by a set of VirtualNodes that are used to shape traffic
+  optional AppMeshVirtualNodeGroup virtualNodeGroup = 2;
+}
+
+// AppMeshVirtualNodeGroup holds information about targets used for routing traffic to a virtual service
+message AppMeshVirtualNodeGroup {
+  // CanaryVirtualNodeRef is the virtual node ref to modify labels with canary ReplicaSet pod template hash value
+  optional AppMeshVirtualNodeReference canaryVirtualNodeRef = 1;
+
+  // StableVirtualNodeRef is the virtual node name to modify labels with stable ReplicaSet pod template hash value
+  optional AppMeshVirtualNodeReference stableVirtualNodeRef = 2;
+}
+
+// AppMeshVirtualNodeReference holds a reference to VirtualNode.appmesh.k8s.aws
+message AppMeshVirtualNodeReference {
+  // Name is the name of VirtualNode CR
+  optional string name = 1;
+}
+
+// AppMeshVirtualService holds information on the virtual service the rollout needs to modify
+message AppMeshVirtualService {
+  // Name is the name of virtual service
+  optional string name = 1;
+
+  // Routes is list of HTTP routes within virtual router associated with virtual service to edit. If omitted, virtual service must have a single route of this type.
+  repeated string routes = 2;
+}
+
 // Argument is an argument to an AnalysisRun
 message Argument {
   // Name is the name of the argument
@@ -1347,6 +1380,9 @@ message RolloutTrafficRouting {
 
   // Ambassador holds specific configuration to use Ambassador to route traffic
   optional AmbassadorTrafficRouting ambassador = 5;
+
+  // AppMesh holds specific configuration to use AppMesh to route traffic
+  optional AppMeshTrafficRouting appMesh = 6;
 }
 
 // RunSummary contains the final results from the metric executions

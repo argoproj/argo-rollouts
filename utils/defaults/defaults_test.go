@@ -397,4 +397,9 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, "v1alpha9", GetTargetGroupBindingAPIVersion())
 	SetTargetGroupBindingAPIVersion(DefaultTargetGroupBindingAPIVersion)
 	assert.Equal(t, DefaultTargetGroupBindingAPIVersion, GetTargetGroupBindingAPIVersion())
+
+	assert.Equal(t, DefaultAppMeshCRDVersion, GetAppMeshCRDVersion())
+	SetAppMeshCRDVersion("v1beta3")
+	assert.Equal(t, "v1beta3", GetAppMeshCRDVersion())
+	SetAppMeshCRDVersion(DefaultAmbassadorVersion)
 }

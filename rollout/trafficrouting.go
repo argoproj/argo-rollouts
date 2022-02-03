@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
@@ -74,6 +75,13 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador != nil {
 		ac := ambassador.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
 		trafficReconcilers = append(trafficReconcilers, ambassador.NewReconciler(rollout, ac, c.recorder))
+	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting.AppMesh != nil {
+		trafficReconcilers = append(trafficReconcilers, appmesh.NewReconciler(appmesh.ReconcilerConfig{
+			Rollout:  rollout,
+			Client:   c.dynamicclientset,
+			Recorder: c.recorder,
+		}))
 	}
 
 	// ensure that the trafficReconcilers is a healthy list and its not empty
