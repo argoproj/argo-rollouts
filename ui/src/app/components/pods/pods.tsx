@@ -1,6 +1,6 @@
 import {Menu, ThemeDiv, Tooltip, WaitFor, InfoItem} from 'argo-ui/v2';
 import * as React from 'react';
-import moment from 'moment';
+import * as moment from 'moment';
 import {Ticker} from 'argo-ui';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {Pod} from '../../../models/rollout/rollout';
