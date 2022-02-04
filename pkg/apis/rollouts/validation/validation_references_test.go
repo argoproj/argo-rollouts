@@ -256,6 +256,39 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 		assert.Empty(t, allErrs)
 	})
 
+	t.Run("failure - duplicate MeasurementRetention", func(t *testing.T) {
+		rollout := getRollout()
+		rollout.Spec.Strategy.Canary.Steps = append(rollout.Spec.Strategy.Canary.Steps, v1alpha1.CanaryStep{
+			Analysis: &v1alpha1.RolloutAnalysis{
+				Templates: []v1alpha1.RolloutAnalysisTemplate{
+					{
+						TemplateName: "analysis-template-name",
+					},
+				},
+				MeasurementRetention: []v1alpha1.MeasurementRetention{
+					{
+						MetricName: "example",
+						Limit:      2,
+					},
+				},
+			},
+		})
+		templates := getAnalysisTemplatesWithType()
+		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "valid"})
+		templates.AnalysisTemplates[0].Spec.MeasurementRetention = []v1alpha1.MeasurementRetention{
+			{
+				MetricName: "example",
+				Limit:      5,
+			},
+		}
+		templates.Args = []v1alpha1.AnalysisRunArgument{{Name: "valid", Value: "true"}}
+
+		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
+		assert.Len(t, allErrs, 1)
+		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name cluster-analysis-template-name]\": two Measurement Retention metric rules have the same name 'example'")
+		assert.Equal(t, msg, allErrs[0].Error())
+	})
+
 }
 
 func TestValidateAnalysisTemplateWithType(t *testing.T) {
