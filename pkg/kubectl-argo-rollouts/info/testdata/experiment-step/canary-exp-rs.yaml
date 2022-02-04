@@ -10,7 +10,6 @@ metadata:
   namespace: jesse-test
   labels:
     rollout: canary-demo
-    rollout-namespace: jesse-test
   ownerReferences:
   - apiVersion: argoproj.io/v1alpha1
     blockOwnerDeletion: true

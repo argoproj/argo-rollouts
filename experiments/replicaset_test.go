@@ -49,8 +49,7 @@ func TestCreateMultipleRSFromRollout(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")
 	e.ObjectMeta.Labels = map[string]string{
-		v1alpha1.DefaultRolloutLabelKey:          "foo",
-		v1alpha1.DefaultRolloutNamespaceLabelKey: "bar",
+		v1alpha1.DefaultRolloutLabelKey: "foo",
 	}
 
 	f := newFixture(t, e)
@@ -65,13 +64,11 @@ func TestCreateMultipleRSFromRollout(t *testing.T) {
 	assert.NotNil(t, firstRS)
 	assert.Equal(t, generateRSName(e, templates[0]), firstRS.Name)
 	assert.Equal(t, "foo", firstRS.ObjectMeta.Labels[v1alpha1.DefaultRolloutLabelKey])
-	assert.Equal(t, "bar", firstRS.ObjectMeta.Labels[v1alpha1.DefaultRolloutNamespaceLabelKey])
 
 	secondRS := f.getCreatedReplicaSet(createSecondRSIndex)
 	assert.NotNil(t, secondRS)
 	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
 	assert.Equal(t, "foo", secondRS.ObjectMeta.Labels[v1alpha1.DefaultRolloutLabelKey])
-	assert.Equal(t, "bar", secondRS.ObjectMeta.Labels[v1alpha1.DefaultRolloutNamespaceLabelKey])
 
 	templateStatus := []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),

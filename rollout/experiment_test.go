@@ -60,7 +60,6 @@ func TestRolloutCreateExperiment(t *testing.T) {
 	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, at.Name)
 	assert.Equal(t, createdEx.Spec.Analyses[0].Name, "test")
 	assert.Equal(t, "foo", createdEx.ObjectMeta.Labels[v1alpha1.DefaultRolloutLabelKey])
-	assert.Equal(t, metav1.NamespaceDefault, createdEx.ObjectMeta.Labels[v1alpha1.DefaultRolloutNamespaceLabelKey])
 	patch := f.getPatchedRollout(patchIndex)
 	expectedPatch := `{
 		"status": {

@@ -154,8 +154,6 @@ const (
 	LabelKeyControllerInstanceID = "argo-rollouts.argoproj.io/controller-instance-id"
 	// DefaultRolloutLabelKey is the label of rollout name added to experiments, analysisrun
 	DefaultRolloutLabelKey string = "rollout"
-	// DefaultRolloutNamespaceLabelKey is the label of rollout namespace added to experiments, analysisrun
-	DefaultRolloutNamespaceLabelKey string = "rollout-namespace"
 )
 
 // RolloutStrategy defines strategy to apply during next rollout

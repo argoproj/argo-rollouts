@@ -618,7 +618,7 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 // newAnalysisRun generates an AnalysisRun from the experiment and template
 func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) (*v1alpha1.AnalysisRun, error) {
 
-	// copy ex DefaultRolloutLabelKey and DefaultRolloutNamespaceLabelKey label to analysisrun
+	// copy ex DefaultRolloutLabelKey label to analysisrun
 	var addExRolloutLabels func(ar *v1alpha1.AnalysisRun)
 	addExRolloutLabels = func(ar *v1alpha1.AnalysisRun) {
 		if roName, ok := ec.ex.ObjectMeta.Labels[v1alpha1.DefaultRolloutLabelKey]; ok {
@@ -626,7 +626,6 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 				ar.ObjectMeta.Labels = map[string]string{}
 			}
 			ar.ObjectMeta.Labels[v1alpha1.DefaultRolloutLabelKey] = roName
-			ar.ObjectMeta.Labels[v1alpha1.DefaultRolloutNamespaceLabelKey] = ec.ex.ObjectMeta.Labels[v1alpha1.DefaultRolloutNamespaceLabelKey]
 		}
 	}
 

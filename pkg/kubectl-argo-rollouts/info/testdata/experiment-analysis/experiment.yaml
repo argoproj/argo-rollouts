@@ -9,7 +9,6 @@ metadata:
   labels:
     rollouts-pod-template-hash: 6f646bf7b7
     rollout: rollout-experiment-analysis
-    rollout-namespace: jesse-test
   name: rollout-experiment-analysis-6f646bf7b7-1-vcv27
   namespace: jesse-test
   ownerReferences:

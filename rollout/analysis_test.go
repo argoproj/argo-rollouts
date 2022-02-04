@@ -167,7 +167,6 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	expectedArName := fmt.Sprintf("%s-%s-%s", r2.Name, rs2PodHash, "2")
 	assert.Equal(t, expectedArName, createdAr.Name)
 	assert.Equal(t, "foo", createdAr.ObjectMeta.Labels[v1alpha1.DefaultRolloutLabelKey])
-	assert.Equal(t, metav1.NamespaceDefault, createdAr.ObjectMeta.Labels[v1alpha1.DefaultRolloutNamespaceLabelKey])
 
 	patch := f.getPatchedRollout(index)
 	expectedPatch := `{

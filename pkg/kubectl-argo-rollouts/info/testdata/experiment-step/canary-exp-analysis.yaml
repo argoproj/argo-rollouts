@@ -6,7 +6,6 @@ metadata:
   name: canary-demo-645d5dbc4c-2-0-stress-test
   labels:
     rollout: canary-demo
-    rollout-namespace: jesse-test
   namespace: jesse-test
   ownerReferences:
   - apiVersion: argoproj.io/v1alpha1

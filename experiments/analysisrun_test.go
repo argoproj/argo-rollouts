@@ -129,8 +129,7 @@ func TestCreateAnalysisRunFromExperimentRolloutLabels(t *testing.T) {
 		},
 	}
 	e.ObjectMeta.Labels = map[string]string{
-		v1alpha1.DefaultRolloutLabelKey:          "my-app",
-		v1alpha1.DefaultRolloutNamespaceLabelKey: "test",
+		v1alpha1.DefaultRolloutLabelKey: "my-app",
 	}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Status.AvailableAt = now()
@@ -149,7 +148,6 @@ func TestCreateAnalysisRunFromExperimentRolloutLabels(t *testing.T) {
 
 	createdAr := f.getCreatedAnalysisRun(createdIndex)
 	assert.Equal(t, "my-app", createdAr.ObjectMeta.Labels[v1alpha1.DefaultRolloutLabelKey])
-	assert.Equal(t, "test", createdAr.ObjectMeta.Labels[v1alpha1.DefaultRolloutNamespaceLabelKey])
 }
 
 // TestCreateAnalysisRunWithInstanceID ensures we add an instance ID to the AnalysisRun
