@@ -197,11 +197,11 @@ spec:
       # in order to give time for traffic providers to re-target the new pods.
       # This value is ignored with basic, replica-weighted canary without
       # traffic routing.
-      ScaleDownDelaySeconds: 30
+      scaleDownDelaySeconds: 30
 
       # Limits the number of old RS that can run at one time before getting
       # scaled down. Defaults to nil
-      ScaleDownDelayRevisionLimit: 2
+      scaleDownDelayRevisionLimit: 2
 
       # Background analysis to run during a rollout update. Skipped upon
       # initial deploy of a rollout. +optional
