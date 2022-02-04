@@ -115,6 +115,11 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag }}
 
+      - name: Setup Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.6
+
       - name: Generate release artifacts
         run: |
           make release-plugins
@@ -123,21 +128,33 @@ jobs:
       - name: Generate SBOM (spdx)
         id: spdx-builder
         env:
-          # defines the https://github.com/opensbom-generator/spdx-sbom-generator
-          # to use.
+          # defines the spdx/spdx-sbom-generator version to use.
           SPDX_GEN_VERSION: v0.0.13
+          # defines the sigs.k8s.io/bom version to use.
+          SIGS_BOM_VERSION: v0.2.1
           # comma delimited list of project relative folders to inspect for package
           # managers (gomod, yarn, npm).
           PROJECT_FOLDERS: ".,./ui" 
+          # full qualified name of the docker image to be inspected
+          DOCKER_IMAGE: quay.io/argoproj/argo-rollouts:v${{ github.event.inputs.tag }}
+
         run: |
           yarn install --cwd ./ui
-          wget -q https://github.com/opensbom-generator/spdx-sbom-generator/releases/download/$SPDX_GEN_VERSION/spdx-sbom-generator-$SPDX_GEN_VERSION-linux-386.tar.gz -O generator.tar.gz
-          tar -zxf generator.tar.gz
+          go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
+          go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
+
+          # Generate SPDX for project dependencies analyzing package managers
           for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
           do
-            ./spdx-sbom-generator -p $folder -o /tmp
+            generator -p $folder -o /tmp
           done
-          tar -zcf /tmp/sbom.tar.gz /tmp/*.spdx
+
+          # Generate SPDX for binaries analyzing the docker image
+          if [[ ! -z $DOCKER_IMAGE ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
+          fi
+
+          cd /tmp && tar -zcf sbom.tar.gz *.spdx
 
       - name: Draft release
         uses: softprops/action-gh-release@v1
