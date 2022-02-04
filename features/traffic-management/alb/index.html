@@ -788,6 +788,26 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#zero-downtime-updates-with-ping-pong-feature" class="md-nav__link">
+    Zero-Downtime Updates with Ping-Pong feature
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    Example
+  </a>
+  
+    <nav class="md-nav" aria-label="Example">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#custom-annotations-prefix" class="md-nav__link">
     Custom annotations-prefix
   </a>
@@ -2172,6 +2192,26 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#zero-downtime-updates-with-ping-pong-feature" class="md-nav__link">
+    Zero-Downtime Updates with Ping-Pong feature
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    Example
+  </a>
+  
+    <nav class="md-nav" aria-label="Example">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#custom-annotations-prefix" class="md-nav__link">
     Custom annotations-prefix
   </a>
@@ -2492,6 +2532,52 @@ include:</p>
 <li><a href="https://github.com/jtblin/kube2iam">kube2iam</a></li>
 <li><a href="https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html">EKS ServiceAccount IAM Roles</a></li>
 </ul>
+<h3 id="zero-downtime-updates-with-ping-pong-feature">Zero-Downtime Updates with Ping-Pong feature<a class="headerlink" href="#zero-downtime-updates-with-ping-pong-feature" title="Permanent link">&para;</a></h3>
+<p>Above there was described the recommended way by AWS to solve zero-downtime issue. Is a use a <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/">pod readiness gate injection</a>
+when running the AWS LoadBalancer in IP mode. There is a challenge with that approach, modifications
+of the Service selector labels (<code>spec.selector</code>) not allowed the AWS LoadBalancer controller to mutate the readiness gates.
+And Ping-Pong feature helps to deal with that challenge. At some particular moment one of the services (e.g. ping) is "wearing a
+hat" of stable service another one (e.g. pong) is "wearing a hat" of canary. At the end of the promotion step all 100% of traffic sending
+to the "canary" (e.g. pong). And then the Rollout swapped the hats of ping and pong services so the pong became a stable one.
+The Rollout status object holds the value of who is currently the stable ping or pong (<code>status.canary.currentPingPong</code>).
+And this way allows the rollout to use pod readiness gate injection as the
+services are not changing their labels at the end of the rollout progress.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Ping-Pong feature available since Argo Rollouts v1.2</p>
+</div>
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example-rollout</span><span class="w"></span>
+<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">selector</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span><span class="w"></span>
+<span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span><span class="w"></span>
+<span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span><span class="w"></span>
+<span class="w">        </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx:1.15.4</span><span class="w"></span>
+<span class="w">        </span><span class="nt">ports</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"> </span>
+<span class="w">      </span><span class="nt">pingPong</span><span class="p">:</span><span class="w"> </span><span class="c1">#Indicates that the ping-pong services enabled</span><span class="w"></span>
+<span class="w">        </span><span class="nt">pingService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ping-service</span><span class="w"></span>
+<span class="w">        </span><span class="nt">pongService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pong-service</span><span class="w"></span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">alb</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">ingress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alb-ingress</span><span class="w"></span>
+<span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
+</code></pre></div>
 <h3 id="custom-annotations-prefix">Custom annotations-prefix<a class="headerlink" href="#custom-annotations-prefix" title="Permanent link">&para;</a></h3>
 <p>The AWS Load Balancer Controller allows users to customize the
 <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#ingress-annotations">annotation prefix</a>
