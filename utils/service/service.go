@@ -35,6 +35,12 @@ func GetRolloutServiceKeys(rollout *v1alpha1.Rollout) []string {
 		if rollout.Spec.Strategy.Canary.StableService != "" {
 			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.StableService))
 		}
+		if rollout.Spec.Strategy.Canary.PingPong != nil && rollout.Spec.Strategy.Canary.PingPong.PingService != "" {
+			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.PingPong.PingService))
+		}
+		if rollout.Spec.Strategy.Canary.PingPong != nil && rollout.Spec.Strategy.Canary.PingPong.PongService != "" {
+			services = append(services, fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.PingPong.PongService))
+		}
 	}
 	return services
 }

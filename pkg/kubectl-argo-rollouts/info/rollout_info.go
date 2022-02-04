@@ -147,6 +147,12 @@ func Images(r *rollout.RolloutInfo) []ImageInfo {
 				if rsInfo.Preview {
 					newImage.Tags = append(newImage.Tags, InfoTagPreview)
 				}
+				if rsInfo.Ping {
+					newImage.Tags = append(newImage.Tags, InfoTagPing)
+				}
+				if rsInfo.Pong {
+					newImage.Tags = append(newImage.Tags, InfoTagPong)
+				}
 				images = mergeImageAndTags(newImage, images)
 			}
 		}

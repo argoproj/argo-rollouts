@@ -12,6 +12,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -42,10 +43,19 @@ func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 		if ro != nil {
 			podTemplateHash := replicasetutil.GetPodTemplateHash(rs)
 			if ro.Spec.Strategy.Canary != nil {
+				stableRsIsPing := trafficrouting.IsStablePing(ro)
 				if ro.Status.StableRS == podTemplateHash {
 					rsInfo.Stable = true
+					if trafficrouting.IsPingPongEnabled(ro) {
+						rsInfo.Ping = stableRsIsPing
+						rsInfo.Pong = !stableRsIsPing
+					}
 				} else if ro.Status.CurrentPodHash == podTemplateHash {
 					rsInfo.Canary = true
+					if trafficrouting.IsPingPongEnabled(ro) {
+						rsInfo.Ping = !stableRsIsPing
+						rsInfo.Pong = stableRsIsPing
+					}
 				}
 			}
 			if ro.Spec.Strategy.BlueGreen != nil {

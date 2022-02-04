@@ -264,6 +264,29 @@ func TestPersistWorkloadRefGeneration(t *testing.T) {
 	}
 }
 
+func TestPingPongCanaryPromoteStable(t *testing.T) {
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{PingPong: &v1alpha1.PingPongSpec{}}
+	ro.Status.Canary.StablePingPong = v1alpha1.PPPing
+	roCtx := &rolloutContext{
+		pauseContext: &pauseContext{},
+		rollout:      ro,
+		reconcilerBase: reconcilerBase{
+			recorder: record.NewFakeEventRecorder(),
+		},
+	}
+	newStatus := &v1alpha1.RolloutStatus{
+		CurrentPodHash: "2f646bf702",
+		StableRS:       "15fb5ffc01",
+	}
+
+	// test call
+	err := roCtx.promoteStable(newStatus, "reason")
+
+	assert.Nil(t, err)
+	assert.Equal(t, v1alpha1.PPPong, newStatus.Canary.StablePingPong)
+}
+
 // TestCanaryPromoteFull verifies skip pause, analysis, steps when promote full is set for a canary rollout
 func TestCanaryPromoteFull(t *testing.T) {
 	f := newFixture(t)

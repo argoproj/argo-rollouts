@@ -4,6 +4,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/tj/assert"
 
 	"github.com/argoproj/argo-rollouts/test/fixtures"
+	ingress2 "github.com/argoproj/argo-rollouts/utils/ingress"
 )
 
 type AWSSuite struct {
@@ -22,8 +24,6 @@ type AWSSuite struct {
 func TestAWSSuite(t *testing.T) {
 	suite.Run(t, new(AWSSuite))
 }
-
-const actionTemplate = `{"Type":"forward","ForwardConfig":{"TargetGroups":[{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d}]}}`
 
 const actionTemplateWithExperiment = `{"Type":"forward","ForwardConfig":{"TargetGroups":[{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d}]}}`
 const actionTemplateWithExperiments = `{"Type":"forward","ForwardConfig":{"TargetGroups":[{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d},{"ServiceName":"%s","ServicePort":"%d","Weight":%d}]}}`
@@ -56,6 +56,55 @@ func (s *AWSSuite) TestALBBlueGreenUpdate() {
 		WaitForRolloutStatus("Healthy")
 }
 
+func (s *AWSSuite) TestALBPingPongUpdate() {
+	s.Given().
+		RolloutObjects("@functional/alb-pingpong-rollout.yaml").
+		When().ApplyManifests().WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 100, 0)).
+		// Update 1. Test the weight switch from ping => pong
+		When().UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 75, 25)).
+		When().PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
+		Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 0, 100)).
+		// Update 2. Test the weight switch from pong => ping
+		When().UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 25, 75)).
+		When().PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
+		Then().
+		Assert(assertWeights(s, "ping-service", "pong-service", 100, 0))
+}
+
+func assertWeights(s *AWSSuite, groupA, groupB string, weightA, weightB int64) func(t *fixtures.Then) {
+	return func(t *fixtures.Then) {
+		ingress := t.GetALBIngress()
+		action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
+		assert.True(s.T(), ok)
+
+		var albAction ingress2.ALBAction
+		if err := json.Unmarshal([]byte(action), &albAction); err != nil {
+			panic(err)
+		}
+		for _, targetGroup := range albAction.ForwardConfig.TargetGroups {
+			switch targetGroup.ServiceName {
+			case groupA:
+				assert.True(s.T(), *targetGroup.Weight == weightA, fmt.Sprintf("Weight doesn't match: %d and %d", *targetGroup.Weight, weightA))
+			case groupB:
+				assert.True(s.T(), *targetGroup.Weight == weightB, fmt.Sprintf("Weight doesn't match: %d and %d", *targetGroup.Weight, weightB))
+			default:
+				assert.True(s.T(), false, "Service is not expected in the target group: "+targetGroup.ServiceName)
+			}
+		}
+	}
+}
+
 func (s *AWSSuite) TestALBExperimentStep() {
 	s.Given().
 		RolloutObjects("@alb/rollout-alb-experiment.yaml").
@@ -63,15 +112,7 @@ func (s *AWSSuite) TestALBExperimentStep() {
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		Assert(func(t *fixtures.Then) {
-			ingress := t.GetALBIngress()
-			action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
-			assert.True(s.T(), ok)
-
-			port := 80
-			expectedAction := fmt.Sprintf(actionTemplate, "alb-rollout-canary", port, 0, "alb-rollout-stable", port, 100)
-			assert.Equal(s.T(), expectedAction, action)
-		}).
+		Assert(assertWeights(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100)).
 		ExpectExperimentCount(0).
 		When().
 		UpdateSpec().
@@ -95,15 +136,7 @@ func (s *AWSSuite) TestALBExperimentStep() {
 		WaitForRolloutStatus("Healthy").
 		Sleep(1 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
 		Then().
-		Assert(func(t *fixtures.Then) {
-			ingress := t.GetALBIngress()
-			action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
-			assert.True(s.T(), ok)
-
-			port := 80
-			expectedAction := fmt.Sprintf(actionTemplate, "alb-rollout-canary", port, 0, "alb-rollout-stable", port, 100)
-			assert.Equal(s.T(), expectedAction, action)
-		})
+		Assert(assertWeights(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100))
 }
 
 func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
@@ -113,15 +146,7 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		Assert(func(t *fixtures.Then) {
-			ingress := t.GetALBIngress()
-			action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
-			assert.True(s.T(), ok)
-
-			port := 80
-			expectedAction := fmt.Sprintf(actionTemplate, "alb-rollout-canary", port, 0, "alb-rollout-stable", port, 100)
-			assert.Equal(s.T(), expectedAction, action)
-		}).
+		Assert(assertWeights(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100)).
 		ExpectExperimentCount(0).
 		When().
 		UpdateSpec().
@@ -144,13 +169,5 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 		WaitForRolloutStatus("Healthy").
 		Sleep(1 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
 		Then().
-		Assert(func(t *fixtures.Then) {
-			ingress := t.GetALBIngress()
-			action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
-			assert.True(s.T(), ok)
-
-			port := 80
-			expectedAction := fmt.Sprintf(actionTemplate, "alb-rollout-canary", port, 0, "alb-rollout-stable", port, 100)
-			assert.Equal(s.T(), expectedAction, action)
-		})
+		Assert(assertWeights(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100))
 }

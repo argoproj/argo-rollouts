@@ -29,8 +29,10 @@ import (
 
 const STABLE_SVC = "stable-svc"
 const CANARY_SVC = "canary-svc"
+const PING_SVC = "ping-service"
+const PONG_SVC = "pong-service"
 
-func fakeRollout(stableSvc, canarySvc, stableIng string, port int32) *v1alpha1.Rollout {
+func fakeRollout(stableSvc, canarySvc string, pingPong *v1alpha1.PingPongSpec, stableIng string, port int32) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rollout",
@@ -41,6 +43,7 @@ func fakeRollout(stableSvc, canarySvc, stableIng string, port int32) *v1alpha1.R
 				Canary: &v1alpha1.CanaryStrategy{
 					StableService: stableSvc,
 					CanaryService: canarySvc,
+					PingPong:      pingPong,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						ALB: &v1alpha1.ALBTrafficRouting{
 							Ingress:     stableIng,
@@ -97,8 +100,8 @@ func albActionAnnotation(stable string) string {
 	return fmt.Sprintf("%s%s%s", ingressutil.ALBIngressAnnotation, ingressutil.ALBActionPrefix, stable)
 }
 
-func ingress(name string, stableSvc, canarySvc string, port, weight int32, managedBy string, includeStickyConfig bool) *extensionsv1beta1.Ingress {
-	managedByValue := fmt.Sprintf("%s:%s", managedBy, albActionAnnotation(stableSvc))
+func ingress(name, stableSvc, canarySvc, actionService string, port, weight int32, managedBy string, includeStickyConfig bool) *extensionsv1beta1.Ingress {
+	managedByValue := fmt.Sprintf("%s:%s", managedBy, albActionAnnotation(actionService))
 	action := fmt.Sprintf(actionTemplate, canarySvc, port, weight, stableSvc, port, 100-weight)
 	if includeStickyConfig {
 		action = fmt.Sprintf(actionTemplateWithStickyConfig, canarySvc, port, weight, stableSvc, port, 100-weight)
@@ -114,7 +117,7 @@ func ingress(name string, stableSvc, canarySvc string, port, weight int32, manag
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
 			Annotations: map[string]string{
-				albActionAnnotation(stableSvc):       string(jsonutil.MustMarshal(a)),
+				albActionAnnotation(actionService):   string(jsonutil.MustMarshal(a)),
 				ingressutil.ManagedActionsAnnotation: managedByValue,
 			},
 		},
@@ -126,7 +129,7 @@ func ingress(name string, stableSvc, canarySvc string, port, weight int32, manag
 							Paths: []extensionsv1beta1.HTTPIngressPath{
 								{
 									Backend: extensionsv1beta1.IngressBackend{
-										ServiceName: stableSvc,
+										ServiceName: actionService,
 										ServicePort: intstr.Parse("use-annotation"),
 									},
 								},
@@ -142,7 +145,7 @@ func ingress(name string, stableSvc, canarySvc string, port, weight int32, manag
 
 func TestType(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", 443)
+	rollout := fakeRollout("stable-service", "canary-service", nil, "stable-ingress", 443)
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -154,7 +157,7 @@ func TestType(t *testing.T) {
 }
 
 func TestIngressNotFound(t *testing.T) {
-	ro := fakeRollout("stable-service", "canary-service", "stable-ingress", 443)
+	ro := fakeRollout("stable-service", "canary-service", nil, "stable-ingress", 443)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
@@ -174,9 +177,9 @@ func TestIngressNotFound(t *testing.T) {
 }
 
 func TestServiceNotFoundInIngress(t *testing.T) {
-	ro := fakeRollout("stable-stable", "canary-service", "ingress", 443)
+	ro := fakeRollout("stable-stable", "canary-service", nil, "ingress", 443)
 	ro.Spec.Strategy.Canary.TrafficRouting.ALB.RootService = "invalid-svc"
-	i := ingress("ingress", "stable-service", CANARY_SVC, 443, 50, ro.Name, false)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 50, ro.Name, false)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
@@ -197,8 +200,8 @@ func TestServiceNotFoundInIngress(t *testing.T) {
 }
 
 func TestNoChanges(t *testing.T) {
-	ro := fakeRollout(STABLE_SVC, CANARY_SVC, "ingress", 443)
-	i := ingress("ingress", STABLE_SVC, CANARY_SVC, 443, 10, ro.Name, false)
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
@@ -220,8 +223,8 @@ func TestNoChanges(t *testing.T) {
 }
 
 func TestErrorOnInvalidManagedBy(t *testing.T) {
-	ro := fakeRollout(STABLE_SVC, CANARY_SVC, "ingress", 443)
-	i := ingress("ingress", STABLE_SVC, CANARY_SVC, 443, 5, ro.Name, false)
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 	i.Annotations[ingressutil.ManagedActionsAnnotation] = "test"
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -243,8 +246,8 @@ func TestErrorOnInvalidManagedBy(t *testing.T) {
 }
 
 func TestSetInitialDesiredWeight(t *testing.T) {
-	ro := fakeRollout(STABLE_SVC, CANARY_SVC, "ingress", 443)
-	i := ingress("ingress", STABLE_SVC, CANARY_SVC, 443, 5, ro.Name, false)
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 	i.Annotations = map[string]string{}
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -266,9 +269,38 @@ func TestSetInitialDesiredWeight(t *testing.T) {
 	assert.Len(t, client.Actions(), 1)
 }
 
+func TestSetWeightPingPong(t *testing.T) {
+	pp := &v1alpha1.PingPongSpec{PingService: PING_SVC, PongService: PONG_SVC}
+	ro := fakeRollout("", "", pp, "ingress", 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ALB.RootService = "root-service"
+	ro.Status.Canary.StablePingPong = PONG_SVC
+	i := ingress("ingress", PING_SVC, PONG_SVC, "root-service", 443, 10, ro.Name, false)
+	//i.Spec.
+	i.Annotations = map[string]string{}
+	client := fake.NewSimpleClientset(i)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+	err = r.SetWeight(10)
+	assert.Nil(t, err)
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+}
+
 func TestUpdateDesiredWeightWithStickyConfig(t *testing.T) {
-	ro := fakeRollout(STABLE_SVC, CANARY_SVC, "ingress", 443)
-	i := ingress("ingress", STABLE_SVC, CANARY_SVC, 443, 5, ro.Name, true)
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, true)
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
@@ -288,8 +320,8 @@ func TestUpdateDesiredWeightWithStickyConfig(t *testing.T) {
 }
 
 func TestUpdateDesiredWeight(t *testing.T) {
-	ro := fakeRollout(STABLE_SVC, CANARY_SVC, "ingress", 443)
-	i := ingress("ingress", STABLE_SVC, CANARY_SVC, 443, 5, ro.Name, false)
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
@@ -313,7 +345,7 @@ func TestUpdateDesiredWeight(t *testing.T) {
 // TestGetForwardActionStringMarshalsZeroCorrectly ensures that the annotation does not omit default value zero when marshalling
 // the forward action
 func TestGetForwardActionStringMarshalsZeroCorrectly(t *testing.T) {
-	r := fakeRollout("stable", "canary", "ingress", 443)
+	r := fakeRollout("stable", "canary", nil, "ingress", 443)
 	forwardAction, err := getForwardActionString(r, 443, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -322,7 +354,7 @@ func TestGetForwardActionStringMarshalsZeroCorrectly(t *testing.T) {
 }
 
 func TestGetForwardActionStringMarshalsDisabledStickyConfigCorrectly(t *testing.T) {
-	r := fakeRollout("stable", "canary", "ingress", 443)
+	r := fakeRollout("stable", "canary", nil, "ingress", 443)
 	stickinessConfig := v1alpha1.StickinessConfig{
 		Enabled:         false,
 		DurationSeconds: 0,
@@ -336,7 +368,7 @@ func TestGetForwardActionStringMarshalsDisabledStickyConfigCorrectly(t *testing.
 }
 
 func TestGetForwardActionStringDetectsNegativeStickyConfigDuration(t *testing.T) {
-	r := fakeRollout("stable", "canary", "ingress", 443)
+	r := fakeRollout("stable", "canary", nil, "ingress", 443)
 	stickinessConfig := v1alpha1.StickinessConfig{
 		Enabled:         true,
 		DurationSeconds: 0,
@@ -350,7 +382,7 @@ func TestGetForwardActionStringDetectsNegativeStickyConfigDuration(t *testing.T)
 }
 
 func TestGetForwardActionStringDetectsTooLargeStickyConfigDuration(t *testing.T) {
-	r := fakeRollout("stable", "canary", "ingress", 443)
+	r := fakeRollout("stable", "canary", nil, "ingress", 443)
 	stickinessConfig := v1alpha1.StickinessConfig{
 		Enabled:         true,
 		DurationSeconds: 604800 + 1,
@@ -364,8 +396,8 @@ func TestGetForwardActionStringDetectsTooLargeStickyConfigDuration(t *testing.T)
 }
 
 func TestErrorPatching(t *testing.T) {
-	ro := fakeRollout(STABLE_SVC, CANARY_SVC, "ingress", 443)
-	i := ingress("ingress", STABLE_SVC, CANARY_SVC, 443, 5, ro.Name, false)
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 	client := fake.NewSimpleClientset(i)
 	client.ReactionChain = nil
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -430,8 +462,8 @@ func (f *fakeAWSClient) getAlbStatus() *v1alpha1.ALBStatus {
 
 func TestVerifyWeight(t *testing.T) {
 	newFakeReconciler := func(status *v1alpha1.RolloutStatus) (*Reconciler, *fakeAWSClient) {
-		ro := fakeRollout(STABLE_SVC, CANARY_SVC, "ingress", 443)
-		i := ingress("ingress", STABLE_SVC, CANARY_SVC, 443, 5, ro.Name, false)
+		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
 			Ingress: []corev1.LoadBalancerIngress{
 				{
@@ -549,8 +581,8 @@ func TestVerifyWeight(t *testing.T) {
 }
 
 func TestSetWeightWithMultipleBackends(t *testing.T) {
-	ro := fakeRollout(STABLE_SVC, CANARY_SVC, "ingress", 443)
-	i := ingress("ingress", STABLE_SVC, CANARY_SVC, 443, 0, ro.Name, false)
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
@@ -609,8 +641,8 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		},
 	}
 	newFakeReconciler := func(status *v1alpha1.RolloutStatus) (*Reconciler, *fakeAWSClient) {
-		ro := fakeRollout(STABLE_SVC, CANARY_SVC, "ingress", 443)
-		i := ingress("ingress", STABLE_SVC, CANARY_SVC, 443, 0, ro.Name, false)
+		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
 
 		i.Status.LoadBalancer = corev1.LoadBalancerStatus{

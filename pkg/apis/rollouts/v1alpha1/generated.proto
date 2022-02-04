@@ -378,6 +378,9 @@ message CanaryStatus {
 
   // Weights records the weights which have been set on traffic provider. Only valid when using traffic routing
   optional TrafficWeights weights = 4;
+
+  // StablePingPong For the ping-pong feature holds the current stable service, ping or pong
+  optional string stablePingPong = 5;
 }
 
 // CanaryStep defines a step of a canary deployment.
@@ -483,6 +486,9 @@ message CanaryStrategy {
   // scaling down the stable as traffic is increased to canary. When disabled (the default behavior)
   // the stable ReplicaSet remains fully scaled to support instantaneous aborts.
   optional bool dynamicStableScale = 14;
+
+  // PingPongSpec holds the ping and pong services
+  optional PingPongSpec pingPong = 15;
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
@@ -1001,6 +1007,15 @@ message PauseCondition {
   optional string reason = 1;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startTime = 2;
+}
+
+// PingPongSpec holds the ping and pong service name.
+message PingPongSpec {
+  // name of the ping service
+  optional string pingService = 1;
+
+  // name of the pong service
+  optional string pongService = 2;
 }
 
 // PodTemplateMetadata extra labels to add to the template

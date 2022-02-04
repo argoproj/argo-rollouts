@@ -212,6 +212,14 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo rollout.ReplicaSetI
 		infoCols = append(infoCols, o.colorize(info.InfoTagPreview))
 		name = o.colorizeStatus(name, info.InfoTagPreview)
 	}
+	if rsInfo.Ping {
+		infoCols = append(infoCols, o.colorize(info.InfoTagPing))
+		name = o.colorizeStatus(name, info.InfoTagPing)
+	}
+	if rsInfo.Pong {
+		infoCols = append(infoCols, o.colorize(info.InfoTagPong))
+		name = o.colorizeStatus(name, info.InfoTagPong)
+	}
 	if rsInfo.ScaleDownDeadline != "" {
 		infoCols = append(infoCols, fmt.Sprintf("delay:%s", info.ScaleDownDelay(rsInfo)))
 	}

@@ -305,6 +305,16 @@ type CanaryStrategy struct {
 	// scaling down the stable as traffic is increased to canary. When disabled (the default behavior)
 	// the stable ReplicaSet remains fully scaled to support instantaneous aborts.
 	DynamicStableScale bool `json:"dynamicStableScale,omitempty" protobuf:"varint,14,opt,name=dynamicStableScale"`
+	// PingPongSpec holds the ping and pong services
+	PingPong *PingPongSpec `json:"pingPong,omitempty" protobuf:"varint,15,opt,name=pingPong"`
+}
+
+// PingPongSpec holds the ping and pong service name.
+type PingPongSpec struct {
+	// name of the ping service
+	PingService string `json:"pingService" protobuf:"bytes,1,opt,name=pingService"`
+	// name of the pong service
+	PongService string `json:"pongService" protobuf:"bytes,2,opt,name=pongService"`
 }
 
 // AnalysisRunStrategy configuration for the analysis runs and experiments to retain
@@ -824,7 +834,16 @@ type CanaryStatus struct {
 	CurrentExperiment string `json:"currentExperiment,omitempty" protobuf:"bytes,3,opt,name=currentExperiment"`
 	// Weights records the weights which have been set on traffic provider. Only valid when using traffic routing
 	Weights *TrafficWeights `json:"weights,omitempty" protobuf:"bytes,4,opt,name=weights"`
+	// StablePingPong For the ping-pong feature holds the current stable service, ping or pong
+	StablePingPong PingPongType `json:"stablePingPong,omitempty" protobuf:"bytes,5,opt,name=stablePingPong"`
 }
+
+type PingPongType string
+
+const (
+	PPPing PingPongType = "ping"
+	PPPong PingPongType = "pong"
+)
 
 // TrafficWeights describes the current status of how traffic has been split
 type TrafficWeights struct {

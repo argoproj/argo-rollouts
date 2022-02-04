@@ -62,6 +62,14 @@ const (
 	InvalidCanaryDynamicStableScale = "Canary dynamicStableScale can only be used with traffic routing"
 	// InvalidCanaryDynamicStableScaleWithScaleDownDelay indicates that canary.dynamicStableScale cannot be used with scaleDownDelaySeconds
 	InvalidCanaryDynamicStableScaleWithScaleDownDelay = "Canary dynamicStableScale cannot be used with scaleDownDelaySeconds"
+	// InvalidPingPongProvidedMessage indicates that both ping and pong service must be set to use Ping-Pong feature
+	InvalidPingPongProvidedMessage = "Ping service and Pong service must to be set to use Ping-Pong feature"
+	// DuplicatedPingPongServicesMessage indicates that the rollout uses the same service for the ping and pong services
+	DuplicatedPingPongServicesMessage = "This rollout uses the same service for the ping and pong services, but two different services are required."
+	// MissedAlbRootServiceMessage indicates that the rollout with ALB TrafficRouting and ping pong feature enabled must have root service provided
+	MissedAlbRootServiceMessage = "Root service field is required for the configuration with ALB and ping-pong feature enabled"
+	// PingPongWithAlbOnlyMessage At this moment ping-pong feature works with the ALB traffic routing only
+	PingPongWithAlbOnlyMessage = "Ping-pong feature works with the ALB traffic routing only"
 )
 
 // allowAllPodValidationOptions allows all pod options to be true for the purposes of rollout pod
@@ -211,7 +219,7 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 // canary.canaryService to be defined
 func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {
 	canary := rollout.Spec.Strategy.Canary
-	if canary.TrafficRouting == nil || (canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule != nil) {
+	if canary.TrafficRouting == nil || (canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule != nil) || (canary.PingPong != nil) {
 		return false
 	}
 	return true
@@ -223,6 +231,23 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	allErrs = append(allErrs, invalidMaxSurgeMaxUnavailable(rollout, fldPath.Child("maxSurge"))...)
 	if canary.CanaryService != "" && canary.StableService != "" && canary.CanaryService == canary.StableService {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
+	}
+	if canary.PingPong != nil {
+		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB == nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("alb"), canary.TrafficRouting.ALB, PingPongWithAlbOnlyMessage))
+		}
+		if canary.PingPong.PingService == "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("pingPong").Child("pingService"), canary.PingPong.PingService, InvalidPingPongProvidedMessage))
+		}
+		if canary.PingPong.PongService == "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("pingPong").Child("pongService"), canary.PingPong.PongService, InvalidPingPongProvidedMessage))
+		}
+		if canary.PingPong.PingService == canary.PingPong.PongService {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("pingPong").Child("pingService"), canary.PingPong.PingService, DuplicatedPingPongServicesMessage))
+		}
+		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB != nil && canary.TrafficRouting.ALB.RootService == "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("alb").Child("rootService"), canary.TrafficRouting.ALB.RootService, MissedAlbRootServiceMessage))
+		}
 	}
 	if requireCanaryStableServices(rollout) {
 		if canary.StableService == "" {

@@ -29,6 +29,8 @@ const (
 	InfoTagStable  = "stable"
 	InfoTagActive  = "active"
 	InfoTagPreview = "preview"
+	InfoTagPing    = "ping"
+	InfoTagPong    = "pong"
 )
 
 type Metadata v1.ObjectMeta

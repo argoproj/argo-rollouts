@@ -331,6 +331,55 @@ include:
 * [kube2iam](https://github.com/jtblin/kube2iam)
 * [EKS ServiceAccount IAM Roles](https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html)
 
+### Zero-Downtime Updates with Ping-Pong feature
+
+Above there was described the recommended way by AWS to solve zero-downtime issue. Is a use a [pod readiness gate injection](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/)
+when running the AWS LoadBalancer in IP mode. There is a challenge with that approach, modifications
+of the Service selector labels (`spec.selector`) not allowed the AWS LoadBalancer controller to mutate the readiness gates.
+And Ping-Pong feature helps to deal with that challenge. At some particular moment one of the services (e.g. ping) is "wearing a
+hat" of stable service another one (e.g. pong) is "wearing a hat" of canary. At the end of the promotion step all 100% of traffic sending
+to the "canary" (e.g. pong). And then the Rollout swapped the hats of ping and pong services so the pong became a stable one.
+The Rollout status object holds the value of who is currently the stable ping or pong (`status.canary.currentPingPong`).
+And this way allows the rollout to use pod readiness gate injection as the
+services are not changing their labels at the end of the rollout progress.
+
+!!!important 
+     
+    Ping-Pong feature available since Argo Rollouts v1.2
+
+## Example
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: example-rollout
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.15.4
+        ports:
+        - containerPort: 80
+  strategy:
+    canary: 
+      pingPong: #Indicates that the ping-pong services enabled
+        pingService: ping-service
+        pongService: pong-service
+      trafficRouting:
+        alb:
+          ingress: alb-ingress
+          servicePort: 80
+      steps:
+      - setWeight: 20
+      - pause: {}
+```
 
 ### Custom annotations-prefix
 

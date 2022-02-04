@@ -629,67 +629,58 @@ func (c *rolloutContext) getAmbassadorMappings() ([]unstructured.Unstructured, e
 }
 
 func (c *rolloutContext) getReferencedServices() (*[]validation.ServiceWithType, error) {
-	services := []validation.ServiceWithType{}
-	if c.rollout.Spec.Strategy.BlueGreen != nil {
-		if c.rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
-			activeSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.BlueGreen.ActiveService)
-			if k8serrors.IsNotFound(err) {
-				fldPath := validation.GetServiceWithTypeFieldPath(validation.ActiveService)
-				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.BlueGreen.ActiveService, err.Error())
-			}
-			if err != nil {
-				return nil, err
-			}
-			services = append(services, validation.ServiceWithType{
-				Service: activeSvc,
-				Type:    validation.ActiveService,
-			})
+	var services []validation.ServiceWithType
+	if bluegreenSpec := c.rollout.Spec.Strategy.BlueGreen; bluegreenSpec != nil {
+		if service, err := c.getReferencedService(bluegreenSpec.ActiveService, validation.ActiveService); service != nil {
+			services = append(services, *service)
+		} else if err != nil {
+			return nil, err
 		}
-		if c.rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
-			previewSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.BlueGreen.PreviewService)
-			if k8serrors.IsNotFound(err) {
-				fldPath := validation.GetServiceWithTypeFieldPath(validation.PreviewService)
-				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.BlueGreen.PreviewService, err.Error())
-			}
-			if err != nil {
-				return nil, err
-			}
-			services = append(services, validation.ServiceWithType{
-				Service: previewSvc,
-				Type:    validation.PreviewService,
-			})
+		if service, err := c.getReferencedService(bluegreenSpec.PreviewService, validation.PreviewService); service != nil {
+			services = append(services, *service)
+		} else if err != nil {
+			return nil, err
 		}
-	} else if c.rollout.Spec.Strategy.Canary != nil {
-		if c.rollout.Spec.Strategy.Canary.StableService != "" {
-			stableSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.StableService)
-			if k8serrors.IsNotFound(err) {
-				fldPath := validation.GetServiceWithTypeFieldPath(validation.StableService)
-				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.Canary.StableService, err.Error())
-			}
-			if err != nil {
-				return nil, err
-			}
-			services = append(services, validation.ServiceWithType{
-				Service: stableSvc,
-				Type:    validation.StableService,
-			})
+	} else if canarySpec := c.rollout.Spec.Strategy.Canary; canarySpec != nil {
+		if service, err := c.getReferencedService(canarySpec.StableService, validation.StableService); service != nil {
+			services = append(services, *service)
+		} else if err != nil {
+			return nil, err
 		}
-		if c.rollout.Spec.Strategy.Canary.CanaryService != "" {
-			canarySvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.CanaryService)
-			if k8serrors.IsNotFound(err) {
-				fldPath := validation.GetServiceWithTypeFieldPath(validation.CanaryService)
-				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.Canary.CanaryService, err.Error())
-			}
-			if err != nil {
+		if service, err := c.getReferencedService(canarySpec.CanaryService, validation.CanaryService); service != nil {
+			services = append(services, *service)
+		} else if err != nil {
+			return nil, err
+		}
+		if canarySpec.PingPong != nil {
+			if service, err := c.getReferencedService(canarySpec.PingPong.PingService, validation.PingService); service != nil {
+				services = append(services, *service)
+			} else if err != nil {
 				return nil, err
 			}
-			services = append(services, validation.ServiceWithType{
-				Service: canarySvc,
-				Type:    validation.CanaryService,
-			})
+			if service, err := c.getReferencedService(canarySpec.PingPong.PongService, validation.PongService); service != nil {
+				services = append(services, *service)
+			} else if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return &services, nil
+}
+
+func (c *rolloutContext) getReferencedService(serviceName string, serviceType validation.ServiceType) (*validation.ServiceWithType, error) {
+	if serviceName != "" {
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(serviceName)
+		if k8serrors.IsNotFound(err) {
+			fldPath := validation.GetServiceWithTypeFieldPath(serviceType)
+			return nil, field.Invalid(fldPath, serviceName, err.Error())
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &validation.ServiceWithType{Service: svc, Type: serviceType}, nil
+	}
+	return nil, nil
 }
 
 func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisTemplatesWithType, error) {
