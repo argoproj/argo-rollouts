@@ -15,6 +15,10 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 )
 
+const (
+	errTrafficRoutingWithExperimentSupport = "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time"
+)
+
 func TestValidateRollout(t *testing.T) {
 	selector := &metav1.LabelSelector{
 		MatchLabels: map[string]string{"key": "value"},
@@ -479,7 +483,7 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		invalidRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, 1, len(allErrs))
-		assert.Equal(t, "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time", allErrs[0].Detail)
+		assert.Equal(t, errTrafficRoutingWithExperimentSupport, allErrs[0].Detail)
 	})
 
 	t.Run("unsupported - Nginx TrafficRouting", func(t *testing.T) {
@@ -491,7 +495,7 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, 1, len(allErrs))
-		assert.Equal(t, "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time", allErrs[0].Detail)
+		assert.Equal(t, errTrafficRoutingWithExperimentSupport, allErrs[0].Detail)
 	})
 
 	t.Run("unsupported - Ambassador TrafficRouting", func(t *testing.T) {
@@ -503,7 +507,7 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, 1, len(allErrs))
-		assert.Equal(t, "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time", allErrs[0].Detail)
+		assert.Equal(t, errTrafficRoutingWithExperimentSupport, allErrs[0].Detail)
 	})
 
 	t.Run("unsupported - Istio TrafficRouting", func(t *testing.T) {
@@ -536,4 +540,15 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, 0, len(allErrs))
 	})
+
+	t.Run("unsupported - AppMesh TrafficRouting", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			AppMesh: &v1alpha1.AppMeshTrafficRouting{},
+		}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, 1, len(allErrs))
+		assert.Equal(t, errTrafficRoutingWithExperimentSupport, allErrs[0].Detail)
+	})
+
 }

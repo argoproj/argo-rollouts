@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/hash"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -58,7 +58,7 @@ func clusterAnalysisTemplate(name string) *v1alpha1.ClusterAnalysisTemplate {
 
 func clusterAnalysisRun(cat *v1alpha1.ClusterAnalysisTemplate, analysisRunType string, r *v1alpha1.Rollout) *v1alpha1.AnalysisRun {
 	labels := map[string]string{}
-	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 	var name string
 	if analysisRunType == v1alpha1.RolloutTypeStepLabel {
 		labels = analysisutil.StepLabels(*r.Status.CurrentStepIndex, podHash, "")
@@ -89,7 +89,7 @@ func clusterAnalysisRun(cat *v1alpha1.ClusterAnalysisTemplate, analysisRunType s
 
 func analysisRun(at *v1alpha1.AnalysisTemplate, analysisRunType string, r *v1alpha1.Rollout) *v1alpha1.AnalysisRun {
 	labels := map[string]string{}
-	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 	var name string
 	if analysisRunType == v1alpha1.RolloutTypeStepLabel {
 		labels = analysisutil.StepLabels(*r.Status.CurrentStepIndex, podHash, "")

@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
@@ -39,12 +40,17 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	}
 	rsList = newRSList
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(rsList))
-	// First, attempt to find the replicaset by the replicaset naming formula
-	replicaSetName := fmt.Sprintf("%s-%s", rollout.Name, controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount))
-	for _, rs := range rsList {
-		if rs.Name == replicaSetName {
-			return rs
-		}
+	// First, attempt to find the replicaset using our own hashing
+	podHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	if rs := searchRsByHash(rsList, podHash); rs != nil {
+		return rs
+	}
+	// Second, attempt to find the replicaset with old hash implementation
+	oldHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	if rs := searchRsByHash(rsList, oldHash); rs != nil {
+		logCtx := logutil.WithRollout(rollout)
+		logCtx.Infof("ComputePodTemplateHash hash changed (new hash: %s, old hash: %s)", podHash, oldHash)
+		return rs
 	}
 	// Iterate the ReplicaSet list again, this time doing a deep equal against the template specs.
 	// This covers the corner case in which the reason we did not find the replicaset, was because
@@ -61,11 +67,20 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 		desired := rollout.Spec.Template.DeepCopy()
 		if PodTemplateEqualIgnoreHash(live, desired) {
 			logCtx := logutil.WithRollout(rollout)
-			logCtx.Infof("ComputeHash change detected (expected: %s, actual: %s)", replicaSetName, rs.Name)
+			logCtx.Infof("ComputePodTemplateHash hash changed (expected: %s, actual: %s)", podHash, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 			return rs
 		}
 	}
 	// new ReplicaSet does not exist.
+	return nil
+}
+
+func searchRsByHash(rsList []*appsv1.ReplicaSet, hash string) *appsv1.ReplicaSet {
+	for _, rs := range rsList {
+		if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == hash {
+			return rs
+		}
+	}
 	return nil
 }
 
@@ -87,7 +102,7 @@ func GetRolloutAffinity(rollout v1alpha1.Rollout) *v1alpha1.AntiAffinity {
 
 func GenerateReplicaSetAffinity(rollout v1alpha1.Rollout) *corev1.Affinity {
 	antiAffinityStrategy := GetRolloutAffinity(rollout)
-	currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	currentPodHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	affinitySpec := rollout.Spec.Template.Spec.Affinity.DeepCopy()
 	if antiAffinityStrategy != nil && rollout.Status.StableRS != "" && rollout.Status.StableRS != currentPodHash {
 		antiAffinityRule := CreateInjectedAntiAffinityRule(rollout)
@@ -193,7 +208,7 @@ func RemoveInjectedAntiAffinityRule(affinity *corev1.Affinity, rollout v1alpha1.
 
 func IfInjectedAntiAffinityRuleNeedsUpdate(affinity *corev1.Affinity, rollout v1alpha1.Rollout) bool {
 	_, podAffinityTerm := HasInjectedAntiAffinityRule(affinity, rollout)
-	currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	currentPodHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	if podAffinityTerm != nil && rollout.Status.StableRS != currentPodHash {
 		for _, labelSelectorRequirement := range podAffinityTerm.LabelSelector.MatchExpressions {
 			if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey && labelSelectorRequirement.Values[0] != rollout.Status.StableRS {
@@ -216,9 +231,8 @@ func NeedsRestart(rollout *v1alpha1.Rollout) bool {
 }
 
 // FindOldReplicaSets returns the old replica sets targeted by the given Rollout, with the given slice of RSes.
-func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) []*appsv1.ReplicaSet {
+func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) []*appsv1.ReplicaSet {
 	var allRSs []*appsv1.ReplicaSet
-	newRS := FindNewReplicaSet(rollout, rsList)
 	for _, rs := range rsList {
 		// Filter out new replica set
 		if newRS != nil && rs.UID == newRS.UID {
@@ -456,7 +470,7 @@ func CheckPodSpecChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) boo
 	if rollout.Status.CurrentPodHash == "" {
 		return false
 	}
-	podHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	if newRS != nil {
 		podHash = GetPodTemplateHash(newRS)
 	}

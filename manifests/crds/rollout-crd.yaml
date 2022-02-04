@@ -635,6 +635,40 @@ spec:
                             required:
                             - mappings
                             type: object
+                          appMesh:
+                            properties:
+                              virtualNodeGroup:
+                                properties:
+                                  canaryVirtualNodeRef:
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  stableVirtualNodeRef:
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                required:
+                                - canaryVirtualNodeRef
+                                - stableVirtualNodeRef
+                                type: object
+                              virtualService:
+                                properties:
+                                  name:
+                                    type: string
+                                  routes:
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
+                            type: object
                           istio:
                             properties:
                               destinationRule:

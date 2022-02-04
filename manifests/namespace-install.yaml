@@ -11603,6 +11603,40 @@ spec:
                             required:
                             - mappings
                             type: object
+                          appMesh:
+                            properties:
+                              virtualNodeGroup:
+                                properties:
+                                  canaryVirtualNodeRef:
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  stableVirtualNodeRef:
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                required:
+                                - canaryVirtualNodeRef
+                                - stableVirtualNodeRef
+                                type: object
+                              virtualService:
+                                properties:
+                                  name:
+                                    type: string
+                                  routes:
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
+                            type: object
                           istio:
                             properties:
                               destinationRule:
@@ -14480,6 +14514,25 @@ rules:
   verbs:
   - list
   - get
+- apiGroups:
+  - appmesh.k8s.aws
+  resources:
+  - virtualservices
+  verbs:
+  - watch
+  - get
+  - list
+- apiGroups:
+  - appmesh.k8s.aws
+  resources:
+  - virtualnodes
+  - virtualrouters
+  verbs:
+  - watch
+  - get
+  - list
+  - update
+  - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

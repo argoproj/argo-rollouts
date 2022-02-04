@@ -271,6 +271,17 @@ func TestGetStrategyAndTrafficRouter(t *testing.T) {
 			expectedStrategy:      "canary",
 			expectedTrafficRouter: "Nginx",
 		},
+		{
+			strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						AppMesh: &v1alpha1.AppMeshTrafficRouting{},
+					},
+				},
+			},
+			expectedStrategy:      "canary",
+			expectedTrafficRouter: "AppMesh",
+		},
 	}
 
 	for _, test := range tests {

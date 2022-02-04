@@ -34,7 +34,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
-	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -47,6 +46,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"github.com/argoproj/argo-rollouts/utils/queue"
@@ -54,6 +54,7 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 var (
@@ -401,7 +402,7 @@ func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedRepl
 }
 
 func newReplicaSet(r *v1alpha1.Rollout, replicas int) *appsv1.ReplicaSet {
-	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 	rsLabels := map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 	}
@@ -1300,7 +1301,7 @@ func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-859fc5d686"
+	expectedReplicaSetName := "guestbook-6c5667f666"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -1681,6 +1682,135 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 		_, err = roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
 	})
+}
+
+func TestGetReferencedAppMeshResources(t *testing.T) {
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		AppMesh: &v1alpha1.AppMeshTrafficRouting{
+			VirtualService: &v1alpha1.AppMeshVirtualService{
+				Name:   "mysvc",
+				Routes: []string{"primary"},
+			},
+			VirtualNodeGroup: &v1alpha1.AppMeshVirtualNodeGroup{
+				CanaryVirtualNodeRef: &v1alpha1.AppMeshVirtualNodeReference{
+					Name: "mysvc-canary-vn",
+				},
+				StableVirtualNodeRef: &v1alpha1.AppMeshVirtualNodeReference{
+					Name: "mysvc-stable-vn",
+				},
+			},
+		},
+	}
+	r.Namespace = "default"
+
+	t.Run("should return error when virtual-service is not defined on rollout", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		rCopy := r.DeepCopy()
+		rCopy.Spec.Strategy.Canary.TrafficRouting.AppMesh.VirtualService = nil
+		roCtx, err := c.newRolloutContext(rCopy)
+		assert.NoError(t, err)
+		_, err = roCtx.getRolloutReferencedResources()
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService"), "null", "must provide virtual-service")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("should return error when virtual-service is not-found", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getRolloutReferencedResources()
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService"), "mysvc.default", "virtualservices.appmesh.k8s.aws \"mysvc\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("should return error when virtual-router is not-found", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		vsvc := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  name: mysvc
+  namespace: default
+spec:
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: mysvc-vrouter
+`
+		uVsvc := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
+		f.objects = append(f.objects, uVsvc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getRolloutReferencedResources()
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService"), "mysvc.default", "virtualrouters.appmesh.k8s.aws \"mysvc-vrouter\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("get referenced App Mesh - success", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		vsvc := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  name: mysvc
+  namespace: default
+spec:
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: mysvc-vrouter
+`
+
+		vrouter := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  name: mysvc-vrouter
+  namespace: default
+spec:
+  listeners:
+    - portMapping:
+        port: 8080
+        protocol: http
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: mysvc-canary-vn
+              weight: 0
+            - virtualNodeRef:
+                name: mysvc-stable-vn
+              weight: 100
+`
+
+		uVsvc := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
+		uVrouter := unstructuredutil.StrToUnstructuredUnsafe(vrouter)
+		f.objects = append(f.objects, uVsvc, uVrouter)
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		refRsources, err := roCtx.getRolloutReferencedResources()
+		assert.NoError(t, err)
+		assert.Len(t, refRsources.AppMeshResources, 1)
+		assert.Equal(t, refRsources.AppMeshResources[0].GetKind(), "VirtualRouter")
+	})
+
 }
 
 func TestGetAmbassadorMappings(t *testing.T) {

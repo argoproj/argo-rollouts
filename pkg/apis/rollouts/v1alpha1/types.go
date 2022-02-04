@@ -359,6 +359,8 @@ type RolloutTrafficRouting struct {
 	SMI *SMITrafficRouting `json:"smi,omitempty" protobuf:"bytes,4,opt,name=smi"`
 	// Ambassador holds specific configuration to use Ambassador to route traffic
 	Ambassador *AmbassadorTrafficRouting `json:"ambassador,omitempty" protobuf:"bytes,5,opt,name=ambassador"`
+	// AppMesh holds specific configuration to use AppMesh to route traffic
+	AppMesh *AppMeshTrafficRouting `json:"appMesh,omitempty" protobuf:"bytes,6,opt,name=appMesh"`
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
@@ -426,6 +428,36 @@ type IstioDestinationRule struct {
 	CanarySubsetName string `json:"canarySubsetName" protobuf:"bytes,2,opt,name=canarySubsetName"`
 	// StableSubsetName is the subset name to modify labels with stable ReplicaSet pod template hash value
 	StableSubsetName string `json:"stableSubsetName" protobuf:"bytes,3,opt,name=stableSubsetName"`
+}
+
+// AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration
+type AppMeshTrafficRouting struct {
+	// VirtualService references an AppMesh VirtualService and VirtualRouter to modify to shape traffic
+	VirtualService *AppMeshVirtualService `json:"virtualService,omitempty" protobuf:"bytes,1,opt,name=virtualService"`
+	// VirtualNodeGroup references an AppMesh Route targets that are formed by a set of VirtualNodes that are used to shape traffic
+	VirtualNodeGroup *AppMeshVirtualNodeGroup `json:"virtualNodeGroup,omitempty" protobuf:"bytes,2,opt,name=virtualNodeGroup"`
+}
+
+// AppMeshVirtualService holds information on the virtual service the rollout needs to modify
+type AppMeshVirtualService struct {
+	// Name is the name of virtual service
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// Routes is list of HTTP routes within virtual router associated with virtual service to edit. If omitted, virtual service must have a single route of this type.
+	Routes []string `json:"routes,omitempty" protobuf:"bytes,2,rep,name=routes"`
+}
+
+// AppMeshVirtualNodeGroup holds information about targets used for routing traffic to a virtual service
+type AppMeshVirtualNodeGroup struct {
+	// CanaryVirtualNodeRef is the virtual node ref to modify labels with canary ReplicaSet pod template hash value
+	CanaryVirtualNodeRef *AppMeshVirtualNodeReference `json:"canaryVirtualNodeRef" protobuf:"bytes,1,opt,name=canaryVirtualNodeRef"`
+	// StableVirtualNodeRef is the virtual node name to modify labels with stable ReplicaSet pod template hash value
+	StableVirtualNodeRef *AppMeshVirtualNodeReference `json:"stableVirtualNodeRef" protobuf:"bytes,2,opt,name=stableVirtualNodeRef"`
+}
+
+// AppMeshVirtualNodeReference holds a reference to VirtualNode.appmesh.k8s.aws
+type AppMeshVirtualNodeReference struct {
+	// Name is the name of VirtualNode CR
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 }
 
 // RolloutExperimentStep defines a template that is used to create a experiment for a step
