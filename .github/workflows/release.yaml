@@ -136,7 +136,7 @@ jobs:
           # managers (gomod, yarn, npm).
           PROJECT_FOLDERS: ".,./ui" 
           # full qualified name of the docker image to be inspected
-          DOCKER_IMAGE: quay.io/argoproj/argo-rollouts:v${{ github.event.inputs.tag }}
+          DOCKER_IMAGE: quay.io/argoproj/argo-rollouts:${{ github.event.inputs.tag }}
 
         run: |
           yarn install --cwd ./ui
