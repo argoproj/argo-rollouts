@@ -103,7 +103,6 @@ export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRe
 
 export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boolean}) => {
     const rsName = props.rs.objectMeta.name;
-    console.log(props.rs.scaleDownDeadline, rsName);
     return (
         <ThemeDiv className='pods'>
             {rsName && (
