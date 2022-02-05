@@ -108,6 +108,7 @@ jobs:
 
   release-artifacts:
     runs-on: ubuntu-latest
+    needs: release-images
 
     steps:
       - name: Checkout
