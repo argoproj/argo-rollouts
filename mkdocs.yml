@@ -129,4 +129,12 @@ theme:
   logo: assets/logo.png
   name: material
   palette:
-    primary: teal
+    - scheme: default
+      primary: teal
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
