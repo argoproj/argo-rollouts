@@ -207,3 +207,5 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.23.1
 	k8s.io/sample-controller => k8s.io/sample-controller v0.23.1
 )
+
+replace github.com/matryer/moq => github.com/matryer/moq v0.1.6
