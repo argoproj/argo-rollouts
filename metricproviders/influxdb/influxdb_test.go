@@ -177,7 +177,7 @@ func TestRunWithEvaluationError(t *testing.T) {
 	measurement := p.Run(newAnalysisRun(), metric)
 	metricsMetadata := p.GetMetadata(metric)
 	assert.Nil(t, metricsMetadata)
-	assert.Equal(t, "no results returned from flux query", measurement.Message)
+	assert.Equal(t, "no QueryTableResult returned from flux query", measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
