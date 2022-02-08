@@ -26,10 +26,10 @@ type MetricsServer struct {
 
 	reconcileAnalysisRunHistogram *prometheus.HistogramVec
 	errorAnalysisRunCounter       *prometheus.CounterVec
-	successNotificationCounter	*prometheus.CounterVec
-	errorNotificationCounter 	*prometheus.CounterVec
-	sendNotificationRunHistogram *prometheus.HistogramVec
-	k8sRequestsCounter *K8sRequestsCountProvider
+	successNotificationCounter    *prometheus.CounterVec
+	errorNotificationCounter      *prometheus.CounterVec
+	sendNotificationRunHistogram  *prometheus.HistogramVec
+	k8sRequestsCounter            *K8sRequestsCountProvider
 }
 
 const (
@@ -101,9 +101,9 @@ func NewMetricsServer(cfg ServerConfig, isPrimary bool) *MetricsServer {
 
 		reconcileAnalysisRunHistogram: MetricAnalysisRunReconcile,
 		errorAnalysisRunCounter:       MetricAnalysisRunReconcileError,
-		successNotificationCounter: MetricNotificationSuccessTotal,
-		errorNotificationCounter:	   MetricNotificationFailedTotal,
-		sendNotificationRunHistogram: MetricNotificationSendPerformance,
+		successNotificationCounter:    MetricNotificationSuccessTotal,
+		errorNotificationCounter:      MetricNotificationFailedTotal,
+		sendNotificationRunHistogram:  MetricNotificationSendPerformance,
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
 	}

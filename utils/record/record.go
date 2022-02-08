@@ -3,10 +3,11 @@ package record
 import (
 	"context"
 	"encoding/json"
-	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	"regexp"
 	"strings"
 	"time"
+
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
@@ -69,7 +70,7 @@ type EventRecorderAdapter struct {
 	// NotificationFailCounter is a counter to increment on failing to send notifications
 	NotificationFailedCounter *prometheus.CounterVec
 	// NotificationSuccessCounter is a counter to increment on successful send notifications
-	NotificationSuccessCounter *prometheus.CounterVec
+	NotificationSuccessCounter  *prometheus.CounterVec
 	NotificationSendPerformance *prometheus.HistogramVec
 
 	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{})
@@ -77,7 +78,7 @@ type EventRecorderAdapter struct {
 	apiFactory api.Factory
 }
 
-func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, notificationFailedCounter *prometheus.CounterVec, notificationSuccessCounter *prometheus.CounterVec, notificationSendPerformance *prometheus.HistogramVec,apiFactory api.Factory) EventRecorder {
+func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, notificationFailedCounter *prometheus.CounterVec, notificationSuccessCounter *prometheus.CounterVec, notificationSendPerformance *prometheus.HistogramVec, apiFactory api.Factory) EventRecorder {
 	// Create event broadcaster
 	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
 	// logged for argo-rollouts types.
@@ -86,12 +87,12 @@ func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *p
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	k8srecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 	recorder := &EventRecorderAdapter{
-		Recorder:                  k8srecorder,
-		RolloutEventCounter:       rolloutEventCounter,
-		NotificationFailedCounter: notificationFailedCounter,
-		NotificationSuccessCounter: notificationSuccessCounter,
+		Recorder:                    k8srecorder,
+		RolloutEventCounter:         rolloutEventCounter,
+		NotificationFailedCounter:   notificationFailedCounter,
+		NotificationSuccessCounter:  notificationSuccessCounter,
 		NotificationSendPerformance: notificationSendPerformance,
-		apiFactory:                apiFactory,
+		apiFactory:                  apiFactory,
 	}
 	recorder.eventf = recorder.defaultEventf
 	return recorder

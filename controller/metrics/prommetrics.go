@@ -179,8 +179,8 @@ var (
 var (
 	MetricNotificationSuccessTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name:    "notification_send_success",
-			Help:    "Notification send success.",
+			Name: "notification_send_success",
+			Help: "Notification send success.",
 		},
 		append(namespaceNameLabels, "type", "reason"),
 	)
