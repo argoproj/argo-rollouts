@@ -3,6 +3,7 @@ package record
 import (
 	"context"
 	"encoding/json"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	"regexp"
 	"strings"
 	"time"
@@ -65,13 +66,18 @@ type EventRecorderAdapter struct {
 	Recorder record.EventRecorder
 	// RolloutEventCounter is a counter to increment on events
 	RolloutEventCounter *prometheus.CounterVec
+	// NotificationFailCounter is a counter to increment on failing to send notifications
+	NotificationFailedCounter *prometheus.CounterVec
+	// NotificationSuccessCounter is a counter to increment on successful send notifications
+	NotificationSuccessCounter *prometheus.CounterVec
+	NotificationSendPerformance *prometheus.HistogramVec
 
 	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{})
 	// apiFactory is a notifications engine API factory
 	apiFactory api.Factory
 }
 
-func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, apiFactory api.Factory) EventRecorder {
+func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *prometheus.CounterVec, notificationFailedCounter *prometheus.CounterVec, notificationSuccessCounter *prometheus.CounterVec, notificationSendPerformance *prometheus.HistogramVec,apiFactory api.Factory) EventRecorder {
 	// Create event broadcaster
 	// Add argo-rollouts custom resources to the default Kubernetes Scheme so Events can be
 	// logged for argo-rollouts types.
@@ -80,9 +86,12 @@ func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *p
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	k8srecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 	recorder := &EventRecorderAdapter{
-		Recorder:            k8srecorder,
-		RolloutEventCounter: rolloutEventCounter,
-		apiFactory:          apiFactory,
+		Recorder:                  k8srecorder,
+		RolloutEventCounter:       rolloutEventCounter,
+		NotificationFailedCounter: notificationFailedCounter,
+		NotificationSuccessCounter: notificationSuccessCounter,
+		NotificationSendPerformance: notificationSendPerformance,
+		apiFactory:                apiFactory,
 	}
 	recorder.eventf = recorder.defaultEventf
 	return recorder
@@ -137,6 +146,26 @@ func NewFakeEventRecorder() *FakeEventRecorder {
 			},
 			[]string{"name", "namespace", "type", "reason"},
 		),
+		prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "notification_send_error",
+			},
+			[]string{"name", "namespace", "type", "reason"},
+		),
+		prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "notification_send_success",
+			},
+			[]string{"name", "namespace", "type", "reason"},
+		),
+		prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "notification_send_performance",
+				Help:    "Notification send performance.",
+				Buckets: []float64{0.01, 0.15, .25, .5, 1},
+			},
+			[]string{"namespace", "name"},
+		),
 		NewFakeApiFactory(),
 	).(*EventRecorderAdapter)
 	recorder.Recorder = record.NewFakeRecorder(1000)
@@ -178,7 +207,9 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 		err := e.sendNotifications(object, opts)
 		if err != nil {
 			logCtx.Errorf("Notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
+			e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
+		e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 	}
 
 	logFn := logCtx.Infof
@@ -207,6 +238,13 @@ func NewAPIFactorySettings() api.Settings {
 // Send notifications for triggered event if user is subscribed
 func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts EventOptions) error {
 	logCtx := logutil.WithObject(object)
+	_, namespace, name := logutil.KindNamespaceName(logCtx)
+	startTime := timeutil.Now()
+	defer func() {
+		duration := time.Since(startTime)
+		e.NotificationSendPerformance.WithLabelValues(namespace, name).Observe(duration.Seconds())
+		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Notification sent")
+	}()
 	notificationsAPI, err := e.apiFactory.GetAPI()
 	if err != nil {
 		// don't return error if notifications are not configured and rollout has no subscribers
