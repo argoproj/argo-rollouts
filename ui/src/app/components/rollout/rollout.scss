@@ -1,189 +1,308 @@
 @import 'node_modules/argo-ui/v2/styles/colors';
 
-$WIDGET_WIDTH: 400px;
+.revision {
+    padding: 15px;
+    margin-bottom: 1em;
+    background: none;
 
-$widgetPadding: 17px;
-$widgetMarginRight: 20px;
-$colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
-
-.rollouts-list {
-    display: flex;
-    box-sizing: border-box;
-    flex-wrap: wrap;
-
-    &__search-container {
-        width: 50% !important;
-        margin: 0 auto;
+    &__background {
+        background: $argo-color-gray-2;
+        border: 1px solid $argo-color-gray-4;
+        border-radius: 5px;
     }
 
-    &__rollouts-container {
-        padding: 20px;
+    &--dark > &__background {
+        border: none;
+        background: $slate;
+    }
+
+    &:hover > &__background {
+        transform: scale(1.02);
+        box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    &__header {
         display: flex;
-        flex-wrap: wrap;
-
-        width: 3 * $colWidth;
-        margin: 0 auto;
-
-        @media screen and (max-width: 3 * $colWidth) {
-            width: 2 * $colWidth;
-            margin: 0 auto;
-        }
-
-        @media screen and (max-width: 2 * $colWidth) {
-            width: $colWidth;
-
-            .rollouts-list__widget {
-                margin: 0 inherit;
-                width: 100%;
-            }
-
-            .rollouts-list__search-container {
-                width: 100% !important;
-            }
-        }
-    }
-
-    &__empty-message {
-        padding-top: 70px;
-        width: 50%;
-        margin: 0 auto;
-        color: $argo-color-gray-7;
-        h1 {
-            margin-bottom: 1em;
-            text-align: center;
-        }
-        div {
-            line-height: 1.5em;
-        }
-        pre {
-            overflow: scroll;
+        align-items: center;
+        margin-bottom: 1em;
+        font-size: 18px;
+        font-weight: 500;
+        &__button {
             cursor: pointer;
-            line-height: 2em;
-            font-size: 15px;
-            padding: 3px 5px;
-            color: $argo-color-gray-8;
-            margin: 0.5em 0;
-            background-color: white;
-        }
-        a {
-            color: $sea;
-            border-bottom: 1px solid $sea;
-        }
-
-        &--dark {
-            color: $shine;
-            a {
+            &:hover {
+                color: $sea;
+            }
+            &--dark:hover {
                 color: $sky;
-                border-color: $sky;
             }
-            pre {
-                background-color: $space;
-                color: $shine;
+        }
+    }
+}
+
+.steps {
+    width: 250px;
+    flex-shrink: 0;
+    max-height: 500px;
+    overflow-y: auto;
+
+    &__step {
+        padding: 15px 18px;
+
+        &__background {
+            border-radius: 10px;
+            border: 1px solid $argo-color-gray-4;
+            &--dark {
+                border: 1px solid $silver-lining;
             }
         }
 
-        @media screen and (max-width: 2 * $colWidth) {
-            width: 80%;
+        &:hover > &__background {
+            border: 1px solid $sherbert;
+        }
+
+        &--complete > &__background {
+            border: 2px solid $argo-success-color;
+        }
+
+        &--complete:hover > &__background {
+            border: 2px solid $argo-success-color;
+        }
+
+        &--current > &__background {
+            border: 2px solid $sherbert;
+        }
+
+        &--current:hover > &__background {
+            border: 2px solid $sherbert;
+        }
+
+        &-title {
+            padding-left: 16px;
+            padding-right: 16px;
+            margin: 0 -16px;
+            &--experiment {
+                padding-bottom: 8px;
+                border-bottom: 1px solid $argo-color-gray-6;
+            }
+        }
+
+        &__content {
+            margin-left: -16px;
+            margin-right: -16px;
+            max-height: 160px;
+            overflow-y: auto;
+
+            &-body {
+                border-bottom: 1px solid $argo-color-gray-6;
+                padding: 8px 16px;
+                &:last-child {
+                    border-bottom: none;
+                }
+            }
+        }
+
+        &:hover > &__background {
+            transform: scale(1.02);
         }
     }
 
-    &__toolbar {
-        width: 100%;
-        padding-top: 1.5em;
-        background-color: white;
-        border-bottom: 1px solid white;
+    &__connector {
+        height: 1em;
+        width: 2px;
+        background-color: $argo-color-gray-4;
+        margin: 0 auto;
+        &--dark {
+            background-color: $silver-lining;
+        }
+    }
+}
+
+.image {
+    &--red {
+        color: $clay;
+    }
+    &--blue {
+        color: $sea;
+    }
+    &--orange {
+        color: $spray-tan;
+    }
+
+    &--red#{&}--dark {
+        color: $coral;
+    }
+    &--blue#{&}--dark {
+        color: $sky;
+    }
+    &--orange#{&}--dark {
+        color: $sherbert;
+    }
+}
+
+.info {
+    border: 1px solid $argo-color-gray-4;
+    border-radius: 5px;
+    padding: 20px;
+    background-color: white;
+    height: max-content;
+    box-sizing: border-box;
+
+    &__section {
+        margin-bottom: 0.5em;
+        padding-bottom: 0.5em;
+        border-bottom: 1px solid $argo-color-gray-4;
 
         &--dark {
             border-bottom: 1px solid $silver-lining;
-            background-color: $space;
         }
     }
 
-    &__widget {
-        position: relative;
+    &__title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 0.5em;
+    }
+
+    &--dark {
+        background-color: $space;
+        border-color: $silver-lining;
+    }
+}
+
+.analysis {
+    padding-top: 1em;
+    border-top: 1px solid $argo-color-gray-4;
+    &__runs {
+        margin-top: 1em;
+        display: flex;
+    }
+    &--dark {
+        border-top: 1px solid $silver-lining;
+    }
+    &__run {
+        width: 40px;
+        margin-right: 5px;
+        height: 10px;
+        border-radius: 3px;
+        background-color: $argo-color-gray-4;
+        &--successful {
+            background-color: $argo-success-color;
+        }
+
+        &--failed {
+            background-color: $coral;
+        }
+
+        &--running {
+            background-color: $sky;
+        }
+    }
+}
+
+.containers {
+    &__few {
         box-sizing: border-box;
-        padding: 17px;
-        font-size: 14px;
-        margin: 0 10px;
-        color: $argo-color-gray-7;
-        width: $WIDGET_WIDTH;
-        height: max-content;
-        flex-shrink: 0;
-        margin-bottom: 1.5em;
-        border-radius: 5px;
-
-        &__pods {
-            margin-bottom: 1em;
+        font-size: 18px;
+        text-align: center;
+        color: $argo-color-gray-5;
+        margin-top: 2em;
+        i {
+            margin-right: 5px;
         }
-
-        &__background {
-            background-color: white;
-            box-shadow: 1px 2px 2px rgba(0, 0, 0, 0.05);
-            border: 1px solid $argo-color-gray-4;
-
-            border-radius: 5px;
-            &--dark {
-                border-color: $silver-lining;
-                box-shadow: 1px 2px 3px 1px $space;
-                background: none;
-            }
-        }
-
-        &:hover > &__background,
-        &--selected > &__background {
-            transform: scale(1.01);
-            border-color: $sherbert;
-        }
-
-        &--dark:hover > &__background,
-        &--dark#{&}--selected > &__background {
-            border-color: $spray-tan;
-        }
-
         &--dark {
             color: $dull-shine;
         }
+    }
+}
 
-        &__container {
-            position: relative;
-            display: block;
-            z-index: 2;
+.rollout {
+    padding-bottom: 5em;
+    &__row {
+        display: flex;
+        width: 100%;
+        margin-bottom: 1.5em;
+        justify-content: center;
+
+        .info {
+            height: auto;
         }
 
-        &__refresh {
-            &:hover {
-                color: $sherbert;
+        &--bottom {
+            .info {
+                height: max-content;
             }
         }
+    }
 
-        &__body {
-            margin-bottom: 1em;
-            padding-bottom: 0.75em;
-            border-bottom: 1px solid $argo-color-gray-4;
-            &--dark {
-                border-bottom: 1px solid $silver-lining;
-            }
+    &__info {
+        width: 400px;
+        margin-right: 15px;
+
+        &:last-child {
+            margin-right: 0;
         }
+    }
 
-        header {
-            color: $argo-color-gray-8;
-            display: flex;
-            align-items: center;
-            font-weight: 500;
-            font-size: 18px;
-            border-bottom: 1px solid $argo-color-gray-4;
-            padding-bottom: 1em;
-            margin-bottom: 1em;
-        }
-
-        &--dark header {
+    &__header {
+        color: $argo-color-gray-8;
+        font-size: 22px;
+        margin-left: 12px;
+        margin-right: auto;
+        flex-shrink: 0;
+        height: 2em;
+        display: flex;
+        align-items: center;
+        &--dark {
             color: $shine;
+        }
+    }
+    &__toolbar {
+        box-sizing: border-box;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        padding-bottom: 1em;
+        margin-bottom: 1.5em;
+        border-bottom: 1px solid $argo-color-gray-4;
+        background-color: white;
+        padding-top: 1em;
+        flex-wrap: wrap;
+        &--dark {
+            background-color: $space;
             border-bottom: 1px solid $silver-lining;
         }
+
         &__actions {
-            display: flex;
-            align-items: center;
-            margin-top: 1.5em;
+            @media screen and (max-width: 750px) {
+                width: 100%;
+                margin-top: 1em;
+                margin-left: 7px;
+            }
+        }
+    }
+
+    &__revisions {
+        width: 550px;
+    }
+
+    &__body {
+        padding: 0 20px;
+        color: $argo-color-gray-8;
+        display: flex;
+        flex-wrap: wrap;
+        h3 {
+            margin-bottom: 0px;
+            font-size: 12px;
+            font-weight: 500;
+            color: $argo-color-gray-6;
+        }
+
+        &--dark {
+            color: $shine;
+            h3 {
+                color: $dull-shine;
+            }
         }
     }
 }
