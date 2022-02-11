@@ -297,8 +297,23 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     return (
         <React.Fragment>
             <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-                <i className={`fa ${icon}`} /> {content}
-                {unit}
+                <EffectDiv className={`steps__step-title ${props.step.experiment ? 'steps__step-title--experiment' : ''}`}>
+                    <i className={`fa ${icon}`} /> {content}
+                    {unit}
+                </EffectDiv>
+                {props.step.experiment?.templates && (
+                    <EffectDiv className='steps__step__content'>
+                        {props.step.experiment?.templates.map((template) => {
+                            return (
+                                <EffectDiv className='steps__step__content-body'>
+                                    <EffectDiv>name:{template.name}</EffectDiv>
+                                    <EffectDiv>specRef:{template.specRef}</EffectDiv>
+                                    <EffectDiv>weight:{template.weight}</EffectDiv>
+                                </EffectDiv>
+                            );
+                        })}
+                    </EffectDiv>
+                )}
             </EffectDiv>
             {!props.last && <ThemeDiv className='steps__connector' />}
         </React.Fragment>
