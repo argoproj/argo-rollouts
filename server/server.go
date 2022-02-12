@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/argoproj/pkg/errors"
@@ -101,7 +102,11 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(json.JSONMarshaler))
 	gwmux := runtime.NewServeMux(gwMuxOpts,
-		runtime.WithIncomingHeaderMatcher(func(key string) (string, bool) { return key, true }),
+		runtime.WithIncomingHeaderMatcher(func(key string) (string, bool) {
+			// Dropping "Connection" header as a workaround for https://github.com/grpc-ecosystem/grpc-gateway/issues/2447
+			// The fix is part of grpc-gateway v2.x but not available in v1.x, so workaround should be removed after upgrading to grpc v2.x
+			return key, strings.ToLower(key) != "connection"
+		}),
 		runtime.WithProtoErrorHandler(runtime.DefaultHTTPProtoErrorHandler),
 	)
 
