@@ -306,8 +306,8 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                         {props.step.experiment?.templates.map((template) => {
                             return (
                                 <EffectDiv className='steps__step__content-body'>
-                                    {template.name && <EffectDiv>name: {template.name}</EffectDiv>}
-                                    {template.specRef && <EffectDiv>specRef: {template.specRef}</EffectDiv>}
+                                    <EffectDiv>name: {template.name}</EffectDiv>
+                                    <EffectDiv>specRef: {template.specRef}</EffectDiv>
                                     {template.weight && <EffectDiv>weight: {template.weight}</EffectDiv>}
                                 </EffectDiv>
                             );
