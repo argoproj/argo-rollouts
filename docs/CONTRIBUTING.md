@@ -7,7 +7,7 @@ Install:
 
 * [docker](https://docs.docker.com/install/#supported-platforms)
 * [golang](https://golang.org/)
-* [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+* [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
 * [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
 * [k3d](https://k3d.io/) recommended
 
