@@ -87,6 +87,15 @@ running. The rollout controller can be started with the command:
 make start-e2e
 ```
 
+Start and prepare your cluster for e2e tests:
+
+```
+k3d cluster create
+kubectl create ns argo-rollouts
+kubectl apply -k manifests/crds
+kubectl apply -f test/e2e/crds
+```
+
 Then run the e2e tests:
 
 ```
