@@ -44,6 +44,15 @@ For these reasons, in large scale high-volume production environments, a rolling
 ## Documentation
 To learn more about Argo Rollouts go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
 
+## Community 
+
+You can reach the Argo Rollouts community and developers via the following channels:
+
+* Q & A: [Github Discussions](https://github.com/argoproj/argo-rollouts/discussions)
+* Chat: [The #argo-rollouts Slack channel](https://argoproj.github.io/community/join-slack)
+* Contributors Office Hours: [Every Thursday](https://calendar.google.com/calendar/u/0/embed?src=argoproj@gmail.com) | [Agenda](https://docs.google.com/document/d/1xkoFkVviB70YBzSEa4bDnu-rUZ1sIFtwKKG1Uw8XsY8)
+* User Community meeting: [First Wednesday of each month](https://calendar.google.com/calendar/u/0/embed?src=argoproj@gmail.com) | [Agenda](https://docs.google.com/document/d/1ttgw98MO45Dq7ZUHpIiOIEfbyeitKHNfMjbY5dLLMKQ)
+
 ## Who uses Argo Rollouts?
 
 [Official Argo Rollouts User List](https://github.com/argoproj/argo-rollouts/blob/master/USERS.md)
