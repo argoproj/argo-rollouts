@@ -193,7 +193,7 @@ var (
 		append(namespaceNameLabels, "type", "reason"),
 	)
 
-	MetricNotificationSendPerformance = prometheus.NewHistogramVec(
+	MetricNotificationSend = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "notification_send",
 			Help:    "Notification send performance.",

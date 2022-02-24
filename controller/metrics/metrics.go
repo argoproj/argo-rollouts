@@ -79,7 +79,7 @@ func NewMetricsServer(cfg ServerConfig, isPrimary bool) *MetricsServer {
 	reg.MustRegister(MetricAnalysisRunReconcileError)
 	reg.MustRegister(MetricNotificationSuccessTotal)
 	reg.MustRegister(MetricNotificationFailedTotal)
-	reg.MustRegister(MetricNotificationSendPerformance)
+	reg.MustRegister(MetricNotificationSend)
 	reg.MustRegister(MetricVersionGauge)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
@@ -103,7 +103,7 @@ func NewMetricsServer(cfg ServerConfig, isPrimary bool) *MetricsServer {
 		errorAnalysisRunCounter:       MetricAnalysisRunReconcileError,
 		successNotificationCounter:    MetricNotificationSuccessTotal,
 		errorNotificationCounter:      MetricNotificationFailedTotal,
-		sendNotificationRunHistogram:  MetricNotificationSendPerformance,
+		sendNotificationRunHistogram:  MetricNotificationSend,
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
 	}
