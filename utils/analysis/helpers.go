@@ -178,6 +178,17 @@ func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Mea
 	return nil
 }
 
+func ArrayMeasurement(run *v1alpha1.AnalysisRun, metricName string) []v1alpha1.Measurement {
+	if result := GetResult(run, metricName); result != nil {
+		totalMeasurements := len(result.Measurements)
+		if totalMeasurements == 0 {
+			return nil
+		}
+		return result.Measurements
+	}
+	return nil
+}
+
 // TerminateRun terminates an analysis run
 func TerminateRun(analysisRunIf argoprojclient.AnalysisRunInterface, name string) error {
 	_, err := analysisRunIf.Patch(context.TODO(), name, patchtypes.MergePatchType, []byte(`{"spec":{"terminate":true}}`), metav1.PatchOptions{})
