@@ -1,9 +1,10 @@
-import {ActionButton, EffectDiv, formatTimestamp, InfoItemProps, InfoItemRow, ThemeDiv, Tooltip} from 'argo-ui/v2';
+import {ActionButton, EffectDiv, formatTimestamp, InfoItemProps, InfoItemRow, Menu, ThemeDiv, Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
-import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo} from '../../../models/rollout/generated';
+import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo, RolloutJobInfo} from '../../../models/rollout/generated';
 import {IconForTag} from '../../shared/utils/utils';
 import {ReplicaSets} from '../pods/pods';
 import {ImageInfo, parseImages} from './rollout';
+import './rollout.scss';
 
 export interface Revision {
     number: number;
@@ -33,6 +34,7 @@ interface RevisionWidgetProps {
     initCollapsed?: boolean;
     rollback?: (revision: number) => void;
     current: boolean;
+    message: String;
 }
 
 export const RevisionWidget = (props: RevisionWidgetProps) => {
@@ -63,7 +65,7 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
                     {(revision.analysisRuns || []).length > 0 && (
                         <React.Fragment>
                             <div style={{marginTop: '1em'}}>
-                                <AnalysisRunWidget analysisRuns={revision.analysisRuns} />
+                                <AnalysisRunWidget analysisRuns={revision.analysisRuns} message={props.message} />
                             </div>
                         </React.Fragment>
                     )}
@@ -73,24 +75,71 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
     );
 };
 
-const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
+const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]; message: String}) => {
     const {analysisRuns} = props;
+    const [opened, setOpened] = React.useState(false);
+    const icon = opened ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down';
     return (
         <ThemeDiv className='analysis'>
-            <div>Analysis Runs</div>
+            <div className='analysis-header'>
+                Analysis Runs
+                <ThemeDiv onClick={() => setOpened(!opened)}>
+                    <i className={`fa ${icon}`} />
+                </ThemeDiv>
+            </div>
             <div className='analysis__runs'>
-                {analysisRuns.map((ar) => (
+                {analysisRuns.map((ar, i) => (
                     <Tooltip
                         content={
                             <React.Fragment>
                                 <div>{ar.objectMeta.name}</div>
                                 <div>Created at {formatTimestamp(JSON.stringify(ar.objectMeta.creationTimestamp))}</div>
+                                <div>{ar.status}</div>
                             </React.Fragment>
                         }>
                         <ThemeDiv className={`analysis__run analysis__run--${ar.status ? ar.status.toLowerCase() : 'unknown'}`} />
                     </Tooltip>
                 ))}
             </div>
+
+            {opened &&
+                analysisRuns.map((ar) => {
+                    return (
+                        <React.Fragment>
+                            <div>
+                                {ar.objectMeta.name}
+                                <i
+                                    className={`analysis__run-icon fa ${
+                                        ar.status === 'Successful' ? 'fa-check-circle analysis__run-icon--success' : 'fa-times-circle analysis__run-icon--failure'
+                                    }`}
+                                />
+                            </div>
+                            {ar?.jobs && (
+                                <div className='analysis__jobs'>
+                                    {ar.jobs.map((job) => {
+                                        return <AnalysisRunDetail key={job.objectMeta.name} job={job} />;
+                                    })}
+                                </div>
+                            )}
+                        </React.Fragment>
+                    );
+                })}
         </ThemeDiv>
+    );
+};
+
+const AnalysisRunDetail = ({job}: {job: RolloutJobInfo}) => {
+    return (
+        <Menu items={[{label: 'Copy Name', action: () => navigator.clipboard.writeText(job.objectMeta?.name), icon: 'fa-clipboard'}]}>
+            <Tooltip
+                content={
+                    <div>
+                        <div>job-name: {job.objectMeta?.name}</div>
+                        <div>Status: {job.status}</div>
+                    </div>
+                }>
+                <i className={`analysis-icon fa ${job.status === 'Successful' ? 'fa-check analysis-icon--success' : 'fa-times analysis-icon--failure'}`} />
+            </Tooltip>
+        </Menu>
     );
 };

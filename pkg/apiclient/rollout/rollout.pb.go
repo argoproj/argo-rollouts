@@ -1374,6 +1374,7 @@ type AnalysisRunInfo struct {
 	Inconclusive         int32          `protobuf:"varint,7,opt,name=inconclusive,proto3" json:"inconclusive,omitempty"`
 	Error                int32          `protobuf:"varint,8,opt,name=error,proto3" json:"error,omitempty"`
 	Jobs                 []*JobInfo     `protobuf:"bytes,9,rep,name=jobs,proto3" json:"jobs,omitempty"`
+	Message              string         `protobuf:"bytes,10,opt,name=message,proto3" json:"message,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
