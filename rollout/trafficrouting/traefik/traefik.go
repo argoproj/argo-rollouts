@@ -38,6 +38,11 @@ type ClientInterface interface {
 	Delete(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error
 }
 
+type TraefikServicesField struct {
+	Name string
+	Weight int64
+}
+
 func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 	reconciler := Reconciler{
 		Rollout: cfg.Rollout,
@@ -80,8 +85,9 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	} 
 	for _, rolloutService := range additionalDestinations {
 		for _, service := range services {
-			if service.Name == rolloutService.ServiceName {
-				service.Weight = desiredWeight
+			serviceField, _ := service.(TraefikServicesField)
+			if serviceField.Name == rolloutService.ServiceName {
+				serviceField.Weight = int64(desiredWeight)
 				break
 			}
 		}
