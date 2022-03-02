@@ -129,6 +129,9 @@ const (
 	// within the given deadline (progressDeadlineSeconds).
 	RolloutTimeOutMessage = "Rollout %q has timed out progressing."
 
+	RolloutDeletedReason  = "RolloutDeleted"
+	RolloutDeletedMessage = "Rollout %s/%s is deleted."
+
 	ScalingReplicaSetReason  = "ScalingReplicaSet"
 	ScalingReplicaSetMessage = "Scaled %s ReplicaSet %s (revision %d) from %d to %d"
 
