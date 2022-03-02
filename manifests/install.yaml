@@ -11721,6 +11721,13 @@ spec:
                               trafficSplitName:
                                 type: string
                             type: object
+                          traefik:
+                            properties:
+                              service:
+                                type: string
+                            required:
+                            - service
+                            type: object
                         type: object
                     type: object
                 type: object

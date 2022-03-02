@@ -1524,6 +1524,10 @@
         "appMesh": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshTrafficRouting",
           "title": "AppMesh holds specific configuration to use AppMesh to route traffic"
+        },
+        "traefik": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting",
+          "title": "Traefik holds specific configuration to use Traefik to route traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"
@@ -1591,6 +1595,15 @@
         }
       },
       "description": "TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting": {
+      "type": "object",
+      "properties": {
+        "service": {
+          "type": "string"
+        }
+      },
+      "title": "TraefikTrafficRouting defines the configuration required to use Traefik as traffic router"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TrafficWeights": {
       "type": "object",
