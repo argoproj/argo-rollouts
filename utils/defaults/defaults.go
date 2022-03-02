@@ -49,6 +49,8 @@ const (
 	DefaultSMITrafficSplitVersion       = "v1alpha1"
 	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
 	DefaultAppMeshCRDVersion            = "v1beta2"
+	DefaultTraefikAPIGroup              = "traefik.containo.us"
+	DefaultTraefikVersion               = "traefik.containo.us/v1alpha1"
 )
 
 var (

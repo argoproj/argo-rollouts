@@ -361,6 +361,13 @@ type RolloutTrafficRouting struct {
 	Ambassador *AmbassadorTrafficRouting `json:"ambassador,omitempty" protobuf:"bytes,5,opt,name=ambassador"`
 	// AppMesh holds specific configuration to use AppMesh to route traffic
 	AppMesh *AppMeshTrafficRouting `json:"appMesh,omitempty" protobuf:"bytes,6,opt,name=appMesh"`
+	// Traefik holds specific configuration to use Traefik to route traffic
+	Traefik *TraefikTrafficRouting `json:"traefik,omitempty" protobuf:"bytes,7,opt,name=traefik"`
+}
+
+// TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
+type TraefikTrafficRouting struct {
+	Service string `json:"service" protobuf:"bytes,1,name=service"`
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
