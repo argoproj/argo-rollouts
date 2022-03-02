@@ -39,7 +39,7 @@ type ClientInterface interface {
 }
 
 type TraefikServicesField struct {
-	Name string
+	Name   string
 	Weight int64
 }
 
@@ -82,7 +82,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	services, isFound, err := unstructured.NestedSlice(traefikService.Object, "spec", "weighted", "services")
 	if err != nil || !isFound {
 		return err
-	} 
+	}
 	for _, rolloutService := range additionalDestinations {
 		for _, service := range services {
 			serviceField, _ := service.(TraefikServicesField)
@@ -96,6 +96,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if err != nil {
 		return err
 	}
+	r.Client.Create(ctx, traefikService, metav1.CreateOptions{})
 	return nil
 }
 
