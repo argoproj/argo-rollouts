@@ -74,7 +74,22 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if err != nil {
 		return err
 	}
-	traefikService
+	services, isFound, err := unstructured.NestedSlice(traefikService.Object, "spec", "weighted", "services")
+	if err != nil || !isFound {
+		return err
+	} 
+	for _, rolloutService := range additionalDestinations {
+		for _, service := range services {
+			if service.Name == rolloutService.ServiceName {
+				service.Weight = desiredWeight
+				break
+			}
+		}
+	}
+	err = unstructured.SetNestedSlice(traefikService.Object, services, "spec", "weighted", "services")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
