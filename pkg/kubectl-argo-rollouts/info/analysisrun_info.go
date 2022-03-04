@@ -34,7 +34,6 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			arInfo.Inconclusive += mr.Inconclusive
 			arInfo.Error += mr.Error
 			for _, meas := range analysisutil.ArrayMeasurement(run, mr.Name) {
-				//meas := analysisutil.LastMeasurement(run, mr.Name)
 				if meas.Metadata != nil {
 					if jobName, ok := meas.Metadata[job.JobNameKey]; ok {
 						jobInfo := rollout.JobInfo{
