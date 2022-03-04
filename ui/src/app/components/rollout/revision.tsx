@@ -108,14 +108,10 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]; messa
                         <React.Fragment>
                             <div>
                                 {ar.objectMeta.name}
-                                <i
-                                    className={`analysis__run-icon fa ${
-                                        ar.status === 'Successful' ? 'fa-check-circle analysis__run-icon--success' : 'fa-times-circle analysis__run-icon--failure'
-                                    }`}
-                                />
+                                <i className={`fa ${ar.status === 'Successful' ? 'fa-check-circle analysis--success' : 'fa-times-circle analysis--failure'}`} />
                             </div>
                             {ar?.jobs && (
-                                <div className='analysis__jobs'>
+                                <div className='analysis__run__jobs'>
                                     {ar.jobs.map((job) => {
                                         return <AnalysisRunDetail key={job.objectMeta.name} job={job} />;
                                     })}
@@ -138,7 +134,11 @@ const AnalysisRunDetail = ({job}: {job: RolloutJobInfo}) => {
                         <div>Status: {job.status}</div>
                     </div>
                 }>
-                <i className={`analysis-icon fa ${job.status === 'Successful' ? 'fa-check analysis-icon--success' : 'fa-times analysis-icon--failure'}`} />
+                <i
+                    className={`analysis__run__jobs-icon fa ${
+                        job.status === 'Successful' ? 'fa-check analysis__run__jobs-icon--success' : 'fa-times analysis__run__jobs-icon--failure'
+                    }`}
+                />
             </Tooltip>
         </Menu>
     );
