@@ -18,7 +18,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 	github.com/mitchellh/mapstructure v1.4.3
-	github.com/newrelic/newrelic-client-go v0.72.0
+	github.com/newrelic/newrelic-client-go v0.74.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/client_model v0.2.0
