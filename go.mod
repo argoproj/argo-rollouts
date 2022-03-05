@@ -20,7 +20,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/newrelic/newrelic-client-go v0.72.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.32.1
 	github.com/servicemeshinterface/smi-sdk-go v0.4.1
@@ -135,7 +135,7 @@ require (
 	github.com/opsgenie/opsgenie-go-sdk-v2 v1.0.5 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/russross/blackfriday v1.5.2 // indirect
 	github.com/slack-go/slack v0.10.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
