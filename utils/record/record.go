@@ -244,7 +244,7 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 	defer func() {
 		duration := time.Since(startTime)
 		e.NotificationSendPerformance.WithLabelValues(namespace, name).Observe(duration.Seconds())
-		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Notification sent")
+		logCtx.WithField("time_ms", duration.Seconds()*1e3).Debug("Notification sent")
 	}()
 	notificationsAPI, err := e.apiFactory.GetAPI()
 	if err != nil {

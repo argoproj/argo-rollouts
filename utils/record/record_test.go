@@ -168,16 +168,16 @@ func TestNotificationSendPerformance(t *testing.T) {
 	}
 	log.Infof("mfs: %v, %v, %v, %v", *mfs[0], *mfs[0].Metric[0].Histogram.SampleCount, *mfs[0].Metric[0].Histogram.SampleSum, *mfs[0].Metric[0].Histogram.Bucket[0].CumulativeCount)
 	want := `# HELP notification_send_performance Notification send performance.
-# TYPE notification_send_performance histogram
-notification_send_performance_bucket{name="guestbook",namespace="default",le="0.01"} 0
-notification_send_performance_bucket{name="guestbook",namespace="default",le="0.15"} 1
-notification_send_performance_bucket{name="guestbook",namespace="default",le="0.25"} 3
-notification_send_performance_bucket{name="guestbook",namespace="default",le="0.5"} 6
-notification_send_performance_bucket{name="guestbook",namespace="default",le="1"} 8
-notification_send_performance_bucket{name="guestbook",namespace="default",le="+Inf"} 11
-notification_send_performance_sum{name="guestbook",namespace="default"} 7.27
-notification_send_performance_count{name="guestbook",namespace="default"} 11
-`
+			 # TYPE notification_send_performance histogram
+			 notification_send_performance_bucket{name="guestbook",namespace="default",le="0.01"} 0
+ 			 notification_send_performance_bucket{name="guestbook",namespace="default",le="0.15"} 1
+			 notification_send_performance_bucket{name="guestbook",namespace="default",le="0.25"} 3
+			 notification_send_performance_bucket{name="guestbook",namespace="default",le="0.5"} 6
+			 notification_send_performance_bucket{name="guestbook",namespace="default",le="1"} 8
+			 notification_send_performance_bucket{name="guestbook",namespace="default",le="+Inf"} 11
+			 notification_send_performance_sum{name="guestbook",namespace="default"} 7.27
+			 notification_send_performance_count{name="guestbook",namespace="default"} 11
+			 `
 	err = testutil.CollectAndCompare(rec.NotificationSendPerformance, strings.NewReader(want))
 	assert.Nil(t, err)
 }
