@@ -867,6 +867,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExpe
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
      */
     replicas?: number;
+     /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
+     */
+    weight?: number;
     /**
      * 
      * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PodTemplateMetadata}
