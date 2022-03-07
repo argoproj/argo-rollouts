@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -53,7 +54,8 @@ func newNginxIngress(name string, port int, serviceName string) *extensionsv1bet
 	}
 }
 
-func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.Rollout) (*Controller, *k8sfake.Clientset, map[string]int) {
+func newFakeIngressController(t *testing.T, ing *extensionsv1beta1.Ingress, rollout *v1alpha1.Rollout) (*Controller, *k8sfake.Clientset, map[string]int) {
+	t.Helper()
 	client := fake.NewSimpleClientset()
 	if rollout != nil {
 		client = fake.NewSimpleClientset(rollout)
@@ -64,13 +66,17 @@ func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.
 	}
 	i := informers.NewSharedInformerFactory(client, 0)
 	k8sI := kubeinformers.NewSharedInformerFactory(kubeclient, 0)
+	ingressWrap, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, kubeclient, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
 	c := NewController(ControllerConfig{
 		Client:           kubeclient,
-		IngressInformer:  k8sI.Extensions().V1beta1().Ingresses(),
+		IngressWrap:      ingressWrap,
 		IngressWorkQueue: ingressWorkqueue,
 
 		RolloutsInformer: i.Argoproj().V1alpha1().Rollouts(),
@@ -110,7 +116,7 @@ func newFakeIngressController(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.
 }
 
 func TestSyncMissingIngress(t *testing.T) {
-	ctrl, _, _ := newFakeIngressController(nil, nil)
+	ctrl, _, _ := newFakeIngressController(t, nil, nil)
 
 	err := ctrl.syncIngress("default/test-ingress")
 	assert.NoError(t, err)
@@ -119,7 +125,7 @@ func TestSyncMissingIngress(t *testing.T) {
 func TestSyncIngressNotReferencedByRollout(t *testing.T) {
 	ing := newNginxIngress("test-stable-ingress", 80, "test-stable-service")
 
-	ctrl, kubeclient, _ := newFakeIngressController(ing, nil)
+	ctrl, kubeclient, _ := newFakeIngressController(t, ing, nil)
 
 	err := ctrl.syncIngress("default/test-stable-ingress")
 	assert.NoError(t, err)
@@ -150,7 +156,7 @@ func TestSyncIngressReferencedByRollout(t *testing.T) {
 		},
 	}
 
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, rollout)
+	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, rollout)
 
 	err := ctrl.syncIngress("default/test-stable-ingress")
 	assert.NoError(t, err)
@@ -182,7 +188,7 @@ func TestSkipIngressWithNoAnnotations(t *testing.T) {
 		},
 	}
 
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, rollout)
+	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, rollout)
 
 	err := ctrl.syncIngress("default/test-stable-ingress")
 	assert.NoError(t, err)

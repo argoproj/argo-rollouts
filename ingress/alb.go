@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -17,9 +15,10 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-func (c *Controller) syncALBIngress(ingress *extensionsv1beta1.Ingress, rollouts []*v1alpha1.Rollout) error {
+func (c *Controller) syncALBIngress(ingress *ingressutil.Ingress, rollouts []*v1alpha1.Rollout) error {
 	ctx := context.TODO()
-	managedActions, err := ingressutil.NewManagedALBActions(ingress.Annotations[ingressutil.ManagedActionsAnnotation])
+	annotations := ingress.GetAnnotations()
+	managedActions, err := ingressutil.NewManagedALBActions(annotations[ingressutil.ManagedActionsAnnotation])
 	if err != nil {
 		return nil
 	}
@@ -40,32 +39,40 @@ func (c *Controller) syncALBIngress(ingress *extensionsv1beta1.Ingress, rollouts
 			delete(managedActions, roName)
 			resetALBAction, err := getResetALBActionStr(ingress, actionKey)
 			if err != nil {
-				log.WithField(logutil.RolloutKey, roName).WithField(logutil.IngressKey, ingress.Name).WithField(logutil.NamespaceKey, ingress.Namespace).Error(err)
+				log.WithField(logutil.RolloutKey, roName).
+					WithField(logutil.IngressKey, ingress.GetName()).
+					WithField(logutil.NamespaceKey, ingress.GetNamespace()).
+					Error(err)
 				return nil
 			}
-			newIngress.Annotations[actionKey] = resetALBAction
+			annotations := newIngress.GetAnnotations()
+			annotations[actionKey] = resetALBAction
+			newIngress.SetAnnotations(annotations)
 		}
 	}
 	if !modified {
 		return nil
 	}
 	newManagedStr := managedActions.String()
-	newIngress.Annotations[ingressutil.ManagedActionsAnnotation] = newManagedStr
+	newAnnotations := newIngress.GetAnnotations()
+	newAnnotations[ingressutil.ManagedActionsAnnotation] = newManagedStr
+	newIngress.SetAnnotations(newAnnotations)
 	if newManagedStr == "" {
-		delete(newIngress.Annotations, ingressutil.ManagedActionsAnnotation)
+		delete(newIngress.GetAnnotations(), ingressutil.ManagedActionsAnnotation)
 	}
-	_, err = c.client.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(ctx, newIngress, metav1.UpdateOptions{})
+	_, err = c.ingressWrapper.Update(ctx, ingress.GetNamespace(), newIngress)
 	return err
 }
 
-func getResetALBActionStr(ingress *extensionsv1beta1.Ingress, action string) (string, error) {
+func getResetALBActionStr(ingress *ingressutil.Ingress, action string) (string, error) {
 	parts := strings.Split(action, ingressutil.ALBActionPrefix)
 	if len(parts) != 2 {
 		return "", fmt.Errorf("unable to parse action to get the service %s", action)
 	}
 	service := parts[1]
 
-	previousActionStr := ingress.Annotations[action]
+	annotations := ingress.GetAnnotations()
+	previousActionStr := annotations[action]
 	var previousAction ingressutil.ALBAction
 	err := json.Unmarshal([]byte(previousActionStr), &previousAction)
 	if err != nil {

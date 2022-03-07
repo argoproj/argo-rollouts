@@ -130,12 +130,16 @@ func TestIngressNotFound(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", "stable-ingress", 443)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+		IngressWrapper: ingressWrapper,
 	})
 	assert.NoError(t, err)
 	err = r.SetWeight(10)
@@ -149,12 +153,16 @@ func TestServiceNotFoundInIngress(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+		IngressWrapper: ingressWrapper,
 	})
 	assert.NoError(t, err)
 	err = r.SetWeight(10)
@@ -167,12 +175,16 @@ func TestNoChanges(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+		IngressWrapper: ingressWrapper,
 	})
 	assert.NoError(t, err)
 	err = r.SetWeight(10)
@@ -187,12 +199,16 @@ func TestErrorOnInvalidManagedBy(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+		IngressWrapper: ingressWrapper,
 	})
 	assert.NoError(t, err)
 	err = r.SetWeight(10)
@@ -206,12 +222,16 @@ func TestSetInitialDesiredWeight(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+		IngressWrapper: ingressWrapper,
 	})
 	assert.NoError(t, err)
 	err = r.SetWeight(10)
@@ -225,12 +245,16 @@ func TestUpdateDesiredWeight(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+		IngressWrapper: ingressWrapper,
 	})
 	assert.NoError(t, err)
 	err = r.SetWeight(10)
@@ -253,12 +277,16 @@ func TestErrorPatching(t *testing.T) {
 	client.ReactionChain = nil
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+		IngressWrapper: ingressWrapper,
 	})
 	assert.NoError(t, err)
 
@@ -305,12 +333,16 @@ func TestVerifyWeight(t *testing.T) {
 		client := fake.NewSimpleClientset(i)
 		k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+		if err != nil {
+			t.Fatal(err)
+		}
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-			IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+			IngressWrapper: ingressWrapper,
 			VerifyWeight:   pointer.BoolPtr(true),
 		})
 		assert.NoError(t, err)
@@ -382,12 +414,16 @@ func TestSetWeightWithMultipleBackends(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
 		Client:         client,
 		Recorder:       record.NewFakeEventRecorder(),
 		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+		IngressWrapper: ingressWrapper,
 	})
 	assert.NoError(t, err)
 
@@ -449,12 +485,16 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		client := fake.NewSimpleClientset(i)
 		k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+		if err != nil {
+			t.Fatal(err)
+		}
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
 			Recorder:       record.NewFakeEventRecorder(),
 			ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-			IngressLister:  k8sI.Extensions().V1beta1().Ingresses().Lister(),
+			IngressWrapper: ingressWrapper,
 			VerifyWeight:   pointer.BoolPtr(true),
 		})
 		assert.NoError(t, err)

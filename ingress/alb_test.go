@@ -101,7 +101,7 @@ func TestInvalidManagedALBActions(t *testing.T) {
 	ing := newALBIngress("test-ingress", 80, "stable-service", rollout.Name)
 	ing.Annotations[ingressutil.ManagedActionsAnnotation] = "invalid-managed-by"
 
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, rollout)
+	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, rollout)
 
 	err := ctrl.syncIngress("default/test-ingress")
 	assert.Nil(t, err)
@@ -113,7 +113,7 @@ func TestInvalidPreviousALBActionAnnotationValue(t *testing.T) {
 	ing := newALBIngress("test-ingress", 80, "stable-service", "not-existing-rollout")
 	ing.Annotations[albActionAnnotation("stable-service")] = "{"
 
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, nil)
+	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, nil)
 
 	err := ctrl.syncIngress("default/test-ingress")
 	assert.Nil(t, err)
@@ -124,7 +124,7 @@ func TestInvalidPreviousALBActionAnnotationValue(t *testing.T) {
 func TestInvalidPreviousALBActionAnnotationKey(t *testing.T) {
 	ing := newALBIngress("test-ingress", 80, "stable-service", "not-existing-rollout")
 	ing.Annotations[ingressutil.ManagedActionsAnnotation] = "invalid-action-key"
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, nil)
+	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, nil)
 
 	err := ctrl.syncIngress("default/test-ingress")
 	assert.Nil(t, err)
@@ -136,7 +136,7 @@ func TestResetActionFailureFindNoPort(t *testing.T) {
 	ing := newALBIngress("test-ingress", 80, "stable-service", "not-existing-rollout")
 	ing.Annotations[albActionAnnotation("stable-service")] = "{}"
 
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, nil)
+	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, nil)
 
 	err := ctrl.syncIngress("default/test-ingress")
 	assert.Nil(t, err)
@@ -148,7 +148,7 @@ func TestALBIngressNoModifications(t *testing.T) {
 	rollout := rollout("rollout", "stable-service", "test-ingress")
 	ing := newALBIngress("test-ingress", 80, "stable-service", rollout.Name)
 
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, rollout)
+	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, rollout)
 
 	err := ctrl.syncIngress("default/test-ingress")
 	assert.Nil(t, err)
@@ -159,7 +159,7 @@ func TestALBIngressNoModifications(t *testing.T) {
 func TestALBIngressResetAction(t *testing.T) {
 	ing := newALBIngress("test-ingress", 80, "stable-service", "non-existing-rollout")
 
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(ing, nil)
+	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, nil)
 	err := ctrl.syncIngress("default/test-ingress")
 	assert.Nil(t, err)
 	assert.Len(t, enqueuedObjects, 0)

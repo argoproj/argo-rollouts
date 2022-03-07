@@ -1,12 +1,17 @@
 package ingress
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/client-go/discovery"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/diff"
 )
 
 const (
@@ -89,7 +94,32 @@ func GetCanaryIngressName(rollout *v1alpha1.Rollout) string {
 }
 
 // HasRuleWithService check if an Ingress has a service in one of it's rules
-func HasRuleWithService(ingress *extensionsv1beta1.Ingress, svc string) bool {
+func HasRuleWithService(i *Ingress, svc string) bool {
+	switch i.mode {
+	case IngressModeNetworking:
+		return hasIngressRuleWithService(i.ingress, svc)
+	case IngressModeExtensions:
+		return hasLegacyIngressRuleWithService(i.legacyIngress, svc)
+	default:
+		return false
+	}
+
+}
+
+func hasIngressRuleWithService(ingress *networkingv1.Ingress, svc string) bool {
+	for _, rule := range ingress.Spec.Rules {
+		if rule.HTTP != nil {
+			for _, path := range rule.HTTP.Paths {
+				if path.Backend.Service.Name == svc {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func hasLegacyIngressRuleWithService(ingress *extensionsv1beta1.Ingress, svc string) bool {
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP != nil {
 			for _, path := range rule.HTTP.Paths {
@@ -145,4 +175,116 @@ func ALBActionAnnotationKey(r *v1alpha1.Rollout) string {
 		actionService = r.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
 	}
 	return fmt.Sprintf("%s%s%s", prefix, ALBActionPrefix, actionService)
+}
+
+type patchConfig struct {
+	withAnnotations bool
+	withLabels      bool
+	withSpec        bool
+}
+
+type PatchOption func(p *patchConfig)
+
+func WithAnnotations() PatchOption {
+	return func(p *patchConfig) {
+		p.withAnnotations = true
+	}
+}
+
+func WithLabels() PatchOption {
+	return func(p *patchConfig) {
+		p.withLabels = true
+	}
+}
+
+func WithSpec() PatchOption {
+	return func(p *patchConfig) {
+		p.withSpec = true
+	}
+}
+
+func BuildIngressPatch(mode IngressMode, current, desired *Ingress, opts ...PatchOption) ([]byte, bool, error) {
+	cfg := &patchConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	switch mode {
+	case IngressModeNetworking:
+		return buildIngressPatch(current.ingress, desired.ingress, cfg)
+	case IngressModeExtensions:
+		return buildIngressPatchLegacy(current.legacyIngress, desired.legacyIngress, cfg)
+	default:
+		return nil, false, errors.New("error building annotations patch: undefined ingress mode")
+	}
+}
+
+func buildIngressPatch(current, desired *networkingv1.Ingress, cfg *patchConfig) ([]byte, bool, error) {
+	cur := &networkingv1.Ingress{}
+	des := &networkingv1.Ingress{}
+	if cfg.withAnnotations {
+		cur.Annotations = current.Annotations
+		des.Annotations = desired.Annotations
+	}
+	if cfg.withLabels {
+		cur.Labels = current.Labels
+		des.Labels = desired.Labels
+	}
+	if cfg.withSpec {
+		cur.Spec = current.Spec
+		des.Spec = desired.Spec
+	}
+	return diff.CreateTwoWayMergePatch(cur, des, networkingv1.Ingress{})
+}
+
+func buildIngressPatchLegacy(current, desired *extensionsv1beta1.Ingress, cfg *patchConfig) ([]byte, bool, error) {
+	cur := &extensionsv1beta1.Ingress{}
+	des := &extensionsv1beta1.Ingress{}
+	if cfg.withAnnotations {
+		cur.Annotations = current.Annotations
+		des.Annotations = desired.Annotations
+	}
+	if cfg.withLabels {
+		cur.Labels = current.Labels
+		des.Labels = desired.Labels
+	}
+	if cfg.withSpec {
+		cur.Spec = current.Spec
+		des.Spec = desired.Spec
+	}
+	return diff.CreateTwoWayMergePatch(cur, des, extensionsv1beta1.Ingress{})
+}
+
+// DetermineIngressMode will first attempt to determine the ingress mode by checking
+// the given apiVersion. If it is "extensions/v1beta1" will return IngressModeExtensions.
+// If it is "networking/v1" will return IngressModeNetworking. Otherwise it will check
+// the kubernetes server version to determine the ingress mode.
+func DetermineIngressMode(apiVersion string, d discovery.ServerVersionInterface) (IngressMode, error) {
+	if apiVersion == "extensions/v1beta1" {
+		return IngressModeExtensions, nil
+	}
+	if apiVersion == "networking/v1" {
+		return IngressModeNetworking, nil
+	}
+
+	ver, err := d.ServerVersion()
+	if err != nil {
+		return 0, err
+	}
+	major, err := strconv.Atoi(ver.Major)
+	if err != nil {
+		return 0, err
+	}
+	minor, err := strconv.Atoi(ver.Minor)
+	if err != nil {
+		return 0, err
+	}
+	if major > 1 {
+		return IngressModeNetworking, nil
+	}
+	if major == 1 && minor >= 19 {
+		return IngressModeNetworking, nil
+	}
+	return IngressModeExtensions, nil
+
 }
