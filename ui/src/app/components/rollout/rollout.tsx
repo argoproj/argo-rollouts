@@ -3,7 +3,13 @@ import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Key, KeybindingContext} from 'react-keyhooks';
 import {useHistory, useParams} from 'react-router-dom';
-import {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep, RolloutReplicaSetInfo, RolloutRolloutInfo, RolloutServiceApi} from '../../../models/rollout/generated';
+import {
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate,
+    RolloutReplicaSetInfo,
+    RolloutRolloutInfo,
+    RolloutServiceApi,
+} from '../../../models/rollout/generated';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {useWatchRollout} from '../../shared/services/rollout';
@@ -12,6 +18,7 @@ import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {ContainersWidget} from './containers';
 import {Revision, RevisionWidget} from './revision';
 import './rollout.scss';
+import {Fragment} from 'react';
 
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 export interface ImageInfo {
@@ -266,6 +273,7 @@ const parseDuration = (duration: string): string => {
 };
 
 const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
+    const [openedTemplate, setOpenedTemplate] = React.useState('');
     let icon: string;
     let content = '';
     let unit = '';
@@ -297,10 +305,52 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     return (
         <React.Fragment>
             <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-                <i className={`fa ${icon}`} /> {content}
-                {unit}
+                <div className={`steps__step-title ${props.step.experiment ? 'steps__step-title--experiment' : ''}`}>
+                    <i className={`fa ${icon}`} /> {content}
+                    {unit}
+                </div>
+                {props.step.experiment?.templates && (
+                    <div className='steps__step__content'>
+                        {props.step.experiment?.templates.map((template) => {
+                            return <ExperimentWidget key={template.name} template={template} opened={openedTemplate === template.name} onToggle={setOpenedTemplate} />;
+                        })}
+                    </div>
+                )}
             </EffectDiv>
             {!props.last && <ThemeDiv className='steps__connector' />}
         </React.Fragment>
+    );
+};
+
+const ExperimentWidget = ({
+    template,
+    opened,
+    onToggle,
+}: {
+    template: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate;
+    opened: boolean;
+    onToggle: (name: string) => void;
+}) => {
+    const icon = opened ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down';
+    return (
+        <EffectDiv className='steps__step__content-body'>
+            <ThemeDiv className={`steps__step__content-header ${opened ? 'steps__step__content-value' : ''}`}>
+                {template.name}
+                <ThemeDiv onClick={() => onToggle(opened ? '' : template.name)}>
+                    <i className={`fa ${icon}`} />
+                </ThemeDiv>
+            </ThemeDiv>
+            {opened && (
+                <EffectDiv>
+                    <div className='steps__step__content-title'>SPECREF</div>
+                    <div className='steps__step__content-value'>{template.specRef}</div>
+                    {template.weight && (
+                        <Fragment>
+                            <div className='steps__step__content-title'>WEIGHT</div> <div className='steps__step__content-value'>{template.weight}</div>
+                        </Fragment>
+                    )}
+                </EffectDiv>
+            )}
+        </EffectDiv>
     );
 };
