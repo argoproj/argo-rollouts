@@ -275,7 +275,11 @@ func DetermineIngressMode(apiVersion string, d discovery.ServerVersionInterface)
 	if err != nil {
 		return 0, err
 	}
-	minor, err := strconv.Atoi(ver.Minor)
+	verMinor := ver.Minor
+	if strings.HasSuffix(ver.Minor, "+") {
+		verMinor = ver.Minor[0 : len(ver.Minor)-1]
+	}
+	minor, err := strconv.Atoi(verMinor)
 	if err != nil {
 		return 0, err
 	}
@@ -286,5 +290,4 @@ func DetermineIngressMode(apiVersion string, d discovery.ServerVersionInterface)
 		return IngressModeNetworking, nil
 	}
 	return IngressModeExtensions, nil
-
 }
