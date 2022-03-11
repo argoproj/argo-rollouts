@@ -82,29 +82,21 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if err != nil || !isFound {
 		return err
 	}
-	for _, service := range services {
-		typedService, ok := service.(map[string]interface{})
-		if !ok {
-			return errors.New("Failed type assertion setting weight for traefik service")
-		}
-		serviceName, isFound, err := unstructured.NestedString(typedService, "name")
-		if err != nil || !isFound {
-			return err
-		}
-		if serviceName == canaryServiceName {
-			err := unstructured.SetNestedField(typedService, int64(desiredWeight), "weight")
-			if err != nil {
-				return err
-			}
-			continue
-		}
-		if serviceName == stableServiceName {
-			err := unstructured.SetNestedField(typedService, int64(100-desiredWeight), "weight")
-			if err != nil {
-				return err
-			}
-			continue
-		}
+	canaryService, err := getService(canaryServiceName, services)
+	if err != nil {
+		return err
+	}
+	err = unstructured.SetNestedField(canaryService, int64(desiredWeight), "weight")
+	if err != nil {
+		return err
+	}
+	stableService, err := getService(stableServiceName, services)
+	if err != nil {
+		return err
+	}
+	err = unstructured.SetNestedField(stableService, int64(100-desiredWeight), "weight")
+	if err != nil {
+		return err
 	}
 	err = unstructured.SetNestedSlice(traefikService.Object, services, "spec", "weighted", "services")
 	if err != nil {
@@ -112,6 +104,25 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	}
 	_, err = r.Client.Update(ctx, traefikService, metav1.UpdateOptions{})
 	return err
+}
+
+func getService(serviceName string, services []interface{}) (map[string]interface{}, error) {
+	var selectedService map[string]interface{}
+	for _, service := range services {
+		typedService, ok := service.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("Failed type assertion setting weight for traefik service")
+		}
+		nameOfCurrentService, isFound, err := unstructured.NestedString(typedService, "name")
+		if err != nil || !isFound {
+			return nil, err
+		}
+		if nameOfCurrentService == serviceName {
+			selectedService = typedService
+			break
+		}
+	}
+	return selectedService, nil
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
@@ -129,37 +140,23 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	if err != nil || !isFound {
 		return &verifyingStatus, err
 	}
-	for _, service := range services {
-		typedService, ok := service.(map[string]interface{})
-		if !ok {
-			return &verifyingStatus, errors.New("Failed type assertion setting weight for traefik service")
-		}
-		serviceName, isFound, err := unstructured.NestedString(typedService, "name")
-		if err != nil || !isFound {
-			return &verifyingStatus, err
-		}
-		if serviceName == canaryServiceName {
-			verifyingStatus = false
-			weight, isFound, err := unstructured.NestedInt64(typedService, "weight")
-			if err != nil || !isFound {
-				return &verifyingStatus, err
-			}
-			verifyingStatus = weight == int64(desiredWeight)
-			if !verifyingStatus {
-				return &verifyingStatus, errors.New("Traefik service weight for canary service is not right")
-			}
-		}
-		if serviceName == stableServiceName {
-			verifyingStatus = false
-			weight, isFound, err := unstructured.NestedInt64(typedService, "weight")
-			if err != nil || !isFound {
-				return &verifyingStatus, err
-			}
-			verifyingStatus = weight == int64(100-desiredWeight)
-			if !verifyingStatus {
-				return &verifyingStatus, errors.New("Traefik service weight for canary service is not right")
-			}
-		}
+	canaryService, err := getService(canaryServiceName, services)
+	if err != nil {
+		return &verifyingStatus, err
+	}
+	weight, isFound, err := unstructured.NestedInt64(canaryService, "weight")
+	verifyingStatus = weight == int64(desiredWeight)
+	if err != nil || !isFound || !verifyingStatus {
+		return &verifyingStatus, err
+	}
+	stableService, err := getService(stableServiceName, services)
+	if err != nil {
+		return &verifyingStatus, err
+	}
+	weight, isFound, err = unstructured.NestedInt64(stableService, "weight")
+	verifyingStatus = weight == int64(100-desiredWeight)
+	if err != nil || !isFound || !verifyingStatus {
+		return &verifyingStatus, err
 	}
 	return &verifyingStatus, nil
 }
