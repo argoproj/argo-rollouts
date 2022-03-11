@@ -41,11 +41,11 @@ type ClientInterface interface {
 }
 
 func NewReconciler(cfg ReconcilerConfig) *Reconciler {
-	reconciler := Reconciler{
+	reconciler := &Reconciler{
 		Rollout: cfg.Rollout,
 		Client:  cfg.Client,
 	}
-	return &reconciler
+	return reconciler
 }
 
 func NewDynamicClient(di dynamic.Interface, namespace string) dynamic.ResourceInterface {
