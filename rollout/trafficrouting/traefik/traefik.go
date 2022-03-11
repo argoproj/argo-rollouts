@@ -38,11 +38,6 @@ type ClientInterface interface {
 	Delete(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error
 }
 
-type TraefikServicesField struct {
-	Name   string
-	Weight int64
-}
-
 func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 	reconciler := Reconciler{
 		Rollout: cfg.Rollout,
@@ -76,6 +71,8 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	rollout := r.Rollout
 	traefikServiceName := rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.Service
 	traefikService, err := r.Client.Get(ctx, traefikServiceName, metav1.GetOptions{})
+	desiredTraefikService := traefikService.DeepCopy()
+	canaryServiceName := rollout.Spec.Strategy.Canary.CanaryService
 	if err != nil {
 		return err
 	}
@@ -83,20 +80,22 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if err != nil || !isFound {
 		return err
 	}
-	for _, rolloutService := range additionalDestinations {
-		for _, service := range services {
-			serviceField, _ := service.(TraefikServicesField)
-			if serviceField.Name == rolloutService.ServiceName {
-				serviceField.Weight = int64(desiredWeight)
-				break
-			}
+	for _, service := range services {
+		serviceTest, ok := service.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		serviceName, _, _ := unstructured.NestedString(serviceTest, "name")
+		if serviceName == canaryServiceName {
+			unstructured.SetNestedField(serviceTest, int64(desiredWeight), "weight")
+			break
 		}
 	}
-	err = unstructured.SetNestedSlice(traefikService.Object, services, "spec", "weighted", "services")
+	err = unstructured.SetNestedSlice(desiredTraefikService.Object, services, "spec", "weighted", "services")
 	if err != nil {
 		return err
 	}
-	r.Client.Create(ctx, traefikService, metav1.CreateOptions{})
+	r.Client.Create(ctx, desiredTraefikService, metav1.CreateOptions{})
 	return nil
 }
 
