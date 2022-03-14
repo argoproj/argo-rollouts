@@ -29,6 +29,7 @@ nav:
     - Canary: features/canary.md
   - Rollout Spec: features/specification.md
   - HPA: features/hpa-support.md
+  - VPA: features/vpa-support.md
   - Ephemeral Metadata: features/ephemeral-metadata.md
   - Restarting Rollouts: features/restart.md
   - Scaledown Aborted Rollouts: features/scaledown-aborted-rs.md
