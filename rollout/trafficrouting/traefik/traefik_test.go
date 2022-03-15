@@ -37,8 +37,9 @@ var (
 )
 
 const (
-	stableServiceName string = "stable-rollout"
-	canaryServiceName string = "canary-rollout"
+	stableServiceName  string = "stable-rollout"
+	canaryServiceName  string = "canary-rollout"
+	traefikServiceName string = "traefik-service"
 )
 
 func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
@@ -49,13 +50,13 @@ func (f *fakeClient) Update(ctx context.Context, obj *unstructured.Unstructured,
 	return obj, nil
 }
 
-func Test_SetWeight(t *testing.T) {
+func TestSetWeight(t *testing.T) {
 	traefikServiceObj = toUnstructured(t, traefikService)
 	t.Run("SetWeight", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, "traefik-service"),
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
 			Client:  client,
 		}
 		r := NewReconciler(cfg)
@@ -95,13 +96,13 @@ func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
 	return obj
 }
 
-func Test_VerifyWeight(t *testing.T) {
+func TestVerifyWeight(t *testing.T) {
 	traefikServiceObj = toUnstructured(t, traefikService)
 	t.Run("VerifyWeight", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, "traefik-service"),
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
 			Client:  client,
 		}
 		r := NewReconciler(cfg)
@@ -115,7 +116,7 @@ func Test_VerifyWeight(t *testing.T) {
 	})
 }
 
-func Test_Type(t *testing.T) {
+func TestType(t *testing.T) {
 	traefikServiceObj = toUnstructured(t, traefikService)
 	t.Run("Type", func(t *testing.T) {
 		// Given
