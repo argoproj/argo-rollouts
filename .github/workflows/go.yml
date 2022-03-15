@@ -102,13 +102,15 @@ jobs:
         run: |
           cd /tmp
           curl -LO https://oss.sonatype.org/content/repositories/releases/io/swagger/swagger-codegen-cli/2.2.1/swagger-codegen-cli-2.2.1.jar
+          mkdir /tmp/swagger-codegen/
+          cat <<EOT >> /tmp/swagger-codegen/
+          #!/bin/bash
+          java -jar /tmp/swagger-codegen-cli-2.2.1.jar $@
+          EOT
+          chmod +x /tmp/swagger-codegen/swagger-codegen
+          echo "/tmp/swagger-codegen" >> $GITHUB_PATH
       - name: Run codegen
         run: |
-          swagger-codegen() {
-            java -jar /tmp/swagger-codegen-cli-2.2.1.jar $@
-          }
-          export -f swagger-codegen
-
           make go-mod-vendor
           make codegen
           make manifests
