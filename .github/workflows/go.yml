@@ -76,7 +76,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'maven'
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
       # This symlink is necessary to ensure that `git diff` detects changes
       - name: Create symlink in GOPATH
