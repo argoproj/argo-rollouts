@@ -4422,6 +4422,27 @@
           "items": {
             "$ref": "#/definitions/rollout.JobInfo"
           }
+        },
+        "nonJobInfo": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.NonJobInfo"
+          }
+        },
+        "successCondition": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "inconclusiveLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "failureLimit": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -4480,6 +4501,9 @@
         },
         "icon": {
           "type": "string"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
         }
       }
     },
@@ -4494,6 +4518,20 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "rollout.NonJobInfo": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
         }
       }
     },

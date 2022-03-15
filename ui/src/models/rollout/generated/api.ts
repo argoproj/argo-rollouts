@@ -4680,6 +4680,12 @@ export interface RolloutAnalysisRunInfo {
      * @type {number}
      * @memberof RolloutAnalysisRunInfo
      */
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutAnalysisRunInfo
+     */
+     successCondition?: string;
     revision?: number;
     /**
      * 
@@ -4717,6 +4723,31 @@ export interface RolloutAnalysisRunInfo {
      * @memberof RolloutAnalysisRunInfo
      */
     jobs?: Array<RolloutJobInfo>;
+     /**
+     * 
+     * @type {Array<RolloutMeasInfo>}
+     * @memberof RolloutAnalysisRunInfo
+     */
+    nonJobInfo?: Array<RolloutNonJobInfo>;
+    /**
+     * 
+     * @type {number}
+     * @memberof RolloutAnalysisRunInfo
+     */
+    count?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RolloutAnalysisRunInfo
+     */
+     inconclusiveLimit?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RolloutAnalysisRunInfo
+     */
+      failureLimit?: number;
+      
 }
 /**
  * 
@@ -4810,6 +4841,37 @@ export interface RolloutJobInfo {
      * @memberof RolloutJobInfo
      */
     icon?: string;
+    /**
+     * 
+     * @type {Date}
+     * @memberof RolloutJobInfo
+     */
+     startedAt?: Date;
+}
+/**
+ * 
+ * @export
+ * @interface RolloutNonJobInfo
+ */
+export interface RolloutNonJobInfo {
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutNonJobInfo
+     */
+    value?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutNonJobInfo
+     */
+    status?: string;
+    /**
+     * 
+     * @type {Date}
+     * @memberof RolloutNonJobInfo
+     */
+     startedAt?: Date;
 }
 /**
  * 

@@ -25,7 +25,14 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 				CreationTimestamp: run.CreationTimestamp,
 				UID:               run.UID,
 			},
-			Message: run.Status.Message,
+		}
+		arInfo.SuccessCondition = run.Spec.Metrics[0].SuccessCondition
+		arInfo.Count = run.Spec.Metrics[0].Count.IntVal
+		if run.Spec.Metrics[0].InconclusiveLimit != nil {
+			arInfo.InconclusiveLimit = run.Spec.Metrics[0].InconclusiveLimit.IntVal
+		}
+		if run.Spec.Metrics[0].FailureLimit != nil {
+			arInfo.FailureLimit = run.Spec.Metrics[0].FailureLimit.IntVal
 		}
 		arInfo.Status = string(run.Status.Phase)
 		for _, mr := range run.Status.MetricResults {
@@ -40,20 +47,28 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 							ObjectMeta: &v1.ObjectMeta{
 								Name: jobName,
 							},
-							Icon:   analysisIcon(meas.Phase),
-							Status: string(meas.Phase),
+							Icon:      analysisIcon(meas.Phase),
+							Status:    string(meas.Phase),
+							StartedAt: meas.StartedAt,
 						}
 						if meas.StartedAt != nil {
 							jobInfo.ObjectMeta.CreationTimestamp = *meas.StartedAt
 						}
 						arInfo.Jobs = append(arInfo.Jobs, &jobInfo)
 					}
+				} else {
+					nonJobInfo := rollout.NonJobInfo{
+						Value:     string(meas.Value),
+						Status:    string(meas.Phase),
+						StartedAt: meas.StartedAt,
+					}
+					arInfo.NonJobInfo = append(arInfo.NonJobInfo, &nonJobInfo)
+					//arInfo.SuccessCondition=
 				}
 			}
 		}
 		arInfo.Icon = analysisIcon(run.Status.Phase)
 		arInfo.Revision = int32(parseRevision(run.ObjectMeta.Annotations))
-
 		arInfos = append(arInfos, &arInfo)
 	}
 	sort.Slice(arInfos[:], func(i, j int) bool {
