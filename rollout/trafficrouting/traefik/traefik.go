@@ -35,9 +35,7 @@ type Reconciler struct {
 
 type ClientInterface interface {
 	Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error)
-	Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error)
 	Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error)
-	Delete(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error
 }
 
 func NewReconciler(cfg ReconcilerConfig) *Reconciler {
