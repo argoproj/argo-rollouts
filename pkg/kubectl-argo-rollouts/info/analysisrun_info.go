@@ -63,7 +63,6 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 						StartedAt: meas.StartedAt,
 					}
 					arInfo.NonJobInfo = append(arInfo.NonJobInfo, &nonJobInfo)
-					//arInfo.SuccessCondition=
 				}
 			}
 		}
