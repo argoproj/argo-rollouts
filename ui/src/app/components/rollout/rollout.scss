@@ -76,6 +76,49 @@
             border: 2px solid $sherbert;
         }
 
+        &-title {
+            padding-left: 16px;
+            padding-right: 16px;
+            margin: 0 -16px;
+            &--experiment {
+                padding-bottom: 8px;
+                border-bottom: 1px solid $argo-color-gray-6;
+            }
+        }
+
+        &__content {
+            margin-left: -16px;
+            margin-right: -16px;
+            max-height: 160px;
+            overflow-y: auto;
+
+            &-body {
+                padding: 8px 16px;
+            }
+
+            &-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            &-title {
+                padding-top: 8px;
+                padding-bottom: 4px;
+                font-size: 14px;
+            }
+
+            &-value {
+                font-weight: 600;
+                padding-bottom: 4px;
+                border-bottom: 1px solid $argo-color-gray-4;
+                &:last-child {
+                    padding-bottom: -8px;
+                    border-bottom: none;
+                }
+            }
+        }
+
         &:hover > &__background {
             transform: scale(1.02);
         }
