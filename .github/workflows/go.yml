@@ -71,6 +71,12 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: 1.17.6
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
       # This symlink is necessary to ensure that `git diff` detects changes
       - name: Create symlink in GOPATH
@@ -98,9 +104,17 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
-
+      - name: Download swagger-codegen
+        run: |
+          cd /tmp
+          curl -LO https://oss.sonatype.org/content/repositories/releases/io/swagger/swagger-codegen-cli/2.2.1/swagger-codegen-cli-2.2.1.jar
       - name: Run codegen
         run: |
+          swagger-codegen() {
+            java -jar /tmp/swagger-codegen-cli-2.2.1.jar $@
+          }
+          export -f swagger-codegen
+
           make go-mod-vendor
           make codegen
           make manifests
