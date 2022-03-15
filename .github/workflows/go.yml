@@ -100,15 +100,13 @@ jobs:
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Download swagger-codegen
         run: |
-          cd /tmp
+          cd /usr/local/bin
           curl -LO https://oss.sonatype.org/content/repositories/releases/io/swagger/swagger-codegen-cli/2.2.1/swagger-codegen-cli-2.2.1.jar
-          mkdir /tmp/swagger-codegen/
-          cat <<EOT >> /tmp/swagger-codegen/
+          cat <<EOT >> /usr/local/bin/swagger-codegen
           #!/bin/bash
-          java -jar /tmp/swagger-codegen-cli-2.2.1.jar $@
+          java -jar /usr/local/bin/swagger-codegen-cli-2.2.1.jar $@
           EOT
-          chmod +x /tmp/swagger-codegen/swagger-codegen
-          echo "/tmp/swagger-codegen" >> $GITHUB_PATH
+          chmod +x /usr/local/bin/swagger-codegen
       - name: Run codegen
         run: |
           make go-mod-vendor
