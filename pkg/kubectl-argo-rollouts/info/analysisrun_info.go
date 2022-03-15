@@ -58,7 +58,7 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 					}
 				} else {
 					nonJobInfo := rollout.NonJobInfo{
-						Value:     string(meas.Value),
+						Value:     meas.Value,
 						Status:    string(meas.Phase),
 						StartedAt: meas.StartedAt,
 					}
