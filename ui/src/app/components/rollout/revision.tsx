@@ -141,7 +141,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                     {ar.nonJobInfo.map((nonJob) => {
                                         return (
                                             <PodWidget
-                                                key={new Date(nonJob.startedAt).getTime()}
+                                                key={new Date(nonJob.startedAt.seconds).getTime()}
                                                 name={nonJob.value}
                                                 status={nonJob.status}
                                                 tooltip={
