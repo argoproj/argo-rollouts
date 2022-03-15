@@ -71,11 +71,6 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: 1.17.6
-      - name: Setup Java
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: '17'
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
       # This symlink is necessary to ensure that `git diff` detects changes
       - name: Create symlink in GOPATH
