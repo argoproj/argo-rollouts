@@ -43,8 +43,6 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
     const icon = collapsed ? 'fa-chevron-circle-down' : 'fa-chevron-circle-up';
     const images = parseImages(revision.replicaSets);
-    console.log('revision');
-    console.log(revision);
     return (
         <EffectDiv key={revision.number} className='revision'>
             <ThemeDiv className='revision__header'>
@@ -68,7 +66,7 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
                     {(revision.analysisRuns || []).length > 0 && (
                         <React.Fragment>
                             <div style={{marginTop: '1em'}}>
-                                <AnalysisRunWidget analysisRuns={revision.analysisRuns} message={props.message} />
+                                <AnalysisRunWidget analysisRuns={revision.analysisRuns} />
                             </div>
                         </React.Fragment>
                     )}
@@ -78,11 +76,10 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
     );
 };
 
-const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]; message: String}) => {
+const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
     const {analysisRuns} = props;
     const [opened, setOpened] = React.useState(false);
     const icon = opened ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down';
-    console.log(props);
     return (
         <ThemeDiv className='analysis'>
             <div className='analysis-header'>
@@ -92,12 +89,13 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]; messa
                 </ThemeDiv>
             </div>
             <div className='analysis__runs'>
-                {analysisRuns.map((ar, i) => (
+                {analysisRuns.map((ar) => (
                     <Tooltip
+                        key={ar.objectMeta?.name}
                         content={
                             <React.Fragment>
                                 <div>name: {ar.objectMeta.name}</div>
-                                <div>created at: {formatTimestamp(JSON.stringify(ar.objectMeta.creationTimestamp))}</div>
+                                <div>created at: {formatTimestamp(JSON.stringify(ar.objectMeta?.creationTimestamp))}</div>
                                 {ar?.failureLimit && <div>failureLimit: {ar.failureLimit}</div>}
                                 {ar?.successCondition && <div>successCondition: {ar.successCondition}</div>}
                                 {ar?.inconclusiveLimit && <div>InconclusiveLimit: {ar.inconclusiveLimit}</div>}
@@ -113,9 +111,9 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]; messa
             {opened &&
                 analysisRuns.map((ar) => {
                     return (
-                        <React.Fragment>
+                        <React.Fragment key={ar.objectMeta?.name}>
                             <div>
-                                {ar.objectMeta.name}
+                                {ar.objectMeta?.name}
                                 <i className={`fa ${ar.status === 'Successful' ? 'fa-check-circle analysis--success' : 'fa-times-circle analysis--failure'}`} />
                             </div>
                             {ar?.jobs && (
