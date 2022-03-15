@@ -1,10 +1,11 @@
-import {ActionButton, EffectDiv, formatTimestamp, InfoItemProps, InfoItemRow, Menu, ThemeDiv, Tooltip} from 'argo-ui/v2';
+import {ActionButton, EffectDiv, formatTimestamp, InfoItemProps, InfoItemRow, ThemeDiv, Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
-import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo, RolloutJobInfo} from '../../../models/rollout/generated';
+import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {IconForTag} from '../../shared/utils/utils';
-import {ReplicaSets} from '../pods/pods';
+import {PodWidget, ReplicaSets} from '../pods/pods';
 import {ImageInfo, parseImages} from './rollout';
 import './rollout.scss';
+import '../pods/pods.scss';
 
 export interface Revision {
     number: number;
@@ -42,6 +43,8 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
     const icon = collapsed ? 'fa-chevron-circle-down' : 'fa-chevron-circle-up';
     const images = parseImages(revision.replicaSets);
+    console.log('revision');
+    console.log(revision);
     return (
         <EffectDiv key={revision.number} className='revision'>
             <ThemeDiv className='revision__header'>
@@ -79,6 +82,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]; messa
     const {analysisRuns} = props;
     const [opened, setOpened] = React.useState(false);
     const icon = opened ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down';
+    console.log(props);
     return (
         <ThemeDiv className='analysis'>
             <div className='analysis-header'>
@@ -92,9 +96,13 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]; messa
                     <Tooltip
                         content={
                             <React.Fragment>
-                                <div>{ar.objectMeta.name}</div>
-                                <div>Created at {formatTimestamp(JSON.stringify(ar.objectMeta.creationTimestamp))}</div>
-                                <div>{ar.status}</div>
+                                <div>name: {ar.objectMeta.name}</div>
+                                <div>created at: {formatTimestamp(JSON.stringify(ar.objectMeta.creationTimestamp))}</div>
+                                {ar?.failureLimit && <div>failureLimit: {ar.failureLimit}</div>}
+                                {ar?.successCondition && <div>successCondition: {ar.successCondition}</div>}
+                                {ar?.inconclusiveLimit && <div>InconclusiveLimit: {ar.inconclusiveLimit}</div>}
+                                <div>status: {ar.status}</div>
+                                <div>count: {ar.count}</div>
                             </React.Fragment>
                         }>
                         <ThemeDiv className={`analysis__run analysis__run--${ar.status ? ar.status.toLowerCase() : 'unknown'}`} />
@@ -113,7 +121,40 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]; messa
                             {ar?.jobs && (
                                 <div className='analysis__run__jobs'>
                                     {ar.jobs.map((job) => {
-                                        return <AnalysisRunDetail key={job.objectMeta.name} job={job} />;
+                                        return (
+                                            <PodWidget
+                                                key={job.objectMeta?.name}
+                                                name={job.objectMeta.name}
+                                                status={job.status}
+                                                tooltip={
+                                                    <div>
+                                                        <div>job-name: {job.objectMeta?.name}</div>
+                                                        <div>StartedAt: {formatTimestamp(JSON.stringify(job.startedAt))}</div>
+                                                        <div>Status: {job.status}</div>
+                                                    </div>
+                                                }
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            {ar?.nonJobInfo && (
+                                <div className='analysis__run__jobs'>
+                                    {ar.nonJobInfo.map((nonJob) => {
+                                        return (
+                                            <PodWidget
+                                                key={new Date(nonJob.startedAt).getTime()}
+                                                name={nonJob.value}
+                                                status={nonJob.status}
+                                                tooltip={
+                                                    <div>
+                                                        <pre>Value: {JSON.stringify(JSON.parse(nonJob.value), null, 2)}</pre>
+                                                        <div>StartedAt: {formatTimestamp(JSON.stringify(nonJob.startedAt))}</div>
+                                                        <div>Status: {nonJob.status}</div>
+                                                    </div>
+                                                }
+                                            />
+                                        );
                                     })}
                                 </div>
                             )}
@@ -121,25 +162,5 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]; messa
                     );
                 })}
         </ThemeDiv>
-    );
-};
-
-const AnalysisRunDetail = ({job}: {job: RolloutJobInfo}) => {
-    return (
-        <Menu items={[{label: 'Copy Name', action: () => navigator.clipboard.writeText(job.objectMeta?.name), icon: 'fa-clipboard'}]}>
-            <Tooltip
-                content={
-                    <div>
-                        <div>job-name: {job.objectMeta?.name}</div>
-                        <div>Status: {job.status}</div>
-                    </div>
-                }>
-                <i
-                    className={`analysis__run__jobs-icon fa ${
-                        job.status === 'Successful' ? 'fa-check analysis__run__jobs-icon--success' : 'fa-times analysis__run__jobs-icon--failure'
-                    }`}
-                />
-            </Tooltip>
-        </Menu>
     );
 };

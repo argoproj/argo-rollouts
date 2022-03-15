@@ -3,7 +3,6 @@ import * as React from 'react';
 import * as moment from 'moment';
 import {Duration, Ticker} from 'argo-ui';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
-import {Pod} from '../../../models/rollout/rollout';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
 import './pods.scss';
 
@@ -23,6 +22,7 @@ export const ParsePodStatus = (status: string): PodStatus => {
             return PodStatus.Pending;
         case 'Running':
         case 'Completed':
+        case 'Successful':
             return PodStatus.Success;
         case 'Failed':
         case 'InvalidImageName':
@@ -115,8 +115,13 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                                 {(now) => {
                                     const time = moment(props.rs.scaleDownDeadline).diff(now, 'second');
                                     return time <= 0 ? null : (
-                                        <Tooltip content={<span>Scaledown in <Duration durationMs={time}/></span>}>
-                                            <InfoItem content={<Duration durationMs={time}/> as any} icon='fa fa-clock'></InfoItem>
+                                        <Tooltip
+                                            content={
+                                                <span>
+                                                    Scaledown in <Duration durationMs={time} />
+                                                </span>
+                                            }>
+                                            <InfoItem content={(<Duration durationMs={time} />) as any} icon='fa fa-clock'></InfoItem>
                                         </Tooltip>
                                     );
                                 }}
@@ -130,7 +135,17 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                 <ThemeDiv className='pods__container'>
                     <WaitFor loading={(props.rs.pods || []).length < 1}>
                         {props.rs.pods.map((pod, i) => (
-                            <PodWidget key={pod.objectMeta?.uid} pod={pod} />
+                            <PodWidget
+                                key={pod.objectMeta?.uid}
+                                name={pod.objectMeta?.name}
+                                status={pod.status}
+                                tooltip={
+                                    <div>
+                                        <div>Status: {pod.status}</div>
+                                        <div>{pod.objectMeta?.name}</div>
+                                    </div>
+                                }
+                            />
                         ))}
                     </WaitFor>
                 </ThemeDiv>
@@ -139,16 +154,10 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
     );
 };
 
-export const PodWidget = (props: {pod: Pod}) => (
-    <Menu items={[{label: 'Copy Name', action: () => navigator.clipboard.writeText(props.pod.objectMeta?.name), icon: 'fa-clipboard'}]}>
-        <Tooltip
-            content={
-                <div>
-                    <div>Status: {props.pod.status}</div>
-                    <div>{props.pod.objectMeta?.name}</div>
-                </div>
-            }>
-            <PodIcon status={props.pod.status} />
+export const PodWidget = ({name, status, tooltip}: {name: string; status: string; tooltip: React.ReactNode}) => (
+    <Menu items={[{label: 'Copy Name', action: () => navigator.clipboard.writeText(name), icon: 'fa-clipboard'}]}>
+        <Tooltip content={tooltip}>
+            <PodIcon status={status} />
         </Tooltip>
     </Menu>
 );

@@ -186,40 +186,6 @@
             background-color: $argo-color-gray-3;
             padding: 7px;
             flex-wrap: wrap;
-
-            &-icon {
-                $JOB_SIZE: 30px;
-                width: $JOB_SIZE;
-                height: $JOB_SIZE;
-                line-height: $JOB_SIZE;
-                font-size: 18px;
-                text-align: center;
-                border: 1px solid $silver-lining;
-                background-color: $fog;
-                color: $shine;
-                border-radius: 3px;
-                margin: 2px;
-                cursor: pointer;
-
-                &--success {
-                    background-color: $argo-success-color;
-                    color: white;
-                    border: 1px solid $argo-success-color;
-                    &:hover {
-                        background-color: $argo-success-color-dark;
-                        border-color: $argo-success-color-dark;
-                    }
-                }
-                &--failure {
-                    background-color: $clay;
-                    color: white;
-                    border: 1px solid $clay;
-                    &:hover {
-                        border-color: $coral;
-                        background-color: $coral;
-                    }
-                }
-            }
         }
     }
     &--success {
