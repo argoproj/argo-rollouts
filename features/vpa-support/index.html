@@ -1,0 +1,2503 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/features/vpa-support/">
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.2.5">
+    
+    
+      
+        <title>VPA - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.2d9f7617.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.e6a45f82.min.css">
+        
+      
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Work Sans";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/versions.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#vertical-pod-autoscaling" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-header__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Argo Rollouts - Kubernetes Progressive Delivery Controller
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              VPA
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      <form class="md-header__option" data-md-component="palette">
+        
+          
+          
+          <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+          
+            <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6zm0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4zM7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            </label>
+          
+        
+          
+          
+          <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
+          
+            <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3z"/></svg>
+            </label>
+          
+        
+      </form>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" aria-label="Clear" tabindex="-1">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/argoproj/argo-rollouts/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    Argo Rollouts - Kubernetes Progressive Delivery Controller
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/argoproj/argo-rollouts/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        Installation
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        Concepts
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        Architecture
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_5" type="checkbox" id="__nav_5" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_5">
+          Getting Started
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Getting Started" data-md-level="1">
+        <label class="md-nav__title" for="__nav_5">
+          <span class="md-nav__icon md-icon"></span>
+          Getting Started
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        Basic Usage
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/ambassador/" class="md-nav__link">
+        Ambassador
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/alb/" class="md-nav__link">
+        AWS ALB
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/istio/" class="md-nav__link">
+        Istio
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/nginx/" class="md-nav__link">
+        NGINX
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/smi/" class="md-nav__link">
+        SMI
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../dashboard/" class="md-nav__link">
+        Dashboard
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_7" type="checkbox" id="__nav_7" checked>
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_7">
+          Rollout
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Rollout" data-md-level="1">
+        <label class="md-nav__title" for="__nav_7">
+          <span class="md-nav__icon md-icon"></span>
+          Rollout
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_7_1" type="checkbox" id="__nav_7_1" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_7_1">
+          Deployment Strategies
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Deployment Strategies" data-md-level="2">
+        <label class="md-nav__title" for="__nav_7_1">
+          <span class="md-nav__icon md-icon"></span>
+          Deployment Strategies
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bluegreen/" class="md-nav__link">
+        BlueGreen
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../canary/" class="md-nav__link">
+        Canary
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../specification/" class="md-nav__link">
+        Rollout Spec
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hpa-support/" class="md-nav__link">
+        HPA
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          VPA
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        VPA
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#vpa-modes" class="md-nav__link">
+    VPA modes
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    Requirements
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ephemeral-metadata/" class="md-nav__link">
+        Ephemeral Metadata
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../restart/" class="md-nav__link">
+        Restarting Rollouts
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scaledown-aborted-rs/" class="md-nav__link">
+        Scaledown Aborted Rollouts
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../anti-affinity/anti-affinity/" class="md-nav__link">
+        Anti Affinity
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../helm/" class="md-nav__link">
+        Helm
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kustomize/" class="md-nav__link">
+        Kustomize
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../controller-metrics/" class="md-nav__link">
+        Controller Metrics
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_8" type="checkbox" id="__nav_8" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_8">
+          Traffic Management
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Traffic Management" data-md-level="1">
+        <label class="md-nav__title" for="__nav_8">
+          <span class="md-nav__icon md-icon"></span>
+          Traffic Management
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../traffic-management/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../traffic-management/ambassador/" class="md-nav__link">
+        Ambassador
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../traffic-management/alb/" class="md-nav__link">
+        AWS ALB
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../traffic-management/istio/" class="md-nav__link">
+        Istio
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../traffic-management/nginx/" class="md-nav__link">
+        NGINX
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../traffic-management/smi/" class="md-nav__link">
+        SMI
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_9" type="checkbox" id="__nav_9" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_9">
+          Analysis
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Analysis" data-md-level="1">
+        <label class="md-nav__title" for="__nav_9">
+          <span class="md-nav__icon md-icon"></span>
+          Analysis
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/prometheus/" class="md-nav__link">
+        Prometheus
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/datadog/" class="md-nav__link">
+        DataDog
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/newrelic/" class="md-nav__link">
+        NewRelic
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/wavefront/" class="md-nav__link">
+        Wavefront
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/job/" class="md-nav__link">
+        Job
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/web/" class="md-nav__link">
+        Web
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/kayenta/" class="md-nav__link">
+        Kayenta
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analysis/cloudwatch/" class="md-nav__link">
+        CloudWatch
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../experiment/" class="md-nav__link">
+        Experiments
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_11" type="checkbox" id="__nav_11" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_11">
+          Notifications
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Notifications" data-md-level="1">
+        <label class="md-nav__title" for="__nav_11">
+          <span class="md-nav__icon md-icon"></span>
+          Notifications
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notifications/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_11_2" type="checkbox" id="__nav_11_2" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_11_2">
+          Services
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Services" data-md-level="2">
+        <label class="md-nav__title" for="__nav_11_2">
+          <span class="md-nav__icon md-icon"></span>
+          Services
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/alertmanager/" class="md-nav__link">
+        Alertmanager
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/email/" class="md-nav__link">
+        Email
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/github/" class="md-nav__link">
+        GitHub
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/googlechat/" class="md-nav__link">
+        Google Chat
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/grafana/" class="md-nav__link">
+        Grafana
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/mattermost/" class="md-nav__link">
+        Mattermost
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/opsgenie/" class="md-nav__link">
+        Opsgenie
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/overview/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/pushover/" class="md-nav__link">
+        Pushover
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/rocketchat/" class="md-nav__link">
+        Rocket.Chat
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/slack/" class="md-nav__link">
+        Slack
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/teams/" class="md-nav__link">
+        Teams
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/telegram/" class="md-nav__link">
+        Telegram
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/webhook/" class="md-nav__link">
+        Webhook
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_12" type="checkbox" id="__nav_12" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_12">
+          Kubectl Plugin
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Kubectl Plugin" data-md-level="1">
+        <label class="md-nav__title" for="__nav_12">
+          <span class="md-nav__icon md-icon"></span>
+          Kubectl Plugin
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kubectl-plugin/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_12_2" type="checkbox" id="__nav_12_2" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_12_2">
+          Commands
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Commands" data-md-level="2">
+        <label class="md-nav__title" for="__nav_12_2">
+          <span class="md-nav__icon md-icon"></span>
+          Commands
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" class="md-nav__link">
+        Rollouts
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/" class="md-nav__link">
+        Rollouts Abort
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/" class="md-nav__link">
+        Rollouts Completion
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/" class="md-nav__link">
+        Rollouts Create
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/" class="md-nav__link">
+        Rollouts Create Analysisrun
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/" class="md-nav__link">
+        Rollouts Dashboard
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/" class="md-nav__link">
+        Rollouts Get
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/" class="md-nav__link">
+        Rollouts Get Experiment
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/" class="md-nav__link">
+        Rollouts Get Rollout
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/" class="md-nav__link">
+        Rollouts Lint
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/" class="md-nav__link">
+        Rollouts List
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/" class="md-nav__link">
+        Rollouts List Experiments
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/" class="md-nav__link">
+        Rollouts List Rollouts
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/" class="md-nav__link">
+        Rollouts Notifications
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/" class="md-nav__link">
+        Rollouts Notifications Template
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/" class="md-nav__link">
+        Rollouts Notifications Template Get
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/" class="md-nav__link">
+        Rollouts Notifications Template Notify
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/" class="md-nav__link">
+        Rollouts Notifications Trigger
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/" class="md-nav__link">
+        Rollouts Notifications Trigger Get
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/" class="md-nav__link">
+        Rollouts Notifications Trigger Run
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/" class="md-nav__link">
+        Rollouts Pause
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/" class="md-nav__link">
+        Rollouts Promote
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/" class="md-nav__link">
+        Rollouts Restart
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/" class="md-nav__link">
+        Rollouts Retry
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/" class="md-nav__link">
+        Rollouts Retry Experiment
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/" class="md-nav__link">
+        Rollouts Retry Rollout
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/" class="md-nav__link">
+        Rollouts Set
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/" class="md-nav__link">
+        Rollouts Set Image
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/" class="md-nav__link">
+        Rollouts Status
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/" class="md-nav__link">
+        Rollouts Terminate
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/" class="md-nav__link">
+        Rollouts Terminate Analysisrun
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/" class="md-nav__link">
+        Rollouts Terminate Experiment
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/" class="md-nav__link">
+        Rollouts Undo
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/" class="md-nav__link">
+        Rollouts Version
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../best-practices/" class="md-nav__link">
+        Best Practices
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migrating/" class="md-nav__link">
+        Migrating
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../FAQ/" class="md-nav__link">
+        FAQ
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        Security
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap/" class="md-nav__link">
+        Roadmap
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_18" type="checkbox" id="__nav_18" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_18">
+          Contributing
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Contributing" data-md-level="1">
+        <label class="md-nav__title" for="__nav_18">
+          <span class="md-nav__icon md-icon"></span>
+          Contributing
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../CONTRIBUTING/" class="md-nav__link">
+        Contribution Guide
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/setup/" class="md-nav__link">
+        Environment Setup
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../releasing/" class="md-nav__link">
+        Releasing
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/argoproj/argo-rollouts/releases" class="md-nav__link">
+        Releases ⧉
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/argoproj/argo-rollouts/milestones" class="md-nav__link">
+        Roadmap ⧉
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://blog.argoproj.io/" class="md-nav__link">
+        Blog ⧉
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#vpa-modes" class="md-nav__link">
+    VPA modes
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    Example
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    Requirements
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content" data-md-component="content">
+            <article class="md-content__inner md-typeset">
+              
+                
+<a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/features/vpa-support.md" title="Edit this page" class="md-content__button md-icon">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
+</a>
+
+
+
+<h1 id="vertical-pod-autoscaling">Vertical Pod Autoscaling<a class="headerlink" href="#vertical-pod-autoscaling" title="Permanent link">&para;</a></h1>
+<p>Vertical Pod Autoscaling (VPA) reduces the maintenance cost and improve utilization of cluster resources by automating configuration of resource requirements.  </p>
+<h2 id="vpa-modes">VPA modes<a class="headerlink" href="#vpa-modes" title="Permanent link">&para;</a></h2>
+<p>There are four modes in which VPAs operate  </p>
+<ol>
+<li>
+<p>"Auto": VPA assigns resource requests on pod creation as well as updates them on existing pods using the preferred update mechanism. Currently this is equivalent to "Recreate" (see below). Once restart free ("in-place") update of pod requests is available, it may be used as the preferred update mechanism by the "Auto" mode. 
+NOTE: This feature of VPA is experimental and may cause downtime for your applications.</p>
+</li>
+<li>
+<p>"Recreate": VPA assigns resource requests on pod creation as well as updates them on existing pods by evicting them when the requested resources differ significantly from the new recommendation (respecting the Pod Disruption Budget, if defined). This mode should be used rarely, only if you need to ensure that the pods are restarted whenever the resource request changes. Otherwise prefer the "Auto" mode which may take advantage of restart free updates once they are available. 
+NOTE: This feature of VPA is experimental and may cause downtime for your applications.</p>
+</li>
+<li>
+<p>"Initial": VPA only assigns resource requests on pod creation and never changes them later.  </p>
+</li>
+<li>
+<p>"Off": VPA does not automatically change resource requirements of the pods. The recommendations are calculated and can be inspected in the VPA object. </p>
+</li>
+</ol>
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
+<p>Below is an example of a Vertical Pod Autoscaler with Argo-Rollouts.</p>
+<p>Rollout sample app:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span><span class="w"></span>
+<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
+<span class="w">  </span><span class="nt">revisionHistoryLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w"></span>
+<span class="w">  </span><span class="nt">selector</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
+<span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
+<span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
+<span class="w">        </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ravihari/nginx:v1</span><span class="w"></span>
+<span class="w">        </span><span class="nt">ports</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
+<span class="w">        </span><span class="nt">resources</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">requests</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5m&quot;</span><span class="w">       </span>
+<span class="w">            </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5Mi&quot;</span><span class="w"> </span>
+</code></pre></div>
+<p>VPA configuration for Rollout sample app:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;autoscaling.k8s.io/v1beta2&quot;</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">VerticalPodAutoscaler</span><span class="w">  </span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w">  </span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-rollout-example</span><span class="w">  </span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span><span class="w">  </span>
+<span class="nt">spec</span><span class="p">:</span><span class="w">  </span>
+<span class="w">  </span><span class="nt">targetRef</span><span class="p">:</span><span class="w">  </span>
+<span class="w">    </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;argoproj.io/v1alpha1&quot;</span><span class="w">  </span>
+<span class="w">    </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w">  </span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w">  </span>
+<span class="w">  </span><span class="nt">updatePolicy</span><span class="p">:</span><span class="w">  </span>
+<span class="w">    </span><span class="nt">updateMode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Auto&quot;</span><span class="w">  </span>
+<span class="w">  </span><span class="nt">resourcePolicy</span><span class="p">:</span><span class="w">  </span>
+<span class="w">    </span><span class="nt">containerPolicies</span><span class="p">:</span><span class="w">  </span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">containerName</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;*&#39;</span><span class="w">  </span>
+<span class="w">    </span><span class="nt">minAllowed</span><span class="p">:</span><span class="w">  </span>
+<span class="w">      </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span><span class="w">  </span>
+<span class="w">      </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5Mi</span><span class="w">  </span>
+<span class="w">    </span><span class="nt">maxAllowed</span><span class="p">:</span><span class="w">  </span>
+<span class="w">      </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">  </span>
+<span class="w">      </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span><span class="w">  </span>
+<span class="w">    </span><span class="nt">controlledResources</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;cpu&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;memory&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span>
+</code></pre></div>
+<p>Describe VPA when initially deployed we donot see recommendations as it will take few mins.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">kubengix-vpa</span><span class="w"></span>
+<span class="nt">Namespace</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span><span class="w"></span>
+<span class="nt">Labels</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
+<span class="nt">Annotations</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
+<span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1</span><span class="w"></span>
+<span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">VerticalPodAutoscaler</span><span class="w"></span>
+<span class="nt">Metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Creation Timestamp</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Generation</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Managed Fields</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1beta2</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Fields Type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">FieldsV1</span><span class="w"></span>
+<span class="w">    </span><span class="nt">fieldsV1</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">f:metadata</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:annotations</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:kubectl.kubernetes.io/last-applied-configuration</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">f:spec</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:resourcePolicy</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:containerPolicies</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:targetRef</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:apiVersion</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:kind</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:name</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:updatePolicy</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:updateMode</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Manager</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">kubectl-client-side-apply</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Operation</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">Update</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Time</span><span class="p">:</span><span class="w">            </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Resource Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">3886</span><span class="w"></span>
+<span class="w">  </span><span class="nt">UID</span><span class="p">:</span><span class="w">               </span><span class="l l-Scalar l-Scalar-Plain">4ac64e4c-c84b-478e-92e4-5f072f985971</span><span class="w"></span>
+<span class="nt">Spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Resource Policy</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Container Policies</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Container Name</span><span class="p">:</span><span class="w">  </span><span class="err">*</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Controlled Resources</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">cpu</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">memory</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Max Allowed</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Min Allowed</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">5m</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">5Mi</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Target Ref</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Update Policy</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Update Mode</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Auto</span><span class="w"></span>
+<span class="nt">Events</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
+</code></pre></div>
+<p>After few minutes when VPA starts to process and provide recommendation:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">kubengix-vpa</span><span class="w"></span>
+<span class="nt">Namespace</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span><span class="w"></span>
+<span class="nt">Labels</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
+<span class="nt">Annotations</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
+<span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1</span><span class="w"></span>
+<span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">VerticalPodAutoscaler</span><span class="w"></span>
+<span class="nt">Metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Creation Timestamp</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Generation</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Managed Fields</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1beta2</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Fields Type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">FieldsV1</span><span class="w"></span>
+<span class="w">    </span><span class="nt">fieldsV1</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">f:metadata</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:annotations</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:kubectl.kubernetes.io/last-applied-configuration</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">f:spec</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:resourcePolicy</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:containerPolicies</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:targetRef</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:apiVersion</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:kind</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:name</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:updatePolicy</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:updateMode</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Manager</span><span class="p">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">kubectl-client-side-apply</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Operation</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">Update</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Time</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span><span class="w"></span>
+<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Fields Type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">FieldsV1</span><span class="w"></span>
+<span class="w">    </span><span class="nt">fieldsV1</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">f:status</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:conditions</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:recommendation</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:containerRecommendations</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Manager</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">recommender</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Operation</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">Update</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Time</span><span class="p">:</span><span class="w">            </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:52Z</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Resource Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">3950</span><span class="w"></span>
+<span class="w">  </span><span class="nt">UID</span><span class="p">:</span><span class="w">               </span><span class="l l-Scalar l-Scalar-Plain">4ac64e4c-c84b-478e-92e4-5f072f985971</span><span class="w"></span>
+<span class="nt">Spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Resource Policy</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Container Policies</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Container Name</span><span class="p">:</span><span class="w">  </span><span class="err">*</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Controlled Resources</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">cpu</span><span class="w"></span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">memory</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Max Allowed</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Min Allowed</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">5m</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">5Mi</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Target Ref</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Update Policy</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Update Mode</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Auto</span><span class="w"></span>
+<span class="nt">Status</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Conditions</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Last Transition Time</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:52Z</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Status</span><span class="p">:</span><span class="w">                </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Type</span><span class="p">:</span><span class="w">                  </span><span class="l l-Scalar l-Scalar-Plain">RecommendationProvided</span><span class="w"></span>
+<span class="w">  </span><span class="nt">Recommendation</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Container Recommendations</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Container Name</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Lower Bound</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">25m</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">262144k</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Target</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">25m</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">262144k</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Uncapped Target</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">25m</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">262144k</span><span class="w"></span>
+<span class="w">      </span><span class="nt">Upper Bound</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span><span class="w"></span>
+<span class="nt">Events</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
+</code></pre></div>
+<p>Here we see the recommendation for cpu, memory with lowerbound, upper bound, Target etc., are provided. If we check the status of the pods.. the older pods with initial configuration would get terminated and newer pods get created.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># kubectl get po -n test-vpa -w   </span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">NAME                               READY   STATUS    RESTARTS   AGE</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-65f26   1/1     Running   0          17m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-d55cx   1/1     Running   0          17m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-fdpn2   1/1     Running   0          17m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   1/1     Running   0          17m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   1/1     Running   0          17m</span><span class="w"></span>
+<span class="nn">...</span><span class="w"></span>
+
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   1/1     Terminating   0          17m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   1/1     Terminating   0          17m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   0/1     Terminating   0          18m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   0/1     Terminating   0          18m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   0/1     Pending       0          0s</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   0/1     Pending       0          0s</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   0/1     ContainerCreating   0          0s</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   0/1     Pending             0          0s</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   0/1     Pending             0          1s</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   0/1     Terminating         0          18m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   0/1     Terminating         0          18m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   0/1     ContainerCreating   0          1s</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   1/1     Running             0          6s</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   1/1     Running             0          7s</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   0/1     Terminating         0          18m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   0/1     Terminating         0          18m</span><span class="w"></span>
+</code></pre></div>
+<p>If we check the new pod cpu and memory they would be updated as per VPA recommendation:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># kubectl describe po vpa-demo-rollout-f5df6d577-vdlqq -n test-vpa</span><span class="w"></span>
+<span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq</span><span class="w"></span>
+<span class="nt">Namespace</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span><span class="w"></span>
+<span class="nt">Priority</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
+<span class="nt">Node</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts-control-plane/172.18.0.2</span><span class="w"></span>
+<span class="nt">Start Time</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">Mon, 14 Mar 2022 12:55:06 +0000</span><span class="w"></span>
+<span class="nt">Labels</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">app=vpa-demo-rollout</span><span class="w"></span>
+<span class="w">              </span><span class="l l-Scalar l-Scalar-Plain">rollouts-pod-template-hash=f5df6d577</span><span class="w"></span>
+<span class="nt">Annotations</span><span class="p">:</span><span class="w">  </span><span class="nt">vpaObservedContainers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
+<span class="w">              </span><span class="l l-Scalar l-Scalar-Plain">vpaUpdates</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nt">Pod resources updated by kubengix-vpa</span><span class="p">:</span><span class="w"> </span><span class="nt">container 0</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cpu request, memory request</span><span class="w"></span>
+<span class="nt">Status</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">Running</span><span class="w"></span>
+<span class="nt">IP</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">10.244.0.17</span><span class="w"></span>
+<span class="nt">IPs</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">IP</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">10.244.0.17</span><span class="w"></span>
+<span class="nt">Controlled By</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">ReplicaSet/vpa-demo-rollout-f5df6d577</span><span class="w"></span>
+<span class="nt">Containers</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">vpa-demo-rollout</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Container ID</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">containerd://b79bd88851fe0622d33bc90a1560ca54ef2c27405a3bc9a4fc3a333eef5f9733</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Image</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">ravihari/nginx:v1</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Image ID</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">docker.io/ravihari/nginx@sha256:205961b09a80476af4c2379841bf6abec0022101a7e6c5585a88316f7115d17a</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Port</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">80/TCP</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Host Port</span><span class="p">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">0/TCP</span><span class="w"></span>
+<span class="w">    </span><span class="nt">State</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">Running</span><span class="w"></span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">Started</span><span class="p p-Indicator">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">Mon, 14 Mar 2022 12:55:11 +0000</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Ready</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Restart Count</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Requests</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">cpu</span><span class="p">:</span><span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">25m</span><span class="w"></span>
+<span class="w">      </span><span class="nt">memory</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">262144k</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Environment</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Mounts</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">/var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-mk4fz (ro)</span><span class="w"></span>
+<span class="nt">Conditions</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Type              Status</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Initialized       True</span><span class="w"> </span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Ready             True</span><span class="w"> </span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">ContainersReady   True</span><span class="w"> </span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">PodScheduled      True</span><span class="w"> </span>
+<span class="nt">Volumes</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">kube-api-access-mk4fz</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">Type</span><span class="p">:</span><span class="w">                    </span><span class="l l-Scalar l-Scalar-Plain">Projected (a volume that contains injected data from multiple sources)</span><span class="w"></span>
+<span class="w">    </span><span class="nt">TokenExpirationSeconds</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">3607</span><span class="w"></span>
+<span class="w">    </span><span class="nt">ConfigMapName</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">kube-root-ca.crt</span><span class="w"></span>
+<span class="w">    </span><span class="nt">ConfigMapOptional</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">&lt;nil&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="nt">DownwardAPI</span><span class="p">:</span><span class="w">             </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w"></span>
+<span class="nt">QoS Class</span><span class="p">:</span><span class="w">                   </span><span class="l l-Scalar l-Scalar-Plain">Burstable</span><span class="w"></span>
+<span class="nt">Node-Selectors</span><span class="p">:</span><span class="w">              </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
+<span class="nt">Tolerations</span><span class="p">:</span><span class="w">                 </span><span class="l l-Scalar l-Scalar-Plain">node.kubernetes.io/not-ready:NoExecute op=Exists for 300s</span><span class="w"></span>
+<span class="w">                             </span><span class="l l-Scalar l-Scalar-Plain">node.kubernetes.io/unreachable:NoExecute op=Exists for 300s</span><span class="w"></span>
+<span class="nt">Events</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Type    Reason     Age   From               Message</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">----    ------     ----  ----               -------</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Scheduled  38s   default-scheduler  Successfully assigned test-vpa/vpa-demo-rollout-f5df6d577-vdlqq to argo-rollouts-control-plane</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Pulled     35s   kubelet            Container image &quot;ravihari/nginx:v1&quot; already present on machine</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Created    35s   kubelet            Created container vpa-demo-rollout</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Started    33s   kubelet            Started container vpa-demo-rollout</span><span class="w"></span>
+</code></pre></div>
+<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
+<p>In order for the VPA to manipulate the rollout, the Kubernetes cluster hosting the rollout CRD needs the subresources support for CRDs.  This feature was introduced as alpha in Kubernetes version 1.10 and transitioned to beta in Kubernetes version 1.11.  If a user wants to use VPA on v1.10, the Kubernetes Cluster operator will need to add a custom feature flag to the API server.  After 1.10, the flag is turned on by default.  Check out the following <a href="https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/">link</a> for more information on setting the custom feature flag.</p>
+<p>When installing VPA you may need to add the following in RBAC configurations for <code>system:vpa-target-reader</code> cluster role as by default VPA maynot support rollouts in all the versions.</p>
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">apiGroups</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io</span><span class="w"></span>
+<span class="w">    </span><span class="nt">resources</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts/scale</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts/status</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">replicasets</span><span class="w"></span>
+<span class="w">    </span><span class="nt">verbs</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">get</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">list</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">watch</span><span class="w"></span>
+</code></pre></div>
+<p>Makes sure Metrics-Server is installed in the cluster and openssl is upto date for VPA latest version to apply recommendations to the pods properly. </p>
+
+              
+            </article>
+          </div>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    <nav class="md-footer__inner md-grid" aria-label="Footer">
+      
+        
+        <a href="../hpa-support/" class="md-footer__link md-footer__link--prev" aria-label="Previous: HPA" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              HPA
+            </div>
+          </div>
+        </a>
+      
+      
+        
+        <a href="../ephemeral-metadata/" class="md-footer__link md-footer__link--next" aria-label="Next: Ephemeral Metadata" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              Ephemeral Metadata
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4z"/></svg>
+          </div>
+        </a>
+      
+    </nav>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../assets/javascripts/workers/search.bd0b6b67.min.js"}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.467223ff.min.js"></script>
+      
+        <script src="../../assets/versions.js"></script>
+      
+    
+  </body>
+</html>
