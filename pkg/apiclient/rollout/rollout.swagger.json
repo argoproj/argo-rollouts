@@ -4395,8 +4395,8 @@
           "type": "string"
         },
         "revision": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "int64"
         },
         "status": {
           "type": "string"

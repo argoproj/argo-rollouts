@@ -67,7 +67,7 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			}
 		}
 		arInfo.Icon = analysisIcon(run.Status.Phase)
-		arInfo.Revision = int32(parseRevision(run.ObjectMeta.Annotations))
+		arInfo.Revision = int64(parseRevision(run.ObjectMeta.Annotations))
 		arInfos = append(arInfos, &arInfo)
 	}
 	sort.Slice(arInfos[:], func(i, j int) bool {
