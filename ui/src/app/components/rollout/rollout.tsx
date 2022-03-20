@@ -241,11 +241,17 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
         map[rs.revision].replicaSets = [...map[rs.revision]?.replicaSets, rs];
     }
 
+
+
     for (const ar of ri.analysisRuns || []) {
+        // @ts-ignore
         if (!map[ar.revision]) {
+            // @ts-ignore
             map[ar.revision] = {...emptyRevision};
         }
+        // @ts-ignore
         map[ar.revision].number = ar.revision;
+        // @ts-ignore
         map[ar.revision].analysisRuns = [...map[ar.revision].analysisRuns, ar];
     }
 
