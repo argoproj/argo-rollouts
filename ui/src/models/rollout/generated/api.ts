@@ -5161,10 +5161,10 @@ export interface RolloutAnalysisRunInfo {
     icon?: string;
     /**
      * 
-     * @type {string}
+     * @type {number}
      * @memberof RolloutAnalysisRunInfo
      */
-    revision?: string;
+    revision?: number;
     /**
      * 
      * @type {string}

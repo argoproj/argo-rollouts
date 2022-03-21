@@ -150,7 +150,7 @@ message JobInfo {
 message AnalysisRunInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
   string icon = 2;
-  int64 revision = 3;
+  int32 revision = 3;
   string status = 4;
   int32 successful = 5;
   int32 failed = 6;
