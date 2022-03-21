@@ -305,7 +305,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     return (
         <React.Fragment>
             <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-                <div className={`steps__step-title ${props.step.experiment ? 'steps__step-title--experiment' : ''}`}>
+                <div className={`steps__step-title ${props.step.experiment || props.step.setCanaryScale ? 'steps__step-title--experiment' : ''}`}>
                     <i className={`fa ${icon}`} /> {content}
                     {unit}
                 </div>
@@ -314,6 +314,28 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                         {props.step.experiment?.templates.map((template) => {
                             return <ExperimentWidget key={template.name} template={template} opened={openedTemplate === template.name} onToggle={setOpenedTemplate} />;
                         })}
+                    </div>
+                )}
+                {props.step?.setCanaryScale && (
+                    <div className='steps__step__content'>
+                        {props.step.setCanaryScale?.replicas && (
+                            <Fragment>
+                                <div className='steps__step__content-title'> REPLICAS</div>
+                                <div className='steps__step__content-value'>{props.step.setCanaryScale?.replicas}</div>
+                            </Fragment>
+                        )}
+                        {props.step.setCanaryScale?.weight && (
+                            <Fragment>
+                                <div className='steps__step__content-title'> WEIGHT</div>
+                                <div className='steps__step__content-value'>{props.step.setCanaryScale.weight}</div>
+                            </Fragment>
+                        )}
+                        {props.step.setCanaryScale?.matchTrafficWeight && (
+                            <Fragment>
+                                <div className='steps__step__content-title'> MATCHTRAFFICWEIGHT</div>
+                                <div className='steps__step__content-value'>{String(props.step.setCanaryScale.matchTrafficWeight)}</div>
+                            </Fragment>
+                        )}
                     </div>
                 )}
             </EffectDiv>
