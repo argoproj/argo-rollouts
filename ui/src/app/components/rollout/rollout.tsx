@@ -317,22 +317,22 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                     </div>
                 )}
                 {props.step?.setCanaryScale && (
-                    <div className='steps__step__content'>
+                    <div className='steps__step__content-bodyother'>
                         {props.step.setCanaryScale?.replicas && (
                             <Fragment>
-                                <div className='steps__step__content-title'> REPLICAS</div>
+                                <div className='steps__step__content-title'>REPLICAS</div>
                                 <div className='steps__step__content-value'>{props.step.setCanaryScale?.replicas}</div>
                             </Fragment>
                         )}
                         {props.step.setCanaryScale?.weight && (
                             <Fragment>
-                                <div className='steps__step__content-title'> WEIGHT</div>
+                                <div className='steps__step__content-title'>WEIGHT</div>
                                 <div className='steps__step__content-value'>{props.step.setCanaryScale.weight}</div>
                             </Fragment>
                         )}
                         {props.step.setCanaryScale?.matchTrafficWeight && (
                             <Fragment>
-                                <div className='steps__step__content-title'> MATCHTRAFFICWEIGHT</div>
+                                <div className='steps__step__content-title'>MATCHTRAFFICWEIGHT</div>
                                 <div className='steps__step__content-value'>{String(props.step.setCanaryScale.matchTrafficWeight)}</div>
                             </Fragment>
                         )}
