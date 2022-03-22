@@ -34,7 +34,7 @@ jobs:
           sudo chmod 755 ~/.kube/config
           kubectl version
           kubectl create ns argo-rollouts
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}

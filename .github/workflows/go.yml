@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v1
 
       - name: Restore go build cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -77,15 +77,15 @@ jobs:
         run: |
           mkdir -p ~/go/src/github.com/argoproj
           ln -s $(pwd) ~/go/src/github.com/argoproj/argo-rollouts
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: /home/runner/.cache/go-build
           key: GOCACHE-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: /home/runner/go/pkg/mod
           key: GOMODCACHE-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: /home/runner/go/bin
           key: go-bin-v1-${{ hashFiles('**/go.mod') }}
