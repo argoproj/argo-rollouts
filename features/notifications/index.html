@@ -1055,6 +1055,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#notification-metrics" class="md-nav__link">
+    Notification Metrics
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2126,6 +2133,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#notification-metrics" class="md-nav__link">
+    Notification Metrics
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2265,6 +2279,11 @@ when rollout pod spec uses <code>argoproj/rollouts-demo:purple</code> image:</p>
 <span class="w">      </span><span class="no">when: rollout.spec.template.spec.containers[0].image == &#39;argoproj/rollouts-demo:purple&#39;</span><span class="w"></span>
 </code></pre></div>
 <p>Each condition might use several templates. Typically each template is responsible for generating a service-specific notification part.</p>
+<h3 id="notification-metrics">Notification Metrics<a class="headerlink" href="#notification-metrics" title="Permanent link">&para;</a></h3>
+<p>The following prometheus metrics are emitted when notifications are enabled in argo-rollouts.
+- notification_send_success is a counter that measures how many times the notification is sent successfully.
+- notification_send_error is a counter that measures how many times the notification failed to send.
+- notification_send is a histogram that measures performance of sending notification.</p>
 
               
             </article>
