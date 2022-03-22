@@ -5,6 +5,18 @@ package rollout
 
 import (
 	context "context"
+	"fmt"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/gogo/protobuf/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"io"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"math"
+	math_bits "math/bits"
+)
 	fmt "fmt"
 	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	proto "github.com/gogo/protobuf/proto"
