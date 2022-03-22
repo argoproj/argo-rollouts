@@ -26,6 +26,23 @@ This will create a new namespace, `argo-rollouts`, where Argo Rollouts controlle
 You can find released container images of the controller at [Quay.io](https://quay.io/repository/argoproj/argo-rollouts?tab=tags). There are also old releases
 at Dockerhub, but since the introduction of rate limiting, the Argo project has moved to Quay.
 
+### Configuration Options
+
+For instance, logging format can be easily set as `json` via passing the following additional command-line argument in ArgoRollouts controller deployment:
+
+````yaml
+      containers:
+      - image: "quay.io/argoproj/argo-rollouts:v1.2.0"
+        args:
+        - --logformat=json
+````
+
+You can list all the available CLI options for the rollouts controller using the following command:
+
+```shell
+docker run --rm -it quay.io/argoproj/argo-rollouts:v1.2.0 -h
+```
+
 ## Kubectl Plugin Installation
 
 The kubectl plugin is optional, but is convenient for managing and visualizing rollouts from the 
