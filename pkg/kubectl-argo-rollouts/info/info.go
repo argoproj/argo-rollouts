@@ -55,10 +55,10 @@ func ownerRef(ownerRefs []metav1.OwnerReference, uids []types.UID) *metav1.Owner
 	return nil
 }
 
-func parseRevision(annotations_ map[string]string) int {
+func parseRevision(annotations_ map[string]string) int32 {
 	if annotations_ != nil {
 		if revision, err := strconv.Atoi(annotations_[annotations.RevisionAnnotation]); err == nil {
-			return revision
+			return (int32)(revision)
 		}
 	}
 	return 0
