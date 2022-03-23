@@ -274,6 +274,8 @@ const parseDuration = (duration: string): string => {
 
 const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
     const [openedTemplate, setOpenedTemplate] = React.useState('');
+    const [open, setOpen] = React.useState(false);
+
     let icon: string;
     let content = '';
     let unit = '';
@@ -305,9 +307,14 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     return (
         <React.Fragment>
             <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-                <div className={`steps__step-title ${props.step.experiment || props.step.setCanaryScale ? 'steps__step-title--experiment' : ''}`}>
-                    <i className={`fa ${icon}`} /> {content}
+                <div className={`steps__step-title ${props.step.experiment || (props.step.setCanaryScale && open) ? 'steps__step-title--experiment' : ''}`}>
+                    {icon && <i className={`fa ${icon}`} />} {content}
                     {unit}
+                    {props.step.setCanaryScale && (
+                        <ThemeDiv style={{marginLeft: 'auto'}} onClick={() => setOpen(!open)}>
+                            <i className={`fa ${open ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </ThemeDiv>
+                    )}
                 </div>
                 {props.step.experiment?.templates && (
                     <div className='steps__step__content'>
@@ -316,28 +323,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                         })}
                     </div>
                 )}
-                {props.step?.setCanaryScale && (
-                    <div className='steps__step__content-bodyother'>
-                        {props.step.setCanaryScale?.replicas && (
-                            <Fragment>
-                                <div className='steps__step__content-title'>REPLICAS</div>
-                                <div className='steps__step__content-value'>{props.step.setCanaryScale?.replicas}</div>
-                            </Fragment>
-                        )}
-                        {props.step.setCanaryScale?.weight && (
-                            <Fragment>
-                                <div className='steps__step__content-title'>WEIGHT</div>
-                                <div className='steps__step__content-value'>{props.step.setCanaryScale.weight}</div>
-                            </Fragment>
-                        )}
-                        {props.step.setCanaryScale?.matchTrafficWeight && (
-                            <Fragment>
-                                <div className='steps__step__content-title'>MATCHTRAFFICWEIGHT</div>
-                                <div className='steps__step__content-value'>{String(props.step.setCanaryScale.matchTrafficWeight)}</div>
-                            </Fragment>
-                        )}
-                    </div>
-                )}
+                {props.step?.setCanaryScale && open && <WidgetItem values={props.step.setCanaryScale} />}
             </EffectDiv>
             {!props.last && <ThemeDiv className='steps__connector' />}
         </React.Fragment>
@@ -362,17 +348,23 @@ const ExperimentWidget = ({
                     <i className={`fa ${icon}`} />
                 </ThemeDiv>
             </ThemeDiv>
-            {opened && (
-                <EffectDiv>
-                    <div className='steps__step__content-title'>SPECREF</div>
-                    <div className='steps__step__content-value'>{template.specRef}</div>
-                    {template.weight && (
-                        <Fragment>
-                            <div className='steps__step__content-title'>WEIGHT</div> <div className='steps__step__content-value'>{template.weight}</div>
-                        </Fragment>
-                    )}
-                </EffectDiv>
-            )}
+            {opened && <WidgetItem values={{specRef: template.specRef, weight: template.weight}} />}
+        </EffectDiv>
+    );
+};
+
+const WidgetItem = ({values}: {values: Record<string, any>}) => {
+    return (
+        <EffectDiv>
+            {Object.keys(values).map((val) => {
+                if (!values[val]) return null;
+                return (
+                    <Fragment key={val}>
+                        <div className='steps__step__content-title'>{val.toUpperCase()}</div>
+                        <div className='steps__step__content-value'>{String(values[val])}</div>
+                    </Fragment>
+                );
+            })}
         </EffectDiv>
     );
 };
