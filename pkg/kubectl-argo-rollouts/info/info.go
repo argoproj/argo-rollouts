@@ -68,8 +68,8 @@ func parseRevision(annotations_ map[string]string) int32 {
 		if revision > 0 && revision <= math.MaxInt32 {
 			return (int32)(revision)
 		}
-		return DefaultAllocate
 	}
+	return DefaultAllocate
 
 }
 
