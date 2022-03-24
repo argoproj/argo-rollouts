@@ -8,6 +8,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/duration"
 
+	"math"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
@@ -56,12 +58,19 @@ func ownerRef(ownerRefs []metav1.OwnerReference, uids []types.UID) *metav1.Owner
 }
 
 func parseRevision(annotations_ map[string]string) int32 {
+	const DefaultAllocate int32 = 0
 	if annotations_ != nil {
-		if revision, err := strconv.Atoi(annotations_[annotations.RevisionAnnotation]); err == nil {
+		revision, err := strconv.Atoi(annotations_[annotations.RevisionAnnotation])
+
+		if err != nil {
+			return DefaultAllocate
+		}
+		if revision > 0 && revision <= math.MaxInt32 {
 			return (int32)(revision)
 		}
 	}
-	return 0
+	return DefaultAllocate
+
 }
 
 func parseExperimentTemplateName(annotations_ map[string]string) string {
