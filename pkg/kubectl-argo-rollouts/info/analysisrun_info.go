@@ -26,18 +26,19 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 				UID:               run.UID,
 			},
 		}
+		if run.Spec.Metrics != nil {
+			arInfo.SuccessCondition = run.Spec.Metrics[0].SuccessCondition
 
-		arInfo.SuccessCondition = run.Spec.Metrics[0].SuccessCondition
+			if run.Spec.Metrics[0].Count != nil {
+				arInfo.Count = run.Spec.Metrics[0].Count.IntVal
+			}
 
-		if run.Spec.Metrics[0].Count != nil {
-			arInfo.Count = run.Spec.Metrics[0].Count.IntVal
-		}
-
-		if run.Spec.Metrics[0].InconclusiveLimit != nil {
-			arInfo.InconclusiveLimit = run.Spec.Metrics[0].InconclusiveLimit.IntVal
-		}
-		if run.Spec.Metrics[0].FailureLimit != nil {
-			arInfo.FailureLimit = run.Spec.Metrics[0].FailureLimit.IntVal
+			if run.Spec.Metrics[0].InconclusiveLimit != nil {
+				arInfo.InconclusiveLimit = run.Spec.Metrics[0].InconclusiveLimit.IntVal
+			}
+			if run.Spec.Metrics[0].FailureLimit != nil {
+				arInfo.FailureLimit = run.Spec.Metrics[0].FailureLimit.IntVal
+			}
 		}
 		arInfo.Status = string(run.Status.Phase)
 		for _, mr := range run.Status.MetricResults {
