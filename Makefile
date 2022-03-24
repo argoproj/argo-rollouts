@@ -113,6 +113,7 @@ api-proto: go-mod-vendor k8s-proto
 	$(call protoc,pkg/apiclient/rollout/rollout.proto)
 
 # generates ui related proto files
+.PHONY: ui-proto
 ui-proto:
 	yarn --cwd ui run protogen
 
