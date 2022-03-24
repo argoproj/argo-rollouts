@@ -16,6 +16,7 @@ spec:
   metrics:
   - name: error-rate
     interval: 5m
+    count: 3
     successCondition: result <= 0.01
     failureLimit: 3
     provider:
