@@ -98,7 +98,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                 <div>created at: {formatTimestamp(JSON.stringify(ar.objectMeta?.creationTimestamp))}</div>
                                 {ar?.failureLimit && <div>failureLimit: {ar.failureLimit}</div>}
                                 {ar?.successCondition && <div>successCondition: {ar.successCondition}</div>}
-                                {ar?.inconclusiveLimit && <div>InconclusiveLimit: {ar.inconclusiveLimit}</div>}
+                                {ar?.inconclusiveLimit && <div>inconclusiveLimit: {ar.inconclusiveLimit}</div>}
                                 <div>status: {ar.status}</div>
                                 <div>count: {ar.count}</div>
                             </React.Fragment>
