@@ -26,9 +26,8 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 				UID:               run.UID,
 			},
 		}
-		if run.Spec.Metrics[0].SuccessCondition != nil {
-			arInfo.SuccessCondition = run.Spec.Metrics[0].SuccessCondition
-		}
+
+		arInfo.SuccessCondition = run.Spec.Metrics[0].SuccessCondition
 
 		if run.Spec.Metrics[0].Count != nil {
 			arInfo.Count = run.Spec.Metrics[0].Count.IntVal
@@ -47,31 +46,30 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			arInfo.Inconclusive += mr.Inconclusive
 			arInfo.Error += mr.Error
 			for _, meas := range analysisutil.ArrayMeasurement(run, mr.Name) {
-				if meas != nil {
-					if meas.Metadata != nil {
-						if jobName, ok := meas.Metadata[job.JobNameKey]; ok {
-							jobInfo := rollout.JobInfo{
-								ObjectMeta: &v1.ObjectMeta{
-									Name: jobName,
-								},
-								Icon:      analysisIcon(meas.Phase),
-								Status:    string(meas.Phase),
-								StartedAt: meas.StartedAt,
-							}
-							if meas.StartedAt != nil {
-								jobInfo.ObjectMeta.CreationTimestamp = *meas.StartedAt
-							}
-							arInfo.Jobs = append(arInfo.Jobs, &jobInfo)
-						}
-					} else {
-						nonJobInfo := rollout.NonJobInfo{
-							Value:     meas.Value,
+				if meas.Metadata != nil {
+					if jobName, ok := meas.Metadata[job.JobNameKey]; ok {
+						jobInfo := rollout.JobInfo{
+							ObjectMeta: &v1.ObjectMeta{
+								Name: jobName,
+							},
+							Icon:      analysisIcon(meas.Phase),
 							Status:    string(meas.Phase),
 							StartedAt: meas.StartedAt,
 						}
-						arInfo.NonJobInfo = append(arInfo.NonJobInfo, &nonJobInfo)
+						if meas.StartedAt != nil {
+							jobInfo.ObjectMeta.CreationTimestamp = *meas.StartedAt
+						}
+						arInfo.Jobs = append(arInfo.Jobs, &jobInfo)
 					}
+				} else {
+					nonJobInfo := rollout.NonJobInfo{
+						Value:     meas.Value,
+						Status:    string(meas.Phase),
+						StartedAt: meas.StartedAt,
+					}
+					arInfo.NonJobInfo = append(arInfo.NonJobInfo, &nonJobInfo)
 				}
+
 			}
 		}
 		arInfo.Icon = analysisIcon(run.Status.Phase)
