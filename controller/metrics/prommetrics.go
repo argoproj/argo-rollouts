@@ -175,6 +175,34 @@ var (
 	)
 )
 
+// Notification metrics
+var (
+	MetricNotificationSuccessTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "notification_send_success",
+			Help: "Notification send success.",
+		},
+		append(namespaceNameLabels, "type", "reason"),
+	)
+
+	MetricNotificationFailedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "notification_send_error",
+			Help: "Error sending the notification",
+		},
+		append(namespaceNameLabels, "type", "reason"),
+	)
+
+	MetricNotificationSend = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "notification_send",
+			Help:    "Notification send performance.",
+			Buckets: []float64{0.01, 0.15, .25, .5, 1},
+		},
+		namespaceNameLabels,
+	)
+)
+
 // K8s Client metrics
 var (
 	// Custom events metric
