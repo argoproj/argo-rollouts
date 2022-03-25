@@ -50,6 +50,24 @@ func (f *fakeClient) Update(ctx context.Context, obj *unstructured.Unstructured,
 	return obj, nil
 }
 
+func TestUpdateHash(t *testing.T) {
+	t.Run("UpdateHash", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			Client:  client,
+		}
+		r := NewReconciler(cfg)
+
+		// When
+		err := r.UpdateHash("", "")
+
+		// Then
+		assert.NoError(t, err)
+	})
+}
+
 func TestSetWeight(t *testing.T) {
 	traefikServiceObj = toUnstructured(t, traefikService)
 	t.Run("SetWeight", func(t *testing.T) {
