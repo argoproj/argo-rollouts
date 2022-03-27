@@ -455,7 +455,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			rolloutSpecReplicas:    4,
 			stableSpecReplica:      4,
 			stableAvailableReplica: 4,
-			minReplicas: intPnt(2),
+			minReplicas:            intPnt(2),
 
 			expectedStableReplicaCount: 4,
 			expectedCanaryReplicaCount: 2,
@@ -706,7 +706,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 	for i := range tests {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
-			if (test.setCanaryScale != nil) {
+			if test.setCanaryScale != nil {
 				test.setCanaryScale.MinReplicas = test.minReplicas
 			}
 			rollout := newRollout(test.rolloutSpecReplicas, test.setWeight, test.maxSurge, test.maxUnavailable, "canary", "stable", test.setCanaryScale, test.trafficRouting)

@@ -447,11 +447,11 @@ func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32, int32)
 		if scs.Replicas != nil {
 			return scs.Replicas, 0, 0
 		} else if scs.Weight != nil {
-		        if scs.MinReplicas != nil {
-			        return nil, *scs.Weight, *scs.MinReplicas
-		        } else {
-			        return nil, *scs.Weight, 0
-		        }
+			if scs.MinReplicas != nil {
+				return nil, *scs.Weight, *scs.MinReplicas
+			} else {
+				return nil, *scs.Weight, 0
+			}
 		}
 	}
 	return nil, GetCurrentSetWeight(rollout), 0
