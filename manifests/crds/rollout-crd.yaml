@@ -589,6 +589,9 @@ spec:
                                 replicas:
                                   format: int32
                                   type: integer
+                                minreplicas:
+                                  format: int32
+                                  type: integer
                                 weight:
                                   format: int32
                                   type: integer

@@ -80,10 +80,13 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 // For more examples, check the CalculateReplicaCountsForBasicCanary test in canary/canary_test.go
 func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, stableRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) (int32, int32) {
 	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
-	_, desiredWeight := GetCanaryReplicasOrWeight(rollout)
+	_, desiredWeight, minReplicas := GetCanaryReplicasOrWeight(rollout)
 	maxSurge := MaxSurge(rollout)
 
 	desiredNewRSReplicaCount, desiredStableRSReplicaCount := approximateWeightedCanaryStableReplicaCounts(rolloutSpecReplica, desiredWeight, maxSurge)
+
+	desiredNewRSReplicaCount = max(desiredNewRSReplicaCount, minReplicas)
+	desiredStableRSReplicaCount = max(desiredStableRSReplicaCount, minReplicas)
 
 	stableRSReplicaCount := int32(0)
 	newRSReplicaCount := int32(0)
@@ -148,6 +151,7 @@ func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *apps
 	// weight (e.g. we are aborting), then we can ignore pod availability of the canaryRS.
 	isIncreasing := newRS == nil || desiredNewRSReplicaCount >= *newRS.Spec.Replicas
 	replicasToScaleDown := GetReplicasForScaleDown(newRS, !isIncreasing) + GetReplicasForScaleDown(stableRS, isIncreasing)
+
 	if replicasToScaleDown <= minAvailableReplicaCount {
 		// Cannot scale down stableRS or newRS without going below min available replica count
 		return newRSReplicaCount, stableRSReplicaCount
@@ -314,12 +318,12 @@ func maxValue(countA int32, countB int32) int32 {
 func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, weights *v1alpha1.TrafficWeights) (int32, int32) {
 	var canaryCount, stableCount int32
 	rolloutSpecReplica := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
-	setCanaryScaleReplicas, desiredWeight := GetCanaryReplicasOrWeight(rollout)
+	setCanaryScaleReplicas, desiredWeight, minReplicas := GetCanaryReplicasOrWeight(rollout)
 	if setCanaryScaleReplicas != nil {
 		// a canary count was explicitly set
 		canaryCount = *setCanaryScaleReplicas
 	} else {
-		canaryCount = trafficWeightToReplicas(rolloutSpecReplica, desiredWeight)
+		canaryCount = max(trafficWeightToReplicas(rolloutSpecReplica, desiredWeight), minReplicas)
 	}
 
 	if !rollout.Spec.Strategy.Canary.DynamicStableScale {
@@ -350,7 +354,7 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 			canaryCount = max(trafficWeightReplicaCount, canaryCount)
 		}
 	}
-	return canaryCount, stableCount
+	return canaryCount, max(stableCount, minReplicas)
 }
 
 // trafficWeightToReplicas returns the appropriate replicas given the full spec.replicas and a weight
@@ -434,19 +438,23 @@ func GetCurrentCanaryStep(rollout *v1alpha1.Rollout) (*v1alpha1.CanaryStep, *int
 	return &rollout.Spec.Strategy.Canary.Steps[currentStepIndex], &currentStepIndex
 }
 
-// GetCanaryReplicasOrWeight either returns a static set of replicas or a weight percentage
-func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32) {
+// GetCanaryReplicasOrWeight either returns a static set of replicas or a weight percentage plus minReplicas (minReplicas defaults to 0)
+func GetCanaryReplicasOrWeight(rollout *v1alpha1.Rollout) (*int32, int32, int32) {
 	if rollout.Status.PromoteFull || rollout.Status.StableRS == "" || rollout.Status.CurrentPodHash == rollout.Status.StableRS {
-		return nil, 100
+		return nil, 100, 0
 	}
 	if scs := UseSetCanaryScale(rollout); scs != nil {
 		if scs.Replicas != nil {
-			return scs.Replicas, 0
+			return scs.Replicas, 0, 0
 		} else if scs.Weight != nil {
-			return nil, *scs.Weight
+		        if scs.MinReplicas != nil {
+			        return nil, *scs.Weight, *scs.MinReplicas
+		        } else {
+			        return nil, *scs.Weight, 0
+		        }
 		}
 	}
-	return nil, GetCurrentSetWeight(rollout)
+	return nil, GetCurrentSetWeight(rollout), 0
 }
 
 // GetCurrentSetWeight grabs the current setWeight used by the rollout by iterating backwards from the current step

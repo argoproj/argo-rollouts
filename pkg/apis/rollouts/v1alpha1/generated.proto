@@ -1462,6 +1462,10 @@ message SetCanaryScale {
   // MatchTrafficWeight cancels out previously set Replicas or Weight, effectively activating SetWeight
   // +optional
   optional bool matchTrafficWeight = 3;
+
+  // MinReplicas is used together with Weight to define a minimum number of pods for all ReplicaSets
+  // +optional
+  optional int32 minReplicas = 4;
 }
 
 message StickinessConfig {
