@@ -586,10 +586,10 @@ spec:
                               properties:
                                 matchTrafficWeight:
                                   type: boolean
-                                replicas:
+                                minReplicas:
                                   format: int32
                                   type: integer
-                                minreplicas:
+                                replicas:
                                   format: int32
                                   type: integer
                                 weight:

@@ -4301,6 +4301,13 @@ func schema_pkg_apis_rollouts_v1alpha1_SetCanaryScale(ref common.ReferenceCallba
 							Format:      "",
 						},
 					},
+					"minReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MinReplicas is used together with Weight to define a minimum number of pods for all ReplicaSets",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},
