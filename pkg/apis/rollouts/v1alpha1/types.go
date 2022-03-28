@@ -559,6 +559,9 @@ type SetCanaryScale struct {
 	// MatchTrafficWeight cancels out previously set Replicas or Weight, effectively activating SetWeight
 	// +optional
 	MatchTrafficWeight bool `json:"matchTrafficWeight,omitempty" protobuf:"varint,3,opt,name=matchTrafficWeight"`
+	// MinReplicas is used together with Weight to define a minimum number of pods for all ReplicaSets
+	// +optional
+	MinReplicas *int32 `json:"minReplicas,omitempty" protobuf:"varint,4,opt,name=minReplicas"`
 }
 
 // RolloutAnalysisBackground defines a template that is used to create a background analysisRun

@@ -2283,6 +2283,11 @@ func (in *SetCanaryScale) DeepCopyInto(out *SetCanaryScale) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.MinReplicas != nil {
+		in, out := &in.MinReplicas, &out.MinReplicas
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 

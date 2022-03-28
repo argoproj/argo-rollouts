@@ -1558,6 +1558,11 @@
         "matchTrafficWeight": {
           "type": "boolean",
           "title": "MatchTrafficWeight cancels out previously set Replicas or Weight, effectively activating SetWeight\n+optional"
+        },
+        "minReplicas": {
+          "type": "integer",
+          "format": "int32",
+          "title": "MinReplicas is used together with Weight to define a minimum number of pods for all ReplicaSets\n+optional"
         }
       },
       "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight"

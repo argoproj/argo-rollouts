@@ -169,7 +169,9 @@ func CanaryStepString(c v1alpha1.CanaryStep) string {
 		return "analysis"
 	}
 	if c.SetCanaryScale != nil {
-		if c.SetCanaryScale.Weight != nil {
+		if c.SetCanaryScale.Weight != nil && c.SetCanaryScale.MinReplicas != nil {
+			return fmt.Sprintf("setCanaryScale{weight: %d, min %d}", *c.SetCanaryScale.Weight, *c.SetCanaryScale.MinReplicas)
+		} else if c.SetCanaryScale.Weight != nil {
 			return fmt.Sprintf("setCanaryScale{weight: %d}", *c.SetCanaryScale.Weight)
 		} else if c.SetCanaryScale.MatchTrafficWeight {
 			return "setCanaryScale{matchTrafficWeight: true}"
