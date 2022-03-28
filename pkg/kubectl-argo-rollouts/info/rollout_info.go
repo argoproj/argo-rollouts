@@ -65,7 +65,11 @@ func NewRolloutInfo(
 					}
 				}
 			} else {
-				roInfo.ActualWeight = roInfo.SetWeight
+				if ro.Status.Canary.Weights != nil {
+					roInfo.ActualWeight = fmt.Sprintf("%d", ro.Status.Canary.Weights.Canary.Weight)
+				} else {
+					roInfo.ActualWeight = "n/a"
+				}
 			}
 		}
 	} else if ro.Spec.Strategy.BlueGreen != nil {
