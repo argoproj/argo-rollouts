@@ -85,8 +85,12 @@ func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *apps
 
 	desiredNewRSReplicaCount, desiredStableRSReplicaCount := approximateWeightedCanaryStableReplicaCounts(rolloutSpecReplica, desiredWeight, maxSurge)
 
-	desiredNewRSReplicaCount = max(desiredNewRSReplicaCount, minReplicas)
-	desiredStableRSReplicaCount = max(desiredStableRSReplicaCount, minReplicas)
+	if desiredNewRSReplicaCount > 0 {
+		desiredNewRSReplicaCount = max(desiredNewRSReplicaCount, minReplicas)
+	}
+	if desiredStableRSReplicaCount > 0 {
+		desiredStableRSReplicaCount = max(desiredStableRSReplicaCount, minReplicas)
+	}
 
 	stableRSReplicaCount := int32(0)
 	newRSReplicaCount := int32(0)
@@ -323,7 +327,10 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 		// a canary count was explicitly set
 		canaryCount = *setCanaryScaleReplicas
 	} else {
-		canaryCount = max(trafficWeightToReplicas(rolloutSpecReplica, desiredWeight), minReplicas)
+		canaryCount = trafficWeightToReplicas(rolloutSpecReplica, desiredWeight)
+		if canaryCount > 0 {
+			canaryCount = max(canaryCount, minReplicas)
+		}
 	}
 
 	if !rollout.Spec.Strategy.Canary.DynamicStableScale {
@@ -354,7 +361,10 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 			canaryCount = max(trafficWeightReplicaCount, canaryCount)
 		}
 	}
-	return canaryCount, max(stableCount, minReplicas)
+	if stableCount > 0 {
+		stableCount = max(stableCount, minReplicas)
+	}
+	return canaryCount, stableCount
 }
 
 // trafficWeightToReplicas returns the appropriate replicas given the full spec.replicas and a weight
