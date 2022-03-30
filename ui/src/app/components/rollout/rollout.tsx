@@ -160,9 +160,11 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                     <ThemeDiv className='info steps'>
                         <ThemeDiv className='info__title'>Steps</ThemeDiv>
                         <div style={{marginTop: '1em'}}>
-                            {rollout.steps.map((step, i) => (
-                                <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === (rollout.steps || []).length - 1} />
-                            ))}
+                            {rollout.steps
+                                .filter((step) => Object.keys(step).length)
+                                .map((step, i, arr) => (
+                                    <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === arr.length - 1} />
+                                ))}
                         </div>
                     </ThemeDiv>
                 )}
