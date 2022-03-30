@@ -25,7 +25,7 @@ spec:
   metrics:
     - interval: 10s
       # successCondition: "len(result[0].Values) >= 5 and all(result[0].Values, {# <= 0.01})"
-      inconclusiveLimit: 5
+      # inconclusiveLimit: 5
       failureLimit: 5
       count: 10
       name: random-fail
