@@ -48,6 +48,7 @@ func TestCanaryRolloutInfoWeights(t *testing.T) {
 	}
 	assert.Equal(t, rolloutObjs.Rollouts[4].Status.Canary.Weights.Canary.Weight, int32(actualWeightStringInt32))
 
+	//This test has a no canary weight object in the status field so we fall back to using SetWeight value
 	roInfo = NewRolloutInfo(rolloutObjs.Rollouts[5], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
 	assert.Equal(t, roInfo.SetWeight, roInfo.ActualWeight)
 }
