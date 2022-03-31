@@ -36,17 +36,6 @@ func TestCanaryRolloutInfo(t *testing.T) {
 			Tags:  []string{InfoTagStable},
 		},
 	})
-
-	roInfo = NewRolloutInfo(rolloutObjs.Rollouts[4], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
-	actualWeightString := roInfo.ActualWeight
-	actualWeightStringInt32, err := strconv.ParseInt(actualWeightString, 10, 32)
-	if err != nil {
-		t.Error(err)
-	}
-	assert.Equal(t, rolloutObjs.Rollouts[4].Status.Canary.Weights.Canary.Weight, int32(actualWeightStringInt32))
-
-	roInfo = NewRolloutInfo(rolloutObjs.Rollouts[5], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
-	assert.Equal(t, roInfo.SetWeight, roInfo.ActualWeight)
 }
 
 func TestCanaryRolloutInfoWeights(t *testing.T) {
