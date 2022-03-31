@@ -6,12 +6,12 @@ metadata:
   creationTimestamp: "2019-10-25T06:07:18Z"
   generation: 429
   labels:
-    app: canary-demo
+    app: canary-demo-weights
     app.kubernetes.io/instance: jesse-test
-  name: canary-demo
+  name: canary-demo-weights
   namespace: jesse-test
   resourceVersion: "28253567"
-  selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/rollouts/canary-demo
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/rollouts/canary-demo-weights
   uid: b350ba76-f6ed-11e9-a15b-42010aa80033
 spec:
   progressDeadlineSeconds: 30
