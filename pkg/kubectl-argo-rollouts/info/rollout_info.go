@@ -68,7 +68,7 @@ func NewRolloutInfo(
 				if ro.Status.Canary.Weights != nil {
 					roInfo.ActualWeight = fmt.Sprintf("%d", ro.Status.Canary.Weights.Canary.Weight)
 				} else {
-					roInfo.ActualWeight = "n/a"
+					roInfo.ActualWeight = roInfo.SetWeight
 				}
 			}
 		}
