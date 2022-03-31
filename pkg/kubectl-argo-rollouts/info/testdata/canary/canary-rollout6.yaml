@@ -19,7 +19,7 @@ spec:
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app: canary-demo
+      app: canary-demo-weights-na
   strategy:
     canary:
       canaryService: canary-demo-preview
@@ -44,7 +44,7 @@ spec:
     metadata:
       creationTimestamp: null
       labels:
-        app: canary-demo
+        app: canary-demo-weights-na
     spec:
       containers:
       - image: argoproj/rollouts-demo:does-not-exist
@@ -83,5 +83,5 @@ status:
   observedGeneration: "429"
   readyReplicas: 5
   replicas: 6
-  selector: app=canary-demo
+  selector: app=canary-demo-weights-na
   updatedReplicas: 1
