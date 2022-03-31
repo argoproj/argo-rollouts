@@ -54,7 +54,7 @@ func TestCanaryRolloutInfoWeights(t *testing.T) {
 	})
 
 	t.Run("TestActualWeightWithoutExistingWeight", func(t *testing.T) {
-		t.Run("will test that actual weight is set to SetWeight when status field dose not exist", func(t *testing.T) {
+		t.Run("will test that actual weight is set to SetWeight when status field does not exist", func(t *testing.T) {
 			//This test has a no canary weight object in the status field so we fall back to using SetWeight value
 			roInfo := NewRolloutInfo(rolloutObjs.Rollouts[5], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
 			assert.Equal(t, roInfo.SetWeight, roInfo.ActualWeight)
