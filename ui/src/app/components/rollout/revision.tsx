@@ -8,7 +8,7 @@ import './rollout.scss';
 import '../pods/pods.scss';
 
 export interface Revision {
-    number: number;
+    number: string;
     replicaSets: RolloutReplicaSetInfo[];
     experiments: RolloutExperimentInfo[];
     analysisRuns: RolloutAnalysisRunInfo[];
@@ -49,7 +49,14 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
                 Revision {revision.number}
                 <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
                     {!props.current && props.rollback && (
-                        <ActionButton action={() => props.rollback(revision.number)} label='ROLLBACK' icon='fa-undo-alt' style={{fontSize: '13px'}} indicateLoading shouldConfirm />
+                        <ActionButton
+                            action={() => props.rollback(Number(revision.number))}
+                            label='ROLLBACK'
+                            icon='fa-undo-alt'
+                            style={{fontSize: '13px'}}
+                            indicateLoading
+                            shouldConfirm
+                        />
                     )}
                     <ThemeDiv className='revision__header__button' onClick={() => setCollapsed(!collapsed)}>
                         <i className={`fa ${icon}`} />

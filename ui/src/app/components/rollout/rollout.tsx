@@ -229,7 +229,7 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
     if (!ri) {
         return;
     }
-    const map: {[key: number]: Revision} = {};
+    const map: {[key: string]: Revision} = {};
 
     const emptyRevision = {replicaSets: [], experiments: [], analysisRuns: []} as Revision;
 

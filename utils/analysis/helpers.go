@@ -179,13 +179,10 @@ func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Mea
 }
 
 func ArrayMeasurement(run *v1alpha1.AnalysisRun, metricName string) []v1alpha1.Measurement {
-	if result := GetResult(run, metricName); result != nil {
-		totalMeasurements := len(result.Measurements)
-		if totalMeasurements == 0 {
-			return nil
-		}
+	if result := GetResult(run, metricName); result != nil && len(result.Measurements) > 0 {
 		return result.Measurements
 	}
+
 	return nil
 }
 

@@ -46,27 +46,27 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			arInfo.Failed += mr.Failed
 			arInfo.Inconclusive += mr.Inconclusive
 			arInfo.Error += mr.Error
-			for _, meas := range analysisutil.ArrayMeasurement(run, mr.Name) {
-				if meas.Metadata != nil {
-					if jobName, ok := meas.Metadata[job.JobNameKey]; ok {
+			for _, measurement := range analysisutil.ArrayMeasurement(run, mr.Name) {
+				if measurement.Metadata != nil {
+					if jobName, ok := measurement.Metadata[job.JobNameKey]; ok {
 						jobInfo := rollout.JobInfo{
 							ObjectMeta: &v1.ObjectMeta{
 								Name: jobName,
 							},
-							Icon:      analysisIcon(meas.Phase),
-							Status:    string(meas.Phase),
-							StartedAt: meas.StartedAt,
+							Icon:      analysisIcon(measurement.Phase),
+							Status:    string(measurement.Phase),
+							StartedAt: measurement.StartedAt,
 						}
-						if meas.StartedAt != nil {
-							jobInfo.ObjectMeta.CreationTimestamp = *meas.StartedAt
+						if measurement.StartedAt != nil {
+							jobInfo.ObjectMeta.CreationTimestamp = *measurement.StartedAt
 						}
 						arInfo.Jobs = append(arInfo.Jobs, &jobInfo)
 					}
 				} else {
 					nonJobInfo := rollout.NonJobInfo{
-						Value:     meas.Value,
-						Status:    string(meas.Phase),
-						StartedAt: meas.StartedAt,
+						Value:     measurement.Value,
+						Status:    string(measurement.Phase),
+						StartedAt: measurement.StartedAt,
 					}
 					arInfo.NonJobInfo = append(arInfo.NonJobInfo, &nonJobInfo)
 				}
@@ -74,7 +74,7 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			}
 		}
 		arInfo.Icon = analysisIcon(run.Status.Phase)
-		arInfo.Revision = parseRevision(run.ObjectMeta.Annotations)
+		arInfo.Revision = int64(parseRevision(run.ObjectMeta.Annotations))
 		arInfos = append(arInfos, &arInfo)
 	}
 	sort.Slice(arInfos[:], func(i, j int) bool {

@@ -5161,10 +5161,10 @@ export interface RolloutAnalysisRunInfo {
     icon?: string;
     /**
      * 
-     * @type {number}
+     * @type {string}
      * @memberof RolloutAnalysisRunInfo
      */
-    revision?: number;
+    revision?: string;
     /**
      * 
      * @type {string}
@@ -5271,10 +5271,10 @@ export interface RolloutExperimentInfo {
     icon?: string;
     /**
      * 
-     * @type {number}
+     * @type {string}
      * @memberof RolloutExperimentInfo
      */
-    revision?: number;
+    revision?: string;
     /**
      * 
      * @type {string}
@@ -5463,10 +5463,10 @@ export interface RolloutReplicaSetInfo {
     icon?: string;
     /**
      * 
-     * @type {number}
+     * @type {string}
      * @memberof RolloutReplicaSetInfo
      */
-    revision?: number;
+    revision?: string;
     /**
      * 
      * @type {boolean}
