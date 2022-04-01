@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/pkg/errors"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,11 +31,24 @@ spec:
         port: 80
 `
 
-type fakeClient struct{}
+const errorTraefikService = `
+apiVersion: traefik.containo.us/v1alpha1
+kind: TraefikService
+metadata:
+  labels:
+    service: argo-traefik
+  name: traefik-service
+`
+
+type fakeClient struct {
+	isGetError         bool
+	isGetErrorManifest bool
+}
 
 var (
-	client            *fakeClient = &fakeClient{}
-	traefikServiceObj *unstructured.Unstructured
+	client                 *fakeClient = &fakeClient{}
+	traefikServiceObj      *unstructured.Unstructured
+	errorTraefikServiceObj *unstructured.Unstructured
 )
 
 const (
@@ -43,6 +58,12 @@ const (
 )
 
 func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	if f.isGetError == true {
+		return traefikServiceObj, errors.New("Traefik get error")
+	}
+	if f.isGetErrorManifest == true {
+		return errorTraefikServiceObj, nil
+	}
 	return traefikServiceObj, nil
 }
 
@@ -70,6 +91,7 @@ func TestUpdateHash(t *testing.T) {
 
 func TestSetWeight(t *testing.T) {
 	traefikServiceObj = toUnstructured(t, traefikService)
+	errorTraefikServiceObj = toUnstructured(t, errorTraefikService)
 	t.Run("SetWeight", func(t *testing.T) {
 		// Given
 		t.Parallel()
@@ -99,6 +121,40 @@ func TestSetWeight(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, int64(70), stableServiceWeight)
 		assert.Equal(t, int64(30), canaryServiceWeight)
+	})
+	t.Run("SetWeightWithError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			Client: &fakeClient{
+				isGetError: true,
+			},
+		}
+		r := NewReconciler(cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("SetWeightWithErrorManifest", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			Client: &fakeClient{
+				isGetErrorManifest: true,
+			},
+		}
+		r := NewReconciler(cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// Then
+		assert.NoError(t, err)
 	})
 }
 
