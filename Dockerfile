@@ -3,7 +3,7 @@
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.17.6 as builder
+FROM --platform=$BUILDPLATFORM golang:1.17.6 as builder
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -24,7 +24,7 @@ RUN cd ${GOPATH}/src/dummy && \
 ####################################################################################################
 # UI build stage
 ####################################################################################################
-FROM docker.io/library/node:12.18.4 as argo-rollouts-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:12.18.4 as argo-rollouts-ui
 
 WORKDIR /src
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
@@ -40,7 +40,7 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM golang:1.17.6 as argo-rollouts-build
+FROM --platform=$BUILDPLATFORM golang:1.17.6 as argo-rollouts-build
 
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
 
@@ -61,8 +61,9 @@ RUN touch ui/dist/node_modules.marker && \
     touch ui/dist/app/index.html && \
     find ui/dist
 
+ARG TARGETOS TARGETARCH
 ARG MAKE_TARGET="controller plugin plugin-linux plugin-darwin plugin-windows"
-RUN make ${MAKE_TARGET}
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
 
 ####################################################################################################
 # Kubectl plugin image
