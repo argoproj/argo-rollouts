@@ -26,7 +26,7 @@ spec:
     - interval: 10s
       count: 10
       failureLimit: 5
-      inconclusiveLimit: 3
+      inconclusiveLimit: 2
       name: random-fail
       provider:
         job:
