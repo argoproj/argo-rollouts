@@ -72,7 +72,8 @@ jobs:
         id: platform-matrix
         run: |
           PLATFORM_MATRIX=linux/amd64
-          if [ ${{ github.event_name != 'pull_request' }} = true ]; then
+          if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
+          then
             PLATFORM_MATRIX=$PLATFORM_MATRIX,linux/arm64
           fi
           echo "::set-output name=platform-matrix::$PLATFORM_MATRIX"
