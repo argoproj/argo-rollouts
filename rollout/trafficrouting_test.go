@@ -1,7 +1,6 @@
 package rollout
 
 import (
-	"context"
 	"errors"
 	"strconv"
 	"testing"
@@ -10,12 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
 	"k8s.io/utils/pointer"
@@ -27,7 +21,6 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
@@ -489,45 +482,6 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	f.run(getKey(r1, t))
 }
 
-type fakeDynamicClient struct{}
-
-type fakeClient struct{}
-
-func (f *fakeClient) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	return nil, nil
-}
-func (f *fakeClient) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	return nil, nil
-}
-func (f *fakeClient) UpdateStatus(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions) (*unstructured.Unstructured, error) {
-	return nil, nil
-}
-func (f *fakeClient) Delete(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error {
-	return nil
-}
-func (f *fakeClient) DeleteCollection(ctx context.Context, options metav1.DeleteOptions, listOptions metav1.ListOptions) error {
-	return nil
-}
-func (f *fakeClient) List(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
-	return nil, nil
-}
-func (f *fakeClient) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return nil, nil
-}
-func (f *fakeClient) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	return nil, nil
-}
-func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	return nil, nil
-}
-func (f *fakeClient) Namespace(string) dynamic.ResourceInterface {
-	return f
-}
-
-func (f *fakeDynamicClient) Resource(schema.GroupVersionResource) dynamic.NamespaceableResourceInterface {
-	return &fakeClient{}
-}
-
 func TestNewTrafficRoutingReconciler(t *testing.T) {
 	rc := Controller{}
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(testutil.NewFakeDynamicClient(), 0)
@@ -667,29 +621,6 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			assert.Nil(t, err)
 			assert.NotNil(t, networkReconciler)
 			assert.Equal(t, appmesh.Type, networkReconciler.Type())
-		}
-	}
-	{
-		tsController := Controller{
-			reconcilerBase: reconcilerBase{
-				dynamicclientset: &fakeDynamicClient{},
-			},
-		}
-		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
-		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
-			Traefik: &v1alpha1.TraefikTrafficRouting{
-				Service: "traefik-service",
-			},
-		}
-		roCtx := &rolloutContext{
-			rollout: r,
-			log:     logutil.WithRollout(r),
-		}
-		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
-		for _, networkReconciler := range networkReconcilerList {
-			assert.Nil(t, err)
-			assert.NotNil(t, networkReconciler)
-			assert.Equal(t, traefik.Type, networkReconciler.Type())
 		}
 	}
 	{
