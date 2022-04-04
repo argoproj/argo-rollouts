@@ -27,17 +27,32 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			},
 		}
 		if run.Spec.Metrics != nil {
-			arInfo.SuccessCondition = run.Spec.Metrics[0].SuccessCondition
+			for _, metric := range run.Spec.Metrics {
 
-			if run.Spec.Metrics[0].Count != nil {
-				arInfo.Count = run.Spec.Metrics[0].Count.IntVal
-			}
+				metrics := rollout.Metrics{
+					Name:             metric.Name,
+					SuccessCondition: metric.SuccessCondition,
+				}
 
-			if run.Spec.Metrics[0].InconclusiveLimit != nil {
-				arInfo.InconclusiveLimit = run.Spec.Metrics[0].InconclusiveLimit.IntVal
-			}
-			if run.Spec.Metrics[0].FailureLimit != nil {
-				arInfo.FailureLimit = run.Spec.Metrics[0].FailureLimit.IntVal
+				if metric.InconclusiveLimit != nil {
+					metrics.InconclusiveLimit = metric.InconclusiveLimit.IntVal
+				} else {
+					metrics.InconclusiveLimit = 0
+				}
+
+				if metric.Count != nil {
+					metrics.Count = metric.Count.IntVal
+				} else {
+					metrics.Count = 0
+				}
+
+				if metric.FailureLimit != nil {
+					metrics.FailureLimit = metric.FailureLimit.IntVal
+				} else {
+					metrics.FailureLimit = 0
+				}
+
+				arInfo.Metrics = append(arInfo.Metrics, &metrics)
 			}
 		}
 		arInfo.Status = string(run.Status.Phase)
@@ -46,6 +61,7 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			arInfo.Failed += mr.Failed
 			arInfo.Inconclusive += mr.Inconclusive
 			arInfo.Error += mr.Error
+			//arInfo.
 			for _, measurement := range analysisutil.ArrayMeasurement(run, mr.Name) {
 				if measurement.Metadata != nil {
 					if jobName, ok := measurement.Metadata[job.JobNameKey]; ok {
@@ -53,9 +69,10 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 							ObjectMeta: &v1.ObjectMeta{
 								Name: jobName,
 							},
-							Icon:      analysisIcon(measurement.Phase),
-							Status:    string(measurement.Phase),
-							StartedAt: measurement.StartedAt,
+							Icon:                 analysisIcon(measurement.Phase),
+							Status:               string(measurement.Phase),
+							StartedAt:            measurement.StartedAt,
+							AnalysisTemplateName: mr.Name,
 						}
 						if measurement.StartedAt != nil {
 							jobInfo.ObjectMeta.CreationTimestamp = *measurement.StartedAt
@@ -64,9 +81,10 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 					}
 				} else {
 					nonJobInfo := rollout.NonJobInfo{
-						Value:     measurement.Value,
-						Status:    string(measurement.Phase),
-						StartedAt: measurement.StartedAt,
+						Value:                measurement.Value,
+						Status:               string(measurement.Phase),
+						StartedAt:            measurement.StartedAt,
+						AnalysisTemplateName: mr.Name,
 					}
 					arInfo.NonJobInfo = append(arInfo.NonJobInfo, &nonJobInfo)
 				}

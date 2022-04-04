@@ -103,11 +103,22 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                             <React.Fragment>
                                 <div>name: {ar.objectMeta.name}</div>
                                 <div>created at: {formatTimestamp(JSON.stringify(ar.objectMeta?.creationTimestamp))}</div>
-                                {ar?.failureLimit && <div>failureLimit: {ar.failureLimit}</div>}
-                                {ar?.successCondition && <div>successCondition: {ar.successCondition}</div>}
-                                {ar?.inconclusiveLimit && <div>inconclusiveLimit: {ar.inconclusiveLimit}</div>}
-                                <div>status: {ar.status}</div>
-                                <div>count: {ar.count}</div>
+                                {ar?.metrics && (
+                                    <div>
+                                        AnalysisTemplatesUsed:
+                                        {ar.metrics.map((metric) => {
+                                            return (
+                                                <div>
+                                                    {metric?.name && <div> analysisTemplateName: {metric.name}</div>}
+                                                    {metric?.count && <div> count: {metric.count}</div>}
+                                                    {metric?.successCondition && <div> successCondition: {metric.successCondition}</div>}
+                                                    {metric?.failureLimit && <div> failureLimit: {metric.failureLimit}</div>}
+                                                    {metric?.inconclusiveLimit && <div> inconclusiveLimit: {metric.inconclusiveLimit}</div>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </React.Fragment>
                         }>
                         <ThemeDiv className={`analysis__run analysis__run--${ar.status ? ar.status.toLowerCase() : 'unknown'}`} />
@@ -136,6 +147,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                                         <div>job-name: {job.objectMeta?.name}</div>
                                                         <div>StartedAt: {formatTimestamp(JSON.stringify(job.startedAt))}</div>
                                                         <div>Status: {job.status}</div>
+                                                        <div>AnalysisTemplate: {job.analysisTemplateName}</div>
                                                     </div>
                                                 }
                                             />
@@ -156,6 +168,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                                         <pre>Value: {JSON.stringify(JSON.parse(nonJob.value), null, 2)}</pre>
                                                         <div>StartedAt: {formatTimestamp(JSON.stringify(nonJob.startedAt))}</div>
                                                         <div>Status: {nonJob.status}</div>
+                                                        <div>AnalysisTemplate: {nonJob.analysisTemplateName}</div>
                                                     </div>
                                                 }
                                             />

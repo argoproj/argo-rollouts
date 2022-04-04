@@ -144,7 +144,8 @@ message JobInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
   string status = 2;
   string icon = 3;
-  k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 4;
+  string analysisTemplateName = 4;
+  k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 5;
 }
 
 message AnalysisRunInfo {
@@ -158,17 +159,23 @@ message AnalysisRunInfo {
   int32 error = 8;
   repeated JobInfo jobs = 9;
   repeated NonJobInfo nonJobInfo = 10;
-  string successCondition = 11;
-  int32  count = 12;
-  int32  inconclusiveLimit = 13;
-  int32  failureLimit = 14;
+  repeated Metrics metrics = 11;
 }
 
 message NonJobInfo {
   string value = 1;
   string status = 2;
-  k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt =3;
+  string analysisTemplateName = 3;
+  k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt =4;
 }
+
+message Metrics {
+    string name=1;
+    string successCondition = 2;
+    int32  count = 3;
+    int32  inconclusiveLimit = 4;
+    int32  failureLimit = 5;
+  }
 
 service RolloutService {
     rpc GetRolloutInfo(RolloutInfoQuery) returns (RolloutInfo) {

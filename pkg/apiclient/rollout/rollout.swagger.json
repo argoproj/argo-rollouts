@@ -4429,20 +4429,11 @@
             "$ref": "#/definitions/rollout.NonJobInfo"
           }
         },
-        "successCondition": {
-          "type": "string"
-        },
-        "count": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "inconclusiveLimit": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "failureLimit": {
-          "type": "integer",
-          "format": "int32"
+        "metrics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.Metrics"
+          }
         }
       }
     },
@@ -4502,8 +4493,34 @@
         "icon": {
           "type": "string"
         },
+        "analysisTemplateName": {
+          "type": "string"
+        },
         "startedAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
+        }
+      }
+    },
+    "rollout.Metrics": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "successCondition": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "inconclusiveLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "failureLimit": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -4528,6 +4545,9 @@
           "type": "string"
         },
         "status": {
+          "type": "string"
+        },
+        "analysisTemplateName": {
           "type": "string"
         },
         "startedAt": {

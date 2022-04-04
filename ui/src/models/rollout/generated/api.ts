@@ -5209,28 +5209,10 @@ export interface RolloutAnalysisRunInfo {
     nonJobInfo?: Array<RolloutNonJobInfo>;
     /**
      * 
-     * @type {string}
+     * @type {Array<RolloutMetrics>}
      * @memberof RolloutAnalysisRunInfo
      */
-    successCondition?: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof RolloutAnalysisRunInfo
-     */
-    count?: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof RolloutAnalysisRunInfo
-     */
-    inconclusiveLimit?: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof RolloutAnalysisRunInfo
-     */
-    failureLimit?: number;
+    metrics?: Array<RolloutMetrics>;
 }
 /**
  * 
@@ -5326,10 +5308,53 @@ export interface RolloutJobInfo {
     icon?: string;
     /**
      * 
+     * @type {string}
+     * @memberof RolloutJobInfo
+     */
+    analysisTemplateName?: string;
+    /**
+     * 
      * @type {K8sIoApimachineryPkgApisMetaV1Time}
      * @memberof RolloutJobInfo
      */
     startedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+}
+/**
+ * 
+ * @export
+ * @interface RolloutMetrics
+ */
+export interface RolloutMetrics {
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutMetrics
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutMetrics
+     */
+    successCondition?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof RolloutMetrics
+     */
+    count?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RolloutMetrics
+     */
+    inconclusiveLimit?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof RolloutMetrics
+     */
+    failureLimit?: number;
 }
 /**
  * 
@@ -5368,6 +5393,12 @@ export interface RolloutNonJobInfo {
      * @memberof RolloutNonJobInfo
      */
     status?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RolloutNonJobInfo
+     */
+    analysisTemplateName?: string;
     /**
      * 
      * @type {K8sIoApimachineryPkgApisMetaV1Time}
