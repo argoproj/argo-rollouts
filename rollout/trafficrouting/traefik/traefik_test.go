@@ -1,29 +1,23 @@
 package traefik
 
 import (
-	"context"
 	"testing"
 
-	"github.com/pkg/errors"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik/mocks"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/dynamic"
 )
 
 const traefikService = `
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: mocks.containo.us/v1alpha1
 kind: TraefikService
 metadata:
   labels:
-    service: argo-traefik
-  name: traefik-service
+    service: argo-mocks
+  name: mocks-service
 spec:
   weighted:
     services:
@@ -36,88 +30,29 @@ spec:
 `
 
 const errorTraefikService = `
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: mocks.containo.us/v1alpha1
 kind: TraefikService
 metadata:
   labels:
-    service: argo-traefik
-  name: traefik-service
+    service: argo-mocks
+  name: mocks-service
 `
 
-type fakeDynamicClient struct{}
-
-type fakeClient struct {
-	isGetError         bool
-	isGetErrorManifest bool
-}
-
 var (
-	client                 *fakeClient = &fakeClient{}
-	traefikServiceObj      *unstructured.Unstructured
-	errorTraefikServiceObj *unstructured.Unstructured
+	client *mocks.FakeClient = &mocks.FakeClient{}
 )
 
 const (
 	stableServiceName  string = "stable-rollout"
 	canaryServiceName  string = "canary-rollout"
-	traefikServiceName string = "traefik-service"
+	traefikServiceName string = "mocks-service"
 )
-
-func (f *fakeClient) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	return nil, nil
-}
-
-func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	if f.isGetError == true {
-		return traefikServiceObj, errors.New("Traefik get error")
-	}
-	if f.isGetErrorManifest == true {
-		return errorTraefikServiceObj, nil
-	}
-	return traefikServiceObj, nil
-}
-
-func (f *fakeClient) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	return obj, nil
-}
-
-func (f *fakeClient) UpdateStatus(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions) (*unstructured.Unstructured, error) {
-	return nil, nil
-}
-
-func (f *fakeClient) Delete(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error {
-	return nil
-}
-
-func (f *fakeClient) DeleteCollection(ctx context.Context, options metav1.DeleteOptions, listOptions metav1.ListOptions) error {
-	return nil
-}
-
-func (f *fakeClient) List(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
-	return nil, nil
-}
-
-func (f *fakeClient) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return nil, nil
-}
-
-func (f *fakeClient) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	return nil, nil
-}
-
-func (f *fakeClient) Namespace(string) dynamic.ResourceInterface {
-	return f
-}
-
-func (f *fakeDynamicClient) Resource(schema.GroupVersionResource) dynamic.NamespaceableResourceInterface {
-	return &fakeClient{}
-}
 
 func TestNewDynamicClient(t *testing.T) {
 	t.Run("NewDynamicClient", func(t *testing.T) {
 		// Given
 		t.Parallel()
-		fakeDynamicClient := &fakeDynamicClient{}
+		fakeDynamicClient := &mocks.FakeDynamicClient{}
 
 		// When
 		NewDynamicClient(fakeDynamicClient, "default")
@@ -143,8 +78,8 @@ func TestUpdateHash(t *testing.T) {
 }
 
 func TestSetWeight(t *testing.T) {
-	traefikServiceObj = toUnstructured(t, traefikService)
-	errorTraefikServiceObj = toUnstructured(t, errorTraefikService)
+	mocks.TraefikServiceObj = toUnstructured(t, traefikService)
+	mocks.ErrorTraefikServiceObj = toUnstructured(t, errorTraefikService)
 	t.Run("SetWeight", func(t *testing.T) {
 		// Given
 		t.Parallel()
@@ -159,7 +94,7 @@ func TestSetWeight(t *testing.T) {
 
 		// Then
 		assert.NoError(t, err)
-		services, isFound, err := unstructured.NestedSlice(traefikServiceObj.Object, "spec", "weighted", "services")
+		services, isFound, err := unstructured.NestedSlice(mocks.TraefikServiceObj.Object, "spec", "weighted", "services")
 		assert.NoError(t, err)
 		assert.Equal(t, isFound, true)
 		stableService, err := getService(stableServiceName, services)
@@ -180,8 +115,8 @@ func TestSetWeight(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client: &fakeClient{
-				isGetError: true,
+			Client: &mocks.FakeClient{
+				IsGetError: true,
 			},
 		}
 		r := NewReconciler(cfg)
@@ -197,8 +132,8 @@ func TestSetWeight(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client: &fakeClient{
-				isGetErrorManifest: true,
+			Client: &mocks.FakeClient{
+				IsGetErrorManifest: true,
 			},
 		}
 		r := NewReconciler(cfg)
@@ -224,7 +159,7 @@ func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
 }
 
 func TestVerifyWeight(t *testing.T) {
-	traefikServiceObj = toUnstructured(t, traefikService)
+	mocks.TraefikServiceObj = toUnstructured(t, traefikService)
 	t.Run("VerifyWeight", func(t *testing.T) {
 		// Given
 		t.Parallel()
@@ -244,12 +179,12 @@ func TestVerifyWeight(t *testing.T) {
 }
 
 func TestType(t *testing.T) {
-	traefikServiceObj = toUnstructured(t, traefikService)
+	mocks.TraefikServiceObj = toUnstructured(t, traefikService)
 	t.Run("Type", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, "traefik-service"),
+			Rollout: newRollout(stableServiceName, canaryServiceName, "mocks-service"),
 			Client:  client,
 		}
 		r := NewReconciler(cfg)
