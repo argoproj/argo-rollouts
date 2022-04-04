@@ -758,6 +758,7 @@ spec:
       - pause: {}
 `).
 		WaitForRolloutStatus("Paused").
+		WaitForRolloutAvailableReplicas(2).
 		Then().
 		ExpectReplicaCounts(2, 2, 1, 2, 2). // desired, current, updated, ready, available
 		ExpectServiceSelector("bluegreen-to-canary", map[string]string{"app": "bluegreen-to-canary"}, false)
