@@ -1,6 +1,7 @@
 package info
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -34,6 +35,30 @@ func TestCanaryRolloutInfo(t *testing.T) {
 			Image: "argoproj/rollouts-demo:green",
 			Tags:  []string{InfoTagStable},
 		},
+	})
+}
+
+func TestCanaryRolloutInfoWeights(t *testing.T) {
+	rolloutObjs := testdata.NewCanaryRollout()
+
+	t.Run("TestActualWeightWithExistingWeight", func(t *testing.T) {
+		t.Run("will test that actual weight for info object is set from rollout status", func(t *testing.T) {
+			roInfo := NewRolloutInfo(rolloutObjs.Rollouts[4], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
+			actualWeightString := roInfo.ActualWeight
+			actualWeightStringInt32, err := strconv.ParseInt(actualWeightString, 10, 32)
+			if err != nil {
+				t.Error(err)
+			}
+			assert.Equal(t, rolloutObjs.Rollouts[4].Status.Canary.Weights.Canary.Weight, int32(actualWeightStringInt32))
+		})
+	})
+
+	t.Run("TestActualWeightWithoutExistingWeight", func(t *testing.T) {
+		t.Run("will test that actual weight is set to SetWeight when status field does not exist", func(t *testing.T) {
+			//This test has a no canary weight object in the status field so we fall back to using SetWeight value
+			roInfo := NewRolloutInfo(rolloutObjs.Rollouts[5], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
+			assert.Equal(t, roInfo.SetWeight, roInfo.ActualWeight)
+		})
 	})
 }
 

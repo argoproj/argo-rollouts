@@ -80,9 +80,14 @@
             padding-left: 16px;
             padding-right: 16px;
             margin: 0 -16px;
+            display: flex;
+            align-items: center;
             &--experiment {
                 padding-bottom: 8px;
                 border-bottom: 1px solid $argo-color-gray-6;
+            }
+            & > i:first-child {
+                margin-right: 5px;
             }
         }
 
