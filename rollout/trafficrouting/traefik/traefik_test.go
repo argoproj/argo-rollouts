@@ -10,7 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 )
 
 const traefikService = `
@@ -40,6 +44,8 @@ metadata:
   name: traefik-service
 `
 
+type fakeDynamicClient struct{}
+
 type fakeClient struct {
 	isGetError         bool
 	isGetErrorManifest bool
@@ -57,6 +63,10 @@ const (
 	traefikServiceName string = "traefik-service"
 )
 
+func (f *fakeClient) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return nil, nil
+}
+
 func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	if f.isGetError == true {
 		return traefikServiceObj, errors.New("Traefik get error")
@@ -69,6 +79,49 @@ func (f *fakeClient) Get(ctx context.Context, name string, options metav1.GetOpt
 
 func (f *fakeClient) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	return obj, nil
+}
+
+func (f *fakeClient) UpdateStatus(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions) (*unstructured.Unstructured, error) {
+	return nil, nil
+}
+
+func (f *fakeClient) Delete(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error {
+	return nil
+}
+
+func (f *fakeClient) DeleteCollection(ctx context.Context, options metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+	return nil
+}
+
+func (f *fakeClient) List(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	return nil, nil
+}
+
+func (f *fakeClient) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+	return nil, nil
+}
+
+func (f *fakeClient) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return nil, nil
+}
+
+func (f *fakeClient) Namespace(string) dynamic.ResourceInterface {
+	return f
+}
+
+func (f *fakeDynamicClient) Resource(schema.GroupVersionResource) dynamic.NamespaceableResourceInterface {
+	return &fakeClient{}
+}
+
+func TestNewDynamicClient(t *testing.T) {
+	t.Run("NewDynamicClient", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		fakeDynamicClient := &fakeDynamicClient{}
+
+		// When
+		NewDynamicClient(fakeDynamicClient, "default")
+	})
 }
 
 func TestUpdateHash(t *testing.T) {
