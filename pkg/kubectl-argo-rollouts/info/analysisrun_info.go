@@ -61,7 +61,6 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 			arInfo.Failed += mr.Failed
 			arInfo.Inconclusive += mr.Inconclusive
 			arInfo.Error += mr.Error
-			//arInfo.
 			for _, measurement := range analysisutil.ArrayMeasurement(run, mr.Name) {
 				if measurement.Metadata != nil {
 					if jobName, ok := measurement.Metadata[job.JobNameKey]; ok {
