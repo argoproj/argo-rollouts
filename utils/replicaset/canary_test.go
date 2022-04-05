@@ -1014,6 +1014,100 @@ func TestGetCurrentSetWeight(t *testing.T) {
 
 }
 
+func TestAtDesiredReplicaCountsForCanary(t *testing.T) {
+
+	t.Run("we are at desired replica counts", func(t *testing.T) {
+		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
+			Weight:             pointer.Int32Ptr(2),
+			Replicas:           pointer.Int32Ptr(2),
+			MatchTrafficWeight: false,
+		}, nil)
+
+		newReplicaSet := newRS("", 2, 2)
+		newReplicaSet.Spec.Replicas = pointer.Int32Ptr(2)
+		newReplicaSet.Status.Replicas = 2
+		newReplicaSet.Name = "newRS"
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Spec.Replicas = pointer.Int32Ptr(2)
+		stableReplicaSet.Status.Replicas = 2
+		stableReplicaSet.Name = "stableRS"
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight:          50,
+				ServiceName:     "",
+				PodTemplateHash: "",
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight:          50,
+				ServiceName:     "",
+				PodTemplateHash: "",
+			},
+		})
+		assert.Equal(t, true, atDesiredReplicaCounts)
+	})
+
+	t.Run("new replicaset is not at desired counts", func(t *testing.T) {
+		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
+			Weight:             pointer.Int32Ptr(2),
+			Replicas:           pointer.Int32Ptr(2),
+			MatchTrafficWeight: false,
+		}, nil)
+
+		newReplicaSet := newRS("", 2, 1)
+		newReplicaSet.Spec.Replicas = pointer.Int32Ptr(2)
+		newReplicaSet.Status.Replicas = 1
+		newReplicaSet.Name = "newRS"
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Spec.Replicas = pointer.Int32Ptr(2)
+		stableReplicaSet.Status.Replicas = 2
+		stableReplicaSet.Name = "stableRS"
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight:          50,
+				ServiceName:     "",
+				PodTemplateHash: "",
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight:          50,
+				ServiceName:     "",
+				PodTemplateHash: "",
+			},
+		})
+		assert.Equal(t, false, atDesiredReplicaCounts)
+	})
+
+	t.Run("stable replicaset is not at desired counts", func(t *testing.T) {
+		rollout := newRollout(4, 75, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{}, nil)
+		newReplicaSet := newRS("", 3, 3)
+		newReplicaSet.Spec.Replicas = pointer.Int32Ptr(3)
+		newReplicaSet.Status.Replicas = 3
+		newReplicaSet.Name = "newRS"
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Spec.Replicas = pointer.Int32Ptr(2)
+		stableReplicaSet.Status.Replicas = 2
+		stableReplicaSet.Name = "stableRS"
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight:          75,
+				ServiceName:     "",
+				PodTemplateHash: "",
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight:          25,
+				ServiceName:     "",
+				PodTemplateHash: "",
+			},
+		})
+		assert.Equal(t, false, atDesiredReplicaCounts)
+	})
+}
+
 func TestGetCurrentExperiment(t *testing.T) {
 	rollout := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
