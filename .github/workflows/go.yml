@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-          uses: actions/setup-go@v3
-          with:
-            go-version: ${{ env.GOLANG_VERSION }}
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Run golangci-lint
