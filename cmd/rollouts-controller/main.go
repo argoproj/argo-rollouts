@@ -69,6 +69,7 @@ func newCommand() *cobra.Command {
 		awsVerifyTargetGroup bool
 		namespaced           bool
 		printVersion         bool
+		prometheusAddress    string
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -94,6 +95,7 @@ func newCommand() *cobra.Command {
 			defaults.SetAmbassadorAPIVersion(ambassadorVersion)
 			defaults.SetSMIAPIVersion(trafficSplitVersion)
 			defaults.SetAppMeshCRDVersion(appmeshCRDVersion)
+			defaults.SetPrometheusAddress(prometheusAddress)
 
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
@@ -245,6 +247,7 @@ func newCommand() *cobra.Command {
 	command.Flags().DurationVar(&electOpts.LeaderElectionLeaseDuration, "leader-election-lease-duration", controller.DefaultLeaderElectionLeaseDuration, "The duration that non-leader candidates will wait after observing a leadership renewal until attempting to acquire leadership of a led but unrenewed leader slot. This is effectively the maximum duration that a leader can be stopped before it is replaced by another candidate. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRenewDeadline, "leader-election-renew-deadline", controller.DefaultLeaderElectionRenewDeadline, "The interval between attempts by the acting master to renew a leadership slot before it stops leading. This must be less than or equal to the lease duration. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
+	command.Flags().StringVar(&prometheusAddress, "prometheus-address", "", "Set the  prometheus address that analysis controller uses when querying for metrics.")
 	return &command
 }
 

@@ -144,8 +144,8 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		Address: metric.Provider.Prometheus.Address,
 	})
 	if err != nil {
+		log.Errorf("Error in getting prometheus client: %v", err)
 		return nil, err
 	}
-
 	return v1.NewAPI(client), nil
 }

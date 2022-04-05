@@ -49,6 +49,7 @@ const (
 	DefaultSMITrafficSplitVersion       = "v1alpha1"
 	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
 	DefaultAppMeshCRDVersion            = "v1beta2"
+	DefaultPrometheusAddress            = "http://127.0.0.1:9090"
 )
 
 var (
@@ -58,6 +59,7 @@ var (
 	smiAPIVersion                = DefaultSMITrafficSplitVersion
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
 	appmeshCRDVersion            = DefaultAppMeshCRDVersion
+	prometheusAddress            = DefaultPrometheusAddress
 )
 
 const (
@@ -255,6 +257,15 @@ func SetIstioAPIVersion(apiVersion string) {
 
 func GetIstioAPIVersion() string {
 	return istioAPIVersion
+}
+
+// SetDefaultPrometheusAddress sets the default prometheus address for analysis when instantiating the reconciler
+func SetPrometheusAddress(address string) {
+	prometheusAddress = address
+}
+
+func GetPrometheusAddress() string {
+	return prometheusAddress
 }
 
 func SetAmbassadorAPIVersion(apiVersion string) {

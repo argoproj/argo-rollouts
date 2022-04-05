@@ -3,6 +3,8 @@ package metricproviders
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
 	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
@@ -50,6 +52,9 @@ type ProviderFactoryFunc func(logCtx log.Entry, metric v1alpha1.Metric) (Provide
 func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) (Provider, error) {
 	switch provider := Type(metric); provider {
 	case prometheus.ProviderType:
+		if len(metric.Provider.Prometheus.Address) == 0 {
+			metric.Provider.Prometheus.Address = defaults.GetPrometheusAddress()
+		}
 		api, err := prometheus.NewPrometheusAPI(metric)
 		if err != nil {
 			return nil, err
