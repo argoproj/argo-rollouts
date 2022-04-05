@@ -3,7 +3,13 @@ import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Key, KeybindingContext} from 'react-keyhooks';
 import {useHistory, useParams} from 'react-router-dom';
-import {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep, RolloutReplicaSetInfo, RolloutRolloutInfo, RolloutServiceApi} from '../../../models/rollout/generated';
+import {
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate,
+    RolloutReplicaSetInfo,
+    RolloutRolloutInfo,
+    RolloutServiceApi,
+} from '../../../models/rollout/generated';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {useWatchRollout} from '../../shared/services/rollout';
@@ -12,6 +18,7 @@ import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {ContainersWidget} from './containers';
 import {Revision, RevisionWidget} from './revision';
 import './rollout.scss';
+import {Fragment} from 'react';
 
 const RolloutActions = React.lazy(() => import('../rollout-actions/rollout-actions'));
 export interface ImageInfo {
@@ -153,9 +160,11 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                     <ThemeDiv className='info steps'>
                         <ThemeDiv className='info__title'>Steps</ThemeDiv>
                         <div style={{marginTop: '1em'}}>
-                            {rollout.steps.map((step, i) => (
-                                <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === (rollout.steps || []).length - 1} />
-                            ))}
+                            {rollout.steps
+                                .filter((step) => Object.keys(step).length)
+                                .map((step, i, arr) => (
+                                    <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === arr.length - 1} />
+                                ))}
                         </div>
                     </ThemeDiv>
                 )}
@@ -266,6 +275,9 @@ const parseDuration = (duration: string): string => {
 };
 
 const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
+    const [openedTemplate, setOpenedTemplate] = React.useState('');
+    const [open, setOpen] = React.useState(false);
+
     let icon: string;
     let content = '';
     let unit = '';
@@ -297,10 +309,64 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     return (
         <React.Fragment>
             <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-                <i className={`fa ${icon}`} /> {content}
-                {unit}
+                <div className={`steps__step-title ${props.step.experiment || (props.step.setCanaryScale && open) ? 'steps__step-title--experiment' : ''}`}>
+                    {icon && <i className={`fa ${icon}`} />} {content}
+                    {unit}
+                    {props.step.setCanaryScale && (
+                        <ThemeDiv style={{marginLeft: 'auto'}} onClick={() => setOpen(!open)}>
+                            <i className={`fa ${open ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </ThemeDiv>
+                    )}
+                </div>
+                {props.step.experiment?.templates && (
+                    <div className='steps__step__content'>
+                        {props.step.experiment?.templates.map((template) => {
+                            return <ExperimentWidget key={template.name} template={template} opened={openedTemplate === template.name} onToggle={setOpenedTemplate} />;
+                        })}
+                    </div>
+                )}
+                {props.step?.setCanaryScale && open && <WidgetItem values={props.step.setCanaryScale} />}
             </EffectDiv>
             {!props.last && <ThemeDiv className='steps__connector' />}
         </React.Fragment>
+    );
+};
+
+const ExperimentWidget = ({
+    template,
+    opened,
+    onToggle,
+}: {
+    template: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate;
+    opened: boolean;
+    onToggle: (name: string) => void;
+}) => {
+    const icon = opened ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down';
+    return (
+        <EffectDiv className='steps__step__content-body'>
+            <ThemeDiv className={`steps__step__content-header ${opened ? 'steps__step__content-value' : ''}`}>
+                {template.name}
+                <ThemeDiv onClick={() => onToggle(opened ? '' : template.name)}>
+                    <i className={`fa ${icon}`} />
+                </ThemeDiv>
+            </ThemeDiv>
+            {opened && <WidgetItem values={{specRef: template.specRef, weight: template.weight}} />}
+        </EffectDiv>
+    );
+};
+
+const WidgetItem = ({values}: {values: Record<string, any>}) => {
+    return (
+        <EffectDiv>
+            {Object.keys(values).map((val) => {
+                if (!values[val]) return null;
+                return (
+                    <Fragment key={val}>
+                        <div className='steps__step__content-title'>{val.toUpperCase()}</div>
+                        <div className='steps__step__content-value'>{String(values[val])}</div>
+                    </Fragment>
+                );
+            })}
+        </EffectDiv>
     );
 };
