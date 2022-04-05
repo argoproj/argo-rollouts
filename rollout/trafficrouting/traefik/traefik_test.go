@@ -176,6 +176,24 @@ func TestVerifyWeight(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, true, *isSynced)
 	})
+	t.Run("VerifyWeightWithError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			Client: &mocks.FakeClient{
+				IsGetError: true,
+			},
+		}
+		r := NewReconciler(cfg)
+
+		// When
+		isSynced, err := r.VerifyWeight(0)
+
+		// Then
+		assert.Error(t, err)
+		assert.Equal(t, false, *isSynced)
+	})
 }
 
 func TestType(t *testing.T) {
@@ -194,6 +212,52 @@ func TestType(t *testing.T) {
 
 		// Then
 		assert.Equal(t, Type, reconcilerType)
+	})
+}
+
+func TestGetService(t *testing.T) {
+	t.Run("ErrorGetServiceFromStruct", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		services := []interface{}{
+			mocks.FakeService{Weight: 12},
+		}
+
+		// When
+		selectedServices, err := getService("default", services)
+
+		// Then
+		assert.Nil(t, selectedServices)
+		assert.Error(t, err)
+	})
+	t.Run("ErrorGetServiceFromMap", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		services := map[string]interface{}{
+			"weight": 100,
+		}
+
+		// When
+		selectedServices, err := getService("default", []interface{}{services})
+
+		// Then
+		assert.Nil(t, selectedServices)
+		assert.Nil(t, err)
+	})
+	t.Run("GetServiceFromMap", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		const serviceName string = "default"
+		services := map[string]interface{}{
+			"name": serviceName,
+		}
+
+		// When
+		selectedServices, err := getService(serviceName, []interface{}{services})
+
+		// Then
+		assert.NotNil(t, selectedServices)
+		assert.NoError(t, err)
 	})
 }
 

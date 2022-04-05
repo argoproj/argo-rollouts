@@ -20,6 +20,10 @@ type FakeClient struct {
 	IsGetErrorManifest bool
 }
 
+type FakeService struct {
+	Weight int
+}
+
 var (
 	TraefikServiceObj      *unstructured.Unstructured
 	ErrorTraefikServiceObj *unstructured.Unstructured
