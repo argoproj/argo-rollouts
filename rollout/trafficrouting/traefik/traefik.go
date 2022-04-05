@@ -71,7 +71,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	rollout := r.Rollout
 	traefikServiceName := rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.Service
 	traefikService, err := r.Client.Get(ctx, traefikServiceName, metav1.GetOptions{})
-	if err != nil {
+	if err != nil || traefikService == nil {
 		return err
 	}
 	canaryServiceName := rollout.Spec.Strategy.Canary.CanaryService
@@ -81,7 +81,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 		return err
 	}
 	canaryService, err := getService(canaryServiceName, services)
-	if err != nil {
+	if err != nil || canaryService == nil {
 		return err
 	}
 	err = unstructured.SetNestedField(canaryService, int64(desiredWeight), "weight")
@@ -89,7 +89,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 		return err
 	}
 	stableService, err := getService(stableServiceName, services)
-	if err != nil {
+	if err != nil || stableService == nil {
 		return err
 	}
 	err = unstructured.SetNestedField(stableService, int64(100-desiredWeight), "weight")
@@ -129,7 +129,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	rollout := r.Rollout
 	traefikServiceName := rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.Service
 	traefikService, err := r.Client.Get(ctx, traefikServiceName, metav1.GetOptions{})
-	if err != nil {
+	if err != nil || traefikService == nil {
 		return &verifyingStatus, err
 	}
 	canaryServiceName := rollout.Spec.Strategy.Canary.CanaryService
@@ -139,20 +139,20 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		return &verifyingStatus, err
 	}
 	canaryService, err := getService(canaryServiceName, services)
-	if err != nil {
+	if err != nil || canaryService == nil {
 		return &verifyingStatus, err
 	}
-	weight, isFound, err := unstructured.NestedInt64(canaryService, "weight")
-	verifyingStatus = weight == int64(desiredWeight)
-	if err != nil || !isFound || !verifyingStatus {
+	canaryWeight, isFound, err := unstructured.NestedInt64(canaryService, "weight")
+	if err != nil || !isFound {
 		return &verifyingStatus, err
 	}
 	stableService, err := getService(stableServiceName, services)
-	if err != nil {
+	if err != nil || stableService == nil {
 		return &verifyingStatus, err
 	}
-	weight, isFound, err = unstructured.NestedInt64(stableService, "weight")
-	verifyingStatus = weight == int64(100-desiredWeight)
+	stableWeight, isFound, err := unstructured.NestedInt64(stableService, "weight")
+	verifyingStatus = stableWeight == int64(100-desiredWeight) && canaryWeight == int64(desiredWeight)
+
 	if err != nil || !isFound || !verifyingStatus {
 		return &verifyingStatus, err
 	}

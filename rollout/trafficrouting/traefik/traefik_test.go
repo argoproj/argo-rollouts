@@ -43,9 +43,11 @@ var (
 )
 
 const (
-	stableServiceName  string = "stable-rollout"
-	canaryServiceName  string = "canary-rollout"
-	traefikServiceName string = "mocks-service"
+	stableServiceName     string = "stable-rollout"
+	fakeStableServiceName string = "fake-stable-rollout"
+	canaryServiceName     string = "canary-rollout"
+	fakeCanaryServiceName string = "fake-canary-rollout"
+	traefikServiceName    string = "mocks-service"
 )
 
 func TestNewDynamicClient(t *testing.T) {
@@ -144,6 +146,37 @@ func TestSetWeight(t *testing.T) {
 		// Then
 		assert.NoError(t, err)
 	})
+	t.Run("SetWeightWithErrorStableName", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(fakeStableServiceName, canaryServiceName, traefikServiceName),
+			Client:  client,
+		}
+		r := NewReconciler(cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// Then
+		assert.NoError(t, err)
+
+	})
+	t.Run("SetWeightWithErrorCanaryName", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, fakeCanaryServiceName, traefikServiceName),
+			Client:  client,
+		}
+		r := NewReconciler(cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// Then
+		assert.NoError(t, err)
+	})
 }
 
 func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
@@ -194,6 +227,38 @@ func TestVerifyWeight(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, false, *isSynced)
 	})
+	t.Run("VerifyWeightWithErrorStableName", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(fakeStableServiceName, canaryServiceName, traefikServiceName),
+			Client:  client,
+		}
+		r := NewReconciler(cfg)
+
+		// When
+		isSynced, err := r.VerifyWeight(0)
+
+		// Then
+		assert.NoError(t, err)
+		assert.Equal(t, false, *isSynced)
+	})
+	t.Run("VerifyWeightWithErrorCanaryName", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, fakeCanaryServiceName, traefikServiceName),
+			Client:  client,
+		}
+		r := NewReconciler(cfg)
+
+		// When
+		isSynced, err := r.VerifyWeight(0)
+
+		// Then
+		assert.NoError(t, err)
+		assert.Equal(t, false, *isSynced)
+	})
 }
 
 func TestType(t *testing.T) {
@@ -216,7 +281,7 @@ func TestType(t *testing.T) {
 }
 
 func TestGetService(t *testing.T) {
-	t.Run("ErrorGetServiceFromStruct", func(t *testing.T) {
+	t.Run("ErrorGetServiceFromStruct ", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		services := []interface{}{
