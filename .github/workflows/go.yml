@@ -14,8 +14,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v3
         with:
           version: v1.30
           args: --timeout 5m
@@ -41,7 +45,6 @@ jobs:
       - name: Download all Go modules
         run: |
           go mod download
-
       - name: Compile all packages
         run: make controller plugin
 
@@ -98,13 +101,11 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
-
       - name: Run codegen
         run: |
           make go-mod-vendor
           make codegen
           make manifests
           make docs
-
       - name: Ensure nothing changed
         run: git diff --exit-code
