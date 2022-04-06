@@ -729,6 +729,11 @@ message FieldRef {
   optional string fieldPath = 1;
 }
 
+// GatewayAPITrafficRouting defines the configuration required to use Gateway API as traffic router
+message GatewayAPITrafficRouting {
+  optional string httpRoute = 1;
+}
+
 // GraphiteMetric defines the Graphite query to perform canary analysis
 message GraphiteMetric {
   // Address is the HTTP address and port of the Graphite server
@@ -1398,6 +1403,9 @@ message RolloutTrafficRouting {
 
   // AppMesh holds specific configuration to use AppMesh to route traffic
   optional AppMeshTrafficRouting appMesh = 6;
+
+  // Gateway API holds specific configuration to use Gateway API to route traffic
+  optional GatewayAPITrafficRouting gatewayAPI = 7;
 }
 
 // RunSummary contains the final results from the metric executions

@@ -72,6 +72,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentSpec":                                  schema_pkg_apis_rollouts_v1alpha1_ExperimentSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ExperimentStatus":                                schema_pkg_apis_rollouts_v1alpha1_ExperimentStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.FieldRef":                                        schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GatewayAPITrafficRouting":                        schema_pkg_apis_rollouts_v1alpha1_GatewayAPITrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric":                                  schema_pkg_apis_rollouts_v1alpha1_GraphiteMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioDestinationRule":                            schema_pkg_apis_rollouts_v1alpha1_IstioDestinationRule(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting":                             schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref),
@@ -2170,6 +2171,27 @@ func schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref common.ReferenceCallback) co
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_GatewayAPITrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "GatewayAPITrafficRouting defines the configuration required to use Gateway API as traffic router",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"httpRoute": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"httpRoute"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_GraphiteMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4113,11 +4135,17 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting"),
 						},
 					},
+					"gatewayAPI": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Gateway API holds specific configuration to use Gateway API to route traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GatewayAPITrafficRouting"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GatewayAPITrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting"},
 	}
 }
 

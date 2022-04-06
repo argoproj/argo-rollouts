@@ -915,6 +915,15 @@
         }
       }
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GatewayAPITrafficRouting": {
+      "type": "object",
+      "properties": {
+        "httpRoute": {
+          "type": "string"
+        }
+      },
+      "title": "GatewayAPITrafficRouting defines the configuration required to use Gateway API as traffic router"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IstioDestinationRule": {
       "type": "object",
       "properties": {
@@ -1524,6 +1533,10 @@
         "appMesh": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshTrafficRouting",
           "title": "AppMesh holds specific configuration to use AppMesh to route traffic"
+        },
+        "gatewayAPI": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GatewayAPITrafficRouting",
+          "title": "Gateway API holds specific configuration to use Gateway API to route traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"
