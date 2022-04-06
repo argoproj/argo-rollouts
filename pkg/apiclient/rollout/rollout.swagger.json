@@ -1600,7 +1600,8 @@
       "type": "object",
       "properties": {
         "traefikServiceName": {
-          "type": "string"
+          "type": "string",
+          "title": "TraefikServiceName refer to the name of the Traefik service used to route traffic to the service"
         }
       },
       "title": "TraefikTrafficRouting defines the configuration required to use Traefik as traffic router"

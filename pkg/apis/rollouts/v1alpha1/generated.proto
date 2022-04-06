@@ -1554,6 +1554,7 @@ message TemplateStatus {
 
 // TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
 message TraefikTrafficRouting {
+  // TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
   optional string traefikServiceName = 1;
 }
 

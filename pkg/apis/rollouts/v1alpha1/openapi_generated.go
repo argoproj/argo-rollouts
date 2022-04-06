@@ -4548,9 +4548,10 @@ func schema_pkg_apis_rollouts_v1alpha1_TraefikTrafficRouting(ref common.Referenc
 				Properties: map[string]spec.Schema{
 					"traefikServiceName": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "TraefikServiceName refer to the name of the Traefik service used to route traffic to the service",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
