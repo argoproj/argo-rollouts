@@ -367,7 +367,7 @@ type RolloutTrafficRouting struct {
 
 // TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
 type TraefikTrafficRouting struct {
-	Service string `json:"service" protobuf:"bytes,1,name=service"`
+	TraefikServiceName string `json:"traefikServiceName" protobuf:"bytes,1,name=traefikServiceName"`
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic

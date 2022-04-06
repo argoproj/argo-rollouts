@@ -69,7 +69,7 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	ctx := context.TODO()
 	rollout := r.Rollout
-	traefikServiceName := rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.Service
+	traefikServiceName := rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.TraefikServiceName
 	traefikService, err := r.Client.Get(ctx, traefikServiceName, metav1.GetOptions{})
 	if err != nil || traefikService == nil {
 		return err
@@ -127,7 +127,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	ctx := context.TODO()
 	verifyingStatus := false
 	rollout := r.Rollout
-	traefikServiceName := rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.Service
+	traefikServiceName := rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.TraefikServiceName
 	traefikService, err := r.Client.Get(ctx, traefikServiceName, metav1.GetOptions{})
 	if err != nil || traefikService == nil {
 		return &verifyingStatus, err

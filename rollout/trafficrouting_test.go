@@ -634,7 +634,7 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			Traefik: &v1alpha1.TraefikTrafficRouting{
-				Service: "traefik-service",
+				TraefikServiceName: "traefik-service",
 			},
 		}
 		roCtx := &rolloutContext{

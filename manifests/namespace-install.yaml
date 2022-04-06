@@ -11723,10 +11723,10 @@ spec:
                             type: object
                           traefik:
                             properties:
-                              service:
+                              traefikServiceName:
                                 type: string
                             required:
-                            - service
+                            - traefikServiceName
                             type: object
                         type: object
                     type: object

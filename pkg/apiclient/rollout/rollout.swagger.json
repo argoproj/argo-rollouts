@@ -1599,7 +1599,7 @@
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting": {
       "type": "object",
       "properties": {
-        "service": {
+        "traefikServiceName": {
           "type": "string"
         }
       },

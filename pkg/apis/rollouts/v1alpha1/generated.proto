@@ -1554,7 +1554,7 @@ message TemplateStatus {
 
 // TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
 message TraefikTrafficRouting {
-  optional string service = 1;
+  optional string traefikServiceName = 1;
 }
 
 // TrafficWeights describes the current status of how traffic has been split

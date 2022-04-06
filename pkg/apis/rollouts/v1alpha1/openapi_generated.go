@@ -4546,7 +4546,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TraefikTrafficRouting(ref common.Referenc
 				Description: "TraefikTrafficRouting defines the configuration required to use Traefik as traffic router",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"service": {
+					"traefikServiceName": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
@@ -4554,7 +4554,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TraefikTrafficRouting(ref common.Referenc
 						},
 					},
 				},
-				Required: []string{"service"},
+				Required: []string{"traefikServiceName"},
 			},
 		},
 	}
