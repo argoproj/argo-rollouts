@@ -1,16 +1,14 @@
 package influxdb
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
+	"io/ioutil"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -40,19 +38,8 @@ func TestRunSuccessfully(t *testing.T) {
 ,,0,2020-02-17T22:19:49.747562847Z,2020-02-18T22:19:49.747562847Z,2020-02-18T10:34:08.135814545Z,1.0,f,test,1,adsfasdf
 ,,0,2020-02-17T22:19:49.747562847Z,2020-02-18T22:19:49.747562847Z,2020-02-18T22:08:44.850214724Z,6.6,f,test,1,adsfasdf
 `
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(csvTable))
-	}))
-	defer ts.Close()
-
-	client := influxdb2.NewClient(ts.URL, "x")
-	pt := client.QueryAPI("fake-org")
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	result, err := pt.Query(ctx, `from(bucket: "default")  |> range(start: -2h)`)
-	if err != nil {
-		t.Fatal(err)
-	}
+	reader := strings.NewReader(csvTable)
+	result := influxdb2.NewQueryTableResult(ioutil.NopCloser(reader))
 	mock := &mockAPI{response: result}
 	p := NewInfluxdbProvider(mock, e)
 	metric := v1alpha1.Metric{
@@ -83,19 +70,8 @@ func TestRunWithTimeseries(t *testing.T) {
 ,,0,2020-02-17T22:19:49.747562847Z,2020-02-18T22:19:49.747562847Z,2020-02-18T10:34:08.135814545Z,10,f,test,1,adsfasdf
 ,,0,2020-02-17T22:19:49.747562847Z,2020-02-18T22:19:49.747562847Z,2020-02-18T22:08:44.850214724Z,20,f,test,1,adsfasdf
 `
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(csvTable))
-	}))
-	defer ts.Close()
-
-	client := influxdb2.NewClient(ts.URL, "x")
-	pt := client.QueryAPI("fake-org")
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	result, err := pt.Query(ctx, `from(bucket: "default")  |> range(start: -2h)`)
-	if err != nil {
-		t.Fatal(err)
-	}
+	reader := strings.NewReader(csvTable)
+	result := influxdb2.NewQueryTableResult(ioutil.NopCloser(reader))
 	mock := &mockAPI{response: result}
 	p := NewInfluxdbProvider(mock, e)
 	metric := v1alpha1.Metric{
@@ -125,19 +101,8 @@ func TestRunWithEmptyResult(t *testing.T) {
 #default,_result,,,,,,,,,
 ,result,table,_start,_stop,_time,_value,_field,_measurement,a,b
 `
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(csvTable))
-	}))
-	defer ts.Close()
-
-	client := influxdb2.NewClient(ts.URL, "x")
-	pt := client.QueryAPI("fake-org")
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	result, err := pt.Query(ctx, `from(bucket: "test")  |> range(start: -2h)`)
-	if err != nil {
-		t.Fatal(err)
-	}
+	reader := strings.NewReader(csvTable)
+	result := influxdb2.NewQueryTableResult(ioutil.NopCloser(reader))
 	mock := &mockAPI{response: result}
 	p := NewInfluxdbProvider(mock, *e)
 	metric := v1alpha1.Metric{

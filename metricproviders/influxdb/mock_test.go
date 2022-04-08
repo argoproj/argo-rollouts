@@ -22,3 +22,11 @@ func (m mockAPI) Query(ctx context.Context, query string) (*influxapi.QueryTable
 func (m mockAPI) QueryRaw(context.Context, string, *domain.Dialect) (string, error) {
 	panic("Not used")
 }
+
+func (m mockAPI) QueryRawWithParams(ctx context.Context, query string, dialect *domain.Dialect, params interface{}) (string, error) {
+	panic("Not used")
+}
+
+func (m mockAPI) QueryWithParams(ctx context.Context, query string, params interface{}) (*influxapi.QueryTableResult, error) {
+	panic("Not used")
+}
