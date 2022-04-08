@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"strings"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/aws/aws-sdk-go-v2/config"
