@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3.1.1
         with:
           python-version: 3.x
       - name: Set up Go
