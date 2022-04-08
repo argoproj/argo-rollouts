@@ -15,7 +15,7 @@
         "react-keyhooks": "^0.2.3",
         "react-router-dom": "5.2.0",
         "rxjs": "^6.6.6",
-        "typescript": "4.3.5",
+        "typescript": "4.6.2",
         "web-vitals": "^1.0.1"
     },
     "scripts": {
