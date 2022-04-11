@@ -317,6 +317,14 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                         })}
                     </div>
                 )}
+                {props.step.analysis?.templates && (
+                    <div className='steps__step__content'>
+                        <div>Templates</div>
+                        {props.step.analysis?.templates.map((template) => {
+                            return <div>{template.templateName}</div>;
+                        })}
+                    </div>
+                )}
             </EffectDiv>
             {!props.last && <ThemeDiv className='steps__connector' />}
         </React.Fragment>
@@ -355,3 +363,21 @@ const ExperimentWidget = ({
         </EffectDiv>
     );
 };
+// const AnalysisWidget = ({
+//     templates,
+//     opened,
+//     onToggle,
+// }: {
+//     templates: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis;
+//     opened: boolean;
+//     onToggle: (name: string) => void;
+// }) => {
+//     return (
+//         <EffectDiv className='steps__step__content-body'>
+//             <ThemeDiv className={`steps__step__content-header ${opened ? 'steps__step__content-value' : ''}`}>Templates</ThemeDiv>
+//             {templates?.templates.map((template) => {
+//                 return <div>template</div>;
+//             })}
+//         </EffectDiv>
+//     );
+// };

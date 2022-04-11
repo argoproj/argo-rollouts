@@ -193,6 +193,7 @@
     &__runs {
         margin-top: 1em;
         display: flex;
+        flex-wrap: wrap;
     }
     &--dark {
         border-top: 1px solid $silver-lining;
@@ -208,11 +209,13 @@
     }
     &__run {
         width: 40px;
+        cursor: pointer;
         margin-right: 5px;
         margin-bottom: 12px;
         height: 10px;
-        border-radius: 3px;
+        border-radius: 5px;
         background-color: $argo-color-gray-4;
+        // background-color: $argo-success-color;
         &--successful {
             background-color: $argo-success-color;
         }
@@ -223,12 +226,23 @@
         &__jobs {
             margin-top: 8px;
             margin-bottom: 12px;
+            background-color: $argo-color-gray-3;
+            border-radius: 3px;
             display: flex;
             align-items: center;
-            border-radius: 3px;
-            background-color: $argo-color-gray-3;
             padding: 7px;
-            flex-wrap: wrap;
+
+            &-info {
+                font-size: 20px;
+                margin-left: 4px;
+            }
+
+            &-list {
+                flex: 1 1 0;
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+            }
         }
     }
     &--success {

@@ -85,100 +85,179 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
 
 const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
     const {analysisRuns} = props;
-    const [opened, setOpened] = React.useState(false);
-    const icon = opened ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down';
+    const [selection, setSelection] = React.useState<RolloutAnalysisRunInfo>(null);
+
     return (
         <ThemeDiv className='analysis'>
-            <div className='analysis-header'>
-                Analysis Runs
-                <ThemeDiv onClick={() => setOpened(!opened)}>
-                    <i className={`fa ${icon}`} />
-                </ThemeDiv>
-            </div>
+            <div className='analysis-header'>Analysis Runs</div>
             <div className='analysis__runs'>
-                {analysisRuns.map((ar) => (
+                {analysisRuns.map((ar, index) => (
                     <Tooltip
                         key={ar.objectMeta?.name}
                         content={
                             <React.Fragment>
-                                <div>name: {ar.objectMeta.name}</div>
-                                <div>created at: {formatTimestamp(JSON.stringify(ar.objectMeta?.creationTimestamp))}</div>
-                                {ar?.metrics && (
-                                    <div>
-                                        AnalysisTemplatesUsed:
-                                        {ar.metrics.map((metric) => {
-                                            return (
-                                                <div>
-                                                    {metric?.name && <div> analysisTemplateName: {metric.name}</div>}
-                                                    {metric?.count && <div> count: {metric.count}</div>}
-                                                    {metric?.successCondition && <div> successCondition: {metric.successCondition}</div>}
-                                                    {metric?.failureLimit && <div> failureLimit: {metric.failureLimit}</div>}
-                                                    {metric?.inconclusiveLimit && <div> inconclusiveLimit: {metric.inconclusiveLimit}</div>}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                <div>
+                                    <b>Name:</b> {ar.objectMeta.name}
+                                </div>
+                                <div>
+                                    <b>Created at: </b>
+                                    {formatTimestamp(JSON.stringify(ar.objectMeta?.creationTimestamp))}
+                                </div>
                             </React.Fragment>
                         }>
-                        <ThemeDiv className={`analysis__run analysis__run--${ar.status ? ar.status.toLowerCase() : 'unknown'}`} />
+                        <ActionButton
+                            action={() => (selection?.objectMeta.name === ar.objectMeta.name ? setSelection(null) : setSelection(ar))}
+                            label={`Analysis ${index}`}
+                            icon={`fa ${ar.status === 'Successful' ? 'fa-check ' : 'fa-times '}`}
+                            style={{
+                                fontSize: '16px',
+                                lineHeight: 1,
+                                border: '1px solid',
+                                padding: '8px 8px 8px 10px',
+                                borderRadius: '12px',
+                                color: 'white',
+                                backgroundColor: ar.status === 'Successful' ? '#3f946d' : '#f85149',
+                                borderColor: ar.status === 'Successful' ? '#3f946d' : '#f85149',
+                                cursor: 'pointer',
+                            }}
+                            transparent
+                        />
                     </Tooltip>
                 ))}
             </div>
 
-            {opened &&
-                analysisRuns.map((ar) => {
-                    return (
-                        <React.Fragment key={ar.objectMeta?.name}>
-                            <div>
-                                {ar.objectMeta?.name}
-                                <i className={`fa ${ar.status === 'Successful' ? 'fa-check-circle analysis--success' : 'fa-times-circle analysis--failure'}`} />
+            {selection && (
+                <React.Fragment key={selection.objectMeta?.name}>
+                    <div>
+                        {selection.objectMeta?.name}
+                        <i className={`fa ${selection.status === 'Successful' ? 'fa-check-circle analysis--success' : 'fa-times-circle analysis--failure'}`} />
+                    </div>
+                    {selection?.jobs && (
+                        <div className='analysis__run__jobs'>
+                            <div className='analysis__run__jobs-list'>
+                                {selection.jobs.map((job) => {
+                                    return (
+                                        <PodWidget
+                                            key={job.objectMeta?.name}
+                                            name={job.objectMeta.name}
+                                            status={job.status}
+                                            tooltip={
+                                                <div>
+                                                    <div>job-name: {job.objectMeta?.name}</div>
+                                                    <div>StartedAt: {formatTimestamp(JSON.stringify(job.startedAt))}</div>
+                                                    <div>Status: {job.status}</div>
+                                                    <div>AnalysisTemplate: {job.analysisTemplateName}</div>
+                                                </div>
+                                            }
+                                        />
+                                    );
+                                })}
                             </div>
-                            {ar?.jobs && (
-                                <div className='analysis__run__jobs'>
-                                    {ar.jobs.map((job) => {
+                            <Tooltip
+                                content={selection?.metrics
+                                    .filter((metric) => metric.name === selection.jobs[0].analysisTemplateName)
+                                    .map((metric) => {
                                         return (
-                                            <PodWidget
-                                                key={job.objectMeta?.name}
-                                                name={job.objectMeta.name}
-                                                status={job.status}
-                                                tooltip={
+                                            <React.Fragment>
+                                                {metric?.name && (
                                                     <div>
-                                                        <div>job-name: {job.objectMeta?.name}</div>
-                                                        <div>StartedAt: {formatTimestamp(JSON.stringify(job.startedAt))}</div>
-                                                        <div>Status: {job.status}</div>
-                                                        <div>AnalysisTemplate: {job.analysisTemplateName}</div>
+                                                        <b>AnalysisTemplateName:</b> {metric.name}
                                                     </div>
-                                                }
-                                            />
+                                                )}
+                                                {metric?.successCondition && (
+                                                    <div>
+                                                        <b>SuccessCondition: </b>
+                                                        {metric.successCondition}
+                                                    </div>
+                                                )}
+                                                {metric?.failureLimit && (
+                                                    <div>
+                                                        <b>FailureLimit:</b> {metric.failureLimit}
+                                                    </div>
+                                                )}
+                                                {metric?.inconclusiveLimit && (
+                                                    <div>
+                                                        <b>InconclusiveLimit: </b>
+                                                        {metric.inconclusiveLimit}
+                                                    </div>
+                                                )}
+                                                {metric?.count && (
+                                                    <div>
+                                                        <b>Count: </b>
+                                                        {metric.count}
+                                                    </div>
+                                                )}
+                                            </React.Fragment>
                                         );
-                                    })}
-                                </div>
-                            )}
-                            {ar?.nonJobInfo && (
-                                <div className='analysis__run__jobs'>
-                                    {ar.nonJobInfo.map((nonJob) => {
+                                    })}>
+                                <i className='fa fa-info-circle analysis__run__jobs-info' />
+                            </Tooltip>
+                        </div>
+                    )}
+                    {selection?.nonJobInfo && (
+                        <div className='analysis__run__jobs'>
+                            <div className='analysis__run__jobs-list'>
+                                {selection.nonJobInfo.map((nonJob) => {
+                                    return (
+                                        <PodWidget
+                                            key={new Date(nonJob.startedAt.seconds).getTime()}
+                                            name={nonJob.value}
+                                            status={nonJob.status}
+                                            tooltip={
+                                                <div>
+                                                    <pre>Value: {JSON.stringify(JSON.parse(nonJob.value), null, 2)}</pre>
+                                                    <div>StartedAt: {formatTimestamp(JSON.stringify(nonJob.startedAt))}</div>
+                                                    <div>Status: {nonJob.status}</div>
+                                                    <div>AnalysisTemplate: {nonJob.analysisTemplateName}</div>
+                                                </div>
+                                            }
+                                        />
+                                    );
+                                })}
+                            </div>
+                            <Tooltip
+                                content={selection?.metrics
+                                    .filter((metric) => metric.name === selection.nonJobInfo[0].analysisTemplateName)
+                                    .map((metric) => {
                                         return (
-                                            <PodWidget
-                                                key={new Date(nonJob.startedAt.seconds).getTime()}
-                                                name={nonJob.value}
-                                                status={nonJob.status}
-                                                tooltip={
+                                            <React.Fragment>
+                                                {metric?.name && (
                                                     <div>
-                                                        <pre>Value: {JSON.stringify(JSON.parse(nonJob.value), null, 2)}</pre>
-                                                        <div>StartedAt: {formatTimestamp(JSON.stringify(nonJob.startedAt))}</div>
-                                                        <div>Status: {nonJob.status}</div>
-                                                        <div>AnalysisTemplate: {nonJob.analysisTemplateName}</div>
+                                                        <b>AnalysisTemplateName:</b> {metric.name}
                                                     </div>
-                                                }
-                                            />
+                                                )}
+                                                {metric?.successCondition && (
+                                                    <div>
+                                                        <b>SuccessCondition: </b>
+                                                        {metric.successCondition}
+                                                    </div>
+                                                )}
+                                                {metric?.failureLimit && (
+                                                    <div>
+                                                        <b>FailureLimit:</b> {metric.failureLimit}
+                                                    </div>
+                                                )}
+                                                {metric?.inconclusiveLimit && (
+                                                    <div>
+                                                        <b>InconclusiveLimit: </b>
+                                                        {metric.inconclusiveLimit}
+                                                    </div>
+                                                )}
+                                                {metric?.count && (
+                                                    <div>
+                                                        <b>Count: </b>
+                                                        {metric.count}
+                                                    </div>
+                                                )}
+                                            </React.Fragment>
                                         );
-                                    })}
-                                </div>
-                            )}
-                        </React.Fragment>
-                    );
-                })}
+                                    })}>
+                                <i className='fa fa-info-circle analysis__run__jobs-info' />
+                            </Tooltip>
+                        </div>
+                    )}
+                </React.Fragment>
+            )}
         </ThemeDiv>
     );
 };
