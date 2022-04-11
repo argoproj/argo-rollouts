@@ -61,8 +61,9 @@ RUN touch ui/dist/node_modules.marker && \
     touch ui/dist/app/index.html && \
     find ui/dist
 
-ARG TARGETOS TARGETARCH
-ARG MAKE_TARGET="controller plugin plugin-linux plugin-darwin plugin-windows"
+ARG TARGETOS
+ARG TARGETARCH
+ARG MAKE_TARGET="controller plugin"
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
 
 ####################################################################################################
