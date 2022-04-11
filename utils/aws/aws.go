@@ -131,7 +131,7 @@ func FakeNewClientFunc(elbClient ELBv2APIClient) func() (Client, error) {
 
 func (c *ClientAdapter) FindLoadBalancerByDNSName(ctx context.Context, dnsName string) (*elbv2types.LoadBalancer, error) {
 	paginator := elbv2.NewDescribeLoadBalancersPaginator(c.ELBV2, &elbv2.DescribeLoadBalancersInput{
-		PageSize: aws.Int32(300),
+		PageSize: aws.Int32(defaults.DefaultAwsLoadBalancerPageSize),
 	})
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(ctx)
