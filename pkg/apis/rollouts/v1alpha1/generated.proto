@@ -1250,7 +1250,7 @@ message RolloutSpec {
   optional int32 progressDeadlineSeconds = 8;
 
   // ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds
-  // is exceeded if analysis is not used. Default is false.
+  // is exceeded.
   // +optional
   optional bool progressDeadlineAbort = 12;
 

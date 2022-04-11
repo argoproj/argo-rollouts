@@ -3819,7 +3819,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref common.ReferenceCallback)
 					},
 					"progressDeadlineAbort": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds is exceeded if analysis is not used. Default is false.",
+							Description: "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds is exceeded.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
