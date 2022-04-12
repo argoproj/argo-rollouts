@@ -144,7 +144,7 @@ message JobInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
   string status = 2;
   string icon = 3;
-  string analysisTemplateName = 4;
+  string metricName = 4;
   k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 5;
 }
 
@@ -165,7 +165,7 @@ message AnalysisRunInfo {
 message NonJobInfo {
   string value = 1;
   string status = 2;
-  string analysisTemplateName = 3;
+  string metricName = 3;
   k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt =4;
 }
 

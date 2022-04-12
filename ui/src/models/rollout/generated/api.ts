@@ -5311,7 +5311,7 @@ export interface RolloutJobInfo {
      * @type {string}
      * @memberof RolloutJobInfo
      */
-    analysisTemplateName?: string;
+    metricName?: string;
     /**
      * 
      * @type {K8sIoApimachineryPkgApisMetaV1Time}
@@ -5398,7 +5398,7 @@ export interface RolloutNonJobInfo {
      * @type {string}
      * @memberof RolloutNonJobInfo
      */
-    analysisTemplateName?: string;
+    metricName?: string;
     /**
      * 
      * @type {K8sIoApimachineryPkgApisMetaV1Time}

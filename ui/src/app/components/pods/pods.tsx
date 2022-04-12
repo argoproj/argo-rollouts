@@ -36,8 +36,8 @@ export const ParsePodStatus = (status: string): PodStatus => {
     }
 };
 
-export const PodIcon = (props: {status: string}) => {
-    const {status} = props;
+export const PodIcon = (props: {status: string; customIcon?: string}) => {
+    const {status, customIcon} = props;
     let icon;
     let spin = false;
     if (status.startsWith('Init:')) {
@@ -53,25 +53,27 @@ export const PodIcon = (props: {status: string}) => {
 
     const className = ParsePodStatus(status);
 
-    switch (className) {
-        case PodStatus.Pending:
-            icon = 'fa-circle-notch';
-            spin = true;
-            break;
-        case PodStatus.Success:
-            icon = 'fa-check';
-            break;
-        case PodStatus.Failed:
-            icon = 'fa-times';
-            break;
-        case PodStatus.Warning:
-            icon = 'fa-exclamation-triangle';
-            break;
-        default:
-            spin = false;
-            icon = 'fa-question-circle';
-            break;
-    }
+    if (customIcon) icon = customIcon;
+    else
+        switch (className) {
+            case PodStatus.Pending:
+                icon = 'fa-circle-notch';
+                spin = true;
+                break;
+            case PodStatus.Success:
+                icon = 'fa-check';
+                break;
+            case PodStatus.Failed:
+                icon = 'fa-times';
+                break;
+            case PodStatus.Warning:
+                icon = 'fa-exclamation-triangle';
+                break;
+            default:
+                spin = false;
+                icon = 'fa-question-circle';
+                break;
+        }
 
     return (
         <ThemeDiv className={`pod-icon pod-icon--${className}`}>
@@ -154,10 +156,10 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
     );
 };
 
-export const PodWidget = ({name, status, tooltip}: {name: string; status: string; tooltip: React.ReactNode}) => (
+export const PodWidget = ({name, status, tooltip, customIcon}: {name: string; status: string; tooltip: React.ReactNode; customIcon?: string}) => (
     <Menu items={[{label: 'Copy Name', action: () => navigator.clipboard.writeText(name), icon: 'fa-clipboard'}]}>
         <Tooltip content={tooltip}>
-            <PodIcon status={status} />
+            <PodIcon status={status} customIcon={customIcon} />
         </Tooltip>
     </Menu>
 );

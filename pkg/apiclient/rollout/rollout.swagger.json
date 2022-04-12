@@ -4493,7 +4493,7 @@
         "icon": {
           "type": "string"
         },
-        "analysisTemplateName": {
+        "metricName": {
           "type": "string"
         },
         "startedAt": {
@@ -4547,7 +4547,7 @@
         "status": {
           "type": "string"
         },
-        "analysisTemplateName": {
+        "metricName": {
           "type": "string"
         },
         "startedAt": {

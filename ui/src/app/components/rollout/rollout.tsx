@@ -338,11 +338,11 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
 
                 {props.step.analysis?.templates && openAnalysis && (
                     <div className='steps__step__content'>
-                        <div style={{paddingLeft: 15}}>Templates</div>
+                        <div style={{paddingLeft: 15, marginTop: 12, marginBottom: 8, color: 'rgba(0,0,0, 0.5)'}}>Templates</div>
                         <ul>
                             {props.step.analysis?.templates.map((template) => {
                                 return (
-                                    <div style={{paddingLeft: 25, fontWeight: 600}}>
+                                    <div style={{paddingLeft: 15, fontWeight: 600}} key={template.templateName}>
                                         <li>{template.templateName}</li>
                                     </div>
                                 );

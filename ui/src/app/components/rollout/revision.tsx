@@ -91,44 +91,44 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
         <ThemeDiv className='analysis'>
             <div className='analysis-header'>Analysis Runs</div>
             <div className='analysis__runs'>
-                {analysisRuns.map((ar, index) => (
-                    <Tooltip
-                        key={ar.objectMeta?.name}
-                        content={
-                            <React.Fragment>
-                                <div>
-                                    <b>Name:</b> {ar.objectMeta.name}
-                                </div>
-                                <div>
-                                    <b>Created at: </b>
-                                    {formatTimestamp(JSON.stringify(ar.objectMeta?.creationTimestamp))}
-                                </div>
-                            </React.Fragment>
-                        }>
-                        <ActionButton
-                            action={() => (selection?.objectMeta.name === ar.objectMeta.name ? setSelection(null) : setSelection(ar))}
-                            label={`Analysis ${index}`}
-                            icon={`fa ${ar.status === 'Successful' ? 'fa-check ' : 'fa-times '}`}
-                            style={{
-                                fontSize: '16px',
-                                lineHeight: 1,
-                                border: '1px solid',
-                                padding: '8px 8px 8px 10px',
-                                borderRadius: '12px',
-                                color: 'white',
-                                backgroundColor: ar.status === 'Successful' ? '#3f946d' : '#f85149',
-                                borderColor: ar.status === 'Successful' ? '#3f946d' : '#f85149',
-                                cursor: 'pointer',
-                            }}
-                            transparent
-                        />
-                    </Tooltip>
-                ))}
+                {analysisRuns.map((ar) => {
+                    let temp = ar.objectMeta.name.split('-');
+                    let len = temp.length;
+                    return (
+                        <Tooltip
+                            key={ar.objectMeta?.name}
+                            content={
+                                <React.Fragment>
+                                    <div>
+                                        <b>Name:</b> {ar.objectMeta.name}
+                                    </div>
+                                    <div>
+                                        <b>Created at: </b>
+                                        {formatTimestamp(JSON.stringify(ar.objectMeta?.creationTimestamp))}
+                                    </div>
+                                    <div>
+                                        <b>Status: </b>
+                                        {ar.status}
+                                    </div>
+                                </React.Fragment>
+                            }>
+                            <div
+                                className={`analysis__runs-action ${
+                                    ar.status === 'Running' ? 'analysis--pending' : ar.status === 'Successful' ? 'analysis--success' : 'analysis--failure'
+                                }`}>
+                                <ActionButton
+                                    action={() => (selection?.objectMeta.name === ar.objectMeta.name ? setSelection(null) : setSelection(ar))}
+                                    label={`Analysis ${temp[len - 2] + '-' + temp[len - 1]}`}
+                                />
+                            </div>
+                        </Tooltip>
+                    );
+                })}
             </div>
 
             {selection && (
                 <React.Fragment key={selection.objectMeta?.name}>
-                    <div>
+                    <div style={{marginTop: 5}}>
                         {selection.objectMeta?.name}
                         <i className={`fa ${selection.status === 'Successful' ? 'fa-check-circle analysis--success' : 'fa-times-circle analysis--failure'}`} />
                     </div>
@@ -146,22 +146,23 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                                     <div>job-name: {job.objectMeta?.name}</div>
                                                     <div>StartedAt: {formatTimestamp(JSON.stringify(job.startedAt))}</div>
                                                     <div>Status: {job.status}</div>
-                                                    <div>AnalysisTemplate: {job.analysisTemplateName}</div>
+                                                    <div>MetricName: {job.metricName}</div>
                                                 </div>
                                             }
+                                            customIcon='fa-chart-bar'
                                         />
                                     );
                                 })}
                             </div>
                             <Tooltip
                                 content={selection?.metrics
-                                    .filter((metric) => metric.name === selection.jobs[0].analysisTemplateName)
+                                    .filter((metric) => metric.name === selection.jobs[0].metricName)
                                     .map((metric) => {
                                         return (
-                                            <React.Fragment>
+                                            <React.Fragment key={metric.name}>
                                                 {metric?.name && (
                                                     <div>
-                                                        <b>AnalysisTemplateName:</b> {metric.name}
+                                                        <b>MetricName:</b> {metric.name}
                                                     </div>
                                                 )}
                                                 {metric?.successCondition && (
@@ -208,22 +209,23 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                                     <pre>Value: {JSON.stringify(JSON.parse(nonJob.value), null, 2)}</pre>
                                                     <div>StartedAt: {formatTimestamp(JSON.stringify(nonJob.startedAt))}</div>
                                                     <div>Status: {nonJob.status}</div>
-                                                    <div>AnalysisTemplate: {nonJob.analysisTemplateName}</div>
+                                                    <div>MetricName: {nonJob.metricName}</div>
                                                 </div>
                                             }
+                                            customIcon='fa-chart-bar'
                                         />
                                     );
                                 })}
                             </div>
                             <Tooltip
                                 content={selection?.metrics
-                                    .filter((metric) => metric.name === selection.nonJobInfo[0].analysisTemplateName)
+                                    .filter((metric) => metric.name === selection.nonJobInfo[0].metricName)
                                     .map((metric) => {
                                         return (
-                                            <React.Fragment>
+                                            <React.Fragment key={metric.name}>
                                                 {metric?.name && (
                                                     <div>
-                                                        <b>AnalysisTemplateName:</b> {metric.name}
+                                                        <b>MetricName:</b> {metric.name}
                                                     </div>
                                                 )}
                                                 {metric?.successCondition && (
