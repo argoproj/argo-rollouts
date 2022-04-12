@@ -2,15 +2,16 @@ package prometheus
 
 import (
 	"fmt"
+	"math"
+	"os"
+	"testing"
+
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
-	"math"
-	"os"
-	"testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/prometheus/common/model"
@@ -43,7 +44,7 @@ func TestRunSuccessfully(t *testing.T) {
 	mock := mockAPI{
 		value: newScalar(10),
 	}
-	p  := NewPrometheusProvider(mock, e)
+	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -511,7 +512,7 @@ func TestNewPrometheusAPIWithSecret(t *testing.T) {
 	useEnvVarForKeys := false
 	tokenSecret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
-			Kind: "Secret",
+			Kind:       "Secret",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -542,7 +543,7 @@ func TestNewPrometheusAPIWithSecret(t *testing.T) {
 	address = "https://www.example.com"
 	tokenSecret = &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
-			Kind: "Secret",
+			Kind:       "Secret",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
