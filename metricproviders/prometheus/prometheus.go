@@ -2,7 +2,14 @@ package prometheus
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"net/url"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
@@ -22,12 +29,19 @@ const (
 	// ResolvedPrometheusQuery is used as the key for storing the resolved prometheus query in the metrics result
 	// metadata object.
 	ResolvedPrometheusQuery = "ResolvedPrometheusQuery"
+	TokensSecretName = "prometheus"
+	Address          = "PROMETHEUS_ADDRESS"
 )
 
 // Provider contains all the required components to run a prometheus query
 type Provider struct {
 	api    v1.API
 	logCtx log.Entry
+	config prometheusConfig
+}
+
+type prometheusConfig struct {
+	Address string `yaml:"address,omitempty"`
 }
 
 // Type indicates provider is a prometheus provider
@@ -130,7 +144,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 	}
 }
 
-// NewPrometheusProvider Creates a new Prometheus client
+//NewPrometheusProvider Creates a new Prometheus client
 func NewPrometheusProvider(api v1.API, logCtx log.Entry) *Provider {
 	return &Provider{
 		logCtx: logCtx,
@@ -139,7 +153,33 @@ func NewPrometheusProvider(api v1.API, logCtx log.Entry) *Provider {
 }
 
 // NewPrometheusAPI generates a prometheus API from the metric configuration
-func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
+func NewPrometheusAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (v1.API, error) {
+	ns := defaults.Namespace()
+	secretKeys := []string{Address}
+	envValuesByKey := lookupKeysInEnv(secretKeys)
+	log.Infof("envValuesByKey: %v, len: %v", envValuesByKey, len(envValuesByKey))
+	if envValuesByKey[Address] != "" {
+		if IsUrl(envValuesByKey[Address]) {
+			metric.Provider.Prometheus.Address = envValuesByKey[Address]
+		} else {
+			log.Errorf("prometheus address (envvar)  is not is url format: %v", envValuesByKey[Address])
+			return nil, errors.New("prometheus address is not is url format")
+		}
+	} else {
+		secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), TokensSecretName, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		if _, hasAddress := secret.Data[Address]; hasAddress {
+			if IsUrl(string(secret.Data[Address])) {
+				metric.Provider.Prometheus.Address = string(secret.Data[Address])
+			} else {
+				log.Errorf("prometheus address (secret) is not is url format: %v", string(secret.Data[Address]))
+				return nil, errors.New("prometheus address is not is url format")
+			}
+		}
+	}
+	log.Infof("metric.Provider.Prometheus.Address: %v", metric.Provider.Prometheus.Address)
 	client, err := api.NewClient(api.Config{
 		Address: metric.Provider.Prometheus.Address,
 	})
@@ -148,4 +188,27 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		return nil, err
 	}
 	return v1.NewAPI(client), nil
+}
+
+func IsUrl(str string) bool {
+	u, err := url.Parse(str)
+	if err != nil{
+		log.Errorf("Error in parsing url: %v", err)
+	}
+	log.Infof("Parsed url: %v", u)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+func lookupKeysInEnv(keys []string) map[string]string {
+	valuesByKey := make(map[string]string)
+	for i := range keys {
+		key := keys[i]
+		formattedKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
+		log.Infof("formattedKey: %v", formattedKey)
+		if value, ok := os.LookupEnv(fmt.Sprintf("%s", formattedKey)); ok {
+			valuesByKey[key] = value
+			log.Infof("PROMETHEUS_ADDRESS: %v", value)
+		}
+	}
+	return valuesByKey
 }

@@ -383,11 +383,6 @@ func TestSetDefaults(t *testing.T) {
 	SetIstioAPIVersion(DefaultIstioVersion)
 	assert.Equal(t, DefaultIstioVersion, GetIstioAPIVersion())
 
-	SetPrometheusAddress("http://prometheus.test.svc.cluster.local:9090")
-	assert.Equal(t, "http://prometheus.test.svc.cluster.local:9090", GetPrometheusAddress())
-	SetPrometheusAddress(DefaultPrometheusAddress)
-	assert.Equal(t, DefaultPrometheusAddress, GetPrometheusAddress())
-
 	SetAmbassadorAPIVersion("v1alpha9")
 	assert.Equal(t, "v1alpha9", GetAmbassadorAPIVersion())
 	SetAmbassadorAPIVersion(DefaultAmbassadorVersion)

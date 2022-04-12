@@ -2,17 +2,20 @@ package prometheus
 
 import (
 	"fmt"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
 	"math"
+	"os"
 	"testing"
 
-	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
-
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/prometheus/common/model"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func newScalar(f float64) model.Value {
@@ -40,6 +43,44 @@ func TestRunSuccessfully(t *testing.T) {
 	mock := mockAPI{
 		value: newScalar(10),
 	}
+	p  := NewPrometheusProvider(mock, e)
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10",
+		FailureCondition: "result != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "test",
+			},
+		},
+	}
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "10", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
+func TestRunSuccessfullyWithEnv(t *testing.T) {
+	e := log.Entry{}
+	mock := mockAPI{
+		value: newScalar(10),
+	}
+	address := "http://127.0.0.1:9090"
+	useEnvVarForKeys := true
+	os.Setenv("PROMETHEUS_ADDRESS", address)
+	tokenSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: TokensSecretName,
+		},
+	}
+	fakeClient := k8sfake.NewSimpleClientset()
+	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if useEnvVarForKeys {
+			return true, nil, nil
+		}
+		return true, tokenSecret, nil
+	})
 	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
@@ -59,6 +100,31 @@ func TestRunSuccessfully(t *testing.T) {
 }
 
 func TestRunSuccessfullyWithWarning(t *testing.T) {
+	e := log.NewEntry(log.New())
+	mock := mockAPI{
+		value:    newScalar(10),
+		warnings: v1.Warnings([]string{"warning", "warning2"}),
+	}
+	p := NewPrometheusProvider(mock, *e)
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10",
+		FailureCondition: "result != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "test",
+			},
+		},
+	}
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "10", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, `"warning", "warning2"`, measurement.Metadata["warnings"])
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
+func TestRunSuccessfullyWithWarningWithEnv(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := mockAPI{
 		value:    newScalar(10),
@@ -362,17 +428,136 @@ func TestProcessInvalidResponse(t *testing.T) {
 }
 
 func TestNewPrometheusAPI(t *testing.T) {
+	os.Unsetenv("PROMETHEUS_ADDRESS")
+	address := ":invalid::url"
+	useEnvVarForKeys := false
+	tokenSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: TokensSecretName,
+		},
+		Data: map[string][]byte{
+			"address": []byte(address),
+		},
+	}
+	fakeClient := k8sfake.NewSimpleClientset()
+	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if useEnvVarForKeys {
+			return true, nil, nil
+		}
+		return true, tokenSecret, nil
+	})
 	metric := v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
-				Address: ":invalid::url",
+				Address: address,
 			},
 		},
 	}
-	_, err := NewPrometheusAPI(metric)
+	api, err := NewPrometheusAPI(metric, fakeClient)
 	assert.NotNil(t, err)
+	log.Infof("api:%v", api)
 
 	metric.Provider.Prometheus.Address = "https://www.example.com"
-	_, err = NewPrometheusAPI(metric)
+	_, err = NewPrometheusAPI(metric, fakeClient)
+	assert.Nil(t, err)
+}
+
+func TestNewPrometheusAPIWithEnv(t *testing.T) {
+	os.Unsetenv("PROMETHEUS_ADDRESS")
+	os.Setenv("PROMETHEUS_ADDRESS", ":invalid::url")
+	address := ""
+	useEnvVarForKeys := true
+	tokenSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: TokensSecretName,
+		},
+		Data: map[string][]byte{
+			"address": []byte(address),
+		},
+	}
+	fakeClient := k8sfake.NewSimpleClientset()
+	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if useEnvVarForKeys {
+			return true, nil, nil
+		}
+		return true, tokenSecret, nil
+	})
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: address,
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric, fakeClient)
+	assert.NotNil(t, err)
+	log.Infof("api:%v", api)
+
+	os.Unsetenv("PROMETHEUS_ADDRESS")
+	os.Setenv("PROMETHEUS_ADDRESS", "https://www.example.com")
+	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if useEnvVarForKeys {
+			return true, nil, nil
+		}
+		return true, tokenSecret, nil
+	})
+	_, err = NewPrometheusAPI(metric, fakeClient)
+	assert.Nil(t, err)
+}
+
+func TestNewPrometheusAPIWithSecret(t *testing.T) {
+	os.Unsetenv("PROMETHEUS_ADDRESS")
+	address := ":invalid::url"
+	useEnvVarForKeys := false
+	tokenSecret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: TokensSecretName,
+		},
+		Data: map[string][]byte{
+			"PROMETHEUS_ADDRESS": []byte(address),
+		},
+	}
+	fakeClient := k8sfake.NewSimpleClientset()
+	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if useEnvVarForKeys {
+			return true, nil, nil
+		}
+		return true, tokenSecret, nil
+	})
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: "",
+			},
+		},
+	}
+	_, err := NewPrometheusAPI(metric, fakeClient)
+	assert.NotNil(t, err)
+
+	os.Unsetenv("PROMETHEUS_ADDRESS")
+	address = "https://www.example.com"
+	tokenSecret = &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: TokensSecretName,
+		},
+		Data: map[string][]byte{
+			"PROMETHEUS_ADDRESS": []byte(address),
+		},
+	}
+	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if useEnvVarForKeys {
+			return true, nil, nil
+		}
+		return true, tokenSecret, nil
+	})
+	_, err = NewPrometheusAPI(metric, fakeClient)
 	assert.Nil(t, err)
 }
