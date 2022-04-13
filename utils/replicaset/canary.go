@@ -22,7 +22,7 @@ func allDesiredAreAvailable(rs *appsv1.ReplicaSet, desired int32) bool {
 }
 
 func allDesiredAreCreated(rs *appsv1.ReplicaSet, desired int32) bool {
-	return rs != nil && desired == *rs.Spec.Replicas
+	return rs != nil && desired == *rs.Spec.Replicas && desired == rs.Status.Replicas
 }
 
 func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, weights *v1alpha1.TrafficWeights) bool {
