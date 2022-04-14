@@ -6,17 +6,12 @@ import (
 	"os"
 	"testing"
 
-	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
-	kubetesting "k8s.io/client-go/testing"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func newScalar(f float64) model.Value {
@@ -68,20 +63,7 @@ func TestRunSuccessfullyWithEnv(t *testing.T) {
 		value: newScalar(10),
 	}
 	address := "http://127.0.0.1:9090"
-	useEnvVarForKeys := true
 	os.Setenv("PROMETHEUS_ADDRESS", address)
-	tokenSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: TokensSecretName,
-		},
-	}
-	fakeClient := k8sfake.NewSimpleClientset()
-	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if useEnvVarForKeys {
-			return true, nil, nil
-		}
-		return true, tokenSecret, nil
-	})
 	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",

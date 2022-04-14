@@ -26,7 +26,6 @@ const (
 	// ResolvedPrometheusQuery is used as the key for storing the resolved prometheus query in the metrics result
 	// metadata object.
 	ResolvedPrometheusQuery = "ResolvedPrometheusQuery"
-	TokensSecretName        = "prometheus"
 	Address                 = "PROMETHEUS_ADDRESS"
 )
 
@@ -177,7 +176,7 @@ func IsUrl(str string) bool {
 	if err != nil {
 		log.Errorf("Error in parsing url: %v", err)
 	}
-	log.Infof("Parsed url: %v", u)
+	log.Debugf("Parsed url: %v", u)
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
@@ -186,10 +185,10 @@ func lookupKeysInEnv(keys []string) map[string]string {
 	for i := range keys {
 		key := keys[i]
 		formattedKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
-		log.Infof("formattedKey: %v", formattedKey)
+		log.Debugf("formattedKey: %v", formattedKey)
 		if value, ok := os.LookupEnv(fmt.Sprintf("%s", formattedKey)); ok {
 			valuesByKey[key] = value
-			log.Infof("PROMETHEUS_ADDRESS: %v", value)
+			log.Debugf("PROMETHEUS_ADDRESS: %v", value)
 		}
 	}
 	return valuesByKey
