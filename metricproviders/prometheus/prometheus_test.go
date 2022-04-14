@@ -431,22 +431,6 @@ func TestProcessInvalidResponse(t *testing.T) {
 func TestNewPrometheusAPI(t *testing.T) {
 	os.Unsetenv("PROMETHEUS_ADDRESS")
 	address := ":invalid::url"
-	useEnvVarForKeys := false
-	tokenSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: TokensSecretName,
-		},
-		Data: map[string][]byte{
-			"address": []byte(address),
-		},
-	}
-	fakeClient := k8sfake.NewSimpleClientset()
-	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if useEnvVarForKeys {
-			return true, nil, nil
-		}
-		return true, tokenSecret, nil
-	})
 	metric := v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
@@ -454,12 +438,12 @@ func TestNewPrometheusAPI(t *testing.T) {
 			},
 		},
 	}
-	api, err := NewPrometheusAPI(metric, fakeClient)
+	api, err := NewPrometheusAPI(metric)
 	assert.NotNil(t, err)
 	log.Infof("api:%v", api)
 
 	metric.Provider.Prometheus.Address = "https://www.example.com"
-	_, err = NewPrometheusAPI(metric, fakeClient)
+	_, err = NewPrometheusAPI(metric)
 	assert.Nil(t, err)
 }
 
@@ -467,22 +451,6 @@ func TestNewPrometheusAPIWithEnv(t *testing.T) {
 	os.Unsetenv("PROMETHEUS_ADDRESS")
 	os.Setenv("PROMETHEUS_ADDRESS", ":invalid::url")
 	address := ""
-	useEnvVarForKeys := true
-	tokenSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: TokensSecretName,
-		},
-		Data: map[string][]byte{
-			"address": []byte(address),
-		},
-	}
-	fakeClient := k8sfake.NewSimpleClientset()
-	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if useEnvVarForKeys {
-			return true, nil, nil
-		}
-		return true, tokenSecret, nil
-	})
 	metric := v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
@@ -490,75 +458,12 @@ func TestNewPrometheusAPIWithEnv(t *testing.T) {
 			},
 		},
 	}
-	api, err := NewPrometheusAPI(metric, fakeClient)
+	api, err := NewPrometheusAPI(metric)
 	assert.NotNil(t, err)
 	log.Infof("api:%v", api)
 
 	os.Unsetenv("PROMETHEUS_ADDRESS")
 	os.Setenv("PROMETHEUS_ADDRESS", "https://www.example.com")
-	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if useEnvVarForKeys {
-			return true, nil, nil
-		}
-		return true, tokenSecret, nil
-	})
-	_, err = NewPrometheusAPI(metric, fakeClient)
-	assert.Nil(t, err)
-}
-
-func TestNewPrometheusAPIWithSecret(t *testing.T) {
-	os.Unsetenv("PROMETHEUS_ADDRESS")
-	address := ":invalid::url"
-	useEnvVarForKeys := false
-	tokenSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: TokensSecretName,
-		},
-		Data: map[string][]byte{
-			"PROMETHEUS_ADDRESS": []byte(address),
-		},
-	}
-	fakeClient := k8sfake.NewSimpleClientset()
-	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if useEnvVarForKeys {
-			return true, nil, nil
-		}
-		return true, tokenSecret, nil
-	})
-	metric := v1alpha1.Metric{
-		Provider: v1alpha1.MetricProvider{
-			Prometheus: &v1alpha1.PrometheusMetric{
-				Address: "",
-			},
-		},
-	}
-	_, err := NewPrometheusAPI(metric, fakeClient)
-	assert.NotNil(t, err)
-
-	os.Unsetenv("PROMETHEUS_ADDRESS")
-	address = "https://www.example.com"
-	tokenSecret = &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: TokensSecretName,
-		},
-		Data: map[string][]byte{
-			"PROMETHEUS_ADDRESS": []byte(address),
-		},
-	}
-	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if useEnvVarForKeys {
-			return true, nil, nil
-		}
-		return true, tokenSecret, nil
-	})
-	_, err = NewPrometheusAPI(metric, fakeClient)
+	_, err = NewPrometheusAPI(metric)
 	assert.Nil(t, err)
 }

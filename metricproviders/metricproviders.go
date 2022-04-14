@@ -50,7 +50,7 @@ type ProviderFactoryFunc func(logCtx log.Entry, metric v1alpha1.Metric) (Provide
 func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) (Provider, error) {
 	switch provider := Type(metric); provider {
 	case prometheus.ProviderType:
-		api, err := prometheus.NewPrometheusAPI(metric, f.KubeClient)
+		api, err := prometheus.NewPrometheusAPI(metric)
 		if err != nil {
 			return nil, err
 		}
