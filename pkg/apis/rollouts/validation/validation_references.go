@@ -297,7 +297,7 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 			}
 			// Validate HTTP Routes
 			if errHttp == nil {
-				httpRoutes, err := istio.GetHttpRoutes(newObj, httpRoutesI)
+				httpRoutes, err := istio.GetHttpRoutes(httpRoutesI)
 				if err != nil {
 					msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
 					allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))

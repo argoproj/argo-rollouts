@@ -218,7 +218,7 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 	var httpRoutes []VirtualServiceHTTPRoute
 	httpRoutesI, err := GetHttpRoutesI(newObj)
 	if err == nil {
-		routes, err := GetHttpRoutes(newObj, httpRoutesI)
+		routes, err := GetHttpRoutes(httpRoutesI)
 		httpRoutes = routes
 		if err != nil {
 			return nil, false, err
@@ -550,7 +550,7 @@ func GetTlsRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
 	return tlsRoutesI, nil
 }
 
-func GetHttpRoutes(obj *unstructured.Unstructured, httpRoutesI []interface{}) ([]VirtualServiceHTTPRoute, error) {
+func GetHttpRoutes(httpRoutesI []interface{}) ([]VirtualServiceHTTPRoute, error) {
 	routeBytes, err := json.Marshal(httpRoutesI)
 	if err != nil {
 		return nil, err
