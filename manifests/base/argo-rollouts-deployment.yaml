@@ -19,7 +19,7 @@ spec:
       serviceAccountName: argo-rollouts
       containers:
       - name: argo-rollouts
-        image: quay.io/argoproj/argo-rollouts:latest
+        image: quay.io/codefresh/argo-rollouts:latest
         imagePullPolicy: Always
         ports:
           - containerPort: 8090

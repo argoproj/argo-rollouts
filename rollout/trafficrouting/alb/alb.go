@@ -35,7 +35,6 @@ type ReconcilerConfig struct {
 	Recorder       record.EventRecorder
 	ControllerKind schema.GroupVersionKind
 	IngressWrapper IngressWrapper
-	Status         *v1alpha1.RolloutStatus
 	VerifyWeight   *bool
 }
 
@@ -103,7 +102,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	}
 	r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
 	r.log.WithField("desiredWeight", desiredWeight).Info("updating ALB Ingress")
-	r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", ingressName, desiredWeight)
+	r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", ingressName, desiredWeight)
 
 	_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
@@ -137,9 +136,8 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	}
 	resourceIDToDest := map[string]v1alpha1.WeightDestination{}
 
-	stableService, canaryService := trafficrouting.GetStableAndCanaryServices(rollout)
+	canaryService := rollout.Spec.Strategy.Canary.CanaryService
 	canaryResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
-	stableResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), stableService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
 
 	for _, dest := range additionalDestinations {
 		resourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), dest.ServiceName, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
@@ -211,8 +209,9 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	return pointer.BoolPtr(numVerifiedWeights == 1+len(additionalDestinations)), nil
 }
 
-func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (string, error) {
-	stableService, canaryService := trafficrouting.GetStableAndCanaryServices(r)
+func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) string {
+	stableService := r.Spec.Strategy.Canary.StableService
+	canaryService := r.Spec.Strategy.Canary.CanaryService
 	portStr := strconv.Itoa(int(port))
 	stableWeight := int32(100)
 	targetGroups := make([]ingressutil.ALBTargetGroup, 0)

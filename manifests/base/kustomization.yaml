@@ -8,5 +8,5 @@ resources:
 - argo-rollouts-metrics-service.yaml
 - argo-rollouts-notification-secret.yaml
 images:
-- name: quay.io/argoproj/argo-rollouts
+- name: quay.io/codefresh/argo-rollouts
   newTag: latest

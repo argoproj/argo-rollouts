@@ -44,7 +44,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
 			IngressWrapper: c.ingressWrapper,
-		}))
+		}), nil
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
 		alb_reconcilier, err := alb.NewReconciler(alb.ReconcilerConfig{
@@ -53,7 +53,6 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 			Recorder:       c.recorder,
 			ControllerKind: controllerKind,
 			IngressWrapper: c.ingressWrapper,
-			Status:         &roCtx.newStatus,
 		})
 		if err != nil {
 			return trafficReconcilers, err

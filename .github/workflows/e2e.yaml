@@ -3,11 +3,11 @@ name: E2E Tests
 on:
   push:
     branches:
-      - 'master'
+      # - 'master' # commented due to Codefresh convention
       - 'release-*'
   pull_request:
     branches:
-      - 'master'
+      # - 'master' # commented due to Codefresh convention
       - 'release-*'
   workflow_dispatch:
     inputs:

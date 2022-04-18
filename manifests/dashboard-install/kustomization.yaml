@@ -8,5 +8,5 @@ resources:
 - dashboard-service.yaml
 - dashboard-serviceaccount.yaml
 images:
-- name: quay.io/argoproj/kubectl-argo-rollouts
+- name: quay.io/codefresh/kubectl-argo-rollouts
   newTag: latest

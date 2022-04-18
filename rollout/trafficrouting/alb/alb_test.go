@@ -294,28 +294,6 @@ func TestSetWeightPingPong(t *testing.T) {
 	assert.NoError(t, err)
 	err = r.SetWeight(10)
 	assert.Nil(t, err)
-	actions := client.Actions()
-	assert.Len(t, actions, 1)
-}
-
-func TestUpdateDesiredWeightWithStickyConfig(t *testing.T) {
-	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
-	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, true)
-	client := fake.NewSimpleClientset(i)
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	assert.Nil(t, err)
-	r, err := NewReconciler(ReconcilerConfig{
-		Rollout:        ro,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
-	assert.NoError(t, err)
-	err = r.SetWeight(10)
-	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 1)
 }
 
