@@ -2,8 +2,9 @@ package rollout
 
 import (
 	"fmt"
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	"strconv"
+
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"

@@ -3,8 +3,9 @@ package alb
 import (
 	"context"
 	"fmt"
-	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	"strconv"
+
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
