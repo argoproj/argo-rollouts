@@ -216,7 +216,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			!rolloututil.IsFullyPromoted(c.rollout) &&
 			currentStep != nil && currentStep.SetWeight != nil
 
-		if shouldVerifyWeight {
+		if shouldVerifyWeight || c.rollout.Status.ALB == nil {
 			weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
 			c.newStatus.Canary.Weights.Verified = weightVerified
 			if err != nil {
