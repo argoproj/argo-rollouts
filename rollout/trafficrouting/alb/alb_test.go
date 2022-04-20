@@ -463,6 +463,14 @@ func (f *fakeAWSClient) getAlbStatus() *v1alpha1.ALBStatus {
 func TestVerifyWeight(t *testing.T) {
 	newFakeReconciler := func(status *v1alpha1.RolloutStatus) (*Reconciler, *fakeAWSClient) {
 		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+		ro.Status.StableRS = "a45fe23"
+		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetWeight:      pointer.Int32Ptr(10),
+			Pause:          nil,
+			Experiment:     nil,
+			Analysis:       nil,
+			SetCanaryScale: nil,
+		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
 			Ingress: []corev1.LoadBalancerIngress{
@@ -642,6 +650,14 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 	}
 	newFakeReconciler := func(status *v1alpha1.RolloutStatus) (*Reconciler, *fakeAWSClient) {
 		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+		ro.Status.StableRS = "a45fe23"
+		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetWeight:      pointer.Int32Ptr(10),
+			Pause:          nil,
+			Experiment:     nil,
+			Analysis:       nil,
+			SetCanaryScale: nil,
+		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
 

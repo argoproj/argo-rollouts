@@ -132,12 +132,11 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		r.cfg.Status.ALB = nil
 		return nil, nil
 	}
-
-	if !rolloututil.ShouldVerifyWeight(r.cfg.Rollout) || r.cfg.Rollout.Status.ALB == nil {
-		return nil, nil
-	}
 	if r.cfg.Status.ALB == nil {
 		r.cfg.Status.ALB = &v1alpha1.ALBStatus{}
+	}
+	if !rolloututil.ShouldVerifyWeight(r.cfg.Rollout) || r.cfg.Rollout.Status.ALB != nil {
+		return pointer.BoolPtr(false), nil
 	}
 	ctx := context.TODO()
 	rollout := r.cfg.Rollout
