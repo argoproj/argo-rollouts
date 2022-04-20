@@ -511,6 +511,17 @@ func TestVerifyWeight(t *testing.T) {
 		assert.False(t, *weightVerified)
 	}
 
+	// VeryifyWeight not needed
+	{
+		var status v1alpha1.RolloutStatus
+		r, _ := newFakeReconciler(&status)
+		status.StableRS = ""
+		r.cfg.Rollout.Status.StableRS = ""
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.False(t, *weightVerified)
+	}
+
 	// LoadBalancer found, not at weight
 	{
 		var status v1alpha1.RolloutStatus
