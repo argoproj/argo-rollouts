@@ -20,10 +20,8 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
-
       - name: Checkout code
         uses: actions/checkout@v3
-
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
@@ -76,12 +74,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
           go-version: ${{ env.GOLANG_VERSION }}
-
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
       # This symlink is necessary to ensure that `git diff` detects changes
       - name: Create symlink in GOPATH
@@ -100,25 +96,20 @@ jobs:
         with:
           path: /home/runner/go/bin
           key: go-bin-v1-${{ hashFiles('**/go.mod') }}
-
       - name: Install protoc
         run: |
           make install-toolchain
-
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
-
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
-
       - name: Run codegen
         run: |
           make go-mod-vendor
           make codegen
           make manifests
           make docs
-
       - name: Ensure nothing changed
         run: git diff --exit-code
