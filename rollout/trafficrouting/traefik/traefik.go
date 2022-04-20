@@ -124,39 +124,7 @@ func getService(serviceName string, services []interface{}) (map[string]interfac
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
-	ctx := context.TODO()
-	verifyingStatus := false
-	rollout := r.Rollout
-	traefikServiceName := rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.TraefikServiceName
-	traefikService, err := r.Client.Get(ctx, traefikServiceName, metav1.GetOptions{})
-	if err != nil || traefikService == nil {
-		return &verifyingStatus, err
-	}
-	canaryServiceName := rollout.Spec.Strategy.Canary.CanaryService
-	stableServiceName := rollout.Spec.Strategy.Canary.StableService
-	services, isFound, err := unstructured.NestedSlice(traefikService.Object, "spec", "weighted", "services")
-	if err != nil || !isFound {
-		return &verifyingStatus, err
-	}
-	canaryService, err := getService(canaryServiceName, services)
-	if err != nil || canaryService == nil {
-		return &verifyingStatus, err
-	}
-	canaryWeight, isFound, err := unstructured.NestedInt64(canaryService, "weight")
-	if err != nil || !isFound {
-		return &verifyingStatus, err
-	}
-	stableService, err := getService(stableServiceName, services)
-	if err != nil || stableService == nil {
-		return &verifyingStatus, err
-	}
-	stableWeight, isFound, err := unstructured.NestedInt64(stableService, "weight")
-	verifyingStatus = stableWeight == int64(100-desiredWeight) && canaryWeight == int64(desiredWeight)
-
-	if err != nil || !isFound || !verifyingStatus {
-		return &verifyingStatus, err
-	}
-	return &verifyingStatus, nil
+	return nil, nil
 }
 
 func (r *Reconciler) Type() string {

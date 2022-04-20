@@ -220,6 +220,11 @@ rules:
   - list
   - update
   - patch
-
-
-
+- apiGroups:
+  - traefik.containo.us
+  resources:
+  - traefikservices
+  verbs:
+  - watch
+  - get
+  - update
