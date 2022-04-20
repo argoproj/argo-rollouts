@@ -49,6 +49,7 @@ jobs:
       - name: Download all Go modules
         run: |
           go mod download
+
       - name: Compile all packages
         run: make controller plugin
 
@@ -105,11 +106,13 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
+
       - name: Run codegen
         run: |
           make go-mod-vendor
           make codegen
           make manifests
           make docs
+
       - name: Ensure nothing changed
         run: git diff --exit-code
