@@ -2,12 +2,15 @@ package traefik
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/record"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,21 +19,33 @@ import (
 
 // Type holds this controller type
 const Type = "Traefik"
+const traefikServices = "traefikservices"
+const TraefikServiceUpdateError = "TraefikServiceUpdateError"
 
 var (
 	apiGroupToResource = map[string]string{
-		"traefik.containo.us": "traefikservices",
+		defaults.DefaultTraefikAPIGroup: traefikServices,
 	}
 )
 
 type ReconcilerConfig struct {
-	Rollout *v1alpha1.Rollout
-	Client  ClientInterface
+	Rollout  *v1alpha1.Rollout
+	Client   ClientInterface
+	Recorder record.EventRecorder
 }
 
 type Reconciler struct {
-	Rollout *v1alpha1.Rollout
-	Client  ClientInterface
+	Rollout  *v1alpha1.Rollout
+	Client   ClientInterface
+	Recorder record.EventRecorder
+}
+
+func (r *Reconciler) sendWarningEvent(id, msg string) {
+	r.sendEvent(corev1.EventTypeWarning, id, msg)
+}
+
+func (r *Reconciler) sendEvent(eventType, id, msg string) {
+	r.Recorder.Eventf(r.Rollout, record.EventOptions{EventType: eventType, EventReason: id}, msg)
 }
 
 type ClientInterface interface {
@@ -40,8 +55,9 @@ type ClientInterface interface {
 
 func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 	reconciler := &Reconciler{
-		Rollout: cfg.Rollout,
-		Client:  cfg.Client,
+		Rollout:  cfg.Rollout,
+		Client:   cfg.Client,
+		Recorder: cfg.Recorder,
 	}
 	return reconciler
 }
@@ -71,26 +87,35 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	rollout := r.Rollout
 	traefikServiceName := rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.TraefikServiceName
 	traefikService, err := r.Client.Get(ctx, traefikServiceName, metav1.GetOptions{})
-	if err != nil || traefikService == nil {
+	if err != nil {
 		return err
 	}
 	canaryServiceName := rollout.Spec.Strategy.Canary.CanaryService
 	stableServiceName := rollout.Spec.Strategy.Canary.StableService
 	services, isFound, err := unstructured.NestedSlice(traefikService.Object, "spec", "weighted", "services")
-	if err != nil || !isFound {
+	if err != nil {
 		return err
 	}
+	if !isFound {
+		return errors.New("spec.weighted.services was not found in traefik service manifest")
+	}
 	canaryService, err := getService(canaryServiceName, services)
-	if err != nil || canaryService == nil {
+	if err != nil {
 		return err
+	}
+	if canaryService == nil {
+		return errors.New("traefik canary service was not found")
 	}
 	err = unstructured.SetNestedField(canaryService, int64(desiredWeight), "weight")
 	if err != nil {
 		return err
 	}
 	stableService, err := getService(stableServiceName, services)
-	if err != nil || stableService == nil {
+	if err != nil {
 		return err
+	}
+	if stableService == nil {
+		return errors.New("traefik stable service was not found")
 	}
 	err = unstructured.SetNestedField(stableService, int64(100-desiredWeight), "weight")
 	if err != nil {
@@ -101,6 +126,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 		return err
 	}
 	_, err = r.Client.Update(ctx, traefikService, metav1.UpdateOptions{})
+	if err != nil {
+		msg := fmt.Sprintf("Error updating traefik service %q: %s", traefikService.GetName(), err)
+		r.sendWarningEvent(TraefikServiceUpdateError, msg)
+	}
 	return err
 }
 
