@@ -522,6 +522,18 @@ func TestVerifyWeight(t *testing.T) {
 		assert.False(t, *weightVerified)
 	}
 
+	// VeryifyWeight that we do not need to verify weight and status.ALB is already set
+	{
+		var status v1alpha1.RolloutStatus
+		r, _ := newFakeReconciler(&status)
+		r.cfg.Rollout.Status.ALB = &v1alpha1.ALBStatus{}
+		r.cfg.Rollout.Status.CurrentStepIndex = nil
+		r.cfg.Rollout.Spec.Strategy.Canary.Steps = nil
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.Nil(t, weightVerified)
+	}
+
 	// LoadBalancer found, not at weight
 	{
 		var status v1alpha1.RolloutStatus
