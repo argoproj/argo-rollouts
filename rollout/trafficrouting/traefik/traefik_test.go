@@ -144,7 +144,7 @@ func TestSetWeight(t *testing.T) {
 		err := r.SetWeight(30)
 
 		// Then
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 	t.Run("SetWeightWithErrorStableName", func(t *testing.T) {
 		// Given
@@ -159,8 +159,7 @@ func TestSetWeight(t *testing.T) {
 		err := r.SetWeight(30)
 
 		// Then
-		assert.NoError(t, err)
-
+		assert.Error(t, err)
 	})
 	t.Run("SetWeightWithErrorCanaryName", func(t *testing.T) {
 		// Given
@@ -175,7 +174,7 @@ func TestSetWeight(t *testing.T) {
 		err := r.SetWeight(30)
 
 		// Then
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 }
 
