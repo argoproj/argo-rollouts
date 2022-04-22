@@ -755,10 +755,10 @@ spec:
                             type: object
                           traefik:
                             properties:
-                              traefikServiceName:
+                              weightedTraefikServiceName:
                                 type: string
                             required:
-                            - traefikServiceName
+                            - weightedTraefikServiceName
                             type: object
                         type: object
                     type: object

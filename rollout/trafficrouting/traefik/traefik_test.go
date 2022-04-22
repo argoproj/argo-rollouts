@@ -319,7 +319,7 @@ func newRollout(stableSvc, canarySvc, traefikServiceName string) *v1alpha1.Rollo
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Traefik: &v1alpha1.TraefikTrafficRouting{
-							TraefikServiceName: traefikServiceName,
+							WeightedTraefikServiceName: traefikServiceName,
 						},
 					},
 				},
