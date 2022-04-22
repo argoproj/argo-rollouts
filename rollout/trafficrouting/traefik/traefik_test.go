@@ -176,6 +176,24 @@ func TestSetWeight(t *testing.T) {
 		// Then
 		assert.Error(t, err)
 	})
+	t.Run("TraefikUpdateError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			Client: &mocks.FakeClient{
+				UpdateError: true,
+			},
+			Recorder: &mocks.FakeRecorder{},
+		}
+		r := NewReconciler(cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// When
+		assert.Error(t, err)
+	})
 }
 
 func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
@@ -236,7 +254,7 @@ func TestGetService(t *testing.T) {
 
 		// Then
 		assert.Nil(t, selectedServices)
-		assert.Nil(t, err)
+		assert.Error(t, err)
 	})
 	t.Run("GetServiceFromMap", func(t *testing.T) {
 		// Given

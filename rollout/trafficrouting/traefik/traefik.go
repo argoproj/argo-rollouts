@@ -141,8 +141,11 @@ func getService(serviceName string, services []interface{}) (map[string]interfac
 			return nil, errors.New("Failed type assertion setting weight for traefik service")
 		}
 		nameOfCurrentService, isFound, err := unstructured.NestedString(typedService, "name")
-		if err != nil || !isFound {
+		if err != nil {
 			return nil, err
+		}
+		if !isFound {
+			return nil, errors.New("name field was not found in service")
 		}
 		if nameOfCurrentService == serviceName {
 			selectedService = typedService

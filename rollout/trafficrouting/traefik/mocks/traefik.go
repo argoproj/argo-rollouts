@@ -4,13 +4,16 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 
+	argoRecord "github.com/argoproj/argo-rollouts/utils/record"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/record"
 )
 
 type FakeDynamicClient struct{}
@@ -18,16 +21,29 @@ type FakeDynamicClient struct{}
 type FakeClient struct {
 	IsGetError         bool
 	IsGetErrorManifest bool
+	UpdateError        bool
 }
 
 type FakeService struct {
 	Weight int
 }
 
+type FakeRecorder struct{}
+
 var (
 	TraefikServiceObj      *unstructured.Unstructured
 	ErrorTraefikServiceObj *unstructured.Unstructured
 )
+
+func (f *FakeRecorder) Eventf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...interface{}) {
+}
+
+func (f *FakeRecorder) Warnf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...interface{}) {
+}
+
+func (f *FakeRecorder) K8sRecorder() record.EventRecorder {
+	return nil
+}
 
 func (f *FakeClient) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	return nil, nil
@@ -44,6 +60,9 @@ func (f *FakeClient) Get(ctx context.Context, name string, options metav1.GetOpt
 }
 
 func (f *FakeClient) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	if f.UpdateError {
+		return obj, errors.New("Traefik update error")
+	}
 	return obj, nil
 }
 
