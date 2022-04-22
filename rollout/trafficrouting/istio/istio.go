@@ -658,14 +658,12 @@ func getHttpRouteIndexesToPatch(routeNames []string, httpRoutes []VirtualService
 }
 
 func searchHttpRoute(routeName string, httpRoutes []VirtualServiceHTTPRoute) int {
-	routeIndex := -1
 	for i, route := range httpRoutes {
 		if route.Name == routeName {
-			routeIndex = i
-			break
+			return i
 		}
 	}
-	return routeIndex
+	return -1
 }
 
 // getTlsRouteIndexesToPatch returns array indices of the tlsRoutes which need to be patched when updating weights
