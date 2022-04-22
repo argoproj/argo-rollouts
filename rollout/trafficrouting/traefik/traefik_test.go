@@ -208,6 +208,25 @@ func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
 	return obj
 }
 
+func TestVerifyWeight(t *testing.T) {
+	t.Run("VerifyWeight", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, "mocks-service"),
+			Client:  client,
+		}
+		r := NewReconciler(cfg)
+
+		// When
+		isSynced, err := r.VerifyWeight(32)
+
+		// Then
+		assert.Nil(t, isSynced)
+		assert.Nil(t, err)
+	})
+}
+
 func TestType(t *testing.T) {
 	mocks.TraefikServiceObj = toUnstructured(t, traefikService)
 	t.Run("Type", func(t *testing.T) {
@@ -270,6 +289,20 @@ func TestGetService(t *testing.T) {
 		// Then
 		assert.NotNil(t, selectedServices)
 		assert.NoError(t, err)
+	})
+	t.Run("ErrorGetServiceFromNil", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		services := map[string]interface{}{
+			"name": nil,
+		}
+
+		// When
+		selectedServices, err := getService("default", []interface{}{services})
+
+		// Then
+		assert.Nil(t, selectedServices)
+		assert.Error(t, err)
 	})
 }
 
