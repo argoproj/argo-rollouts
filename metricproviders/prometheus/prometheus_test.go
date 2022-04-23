@@ -63,7 +63,7 @@ func TestRunSuccessfullyWithEnv(t *testing.T) {
 		value: newScalar(10),
 	}
 	address := "http://127.0.0.1:9090"
-	os.Setenv("PROMETHEUS_ADDRESS", address)
+	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, address)
 	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
@@ -411,7 +411,7 @@ func TestProcessInvalidResponse(t *testing.T) {
 }
 
 func TestNewPrometheusAPI(t *testing.T) {
-	os.Unsetenv("PROMETHEUS_ADDRESS")
+	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
 	address := ":invalid::url"
 	metric := v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
@@ -430,8 +430,8 @@ func TestNewPrometheusAPI(t *testing.T) {
 }
 
 func TestNewPrometheusAPIWithEnv(t *testing.T) {
-	os.Unsetenv("PROMETHEUS_ADDRESS")
-	os.Setenv("PROMETHEUS_ADDRESS", ":invalid::url")
+	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
+	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, ":invalid::url")
 	address := ""
 	metric := v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
