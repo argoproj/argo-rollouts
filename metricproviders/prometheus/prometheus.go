@@ -24,8 +24,7 @@ const (
 	ProviderType = "Prometheus"
 	// ResolvedPrometheusQuery is used as the key for storing the resolved prometheus query in the metrics result
 	// metadata object.
-	ResolvedPrometheusQuery = "ResolvedPrometheusQuery"
-	//Address                 = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
+	ResolvedPrometheusQuery             = "ResolvedPrometheusQuery"
 	EnvVarArgoRolloutsPrometheusAddress = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
 )
 
@@ -135,7 +134,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 	}
 }
 
-//NewPrometheusProvider Creates a new Prometheus client
+// NewPrometheusProvider Creates a new Prometheus client
 func NewPrometheusProvider(api v1.API, logCtx log.Entry) *Provider {
 	return &Provider{
 		logCtx: logCtx,
@@ -181,4 +180,3 @@ func IsUrl(str string) bool {
 	log.Debugf("Parsed url: %v", u)
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
-
