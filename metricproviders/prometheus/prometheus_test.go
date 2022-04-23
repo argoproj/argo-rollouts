@@ -444,8 +444,8 @@ func TestNewPrometheusAPIWithEnv(t *testing.T) {
 	assert.NotNil(t, err)
 	log.Infof("api:%v", api)
 
-	os.Unsetenv("PROMETHEUS_ADDRESS")
-	os.Setenv("PROMETHEUS_ADDRESS", "https://www.example.com")
+	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
+	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, "https://www.example.com")
 	_, err = NewPrometheusAPI(metric)
 	assert.Nil(t, err)
 }

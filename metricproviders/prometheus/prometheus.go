@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
@@ -26,7 +25,8 @@ const (
 	// ResolvedPrometheusQuery is used as the key for storing the resolved prometheus query in the metrics result
 	// metadata object.
 	ResolvedPrometheusQuery = "ResolvedPrometheusQuery"
-	Address                 = "PROMETHEUS_ADDRESS"
+	//Address                 = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
+	EnvVarArgoRolloutsPrometheusAddress = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
 )
 
 // Provider contains all the required components to run a prometheus query
@@ -145,16 +145,18 @@ func NewPrometheusProvider(api v1.API, logCtx log.Entry) *Provider {
 
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
-	secretKeys := []string{Address}
-	envValuesByKey := lookupKeysInEnv(secretKeys)
-	log.Infof("envValuesByKey: %v, len: %v", envValuesByKey, len(envValuesByKey))
+	envValuesByKey := make(map[string]string)
+	if value, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsPrometheusAddress)); ok {
+		envValuesByKey[EnvVarArgoRolloutsPrometheusAddress] = value
+		log.Debugf("ARGO_ROLLOUTS_PROMETHEUS_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsPrometheusAddress])
+	}
 	if len(metric.Provider.Prometheus.Address) != 0 {
 		if !IsUrl(metric.Provider.Prometheus.Address) {
 			return nil, errors.New("prometheus address is not is url format")
 		}
-	} else if envValuesByKey[Address] != "" {
-		if IsUrl(envValuesByKey[Address]) {
-			metric.Provider.Prometheus.Address = envValuesByKey[Address]
+	} else if envValuesByKey[EnvVarArgoRolloutsPrometheusAddress] != "" {
+		if IsUrl(envValuesByKey[EnvVarArgoRolloutsPrometheusAddress]) {
+			metric.Provider.Prometheus.Address = envValuesByKey[EnvVarArgoRolloutsPrometheusAddress]
 		} else {
 			return nil, errors.New("prometheus address is not is url format")
 		}
@@ -180,16 +182,3 @@ func IsUrl(str string) bool {
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
-func lookupKeysInEnv(keys []string) map[string]string {
-	valuesByKey := make(map[string]string)
-	for i := range keys {
-		key := keys[i]
-		formattedKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
-		log.Debugf("formattedKey: %v", formattedKey)
-		if value, ok := os.LookupEnv(fmt.Sprintf("%s", formattedKey)); ok {
-			valuesByKey[key] = value
-			log.Debugf("PROMETHEUS_ADDRESS: %v", value)
-		}
-	}
-	return valuesByKey
-}
