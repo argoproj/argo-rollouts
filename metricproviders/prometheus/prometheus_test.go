@@ -449,3 +449,19 @@ func TestNewPrometheusAPIWithEnv(t *testing.T) {
 	_, err = NewPrometheusAPI(metric)
 	assert.Nil(t, err)
 }
+
+func TestNewPrometheusAddressNotConfigured(t *testing.T) {
+	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
+	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, "")
+	address := ""
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: address,
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NotNil(t, err)
+	log.Infof("api:%v", api)
+}
