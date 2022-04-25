@@ -60,8 +60,7 @@ spec:
   # Defaults to 600s
   progressDeadlineSeconds: 600
 
-  # Whether to abort the update when ProgressDeadlineSeconds
-  # is exceeded if analysis or experiment is not used.
+  # Whether to abort the update when ProgressDeadlineSeconds is exceeded.
   # Optional and default is false.
   progressDeadlineAbort: false
 

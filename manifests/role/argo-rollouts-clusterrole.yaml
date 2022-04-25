@@ -107,6 +107,7 @@ rules:
   verbs:
   - list
   - update
+  - watch
 # pods eviction needed for restart
 - apiGroups:
   - ""

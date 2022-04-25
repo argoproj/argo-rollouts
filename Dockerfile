@@ -3,7 +3,7 @@
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.17.6 as builder
+FROM --platform=$BUILDPLATFORM golang:1.17 as builder
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -40,7 +40,7 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.17.6 as argo-rollouts-build
+FROM --platform=$BUILDPLATFORM golang:1.17 as argo-rollouts-build
 
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
 
@@ -61,8 +61,9 @@ RUN touch ui/dist/node_modules.marker && \
     touch ui/dist/app/index.html && \
     find ui/dist
 
-ARG TARGETOS TARGETARCH
-ARG MAKE_TARGET="controller plugin plugin-linux plugin-darwin plugin-windows"
+ARG TARGETOS
+ARG TARGETARCH
+ARG MAKE_TARGET="controller plugin"
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
 
 ####################################################################################################
