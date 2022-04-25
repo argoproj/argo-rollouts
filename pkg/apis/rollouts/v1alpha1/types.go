@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -554,6 +555,32 @@ type CanaryStep struct {
 	// SetCanaryScale defines how to scale the newRS without changing traffic weight
 	// +optional
 	SetCanaryScale *SetCanaryScale `json:"setCanaryScale,omitempty" protobuf:"bytes,5,opt,name=setCanaryScale"`
+	// SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
+	SetHeaderRouting *SetHeaderRouting `json:"setHeaderRouting,omitempty" protobuf:"bytes,6,opt,name=setHeaderRouting"`
+}
+
+// SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
+type SetHeaderRouting struct {
+	Match []HeaderRoutingMatch `json:"match,omitempty" protobuf:"bytes,1,rep,name=match"`
+}
+
+func (o SetHeaderRouting) string() string {
+	return fmt.Sprintf("match: %v", o.Match)
+}
+
+type HeaderRoutingMatch struct {
+	// HeaderName the name of the request header
+	HeaderName string `json:"headerName,omitempty" protobuf:"varint,1,name=headerName"`
+	// HeaderValue the exact value of the header
+	// +optional
+	HeaderValue string `json:"headerValue,omitempty" protobuf:"varint,2,opt,name=headerValue"`
+	// HeaderValue the regex value of the header
+	// +optional
+	HeaderRegex string `json:"headerRegex,omitempty" protobuf:"varint,3,opt,name=headerRegex"`
+}
+
+func (o HeaderRoutingMatch) string() string {
+	return fmt.Sprintf("%s = %s%s", o.HeaderName, o.HeaderValue, o.HeaderRegex)
 }
 
 // SetCanaryScale defines how to scale the newRS without changing traffic weight

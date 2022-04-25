@@ -113,6 +113,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return nil
 }
 
+func (r *Reconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
+	return nil
+}
+
 func (r *Reconciler) shouldVerifyWeight() bool {
 	if r.cfg.VerifyWeight != nil {
 		return *r.cfg.VerifyWeight

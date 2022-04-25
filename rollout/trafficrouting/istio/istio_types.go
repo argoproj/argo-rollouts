@@ -59,6 +59,7 @@ type DestinationRule struct {
 }
 
 type DestinationRuleSpec struct {
+	Host    string   `json:"host,omitempty"`
 	Subsets []Subset `json:"subsets,omitempty"`
 }
 

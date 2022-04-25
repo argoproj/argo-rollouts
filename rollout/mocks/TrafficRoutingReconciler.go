@@ -34,6 +34,10 @@ func (_m *TrafficRoutingReconciler) SetWeight(desiredWeight int32, additionalDes
 	return r0
 }
 
+func (_m *TrafficRoutingReconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
+	return nil
+}
+
 // Type provides a mock function with given fields:
 func (_m *TrafficRoutingReconciler) Type() string {
 	ret := _m.Called()
