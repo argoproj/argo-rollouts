@@ -625,39 +625,6 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return nil
 }
 
-func (r *Reconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
-	ctx := context.TODO()
-	virtualServices := r.getVirtualServices()
-	for _, virtualService := range virtualServices {
-		name := virtualService.Name
-		namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(name)
-		if namespace == "" {
-			namespace = r.rollout.Namespace
-		}
-
-		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
-		vsvc, err := r.getVirtualService(namespace, vsvcName, client, ctx)
-		if err != nil {
-			return err
-		}
-		modifiedVirtualService, modified, err := r.reconcileVirtualServiceRoutes(vsvc, headerRouting)
-		if err != nil {
-			return err
-		}
-		if !modified {
-			continue
-		}
-		_, err = client.Update(ctx, modifiedVirtualService, metav1.UpdateOptions{})
-		if err == nil {
-			r.log.Debugf("Updated VirtualService: %s", modifiedVirtualService)
-			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set headerRouting '%v'", vsvcName, headerRouting)
-		} else {
-			return err
-		}
-	}
-	return nil
-}
-
 func (r *Reconciler) getVirtualServices() []v1alpha1.IstioVirtualService {
 	if istioutil.MultipleVirtualServiceConfigured(r.rollout) {
 		return r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
@@ -719,6 +686,39 @@ func (r *Reconciler) reconcileVirtualServiceRoutes(obj *unstructured.Unstructure
 		}
 	}
 	return newObj, len(patches) > 0, err
+}
+
+func (r *Reconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
+	ctx := context.TODO()
+	virtualServices := r.getVirtualServices()
+	for _, virtualService := range virtualServices {
+		name := virtualService.Name
+		namespace, vsvcName := istioutil.GetVirtualServiceNamespaceName(name)
+		if namespace == "" {
+			namespace = r.rollout.Namespace
+		}
+
+		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
+		vsvc, err := r.getVirtualService(namespace, vsvcName, client, ctx)
+		if err != nil {
+			return err
+		}
+		modifiedVirtualService, modified, err := r.reconcileVirtualServiceRoutes(vsvc, headerRouting)
+		if err != nil {
+			return err
+		}
+		if !modified {
+			continue
+		}
+		_, err = client.Update(ctx, modifiedVirtualService, metav1.UpdateOptions{})
+		if err == nil {
+			r.log.Debugf("Updated VirtualService: %s", modifiedVirtualService)
+			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set headerRouting '%v'", vsvcName, headerRouting)
+		} else {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Reconciler) getDestinationRuleHost() (string, error) {
