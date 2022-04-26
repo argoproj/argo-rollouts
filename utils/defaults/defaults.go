@@ -52,7 +52,7 @@ const (
 	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
 	DefaultAppMeshCRDVersion            = "v1beta2"
 	DefaultGatewayAPIGroup              = "gateway.networking.k8s.io"
-	DefaultGatewayAPIGroupVersion       = "gateway.networking.k8s.io/v1alpha1"
+	DefaultGatewayAPIGroupVersion       = "gateway.networking.k8s.io/v1alpha2"
 )
 
 var (

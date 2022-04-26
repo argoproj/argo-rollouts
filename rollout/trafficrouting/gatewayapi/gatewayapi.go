@@ -74,11 +74,6 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 }
 
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-	/*
-		1 Get HTTPRoute
-		2 Change it
-		3 Update it
-	*/
 	ctx := context.TODO()
 	rollout := r.Rollout
 	httpRouteName := rollout.Spec.Strategy.Canary.TrafficRouting.GatewayAPI.HTTPRoute
@@ -86,14 +81,55 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if err != nil {
 		return err
 	}
-	// canaryServiceName := rollout.Spec.Strategy.Canary.CanaryService
-	// stableServiceName := rollout.Spec.Strategy.Canary.StableService
-	_, isFound, err := unstructured.NestedSlice(httpRoute.Object, "spec", "rules", "backendRefs")
+	canaryServiceName := rollout.Spec.Strategy.Canary.CanaryService
+	stableServiceName := rollout.Spec.Strategy.Canary.StableService
+	rules, isFound, err := unstructured.NestedSlice(httpRoute.Object, "spec", "rules")
 	if err != nil {
 		return err
 	}
 	if !isFound {
+		return errors.New("spec.rules field was not found in httpRoute")
+	}
+	backendRefs, err := getBackendRefs(rules)
+	if err != nil {
+		return err
+	}
+	if backendRefs == nil {
 		return errors.New("spec.rules.backendRefs field was not found in httpRoute")
+	}
+	canaryService, err := getService(canaryServiceName, backendRefs)
+	if err != nil {
+		return err
+	}
+	if canaryService == nil {
+		return errors.New("canaryService was not found in httpRoute")
+	}
+	err = unstructured.SetNestedField(canaryService, int64(desiredWeight), "weight")
+	if err != nil {
+		return err
+	}
+	stableService, err := getService(stableServiceName, backendRefs)
+	if err != nil {
+		return err
+	}
+	if stableService == nil {
+		return errors.New("stableService was not found in httpRoute")
+	}
+	err = unstructured.SetNestedField(stableService, int64(100-desiredWeight), "weight")
+	if err != nil {
+		return err
+	}
+	rules, err = mergeBackendRefs(rules, backendRefs)
+	if err != nil {
+		return err
+	}
+	err = unstructured.SetNestedSlice(httpRoute.Object, rules, "spec", "rules")
+	if err != nil {
+		return err
+	}
+	_, err = r.Client.Update(ctx, httpRoute, metav1.UpdateOptions{})
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -118,6 +154,46 @@ func getService(serviceName string, services []interface{}) (map[string]interfac
 		}
 	}
 	return selectedService, nil
+}
+
+func getBackendRefs(rules []interface{}) ([]interface{}, error) {
+	for _, rule := range rules {
+		typedRule, ok := rule.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("Failed type assertion setting rule for http route")
+		}
+		backendRefs, isFound, err := unstructured.NestedSlice(typedRule, "backendRefs")
+		if err != nil {
+			return nil, err
+		}
+		if !isFound {
+			continue
+		}
+		return backendRefs, nil
+	}
+	return nil, nil
+}
+
+func mergeBackendRefs(rules, backendRefs []interface{}) ([]interface{}, error) {
+	for _, rule := range rules {
+		typedRule, ok := rule.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("Failed type assertion setting rule for http route")
+		}
+		_, isFound, err := unstructured.NestedSlice(typedRule, "backendRefs")
+		if err != nil {
+			return nil, err
+		}
+		if !isFound {
+			continue
+		}
+		err = unstructured.SetNestedSlice(typedRule, backendRefs, "backendRefs")
+		if err != nil {
+			return nil, err
+		}
+		return rules, nil
+	}
+	return rules, nil
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
