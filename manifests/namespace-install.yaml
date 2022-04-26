@@ -11561,6 +11561,22 @@ spec:
                                   format: int32
                                   type: integer
                               type: object
+                            setHeaderRouting:
+                              properties:
+                                match:
+                                  items:
+                                    properties:
+                                      headerName:
+                                        type: string
+                                      headerRegex:
+                                        type: string
+                                      headerValue:
+                                        type: string
+                                    required:
+                                    - headerName
+                                    type: object
+                                  type: array
+                              type: object
                             setWeight:
                               format: int32
                               type: integer
