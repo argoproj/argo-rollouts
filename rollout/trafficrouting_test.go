@@ -35,6 +35,7 @@ func newFakeSingleTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
 	trafficRoutingReconciler := mocks.TrafficRoutingReconciler{}
 	trafficRoutingReconciler.On("Type").Return("fake")
 	trafficRoutingReconciler.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	trafficRoutingReconciler.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	return &trafficRoutingReconciler
