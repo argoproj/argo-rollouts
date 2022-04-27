@@ -21,6 +21,10 @@ func allDesiredAreAvailable(rs *appsv1.ReplicaSet, desired int32) bool {
 	return rs != nil && desired == *rs.Spec.Replicas && desired == rs.Status.AvailableReplicas
 }
 
+func allDesiredAreCreated(rs *appsv1.ReplicaSet, desired int32) bool {
+	return rs != nil && desired == *rs.Spec.Replicas && desired == rs.Status.Replicas
+}
+
 func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, weights *v1alpha1.TrafficWeights) bool {
 	var desiredNewRSReplicaCount, desiredStableRSReplicaCount int32
 	if ro.Spec.Strategy.Canary.TrafficRouting == nil {
@@ -32,7 +36,7 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 		return false
 	}
 	if ro.Spec.Strategy.Canary.TrafficRouting == nil || !ro.Spec.Strategy.Canary.DynamicStableScale {
-		if !allDesiredAreAvailable(stableRS, desiredStableRSReplicaCount) {
+		if !allDesiredAreCreated(stableRS, desiredStableRSReplicaCount) {
 			// only check stable RS if we are not using dynamic stable scaling
 			return false
 		}
