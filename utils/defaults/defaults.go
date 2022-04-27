@@ -62,7 +62,6 @@ var (
 	smiAPIVersion                = DefaultSMITrafficSplitVersion
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
 	appmeshCRDVersion            = DefaultAppMeshCRDVersion
-	gatewayAPIGroup              = DefaultGatewayAPIGroup
 	gatewayAPIGroupVersion       = DefaultGatewayAPIGroupVersion
 )
 
