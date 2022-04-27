@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -107,9 +109,9 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		// adding this block as argoprojclientset update deletes typemeta fields.
 		if updatedRollout != nil {
 			updatedRollout.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-				Group:   "argoproj.io",
-				Kind:    "Rollout",
-				Version: "v1alpha1",
+				Group:   v1alpha1.SchemeGroupVersion.Group,
+				Kind:    rollouts.RolloutKind,
+				Version: v1alpha1.SchemeGroupVersion.Version,
 			})
 		}
 		if err != nil {
@@ -133,9 +135,9 @@ func (c *rolloutContext) setRolloutRevision(revision string) error {
 		// adding this block as argoprojclientset update deletes typemeta fields.
 		if updatedRollout != nil {
 			updatedRollout.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-				Group:   "argoproj.io",
-				Kind:    "Rollout",
-				Version: "v1alpha1",
+				Group:   v1alpha1.SchemeGroupVersion.Group,
+				Kind:    rollouts.RolloutKind,
+				Version: v1alpha1.SchemeGroupVersion.Version,
 			})
 		}
 		c.rollout = updatedRollout.DeepCopy()
@@ -278,9 +280,9 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		// adding this block as argoprojclientset update deletes typemeta fields.
 		if updatedRollout != nil {
 			updatedRollout.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-				Group:   "argoproj.io",
-				Kind:    "Rollout",
-				Version: "v1alpha1",
+				Group:   v1alpha1.SchemeGroupVersion.Group,
+				Kind:    rollouts.RolloutKind,
+				Version: v1alpha1.SchemeGroupVersion.Version,
 			})
 		}
 		c.rollout = updatedRollout.DeepCopy()
