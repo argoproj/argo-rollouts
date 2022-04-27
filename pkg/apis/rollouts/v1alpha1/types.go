@@ -367,6 +367,8 @@ type RolloutTrafficRouting struct {
 
 // GatewayAPITrafficRouting defines the configuration required to use Gateway API as traffic router
 type GatewayAPITrafficRouting struct {
+	// HTTPRoute refers to the name of the HTTPRoute used to route traffic to the
+	// service
 	HTTPRoute string `json:"httpRoute" protobuf:"bytes,1,name=httpRoute"`
 }
 

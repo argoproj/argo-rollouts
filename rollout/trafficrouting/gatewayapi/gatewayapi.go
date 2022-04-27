@@ -3,11 +3,13 @@ package gatewayapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,7 +18,9 @@ import (
 
 // Type holds this controller type
 const Type = "GatewayAPI"
+
 const httpRoutes = "httproutes"
+const GatewayAPIUpdateError = "GatewayAPIUpdateError"
 
 var (
 	apiGroupToResource = map[string]string{
@@ -27,18 +31,26 @@ var (
 type ReconcilerConfig struct {
 	Rollout  *v1alpha1.Rollout
 	Client   ClientInterface
-	Recorder *record.EventRecorder
+	Recorder record.EventRecorder
 }
 
 type Reconciler struct {
 	Rollout  *v1alpha1.Rollout
 	Client   ClientInterface
-	Recorder *record.EventRecorder
+	Recorder record.EventRecorder
 }
 
 type ClientInterface interface {
 	Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error)
 	Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error)
+}
+
+func (r *Reconciler) sendWarningEvent(id, msg string) {
+	r.sendEvent(corev1.EventTypeWarning, id, msg)
+}
+
+func (r *Reconciler) sendEvent(eventType, id, msg string) {
+	r.Recorder.Eventf(r.Rollout, record.EventOptions{EventType: eventType, EventReason: id}, msg)
 }
 
 func NewDynamicClient(di dynamic.Interface, namespace string) dynamic.ResourceInterface {
@@ -129,9 +141,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	}
 	_, err = r.Client.Update(ctx, httpRoute, metav1.UpdateOptions{})
 	if err != nil {
-		return err
+		msg := fmt.Sprintf("Error updating Gateway API %q: %s", httpRoute.GetName(), err)
+		r.sendWarningEvent(GatewayAPIUpdateError, msg)
 	}
-	return nil
+	return err
 }
 
 func getService(serviceName string, services []interface{}) (map[string]interface{}, error) {

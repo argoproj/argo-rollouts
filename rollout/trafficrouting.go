@@ -89,7 +89,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 		trafficReconcilers = append(trafficReconcilers, gatewayapi.NewReconciler(&gatewayapi.ReconcilerConfig{
 			Rollout:  rollout,
 			Client:   dynamicGatewayAPIClient,
-			Recorder: &(c.recorder),
+			Recorder: c.recorder,
 		}))
 	}
 
