@@ -40,6 +40,8 @@ const (
 	DefaultQPS float32 = 40.0
 	// DefaultBurst is the default value for Burst for client side throttling to the K8s API server
 	DefaultBurst int = 80
+	// DefaultAwsLoadBalancerPageSize is the default page size used when calling aws to get load balancers by DNS name
+	DefaultAwsLoadBalancerPageSize = int32(300)
 )
 
 const (

@@ -71,7 +71,7 @@ type RolloutSpec struct {
 	// Defaults to 600s.
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty" protobuf:"varint,8,opt,name=progressDeadlineSeconds"`
 	// ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds
-	// is exceeded if analysis is not used. Default is false.
+	// is exceeded.
 	// +optional
 	ProgressDeadlineAbort bool `json:"progressDeadlineAbort,omitempty" protobuf:"varint,12,opt,name=progressDeadlineAbort"`
 	// RestartAt indicates when all the pods of a Rollout should be restarted

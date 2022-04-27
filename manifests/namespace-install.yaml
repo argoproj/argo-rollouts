@@ -14437,6 +14437,7 @@ rules:
   verbs:
   - list
   - update
+  - watch
 - apiGroups:
   - ""
   resources:
