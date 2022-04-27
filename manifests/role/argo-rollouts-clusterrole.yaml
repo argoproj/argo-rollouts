@@ -221,6 +221,15 @@ rules:
   - list
   - update
   - patch
+# GatewayAPI CRD r/w access needed for using the Gateway API provider
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
+  verbs:
+  - watch
+  - get
+  - update
 
 
 
