@@ -19,6 +19,7 @@ import (
 
 // Type holds this controller type
 const Type = "Traefik"
+
 const traefikServices = "traefikservices"
 const TraefikServiceUpdateError = "TraefikServiceUpdateError"
 
@@ -53,7 +54,7 @@ type ClientInterface interface {
 	Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error)
 }
 
-func NewReconciler(cfg ReconcilerConfig) *Reconciler {
+func NewReconciler(cfg *ReconcilerConfig) *Reconciler {
 	reconciler := &Reconciler{
 		Rollout:  cfg.Rollout,
 		Client:   cfg.Client,

@@ -69,7 +69,7 @@ func TestUpdateHash(t *testing.T) {
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
 			Client:  client,
 		}
-		r := NewReconciler(cfg)
+		r := NewReconciler(&cfg)
 
 		// When
 		err := r.UpdateHash("", "")
@@ -89,7 +89,7 @@ func TestSetWeight(t *testing.T) {
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
 			Client:  client,
 		}
-		r := NewReconciler(cfg)
+		r := NewReconciler(&cfg)
 
 		// When
 		err := r.SetWeight(30)
@@ -121,7 +121,7 @@ func TestSetWeight(t *testing.T) {
 				IsGetError: true,
 			},
 		}
-		r := NewReconciler(cfg)
+		r := NewReconciler(&cfg)
 
 		// When
 		err := r.SetWeight(30)
@@ -138,7 +138,7 @@ func TestSetWeight(t *testing.T) {
 				IsGetErrorManifest: true,
 			},
 		}
-		r := NewReconciler(cfg)
+		r := NewReconciler(&cfg)
 
 		// When
 		err := r.SetWeight(30)
@@ -153,7 +153,7 @@ func TestSetWeight(t *testing.T) {
 			Rollout: newRollout(fakeStableServiceName, canaryServiceName, traefikServiceName),
 			Client:  client,
 		}
-		r := NewReconciler(cfg)
+		r := NewReconciler(&cfg)
 
 		// When
 		err := r.SetWeight(30)
@@ -168,7 +168,7 @@ func TestSetWeight(t *testing.T) {
 			Rollout: newRollout(stableServiceName, fakeCanaryServiceName, traefikServiceName),
 			Client:  client,
 		}
-		r := NewReconciler(cfg)
+		r := NewReconciler(&cfg)
 
 		// When
 		err := r.SetWeight(30)
@@ -186,7 +186,7 @@ func TestSetWeight(t *testing.T) {
 			},
 			Recorder: &mocks.FakeRecorder{},
 		}
-		r := NewReconciler(cfg)
+		r := NewReconciler(&cfg)
 
 		// When
 		err := r.SetWeight(30)
@@ -213,10 +213,10 @@ func TestVerifyWeight(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, "mocks-service"),
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
 			Client:  client,
 		}
-		r := NewReconciler(cfg)
+		r := NewReconciler(&cfg)
 
 		// When
 		isSynced, err := r.VerifyWeight(32)
@@ -233,10 +233,10 @@ func TestType(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, "mocks-service"),
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
 			Client:  client,
 		}
-		r := NewReconciler(cfg)
+		r := NewReconciler(&cfg)
 
 		// When
 		reconcilerType := r.Type()

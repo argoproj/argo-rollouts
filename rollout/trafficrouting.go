@@ -86,7 +86,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Traefik != nil {
 		dynamicClient := traefik.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
-		trafficReconcilers = append(trafficReconcilers, traefik.NewReconciler(traefik.ReconcilerConfig{
+		trafficReconcilers = append(trafficReconcilers, traefik.NewReconciler(&traefik.ReconcilerConfig{
 			Rollout:  rollout,
 			Client:   dynamicClient,
 			Recorder: c.recorder,
