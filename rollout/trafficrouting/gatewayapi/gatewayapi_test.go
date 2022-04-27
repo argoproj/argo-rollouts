@@ -7,8 +7,6 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/gatewayapi/mocks"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 )
 
 const (
@@ -16,29 +14,6 @@ const (
 	canaryServiceName string = "canary-rollout"
 	httpRouteName     string = "argo-rollouts-http-route"
 )
-
-const httpRoute = `
-apiVersion: gateway.networking.k8s.io/v1alpha2
-kind: HTTPRoute
-metadata:
-  name: argo-rollouts-http-route
-spec:
-  parentRefs:
-  - name: argo-rollouts-gateway
-  rules:
-  - backendRefs:
-    - name: argo-rollouts-stable-service
-      port: 80
-    - name: argo-rollouts-canary-service
-      port: 80
-`
-
-const errorHTTPRoute = `
-apiVersion: gateway.networking.k8s.io/v1alpha2
-kind: HTTPRoute
-metadata:
-  name: argo-rollouts-http-route
-`
 
 func TestNewDynamicClient(t *testing.T) {
 	t.Run("NewDynamicClient", func(t *testing.T) {
@@ -106,18 +81,6 @@ func TestType(t *testing.T) {
 }
 
 func TestGetService(t *testing.T) {}
-
-func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
-	t.Helper()
-	obj := &unstructured.Unstructured{}
-
-	dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	_, _, err := dec.Decode([]byte(manifest), nil, obj)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return obj
-}
 
 func newRollout(stableSvc, canarySvc, httpRouteName string) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
