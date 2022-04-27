@@ -919,7 +919,8 @@
       "type": "object",
       "properties": {
         "httpRoute": {
-          "type": "string"
+          "type": "string",
+          "title": "HTTPRoute refers to the name of the HTTPRoute used to route traffic to the\nservice"
         }
       },
       "title": "GatewayAPITrafficRouting defines the configuration required to use Gateway API as traffic router"

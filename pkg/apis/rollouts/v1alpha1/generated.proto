@@ -731,6 +731,8 @@ message FieldRef {
 
 // GatewayAPITrafficRouting defines the configuration required to use Gateway API as traffic router
 message GatewayAPITrafficRouting {
+  // HTTPRoute refers to the name of the HTTPRoute used to route traffic to the
+  // service
   optional string httpRoute = 1;
 }
 

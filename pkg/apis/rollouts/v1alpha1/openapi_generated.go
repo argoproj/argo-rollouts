@@ -2180,9 +2180,10 @@ func schema_pkg_apis_rollouts_v1alpha1_GatewayAPITrafficRouting(ref common.Refer
 				Properties: map[string]spec.Schema{
 					"httpRoute": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "HTTPRoute refers to the name of the HTTPRoute used to route traffic to the service",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
