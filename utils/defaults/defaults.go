@@ -51,6 +51,8 @@ const (
 	DefaultSMITrafficSplitVersion       = "v1alpha1"
 	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
 	DefaultAppMeshCRDVersion            = "v1beta2"
+	DefaultGatewayAPIGroup              = "gateway.networking.k8s.io"
+	DefaultGatewayAPIGroupVersion       = "gateway.networking.k8s.io/v1alpha2"
 )
 
 var (
@@ -60,6 +62,7 @@ var (
 	smiAPIVersion                = DefaultSMITrafficSplitVersion
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
 	appmeshCRDVersion            = DefaultAppMeshCRDVersion
+	gatewayAPIGroupVersion       = DefaultGatewayAPIGroupVersion
 )
 
 const (
@@ -265,6 +268,10 @@ func SetAmbassadorAPIVersion(apiVersion string) {
 
 func GetAmbassadorAPIVersion() string {
 	return ambassadorAPIVersion
+}
+
+func GetGatewayAPIGroupVersion() string {
+	return gatewayAPIGroupVersion
 }
 
 func SetAppMeshCRDVersion(apiVersion string) {
