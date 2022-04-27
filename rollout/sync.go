@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
-
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	appsv1 "k8s.io/api/apps/v1"
