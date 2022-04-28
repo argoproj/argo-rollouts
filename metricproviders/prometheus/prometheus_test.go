@@ -3,16 +3,15 @@ package prometheus
 import (
 	"fmt"
 	"math"
+	"os"
 	"testing"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
-
 	"github.com/prometheus/common/model"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func newScalar(f float64) model.Value {
@@ -58,7 +57,57 @@ func TestRunSuccessfully(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
 }
 
+func TestRunSuccessfullyWithEnv(t *testing.T) {
+	e := log.Entry{}
+	mock := mockAPI{
+		value: newScalar(10),
+	}
+	address := "http://127.0.0.1:9090"
+	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, address)
+	p := NewPrometheusProvider(mock, e)
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10",
+		FailureCondition: "result != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "test",
+			},
+		},
+	}
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "10", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
 func TestRunSuccessfullyWithWarning(t *testing.T) {
+	e := log.NewEntry(log.New())
+	mock := mockAPI{
+		value:    newScalar(10),
+		warnings: v1.Warnings([]string{"warning", "warning2"}),
+	}
+	p := NewPrometheusProvider(mock, *e)
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10",
+		FailureCondition: "result != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query: "test",
+			},
+		},
+	}
+	measurement := p.Run(newAnalysisRun(), metric)
+	assert.NotNil(t, measurement.StartedAt)
+	assert.Equal(t, "10", measurement.Value)
+	assert.NotNil(t, measurement.FinishedAt)
+	assert.Equal(t, `"warning", "warning2"`, measurement.Metadata["warnings"])
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
+}
+
+func TestRunSuccessfullyWithWarningWithEnv(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := mockAPI{
 		value:    newScalar(10),
@@ -362,17 +411,57 @@ func TestProcessInvalidResponse(t *testing.T) {
 }
 
 func TestNewPrometheusAPI(t *testing.T) {
+	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
+	address := ":invalid::url"
 	metric := v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
 			Prometheus: &v1alpha1.PrometheusMetric{
-				Address: ":invalid::url",
+				Address: address,
 			},
 		},
 	}
-	_, err := NewPrometheusAPI(metric)
+	api, err := NewPrometheusAPI(metric)
 	assert.NotNil(t, err)
+	log.Infof("api:%v", api)
 
 	metric.Provider.Prometheus.Address = "https://www.example.com"
 	_, err = NewPrometheusAPI(metric)
 	assert.Nil(t, err)
+}
+
+func TestNewPrometheusAPIWithEnv(t *testing.T) {
+	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
+	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, ":invalid::url")
+	address := ""
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: address,
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NotNil(t, err)
+	log.Infof("api:%v", api)
+
+	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
+	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, "https://www.example.com")
+	_, err = NewPrometheusAPI(metric)
+	assert.Nil(t, err)
+}
+
+func TestNewPrometheusAddressNotConfigured(t *testing.T) {
+	os.Unsetenv(EnvVarArgoRolloutsPrometheusAddress)
+	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, "")
+	address := ""
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Address: address,
+			},
+		},
+	}
+	api, err := NewPrometheusAPI(metric)
+	assert.NotNil(t, err)
+	log.Infof("api:%v", api)
 }
