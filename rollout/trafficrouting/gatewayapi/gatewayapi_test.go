@@ -42,9 +42,11 @@ metadata:
 `
 
 const (
-	stableServiceName string = "argo-rollouts-stable-service"
-	canaryServiceName string = "argo-rollouts-canary-service"
-	httpRouteName     string = "argo-rollouts-http-route"
+	stableServiceName     = "argo-rollouts-stable-service"
+	fakeStableServiceName = "fake-argo-rollouts-stable-service"
+	canaryServiceName     = "argo-rollouts-canary-service"
+	fakeCanaryServiceName = "fake-argo-rollouts-canary-service"
+	httpRouteName         = "argo-rollouts-http-route"
 )
 
 func TestNewDynamicClient(t *testing.T) {
@@ -110,6 +112,88 @@ func TestSetWeight(t *testing.T) {
 		assert.Equal(t, int64(70), stableServiceWeight)
 		assert.Equal(t, int64(30), canaryServiceWeight)
 	})
+	t.Run("SetWeightWithError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, httpRouteName),
+			Client: &mocks.FakeClient{
+				IsGetError: true,
+			},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("SetWeightWithErrorManifest", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, httpRouteName),
+			Client: &mocks.FakeClient{
+				IsGetErrorManifest: true,
+			},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("SetWeightWithErrorStableName", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(fakeStableServiceName, canaryServiceName, httpRouteName),
+			Client:  client,
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("SetWeightWithErrorCanaryName", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, fakeCanaryServiceName, httpRouteName),
+			Client:  client,
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("GatewayAPIUpdateError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, httpRouteName),
+			Client: &mocks.FakeClient{
+				UpdateError: true,
+			},
+			Recorder: &mocks.FakeRecorder{},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// Then
+		assert.Error(t, err)
+	})
 }
 
 func TestVerifyWeight(t *testing.T) {
@@ -147,7 +231,8 @@ func TestType(t *testing.T) {
 	})
 }
 
-func TestGetService(t *testing.T) {}
+func TestGetService(t *testing.T) {
+}
 
 func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
 	t.Helper()
