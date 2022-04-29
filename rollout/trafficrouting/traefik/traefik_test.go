@@ -191,7 +191,7 @@ func TestSetWeight(t *testing.T) {
 		// When
 		err := r.SetWeight(30)
 
-		// When
+		// Then
 		assert.Error(t, err)
 	})
 }
