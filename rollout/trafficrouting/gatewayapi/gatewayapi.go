@@ -75,8 +75,9 @@ func toMappingGVR(apiVersion string) schema.GroupVersionResource {
 
 func NewReconciler(cfg *ReconcilerConfig) *Reconciler {
 	reconciler := Reconciler{
-		Rollout: cfg.Rollout,
-		Client:  cfg.Client,
+		Rollout:  cfg.Rollout,
+		Client:   cfg.Client,
+		Recorder: cfg.Recorder,
 	}
 	return &reconciler
 }
