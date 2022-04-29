@@ -11,10 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 )
 
-const (
-	stableServiceName string = "stable-rollout"
-	canaryServiceName string = "canary-rollout"
-	httpRouteName     string = "argo-rollouts-http-route"
+var (
+	client *mocks.FakeClient = &mocks.FakeClient{}
 )
 
 const httpRoute = `
@@ -29,8 +27,11 @@ spec:
   - backendRefs:
     - name: argo-rollouts-stable-service
       port: 80
+      weight: 0
     - name: argo-rollouts-canary-service
       port: 80
+      weight: 0
+
 `
 
 const errorHTTPRoute = `
@@ -39,6 +40,12 @@ kind: HTTPRoute
 metadata:
   name: argo-rollouts-http-route
 `
+
+const (
+	stableServiceName string = "argo-rollouts-stable-service"
+	canaryServiceName string = "argo-rollouts-canary-service"
+	httpRouteName     string = "argo-rollouts-http-route"
+)
 
 func TestNewDynamicClient(t *testing.T) {
 	t.Run("NewDynamicClient", func(t *testing.T) {
@@ -68,7 +75,42 @@ func TestUpdateHash(t *testing.T) {
 	})
 }
 
-func TestSetWeight(t *testing.T) {}
+func TestSetWeight(t *testing.T) {
+	mocks.HTTPRouteObj = toUnstructured(t, httpRoute)
+	mocks.ErrorHTTPRouteObj = toUnstructured(t, errorHTTPRoute)
+	t.Run("SetWeight", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, httpRouteName),
+			Client:  client,
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.SetWeight(30)
+
+		// Then
+		assert.NoError(t, err)
+		rules, isFound, err := unstructured.NestedSlice(mocks.HTTPRouteObj.Object, "spec", "rules")
+		assert.NoError(t, err)
+		assert.Equal(t, isFound, true)
+		backendRefs, err := getBackendRefs(rules)
+		assert.NoError(t, err)
+		stableService, err := getService(stableServiceName, backendRefs)
+		assert.NoError(t, err)
+		stableServiceWeight, isFound, err := unstructured.NestedInt64(stableService, "weight")
+		assert.NoError(t, err)
+		assert.Equal(t, isFound, true)
+		canaryService, err := getService(canaryServiceName, backendRefs)
+		assert.NoError(t, err)
+		canaryServiceWeight, isFound, err := unstructured.NestedInt64(canaryService, "weight")
+		assert.Equal(t, isFound, true)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(70), stableServiceWeight)
+		assert.Equal(t, int64(30), canaryServiceWeight)
+	})
+}
 
 func TestVerifyWeight(t *testing.T) {
 	t.Run("VerifyWeight", func(t *testing.T) {
