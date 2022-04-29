@@ -231,8 +231,11 @@ func TestType(t *testing.T) {
 	})
 }
 
-func TestGetService(t *testing.T) {
-}
+func TestGetService(t *testing.T) {}
+
+func TestGetBackendRefs(t *testing.T) {}
+
+func TestMergeBackendRefs(t *testing.T) {}
 
 func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
 	t.Helper()
