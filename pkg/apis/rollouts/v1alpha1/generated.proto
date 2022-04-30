@@ -1398,6 +1398,9 @@ message RolloutTrafficRouting {
 
   // AppMesh holds specific configuration to use AppMesh to route traffic
   optional AppMeshTrafficRouting appMesh = 6;
+
+  // Traefik holds specific configuration to use Traefik to route traffic
+  optional TraefikTrafficRouting traefik = 7;
 }
 
 // RunSummary contains the final results from the metric executions
@@ -1547,6 +1550,12 @@ message TemplateStatus {
 
   // PodTemplateHash is the value of the Replicas' PodTemplateHash
   optional string podTemplateHash = 11;
+}
+
+// TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
+message TraefikTrafficRouting {
+  // TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
+  optional string weightedTraefikServiceName = 1;
 }
 
 // TrafficWeights describes the current status of how traffic has been split

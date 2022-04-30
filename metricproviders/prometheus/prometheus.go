@@ -2,7 +2,10 @@ package prometheus
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
+	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
@@ -21,7 +24,8 @@ const (
 	ProviderType = "Prometheus"
 	// ResolvedPrometheusQuery is used as the key for storing the resolved prometheus query in the metrics result
 	// metadata object.
-	ResolvedPrometheusQuery = "ResolvedPrometheusQuery"
+	ResolvedPrometheusQuery             = "ResolvedPrometheusQuery"
+	EnvVarArgoRolloutsPrometheusAddress = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
 )
 
 // Provider contains all the required components to run a prometheus query
@@ -140,12 +144,39 @@ func NewPrometheusProvider(api v1.API, logCtx log.Entry) *Provider {
 
 // NewPrometheusAPI generates a prometheus API from the metric configuration
 func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
+	envValuesByKey := make(map[string]string)
+	if value, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsPrometheusAddress)); ok {
+		envValuesByKey[EnvVarArgoRolloutsPrometheusAddress] = value
+		log.Debugf("ARGO_ROLLOUTS_PROMETHEUS_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsPrometheusAddress])
+	}
+	if len(metric.Provider.Prometheus.Address) != 0 {
+		if !IsUrl(metric.Provider.Prometheus.Address) {
+			return nil, errors.New("prometheus address is not is url format")
+		}
+	} else if envValuesByKey[EnvVarArgoRolloutsPrometheusAddress] != "" {
+		if IsUrl(envValuesByKey[EnvVarArgoRolloutsPrometheusAddress]) {
+			metric.Provider.Prometheus.Address = envValuesByKey[EnvVarArgoRolloutsPrometheusAddress]
+		} else {
+			return nil, errors.New("prometheus address is not is url format")
+		}
+	} else {
+		return nil, errors.New("prometheus address is not configured")
+	}
 	client, err := api.NewClient(api.Config{
 		Address: metric.Provider.Prometheus.Address,
 	})
 	if err != nil {
+		log.Errorf("Error in getting prometheus client: %v", err)
 		return nil, err
 	}
-
 	return v1.NewAPI(client), nil
+}
+
+func IsUrl(str string) bool {
+	u, err := url.Parse(str)
+	if err != nil {
+		log.Errorf("Error in parsing url: %v", err)
+	}
+	log.Debugf("Parsed url: %v", u)
+	return err == nil && u.Scheme != "" && u.Host != ""
 }
