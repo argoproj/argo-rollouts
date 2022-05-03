@@ -488,11 +488,11 @@ func TestHttpReconcileWeightsBaseCase(t *testing.T) {
 
 func TestHttpReconcileHeaderRoute_HostBased(t *testing.T) {
 	r := &Reconciler{
-		rollout: rolloutWithHttpRoutes("stable", "canary", "vsvc", nil),
+		rollout: rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"}),
 	}
 
 	// Test for both the HTTP VS & Mixed VS
-	vsObj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteVsvc)
+	vsObj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	hr := &v1alpha1.SetHeaderRouting{
 		Match: []v1alpha1.HeaderRoutingMatch{
 			{
@@ -511,6 +511,10 @@ func TestHttpReconcileHeaderRoute_HostBased(t *testing.T) {
 	// Assertions
 	assert.Equal(t, httpRoutes[0].Name, HeaderRouteName)
 	checkDestination(t, httpRoutes[0].Route, "canary", 100)
+	assert.Equal(t, len(httpRoutes[0].Route), 1)
+	assert.Equal(t, httpRoutes[1].Name, "primary")
+	checkDestination(t, httpRoutes[1].Route, "stable", 100)
+	assert.Equal(t, httpRoutes[2].Name, "secondary")
 
 	// Reset header routing, expecting removing of the header route
 
@@ -520,7 +524,8 @@ func TestHttpReconcileHeaderRoute_HostBased(t *testing.T) {
 	// HTTP Routes
 	httpRoutes = extractHttpRoutes(t, modifiedVsObj)
 	// Assertions
-	assert.Equal(t, httpRoutes[0].Name, "")
+	assert.Equal(t, httpRoutes[0].Name, "primary")
+	assert.Equal(t, httpRoutes[1].Name, "secondary")
 }
 
 func TestHttpReconcileHeaderRoute_SubsetBased(t *testing.T) {
