@@ -553,7 +553,7 @@ spec:
 		Match: []v1alpha1.HeaderRoutingMatch{
 			{
 				HeaderName:  "agent",
-				HeaderValue: "firefox",
+				HeaderRegex: "firefox",
 			},
 		},
 	}
