@@ -158,7 +158,7 @@ const (
 	WeightVerifyErrorReason  = "WeightVerifyError"
 	WeightVerifyErrorMessage = "Failed to verify weight: %s"
 	// LoadBalancerNotFoundReason is emitted when load balancer can not be found
-	LoadBalancerNotFoundReason  = "LoadbalancerNotFound"
+	LoadBalancerNotFoundReason  = "LoadBalancerNotFound"
 	LoadBalancerNotFoundMessage = "Failed to find load balancer: %s"
 )
 
