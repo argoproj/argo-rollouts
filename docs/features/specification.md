@@ -27,7 +27,15 @@ spec:
     matchLabels:
       app: guestbook
 
-  # Template describes the pods that will be created. Same as deployment
+  # WorkloadRef holds a references to a workload that provides Pod template 
+  # (e.g. Deployment). If used, then do not use Rollout template property.
+  workloadRef: 
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rollout-ref-deployment
+
+  # Template describes the pods that will be created. Same as deployment.
+  # If used, then do not use Rollout workloadRef property. 
   template:
     spec:
       containers:
