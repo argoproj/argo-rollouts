@@ -162,7 +162,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 			return pointer.BoolPtr(false), err
 		}
 		if lb == nil || lb.LoadBalancerArn == nil {
-			r.log.Infof("LoadBalancer %s not found", lbIngress.Hostname)
+			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.LoadBalancerNotFoundReason}, conditions.LoadBalancerNotFoundMessage, lbIngress.Hostname)
 			return pointer.BoolPtr(false), nil
 		}
 
