@@ -656,12 +656,14 @@
 
   
   
+    
+  
   
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_8" type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_8" type="checkbox" id="__nav_8" checked>
       
       
       
@@ -757,6 +759,68 @@
       <a href="../smi/" class="md-nav__link">
         SMI
       </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Traefik
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        Traefik
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-integrate-traefikservice-with-argo-rollouts-using-it-as-weighted-round-robin-load-balancer" class="md-nav__link">
+    How to integrate TraefikService with Argo Rollouts using it as weighted round robin load balancer
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-integrate-traefikservice-with-argo-rollouts-using-it-as-traffic-mirror" class="md-nav__link">
+    How to integrate TraefikService with Argo Rollouts using it as traffic mirror
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2032,9 +2096,10 @@
 
 
 <h1 id="traefik">Traefik<a class="headerlink" href="#traefik" title="Permanent link">&para;</a></h1>
-<p>The <a href="https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#kind-traefikservice">TraefikService</a> is the object supports the ability for <a href="https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#weighted-round-robin">weighted round robin load balancing</a> and (traffic mirroring)[https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#mirroring] when using Traefik as ingress.</p>
+<p>You can use the <a href="https://traefik.io/traefik/">Traefik Proxy</a> for traffic management with Argo Rollouts.</p>
+<p>The <a href="https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#kind-traefikservice">TraefikService</a> is the object that supports the ability for <a href="https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#weighted-round-robin">weighted round robin load balancing</a> and <a href="https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#mirroring">traffic mirroring</a> when using Traefik as ingress.</p>
 <h2 id="how-to-integrate-traefikservice-with-argo-rollouts-using-it-as-weighted-round-robin-load-balancer">How to integrate TraefikService with Argo Rollouts using it as weighted round robin load balancer<a class="headerlink" href="#how-to-integrate-traefikservice-with-argo-rollouts-using-it-as-weighted-round-robin-load-balancer" title="Permanent link">&para;</a></h2>
-<p>Firstly, we need to create the TraefikService object using its ability for weighted round robin load balancing.</p>
+<p>First, we need to create the TraefikService object using its ability for weighted round robin load balancing.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik.containo.us/v1alpha1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TraefikService</span><span class="w"></span>
 <span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
@@ -2047,8 +2112,8 @@
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-rollout</span><span class="w"> </span><span class="c1"># k8s service name that you need to create for new application version</span><span class="w"></span>
 <span class="w">        </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
 </code></pre></div>
-<p>Notice, we don't specify the <code>weight</code> field. It is necessary to be synced with ArgoCD. If we specify this field and Argo Rollouts controller will change it, ArgoCD controller will notice it and will show that this resource is out of sync.</p>
-<p>Secondly, we need to create the Argo Rollouts controller.</p>
+<p>Notice, we don't specify the <code>weight</code> field. It is necessary to be synced with ArgoCD. If we specify this field and Argo Rollouts controller changes it, then the ArgoCD controller will notice it and will show that this resource is out of sync (if you are using Argo CD to manage your Rollout).</p>
+<p>Secondly, we need to create the Argo Rollouts object.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
 <span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
@@ -2074,7 +2139,7 @@
 <span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
 </code></pre></div>
 <h2 id="how-to-integrate-traefikservice-with-argo-rollouts-using-it-as-traffic-mirror">How to integrate TraefikService with Argo Rollouts using it as traffic mirror<a class="headerlink" href="#how-to-integrate-traefikservice-with-argo-rollouts-using-it-as-traffic-mirror" title="Permanent link">&para;</a></h2>
-<p>Firstly, we also need to create the TraefikService object but using its ability for traffic mirroring.</p>
+<p>First, we also need to create the TraefikService object but using its ability for traffic mirroring.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik.containo.us/v1alpha1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TraefikService</span><span class="w"></span>
 <span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
@@ -2089,8 +2154,8 @@
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-rollout</span><span class="w"> </span><span class="c1"># k8s service name that you need to create for new application version</span><span class="w"></span>
 <span class="w">        </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
 </code></pre></div>
-<p>Notice, we don't specify the <code>percent</code> field. It is necessary to be synced with ArgoCD. If we specify this field and Argo Rollouts controller will change it, ArgoCD controller will notice it and will show that this resource is out of sync.</p>
-<p>Secondly, we need to create the Argo Rollouts controller.</p>
+<p>Notice, we don't specify the <code>percent</code> field. It is necessary to be synced with ArgoCD. If we specify this field and Argo Rollouts controller changes it, then the ArgoCD controller will notice it and will show that this resource is out of sync (if you are using Argo CD to manage your Rollout).</p>
+<p>Secondly, we need to create the Argo Rollouts object.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
 <span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
@@ -2124,6 +2189,41 @@
       </main>
       
         <footer class="md-footer">
+  
+    <nav class="md-footer__inner md-grid" aria-label="Footer">
+      
+        
+        <a href="../smi/" class="md-footer__link md-footer__link--prev" aria-label="Previous: SMI" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              SMI
+            </div>
+          </div>
+        </a>
+      
+      
+        
+        <a href="../../analysis/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              Overview
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+          </div>
+        </a>
+      
+    </nav>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">

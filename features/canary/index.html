@@ -904,6 +904,20 @@
 
             
           
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../traffic-management/traefik/" class="md-nav__link">
+        Traefik
+      </a>
+    </li>
+  
+
+            
+          
         </ul>
       </nav>
     </li>
@@ -2336,9 +2350,8 @@ match the traffic weight. Some use cases for this:</p>
 </ol>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
+<p>Setting canary scale is only available when using the canary strategy with a traffic router, since the basic canary needs to control canary scale in order to approximate canary weight.</p>
 </div>
-<p>Setting canary scale is only available when using the canary strategy with a traffic router, since
-  the basic canary needs to control canary scale in order to approximate canary weight.</p>
 <p>To control canary scales and weights during steps, use the <code>setCanaryScale</code> step and indicate which scale the
 the canary should use:</p>
 <ul>
