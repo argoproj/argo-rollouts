@@ -1845,6 +1845,26 @@
     Reference Deployment From Rollout
   </a>
   
+    <nav class="md-nav" aria-label="Reference Deployment From Rollout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#running-rollout-and-deployment-side-by-side" class="md-nav__link">
+    Running Rollout and Deployment side-by-side
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#traffic-management-during-migration" class="md-nav__link">
+    Traffic Management During Migration
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -2059,6 +2079,26 @@
     Reference Deployment From Rollout
   </a>
   
+    <nav class="md-nav" aria-label="Reference Deployment From Rollout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#running-rollout-and-deployment-side-by-side" class="md-nav__link">
+    Running Rollout and Deployment side-by-side
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#traffic-management-during-migration" class="md-nav__link">
+    Traffic Management During Migration
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -2173,12 +2213,12 @@ tested before deleting the original Deployment.</p>
 <span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8080</span><span class="w"></span>
 </code></pre></div>
 <p>Consider following if your Deployment runs in production:</p>
-<p><strong>Running Rollout and Deployment side-by-side</strong></p>
+<h3 id="running-rollout-and-deployment-side-by-side">Running Rollout and Deployment side-by-side<a class="headerlink" href="#running-rollout-and-deployment-side-by-side" title="Permanent link">&para;</a></h3>
 <p>After creation Rollout will spinup required number of Pods side-by-side with the Deployment Pods.
 Rollout won't try to manage existing Deployment Pods. That means you can safely update add Rollout
 to the production environment without any interruption but you are going to run twice more Pods during migration.</p>
 <p>Argo-rollouts controller patches the spec of rollout object with an annotation of <code>rollout.argoproj.io/workload-generation</code>, which equals the generation of referenced deployment. Users can detect if the rollout matches desired generation of deployment by checking the <code>workloadObservedGeneration</code> in the rollout status.</p>
-<p><strong>Traffic Management During Migration</strong></p>
+<h3 id="traffic-management-during-migration">Traffic Management During Migration<a class="headerlink" href="#traffic-management-during-migration" title="Permanent link">&para;</a></h3>
 <p>The Rollout offers traffic management functionality that manages routing rules and flows the traffic to different
 versions of an application. For example <a href="../features/bluegreen/">Blue-Green</a> deployment strategy manipulates
 Kubernetes Service selector and direct production traffic to "green" instances only.</p>
@@ -2186,6 +2226,33 @@ Kubernetes Service selector and direct production traffic to "green" instances o
 only when the required number of Pod is running and healthy so it is safe in production as well. However, if you
 want to be extra careful then consider creating a temporal Service or Ingress object to validate Rollout behavior.
 Once testing is done delete temporal Service/Ingress and switch rollout to production one.</p>
+<h1 id="migrating-to-deployments">Migrating to Deployments<a class="headerlink" href="#migrating-to-deployments" title="Permanent link">&para;</a></h1>
+<p>In case users want to rollback to the deployment kinds from rollouts, there are two scenarios aligned with those in <a href="#migrating-to-rollouts">Migrating to Rollouts</a>.</p>
+<ul>
+<li>Convert a Rollout resource to a Deployment resource.</li>
+<li>Reference an existing Deployment from a Rollout using <code>workloadRef</code> field.</li>
+</ul>
+<h2 id="convert-rollout-to-deployment">Convert Rollout to Deployment<a class="headerlink" href="#convert-rollout-to-deployment" title="Permanent link">&para;</a></h2>
+<p>When converting a Rollout to a Deployment, it involves changing three fields:</p>
+<ol>
+<li>Changing the apiVersion from  argoproj.io/v1alpha1 to apps/v1</li>
+<li>Changing the kind from Rollout to Deployment</li>
+<li>Remove the rollout strategy in <code>spec.strategy.canary</code> or <code>spec.strategy.blueGreen</code></li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>When migrating a Rollout which is already serving live production traffic, a Deployment should
+run next to the rollout before deleting the rollout or scaling down the rollout.
+<strong>Not following this approach might result in downtime</strong>. It also allows for the Deployment to be
+tested before deleting the original Rollout.</p>
+</div>
+<h2 id="reference-deployment-from-rollout_1">Reference Deployment From Rollout<a class="headerlink" href="#reference-deployment-from-rollout_1" title="Permanent link">&para;</a></h2>
+<p>When a rollout is referencing to a deployment:</p>
+<ol>
+<li>Scale-up the Deployment by changing <code>replicas</code> field of an existing Rollout to zero.</li>
+<li>Scale-down existing Rollout by changing <code>replicas</code> field of an existing Rollout to zero.</li>
+</ol>
+<p>Please refer to <a href="#running-rollout-and-deployment-side-by-side">Running Rollout and Deployment side-by-side</a> and <a href="#traffic-management-during-migration">Traffic Management During Migration</a> for caveats.</p>
 
               
             </article>
