@@ -11,6 +11,10 @@ env:
   # Golang version to use across CI steps
   GOLANG_VERSION: '1.17'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-go:
     name: Lint Go code
