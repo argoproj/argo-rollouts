@@ -1,10 +1,12 @@
 # Traefik
 
-The [TraefikService](https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#kind-traefikservice) is the object supports the ability for [weighted round robin load balancing](https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#weighted-round-robin) and (traffic mirroring)[https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#mirroring] when using Traefik as ingress.
+You can use the [Traefik Proxy](https://traefik.io/traefik/) for traffic management with Argo Rollouts.
+
+The [TraefikService](https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#kind-traefikservice) is the object that supports the ability for [weighted round robin load balancing](https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#weighted-round-robin) and [traffic mirroring](https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#mirroring) when using Traefik as ingress.
 
 ## How to integrate TraefikService with Argo Rollouts using it as weighted round robin load balancer
 
-Firstly, we need to create the TraefikService object using its ability for weighted round robin load balancing.
+First, we need to create the TraefikService object using its ability for weighted round robin load balancing.
 
 ```yaml
 apiVersion: traefik.containo.us/v1alpha1
@@ -20,9 +22,9 @@ spec:
         port: 80
 ```
 
-Notice, we don't specify the `weight` field. It is necessary to be synced with ArgoCD. If we specify this field and Argo Rollouts controller will change it, ArgoCD controller will notice it and will show that this resource is out of sync.
+Notice, we don't specify the `weight` field. It is necessary to be synced with ArgoCD. If we specify this field and Argo Rollouts controller changes it, then the ArgoCD controller will notice it and will show that this resource is out of sync (if you are using Argo CD to manage your Rollout).
 
-Secondly, we need to create the Argo Rollouts controller.
+Secondly, we need to create the Argo Rollouts object.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -52,7 +54,7 @@ spec:
 
 ## How to integrate TraefikService with Argo Rollouts using it as traffic mirror
 
-Firstly, we also need to create the TraefikService object but using its ability for traffic mirroring.
+First, we also need to create the TraefikService object but using its ability for traffic mirroring.
 
 ```yaml
 apiVersion: traefik.containo.us/v1alpha1
@@ -70,9 +72,9 @@ spec:
         port: 80
 ```
 
-Notice, we don't specify the `percent` field. It is necessary to be synced with ArgoCD. If we specify this field and Argo Rollouts controller will change it, ArgoCD controller will notice it and will show that this resource is out of sync.
+Notice, we don't specify the `percent` field. It is necessary to be synced with ArgoCD. If we specify this field and Argo Rollouts controller changes it, then the ArgoCD controller will notice it and will show that this resource is out of sync (if you are using Argo CD to manage your Rollout).
 
-Secondly, we need to create the Argo Rollouts controller.
+Secondly, we need to create the Argo Rollouts object.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
