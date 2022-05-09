@@ -460,11 +460,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight:      pointer.Int32Ptr(10),
-		Pause:          nil,
-		Experiment:     nil,
-		Analysis:       nil,
-		SetCanaryScale: nil,
+		SetWeight: pointer.Int32Ptr(10),
 	}}, pointer.Int32Ptr(0), intstr.FromString("25%"), intstr.FromString("25%"))
 
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
@@ -561,11 +557,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight:      pointer.Int32Ptr(10),
-		Pause:          nil,
-		Experiment:     nil,
-		Analysis:       nil,
-		SetCanaryScale: nil,
+		SetWeight: pointer.Int32Ptr(10),
 	}}, pointer.Int32Ptr(0), intstr.FromString("25%"), intstr.FromString("25%"))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
@@ -624,11 +616,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	defer f.Close()
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight:      pointer.Int32Ptr(10),
-		Pause:          nil,
-		Experiment:     nil,
-		Analysis:       nil,
-		SetCanaryScale: nil,
+		SetWeight: pointer.Int32Ptr(10),
 	}}, pointer.Int32Ptr(0), intstr.FromString("25%"), intstr.FromString("25%"))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
