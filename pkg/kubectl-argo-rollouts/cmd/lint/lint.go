@@ -228,24 +228,6 @@ func matchRolloutToReferences(rollout v1alpha1.Rollout, refResource validation.R
 			matchedReferenceResources.References.VirtualServices = append(matchedReferenceResources.References.VirtualServices, virtualService)
 		}
 	}
-	for analysisTemplatesIndex, analysisTemplates := range refResource.AnalysisTemplatesWithType {
-		for _, analysisTemplate := range analysisTemplates.AnalysisTemplates {
-			if analysisTemplate.GetAnnotations()[v1alpha1.ManagedByRolloutsKey] == rollout.Name {
-				aTemplate := matchedReferenceResources.References.AnalysisTemplatesWithType[analysisTemplatesIndex]
-				aTemplate.AnalysisTemplates = append(aTemplate.AnalysisTemplates, analysisTemplate)
-			}
-		}
-		for _, clusterAnalysisTemplate := range analysisTemplates.ClusterAnalysisTemplates {
-			if clusterAnalysisTemplate.GetAnnotations()[v1alpha1.ManagedByRolloutsKey] == rollout.Name {
-				aTemplate := matchedReferenceResources.References.AnalysisTemplatesWithType[analysisTemplatesIndex]
-				aTemplate.ClusterAnalysisTemplates = append(aTemplate.ClusterAnalysisTemplates, clusterAnalysisTemplate)
-			}
-		}
-	}
-
-	matchedReferenceResources.References.AnalysisTemplatesWithType = refResource.AnalysisTemplatesWithType
-	matchedReferenceResources.References.AppMeshResources = refResource.AppMeshResources
-	matchedReferenceResources.References.AmbassadorMappings = refResource.AmbassadorMappings
 
 	return matchedReferenceResources
 }
