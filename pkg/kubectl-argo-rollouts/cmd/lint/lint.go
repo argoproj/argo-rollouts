@@ -14,14 +14,10 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	goyaml "gopkg.in/yaml.v2"
-	istioNetworkingv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
-	istioNetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
@@ -113,7 +109,7 @@ func (l *LintOptions) lintResource(path string) error {
 			}
 			fileRollouts = append(fileRollouts, ro)
 		}
-		err = buildAllReferencedResources(gvk, valueBytes, &refResource)
+		err = buildAllReferencedResources(un, &refResource)
 		if err != nil {
 			return err
 		}
@@ -144,7 +140,14 @@ func (l *LintOptions) lintResource(path string) error {
 // buildAllReferencedResources This builds a ReferencedResources object that has all the external resources for every
 // rollout resource in the manifest. We will need to later match each referenced resource to its own rollout resource
 // before passing the rollout object and its managed reference on to validation.
-func buildAllReferencedResources(gvk schema.GroupVersionKind, valueBytes []byte, refResource *validation.ReferencedResources) error {
+func buildAllReferencedResources(un unstructured.Unstructured, refResource *validation.ReferencedResources) error {
+
+	valueBytes, err := un.MarshalJSON()
+	if err != nil {
+		return err
+	}
+
+	gvk := un.GroupVersionKind()
 	switch {
 	case gvk.Group == v1.GroupName && gvk.Kind == "Service":
 		var svc v1.Service
@@ -156,35 +159,8 @@ func buildAllReferencedResources(gvk schema.GroupVersionKind, valueBytes []byte,
 			Service: &svc,
 		})
 
-	case gvk.Group == istioNetworkingv1beta1.GroupName && gvk.Kind == "VirtualService":
-		var virtualServicev1beta1 istioNetworkingv1beta1.VirtualService
-		var virtualServicev1alpha3 istioNetworkingv1alpha3.VirtualService
-		if gvk.Version == "v1alpha3" {
-			err := unmarshal(valueBytes, &virtualServicev1alpha3)
-			if err != nil {
-				return err
-			}
-
-			vsvcUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&virtualServicev1alpha3)
-			if err != nil {
-				return err
-			}
-			refResource.VirtualServices = append(refResource.VirtualServices, unstructured.Unstructured{
-				Object: vsvcUn,
-			})
-		} else if gvk.Version == "v1beta1" {
-			err := unmarshal(valueBytes, &virtualServicev1beta1)
-			if err != nil {
-				return err
-			}
-			vsvcUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&virtualServicev1beta1)
-			if err != nil {
-				return err
-			}
-			refResource.VirtualServices = append(refResource.VirtualServices, unstructured.Unstructured{
-				Object: vsvcUn,
-			})
-		}
+	case gvk.Group == "networking.istio.io" && gvk.Kind == "VirtualService":
+		refResource.VirtualServices = append(refResource.VirtualServices, un)
 
 	case (gvk.Group == networkingv1.GroupName || gvk.Group == extensionsv1beta1.GroupName) && gvk.Kind == "Ingress":
 		var ing networkingv1.Ingress

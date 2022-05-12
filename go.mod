@@ -35,7 +35,6 @@ require (
 	google.golang.org/grpc v1.42.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.4.0
-	istio.io/client-go v1.13.3
 	k8s.io/api v0.23.3
 	k8s.io/apiextensions-apiserver v0.23.1
 	k8s.io/apimachinery v0.23.3
@@ -163,8 +162,6 @@ require (
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
-	istio.io/api v0.0.0-20220413180505-1574de06b7bd // indirect
-	istio.io/gogo-genproto v0.0.0-20211208193508-5ab4acc9eb1e // indirect
 	k8s.io/cluster-bootstrap v0.0.0 // indirect
 	k8s.io/component-helpers v0.23.1 // indirect
 	k8s.io/gengo v0.0.0-20210813121822-485abfe95c7c // indirect
