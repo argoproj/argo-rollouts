@@ -125,6 +125,7 @@ func (l *LintOptions) lintResource(path string) error {
 	var errList field.ErrorList
 	for _, rollout := range fileRollouts {
 		roRef := matchRolloutToReferences(rollout, refResource)
+
 		errList = append(errList, validation.ValidateRollout(&roRef.Rollout)...)
 		errList = append(errList, validation.ValidateRolloutReferencedResources(&roRef.Rollout, roRef.References)...)
 	}
@@ -201,6 +202,25 @@ func buildAllReferencedResources(gvk schema.GroupVersionKind, valueBytes []byte,
 			refResource.Ingresses = append(refResource.Ingresses, *ingressutil.NewLegacyIngress(&ingv1beta1))
 		}
 
+	case gvk.Group == v1alpha1.AnalysisTemplateGVR.Group && gvk.Kind == "AnalysisTemplate":
+		var analysisTemplate v1alpha1.AnalysisTemplate
+		err := unmarshal(valueBytes, &analysisTemplate)
+		if err != nil {
+			return err
+		}
+		refResource.AnalysisTemplatesWithType = append(refResource.AnalysisTemplatesWithType, validation.AnalysisTemplatesWithType{
+			AnalysisTemplates: []*v1alpha1.AnalysisTemplate{&analysisTemplate},
+		})
+
+	case gvk.Group == v1alpha1.AnalysisTemplateGVR.Group && gvk.Kind == "ClusterAnalysisTemplate":
+		var clusterAnalysisTemplate v1alpha1.ClusterAnalysisTemplate
+		err := unmarshal(valueBytes, &clusterAnalysisTemplate)
+		if err != nil {
+			return err
+		}
+		refResource.AnalysisTemplatesWithType = append(refResource.AnalysisTemplatesWithType, validation.AnalysisTemplatesWithType{
+			ClusterAnalysisTemplates: []*v1alpha1.ClusterAnalysisTemplate{&clusterAnalysisTemplate},
+		})
 	}
 	return nil
 }
@@ -226,6 +246,20 @@ func matchRolloutToReferences(rollout v1alpha1.Rollout, refResource validation.R
 			matchedReferenceResources.References.VirtualServices = append(matchedReferenceResources.References.VirtualServices, virtualService)
 		}
 	}
+	for analysisTemplatesIndex, analysisTemplates := range refResource.AnalysisTemplatesWithType {
+		for _, analysisTemplate := range analysisTemplates.AnalysisTemplates {
+			if analysisTemplate.GetAnnotations()[v1alpha1.ManagedByRolloutsKey] == rollout.Name {
+				aTemplate := matchedReferenceResources.References.AnalysisTemplatesWithType[analysisTemplatesIndex]
+				aTemplate.AnalysisTemplates = append(aTemplate.AnalysisTemplates, analysisTemplate)
+			}
+		}
+		for _, clusterAnalysisTemplate := range analysisTemplates.ClusterAnalysisTemplates {
+			if clusterAnalysisTemplate.GetAnnotations()[v1alpha1.ManagedByRolloutsKey] == rollout.Name {
+				aTemplate := matchedReferenceResources.References.AnalysisTemplatesWithType[analysisTemplatesIndex]
+				aTemplate.ClusterAnalysisTemplates = append(aTemplate.ClusterAnalysisTemplates, clusterAnalysisTemplate)
+			}
+		}
+	}
 
 	matchedReferenceResources.References.AnalysisTemplatesWithType = refResource.AnalysisTemplatesWithType
 	matchedReferenceResources.References.AppMeshResources = refResource.AppMeshResources
@@ -236,8 +270,8 @@ func matchRolloutToReferences(rollout v1alpha1.Rollout, refResource validation.R
 
 // setServiceTypeAndManagedAnnotation This sets the managed annotation on each service as well as figures out what
 // type of service its is by looking at the rollout and set's its service type accordingly.
-func setServiceTypeAndManagedAnnotation(ro []v1alpha1.Rollout, refResource validation.ReferencedResources) {
-	for _, rollout := range ro {
+func setServiceTypeAndManagedAnnotation(rollouts []v1alpha1.Rollout, refResource validation.ReferencedResources) {
+	for _, rollout := range rollouts {
 		for i, _ := range refResource.ServiceWithType {
 
 			if refResource.ServiceWithType[i].Service.Annotations == nil {
@@ -283,8 +317,8 @@ func setServiceTypeAndManagedAnnotation(ro []v1alpha1.Rollout, refResource valid
 // setIngressManagedAnnotation This tries to find ingresses that have matching services in the rollout resource and if so
 // it will add the managed by annotations just for linting so that we can later match up resources to a rollout resources
 // for the case when we have multiple rollout resources in a single manifest.
-func setIngressManagedAnnotation(ro []v1alpha1.Rollout, refResource validation.ReferencedResources) {
-	for _, rollout := range ro {
+func setIngressManagedAnnotation(rollouts []v1alpha1.Rollout, refResource validation.ReferencedResources) {
+	for _, rollout := range rollouts {
 		for i, _ := range refResource.Ingresses {
 			var serviceName string
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
