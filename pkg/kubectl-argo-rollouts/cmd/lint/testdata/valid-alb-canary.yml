@@ -44,8 +44,6 @@ apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: alb-rollout-ingress
-  annotations:
-    kubernetes.io/ingress.class: alb
 spec:
   rules:
     - http:

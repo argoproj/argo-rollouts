@@ -120,6 +120,7 @@ func (l *LintOptions) lintResource(path string) error {
 
 	setServiceTypeAndManagedAnnotation(fileRollouts, refResource)
 	setIngressManagedAnnotation(fileRollouts, refResource)
+	setVirtualServiceManagedAnnotation(fileRollouts, refResource)
 
 	var errList field.ErrorList
 	for _, rollout := range fileRollouts {
@@ -220,9 +221,13 @@ func matchRolloutToReferences(rollout v1alpha1.Rollout, refResource validation.R
 			matchedReferenceResources.References.Ingresses = append(matchedReferenceResources.References.Ingresses, ingress)
 		}
 	}
+	for _, virtualService := range refResource.VirtualServices {
+		if virtualService.GetAnnotations()[v1alpha1.ManagedByRolloutsKey] == rollout.Name {
+			matchedReferenceResources.References.VirtualServices = append(matchedReferenceResources.References.VirtualServices, virtualService)
+		}
+	}
 
 	matchedReferenceResources.References.AnalysisTemplatesWithType = refResource.AnalysisTemplatesWithType
-	matchedReferenceResources.References.VirtualServices = refResource.VirtualServices
 	matchedReferenceResources.References.AppMeshResources = refResource.AppMeshResources
 	matchedReferenceResources.References.AmbassadorMappings = refResource.AmbassadorMappings
 
@@ -295,8 +300,38 @@ func setIngressManagedAnnotation(ro []v1alpha1.Rollout, refResource validation.R
 
 			if ingressutil.HasRuleWithService(&refResource.Ingresses[i], serviceName) {
 				annotations := refResource.Ingresses[i].GetAnnotations()
+				if annotations == nil {
+					annotations = make(map[string]string)
+				}
 				annotations[v1alpha1.ManagedByRolloutsKey] = rollout.Name
 				refResource.Ingresses[i].SetAnnotations(annotations)
+			}
+		}
+	}
+}
+
+// setVirtualServiceManagedAnnotation This function finds virtual services that are listed in the rollout resources and
+// adds the ManagedByRolloutsKey to the annotations of the virtual services.
+func setVirtualServiceManagedAnnotation(ro []v1alpha1.Rollout, refResource validation.ReferencedResources) {
+	for _, rollout := range ro {
+		for i, _ := range refResource.VirtualServices {
+			if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService != nil && rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == refResource.VirtualServices[i].GetName() {
+				annotations := refResource.VirtualServices[i].GetAnnotations()
+				if annotations == nil {
+					annotations = make(map[string]string)
+				}
+				annotations[v1alpha1.ManagedByRolloutsKey] = rollout.Name
+				refResource.VirtualServices[i].SetAnnotations(annotations)
+			}
+			for _, virtualService := range rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices {
+				if virtualService.Name == refResource.VirtualServices[i].GetName() {
+					annotations := refResource.VirtualServices[i].GetAnnotations()
+					if annotations == nil {
+						annotations = make(map[string]string)
+					}
+					annotations[v1alpha1.ManagedByRolloutsKey] = rollout.Name
+					refResource.VirtualServices[i].SetAnnotations(annotations)
+				}
 			}
 		}
 	}
