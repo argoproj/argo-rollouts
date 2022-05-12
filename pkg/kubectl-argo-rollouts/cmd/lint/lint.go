@@ -202,25 +202,6 @@ func buildAllReferencedResources(gvk schema.GroupVersionKind, valueBytes []byte,
 			refResource.Ingresses = append(refResource.Ingresses, *ingressutil.NewLegacyIngress(&ingv1beta1))
 		}
 
-	case gvk.Group == v1alpha1.AnalysisTemplateGVR.Group && gvk.Kind == "AnalysisTemplate":
-		var analysisTemplate v1alpha1.AnalysisTemplate
-		err := unmarshal(valueBytes, &analysisTemplate)
-		if err != nil {
-			return err
-		}
-		refResource.AnalysisTemplatesWithType = append(refResource.AnalysisTemplatesWithType, validation.AnalysisTemplatesWithType{
-			AnalysisTemplates: []*v1alpha1.AnalysisTemplate{&analysisTemplate},
-		})
-
-	case gvk.Group == v1alpha1.AnalysisTemplateGVR.Group && gvk.Kind == "ClusterAnalysisTemplate":
-		var clusterAnalysisTemplate v1alpha1.ClusterAnalysisTemplate
-		err := unmarshal(valueBytes, &clusterAnalysisTemplate)
-		if err != nil {
-			return err
-		}
-		refResource.AnalysisTemplatesWithType = append(refResource.AnalysisTemplatesWithType, validation.AnalysisTemplatesWithType{
-			ClusterAnalysisTemplates: []*v1alpha1.ClusterAnalysisTemplate{&clusterAnalysisTemplate},
-		})
 	}
 	return nil
 }
