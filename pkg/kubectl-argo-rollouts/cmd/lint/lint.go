@@ -3,6 +3,9 @@ package lint
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"io/ioutil"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/validation"
@@ -11,8 +14,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	goyaml "gopkg.in/yaml.v2"
-	"io"
-	"io/ioutil"
 	istioNetworkingv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
 	istioNetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	v1 "k8s.io/api/core/v1"
@@ -253,7 +254,7 @@ func matchRolloutToReferences(rollout v1alpha1.Rollout, refResource validation.R
 // type of service its is by looking at the rollout and set's its service type accordingly.
 func setServiceTypeAndManagedAnnotation(rollouts []v1alpha1.Rollout, refResource validation.ReferencedResources) {
 	for _, rollout := range rollouts {
-		for i, _ := range refResource.ServiceWithType {
+		for i := range refResource.ServiceWithType {
 
 			if refResource.ServiceWithType[i].Service.Annotations == nil {
 				refResource.ServiceWithType[i].Service.Annotations = make(map[string]string)
@@ -300,7 +301,7 @@ func setServiceTypeAndManagedAnnotation(rollouts []v1alpha1.Rollout, refResource
 // for the case when we have multiple rollout resources in a single manifest.
 func setIngressManagedAnnotation(rollouts []v1alpha1.Rollout, refResource validation.ReferencedResources) {
 	for _, rollout := range rollouts {
-		for i, _ := range refResource.Ingresses {
+		for i := range refResource.Ingresses {
 			var serviceName string
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
 				serviceName = rollout.Spec.Strategy.Canary.StableService
@@ -329,7 +330,7 @@ func setIngressManagedAnnotation(rollouts []v1alpha1.Rollout, refResource valida
 // adds the ManagedByRolloutsKey to the annotations of the virtual services.
 func setVirtualServiceManagedAnnotation(ro []v1alpha1.Rollout, refResource validation.ReferencedResources) {
 	for _, rollout := range ro {
-		for i, _ := range refResource.VirtualServices {
+		for i := range refResource.VirtualServices {
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService != nil && rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == refResource.VirtualServices[i].GetName() {
 				annotations := refResource.VirtualServices[i].GetAnnotations()
 				if annotations == nil {
