@@ -44,6 +44,7 @@ func (s *HeaderRoutingSuite) TestIstioHostHeaderRoute() {
 		When().
 		UpdateSpec().
 		WaitForRolloutStatus("Paused").
+		Sleep(1 * time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			vsvc := t.GetVirtualService()
@@ -55,10 +56,12 @@ func (s *HeaderRoutingSuite) TestIstioHostHeaderRoute() {
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Paused").
+		Sleep(1 * time.Second).
 		Then().
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Paused").
+		Sleep(1 * time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			vsvc := t.GetVirtualService()
