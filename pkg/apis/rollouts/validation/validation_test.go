@@ -281,6 +281,52 @@ func TestValidateRolloutStrategyAntiAffinity(t *testing.T) {
 	assert.Equal(t, InvalidAntiAffinityWeightMessage, allErrs[0].Detail)
 }
 
+func TestValidateRolloutStrategyCanary_SetHeaderRoutingForAlb(t *testing.T) {
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		CanaryService: "canary",
+		StableService: "stable",
+		TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+			ALB: &v1alpha1.ALBTrafficRouting{RootService: "root-service"},
+		},
+	}
+	nameValueStep := v1alpha1.CanaryStep{
+		SetHeaderRouting: &v1alpha1.SetHeaderRouting{
+			Match: []v1alpha1.HeaderRoutingMatch{
+				{
+					HeaderName:  "agent",
+					HeaderValue: "chrome",
+				},
+			},
+		},
+	}
+	nameRegexStep := v1alpha1.CanaryStep{
+		SetHeaderRouting: &v1alpha1.SetHeaderRouting{
+			Match: []v1alpha1.HeaderRoutingMatch{
+				{
+					HeaderName:  "agent",
+					HeaderRegex: "chrome(.*)",
+				},
+			},
+		},
+	}
+
+	t.Run("using SetHeaderRouting step without the traffic routing", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.TrafficRouting = nil
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{nameValueStep}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidSetHeaderRoutingTrafficPolicy, allErrs[0].Detail)
+	})
+
+	t.Run("using SetHeaderRouting step without the traffic routing", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{nameRegexStep}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidSetHeaderRoutingMatchRegexAlb, allErrs[0].Detail)
+	})
+}
+
 func TestInvalidMaxSurgeMaxUnavailable(t *testing.T) {
 	r := func(maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
 		return &v1alpha1.Rollout{

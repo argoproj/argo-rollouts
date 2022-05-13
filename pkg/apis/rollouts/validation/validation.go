@@ -33,6 +33,10 @@ const (
 	InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting = "Experiment template weight cannot be set unless TrafficRouting is enabled"
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetCanaryScaleTrafficPolicy = "SetCanaryScale requires TrafficRouting to be set"
+	// InvalidSetHeaderRoutingTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
+	InvalidSetHeaderRoutingTrafficPolicy = "SetHeaderRouting requires TrafficRouting, supports Istio only"
+	// InvalidSetHeaderRoutingMatchRegexAlb indicates that TrafficRouting ALB, does not support regex header value
+	InvalidSetHeaderRoutingMatchRegexAlb = "SetHeaderRouting match with regex does not support by ALB"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
@@ -288,6 +292,23 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.TrafficRouting == nil && step.SetCanaryScale != nil {
 			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setCanaryScale"), step.SetCanaryScale, InvalidSetCanaryScaleTrafficPolicy))
 		}
+		if step.SetHeaderRouting != nil {
+			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
+			if trafficRouting == nil || trafficRouting.ALB == nil {
+				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRouting"), step.SetHeaderRouting, InvalidSetHeaderRoutingTrafficPolicy))
+			} else {
+				if trafficRouting.ALB != nil && step.SetHeaderRouting.Match != nil {
+					// step regex is not supported for alb traffic routing
+					for j, match := range step.SetHeaderRouting.Match {
+						if match.HeaderRegex != "" {
+							fldRegex := stepFldPath.Child("setHeaderRouting").Child("match").Index(j)
+							allErrs = append(allErrs, field.Invalid(fldRegex, match, InvalidSetHeaderRoutingMatchRegexAlb))
+						}
+					}
+				}
+			}
+		}
+
 		analysisRunArgs := make([]v1alpha1.AnalysisRunArgument, 0)
 		if step.Experiment != nil {
 			for tmplIndex, template := range step.Experiment.Templates {
