@@ -593,6 +593,44 @@ spec:
                                   format: int32
                                   type: integer
                               type: object
+                            setMirror:
+                              properties:
+                                match:
+                                  properties:
+                                    header:
+                                      properties:
+                                        exact:
+                                          type: string
+                                        prefix:
+                                          type: string
+                                        regex:
+                                          type: string
+                                      type: object
+                                    method:
+                                      properties:
+                                        exact:
+                                          type: string
+                                        prefix:
+                                          type: string
+                                        regex:
+                                          type: string
+                                      type: object
+                                    name:
+                                      type: string
+                                    path:
+                                      properties:
+                                        exact:
+                                          type: string
+                                        prefix:
+                                          type: string
+                                        regex:
+                                          type: string
+                                      type: object
+                                    percentage:
+                                      format: int32
+                                      type: integer
+                                  type: object
+                              type: object
                             setWeight:
                               format: int32
                               type: integer

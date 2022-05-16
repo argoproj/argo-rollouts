@@ -554,6 +554,45 @@ type CanaryStep struct {
 	// SetCanaryScale defines how to scale the newRS without changing traffic weight
 	// +optional
 	SetCanaryScale *SetCanaryScale `json:"setCanaryScale,omitempty" protobuf:"bytes,5,opt,name=setCanaryScale"`
+	// SetMirror Mirrors traffic that matches rules to a particular destination
+	// +optional
+	SetMirror *SetMirror `json:"setMirror,omitempty" protobuf:"bytes,7,opt,name=setMirror"`
+}
+
+type SetMirror struct {
+	// Match Rule to match
+	// +optional
+	Match *SetMirrorMatch `json:"match,omitempty" protobuf:"bytes,1,opt,name=match"`
+}
+
+type SetMirrorMatch struct {
+	// Name The name of the match rule
+	// +optional
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// Method The http method to match for the mirror
+	// +optional
+	Method *StringMatch `json:"method,omitempty" protobuf:"bytes,2,opt,name=method"`
+	// Path the
+	// +optional
+	Path *StringMatch `json:"path,omitempty" protobuf:"bytes,3,opt,name=path"`
+	// Header
+	// +optional
+	Header *StringMatch `json:"header,omitempty" protobuf:"bytes,4,opt,name=header"`
+	// Percentage
+	// +optional
+	Percentage *int32 `json:"percentage,omitempty" protobuf:"varint,5,opt,name=percentage"`
+}
+
+type StringMatch struct {
+	// Exact
+	// +optional
+	Exact string `json:"exact,omitempty" protobuf:"bytes,1,opt,name=exact"`
+	// Prefix
+	// +optional
+	Prefix string `json:"prefix,omitempty" protobuf:"bytes,2,opt,name=prefix"`
+	// Regex
+	// +optional
+	Regex string `json:"regex,omitempty" protobuf:"bytes,3,opt,name=regex"`
 }
 
 // SetCanaryScale defines how to scale the newRS without changing traffic weight
