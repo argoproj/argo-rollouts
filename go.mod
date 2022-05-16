@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.13.1
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.15.0
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.16.0
+	github.com/aws/smithy-go v1.10.0
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/evanphx/json-patch/v5 v5.6.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -75,7 +76,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.7.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.9.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.14.0 // indirect
-	github.com/aws/smithy-go v1.10.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
