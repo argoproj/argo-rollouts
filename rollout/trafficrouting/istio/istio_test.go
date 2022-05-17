@@ -497,7 +497,7 @@ func TestHttpReconcileHeaderRoute_HostBased(t *testing.T) {
 		Match: []v1alpha1.HeaderRoutingMatch{
 			{
 				HeaderName:  "agent",
-				HeaderValue: "firefox",
+				HeaderValue: v1alpha1.StringMatch{Exact: "firefox"},
 			},
 		},
 	}
@@ -552,8 +552,10 @@ spec:
 	hr := &v1alpha1.SetHeaderRouting{
 		Match: []v1alpha1.HeaderRoutingMatch{
 			{
-				HeaderName:  "agent",
-				HeaderRegex: "firefox",
+				HeaderName: "agent",
+				HeaderValue: v1alpha1.StringMatch{
+					Regex: "firefox",
+				},
 			},
 		},
 	}

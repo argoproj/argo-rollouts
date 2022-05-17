@@ -927,12 +927,8 @@
           "title": "HeaderName the name of the request header"
         },
         "headerValue": {
-          "type": "string",
-          "title": "HeaderValue the exact value of the header\n+optional"
-        },
-        "headerRegex": {
-          "type": "string",
-          "title": "HeaderValue the regex value of the header\n+optional"
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
+          "title": "HeaderValue the value of the header"
         }
       }
     },
@@ -1610,6 +1606,24 @@
           "format": "int64"
         }
       }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch": {
+      "type": "object",
+      "properties": {
+        "exact": {
+          "type": "string",
+          "title": "Exact The string must match exactly"
+        },
+        "prefix": {
+          "type": "string",
+          "title": "Prefix The string will be prefixed matched"
+        },
+        "regex": {
+          "type": "string",
+          "title": "Regex The string will be regular expression matched"
+        }
+      },
+      "title": "StringMatch Used to define what type of matching we will use exact, prefix, or regular expression"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute": {
       "type": "object",

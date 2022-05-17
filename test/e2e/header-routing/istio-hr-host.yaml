@@ -86,12 +86,14 @@ spec:
         - setHeaderRouting:
             match:
             - headerName: agent
-              headerRegex: firefox(.*)
+              headerValue:
+                regex: firefox(.*)
         - pause: { }
         - setHeaderRouting:
             match:
             - headerName: agent
-              headerRegex: chrome(.*)
+              headerValue:
+                regex: chrome(.*)
         - pause: { }
         - setWeight: 40
         - setHeaderRouting: {}

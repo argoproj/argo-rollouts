@@ -26,7 +26,6 @@ const Http = "http"
 const Tls = "tls"
 const Type = "Istio"
 const HeaderRouteName = "argo-rollouts-header-based-route"
-const DefaultHeaderRegex = "(.*)"
 
 // NewReconciler returns a reconciler struct that brings the Virtual Service into the desired state
 func NewReconciler(r *v1alpha1.Rollout, client dynamic.Interface, recorder record.EventRecorder, virtualServiceLister, destinationRuleLister dynamiclister.Lister) *Reconciler {
@@ -823,17 +822,18 @@ func createHeaderRoute(headerRouting *v1alpha1.SetHeaderRouting, patch virtualSe
 
 func createRouteMatch(hrm v1alpha1.HeaderRoutingMatch) interface{} {
 	res := map[string]interface{}{}
-	if hrm.HeaderValue != "" {
-		res["exact"] = hrm.HeaderValue
-	}
-	if hrm.HeaderRegex != "" {
-		res["regex"] = hrm.HeaderRegex
-	}
-	if hrm.HeaderValue == "" && hrm.HeaderRegex == "" {
-		res["regex"] = DefaultHeaderRegex
-	}
+	value := hrm.HeaderValue
+	setMapValueIfNotEmpty(res, "exact", value.Exact)
+	setMapValueIfNotEmpty(res, "regex", value.Regex)
+	setMapValueIfNotEmpty(res, "prefix", value.Prefix)
 	return map[string]interface{}{
 		"headers": map[string]interface{}{hrm.HeaderName: res},
+	}
+}
+
+func setMapValueIfNotEmpty(m map[string]interface{}, key string, value string) {
+	if value != "" {
+		m[key] = value
 	}
 }
 

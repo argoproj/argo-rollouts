@@ -600,12 +600,18 @@ spec:
                                     properties:
                                       headerName:
                                         type: string
-                                      headerRegex:
-                                        type: string
                                       headerValue:
-                                        type: string
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
                                     required:
                                     - headerName
+                                    - headerValue
                                     type: object
                                   type: array
                               type: object

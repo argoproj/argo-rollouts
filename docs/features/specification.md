@@ -271,14 +271,16 @@ spec:
       - setHeaderRouting:
           match:
             - headerName: "version"
-              headerValue: "2"
+              headerValue:
+                exact: "2"
 
       # Sets header based route with specified header values using regex as a value
       # Could be used 'headerValue' or 'headerRegex' one of that values
       - setHeaderRouting:
           match:
             - headerName: "version"
-              headerRegex: "2.0.(.*)"
+              headerValue:
+                regex: "2.0.(.*)"
 
       # an inline analysis step
       - analysis:

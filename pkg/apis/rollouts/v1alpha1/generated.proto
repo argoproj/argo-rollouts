@@ -745,13 +745,8 @@ message HeaderRoutingMatch {
   // HeaderName the name of the request header
   optional string headerName = 1;
 
-  // HeaderValue the exact value of the header
-  // +optional
-  optional string headerValue = 2;
-
-  // HeaderValue the regex value of the header
-  // +optional
-  optional string headerRegex = 3;
+  // HeaderValue the value of the header
+  optional StringMatch headerValue = 2;
 }
 
 // IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic
