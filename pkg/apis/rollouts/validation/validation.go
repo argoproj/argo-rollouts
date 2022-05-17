@@ -35,6 +35,8 @@ const (
 	InvalidSetCanaryScaleTrafficPolicy = "SetCanaryScale requires TrafficRouting to be set"
 	// InvalidSetHeaderRoutingTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetHeaderRoutingTrafficPolicy = "SetHeaderRouting requires TrafficRouting, supports Istio only"
+	// InvalidSetHeaderRoutingMultipleValuePolicy indicates that SetCanaryScale, has multiple values set
+	InvalidSetHeaderRoutingMultipleValuePolicy = "SetHeaderRouting must have one of 'HeaderValue', 'HeaderRegex'"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
@@ -294,6 +296,14 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
 			if trafficRouting == nil || trafficRouting.Istio == nil {
 				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRouting"), step.SetHeaderRouting, InvalidSetHeaderRoutingTrafficPolicy))
+			}
+			if step.SetHeaderRouting.Match != nil && len(step.SetHeaderRouting.Match) > 0 {
+				for j, match := range step.SetHeaderRouting.Match {
+					if match.HeaderValue != "" && match.HeaderRegex != "" {
+						fldRegex := stepFldPath.Child("setHeaderRouting").Child("match").Index(j)
+						allErrs = append(allErrs, field.Invalid(fldRegex, match, InvalidSetHeaderRoutingMultipleValuePolicy))
+					}
+				}
 			}
 		}
 
