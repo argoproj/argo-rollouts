@@ -23,6 +23,7 @@ Argo Rollouts enables traffic management by manipulating the Service Mesh resour
 - [Istio](istio.md)
 - [Nginx Ingress Controller](nginx.md)
 - [Service Mesh Interface (SMI)](smi.md)
+- [Traefik Proxy](traefik.md)
 - [Multiple Providers](mixed.md)
 - File a ticket [here](https://github.com/argoproj/argo-rollouts/issues) if you would like another implementation (or thumbs up it if that issue already exists)
 

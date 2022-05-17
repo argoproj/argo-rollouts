@@ -1494,6 +1494,18 @@ message StickinessConfig {
   optional int64 durationSeconds = 2;
 }
 
+// StringMatch Used to define what type of matching we will use exact, prefix, or regular expression
+message StringMatch {
+  // Exact The string must match exactly
+  optional string exact = 1;
+
+  // Prefix The string will be prefixed matched
+  optional string prefix = 2;
+
+  // Regex The string will be regular expression matched
+  optional string regex = 3;
+}
+
 // TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.
 message TLSRoute {
   // Port number of the TLS Route desired to be matched in the given Istio VirtualService.
