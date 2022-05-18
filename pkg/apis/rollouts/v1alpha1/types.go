@@ -565,9 +565,9 @@ type SetHeaderRouting struct {
 
 type HeaderRoutingMatch struct {
 	// HeaderName the name of the request header
-	HeaderName string `json:"headerName" protobuf:"varint,1,name=headerName"`
+	HeaderName string `json:"headerName" protobuf:"bytes,1,opt,name=headerName"`
 	// HeaderValue the value of the header
-	HeaderValue StringMatch `json:"headerValue" protobuf:"varint,2,name=headerValue"`
+	HeaderValue StringMatch `json:"headerValue" protobuf:"bytes,2,opt,name=headerValue"`
 }
 
 // StringMatch Used to define what type of matching we will use exact, prefix, or regular expression
