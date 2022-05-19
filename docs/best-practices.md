@@ -50,5 +50,4 @@ spec:
         path: /*
 ```
 
-The above technique has the a benefit in that it would not incur additional cost of allocating
-additional load balancers.
+The advantage of the above technique is that it does not incur the additional cost of allocating additional load balancers.
