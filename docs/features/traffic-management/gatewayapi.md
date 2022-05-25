@@ -125,14 +125,77 @@ spec:
   gatewayClassName: argo-rollouts-gateway-class
   listeners:
     - protocol: HTTP
-      name: web
+      name: web # name of our port
       port: 80
 ```
 
 ### Create entry point and map it with our Gateway
+
+In different controllers entry points can be created differently. For Traefik controller we can create entry point like this:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: argo-rollouts-traefik-lb
+spec:
+  type: LoadBalancer
+  selector:
+    app: argo-rollouts-traefik-lb
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: web # map entrypoint web with the port web of Gateway resource
+      name: web
+```
 
 ### Create HTTPRoute
 
 ### Create canary and stable services
 
 ### Create argo-rollouts resources
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollouts-demo
+spec:
+  replicas: 5
+  strategy:
+    canary:
+      canaryService: argo-rollouts-canary-service # our created canary service
+      stableService: argo-rollouts-stable-service # our created stable service
+      trafficRouting:
+        gatewayAPI:
+          httpRoute: argo-rollouts-http-route # our created httproute
+      steps:
+        - setWeight: 30
+        - pause: {}
+        - setWeight: 40
+        - pause: { duration: 10 }
+        - setWeight: 60
+        - pause: { duration: 10 }
+        - setWeight: 80
+        - pause: { duration: 10 }
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollouts-demo
+  template:
+    metadata:
+      labels:
+        app: rollouts-demo
+    spec:
+      containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:red
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 5m
+```
