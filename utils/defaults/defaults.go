@@ -53,6 +53,8 @@ const (
 	DefaultAppMeshCRDVersion            = "v1beta2"
 	DefaultGatewayAPIGroup              = "gateway.networking.k8s.io"
 	DefaultGatewayAPIGroupVersion       = "gateway.networking.k8s.io/v1alpha2"
+	DefaultTraefikAPIGroup              = "traefik.containo.us"
+	DefaultTraefikVersion               = "traefik.containo.us/v1alpha1"
 )
 
 var (

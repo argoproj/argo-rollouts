@@ -221,7 +221,16 @@ rules:
   - list
   - update
   - patch
-# GatewayAPI CRD r/w access needed for using the Gateway API provider
+# Traefik service CRD r/w access needed for using the Traefik provider
+- apiGroups:
+  - traefik.containo.us
+  resources:
+  - traefikservices
+  verbs:
+  - watch
+  - get
+  - update
+# GatewayAPI httproutes CRD r/w access needed for using the Gateway API provider
 - apiGroups:
   - gateway.networking.k8s.io
   resources:
@@ -230,6 +239,5 @@ rules:
   - watch
   - get
   - update
-
 
 

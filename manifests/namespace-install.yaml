@@ -11728,6 +11728,13 @@ spec:
                               trafficSplitName:
                                 type: string
                             type: object
+                          traefik:
+                            properties:
+                              weightedTraefikServiceName:
+                                type: string
+                            required:
+                            - weightedTraefikServiceName
+                            type: object
                         type: object
                     type: object
                 type: object
@@ -14541,6 +14548,14 @@ rules:
   - list
   - update
   - patch
+- apiGroups:
+  - traefik.containo.us
+  resources:
+  - traefikservices
+  verbs:
+  - watch
+  - get
+  - update
 - apiGroups:
   - gateway.networking.k8s.io
   resources:

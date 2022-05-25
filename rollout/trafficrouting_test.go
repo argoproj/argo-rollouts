@@ -21,6 +21,8 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik"
+	traefikMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik/mocks"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
@@ -621,6 +623,29 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			assert.Nil(t, err)
 			assert.NotNil(t, networkReconciler)
 			assert.Equal(t, appmesh.Type, networkReconciler.Type())
+		}
+	}
+	{
+		tsController := Controller{
+			reconcilerBase: reconcilerBase{
+				dynamicclientset: &traefikMocks.FakeDynamicClient{},
+			},
+		}
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Traefik: &v1alpha1.TraefikTrafficRouting{
+				WeightedTraefikServiceName: "traefik-service",
+			},
+		}
+		roCtx := &rolloutContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
+		for _, networkReconciler := range networkReconcilerList {
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+			assert.Equal(t, traefik.Type, networkReconciler.Type())
 		}
 	}
 	{

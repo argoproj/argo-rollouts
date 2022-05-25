@@ -361,8 +361,10 @@ type RolloutTrafficRouting struct {
 	Ambassador *AmbassadorTrafficRouting `json:"ambassador,omitempty" protobuf:"bytes,5,opt,name=ambassador"`
 	// AppMesh holds specific configuration to use AppMesh to route traffic
 	AppMesh *AppMeshTrafficRouting `json:"appMesh,omitempty" protobuf:"bytes,6,opt,name=appMesh"`
+	// Traefik holds specific configuration to use Traefik to route traffic
+	Traefik *TraefikTrafficRouting `json:"traefik,omitempty" protobuf:"bytes,7,opt,name=traefik"`
 	// Gateway API holds specific configuration to use Gateway API to route traffic
-	GatewayAPI *GatewayAPITrafficRouting `json:"gatewayAPI,omitempty" protobuf:"bytes,7,opt,name=gatewayAPI"`
+	GatewayAPI *GatewayAPITrafficRouting `json:"gatewayAPI,omitempty" protobuf:"bytes,8,opt,name=gatewayAPI"`
 }
 
 // GatewayAPITrafficRouting defines the configuration required to use Gateway API as traffic router
@@ -370,6 +372,12 @@ type GatewayAPITrafficRouting struct {
 	// HTTPRoute refers to the name of the HTTPRoute used to route traffic to the
 	// service
 	HTTPRoute string `json:"httpRoute" protobuf:"bytes,1,name=httpRoute"`
+}
+
+// TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
+type TraefikTrafficRouting struct {
+	// TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
+	WeightedTraefikServiceName string `json:"weightedTraefikServiceName" protobuf:"bytes,1,name=weightedTraefikServiceName"`
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
