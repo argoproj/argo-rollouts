@@ -66,6 +66,9 @@ metadata:
   name: rollout-ref-deployment
 spec:
   replicas: 5
+  selector:
+    matchLabels:
+      app: rollout-ref-deployment
   workloadRef:                                 # Reference an existing Deployment using workloadRef field
     apiVersion: apps/v1
     kind: Deployment
