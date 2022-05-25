@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"math"
 
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -472,6 +472,19 @@ func GetCurrentSetWeight(rollout *v1alpha1.Rollout) int32 {
 		}
 	}
 	return 0
+}
+
+func GetCurrentSetHeaderRouting(rollout *v1alpha1.Rollout, index int32) *v1alpha1.SetHeaderRouting {
+	if int32(len(rollout.Spec.Strategy.Canary.Steps)) == index {
+		index--
+	}
+	for i := index; i >= 0; i-- {
+		step := rollout.Spec.Strategy.Canary.Steps[i]
+		if step.SetHeaderRouting != nil {
+			return step.SetHeaderRouting
+		}
+	}
+	return nil
 }
 
 // UseSetCanaryScale will return a SetCanaryScale if specified and should be used, returns nil otherwise.

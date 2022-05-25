@@ -48,3 +48,44 @@ Additionally, the Argo Rollouts controller needs to treat the Rollout object dif
 Since the traffic is controlled independently by the Service Mesh resources, the controller needs to make a best effort to ensure that the Stable and New ReplicaSets are not overwhelmed by the traffic sent to them. By leaving the Stable ReplicaSet scaled up, the controller is ensuring that the Stable ReplicaSet can handle 100% of the traffic at any time[^1]. The New ReplicaSet follows the same behavior as without traffic management. The new ReplicaSet's replica count is equal to the latest SetWeight step percentage multiple by the total replica count of the Rollout. This calculation ensures that the canary version does not receive more traffic than it can handle.
 
 [^1]: The Rollout has to assume that the application can handle 100% of traffic if it is fully scaled up. It should outsource to the HPA to detect if the Rollout needs to more replicas if 100% isn't enough.
+
+## Traffic routing based on a header values for Canary
+
+Argo Rollouts has ability to send all traffic to the canary-service based on a http request header value. Right now it's implemented for the Istio only.
+The step for the header based traffic routing `setHeaderRouting` has a list of matchers for the header. 
+Should be specified the `headerName` - name of the header and a value. 
+The value could be one of 3 `exact` - specify the exact header value, `regex` - value in a regex format, `prefix` - the prefix of the value could be provided.
+
+To disable header based traffic routing just need to specify empty `setHeaderRouting`.
+
+Example:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+spec:
+  ...
+  strategy:
+    canary:
+      canaryService: canary-service
+      stableService: stable-service
+      trafficRouting:
+        istio:
+          virtualService:
+            name: rollouts-demo-vsvc
+      steps:
+      - setWeight: 20
+      - setHeaderRouting: # enable header based traffic routing where
+          match:
+          - headerName: Custom-Header1 # Custom-Header1=Mozilla
+            headerValue:
+              exact: Mozilla
+          - headerName: Custom-Header2 # or Custom-Header2 has a prefix Mozilla
+            headerValue:
+              prefix: Mozilla
+          - headerName: Custom-Header3 # or Custom-Header3 value match regex: Mozilla(.*)
+            headerValue:
+              regex: Mozilla(.*)
+      - pause: {}
+      - setHeaderRouting: {} # disable header based traffic routing
+```

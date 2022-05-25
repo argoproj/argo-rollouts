@@ -6,16 +6,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	testutil "github.com/argoproj/argo-rollouts/test/util"
-	"github.com/argoproj/argo-rollouts/utils/record"
-	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 	"github.com/tj/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	k8stesting "k8s.io/client-go/testing"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	testutil "github.com/argoproj/argo-rollouts/test/util"
+	"github.com/argoproj/argo-rollouts/utils/record"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 const (
