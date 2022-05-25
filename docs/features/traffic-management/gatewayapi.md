@@ -151,7 +151,59 @@ spec:
 
 ### Create HTTPRoute
 
+Create HTTPRoute and connect to the created Gateway resource
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: HTTPRoute
+metadata:
+  name: argo-rollouts-http-route
+spec:
+  parentRefs:
+    - name: argo-rollouts-gateway
+  rules:
+    - backendRefs:
+        - name: argo-rollouts-stable-service
+          port: 80
+        - name: argo-rollouts-canary-service
+          port: 80
+```
+
 ### Create canary and stable services
+
+- Canary service
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: argo-rollouts-canary-service
+spec:
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: rollouts-demo
+```
+
+- Stable service
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: argo-rollouts-stable-service
+spec:
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: rollouts-demo
+```
 
 ### Create argo-rollouts resources
 
