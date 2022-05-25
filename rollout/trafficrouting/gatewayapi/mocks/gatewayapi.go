@@ -51,7 +51,7 @@ func (f *FakeClient) Create(ctx context.Context, obj *unstructured.Unstructured,
 
 func (f *FakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	if f.IsGetError {
-		return HTTPRouteObj, errors.New("Traefik get error")
+		return HTTPRouteObj, errors.New("Gateway API get error")
 	}
 	if f.IsGetErrorManifest {
 		return ErrorHTTPRouteObj, nil
@@ -61,7 +61,7 @@ func (f *FakeClient) Get(ctx context.Context, name string, options metav1.GetOpt
 
 func (f *FakeClient) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	if f.UpdateError {
-		return obj, errors.New("Traefik update error")
+		return obj, errors.New("Gateway API update error")
 	}
 	return obj, nil
 }

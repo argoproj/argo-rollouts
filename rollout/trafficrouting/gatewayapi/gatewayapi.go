@@ -153,7 +153,7 @@ func getService(serviceName string, services []interface{}) (map[string]interfac
 	for _, service := range services {
 		typedService, ok := service.(map[string]interface{})
 		if !ok {
-			return nil, errors.New("Failed type assertion setting weight for traefik service")
+			return nil, errors.New("Failed type assertion for gateway api service")
 		}
 		nameOfCurrentService, isFound, err := unstructured.NestedString(typedService, "name")
 		if err != nil {
