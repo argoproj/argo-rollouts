@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/features/traffic-management/">
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.3.0, mkdocs-material-8.2.13">
+      <meta name="generator" content="mkdocs-1.3.0, mkdocs-material-8.2.15">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.e411adfe.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.c382b1dc.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.cc9b2e1e.min.css">
@@ -729,6 +729,13 @@
         <li class="md-nav__item">
   <a href="#how-does-argo-rollouts-enable-traffic-management" class="md-nav__link">
     How does Argo Rollouts enable traffic management?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#traffic-routing-based-on-a-header-values-for-canary" class="md-nav__link">
+    Traffic routing based on a header values for Canary
   </a>
   
 </li>
@@ -2077,6 +2084,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#traffic-routing-based-on-a-header-values-for-canary" class="md-nav__link">
+    Traffic routing based on a header values for Canary
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2133,6 +2147,41 @@
 <p>The controller modifies these Services to route traffic to the appropriate canary and stable ReplicaSets as the Rollout progresses. These Services are used by the Service Mesh to define what group of pods should receive the canary and stable traffic.</p>
 <p>Additionally, the Argo Rollouts controller needs to treat the Rollout object differently when using traffic management. In particular, the Stable ReplicaSet owned by the Rollout remains fully scaled up as the Rollout progresses through the Canary steps.</p>
 <p>Since the traffic is controlled independently by the Service Mesh resources, the controller needs to make a best effort to ensure that the Stable and New ReplicaSets are not overwhelmed by the traffic sent to them. By leaving the Stable ReplicaSet scaled up, the controller is ensuring that the Stable ReplicaSet can handle 100% of the traffic at any time<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>. The New ReplicaSet follows the same behavior as without traffic management. The new ReplicaSet's replica count is equal to the latest SetWeight step percentage multiple by the total replica count of the Rollout. This calculation ensures that the canary version does not receive more traffic than it can handle.</p>
+<h2 id="traffic-routing-based-on-a-header-values-for-canary">Traffic routing based on a header values for Canary<a class="headerlink" href="#traffic-routing-based-on-a-header-values-for-canary" title="Permanent link">&para;</a></h2>
+<p>Argo Rollouts has ability to send all traffic to the canary-service based on a http request header value. Right now it's implemented for the Istio only.
+The step for the header based traffic routing <code>setHeaderRouting</code> has a list of matchers for the header. 
+Should be specified the <code>headerName</code> - name of the header and a value. 
+The value could be one of 3 <code>exact</code> - specify the exact header value, <code>regex</code> - value in a regex format, <code>prefix</code> - the prefix of the value could be provided.</p>
+<p>To disable header based traffic routing just need to specify empty <code>setHeaderRouting</code>.</p>
+<p>Example:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
+<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">strategy</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-service</span><span class="w"></span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-service</span><span class="w"></span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">istio</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">virtualService</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-vsvc</span><span class="w"></span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setHeaderRouting</span><span class="p">:</span><span class="w"> </span><span class="c1"># enable header based traffic routing where</span><span class="w"></span>
+<span class="w">          </span><span class="nt">match</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">headerName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Custom-Header1</span><span class="w"> </span><span class="c1"># Custom-Header1=Mozilla</span><span class="w"></span>
+<span class="w">            </span><span class="nt">headerValue</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="nt">exact</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Mozilla</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">headerName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Custom-Header2</span><span class="w"> </span><span class="c1"># or Custom-Header2 has a prefix Mozilla</span><span class="w"></span>
+<span class="w">            </span><span class="nt">headerValue</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="nt">prefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Mozilla</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">headerName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Custom-Header3</span><span class="w"> </span><span class="c1"># or Custom-Header3 value match regex: Mozilla(.*)</span><span class="w"></span>
+<span class="w">            </span><span class="nt">headerValue</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Mozilla(.*)</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setHeaderRouting</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"> </span><span class="c1"># disable header based traffic routing</span><span class="w"></span>
+</code></pre></div>
 <div class="footnote">
 <hr />
 <ol>
@@ -2209,7 +2258,7 @@
     <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2a1c317c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.ed9748b7.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a6c66575.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
