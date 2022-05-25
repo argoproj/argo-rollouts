@@ -820,6 +820,10 @@
         "setCanaryScale": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetCanaryScale",
           "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight\n+optional"
+        },
+        "setHeaderRouting": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetHeaderRouting",
+          "title": "SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service"
         }
       },
       "description": "CanaryStep defines a step of a canary deployment."
@@ -912,6 +916,19 @@
         "fieldPath": {
           "type": "string",
           "title": "Required: Path of the field to select in the specified API version"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.HeaderRoutingMatch": {
+      "type": "object",
+      "properties": {
+        "headerName": {
+          "type": "string",
+          "title": "HeaderName the name of the request header"
+        },
+        "headerValue": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
+          "title": "HeaderValue the value of the header"
         }
       }
     },
@@ -1566,6 +1583,18 @@
       },
       "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetHeaderRouting": {
+      "type": "object",
+      "properties": {
+        "match": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.HeaderRoutingMatch"
+          }
+        }
+      },
+      "title": "SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StickinessConfig": {
       "type": "object",
       "properties": {
@@ -1577,6 +1606,24 @@
           "format": "int64"
         }
       }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch": {
+      "type": "object",
+      "properties": {
+        "exact": {
+          "type": "string",
+          "title": "Exact The string must match exactly"
+        },
+        "prefix": {
+          "type": "string",
+          "title": "Prefix The string will be prefixed matched"
+        },
+        "regex": {
+          "type": "string",
+          "title": "Regex The string will be regular expression matched"
+        }
+      },
+      "title": "StringMatch Used to define what type of matching we will use exact, prefix, or regular expression"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute": {
       "type": "object",

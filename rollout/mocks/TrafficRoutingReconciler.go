@@ -13,6 +13,20 @@ type TrafficRoutingReconciler struct {
 	mock.Mock
 }
 
+// SetHeaderRouting provides a mock function with given fields: headerRouting
+func (_m *TrafficRoutingReconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
+	ret := _m.Called(headerRouting)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*v1alpha1.SetHeaderRouting) error); ok {
+		r0 = rf(headerRouting)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SetWeight provides a mock function with given fields: desiredWeight, additionalDestinations
 func (_m *TrafficRoutingReconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	_va := make([]interface{}, len(additionalDestinations))
