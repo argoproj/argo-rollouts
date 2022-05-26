@@ -107,15 +107,9 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if err != nil {
 		return err
 	}
-	if backendRefs == nil {
-		return errors.New("spec.rules.backendRefs field was not found in httpRoute")
-	}
 	canaryService, err := getService(canaryServiceName, backendRefs)
 	if err != nil {
 		return err
-	}
-	if canaryService == nil {
-		return errors.New("canaryService was not found in httpRoute")
 	}
 	err = unstructured.SetNestedField(canaryService, int64(desiredWeight), "weight")
 	if err != nil {
@@ -124,9 +118,6 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	stableService, err := getService(stableServiceName, backendRefs)
 	if err != nil {
 		return err
-	}
-	if stableService == nil {
-		return errors.New("stableService was not found in httpRoute")
 	}
 	err = unstructured.SetNestedField(stableService, int64(100-desiredWeight), "weight")
 	if err != nil {
@@ -148,9 +139,9 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return err
 }
 
-func getService(serviceName string, services []interface{}) (map[string]interface{}, error) {
+func getService(serviceName string, backendRefs []interface{}) (map[string]interface{}, error) {
 	var selectedService map[string]interface{}
-	for _, service := range services {
+	for _, service := range backendRefs {
 		typedService, ok := service.(map[string]interface{})
 		if !ok {
 			return nil, errors.New("Failed type assertion for gateway api service")
@@ -160,12 +151,15 @@ func getService(serviceName string, services []interface{}) (map[string]interfac
 			return nil, err
 		}
 		if !isFound {
-			return nil, errors.New("name field was not found in service")
+			continue
 		}
 		if nameOfCurrentService == serviceName {
 			selectedService = typedService
 			break
 		}
+	}
+	if selectedService == nil {
+		return nil, errors.New("service was not found in httpRoute")
 	}
 	return selectedService, nil
 }
@@ -182,6 +176,9 @@ func getBackendRefs(rules []interface{}) ([]interface{}, error) {
 		}
 		if !isFound {
 			continue
+		}
+		if backendRefs == nil {
+			return nil, errors.New("backendRefs field was not found in httpRoute")
 		}
 		return backendRefs, nil
 	}
