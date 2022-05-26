@@ -177,12 +177,9 @@ func getBackendRefList(rules []interface{}) ([]interface{}, error) {
 		if !isFound {
 			continue
 		}
-		if backendRefs == nil {
-			return nil, errors.New("backendRefs field was not found in httpRoute")
-		}
 		return backendRefs, nil
 	}
-	return nil, nil
+	return nil, errors.New("backendRefs was not found in httpRoute")
 }
 
 func mergeBackendRefs(rules, backendRefs []interface{}) ([]interface{}, error) {

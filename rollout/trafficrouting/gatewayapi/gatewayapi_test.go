@@ -291,7 +291,64 @@ func TestGetBackendRef(t *testing.T) {
 	})
 }
 
-func TestGetBackendRefList(t *testing.T) {}
+func TestGetBackendRefList(t *testing.T) {
+	t.Run("ErrorGetBackendRefListFromStruct ", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		rules := []interface{}{
+			mocks.FakeBackendRefList{},
+		}
+
+		// When
+		backendRefs, err := getBackendRefList(rules)
+
+		// Then
+		assert.Nil(t, backendRefs)
+		assert.Error(t, err)
+	})
+	t.Run("ErrorGetBackendRefListFromMap", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		rules := map[string]interface{}{
+			"mock": nil,
+		}
+
+		// When
+		backendRefs, err := getBackendRefList([]interface{}{rules})
+
+		// Then
+		assert.Nil(t, backendRefs)
+		assert.Error(t, err)
+	})
+	t.Run("GetBackendRefListFromMap", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		rules := map[string]interface{}{
+			"backendRefs": []interface{}{"mock value"},
+		}
+
+		// When
+		backendRefs, err := getBackendRefList([]interface{}{rules})
+
+		// Then
+		assert.NotNil(t, backendRefs)
+		assert.NoError(t, err)
+	})
+	t.Run("ErrorGetBackendRefListFromNil", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		rules := map[string]interface{}{
+			"backendRefs": nil,
+		}
+
+		// When
+		backendRefs, err := getBackendRefList([]interface{}{rules})
+
+		// Then
+		assert.Nil(t, backendRefs)
+		assert.Error(t, err)
+	})
+}
 
 func TestMergeBackendRefs(t *testing.T) {}
 

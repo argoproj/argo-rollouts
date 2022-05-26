@@ -28,6 +28,10 @@ type FakeBackendRef struct {
 	Weight int
 }
 
+type FakeBackendRefList struct {
+	BackendRefs []interface{}
+}
+
 type FakeRecorder struct{}
 
 var (
