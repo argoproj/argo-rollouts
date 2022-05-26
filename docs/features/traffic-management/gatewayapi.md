@@ -6,16 +6,16 @@ Gateway API is an open source project managed by the [SIG-NETWORK](https://githu
 
 ## How to integrate Gateway API with Argo Rollouts
 
-1. Enable Gateway Provider
+1. Enable Gateway Provider and create Gateway entrypoint
 2. Create GatewayClass and Gateway resources
-3. Create entry point and map it with our Gateway
+3. Create cluster entrypoint and map it with our Gateway entrypoint
 4. Create HTTPRoute
 5. Create canary and stable services
 6. Create argo-rollouts resources
 
 We will go through all these steps together with an example Traefik
 
-### Enable Gateway Provider
+### Enable Gateway Provider and create Gateway entrypoint
 
 Every contoller has its own instruction how we need to enable Gateway API provider. I will follow to the instructions of [Traefik controller](https://doc.traefik.io/traefik/providers/kubernetes-gateway/)
 
@@ -52,7 +52,7 @@ spec:
             - --providers.kubernetesgateway
           ports:
             - name: web
-              containerPort: 80
+              containerPort: 80 # entrypoint for our gateway
 ```
 
 3. Create the same ServiceAccount
@@ -125,11 +125,11 @@ spec:
   gatewayClassName: argo-rollouts-gateway-class
   listeners:
     - protocol: HTTP
-      name: web # name of our port
-      port: 80
+      name: web
+      port: 80 # one of Gateway entrypoint that we created at 1 step
 ```
 
-### Create entry point and map it with our Gateway
+### Create cluster entrypoint and map it with our Gateway entrypoint
 
 In different controllers entry points can be created differently. For Traefik controller we can create entry point like this:
 
@@ -141,11 +141,11 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
-    app: argo-rollouts-traefik-lb
+    app: argo-rollouts-traefik-lb # selector of Gateway provider(step 1)
   ports:
     - protocol: TCP
       port: 8080
-      targetPort: web # map entrypoint web with the port web of Gateway resource
+      targetPort: web # map with Gateway entrypoint
       name: web
 ```
 
