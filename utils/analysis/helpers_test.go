@@ -165,6 +165,31 @@ func TestLastMeasurement(t *testing.T) {
 	assert.Nil(t, LastMeasurement(run, "success-rate"))
 }
 
+func TestArrayMeasurement(t *testing.T) {
+	m1 := v1alpha1.Measurement{
+		Phase: v1alpha1.AnalysisPhaseSuccessful,
+		Value: "99",
+	}
+	m2 := v1alpha1.Measurement{
+		Phase: v1alpha1.AnalysisPhaseSuccessful,
+		Value: "98",
+	}
+	run := &v1alpha1.AnalysisRun{
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseRunning,
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:         "success-rate",
+					Phase:        v1alpha1.AnalysisPhaseRunning,
+					Measurements: []v1alpha1.Measurement{m1, m2},
+				},
+			},
+		},
+	}
+	assert.Nil(t, ArrayMeasurement(run, "non-existent"))
+	assert.Equal(t, run.Status.MetricResults[0].Measurements, ArrayMeasurement(run, "success-rate"))
+}
+
 func TestIsTerminating(t *testing.T) {
 	run := &v1alpha1.AnalysisRun{
 		Status: v1alpha1.AnalysisRunStatus{
