@@ -196,6 +196,22 @@ func TestSetWeight(t *testing.T) {
 	})
 }
 
+func TestSetHeaderRouting(t *testing.T) {
+	t.Run("SetHeaderRouting", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{}
+		r := NewReconciler(&cfg)
+		headerRouting := &v1alpha1.SetHeaderRouting{}
+
+		// When
+		err := r.SetHeaderRouting(headerRouting)
+
+		// Then
+		assert.NoError(t, err)
+	})
+}
+
 func TestVerifyWeight(t *testing.T) {
 	t.Run("VerifyWeight", func(t *testing.T) {
 		// Given
