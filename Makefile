@@ -115,6 +115,7 @@ api-proto: go-mod-vendor k8s-proto
 
 # generates ui related proto files
 .PHONY: ui-proto
+ui-proto:
 	yarn --cwd ui run protogen
 
 # generates k8s client, informer, lister, deepcopy from types.go

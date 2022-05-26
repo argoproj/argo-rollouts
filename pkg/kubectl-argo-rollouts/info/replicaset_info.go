@@ -36,7 +36,7 @@ func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 			Available: rs.Status.AvailableReplicas,
 		}
 		rsInfo.Icon = replicaSetIcon(rsInfo.Status)
-		rsInfo.Revision = int32(parseRevision(rs.ObjectMeta.Annotations))
+		rsInfo.Revision = int64(parseRevision(rs.ObjectMeta.Annotations))
 		rsInfo.Template = parseExperimentTemplateName(rs.ObjectMeta.Annotations)
 		rsInfo.ScaleDownDeadline = parseScaleDownDeadline(rs.ObjectMeta.Annotations)
 
