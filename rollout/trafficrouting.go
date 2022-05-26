@@ -96,8 +96,9 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	if rollout.Spec.Strategy.Canary.TrafficRouting.GatewayAPI != nil {
 		dynamicGatewayAPIClient := gatewayapi.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
 		trafficReconcilers = append(trafficReconcilers, gatewayapi.NewReconciler(&gatewayapi.ReconcilerConfig{
-			Rollout: rollout,
-			Client:  dynamicGatewayAPIClient,
+			Rollout:  rollout,
+			Client:   dynamicGatewayAPIClient,
+			Recorder: c.recorder,
 		}))
 	}
 
