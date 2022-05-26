@@ -350,7 +350,92 @@ func TestGetBackendRefList(t *testing.T) {
 	})
 }
 
-func TestMergeBackendRefs(t *testing.T) {}
+func TestMergeBackendRefs(t *testing.T) {
+	t.Run("ErrorMergeBackendRefsStruct ", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		rules := []interface{}{
+			mocks.FakeBackendRefList{},
+		}
+		backendRefs := []interface{}{}
+
+		// When
+		updatedRules, err := mergeBackendRefs(rules, backendRefs)
+
+		// Then
+		assert.Nil(t, updatedRules)
+		assert.Error(t, err)
+	})
+	t.Run("ErrorMergeBackendRefsMap", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		rules := map[string]interface{}{
+			"mock": nil,
+		}
+		backendRefs := []interface{}{}
+
+		// When
+		updatedRules, err := mergeBackendRefs([]interface{}{rules}, backendRefs)
+
+		// Then
+		typedRule, ok := updatedRules[0].(map[string]interface{})
+		assert.True(t, ok)
+		assert.Nil(t, typedRule["backendRef"])
+		assert.Error(t, err)
+	})
+	t.Run("GetMergeBackendRefsMap", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		rules := map[string]interface{}{
+			"backendRefs": []interface{}{
+				map[string]interface{}{
+					"name": "test",
+				},
+			},
+		}
+		backendRefs := []interface{}{
+			map[string]interface{}{
+				"name":   "test",
+				"weight": "100",
+			},
+		}
+
+		// When
+		updatedRules, err := mergeBackendRefs([]interface{}{rules}, backendRefs)
+
+		// Then
+		assert.NoError(t, err)
+		typedRule, ok := updatedRules[0].(map[string]interface{})
+		assert.True(t, ok)
+		updatedBackendRefs, isFound, err := unstructured.NestedSlice(typedRule, "backendRefs")
+		assert.True(t, isFound)
+		assert.NoError(t, err)
+		typedBackendRefs, ok := updatedBackendRefs[0].(map[string]interface{})
+		assert.True(t, ok)
+		assert.Equal(t, "100", typedBackendRefs["weight"])
+		assert.NoError(t, err)
+	})
+	t.Run("ErrorMergeBackendRefsNil", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		rules := map[string]interface{}{
+			"backendRefs": 1,
+		}
+		backendRefs := []interface{}{
+			map[string]interface{}{
+				"name":   "test",
+				"weight": "100",
+			},
+		}
+
+		// When
+		updatedRules, err := mergeBackendRefs([]interface{}{rules}, backendRefs)
+
+		// Then
+		assert.Nil(t, updatedRules)
+		assert.Error(t, err)
+	})
+}
 
 func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
 	t.Helper()

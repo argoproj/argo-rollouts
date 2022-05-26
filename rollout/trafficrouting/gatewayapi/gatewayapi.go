@@ -188,7 +188,7 @@ func mergeBackendRefs(rules, backendRefs []interface{}) ([]interface{}, error) {
 		if !ok {
 			return nil, errors.New("Failed type assertion setting rule for http route")
 		}
-		_, isFound, err := unstructured.NestedSlice(typedRule, "backendRefs")
+		isFound, err := hasBackendRefs(typedRule)
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +201,12 @@ func mergeBackendRefs(rules, backendRefs []interface{}) ([]interface{}, error) {
 		}
 		return rules, nil
 	}
-	return rules, nil
+	return rules, errors.New("backendRefs was not found and merged in rules")
+}
+
+func hasBackendRefs(typedRule map[string]interface{}) (bool, error) {
+	_, isFound, err := unstructured.NestedSlice(typedRule, "backendRefs")
+	return isFound, err
 }
 
 func (r *Reconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
