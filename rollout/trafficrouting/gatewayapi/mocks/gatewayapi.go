@@ -24,7 +24,7 @@ type FakeClient struct {
 	UpdateError        bool
 }
 
-type FakeService struct {
+type FakeBackendRef struct {
 	Weight int
 }
 

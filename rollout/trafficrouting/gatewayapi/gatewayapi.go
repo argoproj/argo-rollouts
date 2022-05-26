@@ -103,23 +103,23 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if !isFound {
 		return errors.New("spec.rules field was not found in httpRoute")
 	}
-	backendRefs, err := getBackendRefs(rules)
+	backendRefs, err := getBackendRefList(rules)
 	if err != nil {
 		return err
 	}
-	canaryService, err := getService(canaryServiceName, backendRefs)
+	canaryBackendRef, err := getBackendRef(canaryServiceName, backendRefs)
 	if err != nil {
 		return err
 	}
-	err = unstructured.SetNestedField(canaryService, int64(desiredWeight), "weight")
+	err = unstructured.SetNestedField(canaryBackendRef, int64(desiredWeight), "weight")
 	if err != nil {
 		return err
 	}
-	stableService, err := getService(stableServiceName, backendRefs)
+	stableBackendRef, err := getBackendRef(stableServiceName, backendRefs)
 	if err != nil {
 		return err
 	}
-	err = unstructured.SetNestedField(stableService, int64(100-desiredWeight), "weight")
+	err = unstructured.SetNestedField(stableBackendRef, int64(100-desiredWeight), "weight")
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return err
 }
 
-func getService(serviceName string, backendRefs []interface{}) (map[string]interface{}, error) {
+func getBackendRef(serviceName string, backendRefs []interface{}) (map[string]interface{}, error) {
 	var selectedService map[string]interface{}
 	for _, service := range backendRefs {
 		typedService, ok := service.(map[string]interface{})
@@ -164,7 +164,7 @@ func getService(serviceName string, backendRefs []interface{}) (map[string]inter
 	return selectedService, nil
 }
 
-func getBackendRefs(rules []interface{}) ([]interface{}, error) {
+func getBackendRefList(rules []interface{}) ([]interface{}, error) {
 	for _, rule := range rules {
 		typedRule, ok := rule.(map[string]interface{})
 		if !ok {

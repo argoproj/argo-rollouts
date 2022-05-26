@@ -97,14 +97,14 @@ func TestSetWeight(t *testing.T) {
 		rules, isFound, err := unstructured.NestedSlice(mocks.HTTPRouteObj.Object, "spec", "rules")
 		assert.NoError(t, err)
 		assert.Equal(t, isFound, true)
-		backendRefs, err := getBackendRefs(rules)
+		backendRefs, err := getBackendRefList(rules)
 		assert.NoError(t, err)
-		stableService, err := getService(stableServiceName, backendRefs)
+		stableService, err := getBackendRef(stableServiceName, backendRefs)
 		assert.NoError(t, err)
 		stableServiceWeight, isFound, err := unstructured.NestedInt64(stableService, "weight")
 		assert.NoError(t, err)
 		assert.Equal(t, isFound, true)
-		canaryService, err := getService(canaryServiceName, backendRefs)
+		canaryService, err := getBackendRef(canaryServiceName, backendRefs)
 		assert.NoError(t, err)
 		canaryServiceWeight, isFound, err := unstructured.NestedInt64(canaryService, "weight")
 		assert.Equal(t, isFound, true)
@@ -231,22 +231,22 @@ func TestType(t *testing.T) {
 	})
 }
 
-func TestGetService(t *testing.T) {
-	t.Run("ErrorGetServiceFromStruct ", func(t *testing.T) {
+func TestGetBackendRef(t *testing.T) {
+	t.Run("ErrorGetBackendRefFromStruct ", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		backendRefs := []interface{}{
-			mocks.FakeService{Weight: 12},
+			mocks.FakeBackendRef{Weight: 12},
 		}
 
 		// When
-		selectedServices, err := getService("default", backendRefs)
+		selectedBackendRef, err := getBackendRef("default", backendRefs)
 
 		// Then
-		assert.Nil(t, selectedServices)
+		assert.Nil(t, selectedBackendRef)
 		assert.Error(t, err)
 	})
-	t.Run("ErrorGetServiceFromMap", func(t *testing.T) {
+	t.Run("ErrorGetBackendRefFromMap", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		backendRefs := map[string]interface{}{
@@ -254,13 +254,13 @@ func TestGetService(t *testing.T) {
 		}
 
 		// When
-		selectedServices, err := getService("default", []interface{}{backendRefs})
+		selectedBackendRef, err := getBackendRef("default", []interface{}{backendRefs})
 
 		// Then
-		assert.Nil(t, selectedServices)
+		assert.Nil(t, selectedBackendRef)
 		assert.Error(t, err)
 	})
-	t.Run("GetServiceFromMap", func(t *testing.T) {
+	t.Run("GetBackendRefFromMap", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		const serviceName string = "default"
@@ -269,13 +269,13 @@ func TestGetService(t *testing.T) {
 		}
 
 		// When
-		selectedServices, err := getService(serviceName, []interface{}{backendRefs})
+		selectedBackendRef, err := getBackendRef(serviceName, []interface{}{backendRefs})
 
 		// Then
-		assert.NotNil(t, selectedServices)
+		assert.NotNil(t, selectedBackendRef)
 		assert.NoError(t, err)
 	})
-	t.Run("ErrorGetServiceFromNil", func(t *testing.T) {
+	t.Run("ErrorGetBackendRefFromNil", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		backendRefs := map[string]interface{}{
@@ -283,15 +283,15 @@ func TestGetService(t *testing.T) {
 		}
 
 		// When
-		selectedServices, err := getService("default", []interface{}{backendRefs})
+		selectedBackendRef, err := getBackendRef("default", []interface{}{backendRefs})
 
 		// Then
-		assert.Nil(t, selectedServices)
+		assert.Nil(t, selectedBackendRef)
 		assert.Error(t, err)
 	})
 }
 
-func TestGetBackendRefs(t *testing.T) {}
+func TestGetBackendRefList(t *testing.T) {}
 
 func TestMergeBackendRefs(t *testing.T) {}
 
