@@ -3,12 +3,11 @@ package rollout
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sort"
 	"strconv"
 	"time"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -105,18 +104,11 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.FoundNewRSReason, msg)
 		conditions.SetRolloutCondition(&c.rollout.Status, *condition)
 		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).UpdateStatus(ctx, c.rollout, metav1.UpdateOptions{})
-		// adding this block as argoprojclientset update deletes typemeta fields.
-		if updatedRollout != nil {
-			updatedRollout.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-				Group:   v1alpha1.SchemeGroupVersion.Group,
-				Kind:    rollouts.RolloutKind,
-				Version: v1alpha1.SchemeGroupVersion.Version,
-			})
-		}
 		if err != nil {
 			c.log.WithError(err).Error("Error: updating rollout revision")
 			return nil, err
 		}
+		updatedRollout = rolloutUpdate(updatedRollout)
 		c.rollout = updatedRollout
 		c.newRollout = updatedRollout
 		c.log.Infof("Initialized Progressing condition: %v", condition)
@@ -131,14 +123,7 @@ func (c *rolloutContext) setRolloutRevision(revision string) error {
 			c.log.WithError(err).Error("Error: updating rollout revision")
 			return err
 		}
-		// adding this block as argoprojclientset update deletes typemeta fields.
-		if updatedRollout != nil {
-			updatedRollout.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-				Group:   v1alpha1.SchemeGroupVersion.Group,
-				Kind:    rollouts.RolloutKind,
-				Version: v1alpha1.SchemeGroupVersion.Version,
-			})
-		}
+		updatedRollout = rolloutUpdate(updatedRollout)
 		c.rollout = updatedRollout.DeepCopy()
 		if err := c.refResolver.Resolve(c.rollout); err != nil {
 			return err
@@ -276,14 +261,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		if err != nil {
 			return nil, err
 		}
-		// adding this block as argoprojclientset update deletes typemeta fields.
-		if updatedRollout != nil {
-			updatedRollout.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
-				Group:   v1alpha1.SchemeGroupVersion.Group,
-				Kind:    rollouts.RolloutKind,
-				Version: v1alpha1.SchemeGroupVersion.Version,
-			})
-		}
+		updatedRollout = rolloutUpdate(updatedRollout)
 		c.rollout = updatedRollout.DeepCopy()
 		if err := c.refResolver.Resolve(c.rollout); err != nil {
 			return nil, err
@@ -955,4 +933,16 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
 	}
 	return nil
+}
+
+// rolloutUpdate returns runtime object by updating it with GroupVersionKind
+func rolloutUpdate(updatedRollout *v1alpha1.Rollout) *v1alpha1.Rollout {
+	if updatedRollout != nil {
+		updatedRollout.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   v1alpha1.SchemeGroupVersion.Group,
+			Kind:    rollouts.RolloutKind,
+			Version: v1alpha1.SchemeGroupVersion.Version,
+		})
+	}
+	return updatedRollout
 }
