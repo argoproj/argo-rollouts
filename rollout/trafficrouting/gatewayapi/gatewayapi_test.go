@@ -231,7 +231,65 @@ func TestType(t *testing.T) {
 	})
 }
 
-func TestGetService(t *testing.T) {}
+func TestGetService(t *testing.T) {
+	t.Run("ErrorGetServiceFromStruct ", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		backendRefs := []interface{}{
+			mocks.FakeService{Weight: 12},
+		}
+
+		// When
+		selectedServices, err := getService("default", backendRefs)
+
+		// Then
+		assert.Nil(t, selectedServices)
+		assert.Error(t, err)
+	})
+	t.Run("ErrorGetServiceFromMap", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		backendRefs := map[string]interface{}{
+			"weight": 100,
+		}
+
+		// When
+		selectedServices, err := getService("default", []interface{}{backendRefs})
+
+		// Then
+		assert.Nil(t, selectedServices)
+		assert.Error(t, err)
+	})
+	t.Run("GetServiceFromMap", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		const serviceName string = "default"
+		backendRefs := map[string]interface{}{
+			"name": serviceName,
+		}
+
+		// When
+		selectedServices, err := getService(serviceName, []interface{}{backendRefs})
+
+		// Then
+		assert.NotNil(t, selectedServices)
+		assert.NoError(t, err)
+	})
+	t.Run("ErrorGetServiceFromNil", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		backendRefs := map[string]interface{}{
+			"name": nil,
+		}
+
+		// When
+		selectedServices, err := getService("default", []interface{}{backendRefs})
+
+		// Then
+		assert.Nil(t, selectedServices)
+		assert.Error(t, err)
+	})
+}
 
 func TestGetBackendRefs(t *testing.T) {}
 
