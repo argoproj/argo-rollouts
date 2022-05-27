@@ -80,23 +80,22 @@ message RolloutInfo {
   string strategy = 5;
   string step = 6;
   string setWeight = 7;
-  string actualWeight = 9;
+  string actualWeight = 8;
+  int32 ready = 9;
+  int32 current = 10;
+  int32 desired = 11;
+  int32 updated = 12;
+  int32 available = 13;
+  string restartedAt = 14;
+  string generation = 15;
 
-  int32 ready = 10;
-  int32 current = 11;
-  int32 desired = 12;
-  int32 updated = 13;
-  int32 available = 14;
-  string restartedAt = 15;
-  string generation = 16;
+  repeated ReplicaSetInfo replicaSets = 16;
+  repeated ExperimentInfo experiments = 17;
+  repeated AnalysisRunInfo analysisRuns = 18;
 
-  repeated ReplicaSetInfo replicaSets = 17;
-  repeated ExperimentInfo experiments = 18;
-  repeated AnalysisRunInfo analysisRuns = 19;
+  repeated ContainerInfo containers = 19;
 
-  repeated ContainerInfo containers = 20;
-
-  repeated github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep steps = 21;
+  repeated github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep steps = 20;
 }
 
 message ExperimentInfo {
