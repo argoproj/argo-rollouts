@@ -593,6 +593,28 @@ spec:
                                   format: int32
                                   type: integer
                               type: object
+                            setHeaderRouting:
+                              properties:
+                                match:
+                                  items:
+                                    properties:
+                                      headerName:
+                                        type: string
+                                      headerValue:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                    required:
+                                    - headerName
+                                    - headerValue
+                                    type: object
+                                  type: array
+                              type: object
                             setWeight:
                               format: int32
                               type: integer
@@ -752,6 +774,13 @@ spec:
                                 type: string
                               trafficSplitName:
                                 type: string
+                            type: object
+                          traefik:
+                            properties:
+                              weightedTraefikServiceName:
+                                type: string
+                            required:
+                            - weightedTraefikServiceName
                             type: object
                         type: object
                     type: object

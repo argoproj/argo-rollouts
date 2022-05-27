@@ -66,6 +66,9 @@ metadata:
   name: rollout-ref-deployment
 spec:
   replicas: 5
+  selector:
+    matchLabels:
+      app: rollout-ref-deployment
   workloadRef:                                 # Reference an existing Deployment using workloadRef field
     apiVersion: apps/v1
     kind: Deployment
@@ -102,7 +105,7 @@ spec:
 
 Consider following if your Deployment runs in production:
 
-**Running Rollout and Deployment side-by-side**
+### Running Rollout and Deployment side-by-side
 
 After creation Rollout will spinup required number of Pods side-by-side with the Deployment Pods.
 Rollout won't try to manage existing Deployment Pods. That means you can safely update add Rollout
@@ -110,7 +113,7 @@ to the production environment without any interruption but you are going to run 
 
 Argo-rollouts controller patches the spec of rollout object with an annotation of `rollout.argoproj.io/workload-generation`, which equals the generation of referenced deployment. Users can detect if the rollout matches desired generation of deployment by checking the `workloadObservedGeneration` in the rollout status.
 
-**Traffic Management During Migration**
+### Traffic Management During Migration
 
 The Rollout offers traffic management functionality that manages routing rules and flows the traffic to different
 versions of an application. For example [Blue-Green](features/bluegreen.md) deployment strategy manipulates
@@ -120,3 +123,34 @@ If you are using this feature then Rollout switches production traffic to Pods 
 only when the required number of Pod is running and healthy so it is safe in production as well. However, if you
 want to be extra careful then consider creating a temporal Service or Ingress object to validate Rollout behavior.
 Once testing is done delete temporal Service/Ingress and switch rollout to production one.
+
+# Migrating to Deployments
+
+In case users want to rollback to the deployment kinds from rollouts, there are two scenarios aligned with those in [Migrating to Rollouts](#migrating-to-rollouts).
+
+* Convert a Rollout resource to a Deployment resource.
+* Reference an existing Deployment from a Rollout using `workloadRef` field.
+
+## Convert Rollout to Deployment
+
+When converting a Rollout to a Deployment, it involves changing three fields:
+
+1. Changing the apiVersion from  argoproj.io/v1alpha1 to apps/v1
+1. Changing the kind from Rollout to Deployment
+1. Remove the rollout strategy in `spec.strategy.canary` or ``spec.strategy.blueGreen``
+
+
+!!! warning
+    When migrating a Rollout which is already serving live production traffic, a Deployment should
+    run next to the rollout before deleting the rollout or scaling down the rollout.
+    **Not following this approach might result in downtime**. It also allows for the Deployment to be
+    tested before deleting the original Rollout.
+
+## Reference Deployment From Rollout
+
+When a rollout is referencing to a deployment:
+
+1. Scale-up the Deployment by changing `replicas` field of an existing Rollout to zero.
+1. Scale-down existing Rollout by changing `replicas` field of an existing Rollout to zero.
+
+Please refer to [Running Rollout and Deployment side-by-side](#running-rollout-and-deployment-side-by-side) and [Traffic Management During Migration](#traffic-management-during-migration) for caveats.
