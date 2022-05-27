@@ -916,7 +916,7 @@ func (m *RolloutInfo) GetSteps() []*v1alpha1.CanaryStep {
 type ExperimentInfo struct {
 	ObjectMeta           *v1.ObjectMeta     `protobuf:"bytes,1,opt,name=objectMeta,proto3" json:"objectMeta,omitempty"`
 	Icon                 string             `protobuf:"bytes,2,opt,name=icon,proto3" json:"icon,omitempty"`
-	Revision             int32              `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Revision             int64              `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
 	Status               string             `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	Message              string             `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
 	ReplicaSets          []*ReplicaSetInfo  `protobuf:"bytes,6,rep,name=replicaSets,proto3" json:"replicaSets,omitempty"`
@@ -973,7 +973,7 @@ func (m *ExperimentInfo) GetIcon() string {
 	return ""
 }
 
-func (m *ExperimentInfo) GetRevision() int32 {
+func (m *ExperimentInfo) GetRevision() int64 {
 	if m != nil {
 		return m.Revision
 	}
@@ -1012,7 +1012,7 @@ type ReplicaSetInfo struct {
 	ObjectMeta           *v1.ObjectMeta `protobuf:"bytes,1,opt,name=objectMeta,proto3" json:"objectMeta,omitempty"`
 	Status               string         `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	Icon                 string         `protobuf:"bytes,3,opt,name=icon,proto3" json:"icon,omitempty"`
-	Revision             int32          `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	Revision             int64          `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
 	Stable               bool           `protobuf:"varint,5,opt,name=stable,proto3" json:"stable,omitempty"`
 	Canary               bool           `protobuf:"varint,6,opt,name=canary,proto3" json:"canary,omitempty"`
 	Active               bool           `protobuf:"varint,7,opt,name=active,proto3" json:"active,omitempty"`
@@ -1084,7 +1084,7 @@ func (m *ReplicaSetInfo) GetIcon() string {
 	return ""
 }
 
-func (m *ReplicaSetInfo) GetRevision() int32 {
+func (m *ReplicaSetInfo) GetRevision() int64 {
 	if m != nil {
 		return m.Revision
 	}
@@ -1313,6 +1313,8 @@ type JobInfo struct {
 	ObjectMeta           *v1.ObjectMeta `protobuf:"bytes,1,opt,name=objectMeta,proto3" json:"objectMeta,omitempty"`
 	Status               string         `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	Icon                 string         `protobuf:"bytes,3,opt,name=icon,proto3" json:"icon,omitempty"`
+	MetricName           string         `protobuf:"bytes,4,opt,name=metricName,proto3" json:"metricName,omitempty"`
+	StartedAt            *v1.Time       `protobuf:"bytes,5,opt,name=startedAt,proto3" json:"startedAt,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -1372,16 +1374,32 @@ func (m *JobInfo) GetIcon() string {
 	return ""
 }
 
+func (m *JobInfo) GetMetricName() string {
+	if m != nil {
+		return m.MetricName
+	}
+	return ""
+}
+
+func (m *JobInfo) GetStartedAt() *v1.Time {
+	if m != nil {
+		return m.StartedAt
+	}
+	return nil
+}
+
 type AnalysisRunInfo struct {
 	ObjectMeta           *v1.ObjectMeta `protobuf:"bytes,1,opt,name=objectMeta,proto3" json:"objectMeta,omitempty"`
 	Icon                 string         `protobuf:"bytes,2,opt,name=icon,proto3" json:"icon,omitempty"`
-	Revision             int32          `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Revision             int64          `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
 	Status               string         `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	Successful           int32          `protobuf:"varint,5,opt,name=successful,proto3" json:"successful,omitempty"`
 	Failed               int32          `protobuf:"varint,6,opt,name=failed,proto3" json:"failed,omitempty"`
 	Inconclusive         int32          `protobuf:"varint,7,opt,name=inconclusive,proto3" json:"inconclusive,omitempty"`
 	Error                int32          `protobuf:"varint,8,opt,name=error,proto3" json:"error,omitempty"`
 	Jobs                 []*JobInfo     `protobuf:"bytes,9,rep,name=jobs,proto3" json:"jobs,omitempty"`
+	NonJobInfo           []*NonJobInfo  `protobuf:"bytes,10,rep,name=nonJobInfo,proto3" json:"nonJobInfo,omitempty"`
+	Metrics              []*Metrics     `protobuf:"bytes,11,rep,name=metrics,proto3" json:"metrics,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -1434,7 +1452,7 @@ func (m *AnalysisRunInfo) GetIcon() string {
 	return ""
 }
 
-func (m *AnalysisRunInfo) GetRevision() int32 {
+func (m *AnalysisRunInfo) GetRevision() int64 {
 	if m != nil {
 		return m.Revision
 	}
@@ -1483,6 +1501,170 @@ func (m *AnalysisRunInfo) GetJobs() []*JobInfo {
 	return nil
 }
 
+func (m *AnalysisRunInfo) GetNonJobInfo() []*NonJobInfo {
+	if m != nil {
+		return m.NonJobInfo
+	}
+	return nil
+}
+
+func (m *AnalysisRunInfo) GetMetrics() []*Metrics {
+	if m != nil {
+		return m.Metrics
+	}
+	return nil
+}
+
+type NonJobInfo struct {
+	Value                string   `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	Status               string   `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	MetricName           string   `protobuf:"bytes,3,opt,name=metricName,proto3" json:"metricName,omitempty"`
+	StartedAt            *v1.Time `protobuf:"bytes,4,opt,name=startedAt,proto3" json:"startedAt,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *NonJobInfo) Reset()         { *m = NonJobInfo{} }
+func (m *NonJobInfo) String() string { return proto.CompactTextString(m) }
+func (*NonJobInfo) ProtoMessage()    {}
+func (*NonJobInfo) Descriptor() ([]byte, []int) {
+	return fileDescriptor_99101d942e8912a7, []int{19}
+}
+func (m *NonJobInfo) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *NonJobInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_NonJobInfo.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *NonJobInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NonJobInfo.Merge(m, src)
+}
+func (m *NonJobInfo) XXX_Size() int {
+	return m.Size()
+}
+func (m *NonJobInfo) XXX_DiscardUnknown() {
+	xxx_messageInfo_NonJobInfo.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NonJobInfo proto.InternalMessageInfo
+
+func (m *NonJobInfo) GetValue() string {
+	if m != nil {
+		return m.Value
+	}
+	return ""
+}
+
+func (m *NonJobInfo) GetStatus() string {
+	if m != nil {
+		return m.Status
+	}
+	return ""
+}
+
+func (m *NonJobInfo) GetMetricName() string {
+	if m != nil {
+		return m.MetricName
+	}
+	return ""
+}
+
+func (m *NonJobInfo) GetStartedAt() *v1.Time {
+	if m != nil {
+		return m.StartedAt
+	}
+	return nil
+}
+
+type Metrics struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	SuccessCondition     string   `protobuf:"bytes,2,opt,name=successCondition,proto3" json:"successCondition,omitempty"`
+	Count                int32    `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
+	InconclusiveLimit    int32    `protobuf:"varint,4,opt,name=inconclusiveLimit,proto3" json:"inconclusiveLimit,omitempty"`
+	FailureLimit         int32    `protobuf:"varint,5,opt,name=failureLimit,proto3" json:"failureLimit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Metrics) Reset()         { *m = Metrics{} }
+func (m *Metrics) String() string { return proto.CompactTextString(m) }
+func (*Metrics) ProtoMessage()    {}
+func (*Metrics) Descriptor() ([]byte, []int) {
+	return fileDescriptor_99101d942e8912a7, []int{20}
+}
+func (m *Metrics) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Metrics) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Metrics.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Metrics) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics.Merge(m, src)
+}
+func (m *Metrics) XXX_Size() int {
+	return m.Size()
+}
+func (m *Metrics) XXX_DiscardUnknown() {
+	xxx_messageInfo_Metrics.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Metrics proto.InternalMessageInfo
+
+func (m *Metrics) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *Metrics) GetSuccessCondition() string {
+	if m != nil {
+		return m.SuccessCondition
+	}
+	return ""
+}
+
+func (m *Metrics) GetCount() int32 {
+	if m != nil {
+		return m.Count
+	}
+	return 0
+}
+
+func (m *Metrics) GetInconclusiveLimit() int32 {
+	if m != nil {
+		return m.InconclusiveLimit
+	}
+	return 0
+}
+
+func (m *Metrics) GetFailureLimit() int32 {
+	if m != nil {
+		return m.FailureLimit
+	}
+	return 0
+}
+
 func init() {
 	proto.RegisterType((*RolloutInfoQuery)(nil), "rollout.RolloutInfoQuery")
 	proto.RegisterType((*RolloutInfoListQuery)(nil), "rollout.RolloutInfoListQuery")
@@ -1503,6 +1685,8 @@ func init() {
 	proto.RegisterType((*ContainerInfo)(nil), "rollout.ContainerInfo")
 	proto.RegisterType((*JobInfo)(nil), "rollout.JobInfo")
 	proto.RegisterType((*AnalysisRunInfo)(nil), "rollout.AnalysisRunInfo")
+	proto.RegisterType((*NonJobInfo)(nil), "rollout.NonJobInfo")
+	proto.RegisterType((*Metrics)(nil), "rollout.Metrics")
 }
 
 func init() {
@@ -3278,6 +3462,25 @@ func (m *JobInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if m.StartedAt != nil {
+		{
+			size, err := m.StartedAt.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRollout(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x2a
+	}
+	if len(m.MetricName) > 0 {
+		i -= len(m.MetricName)
+		copy(dAtA[i:], m.MetricName)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.MetricName)))
+		i--
+		dAtA[i] = 0x22
+	}
 	if len(m.Icon) > 0 {
 		i -= len(m.Icon)
 		copy(dAtA[i:], m.Icon)
@@ -3330,6 +3533,34 @@ func (m *AnalysisRunInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	if m.XXX_unrecognized != nil {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Metrics) > 0 {
+		for iNdEx := len(m.Metrics) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Metrics[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintRollout(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x5a
+		}
+	}
+	if len(m.NonJobInfo) > 0 {
+		for iNdEx := len(m.NonJobInfo) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.NonJobInfo[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintRollout(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x52
+		}
 	}
 	if len(m.Jobs) > 0 {
 		for iNdEx := len(m.Jobs) - 1; iNdEx >= 0; iNdEx-- {
@@ -3393,6 +3624,122 @@ func (m *AnalysisRunInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i -= size
 			i = encodeVarintRollout(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *NonJobInfo) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *NonJobInfo) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *NonJobInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.StartedAt != nil {
+		{
+			size, err := m.StartedAt.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRollout(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.MetricName) > 0 {
+		i -= len(m.MetricName)
+		copy(dAtA[i:], m.MetricName)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.MetricName)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Status) > 0 {
+		i -= len(m.Status)
+		copy(dAtA[i:], m.Status)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.Status)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Value) > 0 {
+		i -= len(m.Value)
+		copy(dAtA[i:], m.Value)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.Value)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *Metrics) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Metrics) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Metrics) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.FailureLimit != 0 {
+		i = encodeVarintRollout(dAtA, i, uint64(m.FailureLimit))
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.InconclusiveLimit != 0 {
+		i = encodeVarintRollout(dAtA, i, uint64(m.InconclusiveLimit))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.Count != 0 {
+		i = encodeVarintRollout(dAtA, i, uint64(m.Count))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.SuccessCondition) > 0 {
+		i -= len(m.SuccessCondition)
+		copy(dAtA[i:], m.SuccessCondition)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.SuccessCondition)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintRollout(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -3944,6 +4291,14 @@ func (m *JobInfo) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovRollout(uint64(l))
 	}
+	l = len(m.MetricName)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	if m.StartedAt != nil {
+		l = m.StartedAt.Size()
+		n += 1 + l + sovRollout(uint64(l))
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -3988,6 +4343,75 @@ func (m *AnalysisRunInfo) Size() (n int) {
 			l = e.Size()
 			n += 1 + l + sovRollout(uint64(l))
 		}
+	}
+	if len(m.NonJobInfo) > 0 {
+		for _, e := range m.NonJobInfo {
+			l = e.Size()
+			n += 1 + l + sovRollout(uint64(l))
+		}
+	}
+	if len(m.Metrics) > 0 {
+		for _, e := range m.Metrics {
+			l = e.Size()
+			n += 1 + l + sovRollout(uint64(l))
+		}
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *NonJobInfo) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Value)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	l = len(m.Status)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	l = len(m.MetricName)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	if m.StartedAt != nil {
+		l = m.StartedAt.Size()
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *Metrics) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	l = len(m.SuccessCondition)
+	if l > 0 {
+		n += 1 + l + sovRollout(uint64(l))
+	}
+	if m.Count != 0 {
+		n += 1 + sovRollout(uint64(m.Count))
+	}
+	if m.InconclusiveLimit != 0 {
+		n += 1 + sovRollout(uint64(m.InconclusiveLimit))
+	}
+	if m.FailureLimit != 0 {
+		n += 1 + sovRollout(uint64(m.FailureLimit))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -6213,7 +6637,7 @@ func (m *ExperimentInfo) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Revision |= int32(b&0x7F) << shift
+				m.Revision |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -6515,7 +6939,7 @@ func (m *ReplicaSetInfo) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Revision |= int32(b&0x7F) << shift
+				m.Revision |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7276,6 +7700,74 @@ func (m *JobInfo) Unmarshal(dAtA []byte) error {
 			}
 			m.Icon = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MetricName", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.MetricName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StartedAt", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.StartedAt == nil {
+				m.StartedAt = &v1.Time{}
+			}
+			if err := m.StartedAt.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRollout(dAtA[iNdEx:])
@@ -7409,7 +7901,7 @@ func (m *AnalysisRunInfo) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Revision |= int32(b&0x7F) << shift
+				m.Revision |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -7556,6 +8048,429 @@ func (m *AnalysisRunInfo) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NonJobInfo", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NonJobInfo = append(m.NonJobInfo, &NonJobInfo{})
+			if err := m.NonJobInfo[len(m.NonJobInfo)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Metrics", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Metrics = append(m.Metrics, &Metrics{})
+			if err := m.Metrics[len(m.Metrics)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRollout(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *NonJobInfo) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRollout
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: NonJobInfo: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: NonJobInfo: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Value = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Status = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MetricName", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.MetricName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StartedAt", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.StartedAt == nil {
+				m.StartedAt = &v1.Time{}
+			}
+			if err := m.StartedAt.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipRollout(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Metrics) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowRollout
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Metrics: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Metrics: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SuccessCondition", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRollout
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRollout
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SuccessCondition = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Count", wireType)
+			}
+			m.Count = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Count |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InconclusiveLimit", wireType)
+			}
+			m.InconclusiveLimit = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.InconclusiveLimit |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FailureLimit", wireType)
+			}
+			m.FailureLimit = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRollout
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.FailureLimit |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRollout(dAtA[iNdEx:])

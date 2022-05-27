@@ -218,6 +218,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return r.patchTrafficSplit(existingTrafficSplit, trafficSplits)
 }
 
+func (r *Reconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
+	return nil
+}
+
 func (r *Reconciler) generateTrafficSplits(trafficSplitName string, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) VersionedTrafficSplits {
 	// If root service not set, then set root service to be stable service
 	rootSvc := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.SMI.RootService
