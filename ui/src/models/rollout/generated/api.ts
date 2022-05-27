@@ -524,6 +524,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep 
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
      */
     setCanaryScale?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanaryScale;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRouting}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
+     */
+    setHeaderRouting?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRouting;
 }
 /**
  * 
@@ -647,6 +653,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef
      */
     fieldPath?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
+     */
+    headerName?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
+     */
+    headerValue?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch;
 }
 /**
  * 
@@ -1446,6 +1471,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
     appMesh?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshTrafficRouting;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    traefik?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting;
 }
 /**
  * 
@@ -1494,6 +1525,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanarySc
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRouting
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRouting {
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRouting
+     */
+    match?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch>;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig {
@@ -1509,6 +1553,31 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessC
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig
      */
     durationSeconds?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch
+     */
+    exact?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch
+     */
+    prefix?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch
+     */
+    regex?: string;
 }
 /**
  * TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.
@@ -1528,6 +1597,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute
      */
     sniHosts?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting
+     */
+    weightedTraefikServiceName?: string;
 }
 /**
  * 
@@ -5098,6 +5180,25 @@ export interface K8sIoApimachineryPkgApisMetaV1Time {
     nanos?: number;
 }
 /**
+ * TypeMeta describes an individual object in an API response or request with strings representing the type of the object and its API schema version. Structures that are versioned or persisted should inline TypeMeta.  +k8s:deepcopy-gen=false
+ * @export
+ * @interface K8sIoApimachineryPkgApisMetaV1TypeMeta
+ */
+export interface K8sIoApimachineryPkgApisMetaV1TypeMeta {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApimachineryPkgApisMetaV1TypeMeta
+     */
+    kind?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApimachineryPkgApisMetaV1TypeMeta
+     */
+    apiVersion?: string;
+}
+/**
  * +protobuf=true +protobuf.options.(gogoproto.goproto_stringer)=false +k8s:openapi-gen=true
  * @export
  * @interface K8sIoApimachineryPkgUtilIntstrIntOrString
@@ -5615,6 +5716,12 @@ export interface RolloutRetryRolloutRequest {
  * @interface RolloutRolloutInfo
  */
 export interface RolloutRolloutInfo {
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1TypeMeta}
+     * @memberof RolloutRolloutInfo
+     */
+    typeMeta?: K8sIoApimachineryPkgApisMetaV1TypeMeta;
     /**
      * 
      * @type {K8sIoApimachineryPkgApisMetaV1ObjectMeta}
