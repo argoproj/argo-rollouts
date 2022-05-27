@@ -71,15 +71,15 @@ message VersionInfo {
 }
 
 message RolloutInfo {
-  k8s.io.apimachinery.pkg.apis.meta.v1.TypeMeta typeMeta = 1;
-  k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 2;
+  k8s.io.apimachinery.pkg.apis.meta.v1.TypeMeta typeMeta = 21;
+  k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
 
-  string status = 3;
-  string message = 4;
-  string icon = 5;
-  string strategy = 6;
-  string step = 7;
-  string setWeight = 8;
+  string status = 2;
+  string message = 3;
+  string icon = 4;
+  string strategy = 5;
+  string step = 6;
+  string setWeight = 7;
   string actualWeight = 9;
 
   int32 ready = 10;
