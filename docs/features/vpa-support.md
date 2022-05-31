@@ -1,27 +1,27 @@
 
-# Vertical Pod Autoscaling  
+# Vertical Pod Autoscaling
 
-Vertical Pod Autoscaling (VPA) reduces the maintenance cost and improve utilization of cluster resources by automating configuration of resource requirements.  
-  
-## VPA modes 
- 
-There are four modes in which VPAs operate  
-  
-1. "Auto": VPA assigns resource requests on pod creation as well as updates them on existing pods using the preferred update mechanism. Currently this is equivalent to "Recreate" (see below). Once restart free ("in-place") update of pod requests is available, it may be used as the preferred update mechanism by the "Auto" mode. 
-NOTE: This feature of VPA is experimental and may cause downtime for your applications.
-  
-1. "Recreate": VPA assigns resource requests on pod creation as well as updates them on existing pods by evicting them when the requested resources differ significantly from the new recommendation (respecting the Pod Disruption Budget, if defined). This mode should be used rarely, only if you need to ensure that the pods are restarted whenever the resource request changes. Otherwise prefer the "Auto" mode which may take advantage of restart free updates once they are available. 
+Vertical Pod Autoscaling (VPA) reduces the maintenance cost and improve utilization of cluster resources by automating configuration of resource requirements.
+
+## VPA modes
+
+There are four modes in which VPAs operate
+
+1. "Auto": VPA assigns resource requests on pod creation as well as updates them on existing pods using the preferred update mechanism. Currently this is equivalent to "Recreate" (see below). Once restart free ("in-place") update of pod requests is available, it may be used as the preferred update mechanism by the "Auto" mode.
 NOTE: This feature of VPA is experimental and may cause downtime for your applications.
 
-1. "Initial": VPA only assigns resource requests on pod creation and never changes them later.  
+1. "Recreate": VPA assigns resource requests on pod creation as well as updates them on existing pods by evicting them when the requested resources differ significantly from the new recommendation (respecting the Pod Disruption Budget, if defined). This mode should be used rarely, only if you need to ensure that the pods are restarted whenever the resource request changes. Otherwise prefer the "Auto" mode which may take advantage of restart free updates once they are available.
+NOTE: This feature of VPA is experimental and may cause downtime for your applications.
 
-1. "Off": VPA does not automatically change resource requirements of the pods. The recommendations are calculated and can be inspected in the VPA object. 
-  
-  
-## Example  
-  
+1. "Initial": VPA only assigns resource requests on pod creation and never changes them later.
+
+1. "Off": VPA does not automatically change resource requirements of the pods. The recommendations are calculated and can be inspected in the VPA object.
+
+
+## Example
+
 Below is an example of a Vertical Pod Autoscaler with Argo-Rollouts.
-  
+
 Rollout sample app:
 
 ```yaml
@@ -59,38 +59,38 @@ spec:
         - containerPort: 80
         resources:
           requests:
-            cpu: "5m"       
-            memory: "5Mi" 
+            cpu: "5m"
+            memory: "5Mi"
 ```
 
 VPA configuration for Rollout sample app:
 
-```yaml  
+```yaml
 apiVersion: "autoscaling.k8s.io/v1beta2"
-kind: VerticalPodAutoscaler  
-metadata:  
-  name: vpa-rollout-example  
-  namespace: test-vpa  
-spec:  
-  targetRef:  
-    apiVersion: "argoproj.io/v1alpha1"  
-    kind: Rollout  
-    name: vpa-demo-rollout  
-  updatePolicy:  
-    updateMode: "Auto"  
-  resourcePolicy:  
-    containerPolicies:  
-    - containerName: '*'  
-    minAllowed:  
-      cpu: 5m  
-      memory: 5Mi  
-    maxAllowed:  
-      cpu: 1  
-      memory: 500Mi  
-    controlledResources: ["cpu", "memory"]  
+kind: VerticalPodAutoscaler
+metadata:
+  name: vpa-rollout-example
+  namespace: test-vpa
+spec:
+  targetRef:
+    apiVersion: "argoproj.io/v1alpha1"
+    kind: Rollout
+    name: vpa-demo-rollout
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: '*'
+    minAllowed:
+      cpu: 5m
+      memory: 5Mi
+    maxAllowed:
+      cpu: 1
+      memory: 500Mi
+    controlledResources: ["cpu", "memory"]
 ```
 
-Describe VPA when initially deployed we donot see recommendations as it will take few mins.
+Describe VPA when initially deployed we do not see recommendations as it will take few mins.
 
 ```yaml
 Name:         kubengix-vpa
@@ -242,10 +242,10 @@ Status:
 Events:          <none>
 ```
 
-Here we see the recommendation for cpu, memory with lowerbound, upper bound, Target etc., are provided. If we check the status of the pods.. the older pods with initial configuration would get terminated and newer pods get created.
+Here we see the recommendation for cpu, memory with lowerbound, upper bound, Target etc., are provided. If we check the status of the pods, the older pods with initial configuration would get terminated and newer pods get created.
 
 ```yaml
-# kubectl get po -n test-vpa -w   
+# kubectl get po -n test-vpa -w
 NAME                               READY   STATUS    RESTARTS   AGE
 vpa-demo-rollout-f5df6d577-65f26   1/1     Running   0          17m
 vpa-demo-rollout-f5df6d577-d55cx   1/1     Running   0          17m
@@ -310,10 +310,10 @@ Containers:
       /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-mk4fz (ro)
 Conditions:
   Type              Status
-  Initialized       True 
-  Ready             True 
-  ContainersReady   True 
-  PodScheduled      True 
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
 Volumes:
   kube-api-access-mk4fz:
     Type:                    Projected (a volume that contains injected data from multiple sources)
@@ -333,11 +333,11 @@ Events:
   Normal  Created    35s   kubelet            Created container vpa-demo-rollout
   Normal  Started    33s   kubelet            Started container vpa-demo-rollout
 ```
-  
-## Requirements  
-In order for the VPA to manipulate the rollout, the Kubernetes cluster hosting the rollout CRD needs the subresources support for CRDs.  This feature was introduced as alpha in Kubernetes version 1.10 and transitioned to beta in Kubernetes version 1.11.  If a user wants to use VPA on v1.10, the Kubernetes Cluster operator will need to add a custom feature flag to the API server.  After 1.10, the flag is turned on by default.  Check out the following [link](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) for more information on setting the custom feature flag.
 
-When installing VPA you may need to add the following in RBAC configurations for `system:vpa-target-reader` cluster role as by default VPA maynot support rollouts in all the versions.
+## Requirements
+In order for the VPA to manipulate the rollout, the Kubernetes cluster hosting the rollout CRD needs the subresources support for CRDs. This feature was introduced as alpha in Kubernetes version 1.10 and transitioned to beta in Kubernetes version 1.11. If a user wants to use VPA on v1.10, the Kubernetes Cluster operator will need to add a custom feature flag to the API server. After 1.10, the flag is turned on by default. Check out the following [link](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) for more information on setting the custom feature flag.
+
+When installing VPA you may need to add the following in RBAC configurations for `system:vpa-target-reader` cluster role as by default VPA may not support rollouts in all the versions.
 
 ```yaml
   - apiGroups:
@@ -353,4 +353,4 @@ When installing VPA you may need to add the following in RBAC configurations for
       - watch
 ```
 
-Makes sure Metrics-Server is installed in the cluster and openssl is upto date for VPA latest version to apply recommendations to the pods properly. 
+Makes sure Metrics-Server is installed in the cluster and openssl is up to date for VPA latest version to apply recommendations to the pods properly.

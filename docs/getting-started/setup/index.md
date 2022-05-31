@@ -39,7 +39,7 @@ kubectl patch deploy ingress-nginx-controller -n ingress-nginx -p "$(cat docs/ge
 ```
 
 !!! note
-    [For Minikube version 1.18.1 or earlier](https://kubernetes.io/docs/tasks/access-application-cluster/ingress-minikube/#enable-the-ingress-controller), 
+    [For Minikube version 1.18.1 or earlier](https://kubernetes.io/docs/tasks/access-application-cluster/ingress-minikube/#enable-the-ingress-controller),
     change the `-n` parameter value (namespace) to `kube-system`.
 
 ```shell
@@ -80,7 +80,7 @@ minikube service grafana -n istio-system
 
 In order for traffic to enter the Istio mesh, the request needs to go through an Istio ingress
 gateway, which is simply a normal Kubernetes Deployment and Service. One convenient way to reach
-the gateway using minikube, is using the `minikube tunnel` command, which assigns Services a 
+the gateway using minikube, is using the `minikube tunnel` command, which assigns Services a
 LoadBalancer. This command should be run in the background, usually in a separate terminal window:
 
 ```shell
@@ -126,7 +126,7 @@ kubectl patch deploy ingress-nginx-controller -n kube-system \
 
 ## Supplying Host Headers
 
-Most ingress controllers and service mesh implementations rely on the 
+Most ingress controllers and service mesh implementations rely on the
 [Host HTTP request header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host) being
 supplied in the request in order to determine how to route the request to the correct pod.
 
@@ -159,9 +159,9 @@ In the case of Istio, traffic enters the mesh through an
 [Ingress Gateway](https://istio.io/latest/docs/tasks/traffic-management/ingress/ingress-control/),
 which simply is a load balancer sitting at the edge of mesh.
 
-To determine the correct hostname to IP mapping, it largely depends on what was configured in the 
+To determine the correct hostname to IP mapping, it largely depends on what was configured in the
 `VirtualService` and `Gateway`. If you are following the
-[Istio getting started guide](../istio/index.md), the examples use the "default" istio 
+[Istio getting started guide](../istio/index.md), the examples use the "default" istio
 ingress gateway, which we can obtain from kubectl:
 
 ```shell
@@ -196,7 +196,7 @@ of the ingress. For example, the following is an example of an `/etc/hosts` file
 # Host Database
 #
 # localhost is used to configure the loopback interface
-# when the system is booting.  Do not change this entry.
+# when the system is booting. Do not change this entry.
 ##
 127.0.0.1       localhost
 255.255.255.255 broadcasthost

@@ -7,7 +7,7 @@ different versions of the Rollout during an update.
 
 ## How it works
 
-Traffic splitting is accomplished in Istio by adjusting traffic weights defined in an 
+Traffic splitting is accomplished in Istio by adjusting traffic weights defined in an
 [Istio VirtualService](https://istio.io/latest/docs/reference/config/networking/virtual-service/).
 When using Argo Rollouts with Istio, a user deploys a VirtualService containing at least one
 [HTTP route](https://istio.io/latest/docs/reference/config/networking/virtual-service/#HTTPRoute) containing two
@@ -46,7 +46,7 @@ spec:
       stableService: stable-svc  # required
       trafficRouting:
         istio:
-          virtualService: 
+          virtualService:
             name: rollout-vsvc   # required
             routes:
             - primary            # optional if there is a single route in VirtualService, required otherwise
@@ -57,8 +57,8 @@ spec:
 ```
 
 The VirtualService must contain an HTTP route with a name referenced in the Rollout, containing
-two route destinations with `host` values that match the `canaryService` and `stableService` 
-referenced in the Rollout.  If the VirtualService is defined in a different namespace than the rollout,
+two route destinations with `host` values that match the `canaryService` and `stableService`
+referenced in the Rollout. If the VirtualService is defined in a different namespace than the rollout,
 its name should be `rollout-vsvc.<vsvc namespace name>`. Note that Istio requires that all weights add to
 100, so the initial weights can be 100% to stable, and 0% to canary.
 
@@ -127,7 +127,7 @@ During the lifecycle of a Rollout update, Argo Rollouts will continuously:
 
 !!! note
 
-    Rollout does not make any other assumptions about the fields within the VirtualService or the Istio mesh. The user could specify additional configurations for the VirtualService like URI rewrite rules on the primary route or any other route if desired. The user can also create specific DestinationRules for each of the services. 
+    Rollout does not make any other assumptions about the fields within the VirtualService or the Istio mesh. The user could specify additional configurations for the VirtualService like URI rewrite rules on the primary route or any other route if desired. The user can also create specific DestinationRules for each of the services.
 
 
 ## Subset-level Traffic Splitting
@@ -159,7 +159,7 @@ spec:
     canary:
       trafficRouting:
         istio:
-          virtualService: 
+          virtualService:
             name: rollout-vsvc        # required
             routes:
             - primary                 # optional if there is a single route in VirtualService, required otherwise
@@ -194,7 +194,7 @@ spec:
 ```
 
 The VirtualService must contain an HTTP route with a name referenced in the Rollout, containing
-two route destinations with `subset` values that match the `canarySubsetName` and `stableSubsetName` 
+two route destinations with `subset` values that match the `canarySubsetName` and `stableSubsetName`
 referenced in the Rollout. Note that Istio requires that all weights add to 100, so the initial
 weights can be 100% to stable, and 0% to canary.
 
@@ -278,8 +278,8 @@ rules:
   - update
   - patch
 ```
-Note: If Argo Rollout controller is also installed in the Istio primary cluster, then you can reuse the 
-`argo-rollouts-clusterrole` ClusterRole instead of creating a new one. 
+Note: If Argo Rollout controller is also installed in the Istio primary cluster, then you can reuse the
+`argo-rollouts-clusterrole` ClusterRole instead of creating a new one.
 3. Link the `ClusterRole` with the `ServiceAccount` in the Istio primary cluster.
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -420,7 +420,7 @@ other controllers (e.g. Argo Rollouts) controller manage them instead.
 
 ## Alternatives Considered
 
-### Rollout ownership over the Virtual Service  
+### Rollout ownership over the Virtual Service
 
 An early design alternative was that instead of the controller modifying a referenced VirtualService, the Rollout controller would create, manage, and own a Virtual Service. While this approach is GitOps friendly, it introduces other issues:
 

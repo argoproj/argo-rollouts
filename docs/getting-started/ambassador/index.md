@@ -62,7 +62,7 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
-    app: echo 
+    app: echo
 ```
 
 We'll also create an Edge Stack route to the services. Save the following configuration to a file called `echo-mapping.yaml`.
@@ -130,17 +130,17 @@ spec:
       - pause: {duration: 10}
 ```
 
-Apply the rollout to your cluster `kubectl apply -f rollout.yaml`. Note that no canary rollout will occur, as this is the first version of the service being deployed. 
+Apply the rollout to your cluster `kubectl apply -f rollout.yaml`. Note that no canary rollout will occur, as this is the first version of the service being deployed.
 
 ## 4. Test the service
 
-We'll now test that this rollout works as expected.  Open a new terminal window. We'll use it to send requests to the cluster. Get the external IP address for Edge Stack:
+We'll now test that this rollout works as expected. Open a new terminal window. We'll use it to send requests to the cluster. Get the external IP address for Edge Stack:
 
 ```
 export AMBASSADOR_LB_ENDPOINT=$(kubectl -n ambassador get svc ambassador -o "go-template={{range .status.loadBalancer.ingress}}{{or .ip .hostname}}{{end}}")
 ```
 
-Send a request to the `echo` service:  
+Send a request to the `echo` service:
 
 ```
 curl -Lk "https://$AMBASSADOR_LB_ENDPOINT/echo/"
@@ -148,7 +148,7 @@ curl -Lk "https://$AMBASSADOR_LB_ENDPOINT/echo/"
 
 You should get a response of "VERSION 1".
 
-## 5. Rollout a new version 
+## 5. Rollout a new version
 
 It's time to rollout a new version of the service. Update the echo container in the `rollout.yaml` to display "VERSION 2":
 

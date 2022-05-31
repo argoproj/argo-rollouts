@@ -4,9 +4,9 @@ A Blue Green Deployment allows users to reduce the amount of time multiple versi
 
 ## Overview
 
-In addition to managing ReplicaSets, the rollout controller will modify a Service resource during the `BlueGreenUpdate` strategy.  The Rollout spec has users specify a reference to active service and optionally a preview service in the same namespace. The active Service is used to send regular application traffic to the old version, while the preview Service is used as funnel traffic to the new version. The rollout controller ensures proper traffic routing by injecting a unique hash of the ReplicaSet to these services' selectors.  This allows the rollout to define an active and preview stack and a process to migrate replica sets from the preview to the active. 
+In addition to managing ReplicaSets, the rollout controller will modify a Service resource during the `BlueGreenUpdate` strategy. The Rollout spec has users specify a reference to active service and optionally a preview service in the same namespace. The active Service is used to send regular application traffic to the old version, while the preview Service is used as funnel traffic to the new version. The rollout controller ensures proper traffic routing by injecting a unique hash of the ReplicaSet to these services' selectors. This allows the rollout to define an active and preview stack and a process to migrate replica sets from the preview to the active.
 
-When there is a change to the `.spec.template` field of a rollout, the controller will create the new ReplicaSet.  If the active service is not sending traffic to a ReplicaSet, the controller will immediately start sending traffic to the ReplicaSet. Otherwise, the active service will point at the old ReplicaSet while the ReplicaSet becomes available. Once the new ReplicaSet becomes available, the controller will modify the active service to point at the new ReplicaSet. After waiting some time configured by the `.spec.strategy.blueGreen.scaleDownDelaySeconds`, the controller will scale down the old ReplicaSet.
+When there is a change to the `.spec.template` field of a rollout, the controller will create the new ReplicaSet. If the active service is not sending traffic to a ReplicaSet, the controller will immediately start sending traffic to the ReplicaSet. Otherwise, the active service will point at the old ReplicaSet while the ReplicaSet becomes available. Once the new ReplicaSet becomes available, the controller will modify the active service to point at the new ReplicaSet. After waiting some time configured by the `.spec.strategy.blueGreen.scaleDownDelaySeconds`, the controller will scale down the old ReplicaSet.
 
 !!! important
     When the rollout changes the selector on a service, there is a propagation delay before all the nodes update their IP tables to send traffic to the new pods instead of the old. During this delay, traffic will be directed to the old pods if the nodes have not been updated yet. In order to prevent the packets from being sent to a node that killed the old pod, the rollout uses the scaleDownDelaySeconds field to give nodes enough time to broadcast the IP table changes.
@@ -36,7 +36,7 @@ spec:
         ports:
         - containerPort: 8080
   strategy:
-    blueGreen: 
+    blueGreen:
       # activeService specifies the service to update with the new template hash at time of promotion.
       # This field is mandatory for the blueGreen update strategy.
       activeService: rollout-bluegreen-active
@@ -84,7 +84,7 @@ The following describes the sequence of events that happen during a blue-green u
 1. The rollout "promotes" the revision 2 ReplicaSet by updating the `activeService` to point to it. At this point, there are no services pointing to revision 1
 1. `postPromotionAnalysis` analysis begins
 1. Once `postPromotionAnalysis` completes successfully, the update is successful and the revision 2 ReplicaSet is marked as stable. The rollout is considered fully-promoted.
-1. After waiting `scaleDownDelaySeconds` (default 30 seconds), the revision 1 ReplicaSet is scaled down 
+1. After waiting `scaleDownDelaySeconds` (default 30 seconds), the revision 1 ReplicaSet is scaled down
 
 
 ### autoPromotionEnabled
@@ -117,21 +117,21 @@ Defaults to nil
 ### postPromotionAnalysis
 Configures the [Analysis](analysis.md#bluegreen-pre-promotion-analysis) after the traffic switch to new version. If the analysis
 run fails or errors out, the Rollout enters an aborted state and switch traffic back to the previous stable Replicaset.
-If `scaleDownDelaySeconds` is specified, the controller will cancel any AnalysisRuns at time of `scaleDownDelay` to 
-scale down the ReplicaSet. If it is omitted, and post analysis is specified, it will scale down the ReplicaSet only 
+If `scaleDownDelaySeconds` is specified, the controller will cancel any AnalysisRuns at time of `scaleDownDelay` to
+scale down the ReplicaSet. If it is omitted, and post analysis is specified, it will scale down the ReplicaSet only
 after the AnalysisRun completes (with a minimum of 30 seconds).
 
 Defaults to nil
 
 ### previewService
-The PreviewService field references a Service that will be modified to send traffic to the new ReplicaSet before the new one is promoted to receiving traffic from the active service. Once the new ReplicaSet starts receiving traffic from the active service, the preview service will also be modified to send traffic to the new ReplicaSet as well. The Rollout always makes sure that the preview service is sending traffic to the newest ReplicaSet.  As a result, if a new version is introduced before the old version is promoted to the active service, the controller will immediately switch over to that brand new version.
+The PreviewService field references a Service that will be modified to send traffic to the new ReplicaSet before the new one is promoted to receiving traffic from the active service. Once the new ReplicaSet starts receiving traffic from the active service, the preview service will also be modified to send traffic to the new ReplicaSet as well. The Rollout always makes sure that the preview service is sending traffic to the newest ReplicaSet. As a result, if a new version is introduced before the old version is promoted to the active service, the controller will immediately switch over to that brand new version.
 
 This feature is used to provide an endpoint that can be used to test a new version of an application.
 
 Defaults to an empty string
 
 ### previewReplicaCount
-The PreviewReplicaCount field will indicate the number of replicas that the new version of an application should run.  Once the application is ready to promote to the active service, the controller will scale the new ReplicaSet to the value of the `spec.replicas`. The rollout will not switch over the active service to the new ReplicaSet until it matches the `spec.replicas` count.
+The PreviewReplicaCount field will indicate the number of replicas that the new version of an application should run. Once the application is ready to promote to the active service, the controller will scale the new ReplicaSet to the value of the `spec.replicas`. The rollout will not switch over the active service to the new ReplicaSet until it matches the `spec.replicas` count.
 
 This feature is mainly used to save resources during the testing phase. If the application does not need a fully scaled up application for the tests, this feature can help save some resources.
 
@@ -143,7 +143,6 @@ The ScaleDownDelaySeconds is used to delay scaling down the old ReplicaSet after
 Defaults to 30
 
 ### scaleDownDelayRevisionLimit
-The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service. 
+The ScaleDownDelayRevisionLimit limits the number of old active ReplicaSets to keep scaled up while they wait for the scaleDownDelay to pass after being removed from the active service.
 
 If omitted, all ReplicaSets will be retained for the specified scaleDownDelay
-

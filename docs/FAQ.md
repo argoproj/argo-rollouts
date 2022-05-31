@@ -8,16 +8,16 @@ Argo Rollouts is a standalone project. Even though it works great with Argo CD a
 on its own for Progressive Delivery scenarios. More specifically, Argo Rollouts does **NOT** require that you also have installed Argo CD on the same cluster.
 
 ### How does Argo Rollouts integrate with Argo CD?
-Argo CD understands the health of Argo Rollouts resources via Argo CD’s [Lua health check](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/health.md). These Health checks understand when the Argo Rollout objects are Progressing, Suspended, Degraded, or Healthy.  Additionally, Argo CD has Lua based Resource Actions that can mutate an Argo Rollouts resource (i.e. unpause a Rollout).
+Argo CD understands the health of Argo Rollouts resources via Argo CD’s [Lua health check](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/health.md). These Health checks understand when the Argo Rollout objects are Progressing, Suspended, Degraded, or Healthy. Additionally, Argo CD has Lua based Resource Actions that can mutate an Argo Rollouts resource (i.e. unpause a Rollout).
 
-As a result, an operator can build automation to react to the states of the Argo Rollouts resources. For example, if a Rollout created by Argo CD is paused, Argo CD detects that and marks the Application as suspended. Once the new version is verified to be good, the operator can use Argo CD’s resume resource action to unpause the Rollout so it can continue to make progress. 
+As a result, an operator can build automation to react to the states of the Argo Rollouts resources. For example, if a Rollout created by Argo CD is paused, Argo CD detects that and marks the Application as suspended. Once the new version is verified to be good, the operator can use Argo CD’s resume resource action to unpause the Rollout so it can continue to make progress.
 
 ### Can we run the Argo Rollouts kubectl plugin commands via Argo CD?
 Argo CD supports running Lua scripts to modify resource kinds (i.e. suspending a CronJob by setting the `.spec.suspend` to true). These Lua Scripts can be configured in the argocd-cm ConfigMap or upstreamed to the Argo CD's [resource_customizations](https://github.com/argoproj/argo-cd/tree/master/resource_customizations) directory. These custom actions have two Lua scripts: one to modify the said resource and another to detect if the action can be executed (i.e. A user should not be able to resuming a unpaused Rollout). Argo CD allows users to execute these actions via the UI or CLI.
 
 In the CLI, a user (or a CI system) can run
 ```bash
-argocd app actions run <APP_NAME> <ACTION> 
+argocd app actions run <APP_NAME> <ACTION>
 ```
 This command executes the action listed on the application listed.
 
@@ -29,7 +29,7 @@ Currently, the Rollout action has two available custom actions in Argo CD: resum
 * Restart: Sets the RestartAt and causes all the pods to be restarted.
 
 ### Does Argo Rollout require a Service Mesh like Istio?
-Argo Rollouts does not require a service mesh or ingress controller to be used. In the absence of a traffic routing provider, Argo Rollouts manages the replica counts of the canary/stable ReplicaSets to achieve the desired canary weights. Normal Kubernetes Service routing (via kube-proxy) is used to split traffic between the ReplicaSets. 
+Argo Rollouts does not require a service mesh or ingress controller to be used. In the absence of a traffic routing provider, Argo Rollouts manages the replica counts of the canary/stable ReplicaSets to achieve the desired canary weights. Normal Kubernetes Service routing (via kube-proxy) is used to split traffic between the ReplicaSets.
 
 ### Does Argo Rollout require we follow GitOps in my organization?
 
@@ -78,4 +78,3 @@ Additionally, an AnalysisRun ends if the `.spec.terminate` field is set to true 
 
 ### What is the difference between failures and errors?
 Failures are when the failure condition evaluates to true or an AnalysisRun without a failure condition evaluates the success condition to false. Errors are when the controller has any kind of issue with taking a measurement (i.e. invalid Prometheus URL).
-
