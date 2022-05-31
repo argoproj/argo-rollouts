@@ -279,7 +279,7 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 	}
 
 	for _, dest := range destinations {
-		res, err := notificationsAPI.RunTrigger(trigger,  objMap)
+		res, err := notificationsAPI.RunTrigger(trigger, objMap)
 		if err != nil {
 			log.Errorf("Failed to execute condition of trigger %s: %v", trigger, err)
 		}
