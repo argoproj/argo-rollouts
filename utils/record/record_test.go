@@ -95,6 +95,12 @@ func TestSendNotifications(t *testing.T) {
 	}
 	mockCtrl := gomock.NewController(t)
 	mockAPI := mocks.NewMockAPI(mockCtrl)
+	cr := []triggers.ConditionResult{{
+		Key:       "",
+		Triggered: true,
+		Templates: []string{"my-template"},
+	}}
+	mockAPI.EXPECT().RunTrigger(gomock.Any(), gomock.Any()).Return(cr, nil).AnyTimes()
 	mockAPI.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockAPI.EXPECT().GetConfig().Return(api.Config{
 		Triggers: map[string][]triggers.Condition{"on-foo-reason": {triggers.Condition{Send: []string{"my-template"}}}}}).AnyTimes()
@@ -194,6 +200,12 @@ func TestSendNotificationsFails(t *testing.T) {
 	t.Run("SendError", func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		mockAPI := mocks.NewMockAPI(mockCtrl)
+		cr := []triggers.ConditionResult{{
+			Key:       "",
+			Triggered: true,
+			Templates: []string{"my-template"},
+		}}
+		mockAPI.EXPECT().RunTrigger(gomock.Any(), gomock.Any()).Return(cr, nil).AnyTimes()
 		mockAPI.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("failed to send")).AnyTimes()
 		mockAPI.EXPECT().GetConfig().Return(api.Config{
 			Triggers: map[string][]triggers.Condition{"on-foo-reason": {triggers.Condition{Send: []string{"my-template"}}}}}).AnyTimes()
