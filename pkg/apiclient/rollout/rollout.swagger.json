@@ -4752,9 +4752,6 @@
     "rollout.RolloutInfo": {
       "type": "object",
       "properties": {
-        "typeMeta": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.TypeMeta"
-        },
         "objectMeta": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
         },
@@ -4834,6 +4831,9 @@
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep"
           }
+        },
+        "typeMeta": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.TypeMeta"
         }
       }
     },

@@ -5718,12 +5718,6 @@ export interface RolloutRetryRolloutRequest {
 export interface RolloutRolloutInfo {
     /**
      * 
-     * @type {K8sIoApimachineryPkgApisMetaV1TypeMeta}
-     * @memberof RolloutRolloutInfo
-     */
-    typeMeta?: K8sIoApimachineryPkgApisMetaV1TypeMeta;
-    /**
-     * 
      * @type {K8sIoApimachineryPkgApisMetaV1ObjectMeta}
      * @memberof RolloutRolloutInfo
      */
@@ -5842,6 +5836,12 @@ export interface RolloutRolloutInfo {
      * @memberof RolloutRolloutInfo
      */
     steps?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep>;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1TypeMeta}
+     * @memberof RolloutRolloutInfo
+     */
+    typeMeta?: K8sIoApimachineryPkgApisMetaV1TypeMeta;
 }
 /**
  * 
