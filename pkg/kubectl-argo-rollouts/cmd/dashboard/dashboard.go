@@ -2,13 +2,13 @@ package dashboard
 
 import (
 	"context"
-
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/server"
 	"github.com/spf13/cobra"
 )
 
 func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
+	var rootPath string
 	var cmd = &cobra.Command{
 		Use:   "dashboard",
 		Short: "Start UI dashboard",
@@ -22,6 +22,7 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 				KubeClientset:     kubeclientset,
 				RolloutsClientset: rolloutclientset,
 				DynamicClientset:  o.DynamicClientset(),
+				RootPath:          rootPath,
 			}
 
 			for {
@@ -33,6 +34,7 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 		},
 	}
+	cmd.Flags().StringVar(&rootPath, "rootPath", "rollouts", "renders the ui url with rootPath prefixed")
 
 	return cmd
 }

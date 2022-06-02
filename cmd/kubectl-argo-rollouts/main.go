@@ -3,14 +3,13 @@ package main
 import (
 	"os"
 
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/klog/v2"
-
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd"
-	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 )
 
 func main() {
