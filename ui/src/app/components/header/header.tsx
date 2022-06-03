@@ -55,7 +55,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                             onChange={(el) => setNsInput(el.target.value)}
                             onItemClick={(val) => {
                                 props.changeNamespace(val ? val : nsInput);
-                                history.push(`/rollouts`);
+                                history.push(`/`);
                             }}
                             value={nsInput}
                         />
