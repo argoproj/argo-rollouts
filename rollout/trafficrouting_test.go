@@ -21,6 +21,8 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik"
+	traefikMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/traefik/mocks"
 	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
@@ -33,6 +35,7 @@ func newFakeSingleTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
 	trafficRoutingReconciler := mocks.TrafficRoutingReconciler{}
 	trafficRoutingReconciler.On("Type").Return("fake")
 	trafficRoutingReconciler.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	trafficRoutingReconciler.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	return &trafficRoutingReconciler
@@ -96,6 +99,7 @@ func TestReconcileTrafficRoutingVerifyWeightErr(t *testing.T) {
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), errors.New("Error message"))
 	f.expectPatchRolloutAction(ro)
 	f.run(getKey(ro, t))
@@ -108,6 +112,7 @@ func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), nil)
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	enqueued := false
@@ -169,6 +174,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 		assert.Equal(t, int32(10), desiredWeight)
 		return nil
 	})
+	f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
 	f.run(getKey(r2, t))
 }
@@ -217,6 +223,7 @@ func TestRolloutUseDesiredWeight100(t *testing.T) {
 		assert.Equal(t, int32(100), desiredWeight)
 		return nil
 	})
+	f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
 	f.run(getKey(r2, t))
 }
@@ -284,6 +291,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			assert.Equal(t, ex.Status.TemplateStatuses[0].PodTemplateHash, weightDestinations[0].PodTemplateHash)
 			return nil
 		})
+		f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
 			assert.Equal(t, int32(10), desiredWeight)
 			assert.Equal(t, int32(5), weightDestinations[0].Weight)
@@ -304,6 +312,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			assert.Len(t, weightDestinations, 0)
 			return nil
 		})
+		f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
 			assert.Equal(t, int32(10), desiredWeight)
 			assert.Len(t, weightDestinations, 0)
@@ -358,6 +367,7 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 		assert.Equal(t, int32(10), desiredWeight)
 		return nil
 	})
+	f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.fakeTrafficRouting.On("error patching alb ingress", mock.Anything, mock.Anything).Return(true, nil)
 	f.run(getKey(r2, t))
@@ -423,6 +433,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 			assert.Equal(t, int32(50), desiredWeight)
 			return nil
 		})
+		f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 		f.run(getKey(r2, t))
 	})
@@ -435,6 +446,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 			assert.Equal(t, int32(5), desiredWeight)
 			return nil
 		})
+		f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 		f.run(getKey(r2, t))
 	})
@@ -478,6 +490,7 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 		assert.Equal(t, int32(0), desiredWeight)
 		return nil
 	})
+	f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.run(getKey(r1, t))
 }
@@ -621,6 +634,29 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 			assert.Nil(t, err)
 			assert.NotNil(t, networkReconciler)
 			assert.Equal(t, appmesh.Type, networkReconciler.Type())
+		}
+	}
+	{
+		tsController := Controller{
+			reconcilerBase: reconcilerBase{
+				dynamicclientset: &traefikMocks.FakeDynamicClient{},
+			},
+		}
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Traefik: &v1alpha1.TraefikTrafficRouting{
+				WeightedTraefikServiceName: "traefik-service",
+			},
+		}
+		roCtx := &rolloutContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
+		for _, networkReconciler := range networkReconcilerList {
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+			assert.Equal(t, traefik.Type, networkReconciler.Type())
 		}
 	}
 	{
@@ -827,6 +863,7 @@ func TestDynamicScalingDontIncreaseWeightWhenAborted(t *testing.T) {
 		assert.Equal(t, int32(0), desiredWeight)
 		return nil
 	})
+	f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.run(getKey(r1, t))
 }
@@ -896,6 +933,7 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAborted(t 
 		assert.Equal(t, int32(80), desiredWeight)
 		return nil
 	})
+	f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.run(getKey(r1, t))
 }

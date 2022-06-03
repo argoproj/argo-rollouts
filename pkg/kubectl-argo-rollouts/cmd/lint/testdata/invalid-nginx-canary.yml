@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-rollout-root
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: nginx-rollout
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-rollout-canary
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: nginx-rollout
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-rollout-stable
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: nginx-rollout
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-rollout-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /*
+            backend:
+              serviceName: nginx-rollout-root
+              servicePort: use-annotation
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: nginx-rollout
+spec:
+  selector:
+    matchLabels:
+      app: nginx-rollout
+  template:
+    metadata:
+      labels:
+        app: nginx-rollout
+    spec:
+      containers:
+        - name: nginx-rollout
+          image: argoproj/rollouts-demo:blue
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 5m
+  strategy:
+    canary:
+      canaryService: nginx-rollout-canary
+      stableService: nginx-rollout-stable
+      trafficRouting:
+        nginx:
+          stableIngress: nginx-rollout-ingress
+      steps:
+        - setWeight: 10
+        - experiment:
+            templates:
+              - name: experiment-nginx
+                specRef: canary
+                weight: 20

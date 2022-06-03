@@ -6,7 +6,8 @@ SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
 mkdir -p ${SRCROOT}/dist
 
 rollout_iid_file=$(mktemp -d "${SRCROOT}/dist/rollout_iid.XXXXXXXXX")
-docker build --iidfile ${rollout_iid_file} --target argo-rollouts-build .
+DOCKER_BUILDKIT=1 docker build --iidfile ${rollout_iid_file} --build-arg MAKE_TARGET="plugin-linux plugin-darwin plugin-windows" \
+--target argo-rollouts-build .
 rollout_iid=$(cat ${rollout_iid_file})
 container_id=$(docker create ${rollout_iid})
 
