@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"context"
-
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/server"
 	"github.com/spf13/cobra"
