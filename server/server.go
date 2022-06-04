@@ -94,7 +94,7 @@ func (fs *spaFileSystem) Open(name string) (http.File, error) {
 }
 
 //This function helps in changing base href to point to rootpath as basepath, we are making modification in only server/static/index.html file
-func withrootPath(rootpath string) {
+func withRootPath(rootpath string) {
 	inputFile, inputError := os.Open("./server/static/index.html")
 	if inputError != nil {
 		log.Error("An error occurred on opening the inputfile\n" +
