@@ -153,7 +153,7 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 
 	var handler http.Handler = gwmux
 
-	withrootPath(s.Options.RootPath)
+	withRootPath(s.Options.RootPath)
 
 	mux.Handle("/api/", handler)
 
