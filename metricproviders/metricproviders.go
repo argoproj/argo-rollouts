@@ -2,7 +2,6 @@ package metricproviders
 
 import (
 	"fmt"
-
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
 	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
@@ -70,7 +69,7 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 	case datadog.ProviderType:
 		return datadog.NewDatadogProvider(logCtx, f.KubeClient)
 	case wavefront.ProviderType:
-		client, err := wavefront.NewWavefrontAPI(metric, f.KubeClient)
+		client, err := wavefront.NewWavefrontAPI(metric)
 		if err != nil {
 			return nil, err
 		}
