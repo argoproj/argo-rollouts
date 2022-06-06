@@ -171,4 +171,3 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	}
 	return v1.NewAPI(client), nil
 }
-

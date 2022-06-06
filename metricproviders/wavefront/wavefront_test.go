@@ -249,7 +249,6 @@ func TestNewWavefrontAPIWithEnv(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-
 func TestFindDataPointValue(t *testing.T) {
 	e := log.WithField("", "")
 	mock := mockAPI{}

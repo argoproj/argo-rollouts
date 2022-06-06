@@ -19,9 +19,9 @@ import (
 
 const (
 	//ProviderType indicates the provider is wavefront
-	ProviderType = "Wavefront"
-	EnvVarArgoRolloutsWavefrontAddress  = "ARGO_ROLLOUTS_WAVEFRONT_ADDRESS"
-	EnvVarArgoRolloutsWavefrontToken 	= "ARGO_ROLLOUTS_WAVEFRONT_TOKEN"
+	ProviderType                       = "Wavefront"
+	EnvVarArgoRolloutsWavefrontAddress = "ARGO_ROLLOUTS_WAVEFRONT_ADDRESS"
+	EnvVarArgoRolloutsWavefrontToken   = "ARGO_ROLLOUTS_WAVEFRONT_TOKEN"
 )
 
 type Provider struct {
@@ -205,7 +205,7 @@ func NewWavefrontAPI(metric v1alpha1.Metric) (WavefrontClientAPI, error) {
 		log.Debugf("ARGO_ROLLOUTS_WAVEFRONT_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsWavefrontAddress])
 	}
 	if len(metric.Provider.Wavefront.Address) == 0 {
-		 if envValuesByKey[EnvVarArgoRolloutsWavefrontAddress] != "" {
+		if envValuesByKey[EnvVarArgoRolloutsWavefrontAddress] != "" {
 			metric.Provider.Wavefront.Address = envValuesByKey[EnvVarArgoRolloutsWavefrontAddress]
 		} else {
 			return nil, errors.New("wavefront address is not configured")

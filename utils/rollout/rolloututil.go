@@ -2,9 +2,10 @@ package rollout
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"net/url"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
