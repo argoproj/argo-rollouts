@@ -23,11 +23,7 @@ var unixNow = func() int64 { return timeutil.Now().Unix() }
 
 const (
 	//ProviderType indicates the provider is datadog
-	ProviderType = "Datadog"
-	//DatadogTokensSecretName = "datadog"
-	//DatadogApiKey           = "api-key"
-	//DatadogAppKey           = "app-key"
-	//DatadogAddress          = "address"
+	ProviderType                     = "Datadog"
 	EnvVarArgoRolloutsDatadogApiKey  = "ARGO_ROLLOUTS_DD_API_KEY"
 	EnvVarArgoRolloutsDatadogAppKey  = "ARGO_ROLLOUTS_DD_APP_KEY"
 	EnvVarArgoRolloutsDatadogAddress = "ARGO_ROLLOUTS_DD_ADDRESS"

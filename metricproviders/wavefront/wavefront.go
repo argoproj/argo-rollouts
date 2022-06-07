@@ -193,12 +193,6 @@ func NewWavefrontProvider(api WavefrontClientAPI, logCtx log.Entry) *Provider {
 
 // NewWavefrontAPI generates a Wavefront API client from the metric configuration
 func NewWavefrontAPI(metric v1alpha1.Metric) (WavefrontClientAPI, error) {
-	//ns := defaults.Namespace()
-	//secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), WavefrontTokensSecretName, metav1.GetOptions{})
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	envValuesByKey := make(map[string]string)
 	if value, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsWavefrontAddress)); ok {
 		envValuesByKey[EnvVarArgoRolloutsWavefrontAddress] = value

@@ -20,7 +20,6 @@ import (
 const (
 	//ProviderType indicates the provider is wavefront
 	ProviderType                               = "NewRelic"
-	DefaultNewRelicProfileSecretName           = "newrelic"
 	repoURL                                    = "https://github.com/argoproj/argo-rollouts"
 	EnvVarArgoRolloutsNewRelicApiKey           = "ARGO_ROLLOUTS_NEWRELIC_APIKEY"
 	EnvVarArgoRolloutsNewRelicAccountId        = "ARGO_ROLLOUTS_NEWRELIC_ACCOUNT_ID"

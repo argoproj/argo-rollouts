@@ -230,9 +230,8 @@ func TestNewWavefrontAPIWithEnv(t *testing.T) {
 			},
 		},
 	}
-	api, err := NewWavefrontAPI(metric)
+	_, err := NewWavefrontAPI(metric)
 	assert.NotNil(t, err)
-	log.Infof("api:%v", api)
 
 	os.Unsetenv(EnvVarArgoRolloutsWavefrontToken)
 	os.Unsetenv(EnvVarArgoRolloutsWavefrontAddress)
@@ -244,7 +243,6 @@ func TestNewWavefrontAPIWithEnv(t *testing.T) {
 			},
 		},
 	}
-	//os.Setenv(EnvVarArgoRolloutsWavefrontToken, "")
 	_, err = NewWavefrontAPI(metric)
 	assert.Nil(t, err)
 }
