@@ -398,9 +398,6 @@ func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, out
 
 	definitions := map[string]interface{}{}
 	for _, crd := range crds {
-		if crd.Spec.Names.Kind != "Rollout" {
-			continue
-		}
 		var version string
 		var props map[string]extensionsobj.JSONSchemaProps
 		for _, v := range crd.Spec.Versions {
