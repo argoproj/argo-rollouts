@@ -9,18 +9,18 @@ A [New Relic](https://newrelic.com/) query using [NRQL](https://docs.newrelic.co
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
-name: success-rate
+  name: success-rate
 spec:
-args:
-- name: application-name
-metrics:
-- name: success-rate
-successCondition: result.successRate >= 0.95
-provider:
-newRelic:
-profile: my-newrelic-secret  # optional, defaults to 'newrelic'
-query: |
-FROM Transaction SELECT percentage(count(*), WHERE httpResponseCode != 500) as successRate where appName = '{{ args.application-name }}'
+  args:
+  - name: application-name
+  metrics:
+  - name: success-rate
+    successCondition: result.successRate >= 0.95
+    provider:
+      newRelic:
+        profile: my-newrelic-secret  # optional, defaults to 'newrelic'
+      query: |
+        FROM Transaction SELECT percentage(count(*), WHERE httpResponseCode != 500) as successRate where appName = '{{ args.application-name }}'
 ```
 
 The `result` evaluated for the condition will always be map or list of maps. The name will follow the pattern of either `function` or `function.field`, e.g. `SELECT average(duration) from Transaction` will yield `average.duration`. In this case the field result cannot be accessed with dot notation and instead should be accessed like `result['average.duration']`. Query results can be renamed using the [NRQL clause `AS`](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/nrql-syntax-clauses-functions#sel-as) as seen above.
@@ -31,12 +31,12 @@ A New Relic access profile can be configured using a Kubernetes secret in the `a
 apiVersion: v1
 kind: Secret
 metadata:
-name: newrelic
+  name: newrelic
 type: Opaque
 data:
-ARGO_ROLLOUTS_NEWRELIC_APIKEY: <newrelic-personal-api-key>
-ARGO_ROLLOUTS_NEWRELIC_ACCOUNT_ID: <newrelic-account-id>
-ARGO_ROLLOUTS_NEWRELIC_REGION: "us" # optional, defaults to "us" if not set. Only set to "eu" if you use EU New Relic
+  ARGO_ROLLOUTS_NEWRELIC_APIKEY: <newrelic-personal-api-key>
+  ARGO_ROLLOUTS_NEWRELIC_ACCOUNT_ID: <newrelic-account-id>
+  ARGO_ROLLOUTS_NEWRELIC_REGION: "us" # optional, defaults to "us" if not set. Only set to "eu" if you use EU New Relic
 ```
 
 In Rollout Deployment add the follow env source
