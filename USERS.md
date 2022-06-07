@@ -28,6 +28,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Shipt](https://www.shipt.com/)
 1. [Skillz](https://www.skillz.com)
 1. [Spotify](https://www.spotify.com/)
+1. [Twilio Segment](https://segment.com)
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [Ubie](https://ubie.life/)
 1. [VISITS Technologies](https://visits.world/en)
