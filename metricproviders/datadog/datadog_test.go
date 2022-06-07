@@ -43,7 +43,6 @@ func TestRunSuite(t *testing.T) {
 		expectedValue           string
 		expectedPhase           v1alpha1.AnalysisPhase
 		expectedErrorMessage    string
-		useEnvVarForKeys        bool
 	}{
 		// When last value of time series matches condition then succeed.
 		{
@@ -58,7 +57,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			useEnvVarForKeys:        true,
 		},
 		// Same test as above, but derive DD keys from env var instead of k8s secret
 		{
@@ -73,7 +71,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			useEnvVarForKeys:        true,
 		},
 		// When last value of time series does not match condition then fail.
 		{
@@ -88,7 +85,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121378742186943",
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
-			useEnvVarForKeys:        true,
 		},
 		// Error if the request is invalid
 		{
@@ -103,7 +99,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "received non 2xx response code: 400 {\"status\":\"error\",\"error\":\"error messsage\"}",
-			useEnvVarForKeys:        true,
 		},
 		// Error if there is an authentication issue
 		{
@@ -118,7 +113,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "received authentication error response code: 401 {\"errors\": [\"No authenticated user.\"]}",
-			useEnvVarForKeys:        true,
 		},
 
 		// Expect success with default() and data
@@ -133,7 +127,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121378742186943",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			useEnvVarForKeys:        true,
 		},
 
 		// Expect error with no default() and no data
@@ -148,7 +141,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    `invalid operation: < (mismatched types <nil> and float64)`,
-			useEnvVarForKeys:        true,
 		},
 
 		// Expect success with default() and no data
@@ -163,7 +155,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           `[{"pointlist":[]}]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			useEnvVarForKeys:        true,
 		},
 
 		// Expect failure with bad default() and no data
@@ -178,7 +169,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           `[{"pointlist":[]}]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
-			useEnvVarForKeys:        true,
 		},
 
 		// Expect success with bad default() and good data
@@ -193,7 +183,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           `0.006121378742186943`,
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			useEnvVarForKeys:        true,
 		},
 
 		// Error if datadog returns non-array series
@@ -209,7 +198,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field datadogResponse.Series of type []struct { Pointlist [][]float64 \"json:\\\"pointlist\\\"\" }",
-			useEnvVarForKeys:        true,
 		},
 
 		// Error if server address is faulty
@@ -218,7 +206,6 @@ func TestRunSuite(t *testing.T) {
 			metric:               v1alpha1.Metric{},
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage: "parse \"://wrong.schema/api/v1/query\": missing protocol scheme",
-			useEnvVarForKeys:     true,
 		},
 	}
 
