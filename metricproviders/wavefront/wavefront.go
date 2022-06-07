@@ -204,6 +204,10 @@ func NewWavefrontAPI(metric v1alpha1.Metric) (WavefrontClientAPI, error) {
 		envValuesByKey[EnvVarArgoRolloutsWavefrontAddress] = value
 		log.Debugf("ARGO_ROLLOUTS_WAVEFRONT_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsWavefrontAddress])
 	}
+	if token, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsWavefrontToken)); ok {
+		envValuesByKey[EnvVarArgoRolloutsWavefrontToken] = token
+		log.Debugf("ARGO_ROLLOUTS_WAVEFRONT_TOKEN: %v", envValuesByKey[EnvVarArgoRolloutsWavefrontToken])
+	}
 	if len(metric.Provider.Wavefront.Address) == 0 {
 		if envValuesByKey[EnvVarArgoRolloutsWavefrontAddress] != "" {
 			metric.Provider.Wavefront.Address = envValuesByKey[EnvVarArgoRolloutsWavefrontAddress]
@@ -214,7 +218,7 @@ func NewWavefrontAPI(metric v1alpha1.Metric) (WavefrontClientAPI, error) {
 	var wfClient *wavefrontapi.Client
 	wfClient, err := wavefrontapi.NewClient(&wavefrontapi.Config{
 		Address: metric.Provider.Wavefront.Address,
-		Token:   string(EnvVarArgoRolloutsWavefrontToken),
+		Token:   envValuesByKey[EnvVarArgoRolloutsWavefrontToken],
 	})
 	if err != nil {
 		log.Errorf("Error in getting wavefront client: %v", err)
