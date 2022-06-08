@@ -1521,6 +1521,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanarySc
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanaryScale
      */
     matchTrafficWeight?: boolean;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanaryScale
+     */
+    minReplicas?: number;
 }
 /**
  * 
