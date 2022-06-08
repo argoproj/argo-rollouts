@@ -27,7 +27,15 @@ spec:
     matchLabels:
       app: guestbook
 
-  # Template describes the pods that will be created. Same as deployment
+  # WorkloadRef holds a references to a workload that provides Pod template 
+  # (e.g. Deployment). If used, then do not use Rollout template property.
+  workloadRef: 
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rollout-ref-deployment
+
+  # Template describes the pods that will be created. Same as deployment.
+  # If used, then do not use Rollout workloadRef property. 
   template:
     spec:
       containers:
@@ -255,6 +263,24 @@ spec:
       # set canary scale to match the canary traffic weight (default behavior)
       - setCanaryScale:
           matchTrafficWeight: true
+
+      # Sets header based route with specified header values
+      # Setting header based route will send all 100 traffic to the canary for the requests 
+      # O with a specified header, in this case request header "version":"2"
+      # (supported only with trafficRouting, for Istio only at the moment)
+      - setHeaderRouting:
+          match:
+            - headerName: "version"
+              headerValue:
+                exact: "2"
+
+      # Sets header based route with specified header values using regex as a value
+      # Could be used 'headerValue' or 'headerRegex' one of that values
+      - setHeaderRouting:
+          match:
+            - headerName: "version"
+              headerValue:
+                regex: "2.0.(.*)"
 
       # an inline analysis step
       - analysis:
