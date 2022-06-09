@@ -88,7 +88,6 @@ func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *apps
 	maxSurge := MaxSurge(rollout)
 
 	desiredNewRSReplicaCount, desiredStableRSReplicaCount := approximateWeightedCanaryStableReplicaCounts(rolloutSpecReplica, desiredWeight, maxSurge)
-
 	if desiredNewRSReplicaCount > 0 {
 		desiredNewRSReplicaCount = max(desiredNewRSReplicaCount, minReplicas)
 	}
