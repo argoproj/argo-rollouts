@@ -150,7 +150,7 @@ func waitingForBlueGreenPostPromotionAnalysis(ro *v1alpha1.Rollout) bool {
 	return false
 }
 
-// CanaryStepString returns a string representation of a canary step
+// CanaryStepString returns a string representation of a canary step spec.strategy
 func CanaryStepString(c v1alpha1.CanaryStep) string {
 	if c.SetWeight != nil {
 		return fmt.Sprintf("setWeight: %d", *c.SetWeight)

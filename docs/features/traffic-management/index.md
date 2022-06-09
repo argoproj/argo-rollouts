@@ -52,11 +52,11 @@ Since the traffic is controlled independently by the Service Mesh resources, the
 ## Traffic routing based on a header values for Canary
 
 Argo Rollouts has ability to send all traffic to the canary-service based on a http request header value. Right now it's implemented for the Istio only.
-The step for the header based traffic routing `setHeaderRouting` has a list of matchers for the header. 
+The step for the header based traffic routing `setHeaderRoute` has a list of matchers for the header. 
 Should be specified the `headerName` - name of the header and a value. 
 The value could be one of 3 `exact` - specify the exact header value, `regex` - value in a regex format, `prefix` - the prefix of the value could be provided.
 
-To disable header based traffic routing just need to specify empty `setHeaderRouting`.
+To disable header based traffic routing just need to specify empty `setHeaderRoute` with the name of the route.
 
 Example:
 
@@ -69,13 +69,16 @@ spec:
     canary:
       canaryService: canary-service
       stableService: stable-service
+      managedRoutes:
+        - name: set-header-1
       trafficRouting:
         istio:
           virtualService:
             name: rollouts-demo-vsvc
       steps:
       - setWeight: 20
-      - setHeaderRouting: # enable header based traffic routing where
+      - setHeaderRoute: # enable header based traffic routing where
+          name: "set-header-1"
           match:
           - headerName: Custom-Header1 # Custom-Header1=Mozilla
             headerValue:
@@ -87,5 +90,6 @@ spec:
             headerValue:
               regex: Mozilla(.*)
       - pause: {}
-      - setHeaderRouting: {} # disable header based traffic routing
+      - setHeaderRouting:
+          name: "set-header-1" # disable header based traffic routing
 ```

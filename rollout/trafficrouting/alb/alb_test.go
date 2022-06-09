@@ -829,3 +829,69 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 }
+
+func TestSetHeaderRoute(t *testing.T) {
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
+	client := fake.NewSimpleClientset()
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "set-header",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName: "header-name",
+			HeaderValue: &v1alpha1.StringMatch{
+				Exact: "value",
+			},
+		}},
+	})
+	assert.Nil(t, err)
+
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+
+	assert.Len(t, client.Actions(), 0)
+}
+
+func TestSetMirrorRoute(t *testing.T) {
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
+	client := fake.NewSimpleClientset()
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+	err = r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+		Name: "mirror-route",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{Exact: "GET"},
+		}},
+	})
+	assert.Nil(t, err)
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+
+	assert.Len(t, client.Actions(), 0)
+}

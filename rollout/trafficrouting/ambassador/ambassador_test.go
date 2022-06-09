@@ -519,6 +519,105 @@ func TestReconciler_SetWeight(t *testing.T) {
 	})
 }
 
+func TestReconcilerSetHeaderRoute(t *testing.T) {
+	type fixture struct {
+		rollout    *v1alpha1.Rollout
+		fakeClient *fakeClient
+		recorder   record.EventRecorder
+		reconciler *ambassador.Reconciler
+	}
+
+	setup := func() *fixture {
+		r := rollout("main-service", "canary-service", []string{"myapp-mapping"})
+		fakeClient := &fakeClient{}
+		rec := record.NewFakeEventRecorder()
+		l, _ := test.NewNullLogger()
+		return &fixture{
+			rollout:    r,
+			fakeClient: fakeClient,
+			recorder:   rec,
+			reconciler: &ambassador.Reconciler{
+				Rollout:  r,
+				Client:   fakeClient,
+				Recorder: rec,
+				Log:      l.WithContext(context.TODO()),
+			},
+		}
+	}
+	t.Run("SetHeaderRoute", func(t *testing.T) {
+		t.Run("will always return nil", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+
+			// when
+			err := f.reconciler.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+				Name: "set-header",
+				Match: []v1alpha1.HeaderRoutingMatch{{
+					HeaderName: "header-name",
+					HeaderValue: &v1alpha1.StringMatch{
+						Exact: "value",
+					},
+				}},
+			})
+
+			// then
+			assert.Nil(t, err)
+
+			err = f.reconciler.RemoveManagedRoutes()
+			assert.Nil(t, err)
+		})
+	})
+}
+
+func TestReconcilerSetMirrorRoute(t *testing.T) {
+	type fixture struct {
+		rollout    *v1alpha1.Rollout
+		fakeClient *fakeClient
+		recorder   record.EventRecorder
+		reconciler *ambassador.Reconciler
+	}
+
+	setup := func() *fixture {
+		r := rollout("main-service", "canary-service", []string{"myapp-mapping"})
+		fakeClient := &fakeClient{}
+		rec := record.NewFakeEventRecorder()
+		l, _ := test.NewNullLogger()
+		return &fixture{
+			rollout:    r,
+			fakeClient: fakeClient,
+			recorder:   rec,
+			reconciler: &ambassador.Reconciler{
+				Rollout:  r,
+				Client:   fakeClient,
+				Recorder: rec,
+				Log:      l.WithContext(context.TODO()),
+			},
+		}
+	}
+	t.Run("SetMirrorRoute", func(t *testing.T) {
+		t.Run("will always return nil", func(t *testing.T) {
+			// given
+			t.Parallel()
+			f := setup()
+
+			// when
+			err := f.reconciler.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+				Name: "mirror-route",
+				Match: []v1alpha1.RouteMatch{{
+					Method: &v1alpha1.StringMatch{Exact: "GET"},
+				}},
+			})
+
+			// then
+			assert.Nil(t, err)
+
+			err = f.reconciler.RemoveManagedRoutes()
+			assert.Nil(t, err)
+		})
+	})
+}
+
 func TestGetMappingService(t *testing.T) {
 	t.Run("will return empty string if service not found", func(t *testing.T) {
 		// given

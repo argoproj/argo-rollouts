@@ -15,22 +15,22 @@ import (
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 )
 
-type HeaderRoutingSuite struct {
+type HeaderRouteSuite struct {
 	fixtures.E2ESuite
 }
 
 func TestHeaderRoutingSuite(t *testing.T) {
-	suite.Run(t, new(HeaderRoutingSuite))
+	suite.Run(t, new(HeaderRouteSuite))
 }
 
-func (s *HeaderRoutingSuite) SetupSuite() {
+func (s *HeaderRouteSuite) SetupSuite() {
 	s.E2ESuite.SetupSuite()
 	if !s.IstioEnabled {
 		s.T().SkipNow()
 	}
 }
 
-func (s *HeaderRoutingSuite) TestIstioHostHeaderRoute() {
+func (s *HeaderRouteSuite) TestIstioHostHeaderRoute() {
 	s.Given().
 		RolloutObjects("@header-routing/istio-hr-host.yaml").
 		When().
@@ -48,7 +48,7 @@ func (s *HeaderRoutingSuite) TestIstioHostHeaderRoute() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			vsvc := t.GetVirtualService()
-			assert.Equal(s.T(), istio.HeaderRouteName, vsvc.Spec.HTTP[0].Name)
+			assert.Equal(s.T(), "set-header-1", vsvc.Spec.HTTP[0].Name)
 			assertDestination(s, vsvc.Spec.HTTP[0], "canary-service", int64(100))
 			assertDestination(s, vsvc.Spec.HTTP[1], "stable-service", int64(80))
 			assertDestination(s, vsvc.Spec.HTTP[1], "canary-service", int64(20))
@@ -80,7 +80,7 @@ func (s *HeaderRoutingSuite) TestIstioHostHeaderRoute() {
 		})
 }
 
-func assertDestination(s *HeaderRoutingSuite, route istio.VirtualServiceHTTPRoute, service string, weight int64) {
+func assertDestination(s *HeaderRouteSuite, route istio.VirtualServiceHTTPRoute, service string, weight int64) {
 	for _, destination := range route.Route {
 		if destination.Destination.Host == service {
 			assert.Equal(s.T(), weight, destination.Weight)

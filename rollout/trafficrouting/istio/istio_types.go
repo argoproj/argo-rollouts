@@ -1,6 +1,7 @@
 package istio
 
 import (
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -17,8 +18,15 @@ type VirtualServiceSpec struct {
 
 // VirtualServiceHTTPRoute is a HTTP route in a VirtualService
 type VirtualServiceHTTPRoute struct {
-	Name  string                           `json:"name,omitempty"`
-	Route []VirtualServiceRouteDestination `json:"route,omitempty"`
+	Name             string                           `json:"name,omitempty"`
+	Match            []v1alpha1.RouteMatch            `json:"match,omitempty"`
+	Route            []VirtualServiceRouteDestination `json:"route,omitempty"`
+	Mirror           *VirtualServiceDestination       `json:"mirror,omitempty"`
+	MirrorPercentage *Percent                         `json:"mirrorPercentage,omitempty"`
+}
+
+type Percent struct {
+	Value float64 `json:"value,omitempty"`
 }
 
 // VirtualServiceTLSRoute is a TLS route in a VirtualService
