@@ -736,7 +736,7 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 		_, err = client.Update(ctx, modifiedVirtualService, metav1.UpdateOptions{})
 		if err == nil {
 			r.log.Debugf("Updated VirtualService: %s", modifiedVirtualService)
-			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set headerRouting '%v'", vsvcName, headerRouting)
+			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set headerRoute '%v'", vsvcName, headerRouting.Name)
 		} else {
 			return err
 		}
@@ -1082,7 +1082,7 @@ func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) err
 		_, err = client.Update(ctx, istioVirtualSvc, metav1.UpdateOptions{})
 		if err == nil {
 			r.log.Debugf("Updated VirtualService: %s", istioVirtualSvc)
-			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set mirrorRoute '%v'", vsvcName, setMirrorRoute)
+			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set mirrorRoute '%v'", vsvcName, setMirrorRoute.Name)
 		} else {
 			return err
 		}
