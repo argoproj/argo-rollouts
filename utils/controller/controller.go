@@ -24,6 +24,8 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
+const FinalizerName = "argoproj.io/finalizer"
+
 // processNextWatchObj will process a single object from the watch by seeing if
 // that object is in an index and enqueueing the value object from the indexer
 func processNextWatchObj(watchEvent watch.Event, queue workqueue.RateLimitingInterface, indexer cache.Indexer, index string) {
@@ -264,4 +266,24 @@ func InstanceIDRequirement(instanceID string) labels.Requirement {
 		panic(err)
 	}
 	return *instanceIDReq
+}
+
+// Helper functions to check and remove string from a slice of strings.
+func ContainsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func RemoveString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
 }

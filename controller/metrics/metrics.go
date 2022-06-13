@@ -136,6 +136,27 @@ func (m *MetricsServer) IncError(namespace, name string, kind string) {
 	}
 }
 
+func (m *MetricsServer) Remove(namespace, name string, kind string) {
+	MetricRolloutEventsTotal.DeleteLabelValues(namespace, name)
+	switch kind {
+	case log.RolloutKey:
+		m.reconcileRolloutHistogram.DeleteLabelValues(namespace, name)
+		m.errorRolloutCounter.DeleteLabelValues(namespace, name)
+
+		m.successNotificationCounter.DeleteLabelValues(namespace, name)
+		m.errorNotificationCounter.DeleteLabelValues(namespace, name)
+		m.sendNotificationRunHistogram.DeleteLabelValues(namespace, name)
+
+		MetricRolloutEventsTotal.DeleteLabelValues(namespace, name)
+	case log.AnalysisRunKey:
+		m.reconcileAnalysisRunHistogram.DeleteLabelValues(namespace, name)
+		m.errorAnalysisRunCounter.DeleteLabelValues(namespace, name)
+	case log.ExperimentKey:
+		m.reconcileExperimentHistogram.DeleteLabelValues(namespace, name)
+		m.errorExperimentCounter.DeleteLabelValues(namespace, name)
+	}
+}
+
 func boolFloat64(b bool) float64 {
 	if b {
 		return 1

@@ -364,8 +364,32 @@ func (c *Controller) syncHandler(key string) error {
 	logCtx = logutil.WithVersionFields(logCtx, r)
 	logCtx.Info("Started syncing rollout")
 
-	if r.ObjectMeta.DeletionTimestamp != nil {
-		logCtx.Info("No reconciliation as rollout marked for deletion")
+	// examine DeletionTimestamp to determine if object is under deletion
+	if r.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsString(r.ObjectMeta.Finalizers, controllerutil.FinalizerName) {
+			r.ObjectMeta.Finalizers = append(r.ObjectMeta.Finalizers, controllerutil.FinalizerName)
+			_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsString(r.ObjectMeta.Finalizers, controllerutil.FinalizerName) {
+			//Remove metrics
+			c.metricsServer.Remove(r.Namespace, r.Name, logutil.RolloutKey)
+
+			// remove our finalizer from the list and update it.
+			r.ObjectMeta.Finalizers = controllerutil.RemoveString(r.ObjectMeta.Finalizers, controllerutil.FinalizerName)
+			_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
 		return nil
 	}
 
