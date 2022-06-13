@@ -1,6 +1,6 @@
 ## Kayenta (e.g. Mann-Whitney Analysis)
 
-Analysis can also be done as part of an [Experiment](../features/experiment.md). 
+Analysis can also be done as part of an [Experiment](../features/experiment.md).
 
 This example starts both a canary and baseline ReplicaSet. The ReplicaSets run for 1 hour, then
 scale down to zero. Call out to Kayenta to perform Mann-Whintney analysis against the two pods. Demonstrates ability to start a
@@ -23,7 +23,7 @@ This example demonstrates:
         app: guestbook
     spec:
       strategy:
-        canary: 
+        canary:
           steps:
           - experiment:
               duration: 1h
@@ -45,7 +45,7 @@ This example demonstrates:
 
 === "AnalysisTemplate"
 
-    ```yaml 
+    ```yaml
     apiVersion: argoproj.io/v1alpha1
     kind: AnalysisTemplate
     metadata:

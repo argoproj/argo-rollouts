@@ -17,7 +17,7 @@ of the as the result variable.
         headers:
           - key: Authorization
             value: "Bearer {{ args.api-token }}"
-        jsonPath: "{$.data.ok}" 
+        jsonPath: "{$.data.ok}"
 ```
 
 In the following example, given the payload, the measurement will be Successful if the `data.ok` field was `true`, and the `data.successPercent`
@@ -42,7 +42,7 @@ was greater than `0.90`
         headers:
           - key: Authorization
             value: "Bearer {{ args.api-token }}"
-        jsonPath: "{$.data}" 
+        jsonPath: "{$.data}"
 ```
 
 NOTE: if the result is a string, two convenience functions `asInt` and `asFloat` are provided
@@ -67,7 +67,7 @@ It is possible to use a POST or PUT requests, by specifying the `method` and `bo
           - key: Content-Type # if body is a json, it is recommended to set the Content-Type
             value: "application/json"
         body: "{\"key\": \"string value\"}"
-        jsonPath: "{$.data.ok}" 
+        jsonPath: "{$.data.ok}"
 ```
   !!! tip
       In order to send in JSON, you have to encode it yourself, and send the correct Content-Type as well.
