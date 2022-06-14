@@ -145,7 +145,7 @@ Not all match types (exact, regex, prefix) will be supported by all traffic rout
 
 To disable mirror based traffic route you just need to specify a `setMirrorRoute` with only the name of the route.
 
-
+This example will mirror 35% of HTTP traffic that matches a `GET` requests and with the url prefix of `/`
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
