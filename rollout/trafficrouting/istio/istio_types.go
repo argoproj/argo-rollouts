@@ -19,10 +19,22 @@ type VirtualServiceSpec struct {
 // VirtualServiceHTTPRoute is a HTTP route in a VirtualService
 type VirtualServiceHTTPRoute struct {
 	Name             string                           `json:"name,omitempty"`
-	Match            []v1alpha1.RouteMatch            `json:"match,omitempty"`
+	Match            []RouteMatch                     `json:"match,omitempty"`
 	Route            []VirtualServiceRouteDestination `json:"route,omitempty"`
 	Mirror           *VirtualServiceDestination       `json:"mirror,omitempty"`
 	MirrorPercentage *Percent                         `json:"mirrorPercentage,omitempty"`
+}
+
+type RouteMatch struct {
+	// Method What http methods should be mirrored
+	// +optional
+	Method *v1alpha1.StringMatch `json:"method,omitempty" protobuf:"bytes,1,opt,name=method"`
+	// Uri What url paths should be mirrored
+	// +optional
+	Uri *v1alpha1.StringMatch `json:"uri,omitempty" protobuf:"bytes,2,opt,name=uri"`
+	// Headers What request with matching headers should be mirrored
+	// +optional
+	Headers map[string]v1alpha1.StringMatch `json:"headers,omitempty" protobuf:"bytes,3,opt,name=headers"`
 }
 
 type Percent struct {

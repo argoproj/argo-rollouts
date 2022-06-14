@@ -1173,9 +1173,18 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 		return nil, err
 	}
 
+	var istioMatch []RouteMatch
+	for _, match := range mirrorRouting.Match {
+		istioMatch = append(istioMatch, RouteMatch{
+			Method:  match.Method,
+			Uri:     match.Path,
+			Headers: match.Headers,
+		})
+	}
+
 	mirrorRoute := map[string]interface{}{
 		"name":  mirrorRouting.Name,
-		"match": mirrorRouting.Match,
+		"match": istioMatch,
 		"route": route,
 		"mirror": VirtualServiceDestination{
 			Host:   canarySvc,
