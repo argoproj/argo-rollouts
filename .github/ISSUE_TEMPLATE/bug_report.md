@@ -44,3 +44,7 @@ kubectl logs -n argo-rollouts deployment/argo-rollouts
 # Logs for a specific rollout:
 kubectl logs -n argo-rollouts deployment/argo-rollouts | grep rollout=<ROLLOUTNAME
 ```
+
+**Message from the maintainers**:
+
+Impacted by this bug? Give it a 👍. We prioritize the issues with the most 👍.
