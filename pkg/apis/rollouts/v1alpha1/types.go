@@ -369,8 +369,9 @@ type RolloutTrafficRouting struct {
 }
 
 type MangedRoutes struct {
-	Name        string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	CanaryRoute bool   `json:"canaryRoute,omitempty" protobuf:"varint,2,opt,name=canaryRoute"`
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	//Possibly name for future use
+	//canaryRoute bool
 }
 
 // TraefikTrafficRouting defines the configuration required to use Traefik as traffic router

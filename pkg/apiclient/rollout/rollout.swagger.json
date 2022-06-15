@@ -1004,9 +1004,6 @@
       "properties": {
         "name": {
           "type": "string"
-        },
-        "canaryRoute": {
-          "type": "boolean"
         }
       }
     },

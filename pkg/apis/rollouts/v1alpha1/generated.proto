@@ -831,8 +831,6 @@ message KayentaThreshold {
 
 message MangedRoutes {
   optional string name = 1;
-
-  optional bool canaryRoute = 2;
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured

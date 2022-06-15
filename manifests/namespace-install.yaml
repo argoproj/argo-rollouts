@@ -11772,8 +11772,6 @@ spec:
                           managedRoutes:
                             items:
                               properties:
-                                canaryRoute:
-                                  type: boolean
                                 name:
                                   type: string
                               required:
