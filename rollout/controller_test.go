@@ -915,10 +915,10 @@ func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy s
 }
 
 func (f *fixture) verifyPatchedRolloutAborted(index int, rsName string) {
-	action := filterInformerActions(f.kubeclient.Actions())[index]
-	_, ok := action.(core.PatchAction)
+	action := f.kubeclient.Actions()
+	_, ok := action[index].(core.PatchAction)
 	if !ok {
-		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
+		assert.Fail(f.t, "Expected Patch action, not %s", action[index].GetVerb())
 	}
 
 	ro := f.getPatchedRolloutAsObject(index)

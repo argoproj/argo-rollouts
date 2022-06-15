@@ -3,6 +3,7 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"strconv"
 	"testing"
 	"time"
@@ -59,6 +60,7 @@ func TestBlueGreenComplateRolloutRestart(t *testing.T) {
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	generatedConditions := generateConditionsPatchWithComplete(false, conditions.ReplicaSetNotAvailableReason, rs, false, "", false)
 
+	f.expectUpdateRolloutAction(r)
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
@@ -109,6 +111,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	generatedConditions := generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false, "")
 
+	f.expectUpdateRolloutAction(r)
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectUpdateReplicaSetAction(rs) // scale up RS
@@ -162,6 +165,7 @@ func TestBlueGreenSetPreviewService(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
+	f.expectUpdateRolloutAction(r)
 	servicePatch := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
@@ -186,6 +190,7 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 		progressDeadlineSeconds := int32(1)
 		r.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
 		r.Spec.ProgressDeadlineAbort = true
+		r.ObjectMeta.Finalizers = []string{controllerutil.FinalizerName}
 
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.objects = append(f.objects, r)
@@ -218,6 +223,7 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 		f.kubeobjects = append(f.kubeobjects, rs)
 		f.replicaSetLister = append(f.replicaSetLister, rs)
 
+		//f.expectUpdateRolloutAction(r)
 		f.expectPatchServiceAction(previewSvc, rsPodHash)
 		patchIndex := f.expectPatchRolloutAction(r)
 		f.run(getKey(r, t))
@@ -250,6 +256,7 @@ func TestSetServiceManagedBy(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
+	f.expectUpdateRolloutAction(r)
 	servicePatch := f.expectPatchServiceAction(previewSvc, rsPodHash)
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
@@ -284,6 +291,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+		f.expectUpdateRolloutAction(r2)
 		patchRolloutIndex := f.expectPatchRolloutAction(r2)
 		f.run(getKey(r2, t))
 

@@ -158,6 +158,7 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r2, at)
 
+	f.expectUpdateRolloutAction(r2)
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
 	f.expectUpdateReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
@@ -217,6 +218,7 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r2, at)
 
+	f.expectUpdateRolloutAction(r1)
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
 	f.expectUpdateReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
@@ -277,6 +279,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, cat)
 	f.objects = append(f.objects, r2, cat)
 
+	f.expectUpdateRolloutAction(r1)
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
 	f.expectUpdateReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
@@ -316,6 +319,7 @@ func TestInvalidSpecMissingClusterTemplatesBackgroundAnalysis(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
+	f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
@@ -387,6 +391,7 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r2, cat, at)
 
+	f.expectUpdateRolloutAction(r1)
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
 	f.expectUpdateReplicaSetAction(rs2)
 	index := f.expectPatchRolloutAction(r1)
@@ -454,6 +459,7 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r2, at, ar)
 
+	f.expectUpdateRolloutAction(r1)
 	f.expectCreateAnalysisRunAction(ar) // this fails due to conflict
 	f.expectGetAnalysisRunAction(ar)    // get will retrieve the existing one to compare semantic equality
 	expectedAR := ar.DeepCopy()
@@ -520,6 +526,7 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r2, at, ar)
 
+	f.expectUpdateRolloutAction(r1)
 	f.expectCreateAnalysisRunAction(ar) // this fails due to conflict
 	f.expectGetAnalysisRunAction(ar)    // get will retrieve the existing one to compare semantic equality
 	f.expectUpdateReplicaSetAction(rs2)
@@ -578,6 +585,7 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r2, at)
 
+	f.expectUpdateRolloutAction(r1)
 	createdIndex := f.expectCreateAnalysisRunAction(ar)
 	index := f.expectPatchRolloutAction(r1)
 
@@ -622,6 +630,7 @@ func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r, at)
 
+	f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
@@ -667,6 +676,7 @@ func TestFailCreateBackgroundAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r, at)
 
+	f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
@@ -714,6 +724,7 @@ func TestFailCreateBackgroundAnalysisRunIfMetricRepeated(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r, at)
 
+	f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
@@ -778,6 +789,7 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectUpdateReplicaSetAction(rs2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
@@ -826,6 +838,7 @@ func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -880,6 +893,7 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar, olderAr, oldBackgroundAr)
 	f.objects = append(f.objects, r2, at, ar, olderAr, oldBackgroundAr)
 
+	f.expectUpdateRolloutAction(r2)
 	cancelBackgroundAr := f.expectPatchAnalysisRunAction(oldBackgroundAr)
 	cancelOldAr := f.expectPatchAnalysisRunAction(olderAr)
 	patchIndex := f.expectPatchRolloutAction(r2)
@@ -942,6 +956,7 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar, arWithDiffPodHash)
 	f.objects = append(f.objects, r2, at, ar, arWithDiffPodHash)
 
+	f.expectUpdateRolloutAction(r2)
 	deletedIndex := f.expectDeleteAnalysisRunAction(arWithDiffPodHash)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
@@ -1000,6 +1015,7 @@ func TestDeleteAnalysisRunsAfterRSDelete(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar, arToDelete, arAlreadyDeleted)
 	f.objects = append(f.objects, r3, at, ar, arToDelete, arAlreadyDeleted)
 
+	f.expectUpdateRolloutAction(r3)
 	f.expectDeleteReplicaSetAction(rs1)
 	deletedIndex := f.expectDeleteAnalysisRunAction(arToDelete)
 	f.expectPatchRolloutAction(r3)
@@ -1047,6 +1063,7 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -1107,6 +1124,7 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -1171,6 +1189,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -1238,6 +1257,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -1315,6 +1335,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -1378,6 +1399,7 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar, olderAr)
 	f.objects = append(f.objects, r2, at, ar, olderAr)
 
+	f.expectUpdateRolloutAction(r2)
 	cancelCurrentAr := f.expectPatchAnalysisRunAction(ar)
 	cancelOldAr := f.expectPatchAnalysisRunAction(olderAr)
 	patchIndex := f.expectPatchRolloutAction(r2)
@@ -1439,6 +1461,7 @@ func TestCancelBackgroundAnalysisRunWhenRolloutIsCompleted(t *testing.T) {
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, r2, at, ar)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
@@ -1492,6 +1515,7 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r2, at)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
@@ -1525,6 +1549,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRollout(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r1, at)
 
+	f.expectUpdateRolloutAction(r1)
 	f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
@@ -1560,6 +1585,7 @@ func TestDoNotCreateBackgroundAnalysisRunOnNewCanaryRolloutStableRSEmpty(t *test
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r1, at)
 
+	f.expectUpdateRolloutAction(r1)
 	f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateRolloutStatusAction(r1) // update conditions
 	f.expectUpdateReplicaSetAction(rs1)   // scale replica set
@@ -1605,6 +1631,7 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectCreateAnalysisRunAction(ar)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
@@ -1657,6 +1684,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
+	f.expectUpdateRolloutAction(r1)
 	patchIndex := f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -1696,6 +1724,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 
 	rs := newReplicaSet(r, 1)
 
+	f.expectUpdateRolloutAction(r)
 	f.expectCreateReplicaSetAction(rs)
 	f.expectUpdateRolloutStatusAction(r)
 	f.expectUpdateReplicaSetAction(rs) // scale RS
@@ -1739,6 +1768,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, at)
 
+	f.expectUpdateRolloutAction(r2)
 	patchRolloutIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
@@ -1788,6 +1818,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -1856,6 +1887,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
@@ -1923,6 +1955,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
@@ -1993,6 +2026,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 }
@@ -2040,6 +2074,7 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -2095,6 +2130,7 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectCreateAnalysisRunAction(ar)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
@@ -2149,6 +2185,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -2212,6 +2249,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
@@ -2269,6 +2307,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
