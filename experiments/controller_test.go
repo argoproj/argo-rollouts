@@ -3,11 +3,12 @@ package experiments
 import (
 	"encoding/json"
 	"fmt"
-	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
+
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 

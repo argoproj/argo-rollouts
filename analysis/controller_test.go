@@ -2,10 +2,11 @@ package analysis
 
 import (
 	"encoding/json"
-	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"reflect"
 	"testing"
 	"time"
+
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
