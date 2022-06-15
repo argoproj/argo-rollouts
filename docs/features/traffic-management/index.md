@@ -56,7 +56,12 @@ When traffic routing is enabled, you have the ability to also let argo rollouts 
 controlling the traffic weight to the canary. Two such routing rules are header and mirror based routes. When using these
 routes we also have to set a route precedence with the upstream traffic router. We do this using the `spec.strategy.canary.trafficRouting.managedRoutes`
 field which is an array the order of the items in the array determine the precedence. This set of routes will also be placed
-in the order specified on top of any other routes defined manually. Here is an example:
+in the order specified on top of any other routes defined manually. 
+
+#### WARNING: All routes listed in managed routes will be removed at the end of a rollout or on an abort. Do not put any manually created routes in the list.
+
+
+Here is an example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
