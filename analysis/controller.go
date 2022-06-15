@@ -1,7 +1,10 @@
 package analysis
 
 import (
+	"context"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -137,6 +140,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) syncHandler(key string) error {
+	ctx := context.TODO()
 	startTime := timeutil.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -159,8 +163,32 @@ func (c *Controller) syncHandler(key string) error {
 		logCtx.Info("Reconciliation completed")
 	}()
 
-	if run.DeletionTimestamp != nil {
-		logutil.WithAnalysisRun(run).Info("No reconciliation as analysis marked for deletion")
+	// examine DeletionTimestamp to determine if object is under deletion
+	if run.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsString(run.ObjectMeta.Finalizers, controllerutil.FinalizerName) {
+			run.ObjectMeta.Finalizers = append(run.ObjectMeta.Finalizers, controllerutil.FinalizerName)
+			_, err := c.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(run.Namespace).Update(ctx, run, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsString(run.ObjectMeta.Finalizers, controllerutil.FinalizerName) {
+			//Remove metrics
+			c.metricsServer.Remove(run.Namespace, run.Name, logutil.AnalysisRunKey)
+
+			// remove our finalizer from the list and update it.
+			run.ObjectMeta.Finalizers = controllerutil.RemoveString(run.ObjectMeta.Finalizers, controllerutil.FinalizerName)
+			_, err := c.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(run.Namespace).Update(ctx, run, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
 		return nil
 	}
 

@@ -233,6 +233,7 @@ func (ec *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 }
 
 func (ec *Controller) syncHandler(key string) error {
+	ctx := context.TODO()
 	startTime := timeutil.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -255,8 +256,32 @@ func (ec *Controller) syncHandler(key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	if experiment.DeletionTimestamp != nil {
-		logCtx.Info("No reconciliation as experiment marked for deletion")
+	// examine DeletionTimestamp to determine if object is under deletion
+	if experiment.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsString(experiment.ObjectMeta.Finalizers, controllerutil.FinalizerName) {
+			experiment.ObjectMeta.Finalizers = append(experiment.ObjectMeta.Finalizers, controllerutil.FinalizerName)
+			_, err := ec.argoProjClientset.ArgoprojV1alpha1().Experiments(experiment.Namespace).Update(ctx, experiment, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsString(experiment.ObjectMeta.Finalizers, controllerutil.FinalizerName) {
+			//Remove metrics
+			ec.metricsServer.Remove(experiment.Namespace, experiment.Name, logutil.ExperimentKey)
+
+			// remove our finalizer from the list and update it.
+			experiment.ObjectMeta.Finalizers = controllerutil.RemoveString(experiment.ObjectMeta.Finalizers, controllerutil.FinalizerName)
+			_, err := ec.argoProjClientset.ArgoprojV1alpha1().Experiments(experiment.Namespace).Update(ctx, experiment, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+		// Stop reconciliation as the item is being deleted
 		return nil
 	}
 
