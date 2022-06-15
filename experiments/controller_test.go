@@ -3,6 +3,7 @@ package experiments
 import (
 	"encoding/json"
 	"fmt"
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"reflect"
 	"sync"
 	"testing"
@@ -726,17 +727,33 @@ func (f *fixture) getPatchedAnalysisRunAsObj(index int) *v1alpha1.AnalysisRun {
 	return &run
 }
 
-func TestNoReconcileForDeletedExperiment(t *testing.T) {
-	f := newFixture(t)
-	defer f.Close()
-
+func TestRemovalOfFinalizer(t *testing.T) {
 	e := newExperiment("foo", nil, "10s")
+	e.Finalizers = []string{controllerutil.FinalizerName} // manually remove finalizer
 	now := timeutil.MetaNow()
 	e.DeletionTimestamp = &now
+
+	f := newFixture(t, e)
+	defer f.Close()
 
 	f.experimentLister = append(f.experimentLister, e)
 	f.objects = append(f.objects, e)
 
+	f.expectUpdateExperimentAction(e)
+	f.run(getKey(e, t))
+}
+
+func TestNoReconcileForDeletedExperiment(t *testing.T) {
+	e := newExperiment("foo", nil, "10s")
+	e.Finalizers = []string{} // manually remove finalizer
+	now := timeutil.MetaNow()
+	e.DeletionTimestamp = &now
+
+	f := newFixture(t, e)
+	defer f.Close()
+
+	f.experimentLister = append(f.experimentLister, e)
+	f.objects = append(f.objects, e)
 	f.run(getKey(e, t))
 }
 
@@ -794,6 +811,7 @@ func TestAddInvalidSpec(t *testing.T) {
 	f := newFixture(t, e)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(patchIndex)
@@ -821,6 +839,7 @@ func TestKeepInvalidSpec(t *testing.T) {
 	f := newFixture(t, e)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	f.run(getKey(e, t))
 
 }
@@ -841,6 +860,7 @@ func TestUpdateInvalidSpec(t *testing.T) {
 	f := newFixture(t, e)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(patchIndex)
@@ -870,6 +890,7 @@ func TestRemoveInvalidSpec(t *testing.T) {
 
 	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
 	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
+	f.expectUpdateExperimentAction(e)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(patchIndex)

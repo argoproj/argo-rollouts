@@ -33,6 +33,7 @@ func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 	f := newFixture(t, e, rs)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	patchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
@@ -61,6 +62,7 @@ func TestEnterTimeoutDegradedState(t *testing.T) {
 	f := newFixture(t, e, rs)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	patchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))

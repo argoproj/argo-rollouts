@@ -21,6 +21,7 @@ func TestCreateMultipleRS(t *testing.T) {
 
 	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
 	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
+	f.expectUpdateExperimentAction(e)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(patchIndex)
@@ -58,6 +59,7 @@ func TestCreateMissingRS(t *testing.T) {
 	defer f.Close()
 
 	createRsIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
+	f.expectUpdateExperimentAction(e)
 	patchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
@@ -86,6 +88,8 @@ func TestTemplateHasMultipleRS(t *testing.T) {
 	f := newFixture(t, e, rs, rs2)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
+
 	f.runExpectError(getKey(e, t), true)
 }
 
@@ -106,6 +110,7 @@ func TestNameCollision(t *testing.T) {
 	defer f.Close()
 
 	f.expectCreateReplicaSetAction(rs)
+	f.expectUpdateExperimentAction(e)
 	collisionCountPatchIndex := f.expectPatchExperimentAction(e) // update collision count
 	statusUpdatePatchIndex := f.expectPatchExperimentAction(e)   // updates status
 	f.run(getKey(e, t))
@@ -142,6 +147,7 @@ func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 	defer f.Close()
 
 	f.expectCreateReplicaSetAction(rs)
+	f.expectUpdateExperimentAction(e)
 	collisionCountPatchIndex := f.expectPatchExperimentAction(e) // update collision count
 	statusUpdatePatchIndex := f.expectPatchExperimentAction(e)   // updates status
 	f.run(getKey(e, t))

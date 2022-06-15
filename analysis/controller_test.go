@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"encoding/json"
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"reflect"
 	"testing"
 	"time"
@@ -239,7 +240,11 @@ func filterInformerActions(actions []core.Action) []core.Action {
 }
 
 func (f *fixture) expectUpdateAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int {
-	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "analysisrun"}, analysisRun.Namespace, analysisRun)
+	action := core.NewUpdateAction(schema.GroupVersionResource{
+		Group:    "argoproj.io",
+		Version:  "v1alpha1",
+		Resource: "analysisruns",
+	}, analysisRun.Namespace, analysisRun)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
 	return len
@@ -283,6 +288,24 @@ func (f *fixture) getPatchedAnalysisRun(index int) v1alpha1.AnalysisRun {
 	return ar
 }
 
+func TestReconcileCreate(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	ar := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+	}
+
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.objects = append(f.objects, ar)
+	f.expectUpdateAnalysisRunAction(ar)
+	f.expectPatchAnalysisRunAction(ar)
+	f.run(getKey(ar, t))
+}
+
 func TestNoReconcileForNotFoundAnalysisRun(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -302,8 +325,9 @@ func TestNoReconcileForAnalysisRunWithDeletionTimestamp(t *testing.T) {
 
 	ar := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: metav1.NamespaceDefault,
+			Name:       "foo",
+			Namespace:  metav1.NamespaceDefault,
+			Finalizers: []string{controllerutil.FinalizerName},
 		},
 	}
 	now := metav1.Now()
@@ -311,6 +335,6 @@ func TestNoReconcileForAnalysisRunWithDeletionTimestamp(t *testing.T) {
 
 	f.analysisRunLister = append(f.analysisRunLister, ar)
 	f.objects = append(f.objects, ar)
-
+	f.expectUpdateAnalysisRunAction(ar)
 	f.run(getKey(ar, t))
 }

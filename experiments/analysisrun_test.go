@@ -87,6 +87,7 @@ func TestDontStartAnalysisRunIfNotAvailable(t *testing.T) {
 	f := newFixture(t, e, rs, &aTemplates[0])
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 }
@@ -110,6 +111,7 @@ func TestCreateAnalysisRunWhenAvailable(t *testing.T) {
 	f := newFixture(t, e, rs, &aTemplates[0])
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	f.expectCreateAnalysisRunAction(ar)
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -138,6 +140,7 @@ func TestCreateAnalysisRunWithInstanceID(t *testing.T) {
 	f := newFixture(t, e, rs, &aTemplates[0])
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	createIndex := f.expectCreateAnalysisRunAction(ar)
 	f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -161,6 +164,7 @@ func TestAnalysisTemplateNotExists(t *testing.T) {
 	f := newFixture(t, e, rs)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 
@@ -186,6 +190,7 @@ func TestClusterAnalysisTemplateNotExists(t *testing.T) {
 	f := newFixture(t, e, rs)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 
@@ -219,10 +224,12 @@ func TestCreateAnalysisRunWithArg(t *testing.T) {
 	f := newFixture(t, e, rs, &aTemplates[0])
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	f.expectCreateAnalysisRunAction(ar)
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 
+	f.expectUpdateExperimentAction(e)
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
 	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
 }
@@ -251,6 +258,7 @@ func TestCreateAnalysisRunWithClusterTemplate(t *testing.T) {
 	f := newFixture(t, e, rs, &aTemplates[0])
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	f.expectCreateAnalysisRunAction(ar)
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -282,6 +290,7 @@ func TestAnalysisRunFailToResolveArg(t *testing.T) {
 	f := newFixture(t, e, rs, &aTemplates[0])
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
@@ -311,6 +320,7 @@ func TestAnalysisRunCreateError(t *testing.T) {
 		return true, nil, errors.New("intentional error")
 	})
 
+	f.expectUpdateExperimentAction(e)
 	f.expectCreateAnalysisRunAction(ar)
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
@@ -339,6 +349,7 @@ func TestAnalysisRunCreateCollisionSemanticallyEqual(t *testing.T) {
 	f := newFixture(t, e, rs, &aTemplates[0], ar)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	f.expectCreateAnalysisRunAction(ar) // fails do to AlreadyExists
 	f.expectGetAnalysisRunAction(ar)    // verifies it is semantically equal
 	patchIdx := f.expectPatchExperimentAction(e)
@@ -374,6 +385,7 @@ func TestAnalysisRunSuccessful(t *testing.T) {
 	f := newFixture(t, e, rs, ar)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	patchIdx := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
@@ -460,6 +472,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 			ar2.Status.Phase = test.second
 			e.Status.AnalysisRuns[1].Phase = test.second
 			f := newFixture(t, e, rs, ar1, ar2)
+			f.expectUpdateExperimentAction(e)
 			f.expectPatchReplicaSetAction(rs) // Add scaleDownDelay annotation to RS
 			f.expectGetReplicaSetAction(rs)   // Happens during scale down logic
 			if test.expected != v1alpha1.AnalysisPhaseRunning {
@@ -553,7 +566,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 			ar2.Status.Phase = test.second
 			e.Status.AnalysisRuns[1].Phase = test.second
 			f := newFixture(t, e, rs, ar1, ar2)
-
+			f.expectUpdateExperimentAction(e)
 			if test.expected == v1alpha1.AnalysisPhaseFailed {
 				// No scale down delay actions since scaleDownDelay seconds is 0
 				f.expectUpdateReplicaSetAction(rs)
@@ -598,6 +611,7 @@ func TestCompleteExperimentOnSuccessfulRequiredAnalysisRun(t *testing.T) {
 
 	f := newFixture(t, e, rs, ar)
 	defer f.Close()
+	f.expectUpdateExperimentAction(e)
 	f.expectGetReplicaSetAction(rs)
 	f.expectUpdateReplicaSetAction(rs)
 	patchIndex := f.expectPatchExperimentAction(e)
@@ -649,6 +663,7 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 
 	f := newFixture(t, e, rs, ar, ar2)
 	defer f.Close()
+	f.expectUpdateExperimentAction(e)
 	f.expectGetReplicaSetAction(rs)
 	f.expectUpdateReplicaSetAction(rs)
 	patchIndex := f.expectPatchExperimentAction(e)
@@ -689,6 +704,7 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 
 	f := newFixture(t, e, rs, ar)
 	defer f.Close()
+	f.expectUpdateExperimentAction(e)
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
@@ -727,6 +743,7 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 	f := newFixture(t, e, rs, ar)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	arPatchIdx := f.expectPatchAnalysisRunAction(ar)
 	f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))

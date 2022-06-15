@@ -76,9 +76,10 @@ func TestSetExperimentToPending(t *testing.T) {
 
 	rs := templateToRS(e, templates[0], 0)
 	f.expectCreateReplicaSetAction(rs)
+	f.expectUpdateExperimentAction(e)
 	f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
-	patch := f.getPatchedExperiment(0)
+	patch := f.getPatchedExperiment(1)
 	templateStatus := []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
@@ -106,6 +107,7 @@ func TestAddScaleDownDelayToRS(t *testing.T) {
 	f := newFixture(t, e, rs)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	f.expectPatchExperimentAction(e)
 	patchRs1Index := f.expectPatchReplicaSetAction(rs) // Add scaleDownDelaySeconds
 	f.expectGetReplicaSetAction(rs)                    // Get RS after patch to modify updated version
@@ -132,6 +134,7 @@ func TestRemoveScaleDownDelayFromRS(t *testing.T) {
 	f := newFixture(t, e, rs)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	f.expectPatchExperimentAction(e)
 	patchRs1Index := f.expectPatchReplicaSetAction(rs) // Remove scaleDownDelaySeconds
 	f.expectGetReplicaSetAction(rs)                    // Get RS after patch to modify updated version
@@ -171,6 +174,7 @@ func TestScaleDownRSAfterFinish(t *testing.T) {
 	updateRs1Index := f.expectUpdateReplicaSetAction(rs1)
 	f.expectDeleteServiceAction(s1)
 	updateRs2Index := f.expectUpdateReplicaSetAction(rs2)
+	f.expectUpdateExperimentAction(e)
 	expPatchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
@@ -201,6 +205,7 @@ func TestSetAvailableAt(t *testing.T) {
 	f := newFixture(t, e, rs1, rs2)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	patchIndex := f.expectPatchExperimentAction(e)
 
 	f.run(getKey(e, t))
@@ -237,6 +242,7 @@ func TestNoPatch(t *testing.T) {
 	f := newFixture(t, e, rs1, rs2)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	f.run(getKey(e, t))
 }
 
@@ -257,6 +263,7 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 	f := newFixture(t, e, rs1, rs2)
 	defer f.Close()
 
+	f.expectUpdateExperimentAction(e)
 	i := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patch := f.getPatchedExperiment(i)
