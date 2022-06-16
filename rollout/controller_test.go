@@ -916,6 +916,7 @@ func (f *fixture) verifyPatchedService(index int, newPodHash string, managedBy s
 
 func (f *fixture) verifyPatchedRolloutAborted(index int, rsName string) {
 	action := f.kubeclient.Actions()
+	action = filterInformerActions(action)
 	_, ok := action[index].(core.PatchAction)
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action[index].GetVerb())
@@ -1126,6 +1127,7 @@ func TestDontSyncRolloutsWithEmptyPodSelector(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
+	f.expectUpdateRolloutAction(r)
 	f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 }
@@ -1146,6 +1148,7 @@ func TestAdoptReplicaSet(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
+	f.expectUpdateRolloutAction(r)
 	updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r) // update rollout progressing condition
 	f.expectPatchServiceAction(previewSvc, "")
 	f.expectPatchRolloutAction(r)
@@ -1255,6 +1258,7 @@ func TestSetReplicaToDefault(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
+	f.expectUpdateRolloutAction(r)
 	updateIndex := f.expectUpdateRolloutAction(r)
 	f.run(getKey(r, t))
 	updatedRollout := f.getUpdatedRollout(updateIndex)
@@ -1276,6 +1280,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
 
+	f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
@@ -1291,6 +1296,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	invalidSpecBytes, _ := json.Marshal(invalidSpecCond)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
 
+	f.expectUpdateRolloutAction(r)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }
@@ -1335,6 +1341,7 @@ requests:
 		f.serviceLister = append(f.serviceLister, activeSvc)
 		f.objects = append(f.objects, r)
 
+		f.expectUpdateRolloutAction(r)
 		f.expectUpdateRolloutStatusAction(r)
 		f.expectPatchRolloutAction(r)
 		rs := newReplicaSet(r, 1)
@@ -1406,6 +1413,7 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 	f.serviceLister = append(f.serviceLister, activeSvc)
 
+	f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	expectedPatch := `{"status":{"observedGeneration":"123"}}`
@@ -1447,6 +1455,7 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
+	f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	expectedPatch := `{"status":{"observedGeneration":"123"}}`
@@ -1474,6 +1483,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs, activeSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 
+	f.expectUpdateRolloutAction(r)
 	i := f.expectPatchRolloutAction(r)
 	f.objects = append(f.objects, r)
 	f.run(getKey(r, t))
@@ -1858,6 +1868,7 @@ func TestRolloutStrategyNotSet(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs)
 	f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
+	f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 	patchedRollout := f.getPatchedRollout(patchIndex)
@@ -1880,6 +1891,7 @@ func TestWriteBackToInformer(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
+	f.expectUpdateRolloutAction(r1)
 	f.expectPatchRolloutAction(r1)
 
 	c, i, k8sI := f.newController(noResyncPeriodFunc)

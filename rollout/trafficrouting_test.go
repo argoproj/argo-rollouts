@@ -89,6 +89,7 @@ func TestReconcileTrafficRoutingSetWeightErr(t *testing.T) {
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(errors.New("Error message"))
+	f.expectUpdateRolloutAction(ro)
 	f.runExpectError(getKey(ro, t), true)
 }
 
@@ -101,6 +102,7 @@ func TestReconcileTrafficRoutingVerifyWeightErr(t *testing.T) {
 	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("SetHeaderRouting", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(false), errors.New("Error message"))
+	f.expectUpdateRolloutAction(ro)
 	f.expectPatchRolloutAction(ro)
 	f.run(getKey(ro, t))
 }
@@ -119,6 +121,7 @@ func TestReconcileTrafficRoutingVerifyWeightFalse(t *testing.T) {
 	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		enqueued = true
 	}
+	f.expectUpdateRolloutAction(ro)
 	f.expectPatchRolloutAction(ro)
 	f.runController(getKey(ro, t), true, false, c, i, k8sI)
 	assert.True(t, enqueued)
@@ -165,6 +168,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
@@ -214,6 +218,7 @@ func TestRolloutUseDesiredWeight100(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
@@ -277,6 +282,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, ex)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchRolloutAction(r2)
 
 	t.Run("Experiment Running - WeightDestination created", func(t *testing.T) {
@@ -318,6 +324,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			assert.Len(t, weightDestinations, 0)
 			return nil
 		})
+		//f.expectUpdateRolloutAction(r2)
 		f.run(getKey(r2, t))
 	})
 }
@@ -357,6 +364,7 @@ func TestRolloutUsePreviousSetWeight(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 
@@ -422,6 +430,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r2)
 
@@ -481,6 +490,7 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r1)
 	f.objects = append(f.objects, r1)
 
+	f.expectUpdateRolloutAction(r1)
 	f.expectPatchRolloutAction(r1)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
@@ -744,6 +754,7 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutAction(r2)
 	rs1Patch := f.expectPatchReplicaSetAction(rs1) // set scale-down-deadline annotation
 	f.run(getKey(r2, t))
 
@@ -788,6 +799,7 @@ func TestCanaryWithTrafficRoutingScaleDownLimit(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.objects = append(f.objects, r3)
 
+	f.expectUpdateRolloutAction(r3)
 	rs1ScaleDownIndex := f.expectUpdateReplicaSetAction(rs1) // scale down ReplicaSet
 	_ = f.expectPatchRolloutAction(r3)                       // updates the rollout status
 	f.run(getKey(r3, t))
@@ -854,6 +866,7 @@ func TestDynamicScalingDontIncreaseWeightWhenAborted(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
@@ -924,6 +937,7 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAborted(t 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()

@@ -131,6 +131,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc)
 	f.serviceLister = append(f.serviceLister, previewSvc)
 
+	f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
@@ -160,6 +161,7 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
 	f.serviceLister = append(f.serviceLister)
 
+	f.expectUpdateRolloutAction(r)
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
@@ -315,6 +317,7 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, svc, ep)
 	f.serviceLister = append(f.serviceLister, svc)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectGetEndpointsAction(ep)
 	patchIndex := f.expectPatchRolloutAction(r2) // update status message
 	f.run(getKey(r2, t))
@@ -398,6 +401,7 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, svc, ep)
 	f.serviceLister = append(f.serviceLister, svc)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectGetEndpointsAction(ep)
 	patchIndex := f.expectPatchRolloutAction(r2) // update status message
 	f.run(getKey(r2, t))
@@ -498,6 +502,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectGetEndpointsAction(ep)
 	f.run(getKey(r2, t))
 	f.assertEvents([]string{
@@ -592,6 +597,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectGetEndpointsAction(ep)
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
 	f.run(getKey(r2, t))
@@ -651,7 +657,8 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
-	f.run(getKey(r2, t)) // there should be no api calls
+	f.expectUpdateRolloutAction(r2)
+	f.run(getKey(r2, t)) // there should be on api call to update finalizer
 	f.assertEvents(nil)
 }
 

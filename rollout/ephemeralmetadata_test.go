@@ -35,6 +35,7 @@ func TestSyncCanaryEphemeralMetadataInitialRevision(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r1)
 	f.objects = append(f.objects, r1)
 
+	f.expectUpdateRolloutAction(r1)
 	f.expectUpdateRolloutStatusAction(r1)
 	idx := f.expectCreateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs1)
@@ -74,6 +75,7 @@ func TestSyncBlueGreenEphemeralMetadataInitialRevision(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+	f.expectUpdateRolloutAction(r1)
 	f.expectUpdateRolloutStatusAction(r1)
 	idx := f.expectCreateReplicaSetAction(rs1)
 	f.expectPatchRolloutAction(r1)
@@ -130,6 +132,7 @@ func TestSyncCanaryEphemeralMetadataSecondRevision(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, &pod)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectUpdateRolloutStatusAction(r2)         // Update Rollout conditions
 	rs2idx := f.expectCreateReplicaSetAction(rs2) // Create revision 2 ReplicaSet
 	f.expectListPodAction(r1.Namespace)           // list pods to patch ephemeral data on revision 1 ReplicaSets pods
@@ -208,6 +211,7 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectUpdateRolloutStatusAction(r2)              // Update Rollout conditions
 	rs2idx := f.expectCreateReplicaSetAction(rs2)      // Create revision 2 ReplicaSet
 	f.expectPatchServiceAction(previewSvc, rs2PodHash) // Update preview service to point at revision 2 replicaset

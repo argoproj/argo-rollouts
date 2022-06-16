@@ -190,7 +190,7 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 		progressDeadlineSeconds := int32(1)
 		r.Spec.ProgressDeadlineSeconds = &progressDeadlineSeconds
 		r.Spec.ProgressDeadlineAbort = true
-		r.ObjectMeta.Finalizers = []string{controllerutil.FinalizerName}
+		r.ObjectMeta.Finalizers = []string{controllerutil.FinalizerName} //manually set this to not have to change behavior of verifyPatchedRolloutAborted
 
 		f.rolloutLister = append(f.rolloutLister, r)
 		f.objects = append(f.objects, r)
@@ -223,7 +223,6 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 		f.kubeobjects = append(f.kubeobjects, rs)
 		f.replicaSetLister = append(f.replicaSetLister, rs)
 
-		//f.expectUpdateRolloutAction(r)
 		f.expectPatchServiceAction(previewSvc, rsPodHash)
 		patchIndex := f.expectPatchRolloutAction(r)
 		f.run(getKey(r, t))
@@ -322,6 +321,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+		f.expectUpdateRolloutAction(r2)
 		addPauseConditionPatchIndex := f.expectPatchRolloutAction(r2)
 		f.run(getKey(r2, t))
 
@@ -371,6 +371,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 		f.serviceLister = append(f.serviceLister, previewSvc, activeSvc)
 
+		f.expectUpdateRolloutAction(r2)
 		addPauseConditionPatchIndex := f.expectPatchRolloutAction(r2)
 		f.expectPatchRolloutAction(r2)
 		f.run(getKey(r2, t))
@@ -417,6 +418,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+		f.expectUpdateRolloutAction(r2)
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 		f.run(getKey(r2, t))
 		patch := f.getPatchedRollout(patchIndex)
@@ -468,6 +470,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 		f.objects = append(f.objects, at)
 
+		f.expectUpdateRolloutAction(r2)
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 		f.run(getKey(r2, t))
 		patch := f.getPatchedRollout(patchIndex)
@@ -506,6 +509,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+		f.expectUpdateRolloutAction(r2)
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 		f.run(getKey(r2, t))
 		patch := f.getPatchedRollout(patchIndex)
@@ -561,6 +565,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"message": null
 			}
 		}`
+		f.expectUpdateRolloutAction(r2)
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, rs2PodHash))
 		f.expectPatchServiceAction(activeSvc, rs2PodHash)
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
@@ -607,6 +612,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+		f.expectUpdateRolloutAction(r2)
 		expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
@@ -641,6 +647,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 		f.serviceLister = append(f.serviceLister, activeSvc)
 
+		f.expectUpdateRolloutAction(r2)
 		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs2PodHash)
 
 		generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, true, "")
@@ -703,6 +710,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"message": "BlueGreenPause"
 			}
 		}`
+		f.expectUpdateRolloutAction(r2)
 		expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, v1alpha1.PauseReasonBlueGreenPause, now))
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 		f.run(getKey(r2, t))
@@ -749,6 +757,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		generateConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "")
 		newSelector := metav1.FormatLabelSelector(rs1.Spec.Selector)
+		f.expectUpdateRolloutAction(r1)
 		expectedPatch := calculatePatch(r1, fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash, rs1PodHash, generateConditions, newSelector))
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r1, expectedPatch)
 		f.run(getKey(r1, t))
@@ -789,6 +798,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 		f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+		f.expectUpdateRolloutAction(r2)
 		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs2PodHash)
 		unpausePatchIndex := f.expectPatchRolloutAction(r2)
 		patchRolloutIndex := f.expectPatchRolloutAction(r2)
@@ -848,6 +858,7 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchServiceAction(s, rs2PodHash)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
@@ -912,6 +923,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 			"selector":"foo=bar,rollouts-pod-template-hash=%s"
 		}
 	}`
+	f.expectUpdateRolloutAction(r2)
 	//_, availableStr := newAvailableCondition(true)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash))
 
@@ -988,6 +1000,7 @@ func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+	f.expectUpdateRolloutAction(r1)
 	f.expectUpdateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r1)
@@ -1020,6 +1033,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		f.kubeobjects = append(f.kubeobjects, activeSvc)
 		f.serviceLister = append(f.serviceLister, activeSvc)
 
+		f.expectUpdateRolloutAction(r1)
 		patchIndex := f.expectPatchRolloutAction(r1)
 		f.run(getKey(r2, t))
 		patch := f.getPatchedRollout(patchIndex)
@@ -1053,6 +1067,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		f.kubeobjects = append(f.kubeobjects, activeSvc)
 		f.serviceLister = append(f.serviceLister, activeSvc)
 
+		f.expectUpdateRolloutAction(r1)
 		patchIndex := f.expectPatchRolloutAction(r1)
 
 		f.run(getKey(r2, t))
@@ -1084,6 +1099,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 		f.kubeobjects = append(f.kubeobjects, activeSvc)
 		f.serviceLister = append(f.serviceLister, activeSvc)
 
+		f.expectUpdateRolloutAction(r2)
 		f.expectUpdateReplicaSetAction(rs1)
 		f.expectPatchRolloutAction(r2)
 		f.run(getKey(r2, t))
@@ -1119,6 +1135,7 @@ func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc)
 	f.serviceLister = append(f.serviceLister, activeSvc, previewSvc)
 
+	f.expectUpdateRolloutAction(r1)
 	rs2idx := f.expectUpdateReplicaSetAction(rs2)
 	f.expectPatchRolloutAction(r1)
 
@@ -1151,6 +1168,7 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
+	f.expectUpdateRolloutAction(r1)
 	patchIndex := f.expectPatchRolloutAction(r1)
 
 	f.run(getKey(r2, t))
@@ -1197,6 +1215,7 @@ func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
+	f.expectUpdateRolloutAction(r1)
 	patchIndex := f.expectPatchRolloutAction(r1)
 	f.run(getKey(r2, t))
 
@@ -1233,6 +1252,7 @@ func TestBlueGreenUnableToReadScaleDownAt(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
+	f.expectUpdateRolloutAction(r2)
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
@@ -1270,6 +1290,7 @@ func TestBlueGreenNotReadyToScaleDownOldReplica(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
@@ -1303,6 +1324,7 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
+	f.expectUpdateRolloutAction(r2)
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
@@ -1348,6 +1370,7 @@ func TestFastRollback(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
@@ -1386,6 +1409,7 @@ func TestBlueGreenScaleDownLimit(t *testing.T) {
 	f.objects = append(f.objects, r3)
 	f.serviceLister = append(f.serviceLister, s)
 
+	f.expectUpdateRolloutAction(r3)
 	updateRSIndex := f.expectUpdateReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutAction(r3)
 	f.run(getKey(r3, t))
@@ -1425,6 +1449,7 @@ func TestBlueGreenAbort(t *testing.T) {
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchServiceAction(s, rs1PodHash)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
@@ -1505,6 +1530,8 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 	assert.Nil(t, err)
 	pausedCondBytes, err := json.Marshal(r2.Status.Conditions[2])
 	assert.Nil(t, err)
+
+	f.expectUpdateRolloutAction(r2)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, string(availableCondBytes), string(pausedCondBytes), string(progressingCondBytes), rs2PodHash, rs2PodHash))
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
@@ -1543,6 +1570,7 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutAction(r2)
 	rs1Patch := f.expectPatchReplicaSetAction(rs1) // set scale-down-deadline annotation
 	f.run(getKey(r2, t))
 

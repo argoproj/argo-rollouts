@@ -328,6 +328,7 @@ func TestCanaryPromoteFull(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 
+	f.expectUpdateRolloutAction(r2)
 	createdRS2Index := f.expectCreateReplicaSetAction(rs2) // create new ReplicaSet (size 0)
 	f.expectUpdateRolloutAction(r2)                        // update rollout revision
 	f.expectUpdateRolloutStatusAction(r2)                  // update rollout conditions
@@ -388,6 +389,7 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, previewSvc, activeSvc)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
+	f.expectUpdateRolloutAction(r2)
 	f.expectPatchServiceAction(activeSvc, rs2PodHash) // update active to rs2
 	patchRolloutIdx := f.expectPatchRolloutAction(r2) // update rollout status
 	f.run(getKey(r2, t))
