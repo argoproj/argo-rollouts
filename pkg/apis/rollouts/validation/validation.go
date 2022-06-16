@@ -82,7 +82,7 @@ const (
 	InvalidStepMissingManagedRoutesField = "Step requires spec.strategy.canary.trafficRouting.managedRoutes to be configured"
 	// InvalideStepRouteNameNotFoundInManagedRoutes A step has been configured that requires managedRoutes and the route name
 	// is missing from managedRoutes
-	InvalideStepRouteNameNotFoundInManagedRoutes = "Steps define a route that dose not exist in spec.strategy.canary.trafficRouting.managedRoutes"
+	InvalideStepRouteNameNotFoundInManagedRoutes = "Steps define a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
 )
 
 // allowAllPodValidationOptions allows all pod options to be true for the purposes of rollout pod

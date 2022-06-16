@@ -789,9 +789,9 @@ func (r *Reconciler) generateHeaderBasedPatches(httpRoutes []VirtualServiceHTTPR
 	}
 
 	patches := virtualServiceRoutePatches{}
-	headerRouteExist, index := hasHeaderRoute(headerRouting, httpRoutes)
+	index := getHeaderRouteIndex(headerRouting, httpRoutes)
 
-	if headerRouteExist {
+	if index > 0 {
 		if headerRouting == nil || headerRouting.Match == nil {
 			deleteHeaderRoute(index, &patches)
 		} else {
@@ -804,13 +804,13 @@ func (r *Reconciler) generateHeaderBasedPatches(httpRoutes []VirtualServiceHTTPR
 	return patches
 }
 
-func hasHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute, httpRoutes []VirtualServiceHTTPRoute) (bool, int) {
+func getHeaderRouteIndex(headerRouting *v1alpha1.SetHeaderRoute, httpRoutes []VirtualServiceHTTPRoute) int {
 	for i, route := range httpRoutes {
 		if headerRouting != nil && route.Name == headerRouting.Name {
-			return true, i
+			return i
 		}
 	}
-	return false, -1
+	return -1
 }
 
 func deleteHeaderRoute(index int, patches *virtualServiceRoutePatches) {
@@ -1370,10 +1370,6 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 		}
 		if !found {
 			return fmt.Errorf(SpecHttpNotFound)
-		}
-
-		if r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes == nil {
-			return nil //Not really and error there is just nothing to remove
 		}
 
 		managedRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes
