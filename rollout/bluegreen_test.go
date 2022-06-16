@@ -3,10 +3,11 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
-	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"strconv"
 	"testing"
 	"time"
+
+	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
