@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
@@ -27,7 +29,6 @@ import (
 	rov1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	appmeshutil "github.com/argoproj/argo-rollouts/utils/appmesh"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	smiutil "github.com/argoproj/argo-rollouts/utils/smi"
@@ -52,7 +53,7 @@ const (
 )
 
 var (
-	E2EWaitTimeout time.Duration = time.Second * 300
+	E2EWaitTimeout time.Duration = time.Second * 120
 	E2EPodDelay                  = 0
 
 	E2EALBIngressAnnotations map[string]string
@@ -140,8 +141,8 @@ func (s *E2ESuite) SetupSuite() {
 	restConfig, err := config.ClientConfig()
 	s.CheckError(err)
 	s.Common.kubernetesHost = restConfig.Host
-	restConfig.Burst = defaults.DefaultBurst
-	restConfig.QPS = defaults.DefaultQPS
+	restConfig.Burst = defaults.DefaultBurst * 2
+	restConfig.QPS = defaults.DefaultQPS * 2
 	s.namespace, _, err = config.Namespace()
 	s.CheckError(err)
 	s.kubeClient, err = kubernetes.NewForConfig(restConfig)

@@ -22,7 +22,7 @@ DEV_IMAGE=false
 E2E_INSTANCE_ID ?= argo-rollouts-e2e
 E2E_TEST_OPTIONS ?= 
 E2E_PARALLEL ?= 4
-E2E_WAIT_TIMEOUT ?= 90
+E2E_WAIT_TIMEOUT ?= 120
 
 override LDFLAGS += \
   -X ${PACKAGE}/utils/version.version=${VERSION} \
@@ -213,7 +213,7 @@ start-e2e:
 
 .PHONY: test-e2e
 test-e2e:
-	go test -timeout 30m -v -count 1 --tags e2e -p ${E2E_PARALLEL} --short ./test/e2e ${E2E_TEST_OPTIONS}
+	go test -timeout 45m -v -count 1 --tags e2e -p ${E2E_PARALLEL} --short ./test/e2e ${E2E_TEST_OPTIONS}
 
 .PHONY: coverage
 coverage: test
