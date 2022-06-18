@@ -371,7 +371,14 @@ func (c *Controller) syncHandler(key string) error {
 		// registering our finalizer.
 		if !controllerutil.ContainsString(r.ObjectMeta.Finalizers, controllerutil.FinalizerName) {
 			r.ObjectMeta.Finalizers = append(r.ObjectMeta.Finalizers, controllerutil.FinalizerName)
-			_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
+
+			//We have to resolve reference here so that we can call update with a rollout object that will pass validation.
+			_, err = c.resolveRolloutTemplate(r, logCtx)
+			if err != nil {
+				return err
+			}
+
+			_, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -399,15 +406,9 @@ func (c *Controller) syncHandler(key string) error {
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Info("Reconciliation completed")
 	}()
 
-	resolveErr := c.refResolver.Resolve(r)
-	roCtx, err := c.newRolloutContext(r)
+	roCtx, err := c.resolveRolloutTemplate(r, logCtx)
 	if err != nil {
-		logCtx.Errorf("newRolloutContext err %v", err)
 		return err
-	}
-	if resolveErr != nil {
-		roCtx.createInvalidRolloutCondition(resolveErr, r)
-		return resolveErr
 	}
 
 	// In order to work with HPA, the rollout.Spec.Replica field cannot be nil. As a result, the controller will update
@@ -430,6 +431,20 @@ func (c *Controller) syncHandler(key string) error {
 		logCtx.Errorf("roCtx.reconcile err %v", err)
 	}
 	return err
+}
+
+func (c *Controller) resolveRolloutTemplate(r *v1alpha1.Rollout, logCtx *log.Entry) (*rolloutContext, error) {
+	resolveErr := c.refResolver.Resolve(r)
+	roCtx, err := c.newRolloutContext(r)
+	if err != nil {
+		logCtx.Errorf("newRolloutContext err %v", err)
+		return nil, err
+	}
+	if resolveErr != nil {
+		roCtx.createInvalidRolloutCondition(resolveErr, r)
+		return nil, resolveErr
+	}
+	return roCtx, nil
 }
 
 // writeBackToInformer writes a just recently updated Rollout back into the informer cache.

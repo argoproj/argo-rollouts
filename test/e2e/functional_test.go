@@ -680,6 +680,8 @@ spec:
 
 // TestBlueGreenUpdate
 func (s *FunctionalSuite) TestBlueGreenUpdate() {
+	//[]string{"RolloutUpdated", "ScalingReplicaSet", "RolloutCompleted", "SwitchService", "RolloutUpdated", "NewReplicaSetCreated", "ScalingReplicaSet", "SwitchService", "RolloutCompleted"}
+	//[]string{"RolloutUpdated", "ScalingReplicaSet", "RolloutCompleted", "SwitchService", "RolloutUpdated", "NewReplicaSetCreated", "ScalingReplicaSet", "SwitchService", "RolloutCompleted"}
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 	s.Given().
@@ -699,8 +701,9 @@ func (s *FunctionalSuite) TestBlueGreenUpdate() {
 		Then().
 		ExpectReplicaCounts(3, 6, 3, 3, 3).
 		ExpectRolloutEvents([]string{
-			"RolloutUpdated",       // Rollout updated to revision 1
-			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-7dcd8f8869 (revision 1)
+			"RolloutUpdated", // Rollout updated to revision 1
+			//"NewReplicaSetCreated", // Created ReplicaSet bluegreen-7dcd8f8869 (revision 1) This stoped being produced due to
+			// https://github.com/argoproj/argo-rollouts/pull/2100
 			"ScalingReplicaSet",    // Scaled up ReplicaSet bluegreen-7dcd8f8869 (revision 1) from 0 to 3
 			"RolloutCompleted",     // Rollout completed update to revision 1 (7dcd8f8869): Initial deploy
 			"SwitchService",        // Switched selector for service 'bluegreen' from '' to '7dcd8f8869'
@@ -1290,7 +1293,7 @@ spec:
     spec:
       containers:
         - name: rollouts-demo
-          image: argoproj/rollouts-demo:green
+          image: nginx:1.19-alpine
     `).
 		WaitForRolloutStatus("Healthy").
 		Then().

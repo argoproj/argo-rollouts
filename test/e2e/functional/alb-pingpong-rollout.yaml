@@ -61,7 +61,7 @@ spec:
     spec:
       containers:
       - name: alb-canary
-        image: "argoproj/rollouts-demo:red"
+        image: "nginx:1.19-alpine"
         ports:
         - name: http
           containerPort: 80
