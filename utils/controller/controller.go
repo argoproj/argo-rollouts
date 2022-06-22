@@ -24,7 +24,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
-const FinalizerName = "argoproj.io/finalizer"
+const FinalizerName = "rollouts.argoproj.io/finalizer"
 
 // processNextWatchObj will process a single object from the watch by seeing if
 // that object is in an index and enqueueing the value object from the indexer
