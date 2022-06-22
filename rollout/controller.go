@@ -807,6 +807,19 @@ func (c *rolloutContext) getReferencedIngresses() (*[]ingressutil.Ingress, error
 			}
 			ingresses = append(ingresses, *ingress)
 		} else if canary.TrafficRouting.Nginx != nil {
+			// If the rollout resource manages more than 1 ingress
+			if len(canary.TrafficRouting.Nginx.AdditionalStableIngresses) > 0 {
+				for _, ing := range canary.TrafficRouting.Nginx.AdditionalStableIngresses {
+					ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, ing)
+					if k8serrors.IsNotFound(err) {
+						return nil, field.Invalid(fldPath.Child("nginx", "AdditionalStableIngresses"), canary.TrafficRouting.Nginx.StableIngress, err.Error())
+					}
+					if err != nil {
+						return nil, err
+					}
+					ingresses = append(ingresses, *ingress)
+				}
+			}
 			ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.Nginx.StableIngress)
 			if k8serrors.IsNotFound(err) {
 				return nil, field.Invalid(fldPath.Child("nginx", "stableIngress"), canary.TrafficRouting.Nginx.StableIngress, err.Error())
