@@ -136,24 +136,47 @@ func (m *MetricsServer) IncError(namespace, name string, kind string) {
 	}
 }
 
+// Remove removes the metrics server from the registry
 func (m *MetricsServer) Remove(namespace, name string, kind string) {
-	MetricRolloutEventsTotal.DeleteLabelValues(namespace, name)
 	switch kind {
 	case log.RolloutKey:
-		m.reconcileRolloutHistogram.DeleteLabelValues(namespace, name)
-		m.errorRolloutCounter.DeleteLabelValues(namespace, name)
+		m.reconcileRolloutHistogram.Delete(map[string]string{"namespace": namespace, "name": name})
+		m.errorRolloutCounter.Delete(map[string]string{"namespace": namespace, "name": name})
 
-		m.successNotificationCounter.DeleteLabelValues(namespace, name)
-		m.errorNotificationCounter.DeleteLabelValues(namespace, name)
-		m.sendNotificationRunHistogram.DeleteLabelValues(namespace, name)
+		m.successNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+		m.errorNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+		m.sendNotificationRunHistogram.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
 
-		MetricRolloutEventsTotal.DeleteLabelValues(namespace, name)
+		MetricRolloutReconcile.Delete(map[string]string{"namespace": namespace, "name": name})
+
+		// run in the future because we get one error while removing the rollout object after the rollout is deleted
+		go func() {
+			time.Sleep(time.Second * 5)
+			MetricRolloutReconcileError.Delete(map[string]string{"namespace": namespace, "name": name})
+		}()
+
+		MetricRolloutEventsTotal.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
 	case log.AnalysisRunKey:
-		m.reconcileAnalysisRunHistogram.DeleteLabelValues(namespace, name)
-		m.errorAnalysisRunCounter.DeleteLabelValues(namespace, name)
+		m.reconcileAnalysisRunHistogram.Delete(map[string]string{"namespace": namespace, "name": name})
+		m.errorAnalysisRunCounter.Delete(map[string]string{"namespace": namespace, "name": name})
+
+		m.successNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+		m.errorNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+		m.sendNotificationRunHistogram.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+
+		MetricAnalysisRunReconcile.Delete(map[string]string{"namespace": namespace, "name": name})
+		MetricAnalysisRunReconcileError.Delete(map[string]string{"namespace": namespace, "name": name})
+
 	case log.ExperimentKey:
-		m.reconcileExperimentHistogram.DeleteLabelValues(namespace, name)
-		m.errorExperimentCounter.DeleteLabelValues(namespace, name)
+		m.reconcileExperimentHistogram.Delete(map[string]string{"namespace": namespace, "name": name})
+		m.errorExperimentCounter.Delete(map[string]string{"namespace": namespace, "name": name})
+
+		m.successNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+		m.errorNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+		m.sendNotificationRunHistogram.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+
+		MetricExperimentReconcile.Delete(map[string]string{"namespace": namespace, "name": name})
+		MetricExperimentReconcileError.Delete(map[string]string{"namespace": namespace, "name": name})
 	}
 }
 
