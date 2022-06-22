@@ -84,18 +84,18 @@ func TestGetCanaryIngressName(t *testing.T) {
 
 	t.Run("NoTrim", func(t *testing.T) {
 		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress = "stable-ingress"
-		canaryIngress := GetCanaryIngressName(rollout)
+		canaryIngress := GetCanaryIngressName(rollout.GetName(), rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress)
 		assert.Equal(t, "myrollout-stable-ingress-canary", canaryIngress)
 	})
 	t.Run("Trim", func(t *testing.T) {
 		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress = fmt.Sprintf("stable-ingress%s", strings.Repeat("a", 260))
-		canaryIngress := GetCanaryIngressName(rollout)
+		canaryIngress := GetCanaryIngressName(rollout.GetName(), rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress)
 		assert.Equal(t, 253, len(canaryIngress), "canary ingress truncated to 253")
 		assert.Equal(t, true, strings.HasSuffix(canaryIngress, "-canary"), "canary ingress has -canary suffix")
 	})
 	t.Run("NoStableIngress", func(t *testing.T) {
 		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx = nil
-		canaryIngress := GetCanaryIngressName(rollout)
+		canaryIngress := GetCanaryIngressName(rollout.GetName(), "")
 		assert.Equal(t, "", canaryIngress, "canary ingress is empty")
 	})
 }
