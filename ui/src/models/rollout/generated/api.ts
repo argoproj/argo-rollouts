@@ -854,6 +854,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTraffi
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
      */
     additionalIngressAnnotations?: { [key: string]: string; };
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
+     */
+    additionalStableIngresses?: Array<string>;
 }
 /**
  * 

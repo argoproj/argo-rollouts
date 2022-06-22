@@ -429,6 +429,9 @@ type NginxTrafficRouting struct {
 	StableIngress string `json:"stableIngress" protobuf:"bytes,2,opt,name=stableIngress"`
 	// +optional
 	AdditionalIngressAnnotations map[string]string `json:"additionalIngressAnnotations,omitempty" protobuf:"bytes,3,rep,name=additionalIngressAnnotations"`
+	// AdditionalStableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
+	// +optional
+	AdditionalStableIngresses []string `json:"additionalStableIngresses,omitempty" protobuf:"bytes,4,rep,name=additionalStableIngresses"`
 }
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration

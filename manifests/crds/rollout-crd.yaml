@@ -855,6 +855,10 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                              additionalStableIngresses:
+                                items:
+                                  type: string
+                                type: array
                               annotationPrefix:
                                 type: string
                               stableIngress:

@@ -1732,6 +1732,11 @@ func (in *NginxTrafficRouting) DeepCopyInto(out *NginxTrafficRouting) {
 			(*out)[key] = val
 		}
 	}
+	if in.AdditionalStableIngresses != nil {
+		in, out := &in.AdditionalStableIngresses, &out.AdditionalStableIngresses
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
