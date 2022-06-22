@@ -222,88 +222,106 @@ func (r *Reconciler) canaryIngress(stableIngress *ingressutil.Ingress, name stri
 
 // SetWeight modifies Nginx Ingress resources to reach desired state
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-	ctx := context.TODO()
-	stableIngressName := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
-	canaryIngressName := ingressutil.GetCanaryIngressName(r.cfg.Rollout)
-
-	// Check if stable ingress exists (from lister, which has a cache), error if it does not
-	stableIngress, err := r.cfg.IngressWrapper.GetCached(r.cfg.Rollout.Namespace, stableIngressName)
-	if err != nil {
-		r.log.WithField(logutil.IngressKey, stableIngressName).WithField("err", err.Error()).Error("error retrieving stableIngress")
-		return fmt.Errorf("error retrieving stableIngress `%s` from cache: %v", stableIngressName, err)
-	}
-	// Check if canary ingress exists (from lister which has a cache), determines whether we later call Create() or Update()
-	canaryIngress, err := r.cfg.IngressWrapper.GetCached(r.cfg.Rollout.Namespace, canaryIngressName)
-
-	canaryIngressExists := true
-	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			// An error other than "not found" occurred
-			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error retrieving canary ingress")
-			return fmt.Errorf("error retrieving canary ingress `%s` from cache: %v", canaryIngressName, err)
+	// Set weight for additional ingresses if present
+	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses; ingresses != nil {
+		// Fail out if there is an issue setting weight on additional ingresesses.
+		// Fundamental assumption is that each additional Ingress is equal in importance
+		// as primary Ingress resource.
+		if err := r.SetWeightPerIngress(desiredWeight, ingresses); err != nil {
+			return err
 		}
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Infof("canary ingress not found")
-		canaryIngressExists = false
+
 	}
 
-	// Construct the desired canary Ingress resource
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, canaryIngressName, desiredWeight)
-	if err != nil {
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
-		return err
-	}
+	return r.SetWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress})
+}
 
-	if !canaryIngressExists {
-		r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "CreatingCanaryIngress"}, "Creating canary ingress `%s` with weight `%d`", canaryIngressName, desiredWeight)
-		_, err = r.cfg.IngressWrapper.Create(ctx, r.cfg.Rollout.Namespace, desiredCanaryIngress, metav1.CreateOptions{})
-		if err == nil {
-			return nil
+// SetWeightMultiIngress modifies each Nginx Ingress resource to reach desired state in the scenario of a rollout
+// having multiple Ngnix Ingress resources.
+func (r *Reconciler) SetWeightPerIngress(desiredWeight int32, ingresses []string) error {
+	for _, ingress := range ingresses {
+		ctx := context.TODO()
+		stableIngressName := ingress
+		canaryIngressName := ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), stableIngressName)
+
+		// Check if stable ingress exists (from lister, which has a cache), error if it does not
+		stableIngress, err := r.cfg.IngressWrapper.GetCached(r.cfg.Rollout.Namespace, stableIngressName)
+		if err != nil {
+			r.log.WithField(logutil.IngressKey, stableIngressName).WithField("err", err.Error()).Error("error retrieving stableIngress")
+			return fmt.Errorf("error retrieving stableIngress `%s` from cache: %v", stableIngressName, err)
 		}
-		if !k8serrors.IsAlreadyExists(err) {
-			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
-			return fmt.Errorf("error creating canary ingress `%s`: %v", canaryIngressName, err)
+		// Check if canary ingress exists (from lister which has a cache), determines whether we later call Create() or Update()
+		canaryIngress, err := r.cfg.IngressWrapper.GetCached(r.cfg.Rollout.Namespace, canaryIngressName)
+
+		canaryIngressExists := true
+		if err != nil {
+			if !k8serrors.IsNotFound(err) {
+				// An error other than "not found" occurred
+				r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error retrieving canary ingress")
+				return fmt.Errorf("error retrieving canary ingress `%s` from cache: %v", canaryIngressName, err)
+			}
+			r.log.WithField(logutil.IngressKey, canaryIngressName).Infof("canary ingress not found")
+			canaryIngressExists = false
 		}
-		// Canary ingress was created by a different reconcile call before this one could complete (race)
-		// This means we just read it from the API now (instead of cache) and continue with the normal
-		// flow we take when the canary already existed.
-		canaryIngress, err = r.cfg.IngressWrapper.Get(ctx, r.cfg.Rollout.Namespace, canaryIngressName, metav1.GetOptions{})
+
+		// Construct the desired canary Ingress resource
+		desiredCanaryIngress, err := r.canaryIngress(stableIngress, canaryIngressName, desiredWeight)
 		if err != nil {
 			r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
-			return fmt.Errorf("error retrieving canary ingress `%s` from api: %v", canaryIngressName, err)
+			return err
+		}
+
+		if !canaryIngressExists {
+			r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "CreatingCanaryIngress"}, "Creating canary ingress `%s` with weight `%d`", canaryIngressName, desiredWeight)
+			_, err = r.cfg.IngressWrapper.Create(ctx, r.cfg.Rollout.Namespace, desiredCanaryIngress, metav1.CreateOptions{})
+			if err == nil {
+				return nil
+			}
+			if !k8serrors.IsAlreadyExists(err) {
+				r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
+				return fmt.Errorf("error creating canary ingress `%s`: %v", canaryIngressName, err)
+			}
+			// Canary ingress was created by a different reconcile call before this one could complete (race)
+			// This means we just read it from the API now (instead of cache) and continue with the normal
+			// flow we take when the canary already existed.
+			canaryIngress, err = r.cfg.IngressWrapper.Get(ctx, r.cfg.Rollout.Namespace, canaryIngressName, metav1.GetOptions{})
+			if err != nil {
+				r.log.WithField(logutil.IngressKey, canaryIngressName).Error(err.Error())
+				return fmt.Errorf("error retrieving canary ingress `%s` from api: %v", canaryIngressName, err)
+			}
+		}
+
+		// Canary Ingress already exists, apply a patch if needed
+
+		// Only modify canaryIngress if it is controlled by this Rollout
+		if !metav1.IsControlledBy(canaryIngress.GetObjectMeta(), r.cfg.Rollout) {
+			r.log.WithField(logutil.IngressKey, canaryIngressName).Error("canary ingress controlled by different object")
+			return fmt.Errorf("canary ingress `%s` controlled by different object", canaryIngressName)
+		}
+
+		// Make patches
+		patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress,
+			desiredCanaryIngress, ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
+
+		if err != nil {
+			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error constructing canary ingress patch")
+			return fmt.Errorf("error constructing canary ingress patch for `%s`: %v", canaryIngressName, err)
+		}
+		if !modified {
+			r.log.WithField(logutil.IngressKey, canaryIngressName).Info("No changes to canary ingress - skipping patch")
+			return nil
+		}
+
+		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("patch", string(patch)).Debug("applying canary Ingress patch")
+		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("desiredWeight", desiredWeight).Info("updating canary Ingress")
+		r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "PatchingCanaryIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", canaryIngressName, desiredWeight)
+
+		_, err = r.cfg.IngressWrapper.Patch(ctx, r.cfg.Rollout.Namespace, canaryIngressName, types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error patching canary ingress")
+			return fmt.Errorf("error patching canary ingress `%s`: %v", canaryIngressName, err)
 		}
 	}
-
-	// Canary Ingress already exists, apply a patch if needed
-
-	// Only modify canaryIngress if it is controlled by this Rollout
-	if !metav1.IsControlledBy(canaryIngress.GetObjectMeta(), r.cfg.Rollout) {
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Error("canary ingress controlled by different object")
-		return fmt.Errorf("canary ingress `%s` controlled by different object", canaryIngressName)
-	}
-
-	// Make patches
-	patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress,
-		desiredCanaryIngress, ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
-
-	if err != nil {
-		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error constructing canary ingress patch")
-		return fmt.Errorf("error constructing canary ingress patch for `%s`: %v", canaryIngressName, err)
-	}
-	if !modified {
-		r.log.WithField(logutil.IngressKey, canaryIngressName).Info("No changes to canary ingress - skipping patch")
-		return nil
-	}
-
-	r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("patch", string(patch)).Debug("applying canary Ingress patch")
-	r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("desiredWeight", desiredWeight).Info("updating canary Ingress")
-	r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "PatchingCanaryIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", canaryIngressName, desiredWeight)
-
-	_, err = r.cfg.IngressWrapper.Patch(ctx, r.cfg.Rollout.Namespace, canaryIngressName, types.MergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error patching canary ingress")
-		return fmt.Errorf("error patching canary ingress `%s`: %v", canaryIngressName, err)
-	}
-
 	return nil
 }
 
