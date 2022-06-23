@@ -192,6 +192,13 @@ spec:
                             query:
                               type: string
                           type: object
+                        influxdb:
+                          properties:
+                            profile:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         job:
                           properties:
                             metadata:

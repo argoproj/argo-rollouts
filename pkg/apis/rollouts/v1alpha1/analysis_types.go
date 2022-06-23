@@ -170,6 +170,8 @@ type MetricProvider struct {
 	CloudWatch *CloudWatchMetric `json:"cloudWatch,omitempty" protobuf:"bytes,8,opt,name=cloudWatch"`
 	// Graphite specifies the Graphite metric to query
 	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,9,opt,name=graphite"`
+	// Influxdb specifies the influxdb metric to query
+	Influxdb *InfluxdbMetric `json:"influxdb,omitempty" protobuf:"bytes,10,opt,name=influxdb"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -229,6 +231,14 @@ type GraphiteMetric struct {
 	// Address is the HTTP address and port of the Graphite server
 	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
 	// Query is a raw Graphite query to perform
+	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+}
+
+// InfluxdbMetric defines the InfluxDB Flux query to perform canary analysis
+type InfluxdbMetric struct {
+	// Profile is the name of the secret holding InfluxDB account configuration
+	Profile string `json:"profile,omitempty" protobuf:"bytes,1,opt,name=profile"`
+	// Query is a raw InfluxDB flux query to perform
 	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
 }
 
