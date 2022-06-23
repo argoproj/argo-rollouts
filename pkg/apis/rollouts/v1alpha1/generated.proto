@@ -749,6 +749,15 @@ message HeaderRoutingMatch {
   optional StringMatch headerValue = 2;
 }
 
+// InfluxdbMetric defines the InfluxDB Flux query to perform canary analysis
+message InfluxdbMetric {
+  // Profile is the name of the secret holding InfluxDB account configuration
+  optional string profile = 1;
+
+  // Query is a raw InfluxDB flux query to perform
+  optional string query = 2;
+}
+
 // IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic
 message IstioDestinationRule {
   // Name holds the name of the DestinationRule
@@ -933,6 +942,9 @@ message MetricProvider {
 
   // Graphite specifies the Graphite metric to query
   optional GraphiteMetric graphite = 9;
+
+  // Influxdb specifies the influxdb metric to query
+  optional InfluxdbMetric influxdb = 10;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with
