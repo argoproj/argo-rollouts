@@ -1,6 +1,9 @@
 package metrics
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/argoproj/argo-rollouts/utils/version"
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 // Follow Prometheus naming practices
 // https://prometheus.io/docs/practices/naming/
@@ -115,7 +118,7 @@ var (
 	MetricAnalysisRunMetricPhase = prometheus.NewDesc(
 		"analysis_run_metric_phase",
 		"Information on the duration of a specific metric in the Analysis Run",
-		append(namespaceNameLabels, "metric", "type", "phase"),
+		append(namespaceNameLabels, "metric", "type", "dry_run", "phase"),
 		nil,
 	)
 )
@@ -172,6 +175,34 @@ var (
 	)
 )
 
+// Notification metrics
+var (
+	MetricNotificationSuccessTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "notification_send_success",
+			Help: "Notification send success.",
+		},
+		append(namespaceNameLabels, "type", "reason"),
+	)
+
+	MetricNotificationFailedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "notification_send_error",
+			Help: "Error sending the notification",
+		},
+		append(namespaceNameLabels, "type", "reason"),
+	)
+
+	MetricNotificationSend = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "notification_send",
+			Help:    "Notification send performance.",
+			Buckets: []float64{0.01, 0.15, .25, .5, 1},
+		},
+		namespaceNameLabels,
+	)
+)
+
 // K8s Client metrics
 var (
 	// Custom events metric
@@ -182,5 +213,19 @@ var (
 			Help:      "Number of kubernetes requests executed during application reconciliation.",
 		},
 		[]string{"kind", "namespace", "name", "verb", "status_code"},
+	)
+)
+
+// MetricVersionGauge version info
+var (
+	MetricVersionGauge = prometheus.NewGaugeFunc(
+		prometheus.GaugeOpts{
+			Name:        "argo_rollouts_controller_info",
+			Help:        "Running Argo-rollouts version",
+			ConstLabels: prometheus.Labels{"version": version.GetVersion().Version},
+		},
+		func() float64 {
+			return float64(1)
+		},
 	)
 )

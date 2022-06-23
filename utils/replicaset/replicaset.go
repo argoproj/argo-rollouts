@@ -24,7 +24,9 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 // FindNewReplicaSet returns the new RS this given rollout targets from the given list.
@@ -38,12 +40,17 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 	}
 	rsList = newRSList
 	sort.Sort(controller.ReplicaSetsByCreationTimestamp(rsList))
-	// First, attempt to find the replicaset by the replicaset naming formula
-	replicaSetName := fmt.Sprintf("%s-%s", rollout.Name, controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount))
-	for _, rs := range rsList {
-		if rs.Name == replicaSetName {
-			return rs
-		}
+	// First, attempt to find the replicaset using our own hashing
+	podHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	if rs := searchRsByHash(rsList, podHash); rs != nil {
+		return rs
+	}
+	// Second, attempt to find the replicaset with old hash implementation
+	oldHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	if rs := searchRsByHash(rsList, oldHash); rs != nil {
+		logCtx := logutil.WithRollout(rollout)
+		logCtx.Infof("ComputePodTemplateHash hash changed (new hash: %s, old hash: %s)", podHash, oldHash)
+		return rs
 	}
 	// Iterate the ReplicaSet list again, this time doing a deep equal against the template specs.
 	// This covers the corner case in which the reason we did not find the replicaset, was because
@@ -60,11 +67,20 @@ func FindNewReplicaSet(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) *
 		desired := rollout.Spec.Template.DeepCopy()
 		if PodTemplateEqualIgnoreHash(live, desired) {
 			logCtx := logutil.WithRollout(rollout)
-			logCtx.Infof("ComputeHash change detected (expected: %s, actual: %s)", replicaSetName, rs.Name)
+			logCtx.Infof("ComputePodTemplateHash hash changed (expected: %s, actual: %s)", podHash, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey])
 			return rs
 		}
 	}
 	// new ReplicaSet does not exist.
+	return nil
+}
+
+func searchRsByHash(rsList []*appsv1.ReplicaSet, hash string) *appsv1.ReplicaSet {
+	for _, rs := range rsList {
+		if rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] == hash {
+			return rs
+		}
+	}
 	return nil
 }
 
@@ -86,7 +102,7 @@ func GetRolloutAffinity(rollout v1alpha1.Rollout) *v1alpha1.AntiAffinity {
 
 func GenerateReplicaSetAffinity(rollout v1alpha1.Rollout) *corev1.Affinity {
 	antiAffinityStrategy := GetRolloutAffinity(rollout)
-	currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	currentPodHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	affinitySpec := rollout.Spec.Template.Spec.Affinity.DeepCopy()
 	if antiAffinityStrategy != nil && rollout.Status.StableRS != "" && rollout.Status.StableRS != currentPodHash {
 		antiAffinityRule := CreateInjectedAntiAffinityRule(rollout)
@@ -192,7 +208,7 @@ func RemoveInjectedAntiAffinityRule(affinity *corev1.Affinity, rollout v1alpha1.
 
 func IfInjectedAntiAffinityRuleNeedsUpdate(affinity *corev1.Affinity, rollout v1alpha1.Rollout) bool {
 	_, podAffinityTerm := HasInjectedAntiAffinityRule(affinity, rollout)
-	currentPodHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	currentPodHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	if podAffinityTerm != nil && rollout.Status.StableRS != currentPodHash {
 		for _, labelSelectorRequirement := range podAffinityTerm.LabelSelector.MatchExpressions {
 			if labelSelectorRequirement.Key == v1alpha1.DefaultRolloutUniqueLabelKey && labelSelectorRequirement.Values[0] != rollout.Status.StableRS {
@@ -204,7 +220,7 @@ func IfInjectedAntiAffinityRuleNeedsUpdate(affinity *corev1.Affinity, rollout v1
 }
 
 func NeedsRestart(rollout *v1alpha1.Rollout) bool {
-	now := metav1.Now().UTC()
+	now := timeutil.MetaNow().UTC()
 	if rollout.Spec.RestartAt == nil {
 		return false
 	}
@@ -215,9 +231,8 @@ func NeedsRestart(rollout *v1alpha1.Rollout) bool {
 }
 
 // FindOldReplicaSets returns the old replica sets targeted by the given Rollout, with the given slice of RSes.
-func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) []*appsv1.ReplicaSet {
+func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) []*appsv1.ReplicaSet {
 	var allRSs []*appsv1.ReplicaSet
-	newRS := FindNewReplicaSet(rollout, rsList)
 	for _, rs := range rsList {
 		// Filter out new replica set
 		if newRS != nil && rs.UID == newRS.UID {
@@ -232,7 +247,7 @@ func FindOldReplicaSets(rollout *v1alpha1.Rollout, rsList []*appsv1.ReplicaSet) 
 // When one of the followings is true, we're rolling out the deployment; otherwise, we're scaling it.
 // 1) The new RS is saturated: newRS's replicas == deployment's replicas
 // 2) Max number of pods allowed is reached: deployment's replicas + maxSurge == all RSs' replicas
-func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet) (int32, error) {
+func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, newRS *appsv1.ReplicaSet, weights *v1alpha1.TrafficWeights) (int32, error) {
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		desiredReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 		if rollout.Spec.Strategy.BlueGreen.PreviewReplicaCount != nil {
@@ -263,8 +278,13 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 	}
 	if rollout.Spec.Strategy.Canary != nil {
 		stableRS := GetStableRS(rollout, newRS, allRSs)
-		otherRSs := GetOtherRSs(rollout, newRS, stableRS, allRSs)
-		newRSReplicaCount, _ := CalculateReplicaCountsForCanary(rollout, newRS, stableRS, otherRSs)
+		var newRSReplicaCount int32
+		if rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+			otherRSs := GetOtherRSs(rollout, newRS, stableRS, allRSs)
+			newRSReplicaCount, _ = CalculateReplicaCountsForBasicCanary(rollout, newRS, stableRS, otherRSs)
+		} else {
+			newRSReplicaCount, _ = CalculateReplicaCountsForTrafficRoutedCanary(rollout, weights)
+		}
 		return newRSReplicaCount, nil
 	}
 	return 0, fmt.Errorf("no rollout strategy provided")
@@ -450,7 +470,7 @@ func CheckPodSpecChange(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet) boo
 	if rollout.Status.CurrentPodHash == "" {
 		return false
 	}
-	podHash := controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	if newRS != nil {
 		podHash = GetPodTemplateHash(newRS)
 	}
@@ -518,7 +538,7 @@ func PodTemplateEqualIgnoreHash(live, desired *corev1.PodTemplateSpec) bool {
 
 // GetPodTemplateHash returns the rollouts-pod-template-hash value from a ReplicaSet's labels
 func GetPodTemplateHash(rs *appsv1.ReplicaSet) string {
-	if rs.Labels == nil {
+	if rs == nil || rs.Labels == nil {
 		return ""
 	}
 	return rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -589,7 +609,7 @@ func GetTimeRemainingBeforeScaleDownDeadline(rs *appsv1.ReplicaSet) (*time.Durat
 		if err != nil {
 			return nil, fmt.Errorf("unable to read scaleDownAt label on rs '%s'", rs.Name)
 		}
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		scaleDownAt := metav1.NewTime(scaleDownAtTime)
 		if scaleDownAt.After(now.Time) {
 			remainingTime := scaleDownAt.Sub(now.Time)
@@ -617,12 +637,12 @@ func GetPodsOwnedByReplicaSet(ctx context.Context, client kubernetes.Interface, 
 	return podOwnedByRS, nil
 }
 
-// IsReplicaSetReady returns if a ReplicaSet is scaled up and its ready count is >= desired count
-func IsReplicaSetReady(rs *appsv1.ReplicaSet) bool {
+// IsReplicaSetAvailable returns if a ReplicaSet is scaled up and its ready count is >= desired count
+func IsReplicaSetAvailable(rs *appsv1.ReplicaSet) bool {
 	if rs == nil {
 		return false
 	}
 	replicas := rs.Spec.Replicas
-	readyReplicas := rs.Status.ReadyReplicas
-	return replicas != nil && *replicas != 0 && readyReplicas != 0 && *replicas <= readyReplicas
+	availableReplicas := rs.Status.AvailableReplicas
+	return replicas != nil && *replicas != 0 && availableReplicas != 0 && *replicas <= availableReplicas
 }

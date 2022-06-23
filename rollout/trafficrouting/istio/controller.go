@@ -188,7 +188,7 @@ func (c *IstioController) GetReferencedVirtualServices(ro *v1alpha1.Rollout) (*[
 				vsvcs = canary.TrafficRouting.Istio.VirtualServices
 				fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualServices", "name")
 			} else {
-				vsvcs = []v1alpha1.IstioVirtualService{canary.TrafficRouting.Istio.VirtualService}
+				vsvcs = []v1alpha1.IstioVirtualService{*canary.TrafficRouting.Istio.VirtualService}
 				fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
 			}
 

@@ -7,6 +7,7 @@ metadata:
     app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: argo-rollouts
@@ -23,10 +24,12 @@ spec:
         ports:
           - containerPort: 8090
             name: metrics
+          - containerPort: 8080
+            name: healthz
         livenessProbe:
           httpGet:
-            path: /metrics
-            port: 8090
+            path: /healthz
+            port: healthz
           initialDelaySeconds: 30
           periodSeconds: 20
           failureThreshold: 3
@@ -35,7 +38,8 @@ spec:
         readinessProbe:
           httpGet:
             path: /metrics
-            port: 8090
+            port: metrics
+          initialDelaySeconds: 10
           periodSeconds: 5
           failureThreshold: 3
           successThreshold: 1

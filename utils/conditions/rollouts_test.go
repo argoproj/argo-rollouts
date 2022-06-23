@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 )
 
 var (
@@ -363,7 +363,7 @@ func TestRolloutComplete(t *testing.T) {
 			},
 		}
 		r.Generation = 123
-		podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+		podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 		r.Status.CurrentPodHash = podHash
 		return r
 	}
@@ -411,13 +411,13 @@ func TestRolloutComplete(t *testing.T) {
 		{
 			name: "BlueGreen complete",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 5, 5, 5, true, "85f7cf5fc7", "85f7cf5fc7"),
+			r:        blueGreenRollout(5, 5, 5, 5, true, "76bbb58f74", "76bbb58f74"),
 			expected: true,
 		},
 		{
 			name: "BlueGreen complete with extra old replicas",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 6, 5, 5, true, "85f7cf5fc7", "85f7cf5fc7"),
+			r:        blueGreenRollout(5, 6, 5, 5, true, "76bbb58f74", "76bbb58f74"),
 			expected: true,
 		},
 		{

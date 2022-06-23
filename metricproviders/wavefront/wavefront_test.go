@@ -57,6 +57,9 @@ func TestRunSuccessfully(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "10.00", measurement.Value)
@@ -81,6 +84,9 @@ func TestRunWithQueryError(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
 	assert.NotNil(t, measurement.StartedAt)
@@ -107,6 +113,9 @@ func TestRunWithEvaluationError(t *testing.T) {
 			},
 		},
 	}
+	metricsMetadata := p.GetMetadata(metric)
+	assert.Nil(t, metricsMetadata)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, "No TimeSeries found in response from Wavefront", measurement.Message)
 	assert.Equal(t, "No query provided", measurement.Metadata["warnings"])

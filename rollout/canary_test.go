@@ -15,16 +15,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, steps []v1alpha1.CanaryStep, stepIndex *int32, maxSurge, maxUnavailable intstr.IntOrString) *v1alpha1.Rollout {
@@ -37,7 +39,7 @@ func newCanaryRollout(name string, replicas int, revisionHistoryLimit *int32, st
 	}
 	rollout.Status.CurrentStepIndex = stepIndex
 	rollout.Status.CurrentStepHash = conditions.ComputeStepHash(rollout)
-	rollout.Status.CurrentPodHash = controller.ComputeHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
+	rollout.Status.CurrentPodHash = hash.ComputePodTemplateHash(&rollout.Spec.Template, rollout.Status.CollisionCount)
 	rollout.Status.Selector = metav1.FormatLabelSelector(rollout.Spec.Selector)
 	rollout.Status.Phase, rollout.Status.Message = rolloututil.CalculateRolloutPhase(rollout.Spec, rollout.Status)
 	return rollout
@@ -52,7 +54,7 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 	newRevisionStr := strconv.FormatInt(int64(newRevision), 10)
 	annotations.SetRolloutRevision(newRollout, newRevisionStr)
 	newRollout.Spec.Template.Spec.Containers[0].Image = "foo/bar" + newRevisionStr
-	newRollout.Status.CurrentPodHash = controller.ComputeHash(&newRollout.Spec.Template, newRollout.Status.CollisionCount)
+	newRollout.Status.CurrentPodHash = hash.ComputePodTemplateHash(&newRollout.Spec.Template, newRollout.Status.CollisionCount)
 	newRollout.Status.CurrentStepHash = conditions.ComputeStepHash(newRollout)
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(newRollout.Spec, newRollout.Status)
 	return newRollout
@@ -177,7 +179,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	}`
 
 	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
-	now := metav1.Now().UTC().Format(time.RFC3339)
+	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, v1alpha1.PauseReasonCanaryPauseStep, now, conditions, v1alpha1.PauseReasonCanaryPauseStep)
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
 	assert.Equal(t, expectedPatch, patch)
@@ -737,6 +739,11 @@ func TestCanaryDontScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 	rs1 := newReplicaSetWithStatus(r1, 5, 5)
 	rs2 := newReplicaSetWithStatus(r2, 5, 5)
 	rs3 := newReplicaSetWithStatus(r3, 5, 0)
+	r3.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			PodTemplateHash: replicasetutil.GetPodTemplateHash(rs2),
+		},
+	}
 
 	f.objects = append(f.objects, r3)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, rs3, canarySvc, stableSvc)
@@ -750,7 +757,7 @@ func TestCanaryDontScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 // TestCanaryScaleDownOldRsDuringInterruptedUpdate tests that we proceed with scale down of an
 // intermediate V2 ReplicaSet when applying a V3 spec in the middle of updating a traffic routed
 // canary going from V1 -> V2 (i.e. after we have shifted traffic away from V2). This test is the
-// same as TestCanaryDontScaleDownOldRsDuringUpdate but rs3 is fully available
+// same as TestCanaryDontScaleDownOldRsDuringInterruptedUpdate but rs3 is fully available
 func TestCanaryScaleDownOldRsDuringInterruptedUpdate(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -834,7 +841,7 @@ func TestRollBackToStable(t *testing.T) {
 		}
 	}`
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "")
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, controller.ComputeHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
@@ -922,7 +929,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newPodHash := controller.ComputeHash(&r2.Spec.Template, r2.Status.CollisionCount)
+	newPodHash := hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount)
 	newStepHash := conditions.ComputeStepHash(r2)
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "")
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newPodHash, newStepHash, newConditions)
@@ -1089,7 +1096,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
-	earlier := metav1.Now()
+	earlier := timeutil.MetaNow()
 	earlier.Time = earlier.Add(-10 * time.Second)
 	r2.Status.ControllerPause = true
 	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
@@ -1179,7 +1186,7 @@ func TestCanaryRolloutWithCanaryService(t *testing.T) {
 func TestCanarySVCSelectors(t *testing.T) {
 	for _, tc := range []struct {
 		canaryReplicas      int32
-		canaryReadyReplicas int32
+		canaryAvailReplicas int32
 
 		shouldTargetNewRS bool
 	}{
@@ -1240,7 +1247,7 @@ func TestCanarySVCSelectors(t *testing.T) {
 					Replicas: pointer.Int32Ptr(tc.canaryReplicas),
 				},
 				Status: v1.ReplicaSetStatus{
-					ReadyReplicas: tc.canaryReadyReplicas,
+					AvailableReplicas: tc.canaryAvailReplicas,
 				},
 			},
 			stableRS: &v1.ReplicaSet{
@@ -1260,12 +1267,12 @@ func TestCanarySVCSelectors(t *testing.T) {
 		assert.NoError(t, err, "unable to get updated canary service")
 		if tc.shouldTargetNewRS {
 			assert.Equal(t, selectorNewRSVal, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
-				"canary SVC should have newRS selector label when newRS has %d replicas and %d ReadyReplicas",
-				tc.canaryReplicas, tc.canaryReadyReplicas)
+				"canary SVC should have newRS selector label when newRS has %d replicas and %d AvailableReplicas",
+				tc.canaryReplicas, tc.canaryAvailReplicas)
 		} else {
 			assert.Empty(t, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
-				"canary SVC should not have newRS selector label when newRS has %d replicas and %d ReadyReplicas",
-				tc.canaryReplicas, tc.canaryReadyReplicas)
+				"canary SVC should not have newRS selector label when newRS has %d replicas and %d AvailableReplicas",
+				tc.canaryReplicas, tc.canaryAvailReplicas)
 		}
 	}
 }
@@ -1352,6 +1359,89 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
 	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.stableService: Invalid value: \"invalid-stable\": service \"invalid-stable\" not found", condition["message"])
+}
+
+func TestCanaryRolloutWithPingPongServices(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 1, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	pingSvc := newService("ping-service", 80, nil, r)
+	pongSvc := newService("pong-service", 80, nil, r)
+	rs1 := newReplicaSetWithStatus(r, 1, 1)
+	r.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: pingSvc.Name, PongService: pongSvc.Name}
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, pingSvc, pongSvc, rs1)
+	f.serviceLister = append(f.serviceLister, pingSvc, pongSvc)
+
+	_ = f.expectPatchServiceAction(pingSvc, r.Status.CurrentPodHash)
+	_ = f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+}
+
+func TestCanaryRolloutWithInvalidPingServiceName(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	r.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "ping-service", PongService: "pong-service"}
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects)
+	f.serviceLister = append(f.serviceLister)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	patch := make(map[string]interface{})
+	patchData := f.getPatchedRollout(patchIndex)
+	err := json.Unmarshal([]byte(patchData), &patch)
+	assert.NoError(t, err)
+
+	c, ok, err := unstructured.NestedSlice(patch, "status", "conditions")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Len(t, c, 2)
+
+	condition, ok := c[1].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
+	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.pingPong.pingService: Invalid value: \"ping-service\": service \"ping-service\" not found", condition["message"])
+}
+
+func TestCanaryRolloutWithInvalidPongServiceName(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	r := newCanaryRollout("foo", 0, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(0))
+	pingSvc := newService("ping-service", 80, nil, r)
+	r.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: pingSvc.Name, PongService: "pong-service"}
+
+	f.rolloutLister = append(f.rolloutLister, r)
+	f.objects = append(f.objects, r)
+	f.kubeobjects = append(f.kubeobjects, pingSvc)
+	f.serviceLister = append(f.serviceLister, pingSvc)
+
+	patchIndex := f.expectPatchRolloutAction(r)
+	f.run(getKey(r, t))
+
+	patch := make(map[string]interface{})
+	patchData := f.getPatchedRollout(patchIndex)
+	err := json.Unmarshal([]byte(patchData), &patch)
+	assert.NoError(t, err)
+
+	c, ok, err := unstructured.NestedSlice(patch, "status", "conditions")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Len(t, c, 2)
+
+	condition, ok := c[1].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
+	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.pingPong.pongService: Invalid value: \"pong-service\": service \"pong-service\" not found", condition["message"])
 }
 
 func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
@@ -1560,7 +1650,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 
 		r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 1, 10, false)
 		r2.Status.Abort = true
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		r2.Status.AbortedAt = &now
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.objects = append(f.objects, r2)
@@ -1597,7 +1687,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 		}
 		r1 := newCanaryRollout("foo", 2, nil, steps, int32Ptr(3), intstr.FromInt(1), intstr.FromInt(0))
 		r1.Status.Abort = true
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		r1.Status.AbortedAt = &now
 		rs1 := newReplicaSetWithStatus(r1, 2, 2)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]

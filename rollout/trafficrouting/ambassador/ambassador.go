@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -80,7 +79,7 @@ func NewReconciler(r *v1alpha1.Rollout, c ClientInterface, rec record.EventRecor
 // in the ambassador configuration in the traffic routing section of the rollout. If
 // the canary ambassador mapping is already present, it will be updated to the given
 // desiredWeight.
-func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) error {
+func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	r.sendNormalEvent(CanaryMappingWeightUpdate, fmt.Sprintf("Set canary mapping weight to %d", desiredWeight))
 	ctx := context.TODO()
 	baseMappingNameList := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Ambassador.Mappings
@@ -114,6 +113,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...tr
 		}
 	}
 	return formatErrors(errs)
+}
+
+func (r *Reconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
+	return nil
 }
 
 func formatErrors(errs []error) error {
@@ -251,8 +254,8 @@ func buildCanaryService(baseMapping *unstructured.Unstructured, canarySvc string
 	return fmt.Sprintf("%s:%s", canarySvc, port)
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...trafficrouting.WeightDestination) (bool, error) {
-	return true, nil
+func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
+	return nil, nil
 }
 
 func (r *Reconciler) Type() string {
@@ -325,6 +328,6 @@ func (r *Reconciler) sendEvent(eventType, id, msg string) {
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string) error {
+func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
 	return nil
 }

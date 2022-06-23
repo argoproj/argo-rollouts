@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/utils/pointer"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutslisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
@@ -17,6 +15,8 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	templateutil "github.com/argoproj/argo-rollouts/utils/template"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -99,7 +100,7 @@ func (ec *experimentContext) reconcile() *v1alpha1.ExperimentStatus {
 	}
 
 	for _, analysis := range ec.ex.Spec.Analyses {
-		ec.reconcileAnalysisRun(analysis)
+		ec.reconcileAnalysisRun(analysis, ec.ex.Spec.DryRun, ec.ex.Spec.MeasurementRetention)
 	}
 
 	newStatus := ec.calculateStatus()
@@ -123,7 +124,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 	}
 	prevStatus := templateStatus.DeepCopy()
 	desiredReplicaCount := experimentutil.CalculateTemplateReplicasCount(ec.ex, template)
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 
 	rs := ec.templateRSs[template.Name]
 
@@ -348,7 +349,7 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 		}
 	}
 	deadlineSeconds := defaults.GetExperimentProgressDeadlineSecondsOrDefault(ex)
-	now := time.Now()
+	now := timeutil.Now()
 	for _, template := range ex.Spec.Templates {
 		// Set candidate to the earliest of LastTransitionTime + progressDeadlineSeconds
 		ts := experimentutil.GetTemplateStatus(ex.Status, template.Name)
@@ -370,7 +371,7 @@ func calculateEnqueueDuration(ex *v1alpha1.Experiment, newStatus *v1alpha1.Exper
 
 // reconcileAnalysisRun reconciles a single analysis run, creating or terminating it as necessary.
 // Updates the analysis run statuses, which may subsequently fail the experiment.
-func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) {
+func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) {
 	logCtx := ec.log.WithField("analysis", analysis.Name)
 	logCtx.Infof("Reconciling analysis")
 	prevStatus := experimentutil.GetAnalysisRunStatus(ec.ex.Status, analysis.Name)
@@ -426,7 +427,7 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 			logCtx.Warnf("Skipping AnalysisRun creation for analysis %s: experiment is terminating", analysis.Name)
 			return
 		}
-		run, err := ec.createAnalysisRun(analysis)
+		run, err := ec.createAnalysisRun(analysis, dryRunMetrics, measurementRetentionMetrics)
 		if err != nil {
 			msg := fmt.Sprintf("Failed to create AnalysisRun for analysis '%s': %v", analysis.Name, err.Error())
 			newStatus.Phase = v1alpha1.AnalysisPhaseError
@@ -473,13 +474,13 @@ func (ec *experimentContext) reconcileAnalysisRun(analysis v1alpha1.ExperimentAn
 // createAnalysisRun creates the analysis run. If an existing runs exists with same name, is
 // semantically equal, and is not complete, returns the existing one, otherwise creates a new
 // run with a collision counter increase.
-func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef) (*v1alpha1.AnalysisRun, error) {
+func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) (*v1alpha1.AnalysisRun, error) {
 	analysisRunIf := ec.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(ec.ex.Namespace)
 	args, err := ec.ResolveAnalysisRunArgs(analysis.Args)
 	if err != nil {
 		return nil, err
 	}
-	run, err := ec.newAnalysisRun(analysis, args)
+	run, err := ec.newAnalysisRun(analysis, args, dryRunMetrics, measurementRetentionMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +512,7 @@ func (ec *experimentContext) calculateStatus() *v1alpha1.ExperimentStatus {
 		templateStatus, templateMessage := ec.assessTemplates()
 		analysesStatus, analysesMessage := ec.assessAnalysisRuns()
 		if templateStatus == v1alpha1.AnalysisPhaseRunning && ec.newStatus.AvailableAt == nil {
-			now := metav1.Now()
+			now := timeutil.MetaNow()
 			ec.newStatus.AvailableAt = &now
 			ec.log.Infof("Marked AvailableAt: %v", now)
 		}
@@ -615,7 +616,7 @@ func (ec *experimentContext) assessAnalysisRuns() (v1alpha1.AnalysisPhase, strin
 }
 
 // newAnalysisRun generates an AnalysisRun from the experiment and template
-func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument) (*v1alpha1.AnalysisRun, error) {
+func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysisTemplateRef, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention) (*v1alpha1.AnalysisRun, error) {
 
 	if analysis.ClusterScope {
 		clusterTemplate, err := ec.clusterAnalysisTemplateLister.Get(analysis.TemplateName)
@@ -624,7 +625,8 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 		}
 		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
-		run, err := analysisutil.NewAnalysisRunFromClusterTemplate(clusterTemplate, args, name, "", ec.ex.Namespace)
+		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{clusterTemplate}
+		run, err := analysisutil.NewAnalysisRunFromTemplates(nil, clusterAnalysisTemplates, args, dryRunMetrics, measurementRetentionMetrics, name, "", ec.ex.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -641,7 +643,8 @@ func (ec *experimentContext) newAnalysisRun(analysis v1alpha1.ExperimentAnalysis
 		}
 		name := fmt.Sprintf("%s-%s", ec.ex.Name, analysis.Name)
 
-		run, err := analysisutil.NewAnalysisRunFromTemplate(template, args, name, "", ec.ex.Namespace)
+		analysisTemplates := []*v1alpha1.AnalysisTemplate{template}
+		run, err := analysisutil.NewAnalysisRunFromTemplates(analysisTemplates, nil, args, dryRunMetrics, measurementRetentionMetrics, name, "", ec.ex.Namespace)
 		if err != nil {
 			return nil, err
 		}

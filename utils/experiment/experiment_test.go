@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
 )
 
 func TestHasFinished(t *testing.T) {
@@ -90,6 +91,7 @@ func TestGetTemplateStatusMapping(t *testing.T) {
 	assert.Equal(t, int32(1), mapping["test"].Replicas)
 	assert.Equal(t, int32(2), mapping["test2"].Replicas)
 }
+
 func TestReplicaSetNameFromExperiment(t *testing.T) {
 	templateName := "template"
 	template := v1alpha1.TemplateSpec{
@@ -100,14 +102,14 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 			Name: "foo",
 		},
 	}
-	assert.Equal(t, "foo-template-85f7cf5fc7", ReplicasetNameFromExperiment(e, template))
+	assert.Equal(t, "foo-template-76bbb58f74", ReplicasetNameFromExperiment(e, template))
 
 	newTemplateStatus := v1alpha1.TemplateStatus{
 		Name:           templateName,
 		CollisionCount: pointer.Int32Ptr(1),
 	}
 	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, newTemplateStatus)
-	assert.Equal(t, "foo-template-56ccbc9b64", ReplicasetNameFromExperiment(e, template))
+	assert.Equal(t, "foo-template-688c48b575", ReplicasetNameFromExperiment(e, template))
 }
 
 func TestExperimentByCreationTimestamp(t *testing.T) {

@@ -9,3 +9,8 @@ patchesStrategicMerge:
   - on-scaling-replica-set.yaml
   - on-rollout-step-completed.yaml
   - on-rollout-updated.yaml
+  - on-rollout-aborted.yaml
+  - on-rollout-paused.yaml
+  - on-analysis-run-running.yaml
+  - on-analysis-run-error.yaml
+  - on-analysis-run-failed.yaml

@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.7.0
   name: rollouts.argoproj.io
 spec:
   group: argoproj.io
@@ -35,6 +35,10 @@ spec:
       jsonPath: .status.availableReplicas
       name: Available
       type: integer
+    - description: Time since resource was created
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -166,6 +170,28 @@ spec:
                               - name
                               type: object
                             type: array
+                          dryRun:
+                            items:
+                              properties:
+                                metricName:
+                                  type: string
+                              required:
+                              - metricName
+                              type: object
+                            type: array
+                          measurementRetention:
+                            items:
+                              properties:
+                                limit:
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  type: string
+                              required:
+                              - limit
+                              - metricName
+                              type: object
+                            type: array
                           templates:
                             items:
                               properties:
@@ -199,6 +225,28 @@ spec:
                                   type: object
                               required:
                               - name
+                              type: object
+                            type: array
+                          dryRun:
+                            items:
+                              properties:
+                                metricName:
+                                  type: string
+                              required:
+                              - metricName
+                              type: object
+                            type: array
+                          measurementRetention:
+                            items:
+                              properties:
+                                limit:
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  type: string
+                              required:
+                              - limit
+                              - metricName
                               type: object
                             type: array
                           templates:
@@ -266,6 +314,28 @@ spec:
                               - name
                               type: object
                             type: array
+                          dryRun:
+                            items:
+                              properties:
+                                metricName:
+                                  type: string
+                              required:
+                              - metricName
+                              type: object
+                            type: array
+                          measurementRetention:
+                            items:
+                              properties:
+                                limit:
+                                  format: int32
+                                  type: integer
+                                metricName:
+                                  type: string
+                              required:
+                              - limit
+                              - metricName
+                              type: object
+                            type: array
                           startingStep:
                             format: int32
                             type: integer
@@ -305,6 +375,8 @@ spec:
                         type: object
                       canaryService:
                         type: string
+                      dynamicStableScale:
+                        type: boolean
                       maxSurge:
                         anyOf:
                         - type: integer
@@ -315,6 +387,16 @@ spec:
                         - type: integer
                         - type: string
                         x-kubernetes-int-or-string: true
+                      pingPong:
+                        properties:
+                          pingService:
+                            type: string
+                          pongService:
+                            type: string
+                        required:
+                        - pingService
+                        - pongService
+                        type: object
                       scaleDownDelayRevisionLimit:
                         format: int32
                         type: integer
@@ -360,6 +442,28 @@ spec:
                                         type: object
                                     required:
                                     - name
+                                    type: object
+                                  type: array
+                                dryRun:
+                                  items:
+                                    properties:
+                                      metricName:
+                                        type: string
+                                    required:
+                                    - metricName
+                                    type: object
+                                  type: array
+                                measurementRetention:
+                                  items:
+                                    properties:
+                                      limit:
+                                        format: int32
+                                        type: integer
+                                      metricName:
+                                        type: string
+                                    required:
+                                    - limit
+                                    - metricName
                                     type: object
                                   type: array
                                 templates:
@@ -489,6 +593,28 @@ spec:
                                   format: int32
                                   type: integer
                               type: object
+                            setHeaderRouting:
+                              properties:
+                                match:
+                                  items:
+                                    properties:
+                                      headerName:
+                                        type: string
+                                      headerValue:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                    required:
+                                    - headerName
+                                    - headerValue
+                                    type: object
+                                  type: array
+                              type: object
                             setWeight:
                               format: int32
                               type: integer
@@ -507,6 +633,17 @@ spec:
                               servicePort:
                                 format: int32
                                 type: integer
+                              stickinessConfig:
+                                properties:
+                                  durationSeconds:
+                                    format: int64
+                                    type: integer
+                                  enabled:
+                                    type: boolean
+                                required:
+                                - durationSeconds
+                                - enabled
+                                type: object
                             required:
                             - ingress
                             - servicePort
@@ -519,6 +656,40 @@ spec:
                                 type: array
                             required:
                             - mappings
+                            type: object
+                          appMesh:
+                            properties:
+                              virtualNodeGroup:
+                                properties:
+                                  canaryVirtualNodeRef:
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  stableVirtualNodeRef:
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                required:
+                                - canaryVirtualNodeRef
+                                - stableVirtualNodeRef
+                                type: object
+                              virtualService:
+                                properties:
+                                  name:
+                                    type: string
+                                  routes:
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
                             type: object
                           istio:
                             properties:
@@ -603,6 +774,13 @@ spec:
                                 type: string
                               trafficSplitName:
                                 type: string
+                            type: object
+                          traefik:
+                            properties:
+                              weightedTraefikServiceName:
+                                type: string
+                            required:
+                            - weightedTraefikServiceName
                             type: object
                         type: object
                     type: object
@@ -748,6 +926,29 @@ spec:
                                                 type: string
                                               type: object
                                           type: object
+                                        namespaceSelector:
+                                          properties:
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                            matchLabels:
+                                              additionalProperties:
+                                                type: string
+                                              type: object
+                                          type: object
                                         namespaces:
                                           items:
                                             type: string
@@ -769,6 +970,29 @@ spec:
                                 items:
                                   properties:
                                     labelSelector:
+                                      properties:
+                                        matchExpressions:
+                                          items:
+                                            properties:
+                                              key:
+                                                type: string
+                                              operator:
+                                                type: string
+                                              values:
+                                                items:
+                                                  type: string
+                                                type: array
+                                            required:
+                                            - key
+                                            - operator
+                                            type: object
+                                          type: array
+                                        matchLabels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
+                                    namespaceSelector:
                                       properties:
                                         matchExpressions:
                                           items:
@@ -832,6 +1056,29 @@ spec:
                                                 type: string
                                               type: object
                                           type: object
+                                        namespaceSelector:
+                                          properties:
+                                            matchExpressions:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  operator:
+                                                    type: string
+                                                  values:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                required:
+                                                - key
+                                                - operator
+                                                type: object
+                                              type: array
+                                            matchLabels:
+                                              additionalProperties:
+                                                type: string
+                                              type: object
+                                          type: object
                                         namespaces:
                                           items:
                                             type: string
@@ -853,6 +1100,29 @@ spec:
                                 items:
                                   properties:
                                     labelSelector:
+                                      properties:
+                                        matchExpressions:
+                                          items:
+                                            properties:
+                                              key:
+                                                type: string
+                                              operator:
+                                                type: string
+                                              values:
+                                                items:
+                                                  type: string
+                                                type: array
+                                            required:
+                                            - key
+                                            - operator
+                                            type: object
+                                          type: array
+                                        matchLabels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
+                                    namespaceSelector:
                                       properties:
                                         matchExpressions:
                                           items:
@@ -1100,6 +1370,16 @@ spec:
                                 failureThreshold:
                                   format: int32
                                   type: integer
+                                grpc:
+                                  properties:
+                                    port:
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      type: string
+                                  required:
+                                  - port
+                                  type: object
                                 httpGet:
                                   properties:
                                     host:
@@ -1149,6 +1429,9 @@ spec:
                                   required:
                                   - port
                                   type: object
+                                terminationGracePeriodSeconds:
+                                  format: int64
+                                  type: integer
                                 timeoutSeconds:
                                   format: int32
                                   type: integer
@@ -1191,6 +1474,16 @@ spec:
                                 failureThreshold:
                                   format: int32
                                   type: integer
+                                grpc:
+                                  properties:
+                                    port:
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      type: string
+                                  required:
+                                  - port
+                                  type: object
                                 httpGet:
                                   properties:
                                     host:
@@ -1240,6 +1533,9 @@ spec:
                                   required:
                                   - port
                                   type: object
+                                terminationGracePeriodSeconds:
+                                  format: int64
+                                  type: integer
                                 timeoutSeconds:
                                   format: int32
                                   type: integer
@@ -1306,6 +1602,8 @@ spec:
                                       type: string
                                     gmsaCredentialSpecName:
                                       type: string
+                                    hostProcess:
+                                      type: boolean
                                     runAsUserName:
                                       type: string
                                   type: object
@@ -1322,6 +1620,16 @@ spec:
                                 failureThreshold:
                                   format: int32
                                   type: integer
+                                grpc:
+                                  properties:
+                                    port:
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      type: string
+                                  required:
+                                  - port
+                                  type: object
                                 httpGet:
                                   properties:
                                     host:
@@ -1371,6 +1679,9 @@ spec:
                                   required:
                                   - port
                                   type: object
+                                terminationGracePeriodSeconds:
+                                  format: int64
+                                  type: integer
                                 timeoutSeconds:
                                   format: int32
                                   type: integer
@@ -1658,6 +1969,16 @@ spec:
                                 failureThreshold:
                                   format: int32
                                   type: integer
+                                grpc:
+                                  properties:
+                                    port:
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      type: string
+                                  required:
+                                  - port
+                                  type: object
                                 httpGet:
                                   properties:
                                     host:
@@ -1707,6 +2028,9 @@ spec:
                                   required:
                                   - port
                                   type: object
+                                terminationGracePeriodSeconds:
+                                  format: int64
+                                  type: integer
                                 timeoutSeconds:
                                   format: int32
                                   type: integer
@@ -1733,6 +2057,10 @@ spec:
                                 - containerPort
                                 type: object
                               type: array
+                              x-kubernetes-list-map-keys:
+                              - containerPort
+                              - protocol
+                              x-kubernetes-list-type: map
                             readinessProbe:
                               properties:
                                 exec:
@@ -1745,6 +2073,16 @@ spec:
                                 failureThreshold:
                                   format: int32
                                   type: integer
+                                grpc:
+                                  properties:
+                                    port:
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      type: string
+                                  required:
+                                  - port
+                                  type: object
                                 httpGet:
                                   properties:
                                     host:
@@ -1794,6 +2132,9 @@ spec:
                                   required:
                                   - port
                                   type: object
+                                terminationGracePeriodSeconds:
+                                  format: int64
+                                  type: integer
                                 timeoutSeconds:
                                   format: int32
                                   type: integer
@@ -1860,6 +2201,8 @@ spec:
                                       type: string
                                     gmsaCredentialSpecName:
                                       type: string
+                                    hostProcess:
+                                      type: boolean
                                     runAsUserName:
                                       type: string
                                   type: object
@@ -1876,6 +2219,16 @@ spec:
                                 failureThreshold:
                                   format: int32
                                   type: integer
+                                grpc:
+                                  properties:
+                                    port:
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      type: string
+                                  required:
+                                  - port
+                                  type: object
                                 httpGet:
                                   properties:
                                     host:
@@ -1925,6 +2278,9 @@ spec:
                                   required:
                                   - port
                                   type: object
+                                terminationGracePeriodSeconds:
+                                  format: int64
+                                  type: integer
                                 timeoutSeconds:
                                   format: int32
                                   type: integer
@@ -2216,6 +2572,16 @@ spec:
                                 failureThreshold:
                                   format: int32
                                   type: integer
+                                grpc:
+                                  properties:
+                                    port:
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      type: string
+                                  required:
+                                  - port
+                                  type: object
                                 httpGet:
                                   properties:
                                     host:
@@ -2265,6 +2631,9 @@ spec:
                                   required:
                                   - port
                                   type: object
+                                terminationGracePeriodSeconds:
+                                  format: int64
+                                  type: integer
                                 timeoutSeconds:
                                   format: int32
                                   type: integer
@@ -2307,6 +2676,16 @@ spec:
                                 failureThreshold:
                                   format: int32
                                   type: integer
+                                grpc:
+                                  properties:
+                                    port:
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      type: string
+                                  required:
+                                  - port
+                                  type: object
                                 httpGet:
                                   properties:
                                     host:
@@ -2356,6 +2735,9 @@ spec:
                                   required:
                                   - port
                                   type: object
+                                terminationGracePeriodSeconds:
+                                  format: int64
+                                  type: integer
                                 timeoutSeconds:
                                   format: int32
                                   type: integer
@@ -2422,6 +2804,8 @@ spec:
                                       type: string
                                     gmsaCredentialSpecName:
                                       type: string
+                                    hostProcess:
+                                      type: boolean
                                     runAsUserName:
                                       type: string
                                   type: object
@@ -2438,6 +2822,16 @@ spec:
                                 failureThreshold:
                                   format: int32
                                   type: integer
+                                grpc:
+                                  properties:
+                                    port:
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      type: string
+                                  required:
+                                  - port
+                                  type: object
                                 httpGet:
                                   properties:
                                     host:
@@ -2487,6 +2881,9 @@ spec:
                                   required:
                                   - port
                                   type: object
+                                terminationGracePeriodSeconds:
+                                  format: int64
+                                  type: integer
                                 timeoutSeconds:
                                   format: int32
                                   type: integer
@@ -2544,6 +2941,14 @@ spec:
                       nodeSelector:
                         additionalProperties:
                           type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      os:
+                        properties:
+                          name:
+                            type: string
+                        required:
+                        - name
                         type: object
                       overhead:
                         additionalProperties:
@@ -2633,6 +3038,8 @@ spec:
                                 type: string
                               gmsaCredentialSpecName:
                                 type: string
+                              hostProcess:
+                                type: boolean
                               runAsUserName:
                                 type: string
                             type: object
@@ -2710,7 +3117,9 @@ spec:
                         - whenUnsatisfiable
                         x-kubernetes-list-type: map
                       volumes:
-                        x-kubernetes-preserve-unknown-fields: true
+                        items:
+                          x-kubernetes-preserve-unknown-fields: true
+                        type: array
                     required:
                     - containers
                     type: object
@@ -2735,6 +3144,39 @@ spec:
               abortedAt:
                 format: date-time
                 type: string
+              alb:
+                properties:
+                  canaryTargetGroup:
+                    properties:
+                      arn:
+                        type: string
+                      name:
+                        type: string
+                    required:
+                    - arn
+                    - name
+                    type: object
+                  loadBalancer:
+                    properties:
+                      arn:
+                        type: string
+                      name:
+                        type: string
+                    required:
+                    - arn
+                    - name
+                    type: object
+                  stableTargetGroup:
+                    properties:
+                      arn:
+                        type: string
+                      name:
+                        type: string
+                    required:
+                    - arn
+                    - name
+                    type: object
+                type: object
               availableReplicas:
                 format: int32
                 type: integer
@@ -2798,6 +3240,54 @@ spec:
                     required:
                     - name
                     - status
+                    type: object
+                  stablePingPong:
+                    type: string
+                  weights:
+                    properties:
+                      additional:
+                        items:
+                          properties:
+                            podTemplateHash:
+                              type: string
+                            serviceName:
+                              type: string
+                            weight:
+                              format: int32
+                              type: integer
+                          required:
+                          - weight
+                          type: object
+                        type: array
+                      canary:
+                        properties:
+                          podTemplateHash:
+                            type: string
+                          serviceName:
+                            type: string
+                          weight:
+                            format: int32
+                            type: integer
+                        required:
+                        - weight
+                        type: object
+                      stable:
+                        properties:
+                          podTemplateHash:
+                            type: string
+                          serviceName:
+                            type: string
+                          weight:
+                            format: int32
+                            type: integer
+                        required:
+                        - weight
+                        type: object
+                      verified:
+                        type: boolean
+                    required:
+                    - canary
+                    - stable
                     type: object
                 type: object
               collisionCount:

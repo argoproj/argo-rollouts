@@ -31,7 +31,7 @@ func GetReplicaSetByTemplateHash(allRS []*appsv1.ReplicaSet, podTemplateHash str
 }
 
 func ReadyForPause(rollout *v1alpha1.Rollout, newRS *appsv1.ReplicaSet, allRSs []*appsv1.ReplicaSet) bool {
-	newRSReplicaCount, err := NewRSNewReplicas(rollout, allRSs, newRS)
+	newRSReplicaCount, err := NewRSNewReplicas(rollout, allRSs, newRS, nil)
 	if err != nil {
 		return false
 	}

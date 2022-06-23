@@ -194,3 +194,54 @@ necessary metrics queries, using the `{{templates.baseline.podTemplateHash}}` an
     Rollout. This is despite the fact that the PodSpec are the same. This is intentional behavior,
     in order to allow the metrics of the Experiment's pods to be delineated and queried separately
     from the metrics of the Rollout pods.
+
+
+
+## Weighted Experiment Step with Traffic Routing
+!!! important
+    Available since v1.1
+
+A Rollout using the Canary strategy along with Traffic Routing can 
+split traffic to an experiment stack in a fine-grained manner. When
+Traffic Routing is enabled, the Rollout Experiment step allows
+traffic to be shifted to experiment pods.
+
+!!! note
+    This feature is currently available only for the SMI, ALB, and Istio Traffic Routers.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: guestbook
+  labels:
+    app: guestbook
+spec:
+...
+strategy:
+  canary:
+    trafficRouting:
+      alb:
+        ingress: ingress
+        ...
+    steps:
+      - experiment:
+          duration: 1h
+          templates:
+            - name: experiment-baseline
+              specRef: stable
+              weight: 5
+            - name: experiment-canary
+              specRef: canary
+              weight: 5
+```
+
+In the above example, during an update, the first step would start
+a baseline vs. canary experiment. When pods are ready (Experiment enters
+Running phase), the rollout would direct 5% of traffic to `experiment-canary` and 5%
+to `experiment-baseline`, leaving the remaining 90% of traffic to the old stack.
+
+!!! note
+    When a weighted experiment step with traffic routing is used, a
+    service is auto-created for each experiment template. The traffic routers use
+    this service to send traffic to the experiment pods.

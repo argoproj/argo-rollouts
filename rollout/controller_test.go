@@ -13,7 +13,6 @@ import (
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-mpatch"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -35,7 +34,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	corev1defaults "k8s.io/kubernetes/pkg/apis/core/v1"
-	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
@@ -48,11 +46,15 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/hash"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"github.com/argoproj/argo-rollouts/utils/queue"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 var (
@@ -91,7 +93,7 @@ type fixture struct {
 	analysisTemplateLister        []*v1alpha1.AnalysisTemplate
 	replicaSetLister              []*appsv1.ReplicaSet
 	serviceLister                 []*corev1.Service
-	ingressLister                 []*extensionsv1beta1.Ingress
+	ingressLister                 []*ingressutil.Ingress
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
 	actions     []core.Action
@@ -113,10 +115,13 @@ func newFixture(t *testing.T) *fixture {
 	f.kubeobjects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	patch, err := mpatch.PatchMethod(time.Now, func() time.Time { return now })
-	assert.NoError(t, err)
-	f.unfreezeTime = patch.Unpatch
-	f.fakeTrafficRouting = newFakeTrafficRoutingReconciler()
+	timeutil.Now = func() time.Time { return now }
+	f.unfreezeTime = func() error {
+		timeutil.Now = time.Now
+		return nil
+	}
+
+	f.fakeTrafficRouting = newFakeSingleTrafficRoutingReconciler()
 	return f
 }
 
@@ -174,8 +179,8 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 		status = corev1.ConditionFalse
 	}
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            conditions.RolloutPausedMessage,
 		Reason:             conditions.RolloutPausedReason,
 		Status:             status,
@@ -194,8 +199,8 @@ func newCompletedCondition(isCompleted bool) (v1alpha1.RolloutCondition, string)
 		status = corev1.ConditionFalse
 	}
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            conditions.RolloutCompletedReason,
 		Reason:             conditions.RolloutCompletedReason,
 		Status:             status,
@@ -224,6 +229,9 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 		}
 		if reason == conditions.NewRSAvailableReason {
 			msg = fmt.Sprintf(conditions.ReplicaSetCompletedMessage, resource.Name)
+		}
+		if reason == conditions.ReplicaSetNotAvailableReason {
+			msg = conditions.NotAvailableMessage
 		}
 	case *v1alpha1.Rollout:
 		if reason == conditions.ReplicaSetUpdatedReason {
@@ -272,8 +280,8 @@ func newProgressingCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            msg,
 		Reason:             reason,
 		Status:             status,
@@ -296,8 +304,8 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 
 	}
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            message,
 		Reason:             conditions.AvailableReason,
 		Status:             status,
@@ -356,7 +364,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
 	if pause {
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonBlueGreenPause,
 			StartTime: now,
@@ -394,7 +402,7 @@ func updateBaseRolloutStatus(r *v1alpha1.Rollout, availableReplicas, updatedRepl
 }
 
 func newReplicaSet(r *v1alpha1.Rollout, replicas int) *appsv1.ReplicaSet {
-	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 	rsLabels := map[string]string{
 		v1alpha1.DefaultRolloutUniqueLabelKey: podHash,
 	}
@@ -474,6 +482,7 @@ func getKey(rollout *v1alpha1.Rollout, t *testing.T) string {
 type resyncFunc func() time.Duration
 
 func (f *fixture) newController(resync resyncFunc) (*Controller, informers.SharedInformerFactory, kubeinformers.SharedInformerFactory) {
+	f.t.Helper()
 	f.client = fake.NewSimpleClientset(f.objects...)
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 
@@ -503,7 +512,12 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	})
+	}, true)
+
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, f.kubeclient, k8sI)
+	if err != nil {
+		f.t.Fatal(err)
+	}
 
 	c := NewController(ControllerConfig{
 		Namespace:                       metav1.NamespaceAll,
@@ -516,7 +530,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		ClusterAnalysisTemplateInformer: i.Argoproj().V1alpha1().ClusterAnalysisTemplates(),
 		ReplicaSetInformer:              k8sI.Apps().V1().ReplicaSets(),
 		ServicesInformer:                k8sI.Core().V1().Services(),
-		IngressInformer:                 k8sI.Extensions().V1beta1().Ingresses(),
+		IngressWrapper:                  ingressWrapper,
 		RolloutsInformer:                i.Argoproj().V1alpha1().Rollouts(),
 		IstioPrimaryDynamicClient:       dynamicClient,
 		IstioVirtualServiceInformer:     istioVirtualServiceInformer,
@@ -550,9 +564,13 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
 		c.enqueueRollout(obj)
 	}
-
-	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) {
-		return f.fakeTrafficRouting, nil
+	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
+		if roCtx.rollout.Spec.Strategy.Canary == nil || roCtx.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+			return nil, nil
+		}
+		var reconcilers = []trafficrouting.TrafficRoutingReconciler{}
+		reconcilers = append(reconcilers, f.fakeTrafficRouting)
+		return reconcilers, nil
 	}
 
 	for _, r := range f.rolloutLister {
@@ -570,7 +588,11 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		k8sI.Core().V1().Services().Informer().GetIndexer().Add(s)
 	}
 	for _, i := range f.ingressLister {
-		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+		ing, err := i.GetExtensionsIngress()
+		if err != nil {
+			log.Fatal(err)
+		}
+		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(ing)
 	}
 	for _, at := range f.analysisTemplateLister {
 		i.Argoproj().V1alpha1().AnalysisTemplates().Informer().GetIndexer().Add(at)
@@ -874,7 +896,7 @@ func (f *fixture) verifyPatchedReplicaSet(index int, scaleDownDelaySeconds int32
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
 	}
-	now := metav1.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+	now := timeutil.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
@@ -1156,7 +1178,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 
 		if progressingConditionReason != "" {
 			lastUpdated := metav1.Time{
-				Time: metav1.Now().Add(-10 * time.Second),
+				Time: timeutil.MetaNow().Add(-10 * time.Second),
 			}
 			r.Status.Conditions = []v1alpha1.RolloutCondition{{
 				Type:           v1alpha1.RolloutProgressing,
@@ -1279,7 +1301,7 @@ func TestPodTemplateHashEquivalence(t *testing.T) {
 	var err error
 	// NOTE: This test will fail on every k8s library upgrade.
 	// To fix it, update expectedReplicaSetName to match the new hash.
-	expectedReplicaSetName := "guestbook-586d86c77b"
+	expectedReplicaSetName := "guestbook-6c5667f666"
 
 	r1 := newBlueGreenRollout("guestbook", 1, nil, "active", "")
 	r1Resources := `
@@ -1480,8 +1502,8 @@ func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optional
 	}
 
 	condition := v1alpha1.RolloutCondition{
-		LastTransitionTime: metav1.Now(),
-		LastUpdateTime:     metav1.Now(),
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
 		Message:            msg,
 		Reason:             reason,
 		Status:             status,
@@ -1615,12 +1637,13 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 		}
-		f.ingressLister = append(f.ingressLister, ingress)
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
-		_, err = roCtx.getReferencedIngresses()
+		i, err := roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
+		assert.NotNil(t, i)
 	})
 }
 
@@ -1652,13 +1675,142 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 		}
-		f.ingressLister = append(f.ingressLister, ingress)
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
 	})
+}
+
+func TestGetReferencedAppMeshResources(t *testing.T) {
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		AppMesh: &v1alpha1.AppMeshTrafficRouting{
+			VirtualService: &v1alpha1.AppMeshVirtualService{
+				Name:   "mysvc",
+				Routes: []string{"primary"},
+			},
+			VirtualNodeGroup: &v1alpha1.AppMeshVirtualNodeGroup{
+				CanaryVirtualNodeRef: &v1alpha1.AppMeshVirtualNodeReference{
+					Name: "mysvc-canary-vn",
+				},
+				StableVirtualNodeRef: &v1alpha1.AppMeshVirtualNodeReference{
+					Name: "mysvc-stable-vn",
+				},
+			},
+		},
+	}
+	r.Namespace = "default"
+
+	t.Run("should return error when virtual-service is not defined on rollout", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		rCopy := r.DeepCopy()
+		rCopy.Spec.Strategy.Canary.TrafficRouting.AppMesh.VirtualService = nil
+		roCtx, err := c.newRolloutContext(rCopy)
+		assert.NoError(t, err)
+		_, err = roCtx.getRolloutReferencedResources()
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService"), "null", "must provide virtual-service")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("should return error when virtual-service is not-found", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getRolloutReferencedResources()
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService"), "mysvc.default", "virtualservices.appmesh.k8s.aws \"mysvc\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("should return error when virtual-router is not-found", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		vsvc := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  name: mysvc
+  namespace: default
+spec:
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: mysvc-vrouter
+`
+		uVsvc := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
+		f.objects = append(f.objects, uVsvc)
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getRolloutReferencedResources()
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService"), "mysvc.default", "virtualrouters.appmesh.k8s.aws \"mysvc-vrouter\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("get referenced App Mesh - success", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+
+		vsvc := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  name: mysvc
+  namespace: default
+spec:
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: mysvc-vrouter
+`
+
+		vrouter := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  name: mysvc-vrouter
+  namespace: default
+spec:
+  listeners:
+    - portMapping:
+        port: 8080
+        protocol: http
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: mysvc-canary-vn
+              weight: 0
+            - virtualNodeRef:
+                name: mysvc-stable-vn
+              weight: 100
+`
+
+		uVsvc := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
+		uVrouter := unstructuredutil.StrToUnstructuredUnsafe(vrouter)
+		f.objects = append(f.objects, uVsvc, uVrouter)
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		refRsources, err := roCtx.getRolloutReferencedResources()
+		assert.NoError(t, err)
+		assert.Len(t, refRsources.AppMeshResources, 1)
+		assert.Equal(t, refRsources.AppMeshResources[0].GetKind(), "VirtualRouter")
+	})
+
 }
 
 func TestGetAmbassadorMappings(t *testing.T) {

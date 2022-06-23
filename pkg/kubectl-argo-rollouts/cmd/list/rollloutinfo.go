@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -92,7 +93,7 @@ func (ri *rolloutInfo) String(timestamp, namespace bool) string {
 	}
 	if timestamp {
 		fmtString = "%-20s\t" + fmtString
-		timestampStr := time.Now().UTC().Truncate(time.Second).Format("2006-01-02T15:04:05Z")
+		timestampStr := timeutil.Now().UTC().Truncate(time.Second).Format("2006-01-02T15:04:05Z")
 		args = append([]interface{}{timestampStr}, args...)
 	}
 	return fmt.Sprintf(fmtString, args...)

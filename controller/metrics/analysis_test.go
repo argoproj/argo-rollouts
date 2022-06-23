@@ -54,12 +54,19 @@ metadata:
   namespace: jesse-test
 spec:
   metrics:
-  - name: webmetric
+  - name: web-metric-1
     provider:
       web:
         jsonPath: .
         url: https://www.google.com
     successCondition: "true"
+  - name: web-metric-2
+    dryRun: true
+    provider:
+      web:
+        jsonPath: .
+        url: https://www.msn.com
+    successCondition: "false"
 `
 
 	fakeClusterAnalysisTemplate = `
@@ -67,15 +74,22 @@ apiVersion: argoproj.io/v1alpha1
 kind: ClusterAnalysisTemplate
 metadata:
   creationTimestamp: "2020-03-16T20:01:13Z"
-  name: http-benchmark-test
+  name: http-benchmark-cluster-test
 spec:
   metrics:
-  - name: webmetric
+  - name: web-metric-1
     provider:
       web:
         jsonPath: .
         url: https://www.google.com
     successCondition: "true"
+  - name: web-metric-2
+    dryRun: true
+    provider:
+      web:
+        jsonPath: .
+        url: https://www.msn.com
+    successCondition: "false"
 `
 )
 const expectedAnalysisRunResponse = `# HELP analysis_run_info Information about analysis run.
@@ -83,12 +97,12 @@ const expectedAnalysisRunResponse = `# HELP analysis_run_info Information about 
 analysis_run_info{name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error"} 1
 # HELP analysis_run_metric_phase Information on the duration of a specific metric in the Analysis Run
 # TYPE analysis_run_metric_phase gauge
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="Web"} 1
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed",type="Web"} 0
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive",type="Web"} 0
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending",type="Web"} 0
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running",type="Web"} 0
-analysis_run_metric_phase{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Successful",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Error",type="Web"} 1
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Failed",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Inconclusive",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Pending",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Running",type="Web"} 0
+analysis_run_metric_phase{dry_run="false",metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",phase="Successful",type="Web"} 0
 # HELP analysis_run_metric_type Information on the type of a specific metric in the Analysis Runs
 # TYPE analysis_run_metric_type gauge
 analysis_run_metric_type{metric="webmetric",name="http-benchmark-test-tr8rn",namespace="jesse-test",type="Web"} 1
@@ -162,7 +176,7 @@ analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="1"} 1
 analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="+Inf"} 1
 analysis_run_reconcile_sum{name="ar-test",namespace="ar-namespace"} 0.001
 analysis_run_reconcile_count{name="ar-test",namespace="ar-namespace"} 1`
-	metricsServ := NewMetricsServer(newFakeServerConfig())
+	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
 	ar := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ar-test",
@@ -174,13 +188,16 @@ analysis_run_reconcile_count{name="ar-test",namespace="ar-namespace"} 1`
 }
 
 func TestAnalysisTemplateDescribe(t *testing.T) {
-	expectedResponse := `# TYPE analysis_template_info gauge
-analysis_template_info{name="http-benchmark-test",namespace=""} 1
+	expectedResponse := `# HELP analysis_template_info Information about analysis templates.
+# TYPE analysis_template_info gauge
+analysis_template_info{name="http-benchmark-cluster-test",namespace=""} 1
 analysis_template_info{name="http-benchmark-test",namespace="jesse-test"} 1
 # HELP analysis_template_metric_info Information on metrics in analysis templates.
 # TYPE analysis_template_metric_info gauge
-analysis_template_metric_info{metric="webmetric",name="http-benchmark-test",namespace="",type="Web"} 1
-analysis_template_metric_info{metric="webmetric",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-1",name="http-benchmark-cluster-test",namespace="",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-1",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-2",name="http-benchmark-cluster-test",namespace="",type="Web"} 1
+analysis_template_metric_info{metric="web-metric-2",name="http-benchmark-test",namespace="jesse-test",type="Web"} 1
 `
 	registry := prometheus.NewRegistry()
 	at := newFakeAnalysisTemplate(fakeAnalysisTemplate)

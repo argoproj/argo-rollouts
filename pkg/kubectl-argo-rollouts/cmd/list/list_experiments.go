@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -85,7 +86,7 @@ func (o *ListOptions) PrintExperimentTable(expList *v1alpha1.ExperimentList) err
 	}
 	fmt.Fprintf(w, headerStr)
 	for _, exp := range expList.Items {
-		age := duration.HumanDuration(metav1.Now().Sub(exp.CreationTimestamp.Time))
+		age := duration.HumanDuration(timeutil.MetaNow().Sub(exp.CreationTimestamp.Time))
 		dur := "-"
 		remaining := "-"
 		if exp.Spec.Duration != "" {

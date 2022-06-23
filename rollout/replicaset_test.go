@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func newRolloutControllerRef(r *v1alpha1.Rollout) *metav1.OwnerReference {
@@ -189,14 +190,16 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 		test := tests[i]
 		t.Run(test.name, func(t *testing.T) {
 			test := tests[i]
+			oldRS := rs("foo-v1", test.newReplicas, nil, noTimestamp, nil)
 			newRS := rs("foo-v2", test.newReplicas, nil, noTimestamp, nil)
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
 			roCtx := rolloutContext{
-				log:     logutil.WithRollout(rollout),
-				rollout: rollout,
-				newRS:   newRS,
+				log:      logutil.WithRollout(rollout),
+				rollout:  rollout,
+				newRS:    newRS,
+				stableRS: oldRS,
 				reconcilerBase: reconcilerBase{
 					argoprojclientset: &fake,
 					kubeclientset:     &k8sfake,
@@ -210,7 +213,6 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			roCtx.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {}
 			if test.abortScaleDownDelaySeconds > 0 {
 				rollout.Status.Abort = true
-				// rollout.Spec.ScaleDownOnAbort = true
 				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
 					BlueGreen: &v1alpha1.BlueGreenStrategy{
 						AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
@@ -220,9 +222,9 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				if test.abortScaleDownAnnotated {
 					var deadline string
 					if test.abortScaleDownDelayPassed {
-						deadline = metav1.Now().Add(-time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+						deadline = timeutil.Now().Add(-time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 					} else {
-						deadline = metav1.Now().Add(time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+						deadline = timeutil.Now().Add(time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 					}
 					roCtx.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
 				}

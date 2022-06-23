@@ -14,6 +14,10 @@ type mockAPI struct {
 	warnings v1.Warnings
 }
 
+func (m mockAPI) WalReplay(ctx context.Context) (v1.WalReplayStatus, error) {
+	panic("Not used")
+}
+
 // Query performs a query for the given time.
 func (m mockAPI) Query(ctx context.Context, query string, ts time.Time) (model.Value, v1.Warnings, error) {
 	if m.err != nil {
@@ -93,5 +97,9 @@ func (m mockAPI) TSDB(ctx context.Context) (v1.TSDBResult, error) {
 }
 
 func (m mockAPI) Buildinfo(ctx context.Context) (v1.BuildinfoResult, error) {
+	panic("Not used")
+}
+
+func (m mockAPI) QueryExemplars(ctx context.Context, query string, startTime time.Time, endTime time.Time) ([]v1.ExemplarQueryResult, error) {
 	panic("Not used")
 }

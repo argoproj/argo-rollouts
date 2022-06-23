@@ -3,7 +3,6 @@ package rollout
 import (
 	"context"
 	"fmt"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +11,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/aws"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
@@ -19,6 +19,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututils "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
@@ -77,6 +78,10 @@ func (c *rolloutContext) reconcilePreviewService(previewSvc *corev1.Service) err
 	if previewSvc == nil {
 		return nil
 	}
+	if haltReason := c.haltProgress(); haltReason != "" {
+		c.log.Infof("Skipping preview service reconciliation: %s", haltReason)
+		return nil
+	}
 	newPodHash := c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	err := c.switchServiceSelector(previewSvc, newPodHash, c.rollout)
 	if err != nil {
@@ -87,6 +92,10 @@ func (c *rolloutContext) reconcilePreviewService(previewSvc *corev1.Service) err
 }
 
 func (c *rolloutContext) reconcileActiveService(activeSvc *corev1.Service) error {
+	if haltReason := c.haltProgress(); haltReason != "" {
+		c.log.Infof("Skipping active service reconciliation: %s", haltReason)
+		return nil
+	}
 	if !replicasetutil.ReadyForPause(c.rollout, c.newRS, c.allRSs) || !annotations.IsSaturated(c.rollout, c.newRS) {
 		c.log.Infof("skipping active service switch: New RS '%s' is not fully saturated", c.newRS.Name)
 		return nil
@@ -164,7 +173,7 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 		}
 		if !verifyRes.Verified {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered, verifyRes.EndpointsTotal)
-			c.enqueueRolloutAfter(c.rollout, 10*time.Second)
+			c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 			return nil
 		}
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered)
@@ -233,25 +242,32 @@ func (c *rolloutContext) getPreviewAndActiveServices() (*corev1.Service, *corev1
 	return previewSvc, activeSvc, nil
 }
 
-func (c *rolloutContext) reconcileStableAndCanaryService() error {
-	if c.rollout.Spec.Strategy.Canary == nil {
-		return nil
-	}
-	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS)
-	if err != nil {
-		return err
-	}
-
-	if replicasetutil.IsReplicaSetReady(c.newRS) {
-		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS)
-		if err != nil {
-			return err
-		}
+func (c *rolloutContext) reconcilePingAndPongService() error {
+	if trafficrouting.IsPingPongEnabled(c.rollout) && !rolloututils.IsFullyPromoted(c.rollout) {
+		_, canaryService := trafficrouting.GetStableAndCanaryServices(c.rollout)
+		return c.ensureSVCTargets(canaryService, c.newRS, false)
 	}
 	return nil
 }
 
-func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet) error {
+func (c *rolloutContext) reconcileStableAndCanaryService() error {
+	if c.rollout.Spec.Strategy.Canary == nil {
+		return nil
+	}
+	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS, true)
+	if err != nil {
+		return err
+	}
+	err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS, true)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ensureSVCTargets updates the service with the given name to point to the given ReplicaSet,
+// but only if that ReplicaSet has full availability.
+func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet, checkRsAvailability bool) error {
 	if rs == nil || svcName == "" {
 		return nil
 	}
@@ -259,8 +275,16 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet)
 	if err != nil {
 		return err
 	}
-	if svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] != rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-		err = c.switchServiceSelector(svc, rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], c.rollout)
+	currSelector := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	desiredSelector := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	if currSelector != desiredSelector {
+		// ensure ReplicaSet is fully available, otherwise we will point the service to nothing or an underprovisioned ReplicaSet
+		if checkRsAvailability && !replicasetutil.IsReplicaSetAvailable(rs) {
+			logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
+			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
+			return nil
+		}
+		err = c.switchServiceSelector(svc, desiredSelector, c.rollout)
 		if err != nil {
 			return err
 		}

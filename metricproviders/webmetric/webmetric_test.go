@@ -1,6 +1,7 @@
 package webmetric
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,8 @@ func TestRunSuite(t *testing.T) {
 		webServerStatus      int
 		webServerResponse    string
 		metric               v1alpha1.Metric
+		expectedMethod       string
+		expectedBody         string
 		expectedValue        string
 		expectedPhase        v1alpha1.AnalysisPhase
 		expectedErrorMessage string
@@ -433,7 +436,6 @@ func TestRunSuite(t *testing.T) {
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage: "Could not find JSONPath in body",
 		},
-
 		// When_200Response_And_NilBody_Then_Succeed
 		{
 			webServerStatus: 200,
@@ -477,6 +479,101 @@ func TestRunSuite(t *testing.T) {
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage: "",
 		},
+		// When_methodEmpty_Then_server_gets_GET
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+					},
+				},
+			},
+			expectedMethod: "GET",
+			expectedValue:  `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_methodGET_Then_server_gets_GET
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Method: v1alpha1.WebMetricMethodGet,
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+					},
+				},
+			},
+			expectedMethod: "GET",
+			expectedValue:  `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_methodPOST_Then_server_gets_body
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Method: v1alpha1.WebMetricMethodPost,
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						Body:    "some body",
+					},
+				},
+			},
+			expectedMethod: "POST",
+			expectedBody:   "some body",
+			expectedValue:  `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_methodPUT_Then_server_gets_body
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Method: v1alpha1.WebMetricMethodPut,
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						Body:    "some body",
+					},
+				},
+			},
+			expectedMethod: "PUT",
+			expectedBody:   "some body",
+			expectedValue:  `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:  v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_sendingBodyWithGet_Then_Failure
+		{
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers: []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						Body:    "some body",
+					},
+				},
+			},
+			expectedValue: "Body can only be used with POST or PUT WebMetric Method types",
+			expectedPhase: v1alpha1.AnalysisPhaseError,
+		},
 	}
 
 	// Run
@@ -484,6 +581,16 @@ func TestRunSuite(t *testing.T) {
 	for _, test := range tests {
 		// Server setup with response
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if test.expectedMethod != "" {
+				assert.Equal(t, test.expectedMethod, req.Method)
+			}
+
+			if test.expectedBody != "" {
+				buf := new(bytes.Buffer)
+				buf.ReadFrom(req.Body)
+				assert.Equal(t, test.expectedBody, buf.String())
+			}
+
 			if test.webServerStatus < 200 || test.webServerStatus >= 300 {
 				http.Error(rw, http.StatusText(test.webServerStatus), test.webServerStatus)
 			} else {
@@ -505,6 +612,9 @@ func TestRunSuite(t *testing.T) {
 		jsonparser, err := NewWebMetricJsonParser(test.metric)
 		assert.NoError(t, err)
 		provider := NewWebMetricProvider(*logCtx, server.Client(), jsonparser)
+
+		metricsMetadata := provider.GetMetadata(test.metric)
+		assert.Nil(t, metricsMetadata)
 
 		// Get our result
 		measurement := provider.Run(newAnalysisRun(), test.metric)

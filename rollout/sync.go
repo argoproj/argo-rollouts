@@ -17,12 +17,14 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -139,7 +141,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 	newRSTemplate := *c.rollout.Spec.Template.DeepCopy()
 	// Add default anti-affinity rule if antiAffinity bool set and RSTemplate meets requirements
 	newRSTemplate.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
-	podTemplateSpecHash := controller.ComputeHash(&c.rollout.Spec.Template, c.rollout.Status.CollisionCount)
+	podTemplateSpecHash := hash.ComputePodTemplateHash(&c.rollout.Spec.Template, c.rollout.Status.CollisionCount)
 	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(c.rollout.Spec.Template.Labels, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
 	// Add podTemplateHash label to selector.
 	newRSSelector := labelsutil.CloneSelectorAndAddLabel(c.rollout.Spec.Selector, v1alpha1.DefaultRolloutUniqueLabelKey, podTemplateSpecHash)
@@ -266,8 +268,8 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 }
 
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
-func (c *rolloutContext) syncReplicasOnly(isScaling bool) error {
-	c.log.Infof("Syncing replicas only (userPaused %v, isScaling: %v)", c.rollout.Spec.Paused, isScaling)
+func (c *rolloutContext) syncReplicasOnly() error {
+	c.log.Infof("Syncing replicas only due to scaling event")
 	_, err := c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
 		return err
@@ -276,14 +278,8 @@ func (c *rolloutContext) syncReplicasOnly(isScaling bool) error {
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
 		previewSvc, activeSvc, err := c.getPreviewAndActiveServices()
-		// Keep existing analysis runs if the rollout is paused
-		c.SetCurrentAnalysisRuns(c.currentArs)
 		if err != nil {
 			return nil
-		}
-		err = c.podRestarter.Reconcile(c)
-		if err != nil {
-			return err
 		}
 		if err := c.reconcileBlueGreenReplicaSets(activeSvc); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
@@ -295,37 +291,11 @@ func (c *rolloutContext) syncReplicasOnly(isScaling bool) error {
 	// The controller wants to use the rolloutCanary method to reconcile the rollout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
 	if c.rollout.Spec.Strategy.Canary != nil {
-		err = c.podRestarter.Reconcile(c)
-		if err != nil {
+		if _, err := c.reconcileCanaryReplicaSets(); err != nil {
+			// If we get an error while trying to scale, the rollout will be requeued
+			// so we can abort this resync
 			return err
 		}
-
-		if isScaling {
-			if _, err := c.reconcileCanaryReplicaSets(); err != nil {
-				// If we get an error while trying to scale, the rollout will be requeued
-				// so we can abort this resync
-				return err
-			}
-		}
-		// Reconciling AnalysisRuns to manage Background AnalysisRun if necessary
-		err = c.reconcileAnalysisRuns()
-		if err != nil {
-			return err
-		}
-
-		// reconcileCanaryPause will ensure we will requeue this rollout at the appropriate time
-		// if we are at a pause step with a duration.
-		c.reconcileCanaryPause()
-		err = c.reconcileStableAndCanaryService()
-		if err != nil {
-			return err
-		}
-
-		err = c.reconcileTrafficRouting()
-		if err != nil {
-			return err
-		}
-
 		return c.syncRolloutStatusCanary()
 	}
 	return fmt.Errorf("no rollout strategy provided")
@@ -410,7 +380,7 @@ func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 		// newRS potentially might be nil when called by syncReplicasOnly(). For this
 		// to happen, the user would have had to simultaneously change the number of replicas, and
 		// the pod template spec at the same time.
-		currentPodHash = controller.ComputeHash(&c.rollout.Spec.Template, c.rollout.Status.CollisionCount)
+		currentPodHash = hash.ComputePodTemplateHash(&c.rollout.Spec.Template, c.rollout.Status.CollisionCount)
 		c.log.Infof("Assuming %s for new replicaset pod hash", currentPodHash)
 	} else {
 		currentPodHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -577,6 +547,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
 	isAborted := c.pauseContext.IsAborted()
 
+	var becameIncomplete bool // remember if we transitioned from completed
 	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutCompleted)
 	if !isPaused && conditions.RolloutComplete(c.rollout, &newStatus) {
 		updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
@@ -584,7 +555,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	} else {
 		if completeCond != nil {
 			updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionFalse, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
-			conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+			becameIncomplete = conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
 		}
 	}
 
@@ -619,14 +590,26 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			msg := fmt.Sprintf(conditions.ReplicaSetCompletedMessage, rsName)
 			progressingCondition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, msg)
 			conditions.SetRolloutCondition(&newStatus, *progressingCondition)
-		case conditions.RolloutProgressing(c.rollout, &newStatus):
+		case conditions.RolloutProgressing(c.rollout, &newStatus) || becameIncomplete:
 			// If there is any progress made, continue by not checking if the rollout failed. This
 			// behavior emulates the rolling updater progressDeadline check.
 			msg := fmt.Sprintf(conditions.RolloutProgressingMessage, c.rollout.Name)
 			if c.newRS != nil {
 				msg = fmt.Sprintf(conditions.ReplicaSetProgressingMessage, c.newRS.Name)
 			}
-			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, conditions.ReplicaSetUpdatedReason, msg)
+
+			var reason string
+			if newStatus.StableRS == newStatus.CurrentPodHash && becameIncomplete {
+				// When a fully promoted rollout becomes Incomplete, e.g., due to the ReplicaSet status changes like
+				// pod restarts, evicted -> recreated, we'll need to reset the rollout's condition to `PROGRESSING` to
+				// avoid any timeouts.
+				reason = conditions.ReplicaSetNotAvailableReason
+				msg = conditions.NotAvailableMessage
+			} else {
+				reason = conditions.ReplicaSetUpdatedReason
+			}
+			condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionTrue, reason, msg)
+
 			// Update the current Progressing condition or add a new one if it doesn't exist.
 			// If a Progressing condition with status=true already exists, we should update
 			// everything but lastTransitionTime. SetRolloutCondition already does that but
@@ -932,6 +915,13 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 	previousStableHash := newStatus.StableRS
 	if previousStableHash != newStatus.CurrentPodHash {
 		// only emit this event when we switched stable
+		if trafficrouting.IsPingPongEnabled(c.rollout) {
+			if trafficrouting.IsStablePing(c.rollout) {
+				newStatus.Canary.StablePingPong = v1alpha1.PPPong
+			} else {
+				newStatus.Canary.StablePingPong = v1alpha1.PPPing
+			}
+		}
 		newStatus.StableRS = newStatus.CurrentPodHash
 		revision, _ := replicasetutil.Revision(c.rollout)
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},

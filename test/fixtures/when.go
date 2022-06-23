@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-
 	"github.com/ghodss/yaml"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/cache"
 	watchutil "k8s.io/client-go/tools/watch"
 	retryutil "k8s.io/client-go/util/retry"
@@ -76,7 +75,7 @@ func (w *When) injectDelays(un *unstructured.Unstructured) {
 	if E2EPodDelay == 0 {
 		return
 	}
-	sleepHandler := corev1.Handler{
+	sleepHandler := corev1.LifecycleHandler{
 		Exec: &corev1.ExecAction{
 			Command: []string{"sleep", strconv.Itoa(E2EPodDelay)},
 		},
@@ -265,6 +264,48 @@ func (w *When) WaitForRolloutStatus(status string, timeout ...time.Duration) *Wh
 		return string(s) == status
 	}
 	return w.WaitForRolloutCondition(checkStatus, fmt.Sprintf("status=%s", status), timeout...)
+}
+
+func (w *When) MarkPodsReady(revision string, count int, timeouts ...time.Duration) *When {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	timeout := E2EWaitTimeout
+	if len(timeouts) > 0 {
+		timeout = timeouts[0]
+	}
+	timeoutCh := make(chan bool, 1)
+	go func() {
+		time.Sleep(timeout)
+		timeoutCh <- true
+	}()
+	for {
+		select {
+		case <-ticker.C:
+			marked := w.Common.MarkPodsReady(revision, count)
+			count -= marked
+			if count <= 0 {
+				return w
+			}
+		case <-timeoutCh:
+			w.t.Fatalf("timeout after %v waiting for marking pods ready", timeout)
+		}
+	}
+}
+
+func (w *When) WaitForRevisionPodCount(revision string, count int, timeouts ...time.Duration) *When {
+	checkCount := func(ro *rov1.Rollout) bool {
+		actual := 0
+		pods := w.GetPodsByRevision(revision)
+		for _, pod := range pods.Items {
+			if pod.DeletionTimestamp != nil {
+				continue
+			}
+			actual += 1
+		}
+		return actual == count
+	}
+	return w.WaitForRolloutCondition(checkCount, fmt.Sprintf("rev=%s podcount=%d", revision, count), timeouts...)
+
 }
 
 func (w *When) Wait(duration time.Duration) *When {

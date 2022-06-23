@@ -8,11 +8,12 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/controller"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutsclient "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/typed/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/hash"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 var terminateExperimentPatch = []byte(`{"spec":{"terminate":true}}`)
@@ -88,7 +89,7 @@ func PassedDurations(experiment *v1alpha1.Experiment) (bool, time.Duration) {
 	if experiment.Status.AvailableAt == nil {
 		return false, 0
 	}
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	dur, err := experiment.Spec.Duration.Duration()
 	if err != nil {
 		return false, 0
@@ -130,8 +131,9 @@ func GetCollisionCountForTemplate(experiment *v1alpha1.Experiment, template v1al
 
 // ReplicasetNameFromExperiment gets the replicaset name based off of the experiment and the template
 func ReplicasetNameFromExperiment(experiment *v1alpha1.Experiment, template v1alpha1.TemplateSpec) string {
+	// todo: review this method for deletion as it's not using
 	collisionCount := GetCollisionCountForTemplate(experiment, template)
-	podTemplateSpecHash := controller.ComputeHash(&template.Template, collisionCount)
+	podTemplateSpecHash := hash.ComputePodTemplateHash(&template.Template, collisionCount)
 	return fmt.Sprintf("%s-%s-%s", experiment.Name, template.Name, podTemplateSpecHash)
 }
 

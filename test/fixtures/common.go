@@ -21,7 +21,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -36,6 +37,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/get"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
@@ -166,6 +168,50 @@ func (c *Common) GetPodsByRevision(revision string) *corev1.PodList {
 		podList.Items = append(podList.Items, *pod)
 	}
 	return &podList
+}
+
+// MarkPodsReady is a helper to mark the readiness gates of pods of a particular revision as ready.
+func (c *Common) MarkPodsReady(revision string, quantity int) int {
+	rs := c.GetReplicaSetByRevision(revision)
+	pods, err := replicasetutil.GetPodsOwnedByReplicaSet(c.Context, c.kubeClient, rs)
+	c.CheckError(err)
+	podIf := c.kubeClient.CoreV1().Pods(rs.Namespace)
+	marked := 0
+	// c.log.Infof("Marking %d pods as ready", quantity)
+	for _, pod := range pods {
+		if marked < quantity {
+			foundIdx := -1
+			for i, cond := range pod.Status.Conditions {
+				if cond.Type == "argoproj.io/e2e-readiness" {
+					foundIdx = i
+				}
+			}
+			if foundIdx >= 0 {
+				continue
+			}
+			// retry multiple times to deal with resource conflicts
+			for i := 0; i < 5; i++ {
+				pod, err = podIf.Get(c.Context, pod.Name, metav1.GetOptions{})
+				c.CheckError(err)
+				pod.Status.Conditions = append(pod.Status.Conditions, corev1.PodCondition{
+					Type:   "argoproj.io/e2e-readiness",
+					Status: "True",
+				})
+				_, err := podIf.UpdateStatus(c.Context, pod, metav1.UpdateOptions{})
+				if err == nil {
+					break
+				}
+				if !k8serrors.IsConflict(err) {
+					c.t.Fatalf("Could not set readiness on pod: %v", err)
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+			//c.log.Infof("Conditions: %v", pod.Status.Conditions)
+			marked += 1
+		}
+	}
+	c.log.Infof("Marked %d revision %s pods as ready", marked, revision)
+	return marked
 }
 
 func (c *Common) GetRolloutAnalysisRuns() rov1.AnalysisRunList {
@@ -482,10 +528,26 @@ func (c *Common) GetServices() (*corev1.Service, *corev1.Service) {
 	return desiredSvc, stableSvc
 }
 
-func (c *Common) GetALBIngress() *extensionsv1beta1.Ingress {
+func (c *Common) GetALBIngress() *networkingv1.Ingress {
 	ro := c.Rollout()
 	name := ro.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
-	ingress, err := c.kubeClient.ExtensionsV1beta1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	ingress, err := c.kubeClient.NetworkingV1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ingress
+}
+
+func (c *Common) GetNginxIngressStable() *networkingv1.Ingress {
+	ro := c.Rollout()
+	name := ro.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
+	ingress, err := c.kubeClient.NetworkingV1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return ingress
+}
+
+func (c *Common) GetNginxIngressCanary() *networkingv1.Ingress {
+	ro := c.Rollout()
+	name := ro.Name + "-" + ro.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress + "-canary"
+	ingress, err := c.kubeClient.NetworkingV1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
 	c.CheckError(err)
 	return ingress
 }
@@ -508,6 +570,19 @@ func (c *Common) GetVirtualService() *istio.VirtualService {
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(vsvcUn.Object, &vsvc)
 	c.CheckError(err)
 	return &vsvc
+}
+
+func (c *Common) GetAppMeshVirtualRouter() *unstructured.Unstructured {
+	ro := c.Rollout()
+	ctx := context.TODO()
+	resClient := appmesh.NewResourceClient(c.dynamicClient)
+	name := ro.Spec.Strategy.Canary.TrafficRouting.AppMesh.VirtualService.Name
+	c.log.Infof("GetVirtualServiceCR with namespace(%s), name(%s)", c.namespace, name)
+	uVsvc, err := resClient.GetVirtualServiceCR(ctx, c.namespace, name)
+	c.CheckError(err)
+	uVr, err := resClient.GetVirtualRouterCRForVirtualService(ctx, uVsvc)
+	c.CheckError(err)
+	return uVr
 }
 
 func (c *Common) GetDestinationRule() *istio.DestinationRule {

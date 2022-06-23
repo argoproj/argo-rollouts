@@ -24,6 +24,8 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/aws/mocks"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -488,11 +490,13 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc, ep)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 	f.expectGetEndpointsAction(ep)
 	f.run(getKey(r2, t))
@@ -580,11 +584,13 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc, ep)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 	f.expectGetEndpointsAction(ep)
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
@@ -617,7 +623,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 
 	rs1 := newReplicaSetWithStatus(r1, 3, 3)
 	// set an annotation on old RS to cause verification to be skipped
-	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = metav1.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)
+	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = timeutil.Now().Add(600 * time.Second).UTC().Format(time.RFC3339)
 	rs2 := newReplicaSetWithStatus(r2, 3, 3)
 
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
@@ -637,11 +643,13 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, ing, rootSvc, canarySvc, stableSvc)
 	f.serviceLister = append(f.serviceLister, rootSvc, canarySvc, stableSvc)
+	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 	f.run(getKey(r2, t)) // there should be no api calls
 	f.assertEvents(nil)
@@ -729,4 +737,54 @@ func TestShouldVerifyTargetGroups(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, roCtx.shouldVerifyTargetGroup(activeSvc))
 	})
+}
+
+// TestDelayCanaryStableServiceLabelInjection verifies we don't inject pod hash labels to the canary
+// or stable service before the pods for them are ready.
+func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
+	ro1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	ro1.Spec.Strategy.Canary.CanaryService = "canary"
+	ro1.Spec.Strategy.Canary.StableService = "stable"
+	canarySvc := newService("canary", 80, ro1.Spec.Selector.MatchLabels, nil)
+	stableSvc := newService("stable", 80, ro1.Spec.Selector.MatchLabels, nil)
+	ro2 := bumpVersion(ro1)
+
+	f := newFixture(t)
+	defer f.Close()
+	f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	{
+		// first ensure we don't update service because new/stable are both not available
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 0)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 0)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		_, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, canaryInjected)
+		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, stableInjected)
+	}
+	{
+		// next ensure we do update service because new/stable are now available
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 3)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 3)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		_, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, canaryInjected)
+		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, stableInjected)
+	}
+
 }

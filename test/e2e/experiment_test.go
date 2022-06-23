@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -16,6 +17,7 @@ import (
 type ExperimentSuite struct {
 	fixtures.E2ESuite
 }
+
 // TestRolloutWithExperimentAndAnalysis this tests the ability for a rollout to launch an experiment,
 // and use self-referencing features/pass metadata arguments to the experiment and analysis, such as:
 //  * specRef: stable
@@ -95,6 +97,26 @@ func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service", "test", 0).
 		ExpectExperimentServiceCount("experiment-with-service", 0)
+}
+
+func (s *ExperimentSuite) TestExperimentWithDryRunMetrics() {
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-dry-run-analysis.yaml")
+	g.When().
+		WaitForExperimentPhase("experiment-with-dry-run", "Successful").
+		Sleep(time.Second*3).
+		Then().
+		ExpectExperimentDryRunSummary(1, 0, 1, "experiment-with-dry-run")
+}
+
+func (s *ExperimentSuite) TestExperimentWithMeasurementRetentionMetrics() {
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-measurement-retention-analysis.yaml")
+	g.When().
+		WaitForExperimentPhase("experiment-with-mr", "Successful").
+		Sleep(time.Second*3).
+		Then().
+		ExpectExperimentMeasurementsLength(0, 2, "experiment-with-mr")
 }
 
 func TestExperimentSuite(t *testing.T) {

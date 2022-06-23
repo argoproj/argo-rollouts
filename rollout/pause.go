@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 type pauseContext struct {
@@ -56,7 +57,7 @@ func (pCtx *pauseContext) ClearPauseConditions() {
 }
 
 func (pCtx *pauseContext) CalculatePauseStatus(newStatus *v1alpha1.RolloutStatus) {
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	// if we are already aborted, preserve the original timestamp, otherwise we'll cause a
 	// reconciliation hot-loop.
 	newAbortedAt := pCtx.rollout.Status.AbortedAt
@@ -163,7 +164,7 @@ func (pCtx *pauseContext) CompletedBlueGreenPause() bool {
 		}
 		if pauseCond != nil {
 			switchDeadline := pauseCond.StartTime.Add(time.Duration(autoPromotionSeconds) * time.Second)
-			now := metav1.Now()
+			now := timeutil.MetaNow()
 			if now.After(switchDeadline) {
 				return true
 			}
@@ -189,7 +190,7 @@ func (pCtx *pauseContext) CompletedCanaryPauseStep(pause v1alpha1.RolloutPause) 
 		pCtx.log.Info("Rollout has been unpaused")
 		return true
 	} else if pause.Duration != nil {
-		now := metav1.Now()
+		now := timeutil.MetaNow()
 		if pauseCondition != nil {
 			expiredTime := pauseCondition.StartTime.Add(time.Duration(pause.DurationSeconds()) * time.Second)
 			if now.After(expiredTime) {
@@ -202,7 +203,7 @@ func (pCtx *pauseContext) CompletedCanaryPauseStep(pause v1alpha1.RolloutPause) 
 }
 
 func (c *rolloutContext) checkEnqueueRolloutDuringWait(startTime metav1.Time, durationInSeconds int32) {
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	expiredTime := startTime.Add(time.Duration(durationInSeconds) * time.Second)
 	nextResync := now.Add(c.resyncPeriod)
 	if nextResync.After(expiredTime) && expiredTime.After(now.Time) {

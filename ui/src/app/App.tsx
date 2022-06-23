@@ -3,7 +3,7 @@ import {Header} from './components/header/header';
 import {createBrowserHistory} from 'history';
 import * as React from 'react';
 import {Key, KeybindingContext, KeybindingProvider} from 'react-keyhooks';
-import {Redirect, Route, Router, Switch} from 'react-router-dom';
+import {Route, Router, Switch} from 'react-router-dom';
 import './App.scss';
 import {NamespaceContext, RolloutAPI} from './shared/context/api';
 import {Modal} from './components/modal/modal';
@@ -60,12 +60,23 @@ const App = () => {
     const [namespace, setNamespace] = React.useState(init);
     const [availableNamespaces, setAvailableNamespaces] = React.useState([]);
     React.useEffect(() => {
-        RolloutAPI.rolloutServiceGetNamespace().then((info) => {
-            if (!namespace) {
-                setNamespace(info.namespace);
-            }
-            setAvailableNamespaces(info.availableNamespaces);
-        });
+        try {
+            RolloutAPI.rolloutServiceGetNamespace()
+                .then((info) => {
+                    if (!info) {
+                        throw new Error();
+                    }
+                    if (!namespace) {
+                        setNamespace(info.namespace);
+                    }
+                    setAvailableNamespaces(info.availableNamespaces);
+                })
+                .catch((e) => {
+                    setAvailableNamespaces([namespace]);
+                });
+        } catch (e) {
+            setAvailableNamespaces([namespace]);
+        }
     }, []);
     const changeNamespace = (val: string) => {
         setNamespace(val);
@@ -79,11 +90,9 @@ const App = () => {
                     <KeybindingProvider>
                         <Router history={history}>
                             <Switch>
-                                <Redirect exact={true} path='/' to='/rollouts' />
-
                                 <Page
                                     exact
-                                    path='/rollouts'
+                                    path='/'
                                     component={<RolloutsList />}
                                     shortcuts={[
                                         {key: '/', description: 'Search'},
@@ -94,8 +103,6 @@ const App = () => {
                                     changeNamespace={changeNamespace}
                                 />
                                 <Page path='/rollout/:name' component={<Rollout />} changeNamespace={changeNamespace} />
-
-                                <Redirect path='*' to='/' />
                             </Switch>
                         </Router>
                     </KeybindingProvider>

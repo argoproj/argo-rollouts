@@ -180,7 +180,7 @@ rollout_reconcile_sum{name="ro-test",namespace="ro-namespace"} 0.001
 rollout_reconcile_count{name="ro-test",namespace="ro-namespace"} 1
 `
 
-	metricsServ := NewMetricsServer(newFakeServerConfig())
+	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ro-test",
@@ -271,6 +271,17 @@ func TestGetStrategyAndTrafficRouter(t *testing.T) {
 			expectedStrategy:      "canary",
 			expectedTrafficRouter: "Nginx",
 		},
+		{
+			strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						AppMesh: &v1alpha1.AppMeshTrafficRouting{},
+					},
+				},
+			},
+			expectedStrategy:      "canary",
+			expectedTrafficRouter: "AppMesh",
+		},
 	}
 
 	for _, test := range tests {
@@ -294,7 +305,7 @@ rollout_events_total{name="ro-test-1",namespace="ro-namespace",reason="FooEvent"
 rollout_events_total{name="ro-test-2",namespace="ro-namespace",reason="BazEvent",type="Warning"} 2
 `
 
-	metricsServ := NewMetricsServer(newFakeServerConfig())
+	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-1", corev1.EventTypeNormal, "FooEvent").Inc()
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-1", corev1.EventTypeNormal, "BarEvent").Inc()
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-2", corev1.EventTypeWarning, "BazEvent").Inc()

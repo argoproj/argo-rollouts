@@ -12,21 +12,19 @@ import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
-	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
-	extensionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubectl/pkg/util/slice"
@@ -42,17 +40,20 @@ import (
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	controllerutil "github.com/argoproj/argo-rollouts/utils/controller"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -95,7 +96,7 @@ type ControllerConfig struct {
 	ClusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer
 	ReplicaSetInformer              appsinformers.ReplicaSetInformer
 	ServicesInformer                coreinformers.ServiceInformer
-	IngressInformer                 extensionsinformers.IngressInformer
+	IngressWrapper                  IngressWrapper
 	RolloutsInformer                informers.RolloutInformer
 	IstioPrimaryDynamicClient       dynamic.Interface
 	IstioVirtualServiceInformer     cache.SharedIndexInformer
@@ -129,7 +130,7 @@ type reconcilerBase struct {
 	rolloutsSynced                cache.InformerSynced
 	rolloutsIndexer               cache.Indexer
 	servicesLister                v1.ServiceLister
-	ingressesLister               extensionslisters.IngressLister
+	ingressWrapper                IngressWrapper
 	experimentsLister             listers.ExperimentLister
 	analysisRunLister             listers.AnalysisRunLister
 	analysisTemplateLister        listers.AnalysisTemplateLister
@@ -139,13 +140,20 @@ type reconcilerBase struct {
 	podRestarter RolloutPodRestarter
 
 	// used for unit testing
-	enqueueRollout              func(obj interface{})                                                        //nolint:structcheck
-	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                                //nolint:structcheck
-	newTrafficRoutingReconciler func(roCtx *rolloutContext) (trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
+	enqueueRollout              func(obj interface{})                                                          //nolint:structcheck
+	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                                  //nolint:structcheck
+	newTrafficRoutingReconciler func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
 
 	// recorder is an event recorder for recording Event resources to the Kubernetes API.
 	recorder     record.EventRecorder
 	resyncPeriod time.Duration
+}
+
+type IngressWrapper interface {
+	GetCached(namespace, name string) (*ingressutil.Ingress, error)
+	Get(ctx context.Context, namespace, name string, opts metav1.GetOptions) (*ingressutil.Ingress, error)
+	Patch(ctx context.Context, namespace, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (*ingressutil.Ingress, error)
+	Create(ctx context.Context, namespace string, ingress *ingressutil.Ingress, opts metav1.CreateOptions) (*ingressutil.Ingress, error)
 }
 
 // NewController returns a new rollout controller
@@ -176,7 +184,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		rolloutsLister:                cfg.RolloutsInformer.Lister(),
 		rolloutsSynced:                cfg.RolloutsInformer.Informer().HasSynced,
 		servicesLister:                cfg.ServicesInformer.Lister(),
-		ingressesLister:               cfg.IngressInformer.Lister(),
+		ingressWrapper:                cfg.IngressWrapper,
 		experimentsLister:             cfg.ExperimentInformer.Lister(),
 		analysisRunLister:             cfg.AnalysisRunInformer.Lister(),
 		analysisTemplateLister:        cfg.AnalysisTemplateInformer.Lister(),
@@ -211,7 +219,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		VirtualServiceInformer:  cfg.IstioVirtualServiceInformer,
 		DestinationRuleInformer: cfg.IstioDestinationRuleInformer,
 	})
-
 	controller.newTrafficRoutingReconciler = controller.NewTrafficRoutingReconciler
 
 	log.Info("Setting up event handlers")
@@ -336,7 +343,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 // with the current status of the resource.
 func (c *Controller) syncHandler(key string) error {
 	ctx := context.TODO()
-	startTime := time.Now()
+	startTime := timeutil.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -384,7 +391,10 @@ func (c *Controller) syncHandler(key string) error {
 	if rollout.Spec.Replicas == nil {
 		logCtx.Info("Defaulting .spec.replica to 1")
 		r.Spec.Replicas = pointer.Int32Ptr(defaults.DefaultReplicas)
-		_, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
+		newRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Update(ctx, r, metav1.UpdateOptions{})
+		if err == nil {
+			c.writeBackToInformer(newRollout)
+		}
 		return err
 	}
 
@@ -424,7 +434,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 	}
 
 	newRS := replicasetutil.FindNewReplicaSet(rollout, rsList)
-	olderRSs := replicasetutil.FindOldReplicaSets(rollout, rsList)
+	olderRSs := replicasetutil.FindOldReplicaSets(rollout, rsList, newRS)
 	stableRS := replicasetutil.GetStableRS(rollout, newRS, olderRSs)
 	otherRSs := replicasetutil.GetOtherRSs(rollout, newRS, stableRS, rsList)
 
@@ -456,6 +466,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		otherExs:   otherExs,
 		newStatus: v1alpha1.RolloutStatus{
 			RestartedAt: rollout.Status.RestartedAt,
+			ALB:         rollout.Status.ALB,
 		},
 		pauseContext: &pauseContext{
 			rollout: rollout,
@@ -463,6 +474,8 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		},
 		reconcilerBase: c.reconcilerBase,
 	}
+	// carry over existing recorded weights
+	roCtx.newStatus.Canary.Weights = rollout.Status.Canary.Weights
 	return &roCtx, nil
 }
 
@@ -545,7 +558,47 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 	}
 	refResources.AmbassadorMappings = ambassadorMappings
 
+	appmeshResources, err := c.getReferencedAppMeshResources()
+	if err != nil {
+		return nil, err
+	}
+	refResources.AppMeshResources = appmeshResources
+
 	return &refResources, nil
+}
+
+func (c *rolloutContext) getReferencedAppMeshResources() ([]unstructured.Unstructured, error) {
+	ctx := context.TODO()
+	appmeshClient := appmesh.NewResourceClient(c.dynamicclientset)
+	rollout := c.rollout
+	refResources := []unstructured.Unstructured{}
+	if rollout.Spec.Strategy.Canary != nil {
+		canary := rollout.Spec.Strategy.Canary
+		if canary.TrafficRouting != nil && canary.TrafficRouting.AppMesh != nil {
+			fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "appmesh", "virtualService")
+			tr := canary.TrafficRouting.AppMesh
+			if tr.VirtualService == nil {
+				return nil, field.Invalid(fldPath, nil, "must provide virtual-service")
+			}
+
+			vsvc, err := appmeshClient.GetVirtualServiceCR(ctx, c.rollout.Namespace, tr.VirtualService.Name)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, field.Invalid(fldPath, fmt.Sprintf("%s.%s", tr.VirtualService.Name, c.rollout.Namespace), err.Error())
+				}
+				return nil, err
+			}
+			vr, err := appmeshClient.GetVirtualRouterCRForVirtualService(ctx, vsvc)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, field.Invalid(fldPath, fmt.Sprintf("%s.%s", tr.VirtualService.Name, c.rollout.Namespace), err.Error())
+				}
+				return nil, err
+			}
+			refResources = append(refResources, *vr)
+		}
+	}
+	return refResources, nil
 }
 
 func (c *rolloutContext) getAmbassadorMappings() ([]unstructured.Unstructured, error) {
@@ -576,67 +629,58 @@ func (c *rolloutContext) getAmbassadorMappings() ([]unstructured.Unstructured, e
 }
 
 func (c *rolloutContext) getReferencedServices() (*[]validation.ServiceWithType, error) {
-	services := []validation.ServiceWithType{}
-	if c.rollout.Spec.Strategy.BlueGreen != nil {
-		if c.rollout.Spec.Strategy.BlueGreen.ActiveService != "" {
-			activeSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.BlueGreen.ActiveService)
-			if k8serrors.IsNotFound(err) {
-				fldPath := validation.GetServiceWithTypeFieldPath(validation.ActiveService)
-				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.BlueGreen.ActiveService, err.Error())
-			}
-			if err != nil {
-				return nil, err
-			}
-			services = append(services, validation.ServiceWithType{
-				Service: activeSvc,
-				Type:    validation.ActiveService,
-			})
+	var services []validation.ServiceWithType
+	if bluegreenSpec := c.rollout.Spec.Strategy.BlueGreen; bluegreenSpec != nil {
+		if service, err := c.getReferencedService(bluegreenSpec.ActiveService, validation.ActiveService); service != nil {
+			services = append(services, *service)
+		} else if err != nil {
+			return nil, err
 		}
-		if c.rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
-			previewSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.BlueGreen.PreviewService)
-			if k8serrors.IsNotFound(err) {
-				fldPath := validation.GetServiceWithTypeFieldPath(validation.PreviewService)
-				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.BlueGreen.PreviewService, err.Error())
-			}
-			if err != nil {
-				return nil, err
-			}
-			services = append(services, validation.ServiceWithType{
-				Service: previewSvc,
-				Type:    validation.PreviewService,
-			})
+		if service, err := c.getReferencedService(bluegreenSpec.PreviewService, validation.PreviewService); service != nil {
+			services = append(services, *service)
+		} else if err != nil {
+			return nil, err
 		}
-	} else if c.rollout.Spec.Strategy.Canary != nil {
-		if c.rollout.Spec.Strategy.Canary.StableService != "" {
-			stableSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.StableService)
-			if k8serrors.IsNotFound(err) {
-				fldPath := validation.GetServiceWithTypeFieldPath(validation.StableService)
-				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.Canary.StableService, err.Error())
-			}
-			if err != nil {
-				return nil, err
-			}
-			services = append(services, validation.ServiceWithType{
-				Service: stableSvc,
-				Type:    validation.StableService,
-			})
+	} else if canarySpec := c.rollout.Spec.Strategy.Canary; canarySpec != nil {
+		if service, err := c.getReferencedService(canarySpec.StableService, validation.StableService); service != nil {
+			services = append(services, *service)
+		} else if err != nil {
+			return nil, err
 		}
-		if c.rollout.Spec.Strategy.Canary.CanaryService != "" {
-			canarySvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.CanaryService)
-			if k8serrors.IsNotFound(err) {
-				fldPath := validation.GetServiceWithTypeFieldPath(validation.CanaryService)
-				return nil, field.Invalid(fldPath, c.rollout.Spec.Strategy.Canary.CanaryService, err.Error())
-			}
-			if err != nil {
+		if service, err := c.getReferencedService(canarySpec.CanaryService, validation.CanaryService); service != nil {
+			services = append(services, *service)
+		} else if err != nil {
+			return nil, err
+		}
+		if canarySpec.PingPong != nil {
+			if service, err := c.getReferencedService(canarySpec.PingPong.PingService, validation.PingService); service != nil {
+				services = append(services, *service)
+			} else if err != nil {
 				return nil, err
 			}
-			services = append(services, validation.ServiceWithType{
-				Service: canarySvc,
-				Type:    validation.CanaryService,
-			})
+			if service, err := c.getReferencedService(canarySpec.PingPong.PongService, validation.PongService); service != nil {
+				services = append(services, *service)
+			} else if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return &services, nil
+}
+
+func (c *rolloutContext) getReferencedService(serviceName string, serviceType validation.ServiceType) (*validation.ServiceWithType, error) {
+	if serviceName != "" {
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(serviceName)
+		if k8serrors.IsNotFound(err) {
+			fldPath := validation.GetServiceWithTypeFieldPath(serviceType)
+			return nil, field.Invalid(fldPath, serviceName, err.Error())
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &validation.ServiceWithType{Service: svc, Type: serviceType}, nil
+	}
+	return nil, nil
 }
 
 func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisTemplatesWithType, error) {
@@ -721,13 +765,13 @@ func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollou
 	}, nil
 }
 
-func (c *rolloutContext) getReferencedIngresses() (*[]v1beta1.Ingress, error) {
-	ingresses := []v1beta1.Ingress{}
+func (c *rolloutContext) getReferencedIngresses() (*[]ingressutil.Ingress, error) {
+	ingresses := []ingressutil.Ingress{}
 	canary := c.rollout.Spec.Strategy.Canary
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
 	if canary != nil && canary.TrafficRouting != nil {
 		if canary.TrafficRouting.ALB != nil {
-			ingress, err := c.ingressesLister.Ingresses(c.rollout.Namespace).Get(canary.TrafficRouting.ALB.Ingress)
+			ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.ALB.Ingress)
 			if k8serrors.IsNotFound(err) {
 				return nil, field.Invalid(fldPath.Child("alb", "ingress"), canary.TrafficRouting.ALB.Ingress, err.Error())
 			}
@@ -736,7 +780,7 @@ func (c *rolloutContext) getReferencedIngresses() (*[]v1beta1.Ingress, error) {
 			}
 			ingresses = append(ingresses, *ingress)
 		} else if canary.TrafficRouting.Nginx != nil {
-			ingress, err := c.ingressesLister.Ingresses(c.rollout.Namespace).Get(canary.TrafficRouting.Nginx.StableIngress)
+			ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.Nginx.StableIngress)
 			if k8serrors.IsNotFound(err) {
 				return nil, field.Invalid(fldPath.Child("nginx", "stableIngress"), canary.TrafficRouting.Nginx.StableIngress, err.Error())
 			}

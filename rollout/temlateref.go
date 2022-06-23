@@ -20,6 +20,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -245,12 +246,22 @@ func (r *informerBasedTemplateResolver) updateRolloutsReferenceAnnotation(obj in
 	updateAnnotation = func(ro *v1alpha1.Rollout) {
 		updated := annotations.SetRolloutWorkloadRefGeneration(ro, generation)
 		if updated {
-			// update the annotation causes the rollout to be requeued and the template will be resolved to the referred
-			// workload during next reconciliation
-			ro.Spec.Template.Spec.Containers = []corev1.Container{}
-			_, err := r.argoprojclientset.ArgoprojV1alpha1().Rollouts(ro.Namespace).Update(context.TODO(), ro, v1.UpdateOptions{})
+
+			patch := map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": map[string]interface{}{
+						annotations.WorkloadGenerationAnnotation: ro.Annotations[annotations.WorkloadGenerationAnnotation],
+					},
+				},
+			}
+			patchData, err := json.Marshal(patch)
+			if err == nil {
+				_, err = r.argoprojclientset.ArgoprojV1alpha1().Rollouts(ro.Namespace).Patch(
+					context.TODO(), ro.GetName(), types.MergePatchType, patchData, v1.PatchOptions{})
+			}
+
 			if err != nil {
-				log.Errorf("Cannot update the workload-ref/annotation for %s/%s", ro.GetName(), ro.GetNamespace())
+				log.Errorf("Cannot update the workload-ref/annotation for %s/%s: %v", ro.GetName(), ro.GetNamespace(), err)
 			}
 		}
 	}

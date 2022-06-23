@@ -4,17 +4,17 @@ import (
 	"sort"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/duration"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets []*appsv1.ReplicaSet, allPods []*corev1.Pod) []*rollout.ReplicaSetInfo {
@@ -36,17 +36,26 @@ func GetReplicaSetInfo(ownerUID types.UID, ro *v1alpha1.Rollout, allReplicaSets 
 			Available: rs.Status.AvailableReplicas,
 		}
 		rsInfo.Icon = replicaSetIcon(rsInfo.Status)
-		rsInfo.Revision = int32(parseRevision(rs.ObjectMeta.Annotations))
+		rsInfo.Revision = int64(parseRevision(rs.ObjectMeta.Annotations))
 		rsInfo.Template = parseExperimentTemplateName(rs.ObjectMeta.Annotations)
 		rsInfo.ScaleDownDeadline = parseScaleDownDeadline(rs.ObjectMeta.Annotations)
 
 		if ro != nil {
 			podTemplateHash := replicasetutil.GetPodTemplateHash(rs)
 			if ro.Spec.Strategy.Canary != nil {
+				stableRsIsPing := trafficrouting.IsStablePing(ro)
 				if ro.Status.StableRS == podTemplateHash {
 					rsInfo.Stable = true
+					if trafficrouting.IsPingPongEnabled(ro) {
+						rsInfo.Ping = stableRsIsPing
+						rsInfo.Pong = !stableRsIsPing
+					}
 				} else if ro.Status.CurrentPodHash == podTemplateHash {
 					rsInfo.Canary = true
+					if trafficrouting.IsPingPongEnabled(ro) {
+						rsInfo.Ping = !stableRsIsPing
+						rsInfo.Pong = stableRsIsPing
+					}
 				}
 			}
 			if ro.Spec.Strategy.BlueGreen != nil {
@@ -121,7 +130,7 @@ func getReplicaSetCondition(status appsv1.ReplicaSetStatus, condType appsv1.Repl
 
 func ScaleDownDelay(rs rollout.ReplicaSetInfo) string {
 	if deadline, err := time.Parse(time.RFC3339, rs.ScaleDownDeadline); err == nil {
-		now := metav1.Now().Time
+		now := timeutil.MetaNow().Time
 		if deadline.Before(now) {
 			return "passed"
 		}

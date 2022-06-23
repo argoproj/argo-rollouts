@@ -45,19 +45,16 @@ The Argo Rollouts controller publishes the following prometheus metrics about Ar
 
 | Name                                | Description |
 | ----------------------------------- | ----------- |
-| `rollout_created_time`              | Creation time in unix timestamp for an rollout. |
 | `rollout_info`                      | Information about rollout. |
 | `rollout_info_replicas_available`   | The number of available replicas per rollout. |
 | `rollout_info_replicas_unavailable` | The number of unavailable replicas per rollout. |
 | `rollout_phase`                     | Information on the state of the rollout. |
 | `rollout_reconcile`                 | Rollout reconciliation performance. |
 | `rollout_reconcile_error`           | Error occurring during the rollout. |
-| `experiment_created_time`           | Creation time in unix timestamp for an experiment. |
 | `experiment_info`                   | Information about Experiment. |
 | `experiment_phase`                  | Information on the state of the experiment. |
 | `experiment_reconcile`              | Experiments reconciliation performance. |
 | `experiment_reconcile_error`        | Error occurring during the experiment. |
-| `analysis_run_created_time`         | Creation time in unix timestamp for an Analysis Run. |
 | `analysis_run_info`                 | Information about analysis run. |
 | `analysis_run_metric_phase`         | Information on the duration of a specific metric in the Analysis Run. |
 | `analysis_run_metric_type`          | Information on the type of a specific metric in the Analysis Runs. |

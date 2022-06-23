@@ -8,6 +8,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/record"
@@ -41,6 +42,10 @@ func (c *rolloutContext) rolloutCanary() error {
 	}
 
 	if err := c.reconcileRevisionHistoryLimit(c.otherRSs); err != nil {
+		return err
+	}
+
+	if err := c.reconcilePingAndPongService(); err != nil {
 		return err
 	}
 
@@ -91,8 +96,20 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		c.log.Info("No StableRS exists to reconcile or matches newRS")
 		return false, nil
 	}
-	_, stableRSReplicaCount := replicasetutil.CalculateReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
-	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, stableRSReplicaCount)
+	var desiredStableRSReplicaCount int32
+	if c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForBasicCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+	} else {
+		// Note the use of c.rollout.Status.Canary.Weights instead of c.newStatus.Canary.Weights.
+		// We don't want to use c.newStatus because that would have been just been modified in
+		// reconcileTrafficRouting(). At the end of the canary steps, we switch the service and set
+		// stable to 100%. In this scenario, c.newStatus.Canary.Weights.Stable.Weight would be 100,
+		// causing us to flap and scale up the stable 100 temporarily (before scaling down to 0 later).
+		// Therefore, we send c.rollout.Status.Canary.Weights so that the stable scaling happens in
+		// a *susbsequent*, follow-up reconciliation, lagging behind the setWeight and service switch.
+		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.rollout.Status.Canary.Weights)
+	}
+	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
 	return scaled, err
 }
 
@@ -162,7 +179,6 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 	}
 
 	annotationedRSs := int32(0)
-	rolloutReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
 	for _, targetRS := range oldRSs {
 		if replicasetutil.IsStillReferenced(c.rollout.Status, targetRS) {
 			// We should technically never get here because we shouldn't be passing a replicaset list
@@ -187,10 +203,16 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 		} else {
 			if rolloututil.IsFullyPromoted(c.rollout) || replicasetutil.HasScaleDownDeadline(targetRS) {
 				// If we are fully promoted and we encounter an old ReplicaSet, we can infer that
-				// this ReplicaSet is likely the previous stable and should follow scaleDownDelaySeconds
-				annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
-				if err != nil {
-					return totalScaledDown, err
+				// this ReplicaSet is likely the previous stable. We should do one of two things:
+				if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+					// 1. if we are using dynamic scaling, then this should be scaled down to 0 now
+					desiredReplicaCount = 0
+				} else {
+					// 2. otherwise, honor scaledown delay second and keep replicas of the current step
+					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
+					if err != nil {
+						return totalScaledDown, err
+					}
 				}
 			} else {
 				// If we get here, we are *not* fully promoted and are in the middle of an update.
@@ -198,18 +220,13 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 				// and doesn't yet have scale down deadline. This happens when a user changes their
 				// mind in the middle of an V1 -> V2 update, and then applies a V3. We are deciding
 				// what to do with the defunct, intermediate V2 ReplicaSet right now.
-				if replicasetutil.IsReplicaSetReady(c.newRS) && replicasetutil.IsReplicaSetReady(c.stableRS) {
-					// If the both new and old RS are available, we can infer that it is safe to
-					// scale down this ReplicaSet, since traffic should have shifted away from this RS.
-					// TODO: instead of checking availability of canary/stable, a better way to determine
-					// if it is safe to scale this down, is to check if traffic is directed to the RS.
-					// But to do so, we need the new status.canary.weights field in PR:
-					// https://github.com/argoproj/argo-rollouts/pull/1430
+				if !c.replicaSetReferencedByCanaryTraffic(targetRS) {
+					// It is safe to scale the intermediate RS down, if no traffic is directed to it.
 					c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
 				} else {
-					// The current and stable ReplicaSets have not reached readiness. This implies
-					// we might not have shifted traffic away from this ReplicaSet so we need to
-					// keep this scaled up.
+					c.log.Infof("Skip scaling down intermediate RS '%s': still referenced by service", targetRS.Name)
+					// This ReplicaSet is still referenced by the service. It is not safe to scale
+					// this down.
 					continue
 				}
 			}
@@ -229,6 +246,21 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 	}
 
 	return totalScaledDown, nil
+}
+
+func (c *rolloutContext) replicaSetReferencedByCanaryTraffic(rs *appsv1.ReplicaSet) bool {
+	rsPodHash := replicasetutil.GetPodTemplateHash(rs)
+	ro := c.rollout
+
+	if ro.Status.Canary.Weights == nil {
+		return false
+	}
+
+	if ro.Status.Canary.Weights.Canary.PodTemplateHash == rsPodHash || ro.Status.Canary.Weights.Stable.PodTemplateHash == rsPodHash {
+		return true
+	}
+
+	return false
 }
 
 // canProceedWithScaleDownAnnotation returns whether or not it is safe to proceed with annotating
@@ -261,7 +293,8 @@ func (c *rolloutContext) canProceedWithScaleDownAnnotation(oldRSs []*appsv1.Repl
 		// AWS API calls.
 		return true, nil
 	}
-	stableSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.StableService)
+	stableSvcName, _ := trafficrouting.GetStableAndCanaryServices(c.rollout)
+	stableSvc, err := c.servicesLister.Services(c.rollout.Namespace).Get(stableSvcName)
 	if err != nil {
 		return false, err
 	}
@@ -287,12 +320,13 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	case currentStep.Pause != nil:
 		return c.pauseContext.CompletedCanaryPauseStep(*currentStep.Pause)
 	case currentStep.SetCanaryScale != nil:
-		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs)
+		return replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.newStatus.Canary.Weights)
 	case currentStep.SetWeight != nil:
-		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs) {
+		if !replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, c.newStatus.Canary.Weights) {
 			return false
 		}
-		if !c.areTargetsVerified() {
+		if c.newStatus.Canary.Weights != nil && c.newStatus.Canary.Weights.Verified != nil && !*c.newStatus.Canary.Weights.Verified {
+			// we haven't yet verified the target weight after the setWeight
 			return false
 		}
 		return true
@@ -303,6 +337,8 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		currentStepAr := c.currentArs.CanaryStep
 		analysisExistsAndCompleted := currentStepAr != nil && currentStepAr.Status.Phase.Completed()
 		return analysisExistsAndCompleted && currentStepAr.Status.Phase == v1alpha1.AnalysisPhaseSuccessful
+	case currentStep.SetHeaderRouting != nil:
+		return true
 	}
 	return false
 }
@@ -312,6 +348,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
+	newStatus.Canary.StablePingPong = c.rollout.Status.Canary.StablePingPong
 
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS
@@ -375,6 +412,10 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 }
 
 func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
+	if haltReason := c.haltProgress(); haltReason != "" {
+		c.log.Infof("Skipping canary/stable ReplicaSet reconciliation: %s", haltReason)
+		return false, nil
+	}
 	err := c.removeScaleDownDeadlines()
 	if err != nil {
 		return false, err

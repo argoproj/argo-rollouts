@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-mpatch"
 
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
@@ -52,12 +53,12 @@ const (
 )
 
 func now() *metav1.Time {
-	now := metav1.Time{Time: time.Now().Truncate(time.Second)}
+	now := metav1.Time{Time: timeutil.Now().Truncate(time.Second)}
 	return &now
 }
 
 func secondsAgo(seconds int) *metav1.Time {
-	ago := metav1.Time{Time: time.Now().Add(-1 * time.Second * time.Duration(seconds)).Truncate(time.Second)}
+	ago := metav1.Time{Time: timeutil.Now().Add(-1 * time.Second * time.Duration(seconds)).Truncate(time.Second)}
 	return &ago
 }
 
@@ -114,11 +115,13 @@ func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	patch, err := mpatch.PatchMethod(time.Now, func() time.Time {
+	timeutil.Now = func() time.Time {
 		return now
-	})
-	assert.NoError(t, err)
-	f.unfreezeTime = patch.Unpatch
+	}
+	f.unfreezeTime = func() error {
+		timeutil.Now = time.Now
+		return nil
+	}
 	return f
 }
 
@@ -200,8 +203,8 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 		return &v1alpha1.ExperimentCondition{
 			Type:               v1alpha1.ExperimentProgressing,
 			Status:             corev1.ConditionTrue,
-			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
-			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			LastUpdateTime:     timeutil.MetaNow().Rfc3339Copy(),
+			LastTransitionTime: timeutil.MetaNow().Rfc3339Copy(),
 			Reason:             reason,
 			Message:            fmt.Sprintf(conditions.ExperimentProgressingMessage, experiment.Name),
 		}
@@ -210,8 +213,8 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 		return &v1alpha1.ExperimentCondition{
 			Type:               v1alpha1.ExperimentProgressing,
 			Status:             corev1.ConditionFalse,
-			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
-			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			LastUpdateTime:     timeutil.MetaNow().Rfc3339Copy(),
+			LastTransitionTime: timeutil.MetaNow().Rfc3339Copy(),
 			Reason:             reason,
 			Message:            fmt.Sprintf(conditions.ExperimentCompletedMessage, experiment.Name),
 		}
@@ -220,8 +223,8 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 		return &v1alpha1.ExperimentCondition{
 			Type:               v1alpha1.ExperimentProgressing,
 			Status:             corev1.ConditionFalse,
-			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
-			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			LastUpdateTime:     timeutil.MetaNow().Rfc3339Copy(),
+			LastTransitionTime: timeutil.MetaNow().Rfc3339Copy(),
 			Reason:             reason,
 			Message:            fmt.Sprintf(conditions.ExperimentRunningMessage, experiment.Name),
 		}
@@ -230,8 +233,8 @@ func newCondition(reason string, experiment *v1alpha1.Experiment) *v1alpha1.Expe
 		return &v1alpha1.ExperimentCondition{
 			Type:               v1alpha1.InvalidExperimentSpec,
 			Status:             corev1.ConditionTrue,
-			LastUpdateTime:     metav1.Now().Rfc3339Copy(),
-			LastTransitionTime: metav1.Now().Rfc3339Copy(),
+			LastUpdateTime:     timeutil.MetaNow().Rfc3339Copy(),
+			LastTransitionTime: timeutil.MetaNow().Rfc3339Copy(),
 			Reason:             reason,
 			Message:            fmt.Sprintf(conditions.ExperimentTemplateNameEmpty, experiment.Name, 0),
 		}
@@ -357,7 +360,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	})
+	}, true)
 
 	c := NewController(ControllerConfig{
 		KubeClientSet:                   f.kubeclient,
@@ -643,7 +646,7 @@ func (f *fixture) verifyPatchedReplicaSetAddScaleDownDelay(index int, scaleDownD
 	if !ok {
 		assert.Fail(f.t, "Expected Patch action, not %s", action.GetVerb())
 	}
-	now := metav1.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
+	now := timeutil.Now().Add(time.Duration(scaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, now)
 	assert.Equal(f.t, string(patchAction.GetPatch()), patch)
 }
@@ -728,7 +731,7 @@ func TestNoReconcileForDeletedExperiment(t *testing.T) {
 	defer f.Close()
 
 	e := newExperiment("foo", nil, "10s")
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	e.DeletionTimestamp = &now
 
 	f.experimentLister = append(f.experimentLister, e)

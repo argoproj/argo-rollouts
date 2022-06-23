@@ -5,7 +5,7 @@
 ### Does Argo Rollouts depend on Argo CD or any other Argo project?
 
 Argo Rollouts is a standalone project. Even though it works great with Argo CD and other Argo projects, it can be used
-on its own for Progressive Delivery scenarios. More specifically, argo Rollouts does **NOT** require that you also have installed Argo CD on the same cluster.
+on its own for Progressive Delivery scenarios. More specifically, Argo Rollouts does **NOT** require that you also have installed Argo CD on the same cluster.
 
 ### How does Argo Rollouts integrate with Argo CD?
 Argo CD understands the health of Argo Rollouts resources via Argo CD’s [Lua health check](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/health.md). These Health checks understand when the Argo Rollout objects are Progressing, Suspended, Degraded, or Healthy.  Additionally, Argo CD has Lua based Resource Actions that can mutate an Argo Rollouts resource (i.e. unpause a Rollout).
@@ -37,19 +37,29 @@ Argo Rollouts is a Kubernetes controller that will react to any manifest change 
 by a Git commit, an API call, another controller or even a manual `kubectl` command. You can use Argo Rollouts with any traditional CI/CD
 solution that does not follow the GitOps approach.
 
+### Can we run the Argo Rollouts controller in HA mode?
+
+Yes. A k8s cluster can run multiple replicas of Argo-rollouts controllers to achieve HA. To enable this feature, run the controller with `--leader-elect` flag and increase the number of replicas in the controller's deployment manifest. The implementation is based on the [k8s client-go's leaderelection package](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#section-documentation). This implementation is tolerant to *arbitrary clock skew* among replicas. The level of tolerance to skew rate can be configured by setting `--leader-election-lease-duration` and `--leader-election-renew-deadline` appropriately. Please refer to the [package documentation](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#pkg-overview) for details.
+
 ## Rollouts
 
 ### Which deployment strategies does Argo Rollouts support?
 Argo Rollouts supports BlueGreen, Canary, and Rolling Update. Additionally, Progressive Delivery features can be enabled on top of the blue-green/canary update, which further provides advanced deployment such as automated analysis and rollback.
 
 ### Does the Rollout object follow the provided strategy when it is first created?
-As with Deployments, Rollouts does not follow the strategy parameters on the initial deploy. The controller tries to get the Rollout into a steady state as fast as possible. The controller tries to get the Rollout into a steady state as fast as possible by creating a fully scaled up ReplicaSet from the provided `.spec.template`. Once the Rollout has a stable ReplicaSet to transition from, the controller starts using the provided strategy to transition the previous ReplicaSet to the desired ReplicaSet.
+As with Deployments, Rollouts does not follow the strategy parameters on the initial deploy. The controller tries to get the Rollout into a steady state as fast as possible by creating a fully scaled up ReplicaSet from the provided `.spec.template`. Once the Rollout has a stable ReplicaSet to transition from, the controller starts using the provided strategy to transition the previous ReplicaSet to the desired ReplicaSet.
 
 ### How does BlueGreen rollback work?
 A BlueGreen Rollout keeps the old ReplicaSet up and running for 30 seconds or the value of the scaleDownDelaySeconds. The controller tracks the remaining time before scaling down by adding an annotation called `argo-rollouts.argoproj.io/scale-down-deadline` to the old ReplicaSet. If the user applies the old Rollout manifest before the old ReplicaSet scales down, the controller does something called a fast rollback. The controller immediately switches the active service’s selector back to the old ReplicaSet’s rollout-pod-template-hash and removes the scaled down annotation from that ReplicaSet. The controller does not do any of the normal operations when trying to introduce a new version since it is trying to revert as fast as possible. A non-fast-track rollback occurs when the scale down annotation has past and the old ReplicaSet has been scaled down. In this case, the Rollout treats the ReplicaSet like any other new ReplicaSet and follows the usual procedure for deploying a new ReplicaSet.
 
 ### What is the `argo-rollouts.argoproj.io/managed-by-rollouts` annotation?
 Argo Rollouts adds an `argo-rollouts.argoproj.io/managed-by-rollouts` annotation to Services and Ingresses that the controller modifies. They are used when the Rollout managing these resources is deleted and the controller tries to revert them back into their previous state.
+
+### How can I deploy multiple services in a single step and roll them back according to their dependencies?
+
+The Rollout specification focuses on a single application/deployment. Argo Rollouts knows nothing about application dependencies. If you want to deploy multiple applications together in a smart way (e.g. automatically rollback a frontend if backend deployment fails) you need to write your own solution
+on top of Argo Rollouts. In most cases, you would need one Rollout resource for each application that you
+are deploying. Ideally you should also make your services backwards and forwards compatible (i.e. frontend should be able to work with both backend-preview and backend-active).
 
 ## Experiments
 

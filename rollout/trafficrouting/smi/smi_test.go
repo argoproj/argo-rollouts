@@ -21,7 +21,6 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/record"
 )
@@ -435,7 +434,7 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 
 func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", "root-service", "traffic-split-name")
-	weightDestinations := []trafficrouting.WeightDestination{
+	weightDestinations := []v1alpha1.WeightDestination{
 		{
 			ServiceName:     "ex-svc-1",
 			PodTemplateHash: "",

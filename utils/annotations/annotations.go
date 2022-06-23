@@ -79,7 +79,7 @@ func SetRolloutRevision(rollout *v1alpha1.Rollout, revision string) bool {
 	return false
 }
 
-// SetRolloutRevision updates the revision for a rollout.
+// SetRolloutWorkloadRefGeneration updates the workflow generation annotation for a rollout.
 func SetRolloutWorkloadRefGeneration(rollout *v1alpha1.Rollout, workloadGeneration string) bool {
 	if rollout.Annotations == nil {
 		rollout.Annotations = make(map[string]string)

@@ -3,6 +3,7 @@ package defaults
 import (
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,6 +36,12 @@ const (
 	// DefaultConsecutiveErrorLimit is the default number times a metric can error in sequence before
 	// erroring the entire metric.
 	DefaultConsecutiveErrorLimit int32 = 4
+	// DefaultQPS is the default Queries Per Second (QPS) for client side throttling to the K8s API server
+	DefaultQPS float32 = 40.0
+	// DefaultBurst is the default value for Burst for client side throttling to the K8s API server
+	DefaultBurst int = 80
+	// DefaultAwsLoadBalancerPageSize is the default page size used when calling aws to get load balancers by DNS name
+	DefaultAwsLoadBalancerPageSize = int32(300)
 )
 
 const (
@@ -43,6 +50,9 @@ const (
 	DefaultIstioVersion                 = "v1alpha3"
 	DefaultSMITrafficSplitVersion       = "v1alpha1"
 	DefaultTargetGroupBindingAPIVersion = "elbv2.k8s.aws/v1beta1"
+	DefaultAppMeshCRDVersion            = "v1beta2"
+	DefaultTraefikAPIGroup              = "traefik.containo.us"
+	DefaultTraefikVersion               = "traefik.containo.us/v1alpha1"
 )
 
 var (
@@ -51,7 +61,25 @@ var (
 	ambassadorAPIVersion         = DefaultAmbassadorVersion
 	smiAPIVersion                = DefaultSMITrafficSplitVersion
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
+	appmeshCRDVersion            = DefaultAppMeshCRDVersion
 )
+
+const (
+	// EnvVarRolloutVerifyRetryInterval is the interval duration in seconds to requeue a rollout upon errors
+	EnvVarRolloutVerifyRetryInterval = "ROLLOUT_VERIFY_RETRY_INTERVAL"
+)
+
+var (
+	rolloutVerifyRetryInterval time.Duration = 10 * time.Second
+)
+
+func init() {
+	if rolloutVerifyInterval, ok := os.LookupEnv(EnvVarRolloutVerifyRetryInterval); ok {
+		if interval, err := strconv.ParseInt(rolloutVerifyInterval, 10, 32); err != nil {
+			rolloutVerifyRetryInterval = time.Duration(interval) * time.Second
+		}
+	}
+}
 
 // GetReplicasOrDefault returns the deferenced number of replicas or the default number
 func GetReplicasOrDefault(replicas *int32) int32 {
@@ -135,14 +163,14 @@ func GetExperimentScaleDownDelaySecondsOrDefault(e *v1alpha1.Experiment) int32 {
 func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) time.Duration {
 	var delaySeconds int32
 	if rollout.Spec.Strategy.BlueGreen != nil {
-		delaySeconds = DefaultAbortScaleDownDelaySeconds
+		delaySeconds = DefaultScaleDownDelaySeconds
 		if rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds != nil {
 			delaySeconds = *rollout.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds
 		}
 	}
 	if rollout.Spec.Strategy.Canary != nil {
 		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
-			delaySeconds = DefaultAbortScaleDownDelaySeconds
+			delaySeconds = DefaultScaleDownDelaySeconds
 			if rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds != nil {
 				delaySeconds = *rollout.Spec.Strategy.Canary.ScaleDownDelaySeconds
 			}
@@ -151,17 +179,19 @@ func GetScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) time.Duration 
 	return time.Duration(delaySeconds) * time.Second
 }
 
-// GetAbortScaleDownDelaySecondsOrDefault returns the duration seconds to delay the scale down of
-// the canary/preview ReplicaSet in a abort situation. A nil value indicates it should not
+// GetAbortScaleDownDelaySecondsOrDefault returns the duration to delay the scale down of
+// the canary/preview ReplicaSet in an abort situation. A nil value indicates it should not
 // scale down at all (abortScaleDownDelaySeconds: 0). A value of 0 indicates it should scale down
-// immediately.
-func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) *time.Duration {
+// immediately. Also returns a boolean to indicate if the value was explicitly set.
+func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) (*time.Duration, bool) {
 	var delaySeconds int32
+	wasSet := false
 	if rollout.Spec.Strategy.BlueGreen != nil {
 		delaySeconds = DefaultAbortScaleDownDelaySeconds
 		if rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds != nil {
+			wasSet = true
 			if *rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds == 0 {
-				return nil
+				return nil, wasSet
 			}
 			delaySeconds = *rollout.Spec.Strategy.BlueGreen.AbortScaleDownDelaySeconds
 		}
@@ -169,15 +199,16 @@ func GetAbortScaleDownDelaySecondsOrDefault(rollout *v1alpha1.Rollout) *time.Dur
 		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
 			delaySeconds = DefaultAbortScaleDownDelaySeconds
 			if rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds != nil {
+				wasSet = true
 				if *rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds == 0 {
-					return nil
+					return nil, wasSet
 				}
 				delaySeconds = *rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds
 			}
 		}
 	}
 	dur := time.Duration(delaySeconds) * time.Second
-	return &dur
+	return &dur, wasSet
 }
 
 func GetAutoPromotionEnabledOrDefault(rollout *v1alpha1.Rollout) bool {
@@ -238,6 +269,14 @@ func GetAmbassadorAPIVersion() string {
 	return ambassadorAPIVersion
 }
 
+func SetAppMeshCRDVersion(apiVersion string) {
+	appmeshCRDVersion = apiVersion
+}
+
+func GetAppMeshCRDVersion() string {
+	return appmeshCRDVersion
+}
+
 func SetSMIAPIVersion(apiVersion string) {
 	smiAPIVersion = apiVersion
 }
@@ -252,4 +291,8 @@ func SetTargetGroupBindingAPIVersion(apiVersion string) {
 
 func GetTargetGroupBindingAPIVersion() string {
 	return targetGroupBindingAPIVersion
+}
+
+func GetRolloutVerifyRetryInterval() time.Duration {
+	return rolloutVerifyRetryInterval
 }

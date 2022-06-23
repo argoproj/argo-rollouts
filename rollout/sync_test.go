@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +20,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
-	"github.com/stretchr/testify/assert"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func rs(name string, replicas int, selector map[string]string, timestamp metav1.Time, ownerRef *metav1.OwnerReference) *appsv1.ReplicaSet {
@@ -46,7 +47,7 @@ func rs(name string, replicas int, selector map[string]string, timestamp metav1.
 }
 
 func TestReconcileRevisionHistoryLimit(t *testing.T) {
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	before := metav1.Time{Time: now.Add(-time.Minute)}
 
 	newRS := func(name string) *appsv1.ReplicaSet {
@@ -263,6 +264,29 @@ func TestPersistWorkloadRefGeneration(t *testing.T) {
 	}
 }
 
+func TestPingPongCanaryPromoteStable(t *testing.T) {
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{PingPong: &v1alpha1.PingPongSpec{}}
+	ro.Status.Canary.StablePingPong = v1alpha1.PPPing
+	roCtx := &rolloutContext{
+		pauseContext: &pauseContext{},
+		rollout:      ro,
+		reconcilerBase: reconcilerBase{
+			recorder: record.NewFakeEventRecorder(),
+		},
+	}
+	newStatus := &v1alpha1.RolloutStatus{
+		CurrentPodHash: "2f646bf702",
+		StableRS:       "15fb5ffc01",
+	}
+
+	// test call
+	err := roCtx.promoteStable(newStatus, "reason")
+
+	assert.Nil(t, err)
+	assert.Equal(t, v1alpha1.PPPong, newStatus.Canary.StablePingPong)
+}
+
 // TestCanaryPromoteFull verifies skip pause, analysis, steps when promote full is set for a canary rollout
 func TestCanaryPromoteFull(t *testing.T) {
 	f := newFixture(t)
@@ -376,7 +400,7 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 
 // TestSendStateChangeEvents verifies we emit appropriate events on rollout state changes
 func TestSendStateChangeEvents(t *testing.T) {
-	now := metav1.Now()
+	now := timeutil.MetaNow()
 	tests := []struct {
 		prevStatus           v1alpha1.RolloutStatus
 		newStatus            v1alpha1.RolloutStatus

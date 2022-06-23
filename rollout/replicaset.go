@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
@@ -53,7 +54,7 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 		}
 		return nil
 	}
-	deadline := metav1.Now().Add(scaleDownDelaySeconds).UTC().Format(time.RFC3339)
+	deadline := timeutil.MetaNow().Add(scaleDownDelaySeconds).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
@@ -76,7 +77,7 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 	}
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing ReplicaSets (see #42639).
-	canAdoptFunc := controller.RecheckDeletionTimestamp(func() (metav1.Object, error) {
+	canAdoptFunc := controller.RecheckDeletionTimestamp(func(ctx context.Context) (metav1.Object, error) {
 		fresh, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(r.Namespace).Get(ctx, r.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
@@ -87,7 +88,7 @@ func (c *Controller) getReplicaSetsForRollouts(r *v1alpha1.Rollout) ([]*appsv1.R
 		return fresh, nil
 	})
 	cm := controller.NewReplicaSetControllerRefManager(c.replicaSetControl, r, replicaSetSelector, controllerKind, canAdoptFunc)
-	return cm.ClaimReplicaSets(rsList)
+	return cm.ClaimReplicaSets(ctx, rsList)
 }
 
 // removeScaleDownDeadlines removes the scale-down-deadline annotation from the new/stable ReplicaSets,
@@ -115,13 +116,13 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	if c.newRS == nil {
 		return false, nil
 	}
-	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, c.allRSs, c.newRS)
+	newReplicasCount, err := replicasetutil.NewRSNewReplicas(c.rollout, c.allRSs, c.newRS, c.newStatus.Canary.Weights)
 	if err != nil {
 		return false, err
 	}
 
 	if c.shouldDelayScaleDownOnAbort() {
-		abortScaleDownDelaySeconds := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
+		abortScaleDownDelaySeconds, _ := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
 		c.log.Infof("Scale down new rs '%s' on abort (%v)", c.newRS.Name, abortScaleDownDelaySeconds)
 
 		// if the newRS has scale down annotation, check if it should be scaled down now
@@ -131,7 +132,7 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 			if err != nil {
 				c.log.Warnf("Unable to read scaleDownAt label on rs '%s'", c.newRS.Name)
 			} else {
-				now := metav1.Now()
+				now := timeutil.MetaNow()
 				scaleDownAt := metav1.NewTime(scaleDownAtTime)
 				if scaleDownAt.After(now.Time) {
 					c.log.Infof("RS '%s' has not reached the scaleDownTime", c.newRS.Name)
@@ -146,10 +147,15 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 				}
 			}
 		} else if abortScaleDownDelaySeconds != nil {
-			err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
-			if err != nil {
-				return false, err
+			// Don't annotate until need to ensure the stable RS is fully scaled
+			if c.stableRS.Status.AvailableReplicas == *c.rollout.Spec.Replicas {
+				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
+				if err != nil {
+					return false, err
+				}
 			}
+			// leave newRS scaled up until we annotate
+			return false, nil
 		}
 	}
 
@@ -157,9 +163,31 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	return scaled, err
 }
 
-// shouldDelayScaleDownOnAbort returns if we are aborted and we should delay scaledown of canary/preview
+// shouldDelayScaleDownOnAbort returns if we are aborted and we should delay scaledown of canary or preview
 func (c *rolloutContext) shouldDelayScaleDownOnAbort() bool {
-	return c.pauseContext.IsAborted() && defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout) != nil
+	if !c.pauseContext.IsAborted() {
+		// only applicable to aborted rollouts
+		return false
+	}
+	if c.stableRS == nil {
+		// if there is no stable, don't scale down
+		return false
+	}
+	if c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		// basic canary should not use this
+		return false
+	}
+	abortDelay, abortDelayWasSet := defaults.GetAbortScaleDownDelaySecondsOrDefault(c.rollout)
+	if abortDelay == nil {
+		// user explicitly set abortScaleDownDelaySeconds: 0, and wishes to leave canary/preview up indefinitely
+		return false
+	}
+	usesDynamicStableScaling := c.rollout.Spec.Strategy.Canary != nil && c.rollout.Spec.Strategy.Canary.DynamicStableScale
+	if usesDynamicStableScaling && !abortDelayWasSet {
+		// we are using dynamic stable/canary scaling and user did not explicitly set abortScaleDownDelay
+		return false
+	}
+	return true
 }
 
 // reconcileOtherReplicaSets reconciles "other" ReplicaSets.

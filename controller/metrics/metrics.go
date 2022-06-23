@@ -26,8 +26,10 @@ type MetricsServer struct {
 
 	reconcileAnalysisRunHistogram *prometheus.HistogramVec
 	errorAnalysisRunCounter       *prometheus.CounterVec
-
-	k8sRequestsCounter *K8sRequestsCountProvider
+	successNotificationCounter    *prometheus.CounterVec
+	errorNotificationCounter      *prometheus.CounterVec
+	sendNotificationRunHistogram  *prometheus.HistogramVec
+	k8sRequestsCounter            *K8sRequestsCountProvider
 }
 
 const (
@@ -46,10 +48,24 @@ type ServerConfig struct {
 }
 
 // NewMetricsServer returns a new prometheus server which collects rollout metrics
-func NewMetricsServer(cfg ServerConfig) *MetricsServer {
+func NewMetricsServer(cfg ServerConfig, isPrimary bool) *MetricsServer {
 	mux := http.NewServeMux()
 
 	reg := prometheus.NewRegistry()
+
+	// secondary controller doesn't expose any metrics
+	if !isPrimary {
+		mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
+			reg,
+		}, promhttp.HandlerOpts{}))
+		return &MetricsServer{
+			Server: &http.Server{
+				Addr:    cfg.Addr,
+				Handler: mux,
+			},
+		}
+	}
+
 	reg.MustRegister(NewRolloutCollector(cfg.RolloutLister))
 	reg.MustRegister(NewAnalysisRunCollector(cfg.AnalysisRunLister, cfg.AnalysisTemplateLister, cfg.ClusterAnalysisTemplateLister))
 	reg.MustRegister(NewExperimentCollector(cfg.ExperimentLister))
@@ -61,6 +77,10 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	reg.MustRegister(MetricExperimentReconcileError)
 	reg.MustRegister(MetricAnalysisRunReconcile)
 	reg.MustRegister(MetricAnalysisRunReconcileError)
+	reg.MustRegister(MetricNotificationSuccessTotal)
+	reg.MustRegister(MetricNotificationFailedTotal)
+	reg.MustRegister(MetricNotificationSend)
+	reg.MustRegister(MetricVersionGauge)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -81,6 +101,9 @@ func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 
 		reconcileAnalysisRunHistogram: MetricAnalysisRunReconcile,
 		errorAnalysisRunCounter:       MetricAnalysisRunReconcileError,
+		successNotificationCounter:    MetricNotificationSuccessTotal,
+		errorNotificationCounter:      MetricNotificationFailedTotal,
+		sendNotificationRunHistogram:  MetricNotificationSend,
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
 	}

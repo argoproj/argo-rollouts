@@ -4,10 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"k8s.io/utils/pointer"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/unstructured"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -16,6 +12,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
+	"github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 const successCaseVsvc = `apiVersion: networking.istio.io/v1alpha3
@@ -180,8 +181,8 @@ func getRollout() *v1alpha1.Rollout {
 	}
 }
 
-func getIngress() v1beta1.Ingress {
-	return v1beta1.Ingress{
+func getIngress() *v1beta1.Ingress {
+	return &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "alb-ingress",
 		},
@@ -218,7 +219,7 @@ func getServiceWithType() ServiceWithType {
 func TestValidateRolloutReferencedResources(t *testing.T) {
 	refResources := ReferencedResources{
 		AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplatesWithType()},
-		Ingresses:                 []v1beta1.Ingress{getIngress()},
+		Ingresses:                 []ingressutil.Ingress{*ingressutil.NewLegacyIngress(getIngress())},
 		ServiceWithType:           []ServiceWithType{getServiceWithType()},
 		VirtualServices:           nil,
 	}
@@ -253,6 +254,39 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 		templates.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
 		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
 		assert.Empty(t, allErrs)
+	})
+
+	t.Run("failure - duplicate MeasurementRetention", func(t *testing.T) {
+		rollout := getRollout()
+		rollout.Spec.Strategy.Canary.Steps = append(rollout.Spec.Strategy.Canary.Steps, v1alpha1.CanaryStep{
+			Analysis: &v1alpha1.RolloutAnalysis{
+				Templates: []v1alpha1.RolloutAnalysisTemplate{
+					{
+						TemplateName: "analysis-template-name",
+					},
+				},
+				MeasurementRetention: []v1alpha1.MeasurementRetention{
+					{
+						MetricName: "example",
+						Limit:      2,
+					},
+				},
+			},
+		})
+		templates := getAnalysisTemplatesWithType()
+		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "valid"})
+		templates.AnalysisTemplates[0].Spec.MeasurementRetention = []v1alpha1.MeasurementRetention{
+			{
+				MetricName: "example",
+				Limit:      5,
+			},
+		}
+		templates.Args = []v1alpha1.AnalysisRunArgument{{Name: "valid", Value: "true"}}
+
+		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
+		assert.Len(t, allErrs, 1)
+		msg := fmt.Sprintf("spec.strategy.canary.steps[0].analysis.templates: Invalid value: \"templateNames: [analysis-template-name cluster-analysis-template-name]\": two Measurement Retention metric rules have the same name 'example'")
+		assert.Equal(t, msg, allErrs[0].Error())
 	})
 
 }
@@ -372,7 +406,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 func TestValidateIngress(t *testing.T) {
 	t.Run("validate ingress - success", func(t *testing.T) {
-		ingress := getIngress()
+		ingress := ingressutil.NewLegacyIngress(getIngress())
 		allErrs := ValidateIngress(getRollout(), ingress)
 		assert.Empty(t, allErrs)
 	})
@@ -380,7 +414,8 @@ func TestValidateIngress(t *testing.T) {
 	t.Run("validate ingress - failure", func(t *testing.T) {
 		ingress := getIngress()
 		ingress.Spec.Rules[0].HTTP.Paths[0].Backend.ServiceName = "not-stable-service"
-		allErrs := ValidateIngress(getRollout(), ingress)
+		i := ingressutil.NewLegacyIngress(ingress)
+		allErrs := ValidateIngress(getRollout(), i)
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingress"), ingress.Name, "ingress `alb-ingress` has no rules using service stable-service-name backend")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
@@ -401,6 +436,22 @@ func TestValidateService(t *testing.T) {
 		expectedErr := field.Invalid(GetServiceWithTypeFieldPath(svc.Type), svc.Service.Name, "Service \"stable-service-name\" is managed by another Rollout")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
+
+	t.Run("validate service with unmatch label - failure", func(t *testing.T) {
+		svc := getServiceWithType()
+		svc.Service.Spec.Selector = map[string]string{"app": "unmatch-rollout-label"}
+		allErrs := ValidateService(svc, getRollout())
+		assert.Len(t, allErrs, 1)
+		expectedErr := field.Invalid(GetServiceWithTypeFieldPath(svc.Type), svc.Service.Name, "Service \"stable-service-name\" has unmatch lable \"app\" in rollout")
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+	})
+
+	t.Run("validate service with Rollout label - success", func(t *testing.T) {
+		svc := getServiceWithType()
+		svc.Service.Spec.Selector = map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "123-456"}
+		allErrs := ValidateService(svc, getRollout())
+		assert.Empty(t, allErrs)
+	})
 }
 
 func TestValidateVirtualService(t *testing.T) {
@@ -412,7 +463,7 @@ func TestValidateVirtualService(t *testing.T) {
 					CanaryService: "canary",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Istio: &v1alpha1.IstioTrafficRouting{
-							VirtualService: v1alpha1.IstioVirtualService{
+							VirtualService: &v1alpha1.IstioVirtualService{
 								Name: "istio-vsvc",
 								Routes: []string{
 									"primary",
@@ -520,7 +571,7 @@ func TestValidateRolloutVirtualServicesConfig(t *testing.T) {
 
 	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Istio: &v1alpha1.IstioTrafficRouting{
-			VirtualService: v1alpha1.IstioVirtualService{
+			VirtualService: &v1alpha1.IstioVirtualService{
 				Name: "istio-vsvc1-name",
 			},
 			VirtualServices: []v1alpha1.IstioVirtualService{{Name: "istio-vsvc1-name", Routes: nil}},
@@ -537,7 +588,7 @@ func TestValidateRolloutVirtualServicesConfig(t *testing.T) {
 
 	ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Istio: &v1alpha1.IstioTrafficRouting{
-			VirtualService: v1alpha1.IstioVirtualService{
+			VirtualService: &v1alpha1.IstioVirtualService{
 				Name: "istio-vsvc1-name",
 			},
 		},
@@ -600,6 +651,18 @@ func TestGetServiceWithTypeFieldPath(t *testing.T) {
 		assert.Equal(t, expectedFldPath.String(), fldPath.String())
 	})
 
+	t.Run("get pingService fieldPath", func(t *testing.T) {
+		fldPath := GetServiceWithTypeFieldPath(PingService)
+		expectedFldPath := field.NewPath("spec", "strategy", "canary", "pingPong", "pingService")
+		assert.Equal(t, expectedFldPath.String(), fldPath.String())
+	})
+
+	t.Run("get pongService fieldPath", func(t *testing.T) {
+		fldPath := GetServiceWithTypeFieldPath(PongService)
+		expectedFldPath := field.NewPath("spec", "strategy", "canary", "pingPong", "pongService")
+		assert.Equal(t, expectedFldPath.String(), fldPath.String())
+	})
+
 	t.Run("get fieldPath for serviceType that does not exist", func(t *testing.T) {
 		fldPath := GetServiceWithTypeFieldPath("DoesNotExist")
 		assert.Nil(t, fldPath)
@@ -651,6 +714,203 @@ spec:
 		// then
 		assert.NotNil(t, errList)
 		assert.Equal(t, 1, len(errList))
+	})
+}
+
+func TestValidateAppMeshResource(t *testing.T) {
+	t.Run("will return error with appmesh virtual-service", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  namespace: myns
+  name: mysvc
+spec:
+  awsName: mysvc.myns.svc.cluster.local
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: mysvc-vrouter
+`
+		obj := toUnstructured(t, manifest)
+		refResources := ReferencedResources{
+			AppMeshResources: []k8sunstructured.Unstructured{*obj},
+		}
+		errList := ValidateRolloutReferencedResources(getRollout(), refResources)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, errList[0].Detail, "Expected object kind to be VirtualRouter but is VirtualService")
+	})
+
+	t.Run("will return error when appmesh virtual-router has no routes", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, errList[0].Field, field.NewPath("spec", "routes").String())
+	})
+
+	routeTypes := []string{"httpRoute", "tcpRoute", "grpcRoute", "http2Route"}
+	for _, routeType := range routeTypes {
+		t.Run(fmt.Sprintf("will succeed with valid appmesh virtual-router with %s", routeType), func(t *testing.T) {
+			t.Parallel()
+			manifest := fmt.Sprintf(`
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - name: primary
+      %s:
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: mysvc-canary-vn
+              weight: 0
+            - virtualNodeRef:
+                name: mysvc-stable-vn
+              weight: 100
+`, routeType)
+			obj := toUnstructured(t, manifest)
+			errList := ValidateAppMeshResource(*obj)
+			assert.NotNil(t, errList)
+			assert.Len(t, errList, 0)
+		})
+	}
+
+	t.Run("will return error with appmesh virtual-router with unsupported route type", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - name: primary
+      badRouteType:
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, field.NewPath("spec", "routes").Index(0).String(), errList[0].Field)
+	})
+
+	t.Run("will return error when appmesh virtual-router has route that is not a struct", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - invalid-spec
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, field.NewPath("spec", "routes").Index(0).String(), errList[0].Field)
+	})
+
+	t.Run("will return error when appmesh virtual-router has routes with no targets", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, field.NewPath("spec", "routes").Index(0).Child("httpRoute").Child("action").Child("weightedTargets").String(), errList[0].Field)
+	})
+
+	t.Run("will return error when appmesh virtual-router has routes with 1 target", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: only-target
+              weight: 100
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, field.NewPath("spec", "routes").Index(0).Child("httpRoute").Child("action").Child("weightedTargets").String(), errList[0].Field)
+	})
+
+	t.Run("will return error when appmesh virtual-router has routes with 3 targets", func(t *testing.T) {
+		t.Parallel()
+		manifest := `
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  namespace: myns
+  name: mysvc-vrouter
+spec:
+  routes:
+    - name: primary
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: target-1
+              weight: 10
+            - virtualNodeRef:
+                name: target-2
+              weight: 10
+            - virtualNodeRef:
+                name: target-3
+              weight: 80
+`
+		obj := toUnstructured(t, manifest)
+		errList := ValidateAppMeshResource(*obj)
+		assert.NotNil(t, errList)
+		assert.Len(t, errList, 1)
+		assert.Equal(t, field.NewPath("spec", "routes").Index(0).Child("httpRoute").Child("action").Child("weightedTargets").String(), errList[0].Field)
 	})
 }
 

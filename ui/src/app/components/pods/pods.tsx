@@ -1,7 +1,8 @@
-import {Menu, ThemeDiv, Tooltip, WaitFor} from 'argo-ui/v2';
+import {Menu, ThemeDiv, Tooltip, WaitFor, InfoItem} from 'argo-ui/v2';
 import * as React from 'react';
+import * as moment from 'moment';
+import {Duration, Ticker} from 'argo-ui';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
-import {Pod} from '../../../models/rollout/rollout';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
 import './pods.scss';
 
@@ -21,6 +22,7 @@ export const ParsePodStatus = (status: string): PodStatus => {
             return PodStatus.Pending;
         case 'Running':
         case 'Completed':
+        case 'Successful':
             return PodStatus.Success;
         case 'Failed':
         case 'InvalidImageName':
@@ -34,8 +36,8 @@ export const ParsePodStatus = (status: string): PodStatus => {
     }
 };
 
-export const PodIcon = (props: {status: string}) => {
-    const {status} = props;
+export const PodIcon = (props: {status: string; customIcon?: string}) => {
+    const {status, customIcon} = props;
     let icon;
     let spin = false;
     if (status.startsWith('Init:')) {
@@ -51,25 +53,27 @@ export const PodIcon = (props: {status: string}) => {
 
     const className = ParsePodStatus(status);
 
-    switch (className) {
-        case PodStatus.Pending:
-            icon = 'fa-circle-notch';
-            spin = true;
-            break;
-        case PodStatus.Success:
-            icon = 'fa-check';
-            break;
-        case PodStatus.Failed:
-            icon = 'fa-times';
-            break;
-        case PodStatus.Warning:
-            icon = 'fa-exclamation-triangle';
-            break;
-        default:
-            spin = false;
-            icon = 'fa-question-circle';
-            break;
-    }
+    if (customIcon) icon = customIcon;
+    else
+        switch (className) {
+            case PodStatus.Pending:
+                icon = 'fa-circle-notch';
+                spin = true;
+                break;
+            case PodStatus.Success:
+                icon = 'fa-check';
+                break;
+            case PodStatus.Failed:
+                icon = 'fa-times';
+                break;
+            case PodStatus.Warning:
+                icon = 'fa-exclamation-triangle';
+                break;
+            default:
+                spin = false;
+                icon = 'fa-question-circle';
+                break;
+        }
 
     return (
         <ThemeDiv className={`pod-icon pod-icon--${className}`}>
@@ -107,6 +111,25 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                 <ThemeDiv className='pods__header'>
                     <span style={{marginRight: '5px'}}>{rsName}</span> <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
                     {props.showRevision && <div style={{marginLeft: 'auto'}}>Revision {props.rs.revision}</div>}
+                    {props.rs.scaleDownDeadline && (
+                        <div style={{marginLeft: 'auto'}}>
+                            <Ticker>
+                                {(now) => {
+                                    const time = moment(props.rs.scaleDownDeadline).diff(now, 'second');
+                                    return time <= 0 ? null : (
+                                        <Tooltip
+                                            content={
+                                                <span>
+                                                    Scaledown in <Duration durationMs={time} />
+                                                </span>
+                                            }>
+                                            <InfoItem content={(<Duration durationMs={time} />) as any} icon='fa fa-clock'></InfoItem>
+                                        </Tooltip>
+                                    );
+                                }}
+                            </Ticker>
+                        </div>
+                    )}
                 </ThemeDiv>
             )}
 
@@ -114,7 +137,17 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                 <ThemeDiv className='pods__container'>
                     <WaitFor loading={(props.rs.pods || []).length < 1}>
                         {props.rs.pods.map((pod, i) => (
-                            <PodWidget key={pod.objectMeta?.uid} pod={pod} />
+                            <PodWidget
+                                key={pod.objectMeta?.uid}
+                                name={pod.objectMeta?.name}
+                                status={pod.status}
+                                tooltip={
+                                    <div>
+                                        <div>Status: {pod.status}</div>
+                                        <div>{pod.objectMeta?.name}</div>
+                                    </div>
+                                }
+                            />
                         ))}
                     </WaitFor>
                 </ThemeDiv>
@@ -123,16 +156,10 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
     );
 };
 
-export const PodWidget = (props: {pod: Pod}) => (
-    <Menu items={[{label: 'Copy Name', action: () => navigator.clipboard.writeText(props.pod.objectMeta?.name), icon: 'fa-clipboard'}]}>
-        <Tooltip
-            content={
-                <div>
-                    <div>Status: {props.pod.status}</div>
-                    <div>{props.pod.objectMeta?.name}</div>
-                </div>
-            }>
-            <PodIcon status={props.pod.status} />
+export const PodWidget = ({name, status, tooltip, customIcon}: {name: string; status: string; tooltip: React.ReactNode; customIcon?: string}) => (
+    <Menu items={[{label: 'Copy Name', action: () => navigator.clipboard.writeText(name), icon: 'fa-clipboard'}]}>
+        <Tooltip content={tooltip}>
+            <PodIcon status={status} customIcon={customIcon} />
         </Tooltip>
     </Menu>
 );

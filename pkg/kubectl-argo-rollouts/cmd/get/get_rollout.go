@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/signals"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/viewcontroller"
@@ -44,7 +45,9 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			name := args[0]
 			controller := viewcontroller.NewRolloutViewController(o.Namespace(), name, getOptions.KubeClientset(), getOptions.RolloutsClientset())
-			ctx := context.Background()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			signals.SetupSignalHandler(cancel)
 			controller.Start(ctx)
 
 			ri, err := controller.GetRolloutInfo()
@@ -209,6 +212,14 @@ func (o *GetOptions) PrintReplicaSetInfo(w io.Writer, rsInfo rollout.ReplicaSetI
 	} else if rsInfo.Preview {
 		infoCols = append(infoCols, o.colorize(info.InfoTagPreview))
 		name = o.colorizeStatus(name, info.InfoTagPreview)
+	}
+	if rsInfo.Ping {
+		infoCols = append(infoCols, o.colorize(info.InfoTagPing))
+		name = o.colorizeStatus(name, info.InfoTagPing)
+	}
+	if rsInfo.Pong {
+		infoCols = append(infoCols, o.colorize(info.InfoTagPong))
+		name = o.colorizeStatus(name, info.InfoTagPong)
 	}
 	if rsInfo.ScaleDownDeadline != "" {
 		infoCols = append(infoCols, fmt.Sprintf("delay:%s", info.ScaleDownDelay(rsInfo)))

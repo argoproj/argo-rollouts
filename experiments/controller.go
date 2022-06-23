@@ -4,9 +4,6 @@ import (
 	"context"
 	"time"
 
-	informersv1 "k8s.io/client-go/informers/core/v1"
-	listersv1 "k8s.io/client-go/listers/core/v1"
-
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -15,8 +12,10 @@ import (
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
+	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
+	listersv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/controller"
@@ -33,6 +32,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -233,7 +233,7 @@ func (ec *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 }
 
 func (ec *Controller) syncHandler(key string) error {
-	startTime := time.Now()
+	startTime := timeutil.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err

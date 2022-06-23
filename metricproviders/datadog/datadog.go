@@ -17,12 +17,14 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-var unixNow = func() int64 { return time.Now().Unix() }
+var unixNow = func() int64 { return timeutil.Now().Unix() }
 
 const (
 	//ProviderType indicates the provider is datadog
@@ -57,8 +59,13 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
+// GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
+func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	return nil
+}
+
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
-	startTime := metav1.Now()
+	startTime := timeutil.MetaNow()
 
 	// Measurement to pass back
 	measurement := v1alpha1.Measurement{
@@ -70,7 +77,10 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		endpoint = p.config.Address + "/api/v1/query"
 	}
 
-	url, _ := url.Parse(endpoint)
+	url, err := url.Parse(endpoint)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
 
 	now := unixNow()
 	var interval int64 = 300
@@ -113,7 +123,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	measurement.Value = value
 	measurement.Phase = status
-	finishedTime := metav1.Now()
+	finishedTime := timeutil.MetaNow()
 	measurement.FinishedAt = &finishedTime
 
 	return measurement
@@ -139,18 +149,28 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)
 	}
 
-	if len(res.Series) < 1 || len(res.Series[0].Pointlist) < 1 {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datadog returned no value: %s", string(bodyBytes))
+	// Handle an empty query result
+	if len(res.Series) == 0 || len(res.Series[0].Pointlist) == 0 {
+		var nilFloat64 *float64
+		status, err := evaluate.EvaluateResult(nilFloat64, metric, p.logCtx)
+		seriesBytes, jsonErr := json.Marshal(res.Series)
+		if jsonErr != nil {
+			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Failed to marshall JSON empty series: %v", jsonErr)
+		}
+
+		return string(seriesBytes), status, err
 	}
 
+	// Handle a populated query result
 	series := res.Series[0]
 	datapoint := series.Pointlist[len(series.Pointlist)-1]
-	if len(datapoint) < 1 {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datadog returned no value: %s", string(bodyBytes))
+	if len(datapoint) != 2 {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datapoint does not have 2 values")
 	}
 
-	status, err := evaluate.EvaluateResult(datapoint[1], metric, p.logCtx)
-	return strconv.FormatFloat(datapoint[1], 'f', -1, 64), status, err
+	value := datapoint[1]
+	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
+	return strconv.FormatFloat(value, 'f', -1, 64), status, err
 }
 
 // Resume should not be used the Datadog provider since all the work should occur in the Run method

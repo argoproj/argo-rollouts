@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -112,7 +113,6 @@ func (s *CanarySuite) TestRolloutScalingWhenPaused() {
 		ExpectCanaryStablePodCount(1, 3)
 }
 
-
 // TestRolloutWithMaxSurgeScalingDuringUpdate verifies behavior when scaling a rollout up/down in middle of update and with maxSurge 100%
 func (s *CanarySuite) TestRolloutWithMaxSurgeScalingDuringUpdate() {
 	s.Given().
@@ -213,7 +213,7 @@ spec:
 		ExpectCanaryStablePodCount(6, 4).
 		When().
 		ScaleRollout(4).
-	    WaitForRolloutReplicas(6).
+		WaitForRolloutReplicas(6).
 		Then().
 		ExpectCanaryStablePodCount(2, 4)
 }
@@ -555,4 +555,40 @@ func (s *CanarySuite) TestCanaryUnScaleDownOnAbort() {
 		Then().
 		ExpectRevisionPodCount("2", 1).
 		ExpectRevisionScaleDown("2", false)
+}
+
+func (s *CanarySuite) TestCanaryDynamicStableScale() {
+	s.Given().
+		RolloutObjects(`@functional/canary-dynamic-stable-scale.yaml`).
+		When().
+		ApplyManifests().
+		MarkPodsReady("1", 4). // mark all 4 pods ready
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().          // update to revision 2
+		MarkPodsReady("2", 1). // mark 1 of 1 canary pods ready
+		WaitForRolloutStatus("Paused").
+		Sleep(2*time.Second).
+		Then().
+		ExpectRevisionPodCount("1", 3).
+		ExpectRevisionPodCount("2", 1).
+		When().
+		PromoteRollout().
+		MarkPodsReady("2", 2). // mark two more canary pods ready (3/3 canaries ready)
+		WaitForRolloutCanaryStepIndex(3).
+		Sleep(2*time.Second).
+		Then().
+		ExpectRevisionPodCount("1", 1).
+		ExpectRevisionPodCount("2", 3).
+		When().
+		// Abort rollout and ensure we scale down the canary as stable scales up
+		AbortRollout().
+		MarkPodsReady("1", 2). // mark 2 stable pods as ready (3/4 stable are ready)
+		WaitForRevisionPodCount("2", 1).
+		Then().
+		ExpectRevisionPodCount("1", 4).
+		When().
+		MarkPodsReady("1", 1). // mark last remaining stable pod as ready (4/4 stable are ready)
+		WaitForRevisionPodCount("2", 0).
+		Then().
+		ExpectRevisionPodCount("1", 4)
 }

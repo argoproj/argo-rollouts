@@ -44,10 +44,20 @@ For these reasons, in large scale high-volume production environments, a rolling
 ## Documentation
 To learn more about Argo Rollouts go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
 
+## Community 
+
+You can reach the Argo Rollouts community and developers via the following channels:
+
+* Q & A: [Github Discussions](https://github.com/argoproj/argo-rollouts/discussions)
+* Chat: [The #argo-rollouts Slack channel](https://argoproj.github.io/community/join-slack)
+* Contributors Office Hours: [Every Thursday](https://calendar.google.com/calendar/u/0/embed?src=argoproj@gmail.com) | [Agenda](https://docs.google.com/document/d/1xkoFkVviB70YBzSEa4bDnu-rUZ1sIFtwKKG1Uw8XsY8)
+* User Community meeting: [First Wednesday of each month](https://calendar.google.com/calendar/u/0/embed?src=argoproj@gmail.com) | [Agenda](https://docs.google.com/document/d/1ttgw98MO45Dq7ZUHpIiOIEfbyeitKHNfMjbY5dLLMKQ)
+
 ## Who uses Argo Rollouts?
 Organizations below are **officially** using Argo Rollouts. Please send a PR with your organization name if you are using Argo Rollouts.
 ## Community Blogs and Presentations
 
+* [Awesome-Argo: A Curated List of Awesome Projects and Resources Related to Argo](https://github.com/terrytangyuan/awesome-argo)
 * [Automation of Everything - How To Combine Argo Events, Workflows & Pipelines, CD, and Rollouts](https://youtu.be/XNXJtxkUKeY)
 * [Argo Rollouts - Canary Deployments Made Easy In Kubernetes](https://youtu.be/84Ky0aPbHvY)
 * [How Intuit Does Canary and Blue Green Deployments](https://www.youtube.com/watch?v=yeVkTTO9nOA)
@@ -59,5 +69,6 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 * [GitOps with Argo CD and an Argo Rollouts canary release](https://www.youtube.com/watch?v=35Qimb_AZ8U)
 * [Multi-Stage Delivery with Keptn and Argo Rollouts](https://www.youtube.com/watch?v=w-E8FzTbN3g&t=1s)
 * [Gradual Code Releases Using an In-House Kubernetes Canary Controller on top of Argo Rollouts](https://doordash.engineering/2021/04/14/gradual-code-releases-using-an-in-house-kubernetes-canary-controller/)
+* [How Scalable is Argo-Rollouts: A Cloud Operator’s Perspective](https://www.youtube.com/watch?v=rCEhxJ2NSTI)
 
 

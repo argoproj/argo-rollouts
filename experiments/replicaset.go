@@ -6,23 +6,24 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/controller"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	"github.com/argoproj/argo-rollouts/utils/hash"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
-	log "github.com/sirupsen/logrus"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -160,7 +161,7 @@ func newReplicaSetFromTemplate(experiment *v1alpha1.Experiment, template v1alpha
 			delete(newRSTemplate.Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 		}
 	}
-	podHash := controller.ComputeHash(&newRSTemplate, collisionCount)
+	podHash := hash.ComputePodTemplateHash(&newRSTemplate, collisionCount)
 
 	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(newRSTemplate.Labels, v1alpha1.DefaultRolloutUniqueLabelKey, podHash)
 	// Add podTemplateHash label to selector.
@@ -227,7 +228,7 @@ func (ec *experimentContext) addScaleDownDelay(rs *appsv1.ReplicaSet) (bool, err
 		}
 	}
 
-	deadline := metav1.Now().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
+	deadline := timeutil.MetaNow().Add(scaleDownDelaySeconds * time.Second).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
 	_, err := ec.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
@@ -267,7 +268,11 @@ func (ec *experimentContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet
 	}
 	scaled, newRS, err := ec.scaleReplicaSet(rs, newScale, scalingOperation)
 	if err != nil {
-		// TODO(jessesuen): gracefully handle conflict issues
+		if k8serrors.IsConflict(err) {
+			ec.log.Warnf("Retrying scaling of ReplicaSet '%s': %s", rs.Name, err)
+			ec.enqueueExperimentAfter(ec.ex, time.Second)
+			return false, nil, nil
+		}
 		msg := fmt.Sprintf("Failed to scale %s %s: %v", rs.Name, scalingOperation, err)
 		ec.recorder.Warnf(ec.ex, record.EventOptions{EventReason: "ReplicaSetUpdateError"}, msg)
 	} else {

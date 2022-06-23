@@ -1,0 +1,86 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "31"
+  creationTimestamp: "2019-10-25T06:07:18Z"
+  generation: 429
+  labels:
+    app: canary-demo
+    app.kubernetes.io/instance: jesse-test
+  name: canary-demo-pingpong
+  namespace: jesse-test
+  resourceVersion: "28253567"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/jesse-test/rollouts/canary-demo
+  uid: b350ba76-f6ed-11e9-a15b-42010aa80033
+spec:
+  progressDeadlineSeconds: 30
+  replicas: 5
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: canary-demo
+  strategy:
+    canary:
+      pingPong:
+        pingService: ping-service
+        pongService: pong-service
+      steps:
+      - setWeight: 20
+      - pause: {}
+      - setWeight: 40
+      - pause:
+          duration: 10s
+      - setWeight: 60
+      - pause:
+          duration: 10s
+      - setWeight: 80
+      - pause:
+          duration: 10s
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: canary-demo
+    spec:
+      containers:
+      - image: argoproj/rollouts-demo:does-not-exist
+        imagePullPolicy: Always
+        name: canary-demo
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 5m
+            memory: 32Mi
+status:
+  HPAReplicas: 6
+  availableReplicas: 5
+  blueGreen: {}
+  canary: {
+    stablePingPong: pong
+  }
+  stableRS: 877894d5b
+  conditions:
+  - lastTransitionTime: "2019-10-25T06:07:29Z"
+    lastUpdateTime: "2019-10-25T06:07:29Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2019-10-28T04:52:55Z"
+    lastUpdateTime: "2019-10-28T04:52:55Z"
+    message: ReplicaSet "canary-demo-65fb5ffc84" has timed out progressing.
+    reason: ProgressDeadlineExceeded
+    status: "False"
+    type: Progressing
+  currentPodHash: 65fb5ffc84
+  currentStepHash: f64cdc9d
+  currentStepIndex: 0
+  observedGeneration: "429"
+  readyReplicas: 5
+  replicas: 6
+  selector: app=canary-demo
+  updatedReplicas: 1

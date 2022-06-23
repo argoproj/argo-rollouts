@@ -9,12 +9,12 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -86,6 +86,12 @@ const (
 	// estimated once a rollout is paused.
 	RolloutPausedMessage = "Rollout is paused"
 
+	// ReplicaSetNotAvailableReason is added when the replicaset of an rollout is not available.
+	// This could happen when a fully promoted rollout becomes incomplete, e.g.,
+	// due to  pod restarts, evicted -> recreated. In this case, we'll need to reset the rollout's
+	// condition to `PROGRESSING` to avoid any timeouts.
+	ReplicaSetNotAvailableReason = "ReplicaSetNotAvailable"
+
 	// RolloutResumedReason is added in a rollout when it is resumed. Useful for not failing accidentally
 	// rollout that paused amidst a rollout and are bounded by a deadline.
 	RolloutResumedReason = "RolloutResumed"
@@ -93,12 +99,13 @@ const (
 	// rollout that paused amidst a rollout and are bounded by a deadline.
 	RolloutResumedMessage = "Rollout is resumed"
 
-	// ResumedRolloutReason is added in a rollout when it is resumed. Useful for not failing accidentally
-	// rollout that paused amidst a rollout and are bounded by a deadline.
-	RolloutStepCompletedReason = "RolloutStepCompleted"
-	// ResumeRolloutMessage is added in a rollout when it is resumed. Useful for not failing accidentally
-	// rollout that paused amidst a rollout and are bounded by a deadline.
+	// RolloutStepCompleted indicates when a canary step has completed
+	RolloutStepCompletedReason  = "RolloutStepCompleted"
 	RolloutStepCompletedMessage = "Rollout step %d/%d completed (%s)"
+
+	// TrafficWeightUpdated is emitted any time traffic weight is modified
+	TrafficWeightUpdatedReason  = "TrafficWeightUpdated"
+	TrafficWeightUpdatedMessage = "Traffic weight updated %s"
 
 	// NewRSAvailableReason is added in a rollout when its newest replica set is made available
 	// ie. the number of new pods that have passed readiness checks and run for at least minReadySeconds
@@ -147,6 +154,12 @@ const (
 	// TargetGroupVerifyErrorReason is emitted when we fail to verify the health of a target group due to error
 	TargetGroupVerifyErrorReason  = "TargetGroupVerifyError"
 	TargetGroupVerifyErrorMessage = "Failed to verify Service %s (TargetGroup %s): %s"
+	// WeightVerifyErrorReason is emitted when there is an error verifying the set weight
+	WeightVerifyErrorReason  = "WeightVerifyError"
+	WeightVerifyErrorMessage = "Failed to verify weight: %s"
+	// LoadBalancerNotFoundReason is emitted when load balancer can not be found
+	LoadBalancerNotFoundReason  = "LoadBalancerNotFound"
+	LoadBalancerNotFoundMessage = "Failed to find load balancer: %s"
 )
 
 // NewRolloutCondition creates a new rollout condition.
@@ -154,8 +167,8 @@ func NewRolloutCondition(condType v1alpha1.RolloutConditionType, status corev1.C
 	return &v1alpha1.RolloutCondition{
 		Type:               condType,
 		Status:             status,
-		LastUpdateTime:     metav1.Now(),
-		LastTransitionTime: metav1.Now(),
+		LastUpdateTime:     timeutil.MetaNow(),
+		LastTransitionTime: timeutil.MetaNow(),
 		Reason:             reason,
 		Message:            message,
 	}
@@ -313,7 +326,7 @@ func RolloutTimedOut(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 	// progress or tried to create a replica set, or resumed a paused rollout and
 	// compare against progressDeadlineSeconds.
 	from := condition.LastUpdateTime
-	now := time.Now()
+	now := timeutil.Now()
 
 	progressDeadlineSeconds := defaults.GetProgressDeadlineSecondsOrDefault(rollout)
 	delta := time.Duration(progressDeadlineSeconds) * time.Second

@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/undefinedlabs/go-mpatch"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,11 +60,13 @@ func newFixture(t *testing.T) *fixture {
 	f.objects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	patch, err := mpatch.PatchMethod(time.Now, func() time.Time {
+	timeutil.Now = func() time.Time {
 		return now
-	})
-	assert.NoError(t, err)
-	f.unfreezeTime = patch.Unpatch
+	}
+	f.unfreezeTime = func() error {
+		timeutil.Now = time.Now
+		return nil
+	}
 	return f
 }
 
@@ -94,7 +97,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	})
+	}, true)
 
 	c := NewController(ControllerConfig{
 		KubeClientSet:        f.kubeclient,

@@ -9,14 +9,13 @@ import (
 	"net/http"
 	"time"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 const (
@@ -62,6 +61,11 @@ func (p *Provider) Type() string {
 	return ProviderType
 }
 
+// GetMetadata returns any additional metadata which needs to be stored & displayed as part of the metrics result.
+func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
+	return nil
+}
+
 func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
 
 	configIdLookupURL := fmt.Sprintf(configIdLookupURLFormat, metric.Provider.Kayenta.Address, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.StorageAccountName)
@@ -97,7 +101,7 @@ func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
 
 // Run queries kayentd for the metric
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
-	startTime := metav1.Now()
+	startTime := timeutil.MetaNow()
 	newMeasurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
 	}
@@ -157,7 +161,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	newMeasurement.Phase = v1alpha1.AnalysisPhaseRunning
 
-	resumeTime := metav1.NewTime(time.Now().Add(resumeDelay))
+	resumeTime := metav1.NewTime(timeutil.Now().Add(resumeDelay))
 	newMeasurement.ResumeAt = &resumeTime
 
 	return newMeasurement
@@ -191,7 +195,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 	status, ok, err := unstructured.NestedBool(patch, "complete")
 	if ok {
 		if !status { //resume later since it is incomplete
-			resumeTime := metav1.NewTime(time.Now().Add(resumeDelay))
+			resumeTime := metav1.NewTime(timeutil.Now().Add(resumeDelay))
 			measurement.ResumeAt = &resumeTime
 			measurement.Phase = v1alpha1.AnalysisPhaseRunning
 
@@ -217,7 +221,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	finishTime := metav1.Now()
+	finishTime := timeutil.MetaNow()
 	measurement.FinishedAt = &finishTime
 
 	return measurement

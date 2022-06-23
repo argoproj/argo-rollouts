@@ -1,6 +1,7 @@
 package info
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/info/testdata"
+	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
 func TestAge(t *testing.T) {
@@ -20,7 +22,7 @@ func TestAge(t *testing.T) {
 
 func TestCanaryRolloutInfo(t *testing.T) {
 	rolloutObjs := testdata.NewCanaryRollout()
-	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
+	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
 	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
 	assert.Len(t, Revisions(roInfo), 3)
 
@@ -36,10 +38,52 @@ func TestCanaryRolloutInfo(t *testing.T) {
 	})
 }
 
+func TestCanaryRolloutInfoWeights(t *testing.T) {
+	rolloutObjs := testdata.NewCanaryRollout()
+
+	t.Run("TestActualWeightWithExistingWeight", func(t *testing.T) {
+		t.Run("will test that actual weight for info object is set from rollout status", func(t *testing.T) {
+			roInfo := NewRolloutInfo(rolloutObjs.Rollouts[4], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
+			actualWeightString := roInfo.ActualWeight
+			actualWeightStringInt32, err := strconv.ParseInt(actualWeightString, 10, 32)
+			if err != nil {
+				t.Error(err)
+			}
+			assert.Equal(t, rolloutObjs.Rollouts[4].Status.Canary.Weights.Canary.Weight, int32(actualWeightStringInt32))
+		})
+	})
+
+	t.Run("TestActualWeightWithoutExistingWeight", func(t *testing.T) {
+		t.Run("will test that actual weight is set to SetWeight when status field does not exist", func(t *testing.T) {
+			//This test has a no canary weight object in the status field so we fall back to using SetWeight value
+			roInfo := NewRolloutInfo(rolloutObjs.Rollouts[5], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
+			assert.Equal(t, roInfo.SetWeight, roInfo.ActualWeight)
+		})
+	})
+}
+
+func TestPingPongCanaryRolloutInfo(t *testing.T) {
+	rolloutObjs := testdata.NewCanaryRollout()
+	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[3], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
+	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[3].Name)
+	assert.Len(t, Revisions(roInfo), 3)
+
+	assert.Equal(t, Images(roInfo), []ImageInfo{
+		{
+			Image: "argoproj/rollouts-demo:does-not-exist",
+			Tags:  []string{InfoTagCanary, InfoTagPing},
+		},
+		{
+			Image: "argoproj/rollouts-demo:green",
+			Tags:  []string{InfoTagStable, InfoTagPong},
+		},
+	})
+}
+
 func TestBlueGreenRolloutInfo(t *testing.T) {
 	{
 		rolloutObjs := testdata.NewBlueGreenRollout()
-		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
+		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
 		assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
 		assert.Len(t, Revisions(roInfo), 3)
 
@@ -63,10 +107,10 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 	}
 	{
 		rolloutObjs := testdata.NewBlueGreenRollout()
-		inFourHours := metav1.Now().Add(4 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
+		inFourHours := timeutil.Now().Add(4 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
 		rolloutObjs.ReplicaSets[0].Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inFourHours
 		delayedRs := rolloutObjs.ReplicaSets[0].ObjectMeta.UID
-		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
+		roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
 
 		assert.Equal(t, roInfo.ReplicaSets[1].ObjectMeta.UID, delayedRs)
 		assert.Equal(t, roInfo.ReplicaSets[1].ScaleDownDeadline, inFourHours)
@@ -76,7 +120,7 @@ func TestBlueGreenRolloutInfo(t *testing.T) {
 
 func TestExperimentAnalysisRolloutInfo(t *testing.T) {
 	rolloutObjs := testdata.NewExperimentAnalysisRollout()
-	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
+	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
 	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
 	assert.Len(t, Revisions(roInfo), 2)
 
@@ -114,14 +158,14 @@ func TestExperimentInfo(t *testing.T) {
 
 func TestRolloutStatusInvalidSpec(t *testing.T) {
 	rolloutObjs := testdata.NewInvalidRollout()
-	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
+	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
 	assert.Equal(t, "Degraded", roInfo.Status)
 	assert.Equal(t, "InvalidSpec: The Rollout \"rollout-invalid\" is invalid: spec.template.metadata.labels: Invalid value: map[string]string{\"app\":\"doesnt-match\"}: `selector` does not match template `labels`", roInfo.Message)
 }
 
 func TestRolloutAborted(t *testing.T) {
 	rolloutObjs := testdata.NewAbortedRollout()
-	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns)
+	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
 	assert.Equal(t, "Degraded", roInfo.Status)
 	assert.Equal(t, `RolloutAborted: metric "web" assessed Failed due to failed (1) > failureLimit (0)`, roInfo.Message)
 }

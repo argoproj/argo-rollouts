@@ -496,6 +496,20 @@
     }
   },
   "definitions": {
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBStatus": {
+      "type": "object",
+      "properties": {
+        "loadBalancer": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AwsResourceRef"
+        },
+        "canaryTargetGroup": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AwsResourceRef"
+        },
+        "stableTargetGroup": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AwsResourceRef"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBTrafficRouting": {
       "type": "object",
       "properties": {
@@ -511,6 +525,10 @@
         "rootService": {
           "type": "string",
           "title": "RootService references the service in the ingress to the controller should add the action to"
+        },
+        "stickinessConfig": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StickinessConfig",
+          "title": "AdditionalForwardConfig allows to specify further settings on the ForwaredConfig\n+optional"
         },
         "annotationPrefix": {
           "type": "string",
@@ -580,6 +598,61 @@
       },
       "title": "AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshTrafficRouting": {
+      "type": "object",
+      "properties": {
+        "virtualService": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualService",
+          "title": "VirtualService references an AppMesh VirtualService and VirtualRouter to modify to shape traffic"
+        },
+        "virtualNodeGroup": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualNodeGroup",
+          "title": "VirtualNodeGroup references an AppMesh Route targets that are formed by a set of VirtualNodes that are used to shape traffic"
+        }
+      },
+      "title": "AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualNodeGroup": {
+      "type": "object",
+      "properties": {
+        "canaryVirtualNodeRef": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualNodeReference",
+          "title": "CanaryVirtualNodeRef is the virtual node ref to modify labels with canary ReplicaSet pod template hash value"
+        },
+        "stableVirtualNodeRef": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualNodeReference",
+          "title": "StableVirtualNodeRef is the virtual node name to modify labels with stable ReplicaSet pod template hash value"
+        }
+      },
+      "title": "AppMeshVirtualNodeGroup holds information about targets used for routing traffic to a virtual service"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualNodeReference": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of VirtualNode CR"
+        }
+      },
+      "title": "AppMeshVirtualNodeReference holds a reference to VirtualNode.appmesh.k8s.aws"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshVirtualService": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of virtual service"
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Routes is list of HTTP routes within virtual router associated with virtual service to edit. If omitted, virtual service must have a single route of this type."
+        }
+      },
+      "title": "AppMeshVirtualService holds information on the virtual service the rollout needs to modify"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ArgumentValueFrom": {
       "type": "object",
       "properties": {
@@ -593,6 +666,17 @@
         }
       },
       "title": "ArgumentValueFrom defines references to fields within resources to grab for the value (i.e. Pod Template Hash)"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AwsResourceRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "arn": {
+          "type": "string"
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.BlueGreenStatus": {
       "type": "object",
@@ -701,6 +785,14 @@
         "currentExperiment": {
           "type": "string",
           "title": "CurrentExperiment indicates the running experiment"
+        },
+        "weights": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TrafficWeights",
+          "title": "Weights records the weights which have been set on traffic provider. Only valid when using traffic routing"
+        },
+        "stablePingPong": {
+          "type": "string",
+          "title": "StablePingPong For the ping-pong feature holds the current stable service, ping or pong"
         }
       },
       "title": "CanaryStatus status fields that only pertain to the canary rollout"
@@ -728,6 +820,10 @@
         "setCanaryScale": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetCanaryScale",
           "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight\n+optional"
+        },
+        "setHeaderRouting": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetHeaderRouting",
+          "title": "SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service"
         }
       },
       "description": "CanaryStep defines a step of a canary deployment."
@@ -792,9 +888,27 @@
           "type": "integer",
           "format": "int32",
           "title": "AbortScaleDownDelaySeconds adds a delay in second before scaling down the canary pods when update\nis aborted for canary strategy with traffic routing (not applicable for basic canary).\n0 means canary pods are not scaled down.\nDefault is 30 seconds.\n+optional"
+        },
+        "dynamicStableScale": {
+          "type": "boolean",
+          "description": "DynamicStableScale is a traffic routing feature which dynamically scales the stable\nReplicaSet to minimize total pods which are running during an update. This is calculated by\nscaling down the stable as traffic is increased to canary. When disabled (the default behavior)\nthe stable ReplicaSet remains fully scaled to support instantaneous aborts."
+        },
+        "pingPong": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PingPongSpec",
+          "title": "PingPongSpec holds the ping and pong services"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DryRun": {
+      "type": "object",
+      "properties": {
+        "metricName": {
+          "type": "string",
+          "description": "Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all\nthe available metrics."
+        }
+      },
+      "description": "DryRun defines the settings for running the analysis in Dry-Run mode."
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.FieldRef": {
       "type": "object",
@@ -802,6 +916,19 @@
         "fieldPath": {
           "type": "string",
           "title": "Required: Path of the field to select in the specified API version"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.HeaderRoutingMatch": {
+      "type": "object",
+      "properties": {
+        "headerName": {
+          "type": "string",
+          "title": "HeaderName the name of the request header"
+        },
+        "headerValue": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
+          "title": "HeaderValue the value of the header"
         }
       }
     },
@@ -868,6 +995,21 @@
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MeasurementRetention": {
+      "type": "object",
+      "properties": {
+        "metricName": {
+          "type": "string",
+          "description": "MetricName is the name of the metric on which this retention policy should be applied."
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Limit is the maximum number of measurements to be retained for this given metric."
+        }
+      },
+      "description": "MeasurementRetention defines the settings for retaining the number of measurements during the analysis."
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.NginxTrafficRouting": {
       "type": "object",
       "properties": {
@@ -918,6 +1060,20 @@
         }
       },
       "title": "PauseCondition the reason for a pause and when it started"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PingPongSpec": {
+      "type": "object",
+      "properties": {
+        "pingService": {
+          "type": "string",
+          "title": "name of the ping service"
+        },
+        "pongService": {
+          "type": "string",
+          "title": "name of the pong service"
+        }
+      },
+      "description": "PingPongSpec holds the ping and pong service name."
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodTemplateMetadata": {
       "type": "object",
@@ -985,6 +1141,20 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunArgument"
           },
           "title": "Args the arguments that will be added to the AnalysisRuns\n+patchMergeKey=name\n+patchStrategy=merge"
+        },
+        "dryRun": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DryRun"
+          },
+          "title": "DryRun object contains the settings for running the analysis in Dry-Run mode\n+patchMergeKey=metricName\n+patchStrategy=merge\n+optional"
+        },
+        "measurementRetention": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MeasurementRetention"
+          },
+          "title": "MeasurementRetention object contains the settings for retaining the number of measurements during the analysis\n+patchMergeKey=metricName\n+patchStrategy=merge\n+optional"
         }
       },
       "title": "RolloutAnalysis defines a template that is used to create a analysisRun"
@@ -1199,7 +1369,7 @@
         },
         "progressDeadlineAbort": {
           "type": "boolean",
-          "title": "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds\nis exceeded if analysis is not used. Default is false.\n+optional"
+          "title": "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds\nis exceeded.\n+optional"
         },
         "restartAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
@@ -1224,7 +1394,7 @@
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PauseCondition"
           },
-          "title": "PauseConditions indicates why the rollout is currently paused"
+          "title": "PauseConditions is a list of reasons why rollout became automatically paused (e.g.\nCanaryPauseStep, BlueGreenPause, InconclusiveAnalysis). The items in this list are populated\nby the controller but are cleared by the user (e.g. plugin, argo-cd resume action) when they\nwish to unpause. If pause conditions is empty, but controllerPause is true, it indicates\nthe user manually unpaused the Rollout"
         },
         "controllerPause": {
           "type": "boolean",
@@ -1276,10 +1446,6 @@
           "type": "string",
           "title": "The generation observed by the rollout controller from metadata.generation\n+optional"
         },
-        "workloadObservedGeneration": {
-          "type": "string",
-          "title": "The generation of referenced workload observed by the rollout controller\n+optional"
-        },
         "conditions": {
           "type": "array",
           "items": {
@@ -1323,6 +1489,14 @@
         "message": {
           "type": "string",
           "title": "Message provides details on why the rollout is in its current phase"
+        },
+        "workloadObservedGeneration": {
+          "type": "string",
+          "title": "The generation of referenced workload observed by the rollout controller\n+optional"
+        },
+        "alb": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBStatus",
+          "title": "/ ALB keeps information regarding the ALB and TargetGroups"
         }
       },
       "title": "RolloutStatus is the status for a Rollout resource"
@@ -1363,6 +1537,14 @@
         "ambassador": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AmbassadorTrafficRouting",
           "title": "Ambassador holds specific configuration to use Ambassador to route traffic"
+        },
+        "appMesh": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshTrafficRouting",
+          "title": "AppMesh holds specific configuration to use AppMesh to route traffic"
+        },
+        "traefik": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting",
+          "title": "Traefik holds specific configuration to use Traefik to route traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"
@@ -1401,6 +1583,48 @@
       },
       "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetHeaderRouting": {
+      "type": "object",
+      "properties": {
+        "match": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.HeaderRoutingMatch"
+          }
+        }
+      },
+      "title": "SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StickinessConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "durationSeconds": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch": {
+      "type": "object",
+      "properties": {
+        "exact": {
+          "type": "string",
+          "title": "Exact The string must match exactly"
+        },
+        "prefix": {
+          "type": "string",
+          "title": "Prefix The string will be prefixed matched"
+        },
+        "regex": {
+          "type": "string",
+          "title": "Regex The string will be regular expression matched"
+        }
+      },
+      "title": "StringMatch Used to define what type of matching we will use exact, prefix, or regular expression"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute": {
       "type": "object",
       "properties": {
@@ -1418,6 +1642,59 @@
         }
       },
       "description": "TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting": {
+      "type": "object",
+      "properties": {
+        "weightedTraefikServiceName": {
+          "type": "string",
+          "title": "TraefikServiceName refer to the name of the Traefik service used to route traffic to the service"
+        }
+      },
+      "title": "TraefikTrafficRouting defines the configuration required to use Traefik as traffic router"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TrafficWeights": {
+      "type": "object",
+      "properties": {
+        "canary": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination",
+          "title": "Canary is the current traffic weight split to canary ReplicaSet"
+        },
+        "stable": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination",
+          "title": "Stable is the current traffic weight split to stable ReplicaSet"
+        },
+        "additional": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination"
+          },
+          "title": "Additional holds the weights split to additional ReplicaSets such as experiment ReplicaSets"
+        },
+        "verified": {
+          "type": "boolean",
+          "title": "Verified is an optional indicator that the weight has been verified to have taken effect.\nThis is currently only applicable to ALB traffic router"
+        }
+      },
+      "title": "TrafficWeights describes the current status of how traffic has been split"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination": {
+      "type": "object",
+      "properties": {
+        "weight": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Weight is an percentage of traffic being sent to this destination"
+        },
+        "serviceName": {
+          "type": "string",
+          "title": "ServiceName is the Kubernetes service name traffic is being sent to"
+        },
+        "podTemplateHash": {
+          "type": "string",
+          "title": "PodTemplateHash is the pod template hash label for this destination"
+        }
+      }
     },
     "google.protobuf.Any": {
       "type": "object",
@@ -1700,7 +1977,7 @@
           "title": "Specify whether the ConfigMap or its key must be defined\n+optional"
         }
       },
-      "description": "Selects a key from a ConfigMap."
+      "title": "Selects a key from a ConfigMap.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.ConfigMapProjection": {
       "type": "object",
@@ -1763,14 +2040,14 @@
           "items": {
             "type": "string"
           },
-          "title": "Entrypoint array. Not executed within a shell.\nThe docker image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax\ncan be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded,\nregardless of whether the variable exists or not.\nCannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
+          "title": "Entrypoint array. Not executed within a shell.\nThe docker image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
         },
         "args": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "title": "Arguments to the entrypoint.\nThe docker image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax\ncan be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded,\nregardless of whether the variable exists or not.\nCannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
+          "title": "Arguments to the entrypoint.\nThe docker image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
         },
         "workingDir": {
           "type": "string",
@@ -1799,7 +2076,7 @@
         },
         "resources": {
           "$ref": "#/definitions/k8s.io.api.core.v1.ResourceRequirements",
-          "title": "Compute Resources required by this container.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/\n+optional"
+          "title": "Compute Resources required by this container.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/\n+optional"
         },
         "volumeMounts": {
           "type": "array",
@@ -1845,7 +2122,7 @@
         },
         "securityContext": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SecurityContext",
-          "title": "Security options the pod should run with.\nMore info: https://kubernetes.io/docs/concepts/policy/security-context/\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/\n+optional"
+          "title": "SecurityContext defines the security options the container should be run with.\nIf set, the fields of SecurityContext override the equivalent fields of PodSecurityContext.\nMore info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/\n+optional"
         },
         "stdin": {
           "type": "boolean",
@@ -1985,7 +2262,7 @@
         },
         "value": {
           "type": "string",
-          "title": "Variable references $(VAR_NAME) are expanded\nusing the previous defined environment variables in the container and\nany service environment variables. If a variable cannot be resolved,\nthe reference in the input string will be unchanged. The $(VAR_NAME)\nsyntax can be escaped with a double $$, ie: $$(VAR_NAME). Escaped\nreferences will never be expanded, regardless of whether the variable\nexists or not.\nDefaults to \"\".\n+optional"
+          "title": "Variable references $(VAR_NAME) are expanded\nusing the previously defined environment variables in the container and\nany service environment variables. If a variable cannot be resolved,\nthe reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.\n\"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\".\nEscaped references will never be expanded, regardless of whether the variable\nexists or not.\nDefaults to \"\".\n+optional"
         },
         "valueFrom": {
           "$ref": "#/definitions/k8s.io.api.core.v1.EnvVarSource",
@@ -2025,10 +2302,10 @@
         },
         "targetContainerName": {
           "type": "string",
-          "title": "If set, the name of the container from PodSpec that this ephemeral container targets.\nThe ephemeral container will be run in the namespaces (IPC, PID, etc) of this container.\nIf not set then the ephemeral container is run in whatever namespaces are shared\nfor the pod. Note that the container runtime must support this feature.\n+optional"
+          "description": "If set, the name of the container from PodSpec that this ephemeral container targets.\nThe ephemeral container will be run in the namespaces (IPC, PID, etc) of this container.\nIf not set then the ephemeral container uses the namespaces configured in the Pod spec.\n\nThe container runtime must implement support for this feature. If the runtime does not\nsupport namespace targeting then the result of setting this field is undefined.\n+optional"
         }
       },
-      "description": "An EphemeralContainer is a container that may be added temporarily to an existing pod for\nuser-initiated activities such as debugging. Ephemeral containers have no resource or\nscheduling guarantees, and they will not be restarted when they exit or when a pod is\nremoved or restarted. If an ephemeral container causes a pod to exceed its resource\nallocation, the pod may be evicted.\nEphemeral containers may not be added by directly updating the pod spec. They must be added\nvia the pod's ephemeralcontainers subresource, and they will appear in the pod spec\nonce added.\nThis is an alpha feature enabled by the EphemeralContainers feature flag."
+      "description": "An EphemeralContainer is a temporary container that you may add to an existing Pod for\nuser-initiated activities such as debugging. Ephemeral containers have no resource or\nscheduling guarantees, and they will not be restarted when they exit or when a Pod is\nremoved or restarted. The kubelet may evict a Pod if an ephemeral container causes the\nPod to exceed its resource allocation.\n\nTo add an ephemeral container, use the ephemeralcontainers subresource of an existing\nPod. Ephemeral containers may not be removed or restarted.\n\nThis is a beta feature available on clusters that haven't disabled the EphemeralContainers feature gate."
     },
     "k8s.io.api.core.v1.EphemeralContainerCommon": {
       "type": "object",
@@ -2046,14 +2323,14 @@
           "items": {
             "type": "string"
           },
-          "title": "Entrypoint array. Not executed within a shell.\nThe docker image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax\ncan be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded,\nregardless of whether the variable exists or not.\nCannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
+          "title": "Entrypoint array. Not executed within a shell.\nThe docker image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
         },
         "args": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "title": "Arguments to the entrypoint.\nThe docker image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax\ncan be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded,\nregardless of whether the variable exists or not.\nCannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
+          "title": "Arguments to the entrypoint.\nThe docker image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional"
         },
         "workingDir": {
           "type": "string",
@@ -2064,7 +2341,7 @@
           "items": {
             "$ref": "#/definitions/k8s.io.api.core.v1.ContainerPort"
           },
-          "description": "Ports are not allowed for ephemeral containers."
+          "title": "Ports are not allowed for ephemeral containers.\n+optional\n+patchMergeKey=containerPort\n+patchStrategy=merge\n+listType=map\n+listMapKey=containerPort\n+listMapKey=protocol"
         },
         "envFrom": {
           "type": "array",
@@ -2089,7 +2366,7 @@
           "items": {
             "$ref": "#/definitions/k8s.io.api.core.v1.VolumeMount"
           },
-          "title": "Pod volumes to mount into the container's filesystem.\nCannot be updated.\n+optional\n+patchMergeKey=mountPath\n+patchStrategy=merge"
+          "title": "Pod volumes to mount into the container's filesystem. Subpath mounts are not allowed for ephemeral containers.\nCannot be updated.\n+optional\n+patchMergeKey=mountPath\n+patchStrategy=merge"
         },
         "volumeDevices": {
           "type": "array",
@@ -2128,7 +2405,7 @@
         },
         "securityContext": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SecurityContext",
-          "title": "SecurityContext is not allowed for ephemeral containers.\n+optional"
+          "title": "Optional: SecurityContext defines the security options the ephemeral container should be run with.\nIf set, the fields of SecurityContext override the equivalent fields of PodSecurityContext.\n+optional"
         },
         "stdin": {
           "type": "boolean",
@@ -2151,10 +2428,6 @@
         "volumeClaimTemplate": {
           "$ref": "#/definitions/k8s.io.api.core.v1.PersistentVolumeClaimTemplate",
           "description": "Will be used to create a stand-alone PVC to provision the volume.\nThe pod in which this EphemeralVolumeSource is embedded will be the\nowner of the PVC, i.e. the PVC will be deleted together with the\npod.  The name of the PVC will be `\u003cpod name\u003e-\u003cvolume name\u003e` where\n`\u003cvolume name\u003e` is the name from the `PodSpec.Volumes` array\nentry. Pod validation will reject the pod if the concatenated name\nis not valid for a PVC (for example, too long).\n\nAn existing PVC with that name that is not owned by the pod\nwill *not* be used for the pod to avoid using an unrelated\nvolume by mistake. Starting the pod is then blocked until\nthe unrelated PVC is removed. If such a pre-created PVC is\nmeant to be used by the pod, the PVC has to updated with an\nowner reference to the pod once the pod exists. Normally\nthis should not be necessary, but it may be useful when\nmanually reconstructing a broken cluster.\n\nThis field is read-only and no changes will be made by Kubernetes\nto the PVC after it has been created.\n\nRequired, must not be nil."
-        },
-        "readOnly": {
-          "type": "boolean",
-          "title": "Specifies a read-only configuration for the volume.\nDefaults to false (read/write).\n+optional"
         }
       },
       "description": "Represents an ephemeral volume that is handled by a normal storage driver."
@@ -2271,6 +2544,20 @@
       },
       "description": "Represents a Persistent Disk resource in Google Compute Engine.\n\nA GCE PD must exist before mounting to a container. The disk must\nalso be in the same GCE project and zone as the kubelet. A GCE PD\ncan only be mounted as read/write once or read-only many times. GCE\nPDs support ownership management and SELinux relabeling."
     },
+    "k8s.io.api.core.v1.GRPCAction": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Port number of the gRPC service. Number must be in the range 1 to 65535."
+        },
+        "service": {
+          "type": "string",
+          "description": "Service is the name of the service to place in the gRPC HealthCheckRequest\n(see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).\n\nIf this is not specified, the default behavior is defined by gRPC.\n+optional\n+default=\"\""
+        }
+      }
+    },
     "k8s.io.api.core.v1.GitRepoVolumeSource": {
       "type": "object",
       "properties": {
@@ -2349,24 +2636,6 @@
         }
       },
       "title": "HTTPHeader describes a custom header to be used in HTTP probes"
-    },
-    "k8s.io.api.core.v1.Handler": {
-      "type": "object",
-      "properties": {
-        "exec": {
-          "$ref": "#/definitions/k8s.io.api.core.v1.ExecAction",
-          "title": "One and only one of the following should be specified.\nExec specifies the action to take.\n+optional"
-        },
-        "httpGet": {
-          "$ref": "#/definitions/k8s.io.api.core.v1.HTTPGetAction",
-          "title": "HTTPGet specifies the http request to perform.\n+optional"
-        },
-        "tcpSocket": {
-          "$ref": "#/definitions/k8s.io.api.core.v1.TCPSocketAction",
-          "title": "TCPSocket specifies an action involving a TCP port.\nTCP hooks not yet supported\nTODO: implement a realistic TCP lifecycle hook\n+optional"
-        }
-      },
-      "description": "Handler defines a specific action that should be taken\nTODO: pass structured data to these actions, and document that data here."
     },
     "k8s.io.api.core.v1.HostAlias": {
       "type": "object",
@@ -2476,15 +2745,33 @@
       "type": "object",
       "properties": {
         "postStart": {
-          "$ref": "#/definitions/k8s.io.api.core.v1.Handler",
+          "$ref": "#/definitions/k8s.io.api.core.v1.LifecycleHandler",
           "title": "PostStart is called immediately after a container is created. If the handler fails,\nthe container is terminated and restarted according to its restart policy.\nOther management of the container blocks until the hook completes.\nMore info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks\n+optional"
         },
         "preStop": {
-          "$ref": "#/definitions/k8s.io.api.core.v1.Handler",
-          "title": "PreStop is called immediately before a container is terminated due to an\nAPI request or management event such as liveness/startup probe failure,\npreemption, resource contention, etc. The handler is not called if the\ncontainer crashes or exits. The reason for termination is passed to the\nhandler. The Pod's termination grace period countdown begins before the\nPreStop hooked is executed. Regardless of the outcome of the handler, the\ncontainer will eventually terminate within the Pod's termination grace\nperiod. Other management of the container blocks until the hook completes\nor until the termination grace period is reached.\nMore info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks\n+optional"
+          "$ref": "#/definitions/k8s.io.api.core.v1.LifecycleHandler",
+          "title": "PreStop is called immediately before a container is terminated due to an\nAPI request or management event such as liveness/startup probe failure,\npreemption, resource contention, etc. The handler is not called if the\ncontainer crashes or exits. The Pod's termination grace period countdown begins before the\nPreStop hook is executed. Regardless of the outcome of the handler, the\ncontainer will eventually terminate within the Pod's termination grace\nperiod (unless delayed by finalizers). Other management of the container blocks until the hook completes\nor until the termination grace period is reached.\nMore info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks\n+optional"
         }
       },
       "description": "Lifecycle describes actions that the management system should take in response to container lifecycle\nevents. For the PostStart and PreStop lifecycle handlers, management of the container blocks\nuntil the action is complete, unless the container process fails, in which case the handler is aborted."
+    },
+    "k8s.io.api.core.v1.LifecycleHandler": {
+      "type": "object",
+      "properties": {
+        "exec": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.ExecAction",
+          "title": "Exec specifies the action to take.\n+optional"
+        },
+        "httpGet": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.HTTPGetAction",
+          "title": "HTTPGet specifies the http request to perform.\n+optional"
+        },
+        "tcpSocket": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.TCPSocketAction",
+          "title": "Deprecated. TCPSocket is NOT supported as a LifecycleHandler and kept\nfor the backward compatibility. There are no validation of this field and\nlifecycle hooks will fail in runtime when tcp handler is specified.\n+optional"
+        }
+      },
+      "description": "LifecycleHandler defines a specific action that should be taken in a lifecycle\nhook. One and only one of the fields, except TCPSocket must be specified."
     },
     "k8s.io.api.core.v1.LocalObjectReference": {
       "type": "object",
@@ -2494,7 +2781,7 @@
           "title": "Name of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names\nTODO: Add other useful fields. apiVersion, kind, uid?\n+optional"
         }
       },
-      "description": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace."
+      "title": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.NFSVolumeSource": {
       "type": "object",
@@ -2542,7 +2829,7 @@
           "description": "Required. A list of node selector terms. The terms are ORed."
         }
       },
-      "description": "A node selector represents the union of the results of one or more label queries\nover a set of nodes; that is, it represents the OR of the selectors represented\nby the node selector terms."
+      "title": "A node selector represents the union of the results of one or more label queries\nover a set of nodes; that is, it represents the OR of the selectors represented\nby the node selector terms.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.NodeSelectorRequirement": {
       "type": "object",
@@ -2583,7 +2870,7 @@
           "title": "A list of node selector requirements by node's fields.\n+optional"
         }
       },
-      "description": "A null or empty node selector term matches no objects. The requirements of\nthem are ANDed.\nThe TopologySelectorTerm type implements a subset of the NodeSelectorTerm."
+      "title": "A null or empty node selector term matches no objects. The requirements of\nthem are ANDed.\nThe TopologySelectorTerm type implements a subset of the NodeSelectorTerm.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.ObjectFieldSelector": {
       "type": "object",
@@ -2597,7 +2884,7 @@
           "description": "Path of the field to select in the specified API version."
         }
       },
-      "description": "ObjectFieldSelector selects an APIVersioned field of an object."
+      "title": "ObjectFieldSelector selects an APIVersioned field of an object.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.PersistentVolumeClaimSpec": {
       "type": "object",
@@ -2615,7 +2902,7 @@
         },
         "resources": {
           "$ref": "#/definitions/k8s.io.api.core.v1.ResourceRequirements",
-          "title": "Resources represents the minimum resources the volume should have.\nMore info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources\n+optional"
+          "title": "Resources represents the minimum resources the volume should have.\nIf RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements\nthat are lower than previous value but must still be higher than capacity recorded in the\nstatus field of the claim.\nMore info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources\n+optional"
         },
         "volumeName": {
           "type": "string",
@@ -2631,7 +2918,11 @@
         },
         "dataSource": {
           "$ref": "#/definitions/k8s.io.api.core.v1.TypedLocalObjectReference",
-          "title": "This field can be used to specify either:\n* An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)\n* An existing PVC (PersistentVolumeClaim)\n* An existing custom resource that implements data population (Alpha)\nIn order to use custom resource types that implement data population,\nthe AnyVolumeDataSource feature gate must be enabled.\nIf the provisioner or an external controller can support the specified data source,\nit will create a new volume based on the contents of the specified data source.\n+optional"
+          "title": "This field can be used to specify either:\n* An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)\n* An existing PVC (PersistentVolumeClaim)\nIf the provisioner or an external controller can support the specified data source,\nit will create a new volume based on the contents of the specified data source.\nIf the AnyVolumeDataSource feature gate is enabled, this field will always have\nthe same contents as the DataSourceRef field.\n+optional"
+        },
+        "dataSourceRef": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.TypedLocalObjectReference",
+          "title": "Specifies the object from which to populate the volume with data, if a non-empty\nvolume is desired. This may be any local object from a non-empty API group (non\ncore object) or a PersistentVolumeClaim object.\nWhen this field is specified, volume binding will only succeed if the type of\nthe specified object matches some installed volume populator or dynamic\nprovisioner.\nThis field will replace the functionality of the DataSource field and as such\nif both fields are non-empty, they must have the same value. For backwards\ncompatibility, both fields (DataSource and DataSourceRef) will be set to the same\nvalue automatically if one of them is empty and the other is non-empty.\nThere are two important differences between DataSource and DataSourceRef:\n* While DataSource only allows two specific types of objects, DataSourceRef\n  allows any non-core object, as well as PersistentVolumeClaim objects.\n* While DataSource ignores disallowed values (dropping them), DataSourceRef\n  preserves all values, and generates an error if a disallowed value is\n  specified.\n(Alpha) Using this field requires the AnyVolumeDataSource feature gate to be enabled.\n+optional"
         }
       },
       "title": "PersistentVolumeClaimSpec describes the common attributes of storage devices\nand allows a Source for provider-specific attributes"
@@ -2710,11 +3001,15 @@
           "items": {
             "type": "string"
           },
-          "title": "namespaces specifies which namespaces the labelSelector applies to (matches against);\nnull or empty list means \"this pod's namespace\"\n+optional"
+          "title": "namespaces specifies a static list of namespace names that the term applies to.\nThe term is applied to the union of the namespaces listed in this field\nand the ones selected by namespaceSelector.\nnull or empty namespaces list and null namespaceSelector means \"this pod's namespace\"\n+optional"
         },
         "topologyKey": {
           "type": "string",
           "description": "This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching\nthe labelSelector in the specified namespaces, where co-located is defined as running on a node\nwhose value of the label with key topologyKey matches that of any node on which any of the\nselected pods is running.\nEmpty topologyKey is not allowed."
+        },
+        "namespaceSelector": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector",
+          "title": "A label query over the set of namespaces that the term applies to.\nThe term is applied to the union of the namespaces selected by this field\nand the ones listed in the namespaces field.\nnull selector and null or empty namespaces list means \"this pod's namespace\".\nAn empty selector ({}) matches all namespaces.\nThis field is beta-level and is only honored when PodAffinityNamespaceSelector feature is enabled.\n+optional"
         }
       },
       "title": "Defines a set of pods (namely those matching the labelSelector\nrelative to the given namespace(s)) that this pod should be\nco-located (affinity) or not co-located (anti-affinity) with,\nwhere co-located is defined as running on a node whose value of\nthe label with key \u003ctopologyKey\u003e matches that of any node on which\na pod of the set of pods is running"
@@ -2780,6 +3075,16 @@
       },
       "description": "PodDNSConfigOption defines DNS resolver options of a pod."
     },
+    "k8s.io.api.core.v1.PodOS": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the operating system. The currently supported values are linux and windows.\nAdditional value may be defined in future and can be one of:\nhttps://github.com/opencontainers/runtime-spec/blob/master/config.md#platform-specific-configuration\nClients should expect to handle additional values and treat unrecognized values in this field as os: null"
+        }
+      },
+      "description": "PodOS defines the OS parameters of a pod."
+    },
     "k8s.io.api.core.v1.PodReadinessGate": {
       "type": "object",
       "properties": {
@@ -2795,21 +3100,21 @@
       "properties": {
         "seLinuxOptions": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SELinuxOptions",
-          "title": "The SELinux context to be applied to all containers.\nIf unspecified, the container runtime will allocate a random SELinux context for each\ncontainer.  May also be set in SecurityContext.  If set in\nboth SecurityContext and PodSecurityContext, the value specified in SecurityContext\ntakes precedence for that container.\n+optional"
+          "title": "The SELinux context to be applied to all containers.\nIf unspecified, the container runtime will allocate a random SELinux context for each\ncontainer.  May also be set in SecurityContext.  If set in\nboth SecurityContext and PodSecurityContext, the value specified in SecurityContext\ntakes precedence for that container.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "windowsOptions": {
           "$ref": "#/definitions/k8s.io.api.core.v1.WindowsSecurityContextOptions",
-          "title": "The Windows specific settings applied to all containers.\nIf unspecified, the options within a container's SecurityContext will be used.\nIf set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.\n+optional"
+          "title": "The Windows specific settings applied to all containers.\nIf unspecified, the options within a container's SecurityContext will be used.\nIf set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is linux.\n+optional"
         },
         "runAsUser": {
           "type": "string",
           "format": "int64",
-          "title": "The UID to run the entrypoint of the container process.\nDefaults to user specified in image metadata if unspecified.\nMay also be set in SecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence\nfor that container.\n+optional"
+          "title": "The UID to run the entrypoint of the container process.\nDefaults to user specified in image metadata if unspecified.\nMay also be set in SecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence\nfor that container.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "runAsGroup": {
           "type": "string",
           "format": "int64",
-          "title": "The GID to run the entrypoint of the container process.\nUses runtime default if unset.\nMay also be set in SecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence\nfor that container.\n+optional"
+          "title": "The GID to run the entrypoint of the container process.\nUses runtime default if unset.\nMay also be set in SecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence\nfor that container.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "runAsNonRoot": {
           "type": "boolean",
@@ -2821,12 +3126,12 @@
             "type": "string",
             "format": "int64"
           },
-          "title": "A list of groups applied to the first process run in each container, in addition\nto the container's primary GID.  If unspecified, no groups will be added to\nany container.\n+optional"
+          "title": "A list of groups applied to the first process run in each container, in addition\nto the container's primary GID.  If unspecified, no groups will be added to\nany container.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "fsGroup": {
           "type": "string",
           "format": "int64",
-          "description": "1. The owning GID will be the FSGroup\n2. The setgid bit is set (new files created in the volume will be owned by FSGroup)\n3. The permission bits are OR'd with rw-rw----\n\nIf unset, the Kubelet will not modify the ownership and permissions of any volume.\n+optional",
+          "description": "1. The owning GID will be the FSGroup\n2. The setgid bit is set (new files created in the volume will be owned by FSGroup)\n3. The permission bits are OR'd with rw-rw----\n\nIf unset, the Kubelet will not modify the ownership and permissions of any volume.\nNote that this field cannot be set when spec.os.name is windows.\n+optional",
           "title": "A special supplemental group that applies to all containers in a pod.\nSome volume types allow the Kubelet to change the ownership of that volume\nto be owned by the pod:"
         },
         "sysctls": {
@@ -2834,15 +3139,15 @@
           "items": {
             "$ref": "#/definitions/k8s.io.api.core.v1.Sysctl"
           },
-          "title": "Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported\nsysctls (by the container runtime) might fail to launch.\n+optional"
+          "title": "Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported\nsysctls (by the container runtime) might fail to launch.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "fsGroupChangePolicy": {
           "type": "string",
-          "title": "fsGroupChangePolicy defines behavior of changing ownership and permission of the volume\nbefore being exposed inside Pod. This field will only apply to\nvolume types which support fsGroup based ownership(and permissions).\nIt will have no effect on ephemeral volume types such as: secret, configmaps\nand emptydir.\nValid values are \"OnRootMismatch\" and \"Always\". If not specified, \"Always\" is used.\n+optional"
+          "title": "fsGroupChangePolicy defines behavior of changing ownership and permission of the volume\nbefore being exposed inside Pod. This field will only apply to\nvolume types which support fsGroup based ownership(and permissions).\nIt will have no effect on ephemeral volume types such as: secret, configmaps\nand emptydir.\nValid values are \"OnRootMismatch\" and \"Always\". If not specified, \"Always\" is used.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "seccompProfile": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SeccompProfile",
-          "title": "The seccomp options to use by the containers in this pod.\n+optional"
+          "title": "The seccomp options to use by the containers in this pod.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         }
       },
       "description": "PodSecurityContext holds pod-level security attributes and common container settings.\nSome fields are also present in container.securityContext.  Field values of\ncontainer.securityContext take precedence over field values of PodSecurityContext."
@@ -2876,7 +3181,7 @@
           "items": {
             "$ref": "#/definitions/k8s.io.api.core.v1.EphemeralContainer"
           },
-          "title": "List of ephemeral containers run in this pod. Ephemeral containers may be run in an existing\npod to perform user-initiated actions such as debugging. This list cannot be specified when\ncreating a pod, and it cannot be modified by updating the pod spec. In order to add an\nephemeral container to an existing pod, use the pod's ephemeralcontainers subresource.\nThis field is alpha-level and is only honored by servers that enable the EphemeralContainers feature.\n+optional\n+patchMergeKey=name\n+patchStrategy=merge"
+          "title": "List of ephemeral containers run in this pod. Ephemeral containers may be run in an existing\npod to perform user-initiated actions such as debugging. This list cannot be specified when\ncreating a pod, and it cannot be modified by updating the pod spec. In order to add an\nephemeral container to an existing pod, use the pod's ephemeralcontainers subresource.\nThis field is beta-level and available on clusters that haven't disabled the EphemeralContainers feature gate.\n+optional\n+patchMergeKey=name\n+patchStrategy=merge"
         },
         "restartPolicy": {
           "type": "string",
@@ -2885,7 +3190,7 @@
         "terminationGracePeriodSeconds": {
           "type": "string",
           "format": "int64",
-          "title": "Optional duration in seconds the pod needs to terminate gracefully. May be decreased in delete request.\nValue must be non-negative integer. The value zero indicates delete immediately.\nIf this value is nil, the default grace period will be used instead.\nThe grace period is the duration in seconds after the processes running in the pod are sent\na termination signal and the time when the processes are forcibly halted with a kill signal.\nSet this value longer than the expected cleanup time for your process.\nDefaults to 30 seconds.\n+optional"
+          "title": "Optional duration in seconds the pod needs to terminate gracefully. May be decreased in delete request.\nValue must be non-negative integer. The value zero indicates stop immediately via\nthe kill signal (no opportunity to shut down).\nIf this value is nil, the default grace period will be used instead.\nThe grace period is the duration in seconds after the processes running in the pod are sent\na termination signal and the time when the processes are forcibly halted with a kill signal.\nSet this value longer than the expected cleanup time for your process.\nDefaults to 30 seconds.\n+optional"
         },
         "activeDeadlineSeconds": {
           "type": "string",
@@ -2901,7 +3206,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "title": "NodeSelector is a selector which must be true for the pod to fit on a node.\nSelector which must match a node's labels for the pod to be scheduled on that node.\nMore info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/\n+optional"
+          "title": "NodeSelector is a selector which must be true for the pod to fit on a node.\nSelector which must match a node's labels for the pod to be scheduled on that node.\nMore info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/\n+optional\n+mapType=atomic"
         },
         "serviceAccountName": {
           "type": "string",
@@ -2994,11 +3299,11 @@
           "items": {
             "$ref": "#/definitions/k8s.io.api.core.v1.PodReadinessGate"
           },
-          "title": "If specified, all readiness gates will be evaluated for pod readiness.\nA pod is ready when all its containers are ready AND\nall conditions specified in the readiness gates have status equal to \"True\"\nMore info: https://git.k8s.io/enhancements/keps/sig-network/0007-pod-ready%2B%2B.md\n+optional"
+          "title": "If specified, all readiness gates will be evaluated for pod readiness.\nA pod is ready when all its containers are ready AND\nall conditions specified in the readiness gates have status equal to \"True\"\nMore info: https://git.k8s.io/enhancements/keps/sig-network/580-pod-readiness-gates\n+optional"
         },
         "runtimeClassName": {
           "type": "string",
-          "title": "RuntimeClassName refers to a RuntimeClass object in the node.k8s.io group, which should be used\nto run this pod.  If no RuntimeClass resource matches the named class, the pod will not be run.\nIf unset or empty, the \"legacy\" RuntimeClass will be used, which is an implicit class with an\nempty definition that uses the default runtime handler.\nMore info: https://git.k8s.io/enhancements/keps/sig-node/runtime-class.md\nThis is a beta feature as of Kubernetes v1.14.\n+optional"
+          "title": "RuntimeClassName refers to a RuntimeClass object in the node.k8s.io group, which should be used\nto run this pod.  If no RuntimeClass resource matches the named class, the pod will not be run.\nIf unset or empty, the \"legacy\" RuntimeClass will be used, which is an implicit class with an\nempty definition that uses the default runtime handler.\nMore info: https://git.k8s.io/enhancements/keps/sig-node/585-runtime-class\nThis is a beta feature as of Kubernetes v1.14.\n+optional"
         },
         "enableServiceLinks": {
           "type": "boolean",
@@ -3013,7 +3318,7 @@
           "additionalProperties": {
             "$ref": "#/definitions/k8s.io.apimachinery.pkg.api.resource.Quantity"
           },
-          "title": "Overhead represents the resource overhead associated with running a pod for a given RuntimeClass.\nThis field will be autopopulated at admission time by the RuntimeClass admission controller. If\nthe RuntimeClass admission controller is enabled, overhead must not be set in Pod create requests.\nThe RuntimeClass admission controller will reject Pod create requests which have the overhead already\nset. If RuntimeClass is configured and selected in the PodSpec, Overhead will be set to the value\ndefined in the corresponding RuntimeClass, otherwise it will remain unset and treated as zero.\nMore info: https://git.k8s.io/enhancements/keps/sig-node/20190226-pod-overhead.md\nThis field is alpha-level as of Kubernetes v1.16, and is only honored by servers that enable the PodOverhead feature.\n+optional"
+          "title": "Overhead represents the resource overhead associated with running a pod for a given RuntimeClass.\nThis field will be autopopulated at admission time by the RuntimeClass admission controller. If\nthe RuntimeClass admission controller is enabled, overhead must not be set in Pod create requests.\nThe RuntimeClass admission controller will reject Pod create requests which have the overhead already\nset. If RuntimeClass is configured and selected in the PodSpec, Overhead will be set to the value\ndefined in the corresponding RuntimeClass, otherwise it will remain unset and treated as zero.\nMore info: https://git.k8s.io/enhancements/keps/sig-node/688-pod-overhead/README.md\nThis field is beta-level as of Kubernetes v1.18, and is only honored by servers that enable the PodOverhead feature.\n+optional"
         },
         "topologySpreadConstraints": {
           "type": "array",
@@ -3025,6 +3330,10 @@
         "setHostnameAsFQDN": {
           "type": "boolean",
           "title": "If true the pod's hostname will be configured as the pod's FQDN, rather than the leaf name (the default).\nIn Linux containers, this means setting the FQDN in the hostname field of the kernel (the nodename field of struct utsname).\nIn Windows containers, this means setting the registry value of hostname for the registry key HKEY_LOCAL_MACHINE\\\\SYSTEM\\\\CurrentControlSet\\\\Services\\\\Tcpip\\\\Parameters to FQDN.\nIf a pod does not have FQDN, this has no effect.\nDefault to false.\n+optional"
+        },
+        "os": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.PodOS",
+          "description": "Specifies the OS of the containers in the pod.\nSome pod and container fields are restricted if this is set.\n\nIf the OS field is set to linux, the following fields must be unset:\n-securityContext.windowsOptions\n\nIf the OS field is set to windows, following fields must be unset:\n- spec.hostPID\n- spec.hostIPC\n- spec.securityContext.seLinuxOptions\n- spec.securityContext.seccompProfile\n- spec.securityContext.fsGroup\n- spec.securityContext.fsGroupChangePolicy\n- spec.securityContext.sysctls\n- spec.shareProcessNamespace\n- spec.securityContext.runAsUser\n- spec.securityContext.runAsGroup\n- spec.securityContext.supplementalGroups\n- spec.containers[*].securityContext.seLinuxOptions\n- spec.containers[*].securityContext.seccompProfile\n- spec.containers[*].securityContext.capabilities\n- spec.containers[*].securityContext.readOnlyRootFilesystem\n- spec.containers[*].securityContext.privileged\n- spec.containers[*].securityContext.allowPrivilegeEscalation\n- spec.containers[*].securityContext.procMount\n- spec.containers[*].securityContext.runAsUser\n- spec.containers[*].securityContext.runAsGroup\n+optional\nThis is an alpha field and requires the IdentifyPodOS feature"
         }
       },
       "description": "PodSpec is a description of a pod."
@@ -3080,7 +3389,7 @@
       "type": "object",
       "properties": {
         "handler": {
-          "$ref": "#/definitions/k8s.io.api.core.v1.Handler",
+          "$ref": "#/definitions/k8s.io.api.core.v1.ProbeHandler",
           "title": "The action taken to determine the health of a container"
         },
         "initialDelaySeconds": {
@@ -3107,9 +3416,36 @@
           "type": "integer",
           "format": "int32",
           "title": "Minimum consecutive failures for the probe to be considered failed after having succeeded.\nDefaults to 3. Minimum value is 1.\n+optional"
+        },
+        "terminationGracePeriodSeconds": {
+          "type": "string",
+          "format": "int64",
+          "title": "Optional duration in seconds the pod needs to terminate gracefully upon probe failure.\nThe grace period is the duration in seconds after the processes running in the pod are sent\na termination signal and the time when the processes are forcibly halted with a kill signal.\nSet this value longer than the expected cleanup time for your process.\nIf this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this\nvalue overrides the value provided by the pod spec.\nValue must be non-negative integer. The value zero indicates stop immediately via\nthe kill signal (no opportunity to shut down).\nThis is a beta field and requires enabling ProbeTerminationGracePeriod feature gate.\nMinimum value is 1. spec.terminationGracePeriodSeconds is used if unset.\n+optional"
         }
       },
       "description": "Probe describes a health check to be performed against a container to determine whether it is\nalive or ready to receive traffic."
+    },
+    "k8s.io.api.core.v1.ProbeHandler": {
+      "type": "object",
+      "properties": {
+        "exec": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.ExecAction",
+          "title": "Exec specifies the action to take.\n+optional"
+        },
+        "httpGet": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.HTTPGetAction",
+          "title": "HTTPGet specifies the http request to perform.\n+optional"
+        },
+        "tcpSocket": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.TCPSocketAction",
+          "title": "TCPSocket specifies an action involving a TCP port.\n+optional"
+        },
+        "grpc": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.GRPCAction",
+          "title": "GRPC specifies an action involving a GRPC port.\nThis is an alpha field and requires enabling GRPCContainerProbe feature gate.\n+featureGate=GRPCContainerProbe\n+optional"
+        }
+      },
+      "description": "ProbeHandler defines a specific action that should be taken in a probe.\nOne and only one of the fields must be specified."
     },
     "k8s.io.api.core.v1.ProjectedVolumeSource": {
       "type": "object",
@@ -3216,7 +3552,7 @@
           "title": "Specifies the output format of the exposed resources, defaults to \"1\"\n+optional"
         }
       },
-      "title": "ResourceFieldSelector represents container resources (cpu, memory) and their output format"
+      "title": "ResourceFieldSelector represents container resources (cpu, memory) and their output format\n+structType=atomic"
     },
     "k8s.io.api.core.v1.ResourceRequirements": {
       "type": "object",
@@ -3226,14 +3562,14 @@
           "additionalProperties": {
             "$ref": "#/definitions/k8s.io.apimachinery.pkg.api.resource.Quantity"
           },
-          "title": "Limits describes the maximum amount of compute resources allowed.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/\n+optional"
+          "title": "Limits describes the maximum amount of compute resources allowed.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/\n+optional"
         },
         "requests": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/k8s.io.apimachinery.pkg.api.resource.Quantity"
           },
-          "title": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if that is explicitly specified,\notherwise to an implementation-defined value.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/\n+optional"
+          "title": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if that is explicitly specified,\notherwise to an implementation-defined value.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/\n+optional"
         }
       },
       "description": "ResourceRequirements describes the compute resource requirements."
@@ -3351,7 +3687,7 @@
           "title": "Specify whether the Secret or its key must be defined\n+optional"
         }
       },
-      "description": "SecretKeySelector selects a key of a Secret."
+      "title": "SecretKeySelector selects a key of a Secret.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.SecretProjection": {
       "type": "object",
@@ -3404,29 +3740,29 @@
       "properties": {
         "capabilities": {
           "$ref": "#/definitions/k8s.io.api.core.v1.Capabilities",
-          "title": "The capabilities to add/drop when running containers.\nDefaults to the default set of capabilities granted by the container runtime.\n+optional"
+          "title": "The capabilities to add/drop when running containers.\nDefaults to the default set of capabilities granted by the container runtime.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "privileged": {
           "type": "boolean",
-          "title": "Run container in privileged mode.\nProcesses in privileged containers are essentially equivalent to root on the host.\nDefaults to false.\n+optional"
+          "title": "Run container in privileged mode.\nProcesses in privileged containers are essentially equivalent to root on the host.\nDefaults to false.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "seLinuxOptions": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SELinuxOptions",
-          "title": "The SELinux context to be applied to the container.\nIf unspecified, the container runtime will allocate a random SELinux context for each\ncontainer.  May also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\n+optional"
+          "title": "The SELinux context to be applied to the container.\nIf unspecified, the container runtime will allocate a random SELinux context for each\ncontainer.  May also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "windowsOptions": {
           "$ref": "#/definitions/k8s.io.api.core.v1.WindowsSecurityContextOptions",
-          "title": "The Windows specific settings applied to all containers.\nIf unspecified, the options from the PodSecurityContext will be used.\nIf set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.\n+optional"
+          "title": "The Windows specific settings applied to all containers.\nIf unspecified, the options from the PodSecurityContext will be used.\nIf set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is linux.\n+optional"
         },
         "runAsUser": {
           "type": "string",
           "format": "int64",
-          "title": "The UID to run the entrypoint of the container process.\nDefaults to user specified in image metadata if unspecified.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\n+optional"
+          "title": "The UID to run the entrypoint of the container process.\nDefaults to user specified in image metadata if unspecified.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "runAsGroup": {
           "type": "string",
           "format": "int64",
-          "title": "The GID to run the entrypoint of the container process.\nUses runtime default if unset.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\n+optional"
+          "title": "The GID to run the entrypoint of the container process.\nUses runtime default if unset.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "runAsNonRoot": {
           "type": "boolean",
@@ -3434,19 +3770,19 @@
         },
         "readOnlyRootFilesystem": {
           "type": "boolean",
-          "title": "Whether this container has a read-only root filesystem.\nDefault is false.\n+optional"
+          "title": "Whether this container has a read-only root filesystem.\nDefault is false.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "allowPrivilegeEscalation": {
           "type": "boolean",
-          "title": "AllowPrivilegeEscalation controls whether a process can gain more\nprivileges than its parent process. This bool directly controls if\nthe no_new_privs flag will be set on the container process.\nAllowPrivilegeEscalation is true always when the container is:\n1) run as Privileged\n2) has CAP_SYS_ADMIN\n+optional"
+          "title": "AllowPrivilegeEscalation controls whether a process can gain more\nprivileges than its parent process. This bool directly controls if\nthe no_new_privs flag will be set on the container process.\nAllowPrivilegeEscalation is true always when the container is:\n1) run as Privileged\n2) has CAP_SYS_ADMIN\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "procMount": {
           "type": "string",
-          "title": "procMount denotes the type of proc mount to use for the containers.\nThe default is DefaultProcMount which uses the container runtime defaults for\nreadonly paths and masked paths.\nThis requires the ProcMountType feature flag to be enabled.\n+optional"
+          "title": "procMount denotes the type of proc mount to use for the containers.\nThe default is DefaultProcMount which uses the container runtime defaults for\nreadonly paths and masked paths.\nThis requires the ProcMountType feature flag to be enabled.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "seccompProfile": {
           "$ref": "#/definitions/k8s.io.api.core.v1.SeccompProfile",
-          "title": "The seccomp options to use by this container. If seccomp options are\nprovided at both the pod \u0026 container level, the container options\noverride the pod options.\n+optional"
+          "title": "The seccomp options to use by this container. If seccomp options are\nprovided at both the pod \u0026 container level, the container options\noverride the pod options.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         }
       },
       "description": "SecurityContext holds security configuration that will be applied to a container.\nSome fields are present in both SecurityContext and PodSecurityContext.  When both\nare set, the values in SecurityContext take precedence."
@@ -3565,7 +3901,7 @@
         },
         "whenUnsatisfiable": {
           "type": "string",
-          "description": "WhenUnsatisfiable indicates how to deal with a pod if it doesn't satisfy\nthe spread constraint.\n- DoNotSchedule (default) tells the scheduler not to schedule it.\n- ScheduleAnyway tells the scheduler to schedule the pod in any location,\n  but giving higher precedence to topologies that would help reduce the\n  skew.\nA constraint is considered \"Unsatisfiable\" for an incoming pod\nif and only if every possible node assigment for that pod would violate\n\"MaxSkew\" on some topology.\nFor example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same\nlabelSelector spread as 3/1/1:\n+-------+-------+-------+\n| zone1 | zone2 | zone3 |\n+-------+-------+-------+\n| P P P |   P   |   P   |\n+-------+-------+-------+\nIf WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled\nto zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies\nMaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler\nwon't make it *more* imbalanced.\nIt's a required field."
+          "description": "WhenUnsatisfiable indicates how to deal with a pod if it doesn't satisfy\nthe spread constraint.\n- DoNotSchedule (default) tells the scheduler not to schedule it.\n- ScheduleAnyway tells the scheduler to schedule the pod in any location,\n  but giving higher precedence to topologies that would help reduce the\n  skew.\nA constraint is considered \"Unsatisfiable\" for an incoming pod\nif and only if every possible node assignment for that pod would violate\n\"MaxSkew\" on some topology.\nFor example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same\nlabelSelector spread as 3/1/1:\n+-------+-------+-------+\n| zone1 | zone2 | zone3 |\n+-------+-------+-------+\n| P P P |   P   |   P   |\n+-------+-------+-------+\nIf WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled\nto zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies\nMaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler\nwon't make it *more* imbalanced.\nIt's a required field."
         },
         "labelSelector": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector",
@@ -3590,7 +3926,7 @@
           "title": "Name is the name of resource being referenced"
         }
       },
-      "description": "TypedLocalObjectReference contains enough information to let you locate the\ntyped referenced object inside the same namespace."
+      "title": "TypedLocalObjectReference contains enough information to let you locate the\ntyped referenced object inside the same namespace.\n+structType=atomic"
     },
     "k8s.io.api.core.v1.Volume": {
       "type": "object",
@@ -3789,7 +4125,7 @@
         },
         "ephemeral": {
           "$ref": "#/definitions/k8s.io.api.core.v1.EphemeralVolumeSource",
-          "description": "Ephemeral represents a volume that is handled by a cluster storage driver (Alpha feature).\nThe volume's lifecycle is tied to the pod that defines it - it will be created before the pod starts,\nand deleted when the pod is removed.\n\nUse this if:\na) the volume is only needed while the pod runs,\nb) features of normal volumes like restoring from snapshot or capacity\n   tracking are needed,\nc) the storage driver is specified through a storage class, and\nd) the storage driver supports dynamic volume provisioning through\n   a PersistentVolumeClaim (see EphemeralVolumeSource for more\n   information on the connection between this volume type\n   and PersistentVolumeClaim).\n\nUse PersistentVolumeClaim or one of the vendor-specific\nAPIs for volumes that persist for longer than the lifecycle\nof an individual pod.\n\nUse CSI for light-weight local ephemeral volumes if the CSI driver is meant to\nbe used that way - see the documentation of the driver for\nmore information.\n\nA pod can use both types of ephemeral volumes and\npersistent volumes at the same time.\n\n+optional"
+          "description": "Ephemeral represents a volume that is handled by a cluster storage driver.\nThe volume's lifecycle is tied to the pod that defines it - it will be created before the pod starts,\nand deleted when the pod is removed.\n\nUse this if:\na) the volume is only needed while the pod runs,\nb) features of normal volumes like restoring from snapshot or capacity\n   tracking are needed,\nc) the storage driver is specified through a storage class, and\nd) the storage driver supports dynamic volume provisioning through\n   a PersistentVolumeClaim (see EphemeralVolumeSource for more\n   information on the connection between this volume type\n   and PersistentVolumeClaim).\n\nUse PersistentVolumeClaim or one of the vendor-specific\nAPIs for volumes that persist for longer than the lifecycle\nof an individual pod.\n\nUse CSI for light-weight local ephemeral volumes if the CSI driver is meant to\nbe used that way - see the documentation of the driver for\nmore information.\n\nA pod can use both types of ephemeral volumes and\npersistent volumes at the same time.\n\n+optional"
         }
       },
       "description": "Represents the source of a volume to mount.\nOnly one of its members may be specified."
@@ -3845,6 +4181,10 @@
         "runAsUserName": {
           "type": "string",
           "title": "The UserName in Windows to run the entrypoint of the container process.\nDefaults to the user specified in image metadata if unspecified.\nMay also be set in PodSecurityContext. If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\n+optional"
+        },
+        "hostProcess": {
+          "type": "boolean",
+          "title": "HostProcess determines if a container should be run as a 'Host Process' container.\nThis field is alpha-level and will only be honored by components that enable the\nWindowsHostProcessContainers feature flag. Setting this field without the feature\nflag will result in errors when validating the Pod. All of a Pod's containers must\nhave the same effective HostProcess value (it is not allowed to have a mix of HostProcess\ncontainers and non-HostProcess containers).  In addition, if HostProcess is true\nthen HostNetwork must also be set to true.\n+optional"
         }
       },
       "description": "WindowsSecurityContextOptions contain Windows-specific options and credentials."
@@ -3936,6 +4276,10 @@
         "fieldsV1": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.FieldsV1",
           "title": "FieldsV1 holds the first JSON version format as described in the \"FieldsV1\" type.\n+optional"
+        },
+        "subresource": {
+          "type": "string",
+          "description": "Subresource is the name of the subresource used to update that object, or\nempty string if the object was updated through the main resource. The\nvalue of this field is used to distinguish between managers, even if they\nshare the same name. For example, a status update will be distinct from a\nregular update using the same manager name.\nNote that the APIVersion field is not related to the Subresource field and\nit always corresponds to the version of the main resource."
         }
       },
       "description": "ManagedFieldsEntry is a workflow-id, a FieldSet and the group version of the resource\nthat the fieldset applies to."
@@ -4055,7 +4399,7 @@
           "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
         }
       },
-      "description": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field."
+      "title": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field.\n+structType=atomic"
     },
     "k8s.io.apimachinery.pkg.apis.meta.v1.Time": {
       "type": "object",
@@ -4112,8 +4456,8 @@
           "type": "string"
         },
         "revision": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "int64"
         },
         "status": {
           "type": "string"
@@ -4139,6 +4483,18 @@
           "items": {
             "$ref": "#/definitions/rollout.JobInfo"
           }
+        },
+        "nonJobInfo": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.NonJobInfo"
+          }
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.Metrics"
+          }
         }
       }
     },
@@ -4163,8 +4519,8 @@
           "type": "string"
         },
         "revision": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "int64"
         },
         "status": {
           "type": "string"
@@ -4197,6 +4553,35 @@
         },
         "icon": {
           "type": "string"
+        },
+        "metricName": {
+          "type": "string"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
+        }
+      }
+    },
+    "rollout.Metrics": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "successCondition": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "inconclusiveLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "failureLimit": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -4211,6 +4596,23 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "rollout.NonJobInfo": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "metricName": {
+          "type": "string"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
         }
       }
     },
@@ -4262,8 +4664,8 @@
           "type": "string"
         },
         "revision": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "int64"
         },
         "stable": {
           "type": "boolean"
@@ -4302,6 +4704,12 @@
           "items": {
             "$ref": "#/definitions/rollout.PodInfo"
           }
+        },
+        "ping": {
+          "type": "boolean"
+        },
+        "pong": {
+          "type": "boolean"
         }
       }
     },

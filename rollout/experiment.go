@@ -4,19 +4,20 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
-	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
-	"github.com/argoproj/argo-rollouts/utils/record"
-	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/kubernetes/pkg/controller"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	experimentutil "github.com/argoproj/argo-rollouts/utils/experiment"
+	"github.com/argoproj/argo-rollouts/utils/hash"
+	"github.com/argoproj/argo-rollouts/utils/record"
+	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 )
 
 // GetExperimentFromTemplate takes the canary experiment step and converts it to an experiment
@@ -25,7 +26,7 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	if step == nil {
 		return nil, nil
 	}
-	podHash := controller.ComputeHash(&r.Spec.Template, r.Status.CollisionCount)
+	podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 	currentStep := int32(0)
 	if r.Status.CurrentStepIndex != nil {
 		currentStep = *r.Status.CurrentStepIndex
@@ -69,9 +70,9 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		templateRS := &appsv1.ReplicaSet{}
 		switch templateStep.SpecRef {
 		case v1alpha1.CanarySpecRef:
-			templateRS = newRS
+			templateRS = newRS.DeepCopy()
 		case v1alpha1.StableSpecRef:
-			templateRS = stableRS
+			templateRS = stableRS.DeepCopy()
 		default:
 			return nil, fmt.Errorf("Invalid template step SpecRef: must be canary or stable")
 		}
@@ -106,7 +107,11 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 	}
 	for i := range step.Analyses {
 		analysis := step.Analyses[i]
-		args := analysisutil.BuildArgumentsForRolloutAnalysisRun(analysis.Args, stableRS, newRS, r)
+		args, err := analysisutil.BuildArgumentsForRolloutAnalysisRun(analysis.Args, stableRS, newRS, r)
+		if err != nil {
+			return nil, err
+		}
+
 		analysisTemplate := v1alpha1.ExperimentAnalysisTemplateRef{
 			Name:                  analysis.Name,
 			TemplateName:          analysis.TemplateName,
@@ -230,7 +235,7 @@ func (c *rolloutContext) createExperimentWithCollisionHandling(newEx *v1alpha1.E
 			// we likely reconciled the rollout with a stale cache (quite common).
 			return existingEx, nil
 		}
-		newEx.Name = fmt.Sprintf("%s.%d", baseName, collisionCount)
+		newEx.Name = fmt.Sprintf("%s-%d", baseName, collisionCount)
 		collisionCount++
 	}
 }

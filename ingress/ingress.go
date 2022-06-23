@@ -1,6 +1,7 @@
 package ingress
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -8,9 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
-	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
-	extentionslisters "k8s.io/client-go/listers/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util"
@@ -32,7 +31,7 @@ const (
 // ControllerConfig describes the data required to instantiate a new ingress controller
 type ControllerConfig struct {
 	Client           kubernetes.Interface
-	IngressInformer  extensionsinformers.IngressInformer
+	IngressWrap      *ingressutil.IngressWrap
 	IngressWorkQueue workqueue.RateLimitingInterface
 
 	RolloutsInformer informers.RolloutInformer
@@ -47,7 +46,7 @@ type ControllerConfig struct {
 type Controller struct {
 	client           kubernetes.Interface
 	rolloutsIndexer  cache.Indexer
-	ingressLister    extentionslisters.IngressLister
+	ingressWrapper   IngressWrapper
 	ingressWorkqueue workqueue.RateLimitingInterface
 
 	metricServer   *metrics.MetricsServer
@@ -56,13 +55,18 @@ type Controller struct {
 	nginxClasses   []string
 }
 
+type IngressWrapper interface {
+	GetCached(namespace, name string) (*ingressutil.Ingress, error)
+	Update(ctx context.Context, namespace string, ingress *ingressutil.Ingress) (*ingressutil.Ingress, error)
+}
+
 // NewController returns a new ingress controller
 func NewController(cfg ControllerConfig) *Controller {
 
 	controller := &Controller{
 		client:          cfg.Client,
 		rolloutsIndexer: cfg.RolloutsInformer.Informer().GetIndexer(),
-		ingressLister:   cfg.IngressInformer.Lister(),
+		ingressWrapper:  cfg.IngressWrap,
 
 		ingressWorkqueue: cfg.IngressWorkQueue,
 		metricServer:     cfg.MetricsServer,
@@ -79,7 +83,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		},
 	}))
 
-	cfg.IngressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	cfg.IngressWrap.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			controllerutil.Enqueue(obj, cfg.IngressWorkQueue)
 		},
@@ -119,7 +123,7 @@ func (c *Controller) syncIngress(key string) error {
 	if err != nil {
 		return err
 	}
-	ingress, err := c.ingressLister.Ingresses(namespace).Get(name)
+	ingress, err := c.ingressWrapper.GetCached(namespace, name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			// Unknown error occurred
@@ -132,15 +136,16 @@ func (c *Controller) syncIngress(key string) error {
 		}
 		return nil
 	}
-	rollouts, err := c.getRolloutsByIngress(ingress.Namespace, ingress.Name)
+	rollouts, err := c.getRolloutsByIngress(ingress.GetNamespace(), ingress.GetName())
 	if err != nil {
 		return nil
 	}
 	// An ingress without annotations cannot be a alb or nginx ingress
-	if ingress.Annotations == nil {
+	if ingress.GetAnnotations() == nil {
 		return nil
 	}
-	class := ingress.Annotations["kubernetes.io/ingress.class"]
+	annotations := ingress.GetAnnotations()
+	class := annotations["kubernetes.io/ingress.class"]
 	switch {
 	case hasClass(c.albClasses, class):
 		return c.syncALBIngress(ingress, rollouts)

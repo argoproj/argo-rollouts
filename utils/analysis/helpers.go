@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
@@ -92,6 +93,50 @@ func IsTerminating(run *v1alpha1.AnalysisRun) bool {
 	return false
 }
 
+// GetMeasurementRetentionMetrics returns an array of metric names matching the RegEx rules from the MeasurementRetention rules.
+func GetMeasurementRetentionMetrics(measurementRetentionMetrics []v1alpha1.MeasurementRetention, metrics []v1alpha1.Metric) (map[string]*v1alpha1.MeasurementRetention, error) {
+	metricsMap := make(map[string]*v1alpha1.MeasurementRetention)
+	if len(measurementRetentionMetrics) == 0 {
+		return metricsMap, nil
+	}
+	// Iterate all the rules in `measurementRetentionMetrics` and try to match the `metrics` one by one
+	for index, measurementRetentionObject := range measurementRetentionMetrics {
+		matchCount := 0
+		for _, metric := range metrics {
+			if matched, _ := regexp.MatchString(measurementRetentionObject.MetricName, metric.Name); matched {
+				metricsMap[metric.Name] = &measurementRetentionObject
+				matchCount++
+			}
+		}
+		if matchCount < 1 {
+			return metricsMap, fmt.Errorf("measurementRetention[%d]: Rule didn't match any metric name(s)", index)
+		}
+	}
+	return metricsMap, nil
+}
+
+// GetDryRunMetrics returns an array of metric names matching the RegEx rules from the Dry-Run metrics.
+func GetDryRunMetrics(dryRunMetrics []v1alpha1.DryRun, metrics []v1alpha1.Metric) (map[string]bool, error) {
+	metricsMap := make(map[string]bool)
+	if len(dryRunMetrics) == 0 {
+		return metricsMap, nil
+	}
+	// Iterate all the rules in `dryRunMetrics` and try to match the `metrics` one by one
+	for index, dryRunObject := range dryRunMetrics {
+		matchCount := 0
+		for _, metric := range metrics {
+			if matched, _ := regexp.MatchString(dryRunObject.MetricName, metric.Name); matched {
+				metricsMap[metric.Name] = true
+				matchCount++
+			}
+		}
+		if matchCount < 1 {
+			return metricsMap, fmt.Errorf("dryRun[%d]: Rule didn't match any metric name(s)", index)
+		}
+	}
+	return metricsMap, nil
+}
+
 // GetResult returns the metric result by name
 func GetResult(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.MetricResult {
 	for _, result := range run.Status.MetricResults {
@@ -133,6 +178,14 @@ func LastMeasurement(run *v1alpha1.AnalysisRun, metricName string) *v1alpha1.Mea
 	return nil
 }
 
+func ArrayMeasurement(run *v1alpha1.AnalysisRun, metricName string) []v1alpha1.Measurement {
+	if result := GetResult(run, metricName); result != nil && len(result.Measurements) > 0 {
+		return result.Measurements
+	}
+
+	return nil
+}
+
 // TerminateRun terminates an analysis run
 func TerminateRun(analysisRunIf argoprojclient.AnalysisRunInterface, name string) error {
 	_, err := analysisRunIf.Patch(context.TODO(), name, patchtypes.MergePatchType, []byte(`{"spec":{"terminate":true}}`), metav1.PatchOptions{})
@@ -142,11 +195,11 @@ func TerminateRun(analysisRunIf argoprojclient.AnalysisRunInterface, name string
 // IsSemanticallyEqual checks to see if two analysis runs are semantically equal
 func IsSemanticallyEqual(left, right v1alpha1.AnalysisRunSpec) bool {
 	// NOTE: only consider metrics & args when comparing for semantic equality
-	leftBytes, err := json.Marshal(v1alpha1.AnalysisRunSpec{Metrics: left.Metrics, Args: left.Args})
+	leftBytes, err := json.Marshal(v1alpha1.AnalysisRunSpec{Metrics: left.Metrics, DryRun: left.DryRun, MeasurementRetention: left.MeasurementRetention, Args: left.Args})
 	if err != nil {
 		panic(err)
 	}
-	rightBytes, err := json.Marshal(v1alpha1.AnalysisRunSpec{Metrics: right.Metrics, Args: right.Args})
+	rightBytes, err := json.Marshal(v1alpha1.AnalysisRunSpec{Metrics: right.Metrics, DryRun: right.DryRun, MeasurementRetention: right.MeasurementRetention, Args: right.Args})
 	if err != nil {
 		panic(err)
 	}
@@ -229,12 +282,20 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 	}
 }
 
-func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate, args []v1alpha1.Argument, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
+func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
 	template, err := FlattenTemplates(templates, clusterTemplates)
 	if err != nil {
 		return nil, err
 	}
 	newArgs, err := MergeArgs(args, template.Spec.Args)
+	if err != nil {
+		return nil, err
+	}
+	dryRun, err := mergeDryRunMetrics(dryRunMetrics, template.Spec.DryRun)
+	if err != nil {
+		return nil, err
+	}
+	measurementRetention, err := mergeMeasurementRetentionMetrics(measurementRetentionMetrics, template.Spec.MeasurementRetention)
 	if err != nil {
 		return nil, err
 	}
@@ -245,8 +306,10 @@ func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, cluster
 			Namespace:    namespace,
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: template.Spec.Metrics,
-			Args:    newArgs,
+			Metrics:              template.Spec.Metrics,
+			DryRun:               dryRun,
+			MeasurementRetention: measurementRetention,
+			Args:                 newArgs,
 		},
 	}
 	return &ar, nil
@@ -257,14 +320,24 @@ func FlattenTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates [
 	if err != nil {
 		return nil, err
 	}
+	dryRunMetrics, err := flattenDryRunMetrics(templates, clusterTemplates)
+	if err != nil {
+		return nil, err
+	}
+	measurementRetentionMetrics, err := flattenMeasurementRetentionMetrics(templates, clusterTemplates)
+	if err != nil {
+		return nil, err
+	}
 	args, err := flattenArgs(templates, clusterTemplates)
 	if err != nil {
 		return nil, err
 	}
 	return &v1alpha1.AnalysisTemplate{
 		Spec: v1alpha1.AnalysisTemplateSpec{
-			Metrics: metrics,
-			Args:    args,
+			Metrics:              metrics,
+			DryRun:               dryRunMetrics,
+			MeasurementRetention: measurementRetentionMetrics,
+			Args:                 args,
 		},
 	}, nil
 }
@@ -326,6 +399,86 @@ func flattenMetrics(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*
 		metricMap[metric.Name] = true
 	}
 	return combinedMetrics, nil
+}
+
+func mergeDryRunMetrics(leftDryRunMetrics []v1alpha1.DryRun, rightDryRunMetrics []v1alpha1.DryRun) ([]v1alpha1.DryRun, error) {
+	var combinedDryRunMetrics []v1alpha1.DryRun
+	combinedDryRunMetrics = append(combinedDryRunMetrics, leftDryRunMetrics...)
+	combinedDryRunMetrics = append(combinedDryRunMetrics, rightDryRunMetrics...)
+
+	err := validateDryRunMetrics(combinedDryRunMetrics)
+	if err != nil {
+		return nil, err
+	}
+	return combinedDryRunMetrics, nil
+}
+
+func mergeMeasurementRetentionMetrics(leftMeasurementRetentionMetrics []v1alpha1.MeasurementRetention, rightMeasurementRetentionMetrics []v1alpha1.MeasurementRetention) ([]v1alpha1.MeasurementRetention, error) {
+	var combinedMeasurementRetentionMetrics []v1alpha1.MeasurementRetention
+	combinedMeasurementRetentionMetrics = append(combinedMeasurementRetentionMetrics, leftMeasurementRetentionMetrics...)
+	combinedMeasurementRetentionMetrics = append(combinedMeasurementRetentionMetrics, rightMeasurementRetentionMetrics...)
+
+	err := validateMeasurementRetentionMetrics(combinedMeasurementRetentionMetrics)
+	if err != nil {
+		return nil, err
+	}
+	return combinedMeasurementRetentionMetrics, nil
+}
+
+func flattenDryRunMetrics(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate) ([]v1alpha1.DryRun, error) {
+	var combinedDryRunMetrics []v1alpha1.DryRun
+	for _, template := range templates {
+		combinedDryRunMetrics = append(combinedDryRunMetrics, template.Spec.DryRun...)
+	}
+
+	for _, template := range clusterTemplates {
+		combinedDryRunMetrics = append(combinedDryRunMetrics, template.Spec.DryRun...)
+	}
+
+	err := validateDryRunMetrics(combinedDryRunMetrics)
+	if err != nil {
+		return nil, err
+	}
+	return combinedDryRunMetrics, nil
+}
+
+func flattenMeasurementRetentionMetrics(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate) ([]v1alpha1.MeasurementRetention, error) {
+	var combinedMeasurementRetentionMetrics []v1alpha1.MeasurementRetention
+	for _, template := range templates {
+		combinedMeasurementRetentionMetrics = append(combinedMeasurementRetentionMetrics, template.Spec.MeasurementRetention...)
+	}
+
+	for _, template := range clusterTemplates {
+		combinedMeasurementRetentionMetrics = append(combinedMeasurementRetentionMetrics, template.Spec.MeasurementRetention...)
+	}
+
+	err := validateMeasurementRetentionMetrics(combinedMeasurementRetentionMetrics)
+	if err != nil {
+		return nil, err
+	}
+	return combinedMeasurementRetentionMetrics, nil
+}
+
+func validateDryRunMetrics(dryRunMetrics []v1alpha1.DryRun) error {
+	metricMap := map[string]bool{}
+	for _, dryRun := range dryRunMetrics {
+		if _, ok := metricMap[dryRun.MetricName]; ok {
+			return fmt.Errorf("two Dry-Run metric rules have the same name '%s'", dryRun.MetricName)
+		}
+		metricMap[dryRun.MetricName] = true
+	}
+	return nil
+}
+
+func validateMeasurementRetentionMetrics(measurementRetentionMetrics []v1alpha1.MeasurementRetention) error {
+	metricMap := map[string]bool{}
+	for _, measurementRetention := range measurementRetentionMetrics {
+		if _, ok := metricMap[measurementRetention.MetricName]; ok {
+			return fmt.Errorf("two Measurement Retention metric rules have the same name '%s'", measurementRetention.MetricName)
+		}
+		metricMap[measurementRetention.MetricName] = true
+	}
+	return nil
 }
 
 func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs []v1alpha1.Argument, name, generateName, namespace string) (*unstructured.Unstructured, error) {
@@ -403,46 +556,6 @@ func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs
 	}
 
 	return obj, nil
-}
-
-//TODO(dthomson) remove v0.9.0
-func NewAnalysisRunFromClusterTemplate(template *v1alpha1.ClusterAnalysisTemplate, args []v1alpha1.Argument, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
-	newArgs, err := MergeArgs(args, template.Spec.Args)
-	if err != nil {
-		return nil, err
-	}
-	ar := v1alpha1.AnalysisRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:         name,
-			GenerateName: generateName,
-			Namespace:    namespace,
-		},
-		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: template.Spec.Metrics,
-			Args:    newArgs,
-		},
-	}
-	return &ar, nil
-}
-
-//TODO(dthomson) remove v0.9.0
-func NewAnalysisRunFromTemplate(template *v1alpha1.AnalysisTemplate, args []v1alpha1.Argument, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
-	newArgs, err := MergeArgs(args, template.Spec.Args)
-	if err != nil {
-		return nil, err
-	}
-	ar := v1alpha1.AnalysisRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:         name,
-			GenerateName: generateName,
-			Namespace:    namespace,
-		},
-		Spec: v1alpha1.AnalysisRunSpec{
-			Metrics: template.Spec.Metrics,
-			Args:    newArgs,
-		},
-	}
-	return &ar, nil
 }
 
 // GetInstanceID takes an object and returns the controller instance id if it has one

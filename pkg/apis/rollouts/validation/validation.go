@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +33,12 @@ const (
 	InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting = "Experiment template weight cannot be set unless TrafficRouting is enabled"
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetCanaryScaleTrafficPolicy = "SetCanaryScale requires TrafficRouting to be set"
+	// InvalidSetHeaderRoutingTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
+	InvalidSetHeaderRoutingTrafficPolicy = "SetHeaderRouting requires TrafficRouting, supports Istio only"
+	// InvalidSetHeaderRoutingMultipleValuePolicy indicates that SetCanaryScale, has multiple values set
+	InvalidSetHeaderRoutingMultipleValuePolicy = "SetHeaderRouting match value must have one of the following: exact, regex, prefix"
+	// InvalidSetHeaderRoutingMissedValuePolicy indicates that SetCanaryScale, has multiple values set
+	InvalidSetHeaderRoutingMissedValuePolicy = "SetHeaderRouting value missed, match value must have one of the following: exact, regex, prefix"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
@@ -57,7 +64,32 @@ const (
 	InvalidAnalysisArgsMessage = "Analyses arguments must refer to valid object metadata supported by downwardAPI"
 	// InvalidCanaryScaleDownDelay indicates that canary.scaleDownDelaySeconds cannot be used
 	InvalidCanaryScaleDownDelay = "Canary scaleDownDelaySeconds can only be used with traffic routing"
+	// InvalidCanaryDynamicStableScale indicates that canary.dynamicStableScale cannot be used
+	InvalidCanaryDynamicStableScale = "Canary dynamicStableScale can only be used with traffic routing"
+	// InvalidCanaryDynamicStableScaleWithScaleDownDelay indicates that canary.dynamicStableScale cannot be used with scaleDownDelaySeconds
+	InvalidCanaryDynamicStableScaleWithScaleDownDelay = "Canary dynamicStableScale cannot be used with scaleDownDelaySeconds"
+	// InvalidPingPongProvidedMessage indicates that both ping and pong service must be set to use Ping-Pong feature
+	InvalidPingPongProvidedMessage = "Ping service and Pong service must to be set to use Ping-Pong feature"
+	// DuplicatedPingPongServicesMessage indicates that the rollout uses the same service for the ping and pong services
+	DuplicatedPingPongServicesMessage = "This rollout uses the same service for the ping and pong services, but two different services are required."
+	// MissedAlbRootServiceMessage indicates that the rollout with ALB TrafficRouting and ping pong feature enabled must have root service provided
+	MissedAlbRootServiceMessage = "Root service field is required for the configuration with ALB and ping-pong feature enabled"
+	// PingPongWithAlbOnlyMessage At this moment ping-pong feature works with the ALB traffic routing only
+	PingPongWithAlbOnlyMessage = "Ping-pong feature works with the ALB traffic routing only"
 )
+
+// allowAllPodValidationOptions allows all pod options to be true for the purposes of rollout pod
+// spec validation. We allow everything because we don't know what is truly allowed in the cluster
+// and rely on ReplicaSet/Pod creation to enforce if these options are truly allowed.
+// NOTE: this variable may need to be updated whenever we update our k8s libraries as new options
+// are introduced or removed.
+var allowAllPodValidationOptions = apivalidation.PodValidationOptions{
+	AllowDownwardAPIHugePages:       true,
+	AllowInvalidPodDeletionCost:     true,
+	AllowIndivisibleHugePagesValues: true,
+	AllowWindowsHostProcessField:    true,
+	AllowExpandedDNSConfig:          true,
+}
 
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -119,14 +151,10 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 		}
 		template.ObjectMeta = spec.Template.ObjectMeta
 		removeSecurityContextPrivileged(&template)
-		opts := apivalidation.PodValidationOptions{
-			AllowMultipleHugePageResources: true,
-			AllowDownwardAPIHugePages:      true,
-		}
 
 		// Skip validating empty template for rollout resolved from ref
 		if rollout.Spec.TemplateResolvedFromRef || spec.WorkloadRef == nil {
-			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), opts)...)
+			allErrs = append(allErrs, validation.ValidatePodTemplateSpecForReplicaSet(&template, selector, replicas, fldPath.Child("template"), allowAllPodValidationOptions)...)
 		}
 	}
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(spec.MinReadySeconds), fldPath.Child("minReadySeconds"))...)
@@ -197,7 +225,7 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 // canary.canaryService to be defined
 func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {
 	canary := rollout.Spec.Strategy.Canary
-	if canary.TrafficRouting == nil || (canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule != nil) {
+	if canary.TrafficRouting == nil || (canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule != nil) || (canary.PingPong != nil) {
 		return false
 	}
 	return true
@@ -210,6 +238,23 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	if canary.CanaryService != "" && canary.StableService != "" && canary.CanaryService == canary.StableService {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, DuplicatedServicesCanaryMessage))
 	}
+	if canary.PingPong != nil {
+		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB == nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("alb"), canary.TrafficRouting.ALB, PingPongWithAlbOnlyMessage))
+		}
+		if canary.PingPong.PingService == "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("pingPong").Child("pingService"), canary.PingPong.PingService, InvalidPingPongProvidedMessage))
+		}
+		if canary.PingPong.PongService == "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("pingPong").Child("pongService"), canary.PingPong.PongService, InvalidPingPongProvidedMessage))
+		}
+		if canary.PingPong.PingService == canary.PingPong.PongService {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("pingPong").Child("pingService"), canary.PingPong.PingService, DuplicatedPingPongServicesMessage))
+		}
+		if canary.TrafficRouting != nil && canary.TrafficRouting.ALB != nil && canary.TrafficRouting.ALB.RootService == "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("trafficRouting").Child("alb").Child("rootService"), canary.TrafficRouting.ALB.RootService, MissedAlbRootServiceMessage))
+		}
+	}
 	if requireCanaryStableServices(rollout) {
 		if canary.StableService == "" {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("stableService"), canary.StableService, InvalidTrafficRoutingMessage))
@@ -219,16 +264,25 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		}
 	}
 
-	if canary.ScaleDownDelaySeconds != nil && canary.TrafficRouting == nil {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleDownDelaySeconds"), *canary.ScaleDownDelaySeconds, InvalidCanaryScaleDownDelay))
+	if canary.TrafficRouting == nil {
+		if canary.ScaleDownDelaySeconds != nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleDownDelaySeconds"), *canary.ScaleDownDelaySeconds, InvalidCanaryScaleDownDelay))
+		}
+		if canary.DynamicStableScale {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("dynamicStableScale"), canary.DynamicStableScale, InvalidCanaryDynamicStableScale))
+		}
+	} else {
+		if canary.ScaleDownDelaySeconds != nil && canary.DynamicStableScale {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("dynamicStableScale"), canary.DynamicStableScale, InvalidCanaryDynamicStableScaleWithScaleDownDelay))
+		}
 	}
 
 	for i, step := range canary.Steps {
 		stepFldPath := fldPath.Child("steps").Index(i)
 		allErrs = append(allErrs, hasMultipleStepsType(step, stepFldPath)...)
-		if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil && step.SetCanaryScale == nil {
-			errVal := fmt.Sprintf("step.Experiment: %t step.Pause: %t step.SetWeight: %t step.Analysis: %t step.SetCanaryScale %t",
-				step.Experiment == nil, step.Pause == nil, step.SetWeight == nil, step.Analysis == nil, step.SetCanaryScale == nil)
+		if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil && step.SetCanaryScale == nil && step.SetHeaderRouting == nil {
+			errVal := fmt.Sprintf("step.Experiment: %t step.Pause: %t step.SetWeight: %t step.Analysis: %t step.SetCanaryScale: %t step.SetHeaderRouting: %t",
+				step.Experiment == nil, step.Pause == nil, step.SetWeight == nil, step.Analysis == nil, step.SetCanaryScale == nil, step.SetHeaderRouting == nil)
 			allErrs = append(allErrs, field.Invalid(stepFldPath, errVal, InvalidStepMessage))
 		}
 		if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
@@ -240,14 +294,27 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.TrafficRouting == nil && step.SetCanaryScale != nil {
 			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setCanaryScale"), step.SetCanaryScale, InvalidSetCanaryScaleTrafficPolicy))
 		}
+		if step.SetHeaderRouting != nil {
+			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
+			if trafficRouting == nil || trafficRouting.Istio == nil {
+				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRouting"), step.SetHeaderRouting, InvalidSetHeaderRoutingTrafficPolicy))
+			}
+			if step.SetHeaderRouting.Match != nil && len(step.SetHeaderRouting.Match) > 0 {
+				for j, match := range step.SetHeaderRouting.Match {
+					matchFld := stepFldPath.Child("setHeaderRouting").Child("match").Index(j)
+					allErrs = append(allErrs, hasMultipleMatchValues(match.HeaderValue, matchFld)...)
+				}
+			}
+		}
+
 		analysisRunArgs := make([]v1alpha1.AnalysisRunArgument, 0)
 		if step.Experiment != nil {
 			for tmplIndex, template := range step.Experiment.Templates {
 				if template.Weight != nil {
 					if canary.TrafficRouting == nil {
 						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting))
-					} else if canary.TrafficRouting.ALB == nil && canary.TrafficRouting.SMI == nil {
-						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, "Experiment template weight is only available for TrafficRouting with SMI and ALB at this time"))
+					} else if canary.TrafficRouting.ALB == nil && canary.TrafficRouting.SMI == nil && canary.TrafficRouting.Istio == nil {
+						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("experiment").Child("templates").Index(tmplIndex).Child("weight"), *canary.Steps[i].Experiment.Templates[tmplIndex].Weight, "Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time"))
 					}
 				}
 			}
@@ -265,7 +332,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		for _, arg := range analysisRunArgs {
 			if arg.ValueFrom != nil {
-				if arg.ValueFrom.FieldRef != nil {
+				if arg.ValueFrom.FieldRef != nil && strings.HasPrefix(arg.ValueFrom.FieldRef.FieldPath, "metadata") {
 					_, err := fieldpath.ExtractFieldPathAsString(rollout, arg.ValueFrom.FieldRef.FieldPath)
 					if err != nil {
 						allErrs = append(allErrs, field.Invalid(stepFldPath.Child("analyses"), analysisRunArgs, InvalidAnalysisArgsMessage))
@@ -342,6 +409,30 @@ func hasMultipleStepsType(s v1alpha1.CanaryStep, fldPath *field.Path) field.Erro
 			}
 			hasMultipleStepTypes = true
 		}
+	}
+	return allErrs
+}
+
+func hasMultipleMatchValues(match v1alpha1.StringMatch, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	oneOf := make([]bool, 3)
+	oneOf = append(oneOf, match.Exact != "")
+	oneOf = append(oneOf, match.Regex != "")
+	oneOf = append(oneOf, match.Prefix != "")
+	hasValue := false
+	for i := range oneOf {
+		if oneOf[i] {
+			if hasValue {
+				e := field.Invalid(fldPath, match, InvalidSetHeaderRoutingMultipleValuePolicy)
+				allErrs = append(allErrs, e)
+				break
+			}
+			hasValue = true
+		}
+	}
+	if !hasValue {
+		e := field.Invalid(fldPath, match, InvalidSetHeaderRoutingMissedValuePolicy)
+		allErrs = append(allErrs, e)
 	}
 	return allErrs
 }
