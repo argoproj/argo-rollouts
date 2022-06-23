@@ -791,7 +791,7 @@ func (r *Reconciler) generateHeaderBasedPatches(httpRoutes []VirtualServiceHTTPR
 	patches := virtualServiceRoutePatches{}
 	index := getHeaderRouteIndex(headerRouting, httpRoutes)
 
-	if index > 0 {
+	if index >= 0 {
 		if headerRouting == nil || headerRouting.Match == nil {
 			deleteHeaderRoute(index, &patches)
 		} else {
