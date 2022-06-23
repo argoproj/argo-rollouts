@@ -291,8 +291,8 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
 			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("pause").Child("duration"), step.Pause.DurationSeconds(), InvalidDurationMessage))
 		}
-		if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.TrafficRouting == nil && step.SetCanaryScale != nil {
-			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setCanaryScale"), step.SetCanaryScale, InvalidSetCanaryScaleTrafficPolicy))
+		if step.SetCanaryScale != nil && canary.TrafficRouting == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("trafficRouting"), InvalidSetCanaryScaleTrafficPolicy))
 		}
 		if step.SetHeaderRouting != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
