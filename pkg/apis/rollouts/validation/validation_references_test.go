@@ -262,24 +262,6 @@ func getRollout() *v1alpha1.Rollout {
 	}
 }
 
-func getRolloutMultiIngress() *v1alpha1.Rollout {
-	return &v1alpha1.Rollout{
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{
-					StableService: "stable-service-name",
-					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
-						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress: "test-stable-ingress",
-							AdditionalStableIngresses: []string{"test-stable-ingress-additional"},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func getIngress() *v1beta1.Ingress {
 	return &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
