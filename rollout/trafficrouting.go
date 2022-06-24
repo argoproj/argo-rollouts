@@ -124,7 +124,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 	for _, reconciler := range reconcilers {
 		c.log.Infof("Reconciling TrafficRouting with type '%s'", reconciler.Type())
 
-		currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
+		_, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
 		desiredWeight := int32(0)
 		var setHeaderRouting *v1alpha1.SetHeaderRouting
 		weightDestinations := make([]v1alpha1.WeightDestination, 0)
@@ -209,27 +209,18 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			c.newStatus.Canary.Weights = newWeights
 		}
 
-		// If we are in the middle of an update at a setWeight step, also perform weight verification.
-		// Note that we don't do this every reconciliation because weight verification typically involves
-		// API calls to the cloud provider which could incur rate limiting
-		shouldVerifyWeight := c.rollout.Status.StableRS != "" &&
-			!rolloututil.IsFullyPromoted(c.rollout) &&
-			currentStep != nil && currentStep.SetWeight != nil
-
-		if shouldVerifyWeight || c.rollout.Status.ALB == nil {
-			weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
-			c.newStatus.Canary.Weights.Verified = weightVerified
-			if err != nil {
-				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
-				return nil // return nil instead of error since we want to continue with normal reconciliation
-			}
-			if weightVerified != nil {
-				if *weightVerified {
-					c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
-				} else {
-					c.log.Infof("Desired weight (stepIdx: %d) %d not yet verified", *index, desiredWeight)
-					c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
-				}
+		weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
+		c.newStatus.Canary.Weights.Verified = weightVerified
+		if err != nil {
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
+			return nil // return nil instead of error since we want to continue with normal reconciliation
+		}
+		if weightVerified != nil {
+			if *weightVerified {
+				c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
+			} else {
+				c.log.Infof("Desired weight (stepIdx: %d) %d not yet verified", *index, desiredWeight)
+				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 			}
 		}
 	}

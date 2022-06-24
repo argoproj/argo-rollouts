@@ -3,6 +3,7 @@ package alb
 import (
 	"context"
 	"fmt"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
@@ -117,6 +118,7 @@ func (r *Reconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) 
 	return nil
 }
 
+// Gets the controller configuration flag for verifying alb weights
 func (r *Reconciler) shouldVerifyWeight() bool {
 	if r.cfg.VerifyWeight != nil {
 		return *r.cfg.VerifyWeight
@@ -127,6 +129,10 @@ func (r *Reconciler) shouldVerifyWeight() bool {
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
 	if !r.shouldVerifyWeight() {
 		r.cfg.Status.ALB = nil
+		return nil, nil
+	}
+
+	if !rolloututil.ShouldVerifyWeight(r.cfg.Rollout) || r.cfg.Rollout.Status.ALB == nil {
 		return nil, nil
 	}
 	if r.cfg.Status.ALB == nil {
