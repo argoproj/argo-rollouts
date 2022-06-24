@@ -217,9 +217,17 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		}
 		if weightVerified != nil {
 			if *weightVerified {
-				c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
+				if index != nil {
+					c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
+				} else {
+					c.log.Infof("Desired weight (stepIdx: n/a) %d verified", desiredWeight)
+				}
 			} else {
-				c.log.Infof("Desired weight (stepIdx: %d) %d not yet verified", *index, desiredWeight)
+				if index != nil {
+					c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
+				} else {
+					c.log.Infof("Desired weight (stepIdx: n/a) %d verified", desiredWeight)
+				}
 				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 			}
 		}
