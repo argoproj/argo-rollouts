@@ -193,6 +193,13 @@ spec:
                             query:
                               type: string
                           type: object
+                        influxdb:
+                          properties:
+                            profile:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         job:
                           properties:
                             metadata:
@@ -3057,6 +3064,13 @@ spec:
                             query:
                               type: string
                           type: object
+                        influxdb:
+                          properties:
+                            profile:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         job:
                           properties:
                             metadata:
@@ -5803,6 +5817,13 @@ spec:
                         graphite:
                           properties:
                             address:
+                              type: string
+                            query:
+                              type: string
+                          type: object
+                        influxdb:
+                          properties:
+                            profile:
                               type: string
                             query:
                               type: string
