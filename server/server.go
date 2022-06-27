@@ -1,13 +1,14 @@
 package server
 
 import (
+	"bufio"
 	"context"
 	"embed"
 	"fmt"
-	"io/fs"
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -61,6 +62,7 @@ type ServerOptions struct {
 	RolloutsClientset rolloutclientset.Interface
 	DynamicClientset  dynamic.Interface
 	Namespace         string
+	RootPath          string
 }
 
 const (
@@ -89,6 +91,35 @@ func (fs *spaFileSystem) Open(name string) (http.File, error) {
 		return fs.root.Open("index.html")
 	}
 	return f, err
+}
+
+//This function helps in changing base href to point to rootpath as basepath, we are making modification in only server/static/index.html file
+func withRootPath(rootpath string) {
+	inputFile, inputError := os.Open("./server/static/index.html")
+	if inputError != nil {
+		log.Error("An error occurred on opening the inputfile\n" +
+			"Does the file exist?\n" +
+			"Have you got access to it?\n")
+		panic(inputError) // exit on error
+	}
+	defer inputFile.Close()
+	inputReader := bufio.NewReader(inputFile)
+	inputString, _ := inputReader.ReadString('\n')
+	re := regexp.MustCompile(`<base href="/[^/]*/*"/>`)
+	var temp = re.ReplaceAllString(inputString, "<base href=\"/"+rootpath+"/\"/>") // href="/root/"
+
+	outputFile, _ := os.OpenFile("./server/static/index.html", os.O_TRUNC|os.O_WRONLY, 0666)
+	defer outputFile.Close()
+	outputWriter := bufio.NewWriter(outputFile)
+	outputWriter.WriteString(temp)
+	outputWriter.Flush()
+
+	//To make ui/dist/index.html file consistent with server/static/index.html
+	outputFileDist, _ := os.OpenFile("./ui/dist/app/index.html", os.O_TRUNC|os.O_WRONLY, 0666)
+	defer outputFileDist.Close()
+	outputWriterDist := bufio.NewWriter(outputFileDist)
+	outputWriterDist.WriteString(temp)
+	outputWriterDist.Flush()
 }
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
@@ -122,14 +153,11 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 
 	var handler http.Handler = gwmux
 
-	ui, err := fs.Sub(static, "static")
-	if err != nil {
-		log.Error("Could not load UI static files")
-		panic(err)
-	}
+	withRootPath(s.Options.RootPath)
 
 	mux.Handle("/api/", handler)
-	mux.Handle("/", http.FileServer(&spaFileSystem{http.FS(ui)}))
+
+	mux.Handle("/"+s.Options.RootPath+"/", http.StripPrefix("/"+s.Options.RootPath+"/", http.FileServer(http.Dir("./server/static"))))
 
 	return &httpS
 }

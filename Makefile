@@ -22,6 +22,7 @@ DEV_IMAGE=false
 E2E_INSTANCE_ID ?= argo-rollouts-e2e
 E2E_TEST_OPTIONS ?= 
 E2E_PARALLEL ?= 4
+E2E_WAIT_TIMEOUT ?= 90
 
 override LDFLAGS += \
   -X ${PACKAGE}/utils/version.version=${VERSION} \
@@ -114,6 +115,7 @@ api-proto: go-mod-vendor k8s-proto
 
 # generates ui related proto files
 .PHONY: ui-proto
+ui-proto:
 	yarn --cwd ui run protogen
 
 # generates k8s client, informer, lister, deepcopy from types.go

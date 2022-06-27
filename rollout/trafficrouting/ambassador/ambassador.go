@@ -115,6 +115,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return formatErrors(errs)
 }
 
+func (r *Reconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
+	return nil
+}
+
 func formatErrors(errs []error) error {
 	errorsCount := len(errs)
 	if errorsCount == 0 {

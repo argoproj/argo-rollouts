@@ -335,6 +335,27 @@ spec:
         host: canary
       weight: 0`
 
+const singleRouteSubsetVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - route:
+    - destination:
+        host: 'rollout-service'
+        subset: 'stable-subset'
+      weight: 100
+    - destination:
+        host: rollout-service
+        subset: 'canary-subset'
+      weight: 0`
+
 const singleRouteTlsVsvc = `apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -463,6 +484,92 @@ func TestHttpReconcileWeightsBaseCase(t *testing.T) {
 		assertHttpRouteWeightChanges(t, httpRoutes[0], "primary", 10, 90)
 		assertHttpRouteWeightChanges(t, httpRoutes[1], "secondary", 0, 100)
 	}
+}
+
+func TestHttpReconcileHeaderRoute_HostBased(t *testing.T) {
+	r := &Reconciler{
+		rollout: rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"}),
+	}
+
+	// Test for both the HTTP VS & Mixed VS
+	vsObj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	hr := &v1alpha1.SetHeaderRouting{
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName:  "agent",
+				HeaderValue: v1alpha1.StringMatch{Exact: "firefox"},
+			},
+		},
+	}
+	modifiedVsObj, _, err := r.reconcileVirtualServiceRoutes(vsObj, hr)
+	assert.Nil(t, err)
+	assert.NotNil(t, modifiedVsObj)
+
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, modifiedVsObj)
+
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, HeaderRouteName)
+	checkDestination(t, httpRoutes[0].Route, "canary", 100)
+	assert.Equal(t, len(httpRoutes[0].Route), 1)
+	assert.Equal(t, httpRoutes[1].Name, "primary")
+	checkDestination(t, httpRoutes[1].Route, "stable", 100)
+	assert.Equal(t, httpRoutes[2].Name, "secondary")
+
+	// Reset header routing, expecting removing of the header route
+
+	modifiedVsObj, _, err = r.reconcileVirtualServiceRoutes(vsObj, nil)
+	assert.Nil(t, err)
+	assert.NotNil(t, modifiedVsObj)
+	// HTTP Routes
+	httpRoutes = extractHttpRoutes(t, modifiedVsObj)
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, "primary")
+	assert.Equal(t, httpRoutes[1].Name, "secondary")
+}
+
+func TestHttpReconcileHeaderRoute_SubsetBased(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  host: root-service
+  subsets:
+  - name: stable
+  - name: canary
+`)
+
+	client := testutil.NewFakeDynamicClient(obj)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil)
+	client.ClearActions()
+
+	// Test for both the HTTP VS & Mixed VS
+	vsObj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteSubsetVsvc)
+	hr := &v1alpha1.SetHeaderRouting{
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName: "agent",
+				HeaderValue: v1alpha1.StringMatch{
+					Regex: "firefox",
+				},
+			},
+		},
+	}
+	modifiedVsObj, _, err := r.reconcileVirtualServiceRoutes(vsObj, hr)
+	assert.Nil(t, err)
+	assert.NotNil(t, modifiedVsObj)
+
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, modifiedVsObj)
+
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, HeaderRouteName)
+	assert.Equal(t, httpRoutes[0].Route[0].Destination.Host, "root-service")
+	assert.Equal(t, httpRoutes[0].Route[0].Destination.Subset, "canary")
 }
 
 func TestTlsReconcileWeightsBaseCase(t *testing.T) {
@@ -1157,7 +1264,7 @@ spec:
 
 	jsonBytes, err := json.Marshal(dRule)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"metadata":{"name":"istio-destrule","namespace":"default","creationTimestamp":null,"annotations":{"argo-rollouts.argoproj.io/managed-by-rollouts":"rollout"}},"spec":{"subsets":[{"name":"stable","labels":{"rollouts-pod-template-hash":"def456","version":"v3"}},{"name":"canary","labels":{"rollouts-pod-template-hash":"abc123"},"Extra":{"trafficPolicy":{"loadBalancer":{"simple":"ROUND_ROBIN"}}}}]}}`,
+	assert.Equal(t, `{"metadata":{"name":"istio-destrule","namespace":"default","creationTimestamp":null,"annotations":{"argo-rollouts.argoproj.io/managed-by-rollouts":"rollout"}},"spec":{"host":"ratings.prod.svc.cluster.local","subsets":[{"name":"stable","labels":{"rollouts-pod-template-hash":"def456","version":"v3"}},{"name":"canary","labels":{"rollouts-pod-template-hash":"abc123"},"Extra":{"trafficPolicy":{"loadBalancer":{"simple":"ROUND_ROBIN"}}}}]}}`,
 		string(jsonBytes))
 }
 
@@ -1207,6 +1314,7 @@ metadata:
   annotations:
     argo-rollouts.argoproj.io/managed-by-rollouts: rollout
 spec:
+  host: ratings.prod.svc.cluster.local
   subsets:
   - name: stable
     labels:

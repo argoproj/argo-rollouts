@@ -105,7 +105,6 @@ func ValidateService(svc ServiceWithType, rollout *v1alpha1.Rollout) field.Error
 		}
 		if v, ok := rollout.Spec.Template.Labels[svcLabelKey]; !ok || v != svcLabelValue {
 			msg := fmt.Sprintf("Service %q has unmatch lable %q in rollout", service.Name, svcLabelKey)
-			fmt.Println(msg)
 			allErrs = append(allErrs, field.Invalid(fldPath, service.Name, msg))
 		}
 	}
@@ -297,7 +296,7 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 			}
 			// Validate HTTP Routes
 			if errHttp == nil {
-				httpRoutes, err := istio.GetHttpRoutes(newObj, httpRoutesI)
+				httpRoutes, err := istio.GetHttpRoutes(httpRoutesI)
 				if err != nil {
 					msg := fmt.Sprintf("Unable to get HTTP routes for Istio VirtualService")
 					allErrs = append(allErrs, field.Invalid(fldPath, vsvcName, msg))

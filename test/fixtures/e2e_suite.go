@@ -36,7 +36,7 @@ import (
 const (
 	// E2E_INSTANCE_ID is the instance id label attached to objects created by the e2e tests
 	EnvVarE2EInstanceID = "E2E_INSTANCE_ID"
-	// E2E_WAIT_TIMEOUT is a timeout in seconds when waiting for a test condition (default: 60)
+	// E2E_WAIT_TIMEOUT is a timeout in seconds when waiting for a test condition (default: 90)
 	EnvVarE2EWaitTimeout = "E2E_WAIT_TIMEOUT"
 	// E2E_POD_DELAY slows down pod startup and shutdown by the value in seconds (default: 0)
 	// Used humans slow down rollout activity during a test
@@ -52,7 +52,7 @@ const (
 )
 
 var (
-	E2EWaitTimeout time.Duration = time.Second * 60
+	E2EWaitTimeout time.Duration = time.Second * 90
 	E2EPodDelay                  = 0
 
 	E2EALBIngressAnnotations map[string]string

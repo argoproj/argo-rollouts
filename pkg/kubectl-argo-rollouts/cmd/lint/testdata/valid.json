@@ -1,0 +1,72 @@
+{
+  "apiVersion": "argoproj.io/v1alpha1",
+  "kind": "Rollout",
+  "metadata": {
+    "name": "valid-rollout"
+  },
+  "spec": {
+    "revisionHistoryLimit": 1,
+    "replicas": 10,
+    "strategy": {
+      "canary": {
+        "maxUnavailable": 0,
+        "maxSurge": 1,
+        "analysis": {
+          "templates": [
+            {
+              "templateName": "integrationtests"
+            }
+          ]
+        },
+        "steps": [
+          {
+            "setWeight": 10
+          },
+          {
+            "setWeight": 20
+          },
+          {
+            "setWeight": 40
+          },
+          {
+            "setWeight": 80
+          }
+        ]
+      }
+    },
+    "selector": {
+      "matchLabels": {
+        "app": "valid-rollout"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "valid-rollout"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "valid-rollout",
+            "image": "valid-rollout:0.0.0",
+            "ports": [
+              {
+                "name": "http",
+                "containerPort": 8080,
+                "protocol": "TCP"
+              }
+            ],
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/ping",
+                "port": 8080
+              },
+              "periodSeconds": 5
+            }
+          }
+        ]
+      }
+    }
+  }
+}

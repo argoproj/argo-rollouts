@@ -83,8 +83,7 @@ match the traffic weight. Some use cases for this:
 
 
 !!! important
-  Setting canary scale is only available when using the canary strategy with a traffic router, since
-  the basic canary needs to control canary scale in order to approximate canary weight.
+    Setting canary scale is only available when using the canary strategy with a traffic router, since the basic canary needs to control canary scale in order to approximate canary weight.
 
 To control canary scales and weights during steps, use the `setCanaryScale` step and indicate which scale the
 the canary should use:
