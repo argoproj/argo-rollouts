@@ -1068,23 +1068,23 @@ func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) err
 		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 		istioVirtualSvc, err := r.getVirtualService(namespace, vsvcName, client, ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("[SetMirrorRoute] failed to get virtual service: %w", err)
 		}
 
 		err = r.reconcileVirtualServiceMirrorRoutes(virtualService, istioVirtualSvc, setMirrorRoute)
 		if err != nil {
-			return err
+			return fmt.Errorf("[SetMirrorRoute] failed reconcile virtual service for mirror routes: %w", err)
 		}
 
 		if err := r.orderRoutes(istioVirtualSvc); err != nil && err.Error() != SpecHttpNotFound {
-			return err
+			return fmt.Errorf("[SetMirrorRoute] failed to order routes based on managedRoute order: %w", err)
 		}
 		_, err = client.Update(ctx, istioVirtualSvc, metav1.UpdateOptions{})
 		if err == nil {
 			r.log.Debugf("Updated VirtualService: %s", istioVirtualSvc)
 			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set mirrorRoute '%v'", vsvcName, setMirrorRoute.Name)
 		} else {
-			return err
+			return fmt.Errorf("[SetMirrorRoute] failed to update virtual service %w", err)
 		}
 
 	}
@@ -1094,7 +1094,7 @@ func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) err
 func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1.IstioVirtualService, istioVirtualService *unstructured.Unstructured, mirrorRoute *v1alpha1.SetMirrorRoute) error {
 	destRuleHost, err := r.getDestinationRuleHost()
 	if err != nil {
-		return err
+		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to get destination rule host: %w", err)
 	}
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	if destRuleHost != "" {
@@ -1109,36 +1109,39 @@ func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1
 	//acts like a removal of the route instead of say routing all traffic
 	if mirrorRoute.Match == nil {
 		//Remove mirror route
-		removeRoute(istioVirtualService, mirrorRoute.Name)
+		err := removeRoute(istioVirtualService, mirrorRoute.Name)
+		if err != nil {
+			return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to remove route from vitual service: %w", err)
+		}
 		return nil
 	}
 
 	//Remove route first to avoid duplicates
 	err = removeRoute(istioVirtualService, mirrorRoute.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to remove http route from virtual service: %w", err)
 	}
 
 	httpRoutes, _, err := getVirtualServiceHttpRoutes(istioVirtualService)
 	if err != nil {
-		return err
+		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to get virtual service http routes: %w", err)
 	}
 
 	mR, err := createMirrorRoute(virtualService, httpRoutes, mirrorRoute, canarySvc, canarySubset)
 	if err != nil {
-		return err
+		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to create mirror route: %w", err)
 	}
 
 	vsRoutes, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
 	if err != nil {
-		return err
+		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to get http routes from virtual service: %w", err)
 	}
 	if !found {
 		return fmt.Errorf(SpecHttpNotFound)
 	}
 	vsRoutes = append([]interface{}{mR}, vsRoutes...)
 	if err := unstructured.SetNestedSlice(istioVirtualService.Object, vsRoutes, "spec", Http); err != nil {
-		return err
+		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to update virtual service routes via set nested slice: %w", err)
 	}
 
 	return nil
@@ -1149,11 +1152,11 @@ func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1
 func getVirtualServiceHttpRoutes(obj *unstructured.Unstructured) ([]VirtualServiceHTTPRoute, []interface{}, error) {
 	httpRoutesI, err := GetHttpRoutesI(obj)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("[getVirtualServiceHttpRoutes] failed to get http route interfaces: %w", err)
 	}
 	routes, err := GetHttpRoutes(httpRoutesI)
 	if err != nil {
-		return nil, httpRoutesI, err
+		return nil, httpRoutesI, fmt.Errorf("[getVirtualServiceHttpRoutes] failed to get http route types: %w", err)
 	}
 	return routes, httpRoutesI, nil
 }
@@ -1170,7 +1173,7 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 
 	route, err := getVirtualServiceSetWeightRoute(virtualService.Routes, httpRoutes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[createMirrorRoute] failed to get virtual service http route for keeping non-mirror weights set: %w", err)
 	}
 
 	var istioMatch []RouteMatch
@@ -1195,13 +1198,13 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 
 	mirrorRouteBytes, err := json.Marshal(mirrorRoute)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[createMirrorRoute] failed to marshal mirror route: %w", err)
 	}
 
 	var mirrorRouteI map[string]interface{}
 	err = json.Unmarshal(mirrorRouteBytes, &mirrorRouteI)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[createMirrorRoute] failed to unmarshal mirror route: %w", err)
 	}
 
 	return mirrorRouteI, nil
@@ -1226,7 +1229,7 @@ func getVirtualServiceSetWeightRoute(rolloutVsvcRouteNames []string, httpRoutes 
 func removeRoute(istioVirtualService *unstructured.Unstructured, routeName string) error {
 	vsRoutes, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
 	if err != nil {
-		return err
+		return fmt.Errorf("[removeRoute] failed to get http routes from virtual service: %w", err)
 	}
 	if !found {
 		return fmt.Errorf(SpecHttpNotFound)
@@ -1247,7 +1250,7 @@ func removeRoute(istioVirtualService *unstructured.Unstructured, routeName strin
 		}
 	}
 	if err := unstructured.SetNestedSlice(istioVirtualService.Object, newVsRoutes, "spec", Http); err != nil {
-		return err
+		return fmt.Errorf("[removeRoute] failed to set http routes on virtual service: %w", err)
 	}
 	return nil
 }
@@ -1257,7 +1260,7 @@ func removeRoute(istioVirtualService *unstructured.Unstructured, routeName strin
 func (r *Reconciler) orderRoutes(istioVirtualService *unstructured.Unstructured) error {
 	httpRouteI, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
 	if err != nil {
-		return err
+		return fmt.Errorf("[orderRoutes] failed to get virtual service http routes: %w", err)
 	}
 	if !found {
 		return fmt.Errorf(SpecHttpNotFound)
@@ -1270,16 +1273,16 @@ func (r *Reconciler) orderRoutes(istioVirtualService *unstructured.Unstructured)
 	managedRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes
 	httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes, err := splitManagedRoutesAndNonManagedRoutes(managedRoutes, httpRouteI)
 	if err != nil {
-		return err
+		return fmt.Errorf("[orderRoutes] could not split routes between managed and non managed: %w", err)
 	}
 
 	finalRoutes, err := getOrderedVirtualServiceRoutes(managedRoutes, httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes)
 	if err != nil {
-		return err
+		return fmt.Errorf("[orderRoutes] could not get ordered virtual service routes: %w", err)
 	}
 
 	if err := unstructured.SetNestedSlice(istioVirtualService.Object, finalRoutes, "spec", Http); err != nil {
-		return err
+		return fmt.Errorf("[orderRoutes] set nested slice failed: %w", err)
 	}
 
 	return nil
@@ -1293,11 +1296,11 @@ func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes
 
 	jsonHttpRoutes, err := json.Marshal(httpRouteI)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("[splitManagedRoutesAndNonManagedRoutes] failed to marsharl http route interface: %w", err)
 	}
 
 	if err := json.Unmarshal(jsonHttpRoutes, &httpRoutes); err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("[splitManagedRoutesAndNonManagedRoutes] failed to unmarsharl http route interface: %w", err)
 	}
 
 	for _, route := range httpRoutes {
@@ -1334,11 +1337,11 @@ func getOrderedVirtualServiceRoutes(managedRoutes []v1alpha1.MangedRoutes, httpR
 
 	jsonAllIstioRoutes, err := json.Marshal(allIstioRoutes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[getOrderedVirtualServiceRoutes] failed to marsharl istio routes: %w", err)
 	}
 	var orderedRoutes []interface{}
 	if err := json.Unmarshal(jsonAllIstioRoutes, &orderedRoutes); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[getOrderedVirtualServiceRoutes] failed to unmarsharl istio routes: %w", err)
 	}
 
 	return orderedRoutes, nil
@@ -1361,7 +1364,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 		istioVirtualService, err := r.getVirtualService(namespace, vsvcName, client, ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("[RemoveManagedRoutes] failed to get virtual service: %w", err)
 		}
 
 		httpRouteI, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
@@ -1369,7 +1372,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 			return err
 		}
 		if !found {
-			return fmt.Errorf(SpecHttpNotFound)
+			return fmt.Errorf("[RemoveManagedRoutes] %s: %w", SpecHttpNotFound, err)
 		}
 
 		managedRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes
@@ -1378,7 +1381,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 		}
 		httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes, err := splitManagedRoutesAndNonManagedRoutes(managedRoutes, httpRouteI)
 		if err != nil {
-			return err
+			return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
 		}
 
 		if len(httpRoutesWithinManagedRoutes) == 0 {
@@ -1388,15 +1391,15 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 
 		jsonNonManagedRoutes, err := json.Marshal(httpRoutesNotWithinManagedRoutes)
 		if err != nil {
-			return err
+			return fmt.Errorf("[RemoveManagedRoutes] failed to marshal non-managed routes: %w", err)
 		}
 		var nonManagedRoutesI []interface{}
 		if err := json.Unmarshal(jsonNonManagedRoutes, &nonManagedRoutesI); err != nil {
-			return err
+			return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
 		}
 
 		if err := unstructured.SetNestedSlice(istioVirtualService.Object, nonManagedRoutesI, "spec", Http); err != nil {
-			return err
+			return fmt.Errorf("[RemoveManagedRoutes] failed to set nested slice on virtual service to remove managed routes: %w", err)
 		}
 
 		_, err = client.Update(ctx, istioVirtualService, metav1.UpdateOptions{})
@@ -1404,7 +1407,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 			r.log.Debugf("Updated VirtualService: %s", istioVirtualService)
 			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` removed all managed routes.", vsvcName)
 		} else {
-			return err
+			return fmt.Errorf("[RemoveManagedRoutes] failed to update kubernetes virtual service: %w", err)
 		}
 	}
 	return nil
