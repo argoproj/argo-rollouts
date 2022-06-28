@@ -1111,7 +1111,7 @@ func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1
 		//Remove mirror route
 		err := removeRoute(istioVirtualService, mirrorRoute.Name)
 		if err != nil {
-			return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to remove route from vitual service: %w", err)
+			return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to remove route from virtual service: %w", err)
 		}
 		return nil
 	}
