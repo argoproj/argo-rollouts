@@ -630,7 +630,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 		}
 
 		if err := r.orderRoutes(modifiedVirtualService); err != nil && err.Error() != SpecHttpNotFound {
-			return err
+			return fmt.Errorf("[SetWeight] failed to order routes: %w", err)
 		}
 		_, err = client.Update(ctx, modifiedVirtualService, metav1.UpdateOptions{})
 		if err == nil {
@@ -731,7 +731,7 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 		}
 
 		if err := r.orderRoutes(modifiedVirtualService); err != nil && err.Error() != SpecHttpNotFound {
-			return err
+			return fmt.Errorf("[SetHeaderRoute] failed to order routes: %w", err)
 		}
 		_, err = client.Update(ctx, modifiedVirtualService, metav1.UpdateOptions{})
 		if err == nil {
@@ -1369,7 +1369,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 
 		httpRouteI, found, err := unstructured.NestedSlice(istioVirtualService.Object, "spec", Http)
 		if err != nil {
-			return err
+			return fmt.Errorf("[RemoveManagedRoutes] failed to get http routes from virtual service: %w", err)
 		}
 		if !found {
 			return fmt.Errorf("[RemoveManagedRoutes] %s: %w", SpecHttpNotFound, err)
