@@ -815,8 +815,14 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 
 // getHttpRouteIndexesToPatch returns array indices of the httpRoutes which need to be patched when updating weights
 func getHttpRouteIndexesToPatch(routeNames []string, httpRoutes []VirtualServiceHTTPRoute) ([]int, error) {
+	//We have no routes listed in spec.strategy.canary.trafficRouting.istio.virtualService.routes so find index
+	//of the first empty named route
 	if len(routeNames) == 0 {
-		return []int{0}, nil
+		for i, route := range httpRoutes {
+			if route.Name == "" {
+				return []int{i}, nil
+			}
+		}
 	}
 
 	var routeIndexesToPatch []int
@@ -913,7 +919,23 @@ func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []V
 			return err
 		}
 	}
-	if len(routeNames) == 0 && len(httpRoutes) > 1 {
+
+	httpRoutesBytes, err := json.Marshal(httpRoutes)
+	if err != nil {
+		return fmt.Errorf("[ValidateHTTPRoutes] failed to marshal http routes: %w", err)
+	}
+	var httpRoutesI []interface{}
+	err = json.Unmarshal(httpRoutesBytes, &httpRoutesI)
+	if err != nil {
+		return fmt.Errorf("[ValidateHTTPRoutes] failed to marshal http routes to []interface{}: %w", err)
+	}
+
+	_, httpRoutesNotWithinManagedRoutes, err := splitManagedRoutesAndNonManagedRoutes(r.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, httpRoutesI)
+	if err != nil {
+		return fmt.Errorf("[ValidateHTTPRoutes] failed to split managed and non-managed routes: %w", err)
+	}
+
+	if len(routeNames) == 0 && len(httpRoutesNotWithinManagedRoutes) > 1 {
 		return fmt.Errorf("spec.http[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.routes")
 	}
 	return nil
@@ -1150,7 +1172,7 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 func getVirtualServiceSetWeightRoute(rolloutVsvcRouteNames []string, httpRoutes []VirtualServiceHTTPRoute) ([]VirtualServiceRouteDestination, error) {
 	routeIndexesToPatch, err := getHttpRouteIndexesToPatch(rolloutVsvcRouteNames, httpRoutes)
 	if err != nil {
-		return nil, nil
+		return nil, fmt.Errorf("[getVirtualServiceSetWeightRoute] failed to get routes that need to be patch when set weight is called: %w", err)
 	}
 	for _, routeIndex := range routeIndexesToPatch {
 		route := httpRoutes[routeIndex]

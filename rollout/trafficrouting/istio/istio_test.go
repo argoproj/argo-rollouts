@@ -1875,7 +1875,7 @@ func TestHttpReconcileMirrorRoute(t *testing.T) {
 }
 
 func TestHttpReconcileMirrorRouteOrder(t *testing.T) {
-	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary", "secondary"})
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
 	vsvcLister, druleLister := getIstioListers(client)
@@ -1932,8 +1932,8 @@ func TestHttpReconcileMirrorRouteOrder(t *testing.T) {
 	httpRoutes := extractHttpRoutes(t, iVirtualService)
 	assert.Equal(t, len(httpRoutes), 5)
 	assert.Equal(t, httpRoutes[0].Name, "test-mirror-2")
-	assert.Equal(t, httpRoutes[0].Route[0].Weight, int64(60))
-	assert.Equal(t, httpRoutes[0].Route[1].Weight, int64(40))
+	checkDestination(t, httpRoutes[0].Route, "canary", 40)
+	checkDestination(t, httpRoutes[0].Route, "stable", 60)
 	assert.Equal(t, httpRoutes[1].Name, "test-mirror-3")
 	assert.Equal(t, httpRoutes[2].Name, "test-mirror-1")
 	assert.Equal(t, httpRoutes[3].Name, "primary")
@@ -1963,12 +1963,11 @@ func TestHttpReconcileMirrorRouteOrder(t *testing.T) {
 }
 
 func TestHttpReconcileMirrorRouteOrderSingleRouteNoName(t *testing.T) {
-	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
-
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{})
 	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
-	vsvcLister, druleLister := getIstioListers(client)
-	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	_, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, druleLister)
 	client.ClearActions()
 
 	setMirror1 := &v1alpha1.SetMirrorRoute{
@@ -2007,12 +2006,15 @@ func TestHttpReconcileMirrorRouteOrderSingleRouteNoName(t *testing.T) {
 	},
 	}...)
 
-	err := r.SetMirrorRoute(setMirror1)
+	err := r.SetWeight(30)
+	assert.Nil(t, err)
+	err = r.SetMirrorRoute(setMirror1)
 	assert.Nil(t, err)
 	err = r.SetMirrorRoute(setMirror2)
 	assert.Nil(t, err)
 	err = r.SetMirrorRoute(setMirror3)
 	assert.Nil(t, err)
+
 	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	// HTTP Routes
@@ -2022,6 +2024,22 @@ func TestHttpReconcileMirrorRouteOrderSingleRouteNoName(t *testing.T) {
 	assert.Equal(t, httpRoutes[1].Name, "test-mirror-3")
 	assert.Equal(t, httpRoutes[2].Name, "test-mirror-1")
 	assert.Equal(t, httpRoutes[3].Name, "")
+	assert.Equal(t, httpRoutes[3].Route[0].Weight, int64(70))
+	assert.Equal(t, httpRoutes[3].Route[1].Weight, int64(30))
+	checkDestination(t, httpRoutes[0].Route, "canary", 30)
+	checkDestination(t, httpRoutes[1].Route, "stable", 70)
+
+	//checkDestination(t, httpRoutes[2].Route, "canary", 40)
+	//checkDestination(t, httpRoutes[3].Route, "canary", 40)
+
+	err = r.SetWeight(40)
+	assert.Nil(t, err)
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	// HTTP Routes
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	checkDestination(t, httpRoutes[0].Route, "canary", 40)
+	checkDestination(t, httpRoutes[1].Route, "stable", 60)
 
 	//Delete mirror route
 	deleteSetMirror := &v1alpha1.SetMirrorRoute{
