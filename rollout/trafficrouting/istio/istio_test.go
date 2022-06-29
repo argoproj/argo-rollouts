@@ -2029,9 +2029,6 @@ func TestHttpReconcileMirrorRouteOrderSingleRouteNoName(t *testing.T) {
 	checkDestination(t, httpRoutes[0].Route, "canary", 30)
 	checkDestination(t, httpRoutes[1].Route, "stable", 70)
 
-	//checkDestination(t, httpRoutes[2].Route, "canary", 40)
-	//checkDestination(t, httpRoutes[3].Route, "canary", 40)
-
 	err = r.SetWeight(40)
 	assert.Nil(t, err)
 	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
