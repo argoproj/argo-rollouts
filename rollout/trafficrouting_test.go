@@ -36,8 +36,10 @@ func newFakeSingleTrafficRoutingReconciler() *mocks.TrafficRoutingReconciler {
 	trafficRoutingReconciler.On("Type").Return("fake")
 	trafficRoutingReconciler.On("SetWeight", mock.Anything, mock.Anything).Return(nil)
 	trafficRoutingReconciler.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	trafficRoutingReconciler.On("SetMirrorRoute", mock.Anything, mock.Anything).Return(nil)
 	trafficRoutingReconciler.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	trafficRoutingReconciler.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	trafficRoutingReconciler.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	return &trafficRoutingReconciler
 }
 
@@ -437,7 +439,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 		f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 		f.run(getKey(r2, t))
-	})
+	})git
 
 	t.Run("DynamicStableScale false", func(t *testing.T) {
 		r2.Spec.Strategy.Canary.DynamicStableScale = false
@@ -493,6 +495,7 @@ func TestRolloutSetWeightToZeroWhenFullyRolledOut(t *testing.T) {
 		return nil
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.run(getKey(r1, t))
 }
