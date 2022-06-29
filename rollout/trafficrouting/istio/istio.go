@@ -653,8 +653,6 @@ func (r *Reconciler) getVirtualService(namespace string, vsvcName string, client
 }
 
 func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(obj *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute) error {
-	//newObj := obj.DeepCopy()
-
 	// HTTP Routes
 	httpRoutesI, err := GetHttpRoutesI(obj)
 	if err != nil {
@@ -674,8 +672,6 @@ func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(obj *unstructured.Unstr
 		canarySubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName
 	}
 
-	//Remove mirror route when there is no match rules we require a match on routes for safety so a none listed match
-	//acts like a removal of the route instead of say routing all traffic
 	if headerRouting.Match == nil {
 		//Remove mirror route
 		err := removeRoute(obj, headerRouting.Name)
@@ -713,12 +709,12 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 		client := r.client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(namespace)
 		vsvc, err := r.getVirtualService(namespace, vsvcName, client, ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("[SetHeaderRoute] failed to get istio virtual service: %w", err)
 		}
 
 		err = r.reconcileVirtualServiceHeaderRoutes(vsvc, headerRouting)
 		if err != nil {
-			return err
+			return fmt.Errorf("[SetHeaderRoute] failed to reconcile header routes: %w", err)
 		}
 
 		if err := r.orderRoutes(vsvc); err != nil && err.Error() != SpecHttpNotFound {
@@ -729,7 +725,7 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 			r.log.Debugf("Updated VirtualService: %s", vsvc)
 			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set headerRoute '%v'", vsvcName, headerRouting.Name)
 		} else {
-			return err
+			return fmt.Errorf("[SetHeaderRoute] failed to update routes: %w", err)
 		}
 	}
 	return nil
