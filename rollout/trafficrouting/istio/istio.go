@@ -685,6 +685,8 @@ func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(obj *unstructured.Unstr
 		return nil, false, err
 	}
 
+	removeRoute(newObj, headerRouting.Name)
+
 	// Generate Patches
 	patches := r.generateHeaderBasedPatches(httpRoutes, headerRouting, destRuleHost)
 	for _, patch := range patches {
@@ -791,7 +793,7 @@ func (r *Reconciler) generateHeaderBasedPatches(httpRoutes []VirtualServiceHTTPR
 	patches := virtualServiceRoutePatches{}
 	index := getHeaderRouteIndex(headerRouting, httpRoutes)
 
-	if index >= 0 {
+	if index > 0 {
 		if headerRouting == nil || headerRouting.Match == nil {
 			deleteHeaderRoute(index, &patches)
 		} else {
