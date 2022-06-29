@@ -439,7 +439,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 		f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 		f.run(getKey(r2, t))
-	})git
+	})
 
 	t.Run("DynamicStableScale false", func(t *testing.T) {
 		r2.Spec.Strategy.Canary.DynamicStableScale = false
