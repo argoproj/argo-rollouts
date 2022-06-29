@@ -403,8 +403,13 @@ message CanaryStep {
   // +optional
   optional SetCanaryScale setCanaryScale = 5;
 
-  // SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
-  optional SetHeaderRouting setHeaderRouting = 6;
+  // SetHeaderRoute defines the route with specified header name to send 100% of traffic to the canary service
+  // +optional
+  optional SetHeaderRoute setHeaderRoute = 6;
+
+  // SetMirrorRoutes Mirrors traffic that matches rules to a particular destination
+  // +optional
+  optional SetMirrorRoute setMirrorRoute = 8;
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
@@ -831,6 +836,10 @@ message KayentaThreshold {
   optional int64 pass = 1;
 
   optional int64 marginal = 2;
+}
+
+message MangedRoutes {
+  optional string name = 1;
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured
@@ -1424,6 +1433,24 @@ message RolloutTrafficRouting {
 
   // Traefik holds specific configuration to use Traefik to route traffic
   optional TraefikTrafficRouting traefik = 7;
+
+  // A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
+  // traffic router.
+  repeated MangedRoutes managedRoutes = 8;
+}
+
+message RouteMatch {
+  // Method What http methods should be mirrored
+  // +optional
+  optional StringMatch method = 1;
+
+  // Path What url paths should be mirrored
+  // +optional
+  optional StringMatch path = 2;
+
+  // Headers What request with matching headers should be mirrored
+  // +optional
+  map<string, StringMatch> headers = 3;
 }
 
 // RunSummary contains the final results from the metric executions
@@ -1490,9 +1517,28 @@ message SetCanaryScale {
   optional bool matchTrafficWeight = 3;
 }
 
-// SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
-message SetHeaderRouting {
-  repeated HeaderRoutingMatch match = 1;
+// SetHeaderRoute defines the route with specified header name to send 100% of traffic to the canary service
+message SetHeaderRoute {
+  // Name this is the name of the route to use for the mirroring of traffic this also needs
+  // to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field
+  optional string name = 1;
+
+  repeated HeaderRoutingMatch match = 2;
+}
+
+message SetMirrorRoute {
+  // Name this is the name of the route to use for the mirroring of traffic this also needs
+  // to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field
+  optional string name = 1;
+
+  // Match Contains a list of rules that if mated will mirror the traffic to the services
+  // +optional
+  repeated RouteMatch match = 2;
+
+  // Services The list of services to mirror the traffic to if the method, path, headers match
+  // Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
+  // Percentage What percent of the traffic that matched the rules should be mirrored
+  optional int32 percentage = 4;
 }
 
 message StickinessConfig {

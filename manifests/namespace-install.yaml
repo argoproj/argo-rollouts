@@ -11582,7 +11582,7 @@ spec:
                                   format: int32
                                   type: integer
                               type: object
-                            setHeaderRouting:
+                            setHeaderRoute:
                               properties:
                                 match:
                                   items:
@@ -11603,6 +11603,52 @@ spec:
                                     - headerValue
                                     type: object
                                   type: array
+                                name:
+                                  type: string
+                              type: object
+                            setMirrorRoute:
+                              properties:
+                                match:
+                                  items:
+                                    properties:
+                                      headers:
+                                        additionalProperties:
+                                          properties:
+                                            exact:
+                                              type: string
+                                            prefix:
+                                              type: string
+                                            regex:
+                                              type: string
+                                          type: object
+                                        type: object
+                                      method:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                      path:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                    type: object
+                                  type: array
+                                name:
+                                  type: string
+                                percentage:
+                                  format: int32
+                                  type: integer
+                              required:
+                              - name
                               type: object
                             setWeight:
                               format: int32
@@ -11744,6 +11790,15 @@ spec:
                                   type: object
                                 type: array
                             type: object
+                          managedRoutes:
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
                           nginx:
                             properties:
                               additionalIngressAnnotations:
