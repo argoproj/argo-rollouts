@@ -482,6 +482,63 @@ func TestUpdateHash(t *testing.T) {
 	}
 }
 
+func TestSetHeaderRoute(t *testing.T) {
+	t.Run("not implemented check", func(t *testing.T) {
+		t.Parallel()
+		client := testutil.NewFakeDynamicClient()
+		cfg := ReconcilerConfig{
+			Rollout:  fakeRollout(),
+			Client:   client,
+			Recorder: record.NewFakeEventRecorder(),
+		}
+		r := NewReconciler(cfg)
+
+		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+			Name: "set-header",
+			Match: []v1alpha1.HeaderRoutingMatch{{
+				HeaderName: "header-name",
+				HeaderValue: &v1alpha1.StringMatch{
+					Exact: "value",
+				},
+			}},
+		})
+		assert.Nil(t, err)
+
+		err = r.RemoveManagedRoutes()
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 0)
+	})
+}
+
+func TestSetMirrorRoute(t *testing.T) {
+	t.Run("not implemented check", func(t *testing.T) {
+		t.Parallel()
+		client := testutil.NewFakeDynamicClient()
+		cfg := ReconcilerConfig{
+			Rollout:  fakeRollout(),
+			Client:   client,
+			Recorder: record.NewFakeEventRecorder(),
+		}
+		r := NewReconciler(cfg)
+
+		err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+			Name: "mirror-route",
+			Match: []v1alpha1.RouteMatch{{
+				Method: &v1alpha1.StringMatch{Exact: "GET"},
+			}},
+		})
+		assert.Nil(t, err)
+
+		err = r.RemoveManagedRoutes()
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 0)
+	})
+}
+
 func TestUpdateHashWhenGetStableVirtualNodeFails(t *testing.T) {
 	canaryHash := sampleNewCanaryHash
 	stableHash := sampleNewStableHash

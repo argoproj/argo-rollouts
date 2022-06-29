@@ -196,6 +196,61 @@ func TestSetWeight(t *testing.T) {
 	})
 }
 
+func TestSetHeaderRoute(t *testing.T) {
+	t.Run("SetHeaderRoute", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			Client:  client,
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+			Name: "set-header",
+			Match: []v1alpha1.HeaderRoutingMatch{{
+				HeaderName: "header-name",
+				HeaderValue: &v1alpha1.StringMatch{
+					Exact: "value",
+				},
+			}},
+		})
+
+		// Then
+		assert.NoError(t, err)
+
+		err = r.RemoveManagedRoutes()
+		assert.Nil(t, err)
+	})
+}
+
+func TestSetMirrorRoute(t *testing.T) {
+	t.Run("SetMirrorRoute", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			Client:  client,
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+			Name: "mirror-route",
+			Match: []v1alpha1.RouteMatch{{
+				Method: &v1alpha1.StringMatch{Exact: "GET"},
+			}},
+		})
+
+		// Then
+		assert.NoError(t, err)
+
+		err = r.RemoveManagedRoutes()
+		assert.Nil(t, err)
+	})
+}
+
 func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
 	t.Helper()
 	obj := &unstructured.Unstructured{}

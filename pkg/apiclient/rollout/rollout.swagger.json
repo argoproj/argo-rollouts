@@ -821,9 +821,13 @@
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetCanaryScale",
           "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight\n+optional"
         },
-        "setHeaderRouting": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetHeaderRouting",
-          "title": "SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service"
+        "setHeaderRoute": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetHeaderRoute",
+          "title": "SetHeaderRoute defines the route with specified header name to send 100% of traffic to the canary service\n+optional"
+        },
+        "setMirrorRoute": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetMirrorRoute",
+          "title": "SetMirrorRoutes Mirrors traffic that matches rules to a particular destination\n+optional"
         }
       },
       "description": "CanaryStep defines a step of a canary deployment."
@@ -994,6 +998,14 @@
         }
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MangedRoutes": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MeasurementRetention": {
       "type": "object",
@@ -1545,9 +1557,36 @@
         "traefik": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting",
           "title": "Traefik holds specific configuration to use Traefik to route traffic"
+        },
+        "managedRoutes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MangedRoutes"
+          },
+          "description": "A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream\ntraffic router."
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RouteMatch": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
+          "title": "Method What http methods should be mirrored\n+optional"
+        },
+        "path": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
+          "title": "Path What url paths should be mirrored\n+optional"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch"
+          },
+          "title": "Headers What request with matching headers should be mirrored\n+optional"
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SMITrafficRouting": {
       "type": "object",
@@ -1583,9 +1622,13 @@
       },
       "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight"
     },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetHeaderRouting": {
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetHeaderRoute": {
       "type": "object",
       "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name this is the name of the route to use for the mirroring of traffic this also needs\nto be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field"
+        },
         "match": {
           "type": "array",
           "items": {
@@ -1593,7 +1636,28 @@
           }
         }
       },
-      "title": "SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service"
+      "title": "SetHeaderRoute defines the route with specified header name to send 100% of traffic to the canary service"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetMirrorRoute": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name this is the name of the route to use for the mirroring of traffic this also needs\nto be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field"
+        },
+        "match": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RouteMatch"
+          },
+          "title": "Match Contains a list of rules that if mated will mirror the traffic to the services\n+optional"
+        },
+        "percentage": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Services The list of services to mirror the traffic to if the method, path, headers match\nService string `json:\"service\" protobuf:\"bytes,3,opt,name=service\"`\nPercentage What percent of the traffic that matched the rules should be mirrored"
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StickinessConfig": {
       "type": "object",

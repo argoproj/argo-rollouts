@@ -126,7 +126,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 		currentStep, index := replicasetutil.GetCurrentCanaryStep(c.rollout)
 		desiredWeight := int32(0)
-		var setHeaderRouting *v1alpha1.SetHeaderRouting
 		weightDestinations := make([]v1alpha1.WeightDestination, 0)
 
 		var canaryHash, stableHash string
@@ -139,6 +138,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 
 		if rolloututil.IsFullyPromoted(c.rollout) {
 			// when we are fully promoted. desired canary weight should be 0
+			err := reconciler.RemoveManagedRoutes()
+			if err != nil {
+				return err
+			}
 		} else if c.pauseContext.IsAborted() {
 			// when aborted, desired canary weight should immediately be 0 (100% to stable), *unless*
 			// we are using dynamic stable scaling. In that case, we are dynamically decreasing the
@@ -151,6 +154,11 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 					desiredWeight = minInt(desiredWeight, c.rollout.Status.Canary.Weights.Canary.Weight)
 				}
 			}
+			err := reconciler.RemoveManagedRoutes()
+			if err != nil {
+				return err
+			}
+
 		} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 			// when newRS is not available or replicas num is 0. never weight to canary
 			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
@@ -163,9 +171,13 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			} else if c.rollout.Status.Canary.Weights != nil {
 				desiredWeight = c.rollout.Status.Canary.Weights.Canary.Weight
 			}
+
+			err := reconciler.RemoveManagedRoutes()
+			if err != nil {
+				return err
+			}
 		} else if index != nil {
 			atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, nil)
-			setHeaderRouting = replicasetutil.GetCurrentSetHeaderRouting(c.rollout, *index)
 			if !atDesiredReplicaCount && !c.rollout.Status.PromoteFull {
 				// Use the previous weight since the new RS is not ready for a new weight
 				for i := *index - 1; i >= 0; i-- {
@@ -187,6 +199,21 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 		}
 
+		// We need to check for Generation > 1 because when we first install the rollout we run step 0 this prevents that.
+		// We could also probably use c.newRS == nil || c.newRS.Status.AvailableReplicas == 0
+		if currentStep != nil && c.rollout.ObjectMeta.Generation > 1 {
+			if currentStep.SetHeaderRoute != nil {
+				if err = reconciler.SetHeaderRoute(currentStep.SetHeaderRoute); err != nil {
+					return err
+				}
+			}
+			if currentStep.SetMirrorRoute != nil {
+				if err = reconciler.SetMirrorRoute(currentStep.SetMirrorRoute); err != nil {
+					return err
+				}
+			}
+		}
+
 		err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
 		if err != nil {
 			return err
@@ -195,10 +222,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
 		if err != nil {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
-			return err
-		}
-
-		if err = reconciler.SetHeaderRouting(setHeaderRouting); err != nil {
 			return err
 		}
 
