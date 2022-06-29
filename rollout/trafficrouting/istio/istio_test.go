@@ -487,13 +487,20 @@ func TestHttpReconcileWeightsBaseCase(t *testing.T) {
 }
 
 func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
 	const headerName = "test-header-route"
-	r := &Reconciler{
-		rollout: rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"}),
-	}
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: headerName,
+	},
+	}...)
 
 	// Test for both the HTTP VS & Mixed VS
-	vsObj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
 	hr := &v1alpha1.SetHeaderRoute{
 		Name: headerName,
 		Match: []v1alpha1.HeaderRoutingMatch{
@@ -503,12 +510,15 @@ func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
 			},
 		},
 	}
-	modifiedVsObj, _, err := r.reconcileVirtualServiceHeaderRoutes(vsObj, hr)
+
+	err := r.SetHeaderRoute(hr)
 	assert.Nil(t, err)
-	assert.NotNil(t, modifiedVsObj)
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
 
 	// HTTP Routes
-	httpRoutes := extractHttpRoutes(t, modifiedVsObj)
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
 
 	// Assertions
 	assert.Equal(t, httpRoutes[0].Name, headerName)
@@ -518,12 +528,15 @@ func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
 	checkDestination(t, httpRoutes[1].Route, "stable", 100)
 	assert.Equal(t, httpRoutes[2].Name, "secondary")
 
-	// Reset header routing, expecting removing of the header route
-	modifiedVsObj, _, err = r.reconcileVirtualServiceHeaderRoutes(vsObj, nil)
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: headerName,
+	})
 	assert.Nil(t, err)
-	assert.NotNil(t, modifiedVsObj)
+
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
 	// HTTP Routes
-	httpRoutes = extractHttpRoutes(t, modifiedVsObj)
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
 	// Assertions
 	assert.Equal(t, httpRoutes[0].Name, "primary")
 	assert.Equal(t, httpRoutes[1].Name, "secondary")
@@ -531,26 +544,38 @@ func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
 
 func TestHttpReconcileHeaderRouteSubsetBased(t *testing.T) {
 	ro := rolloutWithDestinationRule()
-	obj := unstructuredutil.StrToUnstructuredUnsafe(`
+	const RolloutService = "rollout-service"
+	const StableSubsetName = "stable-subset"
+	const CanarySubsetName = "canary-subset"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "vsvc"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes = nil
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.StableSubsetName = StableSubsetName
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName = CanarySubsetName
+	dRule := unstructuredutil.StrToUnstructuredUnsafe(`
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
   name: istio-destrule
   namespace: default
 spec:
-  host: root-service
+  host: rollout-service
   subsets:
-  - name: stable
-  - name: canary
+  - name: stable-subset
+  - name: canary-subset
 `)
 
-	const headerName = "test-header-route"
-	client := testutil.NewFakeDynamicClient(obj)
-	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, nil)
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteSubsetVsvc)
+	client := testutil.NewFakeDynamicClient(obj, dRule)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
 	client.ClearActions()
 
-	// Test for both the HTTP VS & Mixed VS
-	vsObj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteSubsetVsvc)
+	const headerName = "test-header-route"
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: headerName,
+	},
+	}...)
+
 	hr := &v1alpha1.SetHeaderRoute{
 		Name: headerName,
 		Match: []v1alpha1.HeaderRoutingMatch{
@@ -562,17 +587,20 @@ spec:
 			},
 		},
 	}
-	modifiedVsObj, _, err := r.reconcileVirtualServiceHeaderRoutes(vsObj, hr)
+
+	err := r.SetHeaderRoute(hr)
 	assert.Nil(t, err)
-	assert.NotNil(t, modifiedVsObj)
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
 
 	// HTTP Routes
-	httpRoutes := extractHttpRoutes(t, modifiedVsObj)
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
 
 	// Assertions
 	assert.Equal(t, httpRoutes[0].Name, headerName)
-	assert.Equal(t, httpRoutes[0].Route[0].Destination.Host, "root-service")
-	assert.Equal(t, httpRoutes[0].Route[0].Destination.Subset, "canary")
+	assert.Equal(t, httpRoutes[0].Route[0].Destination.Host, "rollout-service")
+	assert.Equal(t, httpRoutes[0].Route[0].Destination.Subset, "canary-subset")
 }
 
 func TestReconcileUpdateHeader(t *testing.T) {

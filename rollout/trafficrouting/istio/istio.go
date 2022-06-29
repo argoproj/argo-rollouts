@@ -51,22 +51,6 @@ type Reconciler struct {
 	destinationRuleLister dynamiclister.Lister
 }
 
-type routePatchAction string
-
-const (
-	DeleteRoute       routePatchAction = "DeleteRoute"
-	InsertHeaderRoute routePatchAction = "InsertRoute"
-)
-
-type virtualServiceRoutePatch struct {
-	routeIndex  int
-	host        string
-	subset      string
-	patchAction routePatchAction
-}
-
-type virtualServiceRoutePatches []virtualServiceRoutePatch
-
 type virtualServicePatch struct {
 	routeIndex       int
 	routeType        string
@@ -668,44 +652,52 @@ func (r *Reconciler) getVirtualService(namespace string, vsvcName string, client
 	return vsvc, err
 }
 
-func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(obj *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute) (*unstructured.Unstructured, bool, error) {
-	newObj := obj.DeepCopy()
+func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(obj *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute) error {
+	//newObj := obj.DeepCopy()
 
 	// HTTP Routes
-	var httpRoutes []VirtualServiceHTTPRoute
-	httpRoutesI, err := GetHttpRoutesI(newObj)
-	if err == nil {
-		httpRoutes, err = GetHttpRoutes(httpRoutesI)
-		if err != nil {
-			return nil, false, err
-		}
+	httpRoutesI, err := GetHttpRoutesI(obj)
+	if err != nil {
+		return err
 	}
 	destRuleHost, err := r.getDestinationRuleHost()
 	if err != nil {
-		return nil, false, err
+		return err
 	}
 
-	removeRoute(newObj, headerRouting.Name)
-
-	// Generate Patches
-	patches := r.generateHeaderBasedPatches(httpRoutes, headerRouting, destRuleHost)
-	for _, patch := range patches {
-		if patch.patchAction == InsertHeaderRoute {
-			httpRoutesI = append(httpRoutesI[:patch.routeIndex+1], httpRoutesI[patch.routeIndex:]...)
-			httpRoutesI[patch.routeIndex] = createHeaderRoute(headerRouting, patch)
-		} else if patch.patchAction == DeleteRoute {
-			httpRoutesI = append(httpRoutesI[:patch.routeIndex], httpRoutesI[patch.routeIndex+1:]...)
-		}
+	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
+	if destRuleHost != "" {
+		canarySvc = destRuleHost
+	}
+	var canarySubset string
+	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule != nil {
+		canarySubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName
 	}
 
-	// Set HTTP Route Slice
-	if len(httpRoutes) > 0 && len(patches) > 0 {
-		err = unstructured.SetNestedSlice(newObj.Object, httpRoutesI, "spec", Http)
+	//Remove mirror route when there is no match rules we require a match on routes for safety so a none listed match
+	//acts like a removal of the route instead of say routing all traffic
+	if headerRouting.Match == nil {
+		//Remove mirror route
+		err := removeRoute(obj, headerRouting.Name)
 		if err != nil {
-			return newObj, len(patches) > 0, err
+			return fmt.Errorf("[reconcileVirtualServiceHeaderRoutes] failed to remove route from virtual service: %w", err)
 		}
+		return nil
 	}
-	return newObj, len(patches) > 0, err
+
+	//Remove route first to avoid duplicates
+	err = removeRoute(obj, headerRouting.Name)
+	if err != nil {
+		return fmt.Errorf("[reconcileVirtualServiceHeaderRoutes] failed to remove http route from virtual service: %w", err)
+	}
+
+	httpRoutesI = append(httpRoutesI, createHeaderRoute(headerRouting, canarySvc, canarySubset))
+
+	err = unstructured.SetNestedSlice(obj.Object, httpRoutesI, "spec", Http)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) error {
@@ -724,20 +716,17 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 			return err
 		}
 
-		modifiedVirtualService, modified, err := r.reconcileVirtualServiceHeaderRoutes(vsvc, headerRouting)
+		err = r.reconcileVirtualServiceHeaderRoutes(vsvc, headerRouting)
 		if err != nil {
 			return err
 		}
-		if !modified {
-			continue
-		}
 
-		if err := r.orderRoutes(modifiedVirtualService); err != nil && err.Error() != SpecHttpNotFound {
+		if err := r.orderRoutes(vsvc); err != nil && err.Error() != SpecHttpNotFound {
 			return fmt.Errorf("[SetHeaderRoute] failed to order routes: %w", err)
 		}
-		_, err = client.Update(ctx, modifiedVirtualService, metav1.UpdateOptions{})
+		_, err = client.Update(ctx, vsvc, metav1.UpdateOptions{})
 		if err == nil {
-			r.log.Debugf("Updated VirtualService: %s", modifiedVirtualService)
+			r.log.Debugf("Updated VirtualService: %s", vsvc)
 			r.recorder.Eventf(r.rollout, record.EventOptions{EventReason: "Updated VirtualService"}, "VirtualService `%s` set headerRoute '%v'", vsvcName, headerRouting.Name)
 		} else {
 			return err
@@ -780,65 +769,12 @@ func (r *Reconciler) getDestinationRule(dRuleSpec *v1alpha1.IstioDestinationRule
 	return origBytes, dRule, dRuleNew, nil
 }
 
-func (r *Reconciler) generateHeaderBasedPatches(httpRoutes []VirtualServiceHTTPRoute, headerRouting *v1alpha1.SetHeaderRoute, destRuleHost string) virtualServiceRoutePatches {
-	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
-	if destRuleHost != "" {
-		canarySvc = destRuleHost
-	}
-	var canarySubset string
-	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule != nil {
-		canarySubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName
-	}
-
-	patches := virtualServiceRoutePatches{}
-	index := getHeaderRouteIndex(headerRouting, httpRoutes)
-
-	if index > 0 {
-		if headerRouting == nil || headerRouting.Match == nil {
-			deleteHeaderRoute(index, &patches)
-		} else {
-			deleteHeaderRoute(index, &patches)
-			insertHeaderRoute(&patches, canarySvc, canarySubset)
-		}
-	} else if headerRouting != nil && headerRouting.Match != nil {
-		insertHeaderRoute(&patches, canarySvc, canarySubset)
-	}
-	return patches
-}
-
-func getHeaderRouteIndex(headerRouting *v1alpha1.SetHeaderRoute, httpRoutes []VirtualServiceHTTPRoute) int {
-	for i, route := range httpRoutes {
-		if headerRouting != nil && route.Name == headerRouting.Name {
-			return i
-		}
-	}
-	return -1
-}
-
-func deleteHeaderRoute(index int, patches *virtualServiceRoutePatches) {
-	patch := virtualServiceRoutePatch{
-		routeIndex:  index,
-		patchAction: DeleteRoute,
-	}
-	*patches = append(*patches, patch)
-}
-
-func insertHeaderRoute(patches *virtualServiceRoutePatches, host, subset string) {
-	insertPatch := virtualServiceRoutePatch{
-		routeIndex:  0,
-		host:        host,
-		subset:      subset,
-		patchAction: InsertHeaderRoute,
-	}
-	*patches = append(*patches, insertPatch)
-}
-
-func createHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute, patch virtualServiceRoutePatch) map[string]interface{} {
+func createHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute, host string, subset string) map[string]interface{} {
 	var routeMatches []interface{}
 	for _, hrm := range headerRouting.Match {
 		routeMatches = append(routeMatches, createHeaderRouteMatch(hrm))
 	}
-	canaryDestination := routeDestination(patch.host, patch.subset, 100)
+	canaryDestination := routeDestination(host, subset, 100)
 	return map[string]interface{}{
 		"name":  headerRouting.Name,
 		"match": routeMatches,
