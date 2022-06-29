@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/features/specification/">
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.3.0, mkdocs-material-8.3.7">
+      <meta name="generator" content="mkdocs-1.3.0, mkdocs-material-8.3.8">
     
     
       
@@ -19,7 +19,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.4a0965b7.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.1d29e8d0.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.cbb835fc.min.css">
@@ -2363,19 +2363,52 @@
 <span class="w">      </span><span class="c1"># Setting header based route will send all 100 traffic to the canary for the requests </span><span class="w"></span>
 <span class="w">      </span><span class="c1"># O with a specified header, in this case request header &quot;version&quot;:&quot;2&quot;</span><span class="w"></span>
 <span class="w">      </span><span class="c1"># (supported only with trafficRouting, for Istio only at the moment)</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setHeaderRouting</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setHeaderRoute</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># Name of the route that will be created by argo rollouts this must also be configured</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># in spec.strategy.canary.trafficRouting.managedRoutes</span><span class="w"></span>
+<span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;header-route-1&quot;</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># The matching rules for the header route, if this is missing it acts as a removal of the route.</span><span class="w"></span>
 <span class="w">          </span><span class="nt">match</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="c1"># headerName The name of the header to apply the match rules to.</span><span class="w"></span>
 <span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">headerName</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;version&quot;</span><span class="w"></span>
+<span class="w">              </span><span class="c1"># headerValue must contain exactly one field of exact, regex, or prefix. Not all traffic routers support </span><span class="w"></span>
+<span class="w">              </span><span class="c1"># all types</span><span class="w"></span>
 <span class="w">              </span><span class="nt">headerValue</span><span class="p">:</span><span class="w"></span>
+<span class="w">                </span><span class="c1"># Exact will only match if the header value is exactly the same</span><span class="w"></span>
 <span class="w">                </span><span class="nt">exact</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2&quot;</span><span class="w"></span>
-
-<span class="w">      </span><span class="c1"># Sets header based route with specified header values using regex as a value</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># Could be used &#39;headerValue&#39; or &#39;headerRegex&#39; one of that values</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setHeaderRouting</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">match</span><span class="p">:</span><span class="w"></span>
-<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">headerName</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;version&quot;</span><span class="w"></span>
-<span class="w">              </span><span class="nt">headerValue</span><span class="p">:</span><span class="w"></span>
+<span class="w">                </span><span class="c1"># Will match the rule if the regular expression matches</span><span class="w"></span>
 <span class="w">                </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2.0.(.*)&quot;</span><span class="w"></span>
+<span class="w">                </span><span class="c1"># prefix will be a prefix match of the header value</span><span class="w"></span>
+<span class="w">                </span><span class="nt">prefix</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2.0&quot;</span><span class="w"></span>
+
+<span class="w">        </span><span class="c1"># Sets up a mirror/shadow based route with the specified match rules</span><span class="w"></span>
+<span class="w">        </span><span class="c1"># The traffic will be mirrored at the configured percentage to the canary service</span><span class="w"></span>
+<span class="w">        </span><span class="c1"># during the rollout</span><span class="w"></span>
+<span class="w">        </span><span class="c1"># (supported only with trafficRouting, for Istio only at the moment)</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setMirrorRoute</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># Name of the route that will be created by argo rollouts this must also be configured</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># in spec.strategy.canary.trafficRouting.managedRoutes</span><span class="w"></span>
+<span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;header-route-1&quot;</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># The percentage of the matched traffic to mirror to the canary</span><span class="w"></span>
+<span class="w">          </span><span class="nt">percentage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># The matching rules for the header route, if this is missing it acts as a removal of the route.</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># All conditions inside a single match block have AND semantics, while the list of match blocks have OR semantics.</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># Each type within a match (method, path, headers) must have one and only one match type (exact, regex, prefix)</span><span class="w"></span>
+<span class="w">          </span><span class="c1"># Not all match types (exact, regex, prefix) will be supported by all traffic routers.</span><span class="w"></span>
+<span class="w">          </span><span class="nt">match</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="c1"># What HTTP method to match</span><span class="w"></span>
+<span class="w">                </span><span class="nt">exact</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;GET&quot;</span><span class="w"></span>
+<span class="w">                </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;P.*&quot;</span><span class="w"></span>
+<span class="w">                </span><span class="nt">prefix</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;POST&quot;</span><span class="w"></span>
+<span class="w">              </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="c1"># What HTTP url paths to match.</span><span class="w"></span>
+<span class="w">                </span><span class="nt">exact</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/test&quot;</span><span class="w"></span>
+<span class="w">                </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="l l-Scalar l-Scalar-Plain">/test/.*&quot;</span><span class="w"></span>
+<span class="w">                </span><span class="nt">prefix</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="l l-Scalar l-Scalar-Plain">/&quot;</span><span class="w"></span>
+<span class="w">              </span><span class="nt">headers</span><span class="p">:</span><span class="w"></span>
+<span class="w">                </span><span class="nt">agent-1b</span><span class="p">:</span><span class="w"> </span><span class="c1"># What HTTP header name to use in the match.</span><span class="w"></span>
+<span class="w">                  </span><span class="nt">exact</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;firefox&quot;</span><span class="w"></span>
+<span class="w">                  </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;firefox2(.*)&quot;</span><span class="w"></span>
+<span class="w">                  </span><span class="nt">prefix</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;firefox&quot;</span><span class="w"></span>
 
 <span class="w">      </span><span class="c1"># an inline analysis step</span><span class="w"></span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">analysis</span><span class="p">:</span><span class="w"></span>
@@ -2406,7 +2439,14 @@
 <span class="w">      </span><span class="c1"># will achieve traffic split via a weighted replica counts between</span><span class="w"></span>
 <span class="w">      </span><span class="c1"># the canary and stable ReplicaSet.</span><span class="w"></span>
 <span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
-
+<span class="w">        </span><span class="c1"># This is a list of routes that Argo Rollouts has the rights to manage it is currently only required for</span><span class="w"></span>
+<span class="w">        </span><span class="c1"># setMirrorRoute and setHeaderRoute. The order of managedRoutes array also sets the precedence of the route</span><span class="w"></span>
+<span class="w">        </span><span class="c1"># in the traffic router. Argo Rollouts will place these routes in the order specified above any routes already</span><span class="w"></span>
+<span class="w">        </span><span class="c1"># defined in the used traffic router if something exists. The names here must match the names from the </span><span class="w"></span>
+<span class="w">        </span><span class="c1"># setHeaderRoute and setMirrorRoute steps.</span><span class="w"></span>
+<span class="w">        </span><span class="nt">managedRoutes</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">set-header</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mirror-route</span><span class="w"></span>
 <span class="w">        </span><span class="c1"># Istio traffic routing configuration</span><span class="w"></span>
 <span class="w">        </span><span class="nt">istio</span><span class="p">:</span><span class="w"></span>
 <span class="w">          </span><span class="c1"># Either virtualService or virtualServices can be configured.</span><span class="w"></span>
