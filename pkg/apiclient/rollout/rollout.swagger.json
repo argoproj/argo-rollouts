@@ -1027,6 +1027,13 @@
             "type": "string"
           },
           "title": "+optional"
+        },
+        "additionalStableIngresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "AdditionalStableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario\n+optional"
         }
       },
       "title": "NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing"
