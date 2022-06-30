@@ -16,6 +16,7 @@ import (
 	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	kubeopenapiutil "k8s.io/kube-openapi/pkg/util"
 	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
@@ -398,9 +399,6 @@ func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, out
 
 	definitions := map[string]interface{}{}
 	for _, crd := range crds {
-		if crd.Spec.Names.Kind != "Rollout" {
-			continue
-		}
 		var version string
 		var props map[string]extensionsobj.JSONSchemaProps
 		for _, v := range crd.Spec.Versions {
@@ -434,7 +432,8 @@ func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, out
 			}
 		}
 
-		definitions[fmt.Sprintf("%s.%s", version, crd.Spec.Names.Kind)] = map[string]interface{}{
+		definitionName := kubeopenapiutil.ToRESTFriendlyName(fmt.Sprintf("%s/%s.%s", crd.Spec.Group, version, crd.Spec.Names.Kind))
+		definitions[definitionName] = map[string]interface{}{
 			"properties": propsMap,
 			"x-kubernetes-group-version-kind": []map[string]string{{
 				"group":   crd.Spec.Group,
