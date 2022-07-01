@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"reflect"
 	"strconv"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -419,6 +421,14 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 		return
 	}
 	un := unstructured.Unstructured{Object: obj}
+	gvk := un.GetObjectKind().GroupVersionKind()
+	if len(gvk.Version) == 0 || len(gvk.Group) == 0 || len(gvk.Kind) == 0 {
+		un.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   v1alpha1.SchemeGroupVersion.Group,
+			Kind:    rollouts.RolloutKind,
+			Version: v1alpha1.SchemeGroupVersion.Version,
+		})
+	}
 	err = c.rolloutsInformer.GetStore().Update(&un)
 	if err != nil {
 		logCtx.Errorf("failed to update informer store: %v", err)
