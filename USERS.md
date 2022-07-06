@@ -19,6 +19,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [New Relic](https://newrelic.com/)
 1. [Nitro](https://www.gonitro.com)
 1. [Nozzle](https://nozzle.io)
+1. [PagerDuty](https://www.pagerduty.com/)
 1. [PayPal](https://www.paypal.com/)
 1. [PayPay](https://paypay.ne.jp/)
 1. [Quipper](https://www.quipper.com/)
