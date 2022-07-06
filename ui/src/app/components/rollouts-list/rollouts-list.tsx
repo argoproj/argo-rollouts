@@ -29,6 +29,12 @@ export const RolloutsList = () => {
     const [filteredRollouts, setFilteredRollouts] = React.useState(rollouts);
     const [pos, nav, reset] = useNav(filteredRollouts.length);
     const [searchString, setSearchString, searchInput] = useAutocomplete('');
+    const searchParam = new URLSearchParams(window.location.search).get('q');
+    React.useEffect(() => {
+      if (searchParam && searchParam != searchString) {
+        setSearchString(searchParam);
+      }
+    }, []);
 
     const {useKeybinding, keybindingState} = React.useContext(KeybindingContext);
 
@@ -81,6 +87,9 @@ export const RolloutsList = () => {
         if ((filtered || []).length > 0) {
             setFilteredRollouts(filtered);
         }
+        if (searchString) {
+          history.replace(`/${namespaceCtx.namespace}?q=${searchString}`);
+        }
     }, [searchString, rollouts]);
 
     const namespaceCtx = React.useContext(NamespaceContext);
@@ -97,7 +106,7 @@ export const RolloutsList = () => {
                                     className='rollouts-list__search'
                                     placeholder='Search...'
                                     style={{marginBottom: '1.5em'}}
-                                    onItemClick={(item) => history.push(`/rollout/${item}`)}
+                                    onItemClick={(item) => history.push(`/rollout/${namespaceCtx.namespace}/${item}`)}
                                     icon='fa-search'
                                     {...searchInput}
                                 />
@@ -176,7 +185,7 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; deselect: () => void
 
     return (
         <EffectDiv className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`} innerref={ref}>
-            <Link to={`/rollout/${rollout.objectMeta?.name}`} className='rollouts-list__widget__container'>
+            <Link to={`/rollout/${rollout.objectMeta?.namespace}/${rollout.objectMeta?.name}`} className='rollouts-list__widget__container'>
                 <WidgetHeader
                     rollout={rollout}
                     refresh={() => {

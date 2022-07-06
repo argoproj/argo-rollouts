@@ -74,6 +74,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.FieldRef":                                        schema_pkg_apis_rollouts_v1alpha1_FieldRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric":                                  schema_pkg_apis_rollouts_v1alpha1_GraphiteMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.HeaderRoutingMatch":                              schema_pkg_apis_rollouts_v1alpha1_HeaderRoutingMatch(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric":                                  schema_pkg_apis_rollouts_v1alpha1_InfluxdbMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioDestinationRule":                            schema_pkg_apis_rollouts_v1alpha1_IstioDestinationRule(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting":                             schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioVirtualService":                             schema_pkg_apis_rollouts_v1alpha1_IstioVirtualService(ref),
@@ -81,6 +82,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric":                                   schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaScope":                                    schema_pkg_apis_rollouts_v1alpha1_KayentaScope(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaThreshold":                                schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MangedRoutes":                                    schema_pkg_apis_rollouts_v1alpha1_MangedRoutes(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement":                                     schema_pkg_apis_rollouts_v1alpha1_Measurement(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MeasurementRetention":                            schema_pkg_apis_rollouts_v1alpha1_MeasurementRetention(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric":                                          schema_pkg_apis_rollouts_v1alpha1_Metric(ref),
@@ -110,12 +112,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStatus":                                   schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutStrategy":                                 schema_pkg_apis_rollouts_v1alpha1_RolloutStrategy(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutTrafficRouting":                           schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RouteMatch":                                      schema_pkg_apis_rollouts_v1alpha1_RouteMatch(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RunSummary":                                      schema_pkg_apis_rollouts_v1alpha1_RunSummary(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting":                               schema_pkg_apis_rollouts_v1alpha1_SMITrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ScopeDetail":                                     schema_pkg_apis_rollouts_v1alpha1_ScopeDetail(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SecretKeyRef":                                    schema_pkg_apis_rollouts_v1alpha1_SecretKeyRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetCanaryScale":                                  schema_pkg_apis_rollouts_v1alpha1_SetCanaryScale(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetHeaderRouting":                                schema_pkg_apis_rollouts_v1alpha1_SetHeaderRouting(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetHeaderRoute":                                  schema_pkg_apis_rollouts_v1alpha1_SetHeaderRoute(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetMirrorRoute":                                  schema_pkg_apis_rollouts_v1alpha1_SetMirrorRoute(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StickinessConfig":                                schema_pkg_apis_rollouts_v1alpha1_StickinessConfig(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StringMatch":                                     schema_pkg_apis_rollouts_v1alpha1_StringMatch(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TLSRoute":                                        schema_pkg_apis_rollouts_v1alpha1_TLSRoute(ref),
@@ -1233,17 +1237,23 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStep(ref common.ReferenceCallback) 
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetCanaryScale"),
 						},
 					},
-					"setHeaderRouting": {
+					"setHeaderRoute": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetHeaderRouting"),
+							Description: "SetHeaderRoute defines the route with specified header name to send 100% of traffic to the canary service",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetHeaderRoute"),
+						},
+					},
+					"setMirrorRoute": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SetMirrorRoutes Mirrors traffic that matches rules to a particular destination",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetMirrorRoute"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetCanaryScale", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetHeaderRouting"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysis", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutExperimentStep", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutPause", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetCanaryScale", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetHeaderRoute", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SetMirrorRoute"},
 	}
 }
 
@@ -2224,7 +2234,6 @@ func schema_pkg_apis_rollouts_v1alpha1_HeaderRoutingMatch(ref common.ReferenceCa
 					"headerValue": {
 						SchemaProps: spec.SchemaProps{
 							Description: "HeaderValue the value of the header",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StringMatch"),
 						},
 					},
@@ -2234,6 +2243,33 @@ func schema_pkg_apis_rollouts_v1alpha1_HeaderRoutingMatch(ref common.ReferenceCa
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StringMatch"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_InfluxdbMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "InfluxdbMetric defines the InfluxDB Flux query to perform canary analysis",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"profile": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Profile is the name of the secret holding InfluxDB account configuration",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"query": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Query is a raw InfluxDB flux query to perform",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -2534,6 +2570,26 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref common.ReferenceCall
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_MangedRoutes(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_Measurement(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2780,11 +2836,17 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric"),
 						},
 					},
+					"influxdb": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Influxdb specifies the influxdb metric to query",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CloudWatchMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CloudWatchMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric"},
 	}
 }
 
@@ -4159,11 +4221,66 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TraefikTrafficRouting"),
 						},
 					},
+					"managedRoutes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream traffic router.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MangedRoutes"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TraefikTrafficRouting"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MangedRoutes", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TraefikTrafficRouting"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_RouteMatch(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"method": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Method What http methods should be mirrored",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StringMatch"),
+						},
+					},
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path What url paths should be mirrored",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StringMatch"),
+						},
+					},
+					"headers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Headers What request with matching headers should be mirrored",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StringMatch"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StringMatch"},
 	}
 }
 
@@ -4353,13 +4470,20 @@ func schema_pkg_apis_rollouts_v1alpha1_SetCanaryScale(ref common.ReferenceCallba
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_SetHeaderRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_rollouts_v1alpha1_SetHeaderRoute(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service",
+				Description: "SetHeaderRoute defines the route with specified header name to send 100% of traffic to the canary service",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name this is the name of the route to use for the mirroring of traffic this also needs to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"match": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -4378,6 +4502,50 @@ func schema_pkg_apis_rollouts_v1alpha1_SetHeaderRouting(ref common.ReferenceCall
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.HeaderRoutingMatch"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_SetMirrorRoute(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name this is the name of the route to use for the mirroring of traffic this also needs to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"match": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Match Contains a list of rules that if mated will mirror the traffic to the services",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RouteMatch"),
+									},
+								},
+							},
+						},
+					},
+					"percentage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Services The list of services to mirror the traffic to if the method, path, headers match Service string `json:\"service\" protobuf:\"bytes,3,opt,name=service\"` Percentage What percent of the traffic that matched the rules should be mirrored",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RouteMatch"},
 	}
 }
 

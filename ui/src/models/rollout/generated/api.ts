@@ -526,10 +526,16 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep 
     setCanaryScale?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanaryScale;
     /**
      * 
-     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRouting}
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
      */
-    setHeaderRouting?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRouting;
+    setHeaderRoute?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep
+     */
+    setMirrorRoute?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute;
 }
 /**
  * 
@@ -747,6 +753,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtua
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtualService
      */
     tlsRoutes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
+     */
+    name?: string;
 }
 /**
  * MeasurementRetention defines the settings for retaining the number of measurements during the analysis.
@@ -1477,6 +1496,37 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
     traefik?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting;
+    /**
+     * A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream traffic router.
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    managedRoutes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch
+     */
+    method?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch
+     */
+    path?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch;
+    /**
+     * 
+     * @type {{ [key: string]: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch
+     */
+    headers?: { [key: string]: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch; };
 }
 /**
  * 
@@ -1525,15 +1575,46 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetCanarySc
 /**
  * 
  * @export
- * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRouting
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute
  */
-export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRouting {
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute
+     */
+    name?: string;
     /**
      * 
      * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch>}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRouting
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetHeaderRoute
      */
     match?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute
+     */
+    name?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute
+     */
+    match?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch>;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute
+     */
+    percentage?: number;
 }
 /**
  * 
