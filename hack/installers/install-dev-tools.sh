@@ -11,23 +11,6 @@ gotestsum_version=1.8.1
 
 OS=$(go env GOOS)
 ARCH=$(go env GOARCH)
-case $OS in
-  darwin)
-    protoc_os=osx
-    protoc_arch=x86_64
-    ;;
-  *)
-    protoc_os=linux
-    case $ARCH in
-      arm64|arm)
-        protoc_arch=aarch_64
-        ;;
-      *)
-        protoc_arch=x86_64
-        ;;
-    esac
-    ;;
-esac
 
 export TARGET_FILE=protoc_${gotestsum_version}_${OS}_${ARCH}.tar.gz
 temp_path="/tmp/${TARGET_FILE}"
