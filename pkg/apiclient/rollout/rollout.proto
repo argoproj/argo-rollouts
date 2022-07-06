@@ -95,7 +95,6 @@ message RolloutInfo {
   repeated ContainerInfo containers = 19;
 
   repeated github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep steps = 20;
-  k8s.io.apimachinery.pkg.apis.meta.v1.TypeMeta typeMeta = 21;
 }
 
 message ExperimentInfo {

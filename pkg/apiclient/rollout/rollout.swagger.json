@@ -4417,20 +4417,6 @@
       },
       "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
     },
-    "k8s.io.apimachinery.pkg.apis.meta.v1.TypeMeta": {
-      "type": "object",
-      "properties": {
-        "kind": {
-          "type": "string",
-          "title": "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\n+optional"
-        },
-        "apiVersion": {
-          "type": "string",
-          "title": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources\n+optional"
-        }
-      },
-      "description": "TypeMeta describes an individual object in an API response or request\nwith strings representing the type of the object and its API schema version.\nStructures that are versioned or persisted should inline TypeMeta.\n\n+k8s:deepcopy-gen=false"
-    },
     "k8s.io.apimachinery.pkg.util.intstr.IntOrString": {
       "type": "object",
       "properties": {
@@ -4831,9 +4817,6 @@
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep"
           }
-        },
-        "typeMeta": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.TypeMeta"
         }
       }
     },

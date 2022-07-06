@@ -5180,25 +5180,6 @@ export interface K8sIoApimachineryPkgApisMetaV1Time {
     nanos?: number;
 }
 /**
- * TypeMeta describes an individual object in an API response or request with strings representing the type of the object and its API schema version. Structures that are versioned or persisted should inline TypeMeta.  +k8s:deepcopy-gen=false
- * @export
- * @interface K8sIoApimachineryPkgApisMetaV1TypeMeta
- */
-export interface K8sIoApimachineryPkgApisMetaV1TypeMeta {
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApimachineryPkgApisMetaV1TypeMeta
-     */
-    kind?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApimachineryPkgApisMetaV1TypeMeta
-     */
-    apiVersion?: string;
-}
-/**
  * +protobuf=true +protobuf.options.(gogoproto.goproto_stringer)=false +k8s:openapi-gen=true
  * @export
  * @interface K8sIoApimachineryPkgUtilIntstrIntOrString
@@ -5836,12 +5817,6 @@ export interface RolloutRolloutInfo {
      * @memberof RolloutRolloutInfo
      */
     steps?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep>;
-    /**
-     * 
-     * @type {K8sIoApimachineryPkgApisMetaV1TypeMeta}
-     * @memberof RolloutRolloutInfo
-     */
-    typeMeta?: K8sIoApimachineryPkgApisMetaV1TypeMeta;
 }
 /**
  * 
