@@ -24,9 +24,7 @@ jobs:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
           mkdir -p artifacts && cd artifacts
-          
           artifacts_url=${{ github.event.workflow_run.artifacts_url }}
-          
           gh api "$artifacts_url" -q '.artifacts[] | [.name, .archive_download_url] | @tsv' | while read artifact
           do
             IFS=$'\t' read name url <<< "$artifact"
