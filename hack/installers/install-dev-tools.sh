@@ -12,7 +12,7 @@ gotestsum_version=1.8.1
 OS=$(go env GOOS)
 ARCH=$(go env GOARCH)
 
-export TARGET_FILE=protoc_${gotestsum_version}_${OS}_${ARCH}.tar.gz
+export TARGET_FILE=gotestsum_${gotestsum_version}_${OS}_${ARCH}.tar.gz
 temp_path="/tmp/${TARGET_FILE}"
 url=https://github.com/gotestyourself/gotestsum/releases/download/v${gotestsum_version}/gotestsum_${gotestsum_version}_${OS}_${ARCH}.tar.gz
 [ -e ${temp_path} ] || curl -sLf --retry 3 -o ${temp_path} ${url}
