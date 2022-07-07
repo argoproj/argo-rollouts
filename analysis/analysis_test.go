@@ -1500,7 +1500,7 @@ func TestAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T) {
 
 func TestAssessRunStatusErrorMessageAnalysisPhaseFailInDryRunMode(t *testing.T) {
 	status, message, dryRunSummary := StartAssessRunStatusErrorMessageAnalysisPhaseFail(t, true)
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 	assert.Equal(t, "", message)
 	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        2,
@@ -1545,7 +1545,7 @@ func TestAssessRunStatusErrorMessageFromProvider(t *testing.T) {
 func TestAssessRunStatusErrorMessageFromProviderInDryRunMode(t *testing.T) {
 	providerMessage := "Provider Error"
 	status, message, dryRunSummary := StartAssessRunStatusErrorMessageFromProvider(t, providerMessage, true)
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 	assert.Equal(t, "", message)
 	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        2,
@@ -1587,7 +1587,7 @@ func TestAssessRunStatusMultipleFailures(t *testing.T) {
 
 func TestAssessRunStatusMultipleFailuresInDryRunMode(t *testing.T) {
 	status, message, dryRunSummary := StartAssessRunStatusMultipleFailures(t, true)
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, status)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, status)
 	assert.Equal(t, "", message)
 	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        2,
@@ -1623,7 +1623,7 @@ func TestAssessRunStatusWorstMessageInReconcileAnalysisRun(t *testing.T) {
 
 func TestAssessRunStatusWorstMessageInReconcileAnalysisRunInDryRunMode(t *testing.T) {
 	newRun := StartAssessRunStatusWorstMessageInReconcileAnalysisRun(t, true)
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, newRun.Status.Phase)
 	assert.Equal(t, "", newRun.Status.Message)
 	expectedDryRunSummary := v1alpha1.RunSummary{
 		Count:        2,

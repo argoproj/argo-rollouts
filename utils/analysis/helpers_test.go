@@ -62,20 +62,34 @@ func TestIsFastFailTerminating(t *testing.T) {
 					Name:  "success-rate",
 					Phase: v1alpha1.AnalysisPhaseRunning,
 				},
+				{
+					Name:   "dry-run-metric",
+					Phase:  v1alpha1.AnalysisPhaseRunning,
+					DryRun: true,
+				},
 			},
 		},
 	}
+	// Verify that when the metric is not failing or in the error state then we don't terminate.
 	successRate := run.Status.MetricResults[1]
 	assert.False(t, IsTerminating(run))
+	// Metric failing in the dryRun mode shouldn't impact the terminal decision.
+	dryRunMetricResult := run.Status.MetricResults[2]
+	dryRunMetricResult.Phase = v1alpha1.AnalysisPhaseError
+	run.Status.MetricResults[2] = dryRunMetricResult
+	assert.False(t, IsTerminating(run))
+	// Verify that a wet run metric failure/error results in terminal decision.
 	successRate.Phase = v1alpha1.AnalysisPhaseError
 	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsTerminating(run))
 	successRate.Phase = v1alpha1.AnalysisPhaseFailed
 	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsTerminating(run))
+	// Verify that an inconclusive wet run metric results in terminal decision.
 	successRate.Phase = v1alpha1.AnalysisPhaseInconclusive
 	run.Status.MetricResults[1] = successRate
 	assert.True(t, IsTerminating(run))
+	// Verify that we don't terminate when there are no metric results or when the status is empty.
 	run.Status.MetricResults = nil
 	assert.False(t, IsTerminating(run))
 	run.Status = v1alpha1.AnalysisRunStatus{}
