@@ -40,3 +40,4 @@ jobs:
           files: "artifacts/**/*.xml"
           compare_to_earlier_commit: false
           test_changes_limit: 0
+          fail_on: "errors"
