@@ -402,4 +402,8 @@ func TestSetDefaults(t *testing.T) {
 	SetAppMeshCRDVersion("v1beta3")
 	assert.Equal(t, "v1beta3", GetAppMeshCRDVersion())
 	SetAppMeshCRDVersion(DefaultAmbassadorVersion)
+
+	assert.Equal(t, DefaultMetricCleanupDelay, int32(GetMetricCleanupDelaySeconds().Seconds()))
+	SetMetricCleanupDelaySeconds(24)
+	assert.Equal(t, time.Duration(24)*time.Second, GetMetricCleanupDelaySeconds())
 }
