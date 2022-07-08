@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -133,7 +135,7 @@ func testExperimentDescribe(t *testing.T, fakeExperiment string, expectedRespons
 	registry.MustRegister(NewExperimentCollector(config.ExperimentLister))
 	mux := http.NewServeMux()
 	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-	testHttpResponse(t, mux, expectedResponse)
+	testHttpResponse(t, mux, expectedResponse, assert.Contains)
 }
 
 func TestIncExperimentReconcile(t *testing.T) {
@@ -156,5 +158,5 @@ experiment_reconcile_count{name="ex-test",namespace="ex-namespace"} 1`
 		},
 	}
 	metricsServ.IncExperimentReconcile(ex, time.Millisecond)
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }

@@ -174,6 +174,11 @@ func NewController(cfg ControllerConfig) *Controller {
 				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
+			if ex := unstructuredutil.ObjectToExperiment(obj); ex != nil {
+				logCtx := logutil.WithExperiment(ex)
+				logCtx.Info("experiment deleted")
+				controller.metricsServer.Remove(ex.Namespace, ex.Name, logutil.ExperimentKey)
+			}
 		},
 	})
 

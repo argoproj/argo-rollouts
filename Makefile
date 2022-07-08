@@ -20,7 +20,7 @@ DEV_IMAGE=false
 
 # E2E variables
 E2E_INSTANCE_ID ?= argo-rollouts-e2e
-E2E_TEST_OPTIONS ?= 
+E2E_TEST_OPTIONS ?=
 E2E_PARALLEL ?= 4
 E2E_WAIT_TIMEOUT ?= 120
 

@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	registry "k8s.io/component-base/metrics/legacyregistry"
@@ -134,6 +136,51 @@ func (m *MetricsServer) IncError(namespace, name string, kind string) {
 	case log.ExperimentKey:
 		m.errorExperimentCounter.WithLabelValues(namespace, name).Inc()
 	}
+}
+
+// Remove removes the metrics server from the registry
+func (m *MetricsServer) Remove(namespace string, name string, kind string) {
+	go func(namespace string, name string, kind string) {
+		// wait for the metrics to be collected, prometheus scrape interval is 60 seconds by default
+		time.Sleep(defaults.GetMetricCleanupDelaySeconds())
+		switch kind {
+		case log.RolloutKey:
+			m.reconcileRolloutHistogram.Delete(map[string]string{"namespace": namespace, "name": name})
+			m.errorRolloutCounter.Delete(map[string]string{"namespace": namespace, "name": name})
+
+			m.successNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+			m.errorNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+			m.sendNotificationRunHistogram.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+
+			MetricRolloutReconcile.Delete(map[string]string{"namespace": namespace, "name": name})
+
+			MetricRolloutReconcileError.Delete(map[string]string{"namespace": namespace, "name": name})
+
+			MetricRolloutEventsTotal.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+		case log.AnalysisRunKey:
+			m.reconcileAnalysisRunHistogram.Delete(map[string]string{"namespace": namespace, "name": name})
+			m.errorAnalysisRunCounter.Delete(map[string]string{"namespace": namespace, "name": name})
+
+			m.successNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+			m.errorNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+			m.sendNotificationRunHistogram.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+
+			MetricAnalysisRunReconcile.Delete(map[string]string{"namespace": namespace, "name": name})
+			MetricAnalysisRunReconcileError.Delete(map[string]string{"namespace": namespace, "name": name})
+
+		case log.ExperimentKey:
+			m.reconcileExperimentHistogram.Delete(map[string]string{"namespace": namespace, "name": name})
+			m.errorExperimentCounter.Delete(map[string]string{"namespace": namespace, "name": name})
+
+			m.successNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+			m.errorNotificationCounter.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+			m.sendNotificationRunHistogram.DeletePartialMatch(map[string]string{"namespace": namespace, "name": name})
+
+			MetricExperimentReconcile.Delete(map[string]string{"namespace": namespace, "name": name})
+			MetricExperimentReconcileError.Delete(map[string]string{"namespace": namespace, "name": name})
+		}
+	}(namespace, name, kind)
+
 }
 
 func boolFloat64(b bool) float64 {
