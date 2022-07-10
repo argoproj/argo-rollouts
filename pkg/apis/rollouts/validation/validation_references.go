@@ -219,34 +219,33 @@ func setArgValuePlaceHolder(Args []v1alpha1.Argument) {
 func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) field.ErrorList {
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
-	canary := rollout.Spec.Strategy.Canary
 	var ingressName string
 	var serviceName string
-	if canary.TrafficRouting.Nginx != nil {
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
 		fldPath = fldPath.Child("nginx").Child("stableIngress")
-		serviceName = canary.StableService
-		ingressName = canary.TrafficRouting.Nginx.StableIngress
+		serviceName = rollout.Spec.Strategy.Canary.StableService
+		ingressName = rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 
 		allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
-	} else if canary.TrafficRouting.ALB != nil {
+	} else if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
 		// If there are additional ingresses
-		if len(canary.TrafficRouting.ALB.AdditionalIngresses) > 0 {
+		if len(rollout.Spec.Strategy.Canary.TrafficRouting.ALB.AdditionalIngresses) > 0 {
 			// validate each ingress as valid
-			serviceName = canary.StableService
-			for _, ing := range canary.TrafficRouting.ALB.AdditionalIngresses {
+			serviceName = rollout.Spec.Strategy.Canary.StableService
+			for _, ing := range rollout.Spec.Strategy.Canary.TrafficRouting.ALB.AdditionalIngresses {
 				ingressName = ing
-				serviceName = canary.StableService
-				if canary.TrafficRouting.ALB.RootService != "" {
-					serviceName = canary.TrafficRouting.ALB.RootService
+				serviceName = rollout.Spec.Strategy.Canary.StableService
+				if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
+					serviceName = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
 				}
 				allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
 			}
 		}
 		fldPath = fldPath.Child("alb").Child("ingress")
-		ingressName = canary.TrafficRouting.ALB.Ingress
-		serviceName = canary.StableService
-		if canary.TrafficRouting.ALB.RootService != "" {
-			serviceName = canary.TrafficRouting.ALB.RootService
+		ingressName = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
+		serviceName = rollout.Spec.Strategy.Canary.StableService
+		if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
+			serviceName = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
 		}
 		allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
 	}
