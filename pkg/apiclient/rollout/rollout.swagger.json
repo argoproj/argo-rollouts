@@ -517,6 +517,10 @@
           "type": "string",
           "title": "Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`"
         },
+        "additionalIngresses": {
+          "type": "array",
+          "title": "[TODO] Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`"
+        },
         "servicePort": {
           "type": "integer",
           "format": "int32",

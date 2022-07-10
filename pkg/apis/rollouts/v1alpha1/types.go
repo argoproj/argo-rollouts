@@ -330,6 +330,9 @@ type AnalysisRunStrategy struct {
 type ALBTrafficRouting struct {
 	// Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
 	Ingress string `json:"ingress" protobuf:"bytes,1,opt,name=ingress"`
+	// AdditionalIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
+	// +optional
+	AdditionalIngresses []string `json:"additionalIngresses,omitempty" protobuf:"bytes,4,rep,name=additionalIngresses"`
 	// ServicePort refers to the port that the Ingress action should route traffic to
 	ServicePort int32 `json:"servicePort" protobuf:"varint,2,opt,name=servicePort"`
 	// RootService references the service in the ingress to the controller should add the action to
