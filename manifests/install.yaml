@@ -11574,6 +11574,10 @@ spec:
                                 type: string
                               ingress:
                                 type: string
+                              additionalIngresses:
+                                items:
+                                  type: string
+                                type: array
                               rootService:
                                 type: string
                               servicePort:
@@ -11707,10 +11711,6 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
-                              additionalStableIngresses:
-                                items:
-                                  type: string
-                                type: array
                               annotationPrefix:
                                 type: string
                               stableIngress:
