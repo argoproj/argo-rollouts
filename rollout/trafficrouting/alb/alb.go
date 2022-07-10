@@ -72,43 +72,61 @@ func (r *Reconciler) Type() string {
 
 // SetWeight modifies ALB Ingress resources to reach desired state
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-	ctx := context.TODO()
-	rollout := r.cfg.Rollout
-	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
-	ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
-	if err != nil {
-		return err
-	}
-	actionService := rollout.Spec.Strategy.Canary.StableService
-	if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
-		actionService = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
-	}
-	port := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
-	if !ingressutil.HasRuleWithService(ingress, actionService) {
-		return fmt.Errorf("ingress does not have service `%s` in rules", actionService)
+	// Set weight for additional ingresses if present
+	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.AdditionalIngresses; ingresses != nil {
+		// Fail out if there is an issue setting weight on additional ingresesses.
+		// Fundamental assumption is that each additional Ingress is equal in importance
+		// as primary Ingress resource.
+		if err := r.SetWeightPerIngress(desiredWeight, ingresses, additionalDestinations...); err != nil {
+			return err
+		}
+
 	}
 
-	desiredAnnotations, err := getDesiredAnnotations(ingress, rollout, port, desiredWeight, additionalDestinations...)
-	if err != nil {
-		return err
-	}
-	desiredIngress := ingressutil.NewIngressWithAnnotations(ingress.Mode(), desiredAnnotations)
-	patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations())
-	if err != nil {
-		return nil
-	}
-	if !modified {
-		r.log.Info("no changes to the ALB Ingress")
-		return nil
-	}
-	r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
-	r.log.WithField("desiredWeight", desiredWeight).Info("updating ALB Ingress")
-	r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", ingressName, desiredWeight)
+	return r.SetWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress}, additionalDestinations...)
+}
 
-	_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		r.log.WithField("err", err.Error()).Error("error patching alb ingress")
-		return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
+// SetWeightPerIngress modifies each ALB Ingress resource to reach desired state in the scenario of a rollout
+func (r *Reconciler) SetWeightPerIngress(desiredWeight int32, ingresses []string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	for _, ingress := range ingresses {
+		ctx := context.TODO()
+		rollout := r.cfg.Rollout
+		ingressName := ingress
+		ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
+		if err != nil {
+			return err
+		}
+		actionService := rollout.Spec.Strategy.Canary.StableService
+		if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
+			actionService = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
+		}
+		port := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
+		if !ingressutil.HasRuleWithService(ingress, actionService) {
+			return fmt.Errorf("ingress does not have service `%s` in rules", actionService)
+		}
+
+		desiredAnnotations, err := getDesiredAnnotations(ingress, rollout, port, desiredWeight, additionalDestinations...)
+		if err != nil {
+			return err
+		}
+		desiredIngress := ingressutil.NewIngressWithAnnotations(ingress.Mode(), desiredAnnotations)
+		patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations())
+		if err != nil {
+			return nil
+		}
+		if !modified {
+			r.log.Info("no changes to the ALB Ingress")
+			return nil
+		}
+		r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
+		r.log.WithField("desiredWeight", desiredWeight).Info("updating ALB Ingress")
+		r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", ingressName, desiredWeight)
+
+		_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			r.log.WithField("err", err.Error()).Error("error patching alb ingress")
+			return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
+		}
 	}
 	return nil
 }
