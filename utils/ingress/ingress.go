@@ -78,6 +78,20 @@ func GetRolloutIngressKeys(rollout *v1alpha1.Rollout) []string {
 			fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress),
 		)
 	}
+	// Scenario where one rollout is managing multiple ALB ingresses
+	if rollout.Spec.Strategy.Canary != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress != "" &&
+		len(rollout.Spec.Strategy.Canary.TrafficRouting.ALB.AdditionalIngresses) > 0 {
+
+		for _, ingress := range rollout.Spec.Strategy.Canary.TrafficRouting.ALB.AdditionalIngresses {
+			ingresses = append(
+				ingresses,
+				fmt.Sprintf("%s/%s", rollout.Namespace, ingress),
+			)
+		}
+	}
 
 	return ingresses
 }
