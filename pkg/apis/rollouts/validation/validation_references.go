@@ -228,9 +228,9 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 
 		allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
 	} else if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
-		// If there are additional ingresses
+		// If the rollout resource manages more than 1 ingress
 		if len(rollout.Spec.Strategy.Canary.TrafficRouting.ALB.AdditionalIngresses) > 0 {
-			// validate each ingress as valid
+			// Vvalidate each ingress as valid
 			serviceName = rollout.Spec.Strategy.Canary.StableService
 			for _, ing := range rollout.Spec.Strategy.Canary.TrafficRouting.ALB.AdditionalIngresses {
 				ingressName = ing
