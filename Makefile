@@ -21,7 +21,7 @@ DEV_IMAGE=false
 # E2E variables
 E2E_INSTANCE_ID ?= argo-rollouts-e2e
 E2E_TEST_OPTIONS ?= 
-E2E_PARALLEL ?= 4
+E2E_PARALLEL ?= 1
 E2E_WAIT_TIMEOUT ?= 120
 
 override LDFLAGS += \
@@ -79,9 +79,13 @@ install-go-tools-local: go-mod-vendor
 install-protoc-local:
 	./hack/installers/install-protoc.sh
 
+.PHONY: install-devtools-local
+install-devtools-local:
+	./hack/installers/install-dev-tools.sh
+
 # Installs all tools required to build and test locally
 .PHONY: install-tools-local
-install-tools-local: install-go-tools-local install-protoc-local
+install-tools-local: install-go-tools-local install-protoc-local install-devtools-local
 
 TYPES := $(shell find pkg/apis/rollouts/v1alpha1 -type f -name '*.go' -not -name openapi_generated.go -not -name '*generated*' -not -name '*test.go')
 APIMACHINERY_PKGS=k8s.io/apimachinery/pkg/util/intstr,+k8s.io/apimachinery/pkg/api/resource,+k8s.io/apimachinery/pkg/runtime/schema,+k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/api/core/v1,k8s.io/api/batch/v1
@@ -212,8 +216,13 @@ start-e2e:
 	go run ./cmd/rollouts-controller/main.go --instance-id ${E2E_INSTANCE_ID} --loglevel debug --kloglevel 6
 
 .PHONY: test-e2e
-test-e2e:
-	go test -timeout 30m -v -count 1 --tags e2e -p ${E2E_PARALLEL} --short ./test/e2e ${E2E_TEST_OPTIONS}
+test-e2e: install-devtools-local
+	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
+
+.PHONY: test-unit
+ test-unit: install-devtools-local
+	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname --packages="./..." -- -covermode=count -coverprofile=coverage.out ./...
+
 
 .PHONY: coverage
 coverage: test

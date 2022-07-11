@@ -21,6 +21,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  event_file:
+    name: "Event File"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: Event File
+          path: ${{ github.event_path }}
   test-e2e:
     name: Run end-to-end tests
     runs-on: ubuntu-latest
@@ -58,6 +67,16 @@ jobs:
       - name: Run e2e tests
         run: make test-e2e
         if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled) }}
+      - name: Output Rerun Overview
+        run: |
+          [[ -f rerunreport.txt ]] && cat rerunreport.txt || echo "No rerun report found"
+      - name: Upload E2E Test Results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: E2E Test Results
+          path: |
+            junit.xml
       - name: Upload e2e-controller logs
         uses: actions/upload-artifact@v2
         with:

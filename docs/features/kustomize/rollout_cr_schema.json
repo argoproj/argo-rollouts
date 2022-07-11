@@ -266,6 +266,17 @@
                                                 },
                                                 "type": "object"
                                             },
+                                            "influxdb": {
+                                                "properties": {
+                                                    "profile": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
                                             "job": {
                                                 "properties": {
                                                     "metadata": {
@@ -4515,6 +4526,17 @@
                                                 },
                                                 "type": "object"
                                             },
+                                            "influxdb": {
+                                                "properties": {
+                                                    "profile": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
                                             "job": {
                                                 "properties": {
                                                     "metadata": {
@@ -8756,6 +8778,17 @@
                                             "graphite": {
                                                 "properties": {
                                                     "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "influxdb": {
+                                                "properties": {
+                                                    "profile": {
                                                         "type": "string"
                                                     },
                                                     "query": {
