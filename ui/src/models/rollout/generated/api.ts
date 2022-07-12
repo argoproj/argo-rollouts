@@ -1966,7 +1966,7 @@ export interface K8sIoApiCoreV1AzureFileVolumeSource {
  */
 export interface K8sIoApiCoreV1CSIVolumeSource {
     /**
-     * driver is the name of the CSI driver that handles this volume. Consult with your admin for the correct name as registered in the cluster.
+     * Driver is the name of the CSI driver that handles this volume. Consult with your admin for the correct name as registered in the cluster.
      * @type {string}
      * @memberof K8sIoApiCoreV1CSIVolumeSource
      */
@@ -2756,7 +2756,7 @@ export interface K8sIoApiCoreV1FCVolumeSource {
  */
 export interface K8sIoApiCoreV1FlexVolumeSource {
     /**
-     * driver is the name of the driver to use for this volume.
+     * Driver is the name of the driver to use for this volume.
      * @type {string}
      * @memberof K8sIoApiCoreV1FlexVolumeSource
      */
@@ -3006,19 +3006,19 @@ export interface K8sIoApiCoreV1HostPathVolumeSource {
  */
 export interface K8sIoApiCoreV1ISCSIVolumeSource {
     /**
-     * targetPortal is iSCSI Target Portal. The Portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).
+     * iSCSI Target Portal. The Portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).
      * @type {string}
      * @memberof K8sIoApiCoreV1ISCSIVolumeSource
      */
     targetPortal?: string;
     /**
-     * iqn is the target iSCSI Qualified Name.
+     * Target iSCSI Qualified Name.
      * @type {string}
      * @memberof K8sIoApiCoreV1ISCSIVolumeSource
      */
     iqn?: string;
     /**
-     * lun represents iSCSI Target Lun number.
+     * iSCSI Target Lun number.
      * @type {number}
      * @memberof K8sIoApiCoreV1ISCSIVolumeSource
      */
@@ -3079,13 +3079,13 @@ export interface K8sIoApiCoreV1ISCSIVolumeSource {
  */
 export interface K8sIoApiCoreV1KeyToPath {
     /**
-     * key is the key to project.
+     * The key to project.
      * @type {string}
      * @memberof K8sIoApiCoreV1KeyToPath
      */
     key?: string;
     /**
-     * path is the relative path of the file to map the key to. May not be an absolute path. May not contain the path element '..'. May not start with the string '..'.
+     * The relative path of the file to map the key to. May not be an absolute path. May not contain the path element '..'. May not start with the string '..'.
      * @type {string}
      * @memberof K8sIoApiCoreV1KeyToPath
      */
@@ -3380,7 +3380,7 @@ export interface K8sIoApiCoreV1PhotonPersistentDiskVolumeSource {
      */
     pdID?: string;
     /**
-     * fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.
+     * Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.
      * @type {string}
      * @memberof K8sIoApiCoreV1PhotonPersistentDiskVolumeSource
      */
@@ -3847,7 +3847,7 @@ export interface K8sIoApiCoreV1PortworxVolumeSource {
      */
     volumeID?: string;
     /**
-     * fSType represents the filesystem type to mount Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\". Implicitly inferred to be \"ext4\" if unspecified.
+     * FSType represents the filesystem type to mount Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\". Implicitly inferred to be \"ext4\" if unspecified.
      * @type {string}
      * @memberof K8sIoApiCoreV1PortworxVolumeSource
      */
@@ -3990,7 +3990,7 @@ export interface K8sIoApiCoreV1QuobyteVolumeSource {
      */
     registry?: string;
     /**
-     * volume is a string that references an already created Quobyte volume by name.
+     * Volume is a string that references an already created Quobyte volume by name.
      * @type {string}
      * @memberof K8sIoApiCoreV1QuobyteVolumeSource
      */
@@ -4157,13 +4157,13 @@ export interface K8sIoApiCoreV1SELinuxOptions {
  */
 export interface K8sIoApiCoreV1ScaleIOVolumeSource {
     /**
-     * gateway is the host address of the ScaleIO API Gateway.
+     * The host address of the ScaleIO API Gateway.
      * @type {string}
      * @memberof K8sIoApiCoreV1ScaleIOVolumeSource
      */
     gateway?: string;
     /**
-     * system is the name of the storage system as configured in ScaleIO.
+     * The name of the storage system as configured in ScaleIO.
      * @type {string}
      * @memberof K8sIoApiCoreV1ScaleIOVolumeSource
      */
@@ -4199,7 +4199,7 @@ export interface K8sIoApiCoreV1ScaleIOVolumeSource {
      */
     storageMode?: string;
     /**
-     * volumeName is the name of a volume already created in the ScaleIO system that is associated with this volume source.
+     * The name of a volume already created in the ScaleIO system that is associated with this volume source.
      * @type {string}
      * @memberof K8sIoApiCoreV1ScaleIOVolumeSource
      */
@@ -4428,7 +4428,7 @@ export interface K8sIoApiCoreV1ServiceAccountTokenProjection {
      */
     expirationSeconds?: string;
     /**
-     * path is the path relative to the mount point of the file to project the token into.
+     * Path is the path relative to the mount point of the file to project the token into.
      * @type {string}
      * @memberof K8sIoApiCoreV1ServiceAccountTokenProjection
      */
@@ -4441,7 +4441,7 @@ export interface K8sIoApiCoreV1ServiceAccountTokenProjection {
  */
 export interface K8sIoApiCoreV1StorageOSVolumeSource {
     /**
-     * volumeName is the human-readable name of the StorageOS volume.  Volume names are only unique within a namespace.
+     * VolumeName is the human-readable name of the StorageOS volume.  Volume names are only unique within a namespace.
      * @type {string}
      * @memberof K8sIoApiCoreV1StorageOSVolumeSource
      */
@@ -4553,13 +4553,13 @@ export interface K8sIoApiCoreV1Toleration {
  */
 export interface K8sIoApiCoreV1TopologySpreadConstraint {
     /**
-     * MaxSkew describes the degree to which pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference between the number of matching pods in the target topology and the global minimum. The global minimum is the minimum number of matching pods in an eligible domain or zero if the number of eligible domains is less than MinDomains. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 2/2/1: In this case, the global minimum is 1. +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ |  P P  |  P P  |   P   | +-------+-------+-------+ - if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 2/2/2; scheduling it onto zone1(zone2) would make the ActualSkew(3-1) on zone1(zone2) violate MaxSkew(1). - if MaxSkew is 2, incoming pod can be scheduled onto any zone. When `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence to topologies that satisfy it. It's a required field. Default value is 1 and 0 is not allowed.
+     * MaxSkew describes the degree to which pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference between the number of matching pods in the target topology and the global minimum. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 1/1/0: +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ |   P   |   P   |       | +-------+-------+-------+ - if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 1/1/1; scheduling it onto zone1(zone2) would make the ActualSkew(2-0) on zone1(zone2) violate MaxSkew(1). - if MaxSkew is 2, incoming pod can be scheduled onto any zone. When `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence to topologies that satisfy it. It's a required field. Default value is 1 and 0 is not allowed.
      * @type {number}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     maxSkew?: number;
     /**
-     * TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a \"bucket\", and try to put balanced number of pods into each bucket. We define a domain as a particular instance of a topology. Also, we define an eligible domain as a domain whose nodes match the node selector. e.g. If TopologyKey is \"kubernetes.io/hostname\", each Node is a domain of that topology. And, if TopologyKey is \"topology.kubernetes.io/zone\", each zone is a domain of that topology. It's a required field.
+     * TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a \"bucket\", and try to put balanced number of pods into each bucket. It's a required field.
      * @type {string}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
@@ -4576,12 +4576,6 @@ export interface K8sIoApiCoreV1TopologySpreadConstraint {
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     labelSelector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
-    /**
-     * MinDomains indicates a minimum number of eligible domains. When the number of eligible domains with matching topology keys is less than minDomains, Pod Topology Spread treats \"global minimum\" as 0, and then the calculation of Skew is performed. And when the number of eligible domains with matching topology keys equals or greater than minDomains, this value has no effect on scheduling. As a result, when the number of eligible domains is less than minDomains, scheduler won't schedule more than maxSkew Pods to those domains. If value is nil, the constraint behaves as if MinDomains is equal to 1. Valid values are integers greater than 0. When value is not nil, WhenUnsatisfiable must be DoNotSchedule.  For example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same labelSelector spread as 2/2/2: +-------+-------+-------+ | zone1 | zone2 | zone3 | +-------+-------+-------+ |  P P  |  P P  |  P P  | +-------+-------+-------+ The number of domains is less than 5(MinDomains), so \"global minimum\" is treated as 0. In this situation, new pod with the same labelSelector cannot be scheduled, because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones, it will violate MaxSkew.  This is an alpha field and requires enabling MinDomainsInPodTopologySpread feature gate. +optional
-     * @type {number}
-     * @memberof K8sIoApiCoreV1TopologySpreadConstraint
-     */
-    minDomains?: number;
 }
 /**
  * 
@@ -5114,7 +5108,7 @@ export interface K8sIoApimachineryPkgApisMetaV1ObjectMeta {
      */
     name?: string;
     /**
-     * GenerateName is an optional prefix, used by the server, to generate a unique name ONLY IF the Name field has not been provided. If this field is used, the name returned to the client will be different than the name passed. This value will also be combined with a unique suffix. The provided value has the same validation rules as the Name field, and may be truncated by the length of the suffix required to make the value unique on the server.  If this field is specified and the generated name exists, the server will return a 409.  Applied only if Name is not specified. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency +optional
+     * GenerateName is an optional prefix, used by the server, to generate a unique name ONLY IF the Name field has not been provided. If this field is used, the name returned to the client will be different than the name passed. This value will also be combined with a unique suffix. The provided value has the same validation rules as the Name field, and may be truncated by the length of the suffix required to make the value unique on the server.  If this field is specified and the generated name exists, the server will NOT return a 409 - instead, it will either return 201 Created or 500 with Reason ServerTimeout indicating a unique name could not be found in the time allotted, and the client should retry (optionally after the time indicated in the Retry-After header).  Applied only if Name is not specified. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency +optional
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
@@ -5126,7 +5120,7 @@ export interface K8sIoApimachineryPkgApisMetaV1ObjectMeta {
      */
     namespace?: string;
     /**
-     * 
+     * SelfLink is a URL representing this object. Populated by the system. Read-only.  DEPRECATED Kubernetes will stop propagating this field in 1.20 release and the field is planned to be removed in 1.21 release. +optional
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
@@ -5192,7 +5186,7 @@ export interface K8sIoApimachineryPkgApisMetaV1ObjectMeta {
      */
     finalizers?: Array<string>;
     /**
-     * Deprecated: ClusterName is a legacy field that was always cleared by the system and never used; it will be removed completely in 1.25.  The name in the go struct is changed to help clients detect accidental use.  +optional
+     * 
      * @type {string}
      * @memberof K8sIoApimachineryPkgApisMetaV1ObjectMeta
      */
