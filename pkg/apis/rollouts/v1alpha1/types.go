@@ -363,6 +363,15 @@ type RolloutTrafficRouting struct {
 	AppMesh *AppMeshTrafficRouting `json:"appMesh,omitempty" protobuf:"bytes,6,opt,name=appMesh"`
 	// Traefik holds specific configuration to use Traefik to route traffic
 	Traefik *TraefikTrafficRouting `json:"traefik,omitempty" protobuf:"bytes,7,opt,name=traefik"`
+	// A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
+	// traffic router.
+	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
+}
+
+type MangedRoutes struct {
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	//Possibly name for future use
+	//canaryRoute bool
 }
 
 // TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
@@ -554,20 +563,38 @@ type CanaryStep struct {
 	// SetCanaryScale defines how to scale the newRS without changing traffic weight
 	// +optional
 	SetCanaryScale *SetCanaryScale `json:"setCanaryScale,omitempty" protobuf:"bytes,5,opt,name=setCanaryScale"`
-	// SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
-	SetHeaderRouting *SetHeaderRouting `json:"setHeaderRouting,omitempty" protobuf:"bytes,6,opt,name=setHeaderRouting"`
+	// SetHeaderRoute defines the route with specified header name to send 100% of traffic to the canary service
+	// +optional
+	SetHeaderRoute *SetHeaderRoute `json:"setHeaderRoute,omitempty" protobuf:"bytes,6,opt,name=setHeaderRoute"`
+	// SetMirrorRoutes Mirrors traffic that matches rules to a particular destination
+	// +optional
+	SetMirrorRoute *SetMirrorRoute `json:"setMirrorRoute,omitempty" protobuf:"bytes,8,opt,name=setMirrorRoute"`
 }
 
-// SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
-type SetHeaderRouting struct {
-	Match []HeaderRoutingMatch `json:"match,omitempty" protobuf:"bytes,1,rep,name=match"`
+type SetMirrorRoute struct {
+	// Name this is the name of the route to use for the mirroring of traffic this also needs
+	// to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// Match Contains a list of rules that if mated will mirror the traffic to the services
+	// +optional
+	Match []RouteMatch `json:"match,omitempty" protobuf:"bytes,2,opt,name=match"`
+
+	// Services The list of services to mirror the traffic to if the method, path, headers match
+	//Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
+	// Percentage What percent of the traffic that matched the rules should be mirrored
+	Percentage *int32 `json:"percentage,omitempty" protobuf:"varint,4,opt,name=percentage"`
 }
 
-type HeaderRoutingMatch struct {
-	// HeaderName the name of the request header
-	HeaderName string `json:"headerName" protobuf:"bytes,1,opt,name=headerName"`
-	// HeaderValue the value of the header
-	HeaderValue StringMatch `json:"headerValue" protobuf:"bytes,2,opt,name=headerValue"`
+type RouteMatch struct {
+	// Method What http methods should be mirrored
+	// +optional
+	Method *StringMatch `json:"method,omitempty" protobuf:"bytes,1,opt,name=method"`
+	// Path What url paths should be mirrored
+	// +optional
+	Path *StringMatch `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
+	// Headers What request with matching headers should be mirrored
+	// +optional
+	Headers map[string]StringMatch `json:"headers,omitempty" protobuf:"bytes,3,opt,name=headers"`
 }
 
 // StringMatch Used to define what type of matching we will use exact, prefix, or regular expression
@@ -578,6 +605,21 @@ type StringMatch struct {
 	Prefix string `json:"prefix,omitempty" protobuf:"bytes,2,opt,name=prefix"`
 	// Regex The string will be regular expression matched
 	Regex string `json:"regex,omitempty" protobuf:"bytes,3,opt,name=regex"`
+}
+
+// SetHeaderRoute defines the route with specified header name to send 100% of traffic to the canary service
+type SetHeaderRoute struct {
+	// Name this is the name of the route to use for the mirroring of traffic this also needs
+	// to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field
+	Name  string               `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Match []HeaderRoutingMatch `json:"match,omitempty" protobuf:"bytes,2,rep,name=match"`
+}
+
+type HeaderRoutingMatch struct {
+	// HeaderName the name of the request header
+	HeaderName string `json:"headerName" protobuf:"bytes,1,opt,name=headerName"`
+	// HeaderValue the value of the header
+	HeaderValue *StringMatch `json:"headerValue" protobuf:"bytes,2,opt,name=headerValue"`
 }
 
 // SetCanaryScale defines how to scale the newRS without changing traffic weight

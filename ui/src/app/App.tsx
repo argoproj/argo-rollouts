@@ -92,7 +92,7 @@ const App = () => {
                             <Switch>
                                 <Page
                                     exact
-                                    path='/'
+                                    path='/:namespace?'
                                     component={<RolloutsList />}
                                     shortcuts={[
                                         {key: '/', description: 'Search'},
@@ -102,7 +102,7 @@ const App = () => {
                                     ]}
                                     changeNamespace={changeNamespace}
                                 />
-                                <Page path='/rollout/:name' component={<Rollout />} changeNamespace={changeNamespace} />
+                                <Page path='/rollout/:namespace?/:name' component={<Rollout />} changeNamespace={changeNamespace} />
                             </Switch>
                         </Router>
                     </KeybindingProvider>

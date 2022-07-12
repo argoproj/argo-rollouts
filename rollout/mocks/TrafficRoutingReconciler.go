@@ -13,13 +13,41 @@ type TrafficRoutingReconciler struct {
 	mock.Mock
 }
 
-// SetHeaderRouting provides a mock function with given fields: headerRouting
-func (_m *TrafficRoutingReconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
-	ret := _m.Called(headerRouting)
+// RemoveManagedRoutes provides a mock function with given fields:
+func (_m *TrafficRoutingReconciler) RemoveManagedRoutes() error {
+	ret := _m.Called()
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.SetHeaderRouting) error); ok {
-		r0 = rf(headerRouting)
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetHeaderRoute provides a mock function with given fields: setHeaderRoute
+func (_m *TrafficRoutingReconciler) SetHeaderRoute(setHeaderRoute *v1alpha1.SetHeaderRoute) error {
+	ret := _m.Called(setHeaderRoute)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*v1alpha1.SetHeaderRoute) error); ok {
+		r0 = rf(setHeaderRoute)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetMirrorRoute provides a mock function with given fields: setMirrorRoute
+func (_m *TrafficRoutingReconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) error {
+	ret := _m.Called(setMirrorRoute)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*v1alpha1.SetMirrorRoute) error); ok {
+		r0 = rf(setMirrorRoute)
 	} else {
 		r0 = ret.Error(0)
 	}
