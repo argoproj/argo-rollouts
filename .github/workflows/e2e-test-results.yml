@@ -1,0 +1,43 @@
+name: Test Results
+
+on:
+  workflow_run:
+    workflows: ["E2E Tests", "Go"]
+    types:
+      - completed
+permissions: {}
+
+jobs:
+  test-results:
+    name: "${{ github.event.workflow.name }} Test Results"
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion != 'skipped'
+    permissions:
+      checks: write
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Download and Extract Artifacts
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          mkdir -p artifacts && cd artifacts
+          artifacts_url=${{ github.event.workflow_run.artifacts_url }}
+          gh api "$artifacts_url" -q '.artifacts[] | [.name, .archive_download_url] | @tsv' | while read artifact
+          do
+            IFS=$'\t' read name url <<< "$artifact"
+            gh api $url > "$name.zip"
+            unzip -d "$name" "$name.zip"
+          done
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        with:
+          check_name: "${{ github.event.workflow.name }} Published Test Results"
+          commit: ${{ github.event.workflow_run.head_sha }}
+          event_file: artifacts/Event File/event.json
+          event_name: ${{ github.event.workflow_run.event }}
+          files: "artifacts/**/*.xml"
+          compare_to_earlier_commit: false
+          test_changes_limit: 0
+          fail_on: "errors"
