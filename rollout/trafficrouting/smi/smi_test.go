@@ -381,6 +381,8 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 		ts1.OwnerReferences = nil
 
 		client := fake.NewSimpleClientset(ts1)
+		defaults.SetSMIAPIVersion("v1alpha1")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -415,8 +417,6 @@ func TestReconcileRolloutDoesNotOwnTrafficSplitError(t *testing.T) {
 	t.Run("v1alpha3", func(t *testing.T) {
 		ts3 := trafficSplitV1Alpha3(ro, objMeta, "root-service", int32(10))
 		ts3.OwnerReferences = nil
-		defaults.SetSMIAPIVersion("v1alpha3")
-		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset(ts3)
 		r, err := NewReconciler(ReconcilerConfig{
@@ -449,6 +449,8 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 
 	t.Run("v1alpha1", func(t *testing.T) {
 		client := fake.NewSimpleClientset()
+		defaults.SetSMIAPIVersion("v1alpha1")
+		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 		r, err := NewReconciler(ReconcilerConfig{
 			Rollout:        ro,
 			Client:         client,
@@ -533,8 +535,6 @@ func TestCreateTrafficSplitForMultipleBackends(t *testing.T) {
 	})
 
 	t.Run("v1alpha3", func(t *testing.T) {
-		defaults.SetSMIAPIVersion("v1alpha3")
-		defer defaults.SetSMIAPIVersion(defaults.DefaultSMITrafficSplitVersion)
 
 		client := fake.NewSimpleClientset()
 		r, err := NewReconciler(ReconcilerConfig{
