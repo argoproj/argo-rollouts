@@ -2,17 +2,14 @@ package wavefront
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	wavefrontapi "github.com/spaceapegames/go-wavefront"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
-	kubetesting "k8s.io/client-go/testing"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
@@ -201,32 +198,52 @@ func TestProcessMultipleTimeseriesResponse(t *testing.T) {
 }
 
 func TestNewWavefrontAPI(t *testing.T) {
+	os.Unsetenv(EnvVarArgoRolloutsWavefrontAddress)
+	os.Unsetenv(EnvVarArgoRolloutsWavefrontToken)
+	//os.Setenv(EnvVarArgoRolloutsWavefrontAddress, ":invalid::url")
+	address := "invalid url"
 	metric := v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
 			Wavefront: &v1alpha1.WavefrontMetric{
-				Address: "invalid url",
+				Address: address,
 			},
 		},
 	}
-	tokenSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: WavefrontTokensSecretName,
-		},
-		Data: map[string][]byte{
-			"example.wavefront.com": []byte("123456789"),
-		},
-	}
-	fakeClient := k8sfake.NewSimpleClientset()
-	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, tokenSecret, nil
-	})
-
-	_, err := NewWavefrontAPI(metric, fakeClient)
+	_, err := NewWavefrontAPI(metric)
 	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "API token not found")
+	assert.Equal(t, err.Error(), "parse \"https://invalid url/api/v2/\": invalid character \" \" in host name")
 
 	metric.Provider.Wavefront.Address = "example.wavefront.com"
-	_, err = NewWavefrontAPI(metric, fakeClient)
+	_, err = NewWavefrontAPI(metric)
+	assert.Nil(t, err)
+}
+
+func TestNewWavefrontAPIWithEnv(t *testing.T) {
+	os.Unsetenv(EnvVarArgoRolloutsWavefrontAddress)
+	os.Unsetenv(EnvVarArgoRolloutsWavefrontToken)
+	os.Setenv(EnvVarArgoRolloutsWavefrontAddress, ":invalid::url")
+	address := ""
+	metric := v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Wavefront: &v1alpha1.WavefrontMetric{
+				Address: address,
+			},
+		},
+	}
+	_, err := NewWavefrontAPI(metric)
+	assert.NotNil(t, err)
+
+	os.Unsetenv(EnvVarArgoRolloutsWavefrontToken)
+	os.Unsetenv(EnvVarArgoRolloutsWavefrontAddress)
+	os.Setenv(EnvVarArgoRolloutsWavefrontAddress, "example.wavefront.com")
+	metric = v1alpha1.Metric{
+		Provider: v1alpha1.MetricProvider{
+			Wavefront: &v1alpha1.WavefrontMetric{
+				Address: address,
+			},
+		},
+	}
+	_, err = NewWavefrontAPI(metric)
 	assert.Nil(t, err)
 }
 

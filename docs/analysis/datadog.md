@@ -32,10 +32,34 @@ Datadog api and app tokens can be configured in a kubernetes secret in argo-roll
 apiVersion: v1
 kind: Secret
 metadata:
-  name: datadog
+  name: datadog-secret
 type: Opaque
 data:
-  address: https://api.datadoghq.com
-  api-key: <datadog-api-key>
-  app-key: <datadog-app-key>
+  ARGO_ROLLOUTS_DD_ADDRESS: https://api.datadoghq.com
+  ARGO_ROLLOUTS_DD_API_KEY: <datadog-api-key>
+  ARGO_ROLLOUTS_DD_APP_KEY: <datadog-app-key>
 ```
+
+In Rollout Deployment add the follow env source
+
+```yaml
+spec:
+  containers:
+  - env:
+    - name: ARGO_ROLLOUTS_DD_ADDRESS
+      valueFrom:
+        secretKeyRef:
+          key: ARGO_ROLLOUTS_DD_ADDRESS
+          name: datadog-secret
+    - name: ARGO_ROLLOUTS_DD_APP_KEY
+      valueFrom:
+        secretKeyRef:
+          key: ARGO_ROLLOUTS_DD_APP_KEY
+          name: datadog-secret
+    - name: ARGO_ROLLOUTS_DD_API_KEY
+      valueFrom:
+        secretKeyRef:
+          key: ARGO_ROLLOUTS_DD_API_KEY
+          name: datadog-secret
+    image: quay.io/argoproj/argo-rollouts:<version>
+      ```

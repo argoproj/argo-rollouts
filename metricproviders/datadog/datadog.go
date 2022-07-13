@@ -1,7 +1,6 @@
 package datadog
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,29 +9,24 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var unixNow = func() int64 { return timeutil.Now().Unix() }
 
 const (
 	//ProviderType indicates the provider is datadog
-	ProviderType            = "Datadog"
-	DatadogTokensSecretName = "datadog"
-	DatadogApiKey           = "api-key"
-	DatadogAppKey           = "app-key"
-	DatadogAddress          = "address"
+	ProviderType                     = "Datadog"
+	EnvVarArgoRolloutsDatadogApiKey  = "ARGO_ROLLOUTS_DD_API_KEY"
+	EnvVarArgoRolloutsDatadogAppKey  = "ARGO_ROLLOUTS_DD_APP_KEY"
+	EnvVarArgoRolloutsDatadogAddress = "ARGO_ROLLOUTS_DD_ADDRESS"
 )
 
 // Provider contains all the required components to run a Datadog query
@@ -190,49 +184,28 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 	return nil
 }
 
-func lookupKeysInEnv(keys []string) map[string]string {
-	valuesByKey := make(map[string]string)
-	for i := range keys {
-		key := keys[i]
-		formattedKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
-		if value, ok := os.LookupEnv(fmt.Sprintf("DD_%s", formattedKey)); ok {
-			valuesByKey[key] = value
-		}
+func NewDatadogProvider(logCtx log.Entry) (*Provider, error) {
+	envValuesByKey := make(map[string]string)
+	if apiKey, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsDatadogApiKey)); ok {
+		envValuesByKey[EnvVarArgoRolloutsDatadogApiKey] = apiKey
+		log.Debugf("ARGO_ROLLOUTS_DD_API_KEY: %v", envValuesByKey[EnvVarArgoRolloutsDatadogApiKey])
 	}
-	return valuesByKey
-}
-
-func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*Provider, error) {
-	ns := defaults.Namespace()
-
-	apiKey := ""
-	appKey := ""
-	address := ""
-	secretKeys := []string{DatadogApiKey, DatadogAppKey, DatadogAddress}
-	envValuesByKey := lookupKeysInEnv(secretKeys)
-	if len(envValuesByKey) == len(secretKeys) {
-		apiKey = envValuesByKey[DatadogApiKey]
-		appKey = envValuesByKey[DatadogAppKey]
-		address = envValuesByKey[DatadogAddress]
-	} else {
-		secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), DatadogTokensSecretName, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		apiKey = string(secret.Data[DatadogApiKey])
-		appKey = string(secret.Data[DatadogAppKey])
-		if _, hasAddress := secret.Data[DatadogAddress]; hasAddress {
-			address = string(secret.Data[DatadogAddress])
-		}
+	if appKey, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsDatadogAppKey)); ok {
+		envValuesByKey[EnvVarArgoRolloutsDatadogAppKey] = appKey
+		log.Debugf("ARGO_ROLLOUTS_DD_APP_KEY: %v", envValuesByKey[EnvVarArgoRolloutsDatadogAppKey])
+	}
+	if address, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsDatadogAddress)); ok {
+		envValuesByKey[EnvVarArgoRolloutsDatadogAddress] = address
+		log.Debugf("ARGO_ROLLOUTS_DD_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsDatadogAddress])
 	}
 
-	if apiKey != "" && appKey != "" {
+	if envValuesByKey[EnvVarArgoRolloutsDatadogApiKey] != "" && envValuesByKey[EnvVarArgoRolloutsDatadogAppKey] != "" {
 		return &Provider{
 			logCtx: logCtx,
 			config: datadogConfig{
-				Address: address,
-				ApiKey:  apiKey,
-				AppKey:  appKey,
+				Address: envValuesByKey[EnvVarArgoRolloutsDatadogAddress],
+				ApiKey:  envValuesByKey[EnvVarArgoRolloutsDatadogApiKey],
+				AppKey:  envValuesByKey[EnvVarArgoRolloutsDatadogAppKey],
 			},
 		}, nil
 	} else {

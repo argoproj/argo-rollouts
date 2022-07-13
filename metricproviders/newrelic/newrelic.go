@@ -1,31 +1,31 @@
 package newrelic
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 
-	"github.com/newrelic/newrelic-client-go/newrelic"
-	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	"github.com/argoproj/argo-rollouts/utils/version"
+	"github.com/newrelic/newrelic-client-go/newrelic"
+	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
 	//ProviderType indicates the provider is wavefront
-	ProviderType                     = "NewRelic"
-	DefaultNewRelicProfileSecretName = "newrelic"
-	repoURL                          = "https://github.com/argoproj/argo-rollouts"
+	ProviderType                               = "NewRelic"
+	repoURL                                    = "https://github.com/argoproj/argo-rollouts"
+	EnvVarArgoRolloutsNewRelicApiKey           = "ARGO_ROLLOUTS_NEWRELIC_APIKEY"
+	EnvVarArgoRolloutsNewRelicAccountId        = "ARGO_ROLLOUTS_NEWRELIC_ACCOUNT_ID"
+	EnvVarArgoRolloutsNewRelicBaseUrlRest      = "ARGO_ROLLOUTS_NEWRELIC_BASE_URL_REST"
+	EnvVarArgoRolloutsNewRelicBaseUrlNerdGraph = "ARGO_ROLLOUTS_NEWRELIC_BASE_URL_NERD_GRAPH"
+	EnvVarArgoRolloutsNewRelicRegion           = "ARGO_ROLLOUTS_NEWRELIC_REGION"
 )
 
 var userAgent = fmt.Sprintf("argo-rollouts/%s (%s)", version.GetVersion(), repoURL)
@@ -145,44 +145,52 @@ func NewNewRelicProvider(api NewRelicClientAPI, logCtx log.Entry) *Provider {
 }
 
 //NewNewRelicAPIClient creates a new NewRelic API client from metric configuration
-func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (NewRelicClientAPI, error) {
-	ns := defaults.Namespace()
-	profileSecret := DefaultNewRelicProfileSecretName
-	if metric.Provider.NewRelic.Profile != "" {
-		profileSecret = metric.Provider.NewRelic.Profile
+func NewNewRelicAPIClient(metric v1alpha1.Metric) (NewRelicClientAPI, error) {
+	envValuesByKey := make(map[string]string)
+	if apiKey, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsNewRelicApiKey)); ok {
+		envValuesByKey[EnvVarArgoRolloutsNewRelicApiKey] = apiKey
+		log.Debugf("ARGO_ROLLOUTS_WAVEFRONT_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsNewRelicApiKey])
 	}
-	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), profileSecret, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
+	if accountId, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsNewRelicAccountId)); ok {
+		envValuesByKey[EnvVarArgoRolloutsNewRelicAccountId] = accountId
+		log.Debugf("ARGO_ROLLOUTS_WAVEFRONT_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsNewRelicAccountId])
 	}
-
-	apiKey := string(secret.Data["personal-api-key"])
-	accountID := string(secret.Data["account-id"])
-
-	newrelicOptions := []newrelic.ConfigOption{newrelic.ConfigPersonalAPIKey(apiKey), newrelic.ConfigUserAgent(userAgent)}
-
-	region := "us"
-	if _, ok := secret.Data["region"]; ok {
-		region = string(secret.Data["region"])
+	if region, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsNewRelicRegion)); ok {
+		envValuesByKey[EnvVarArgoRolloutsNewRelicRegion] = region
+		log.Debugf("ARGO_ROLLOUTS_WAVEFRONT_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsNewRelicRegion])
 	}
-	newrelicOptions = append(newrelicOptions, newrelic.ConfigRegion(region))
-
+	if baseUrlRest, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsNewRelicBaseUrlRest)); ok {
+		envValuesByKey[EnvVarArgoRolloutsNewRelicBaseUrlRest] = baseUrlRest
+		log.Debugf("ARGO_ROLLOUTS_WAVEFRONT_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsNewRelicBaseUrlRest])
+	}
+	if baseUrlNerdGraph, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsNewRelicBaseUrlNerdGraph)); ok {
+		envValuesByKey[EnvVarArgoRolloutsNewRelicBaseUrlNerdGraph] = baseUrlNerdGraph
+		log.Debugf("ARGO_ROLLOUTS_WAVEFRONT_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsNewRelicBaseUrlNerdGraph])
+	}
+	var newrelicOptions []newrelic.ConfigOption
+	if len(envValuesByKey[EnvVarArgoRolloutsNewRelicApiKey]) != 0 {
+		newrelicOptions = []newrelic.ConfigOption{newrelic.ConfigPersonalAPIKey(envValuesByKey[EnvVarArgoRolloutsNewRelicApiKey]), newrelic.ConfigUserAgent(userAgent)}
+	}
+	if len(envValuesByKey[EnvVarArgoRolloutsNewRelicRegion]) != 0 {
+		newrelicOptions = append(newrelicOptions, newrelic.ConfigRegion(envValuesByKey[EnvVarArgoRolloutsNewRelicRegion]))
+	} else {
+		envValuesByKey[EnvVarArgoRolloutsNewRelicRegion] = "us"
+		newrelicOptions = append(newrelicOptions, newrelic.ConfigRegion(envValuesByKey[EnvVarArgoRolloutsNewRelicRegion]))
+	}
 	// base URL for the new relic REST API
-	if _, ok := secret.Data["base-url-rest"]; ok {
-		newrelicOptions = append(newrelicOptions, newrelic.ConfigBaseURL(string(secret.Data["base-url-rest"])))
+	if len(envValuesByKey[EnvVarArgoRolloutsNewRelicBaseUrlRest]) != 0 {
+		newrelicOptions = append(newrelicOptions, newrelic.ConfigBaseURL(envValuesByKey[EnvVarArgoRolloutsNewRelicBaseUrlRest]))
 	}
-
 	// base URL for the nerdgraph (graphQL) API
-	if _, ok := secret.Data["base-url-nerdgraph"]; ok {
-		newrelicOptions = append(newrelicOptions, newrelic.ConfigNerdGraphBaseURL(string(secret.Data["base-url-nerdgraph"])))
+	if len(envValuesByKey[EnvVarArgoRolloutsNewRelicBaseUrlNerdGraph]) != 0 {
+		newrelicOptions = append(newrelicOptions, newrelic.ConfigNerdGraphBaseURL(envValuesByKey[EnvVarArgoRolloutsNewRelicBaseUrlNerdGraph]))
 	}
-
-	if apiKey != "" && accountID != "" {
+	if envValuesByKey[EnvVarArgoRolloutsNewRelicApiKey] != "" && envValuesByKey[EnvVarArgoRolloutsNewRelicAccountId] != "" {
 		nrClient, err := newrelic.New(newrelicOptions...)
 		if err != nil {
 			return nil, err
 		}
-		accID, err := strconv.Atoi(accountID)
+		accID, err := strconv.Atoi(envValuesByKey[EnvVarArgoRolloutsNewRelicAccountId])
 		if err != nil {
 			return nil, fmt.Errorf("could not parse account ID: %w", err)
 		}

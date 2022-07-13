@@ -33,10 +33,28 @@ Wavefront api tokens can be configured in a kubernetes secret in argo-rollouts n
 apiVersion: v1
 kind: Secret
 metadata:
-  name: wavefront-api-tokens
+  name: wavefront-secret
 type: Opaque
 data:
-  example1.wavefront.com: <token1>
-  example2.wavefront.com: <token2>
+  ARGO_ROLLOUTS_WAVEFRONT_ADDRESS: <address>
+  ARGO_ROLLOUTS_WAVEFRONT_TOKEN: <token>
 ```
 
+In Rollout Deployment add the follow env source
+
+```yaml
+spec:
+  containers:
+  - env:
+    - name: ARGO_ROLLOUTS_WAVEFRONT_ADDRESS
+      valueFrom:
+        secretKeyRef:
+          key: ARGO_ROLLOUTS_WAVEFRONT_ADDRESS
+          name: wavefront-secret
+    - name: ARGO_ROLLOUTS_WAVEFRONT_TOKEN
+      valueFrom:
+        secretKeyRef:
+          key: ARGO_ROLLOUTS_WAVEFRONT_TOKEN
+          name: wavefront-secret
+    image: quay.io/argoproj/argo-rollouts:<version>
+```

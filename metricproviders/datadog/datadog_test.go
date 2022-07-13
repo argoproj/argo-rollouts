@@ -11,11 +11,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
-	kubetesting "k8s.io/client-go/testing"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -48,7 +43,6 @@ func TestRunSuite(t *testing.T) {
 		expectedValue           string
 		expectedPhase           v1alpha1.AnalysisPhase
 		expectedErrorMessage    string
-		useEnvVarForKeys        bool
 	}{
 		// When last value of time series matches condition then succeed.
 		{
@@ -63,7 +57,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			useEnvVarForKeys:        false,
 		},
 		// Same test as above, but derive DD keys from env var instead of k8s secret
 		{
@@ -78,7 +71,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 600,
 			expectedValue:           "0.0003332881882246533",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			useEnvVarForKeys:        true,
 		},
 		// When last value of time series does not match condition then fail.
 		{
@@ -93,7 +85,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121378742186943",
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
-			useEnvVarForKeys:        false,
 		},
 		// Error if the request is invalid
 		{
@@ -108,7 +99,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "received non 2xx response code: 400 {\"status\":\"error\",\"error\":\"error messsage\"}",
-			useEnvVarForKeys:        false,
 		},
 		// Error if there is an authentication issue
 		{
@@ -123,7 +113,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "received authentication error response code: 401 {\"errors\": [\"No authenticated user.\"]}",
-			useEnvVarForKeys:        false,
 		},
 
 		// Expect success with default() and data
@@ -138,7 +127,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           "0.006121378742186943",
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			useEnvVarForKeys:        false,
 		},
 
 		// Expect error with no default() and no data
@@ -153,7 +141,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    `invalid operation: < (mismatched types <nil> and float64)`,
-			useEnvVarForKeys:        false,
 		},
 
 		// Expect success with default() and no data
@@ -168,7 +155,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           `[{"pointlist":[]}]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			useEnvVarForKeys:        false,
 		},
 
 		// Expect failure with bad default() and no data
@@ -183,7 +169,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           `[{"pointlist":[]}]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
-			useEnvVarForKeys:        false,
 		},
 
 		// Expect success with bad default() and good data
@@ -198,7 +183,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedValue:           `0.006121378742186943`,
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
-			useEnvVarForKeys:        false,
 		},
 
 		// Error if datadog returns non-array series
@@ -214,7 +198,6 @@ func TestRunSuite(t *testing.T) {
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field datadogResponse.Series of type []struct { Pointlist [][]float64 \"json:\\\"pointlist\\\"\" }",
-			useEnvVarForKeys:        false,
 		},
 
 		// Error if server address is faulty
@@ -223,7 +206,6 @@ func TestRunSuite(t *testing.T) {
 			metric:               v1alpha1.Metric{},
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
 			expectedErrorMessage: "parse \"://wrong.schema/api/v1/query\": missing protocol scheme",
-			useEnvVarForKeys:     false,
 		},
 	}
 
@@ -281,38 +263,13 @@ func TestRunSuite(t *testing.T) {
 			serverURL = server.URL
 		}
 
-		tokenSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: DatadogTokensSecretName,
-			},
-			Data: map[string][]byte{
-				"address": []byte(serverURL),
-				"api-key": []byte(expectedApiKey),
-				"app-key": []byte(expectedAppKey),
-			},
-		}
-
-		if test.useEnvVarForKeys {
-			os.Setenv("DD_API_KEY", expectedApiKey)
-			os.Setenv("DD_APP_KEY", expectedAppKey)
-			os.Setenv("DD_ADDRESS", serverURL)
-		} else {
-			os.Unsetenv("DD_API_KEY")
-			os.Unsetenv("DD_APP_KEY")
-			os.Unsetenv("DD_ADDRESS")
-		}
+		os.Setenv(EnvVarArgoRolloutsDatadogApiKey, expectedApiKey)
+		os.Setenv(EnvVarArgoRolloutsDatadogAppKey, expectedAppKey)
+		os.Setenv(EnvVarArgoRolloutsDatadogAddress, serverURL)
 
 		logCtx := log.WithField("test", "test")
 
-		fakeClient := k8sfake.NewSimpleClientset()
-		fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			if test.useEnvVarForKeys {
-				return true, nil, nil
-			}
-			return true, tokenSecret, nil
-		})
-
-		provider, _ := NewDatadogProvider(*logCtx, fakeClient)
+		provider, _ := NewDatadogProvider(*logCtx)
 
 		metricsMetadata := provider.GetMetadata(test.metric)
 		assert.Nil(t, metricsMetadata)

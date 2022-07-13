@@ -2,7 +2,10 @@ package rollout
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -178,4 +181,13 @@ func CanaryStepString(c v1alpha1.CanaryStep) string {
 		}
 	}
 	return "invalid"
+}
+
+func IsUrl(str string) bool {
+	u, err := url.Parse(str)
+	if err != nil {
+		log.Errorf("Error in parsing url: %v", err)
+	}
+	log.Debugf("Parsed url: %v", u)
+	return err == nil && u.Scheme != "" && u.Host != ""
 }

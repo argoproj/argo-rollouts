@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
@@ -150,11 +150,11 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		log.Debugf("ARGO_ROLLOUTS_PROMETHEUS_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsPrometheusAddress])
 	}
 	if len(metric.Provider.Prometheus.Address) != 0 {
-		if !IsUrl(metric.Provider.Prometheus.Address) {
+		if !rolloututil.IsUrl(metric.Provider.Prometheus.Address) {
 			return nil, errors.New("prometheus address is not is url format")
 		}
 	} else if envValuesByKey[EnvVarArgoRolloutsPrometheusAddress] != "" {
-		if IsUrl(envValuesByKey[EnvVarArgoRolloutsPrometheusAddress]) {
+		if rolloututil.IsUrl(envValuesByKey[EnvVarArgoRolloutsPrometheusAddress]) {
 			metric.Provider.Prometheus.Address = envValuesByKey[EnvVarArgoRolloutsPrometheusAddress]
 		} else {
 			return nil, errors.New("prometheus address is not is url format")
@@ -170,13 +170,4 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		return nil, err
 	}
 	return v1.NewAPI(client), nil
-}
-
-func IsUrl(str string) bool {
-	u, err := url.Parse(str)
-	if err != nil {
-		log.Errorf("Error in parsing url: %v", err)
-	}
-	log.Debugf("Parsed url: %v", u)
-	return err == nil && u.Scheme != "" && u.Host != ""
 }

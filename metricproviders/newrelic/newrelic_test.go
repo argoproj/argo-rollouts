@@ -1,20 +1,15 @@
 package newrelic
 
 import (
-	"errors"
 	"fmt"
+	"os"
 	"testing"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
-	kubetesting "k8s.io/client-go/testing"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 func newAnalysisRun() *v1alpha1.AnalysisRun {
@@ -319,86 +314,57 @@ func TestNewNewRelicAPIClient(t *testing.T) {
 			NewRelic: &v1alpha1.NewRelicMetric{},
 		},
 	}
-	tokenSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: DefaultNewRelicProfileSecretName,
-		},
-	}
-	fakeClient := k8sfake.NewSimpleClientset()
-	fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, tokenSecret, nil
-	})
-
+	os.Unsetenv(EnvVarArgoRolloutsNewRelicAccountId)
+	os.Unsetenv(EnvVarArgoRolloutsNewRelicApiKey)
+	os.Unsetenv(EnvVarArgoRolloutsNewRelicBaseUrlRest)
+	os.Unsetenv(EnvVarArgoRolloutsNewRelicRegion)
+	os.Unsetenv(EnvVarArgoRolloutsNewRelicBaseUrlNerdGraph)
 	t.Run("with default settings", func(t *testing.T) {
-		tokenSecret.Data = map[string][]byte{
-			"personal-api-key": []byte("ABCDEFG01234"),
-			"account-id":       []byte("12345"),
-		}
-		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		os.Setenv(EnvVarArgoRolloutsNewRelicApiKey, "ABCDEFG01234")
+		os.Setenv(EnvVarArgoRolloutsNewRelicAccountId, "12345")
+		_, err := NewNewRelicAPIClient(metric)
 		assert.Nil(t, err)
 	})
-
 	t.Run("with region specified", func(t *testing.T) {
-		tokenSecret.Data = map[string][]byte{
-			"personal-api-key": []byte("ABCDEFG01234"),
-			"account-id":       []byte("12345"),
-			"region":           []byte("eu"),
-		}
-		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		os.Setenv(EnvVarArgoRolloutsNewRelicApiKey, "ABCDEFG01234")
+		os.Setenv(EnvVarArgoRolloutsNewRelicAccountId, "12345")
+		os.Setenv(EnvVarArgoRolloutsNewRelicRegion, "eu")
+		_, err := NewNewRelicAPIClient(metric)
 		assert.Nil(t, err)
 	})
 	t.Run("when the region is invalid", func(t *testing.T) {
-		tokenSecret.Data = map[string][]byte{
-			"personal-api-key": []byte("ABCDEFG01234"),
-			"account-id":       []byte("12345"),
-			"region":           []byte("prod"),
-		}
-		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		os.Setenv(EnvVarArgoRolloutsNewRelicApiKey, "ABCDEFG01234")
+		os.Setenv(EnvVarArgoRolloutsNewRelicAccountId, "12345")
+		os.Setenv(EnvVarArgoRolloutsNewRelicRegion, "prod")
+		_, err := NewNewRelicAPIClient(metric)
 		// client defaults to US when not set or set to something incorrect, does not error
 		assert.Nil(t, err)
 	})
 
 	t.Run("when a base-url is set", func(t *testing.T) {
-		tokenSecret.Data = map[string][]byte{
-			"personal-api-key":   []byte("ABCDEFG01234"),
-			"account-id":         []byte("12345"),
-			"base-url-rest":      []byte("example.com/api/v2"),
-			"base-url-nerdgraph": []byte("example.com/query"),
-		}
-		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		os.Setenv(EnvVarArgoRolloutsNewRelicApiKey, "ABCDEFG01234")
+		os.Setenv(EnvVarArgoRolloutsNewRelicAccountId, "12345")
+		os.Setenv(EnvVarArgoRolloutsNewRelicBaseUrlRest, "example.com/api/v2")
+		os.Setenv(EnvVarArgoRolloutsNewRelicBaseUrlNerdGraph, "example.com/query")
+		_, err := NewNewRelicAPIClient(metric)
 
 		assert.Nil(t, err)
 	})
 	t.Run("with api token or account id missing missing", func(t *testing.T) {
-		tokenSecret.Data = map[string][]byte{
-			"personal-api-key": []byte("ABCDEFG01234"),
-		}
-		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		os.Unsetenv(EnvVarArgoRolloutsNewRelicRegion)
+		os.Unsetenv(EnvVarArgoRolloutsNewRelicAccountId)
+		os.Setenv(EnvVarArgoRolloutsNewRelicApiKey, "ABCDEFG01234")
+		_, err := NewNewRelicAPIClient(metric)
 		assert.EqualError(t, err, "account ID or personal API key not found")
 	})
 	t.Run("with a non-integer account ID", func(t *testing.T) {
-		tokenSecret.Data = map[string][]byte{
-			"personal-api-key": []byte("ABCDEFG01234"),
-			"account-id":       []byte("abcdef"),
-		}
-		_, err := NewNewRelicAPIClient(metric, fakeClient)
+		os.Setenv(EnvVarArgoRolloutsNewRelicApiKey, "ABCDEFG01234")
+		os.Setenv(EnvVarArgoRolloutsNewRelicAccountId, "abcdef")
+		_, err := NewNewRelicAPIClient(metric)
 		assert.NotNil(t, err)
 	})
-	t.Run("when secretName is specified by the metric", func(t *testing.T) {
-		metric.Provider.NewRelic.Profile = "my-newrelic-token-secret"
-		tokenSecret.Name = "my-newrelic-token-secret"
-		tokenSecret.Data = map[string][]byte{
-			"personal-api-key": []byte("ABCDEFG01234"),
-			"account-id":       []byte("12345"),
-		}
-		_, err := NewNewRelicAPIClient(metric, fakeClient)
-		assert.Nil(t, err)
-	})
-	t.Run("when the secret is not found", func(t *testing.T) {
-		fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return true, nil, errors.New("secret not found")
-		})
-		_, err := NewNewRelicAPIClient(metric, fakeClient)
+	t.Run("when the envvar is not found", func(t *testing.T) {
+		_, err := NewNewRelicAPIClient(metric)
 		assert.NotNil(t, err)
 	})
 }

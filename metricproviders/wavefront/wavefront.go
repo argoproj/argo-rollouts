@@ -1,30 +1,27 @@
 package wavefront
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-	wavefrontapi "github.com/spaceapegames/go-wavefront"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	log "github.com/sirupsen/logrus"
+	wavefrontapi "github.com/spaceapegames/go-wavefront"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	//ProviderType indicates the provider is wavefront
-	ProviderType = "Wavefront"
-	//k8s secret that has wavefront api tokens
-	WavefrontTokensSecretName = "wavefront-api-tokens"
+	ProviderType                       = "Wavefront"
+	EnvVarArgoRolloutsWavefrontAddress = "ARGO_ROLLOUTS_WAVEFRONT_ADDRESS"
+	EnvVarArgoRolloutsWavefrontToken   = "ARGO_ROLLOUTS_WAVEFRONT_TOKEN"
 )
 
 type Provider struct {
@@ -195,23 +192,34 @@ func NewWavefrontProvider(api WavefrontClientAPI, logCtx log.Entry) *Provider {
 }
 
 // NewWavefrontAPI generates a Wavefront API client from the metric configuration
-func NewWavefrontAPI(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (WavefrontClientAPI, error) {
-	ns := defaults.Namespace()
-	secret, err := kubeclientset.CoreV1().Secrets(ns).Get(context.TODO(), WavefrontTokensSecretName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
+func NewWavefrontAPI(metric v1alpha1.Metric) (WavefrontClientAPI, error) {
+	envValuesByKey := make(map[string]string)
+	if value, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsWavefrontAddress)); ok {
+		envValuesByKey[EnvVarArgoRolloutsWavefrontAddress] = value
+		log.Debugf("ARGO_ROLLOUTS_WAVEFRONT_ADDRESS: %v", envValuesByKey[EnvVarArgoRolloutsWavefrontAddress])
 	}
-	var wf_client *wavefrontapi.Client
-	for source, token := range secret.Data {
-		if source == metric.Provider.Wavefront.Address {
-			wf_client, _ = wavefrontapi.NewClient(&wavefrontapi.Config{
-				Address: source,
-				Token:   string(token),
-			})
+	if token, ok := os.LookupEnv(fmt.Sprintf("%s", EnvVarArgoRolloutsWavefrontToken)); ok {
+		envValuesByKey[EnvVarArgoRolloutsWavefrontToken] = token
+		log.Debugf("ARGO_ROLLOUTS_WAVEFRONT_TOKEN: %v", envValuesByKey[EnvVarArgoRolloutsWavefrontToken])
+	}
+	if len(metric.Provider.Wavefront.Address) == 0 {
+		if envValuesByKey[EnvVarArgoRolloutsWavefrontAddress] != "" {
+			metric.Provider.Wavefront.Address = envValuesByKey[EnvVarArgoRolloutsWavefrontAddress]
+		} else {
+			return nil, errors.New("wavefront address is not configured")
 		}
 	}
-	if wf_client != nil {
-		return &WavefrontClient{Client: wf_client}, nil
+	var wfClient *wavefrontapi.Client
+	wfClient, err := wavefrontapi.NewClient(&wavefrontapi.Config{
+		Address: metric.Provider.Wavefront.Address,
+		Token:   envValuesByKey[EnvVarArgoRolloutsWavefrontToken],
+	})
+	if err != nil {
+		log.Errorf("Error in getting wavefront client: %v", err)
+		return nil, err
+	}
+	if wfClient != nil {
+		return &WavefrontClient{Client: wfClient}, nil
 	} else {
 		return nil, errors.New("API token not found")
 	}
