@@ -33,14 +33,18 @@ const (
 	InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting = "Experiment template weight cannot be set unless TrafficRouting is enabled"
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetCanaryScaleTrafficPolicy = "SetCanaryScale requires TrafficRouting to be set"
-	// InvalidSetHeaderRoutingTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
-	InvalidSetHeaderRoutingTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio only"
+	// InvalidSetHeaderRoutingTrafficPolicy indicates that TrafficRouting required for SetHeaderRouting, is missing
+	InvalidSetHeaderRoutingTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio and ALB"
 	// InvalidSetMirrorRouteTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetMirrorRouteTrafficPolicy = "SetMirrorRoute requires TrafficRouting, supports Istio only"
-	// InvalidStringMatchMultipleValuePolicy indicates that SetCanaryScale, has multiple values set
-	InvalidStringMatchMultipleValuePolicy = "StringMatch match value must have exactly one of the following: exact, regex, prefix"
-	// InvalidStringMatchMissedValuePolicy indicates that SetCanaryScale, has multiple values set
+	// InvalidStringMatchMultipleValuePolicy indicates that SetHeaderRouting match, has multiple values set
+	InvalidStringMatchMultipleValuePolicy = "StringMatch match has multiple values, but it must have exactly one of the following: exact, regex, prefix"
+	// InvalidStringMatchMissedValuePolicy indicates that SetHeaderRouting, has multiple values set
 	InvalidStringMatchMissedValuePolicy = "StringMatch value missed, match value must have one of the following: exact, regex, prefix"
+	// InvalidSetHeaderRoutingALBValueMissing indicates that SetHeaderRouting using with ALB missed the 'exact' value
+	InvalidSetHeaderRoutingALBValueMissing = "SetHeaderRouting match value missed. ALB supports 'exact' value only"
+	// InvalidSetHeaderRoutingALBValuePolicy indicates that SetHeaderRouting using with ALB missed the 'exact' value
+	InvalidSetHeaderRoutingALBValuePolicy = "SetHeaderRouting match value invalid. ALB supports 'exact' value only"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
@@ -305,13 +309,17 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		if step.SetHeaderRoute != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
-			if trafficRouting == nil || trafficRouting.Istio == nil {
+			if trafficRouting == nil || (trafficRouting.Istio == nil && trafficRouting.ALB == nil) {
 				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRoute"), step.SetHeaderRoute, InvalidSetHeaderRoutingTrafficPolicy))
-			}
-			if step.SetHeaderRoute.Match != nil && len(step.SetHeaderRoute.Match) > 0 {
+			} else if step.SetHeaderRoute.Match != nil && len(step.SetHeaderRoute.Match) > 0 {
 				for j, match := range step.SetHeaderRoute.Match {
-					matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
-					allErrs = append(allErrs, hasMultipleMatchValues(match.HeaderValue, matchFld)...)
+					if trafficRouting.ALB != nil {
+						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
+						allErrs = append(allErrs, hasALBInvalidValues(match.HeaderValue, matchFld)...)
+					} else {
+						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
+						allErrs = append(allErrs, hasMultipleMatchValues(match.HeaderValue, matchFld)...)
+					}
 				}
 			}
 		}
@@ -469,6 +477,22 @@ func hasMultipleStepsType(s v1alpha1.CanaryStep, fldPath *field.Path) field.Erro
 			}
 			hasMultipleStepTypes = true
 		}
+	}
+	return allErrs
+}
+
+func hasALBInvalidValues(match *v1alpha1.StringMatch, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if match == nil {
+		e := field.Invalid(fldPath, match, InvalidStringMatchMissedValuePolicy)
+		allErrs = append(allErrs, e)
+		return allErrs
+	}
+	if match.Exact == "" {
+		return append(allErrs, field.Invalid(fldPath, match, InvalidSetHeaderRoutingALBValueMissing))
+	}
+	if match.Regex != "" || match.Prefix != "" {
+		return append(allErrs, field.Invalid(fldPath, match, InvalidSetHeaderRoutingALBValuePolicy))
 	}
 	return allErrs
 }

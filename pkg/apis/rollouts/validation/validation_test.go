@@ -281,21 +281,15 @@ func TestValidateRolloutStrategyAntiAffinity(t *testing.T) {
 	assert.Equal(t, InvalidAntiAffinityWeightMessage, allErrs[0].Detail)
 }
 
-func TestValidateRolloutStrategyCanarySetHeaderRouteIstio(t *testing.T) {
+func TestValidateRolloutStrategyCanarySetHeaderRoute(t *testing.T) {
 	ro := &v1alpha1.Rollout{}
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		CanaryService: "canary",
 		StableService: "stable",
-		TrafficRouting: &v1alpha1.RolloutTrafficRouting{
-			Istio: &v1alpha1.IstioTrafficRouting{
-				VirtualService: &v1alpha1.IstioVirtualService{Name: "virtual-service"},
-			},
-		},
 	}
 
 	t.Run("using SetHeaderRoute step without the traffic routing", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
-		invalidRo.Spec.Strategy.Canary.TrafficRouting = nil
 		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
 			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
 				Match: []v1alpha1.HeaderRoutingMatch{
@@ -309,6 +303,19 @@ func TestValidateRolloutStrategyCanarySetHeaderRouteIstio(t *testing.T) {
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, InvalidSetHeaderRoutingTrafficPolicy, allErrs[0].Detail)
 	})
+}
+
+func TestValidateRolloutStrategyCanarySetHeaderRouteIstio(t *testing.T) {
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		CanaryService: "canary",
+		StableService: "stable",
+		TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+			Istio: &v1alpha1.IstioTrafficRouting{
+				VirtualService: &v1alpha1.IstioVirtualService{Name: "virtual-service"},
+			},
+		},
+	}
 
 	t.Run("using SetHeaderRoute step with multiple values", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
@@ -361,6 +368,53 @@ func TestValidateRolloutStrategyCanarySetHeaderRouteIstio(t *testing.T) {
 		})
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, InvalideStepRouteNameNotFoundInManagedRoutes, allErrs[0].Detail)
+	})
+}
+
+func TestValidateRolloutStrategyCanarySetHeaderRoutingALB(t *testing.T) {
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		CanaryService: "canary",
+		StableService: "stable",
+		TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+			ALB: &v1alpha1.ALBTrafficRouting{
+				RootService: "action_name",
+			},
+		},
+	}
+
+	t.Run("using SetHeaderRouting step with multiple values", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "agent",
+						HeaderValue: &v1alpha1.StringMatch{
+							Exact: "chrome",
+							Regex: "chrome(.*)",
+						},
+					},
+				},
+			},
+		}}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidSetHeaderRoutingALBValuePolicy, allErrs[0].Detail)
+	})
+
+	t.Run("using SetHeaderRouting step with missed values", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "agent",
+					},
+				},
+			},
+		}}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidSetHeaderRoutingALBValueMissing, allErrs[0].Detail)
 	})
 }
 

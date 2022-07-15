@@ -101,7 +101,9 @@ func albActionAnnotation(stable string) string {
 }
 
 func ingress(name, stableSvc, canarySvc, actionService string, port, weight int32, managedBy string, includeStickyConfig bool) *extensionsv1beta1.Ingress {
-	managedByValue := fmt.Sprintf("%s:%s", managedBy, albActionAnnotation(actionService))
+	managedByValue := ingressutil.ManagedALBAnnotations{
+		managedBy: ingressutil.ManagedALBAnnotation{albActionAnnotation(actionService)},
+	}
 	action := fmt.Sprintf(actionTemplate, canarySvc, port, weight, stableSvc, port, 100-weight)
 	if includeStickyConfig {
 		action = fmt.Sprintf(actionTemplateWithStickyConfig, canarySvc, port, weight, stableSvc, port, 100-weight)
@@ -117,8 +119,8 @@ func ingress(name, stableSvc, canarySvc, actionService string, port, weight int3
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
 			Annotations: map[string]string{
-				albActionAnnotation(actionService):   string(jsonutil.MustMarshal(a)),
-				ingressutil.ManagedActionsAnnotation: managedByValue,
+				albActionAnnotation(actionService): string(jsonutil.MustMarshal(a)),
+				ingressutil.ManagedAnnotations:     managedByValue.String(),
 			},
 		},
 		Spec: extensionsv1beta1.IngressSpec{
@@ -154,6 +156,13 @@ func TestType(t *testing.T) {
 	})
 	assert.Equal(t, Type, r.Type())
 	assert.NoError(t, err)
+}
+
+func TestAddManagedAnnotation(t *testing.T) {
+	annotations, _ := addManagedAnnotation(map[string]string{}, "argo-rollouts", "alb.ingress.kubernetes.io/actions.action1", "alb.ingress.kubernetes.io/conditions.action1")
+	assert.Equal(t, annotations[ingressutil.ManagedAnnotations], "{\"argo-rollouts\":[\"alb.ingress.kubernetes.io/actions.action1\",\"alb.ingress.kubernetes.io/conditions.action1\"]}")
+	_, err := addManagedAnnotation(map[string]string{ingressutil.ManagedAnnotations: "invalid, non-json value"}, "some-rollout")
+	assert.Error(t, err)
 }
 
 func TestIngressNotFound(t *testing.T) {
@@ -225,7 +234,7 @@ func TestNoChanges(t *testing.T) {
 func TestErrorOnInvalidManagedBy(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
-	i.Annotations[ingressutil.ManagedActionsAnnotation] = "test"
+	i.Annotations[ingressutil.ManagedAnnotations] = "test"
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)

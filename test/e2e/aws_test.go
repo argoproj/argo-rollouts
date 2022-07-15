@@ -12,7 +12,9 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/tj/assert"
+	"k8s.io/utils/pointer"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 	ingress2 "github.com/argoproj/argo-rollouts/utils/ingress"
 )
@@ -170,4 +172,75 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 		Sleep(1 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
 		Then().
 		Assert(assertWeights(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100))
+}
+
+func (s *AWSSuite) TestAlbHeaderRoute() {
+	s.Given().
+		RolloutObjects("@header-routing/alb-header-route.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			assertAlbActionDoesNotExist(t, s, istio.HeaderRouteName)
+			assertAlbActionServiceWeight(t, s, "action1", "canary-service", 0)
+			assertAlbActionServiceWeight(t, s, "action1", "stable-service", 100)
+		}).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Sleep(1 * time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			assertAlbActionDoesNotExist(t, s, istio.HeaderRouteName)
+			assertAlbActionServiceWeight(t, s, "action1", "canary-service", 20)
+			assertAlbActionServiceWeight(t, s, "action1", "stable-service", 80)
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Paused").
+		Sleep(1 * time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			assertAlbActionServiceWeight(t, s, istio.HeaderRouteName, "canary-service", 100)
+			assertAlbActionServiceWeight(t, s, "action1", "canary-service", 20)
+			assertAlbActionServiceWeight(t, s, "action1", "stable-service", 80)
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Paused").
+		Sleep(1 * time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			assertAlbActionDoesNotExist(t, s, istio.HeaderRouteName)
+		})
+}
+
+func assertAlbActionServiceWeight(t *fixtures.Then, s *AWSSuite, actionName, serviceName string, expectedWeight int64) {
+	ingress := t.GetALBIngress()
+	key := "alb.ingress.kubernetes.io/actions." + actionName
+	actionStr, ok := ingress.Annotations[key]
+	assert.True(s.T(), ok, "Annotation for action was not found: %s", key)
+
+	var albAction ingress2.ALBAction
+	err := json.Unmarshal([]byte(actionStr), &albAction)
+	if err != nil {
+		panic(err)
+	}
+
+	found := false
+	for _, group := range albAction.ForwardConfig.TargetGroups {
+		if group.ServiceName == serviceName {
+			assert.Equal(s.T(), pointer.Int64(expectedWeight), group.Weight)
+			found = true
+		}
+	}
+	assert.True(s.T(), found, "Service %s was not found", serviceName)
+}
+
+func assertAlbActionDoesNotExist(t *fixtures.Then, s *AWSSuite, actionName string) {
+	ingress := t.GetALBIngress()
+	key := "alb.ingress.kubernetes.io/actions." + actionName
+	_, ok := ingress.Annotations[key]
+	assert.False(s.T(), ok, "Annotation for action should not exist: %s", key)
 }

@@ -12,6 +12,11 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
+func TestGetStringOrDefault(t *testing.T) {
+	assert.Equal(t, "some value", GetStringOrDefault("some value", "default value"))
+	assert.Equal(t, "default value", GetStringOrDefault("", "default value"))
+}
+
 func TestGetReplicasOrDefault(t *testing.T) {
 	replicas := int32(2)
 	assert.Equal(t, replicas, GetReplicasOrDefault(&replicas))
