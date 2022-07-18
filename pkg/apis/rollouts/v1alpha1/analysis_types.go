@@ -13,7 +13,7 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=clusteranalysistemplates,shortName=cat
+// +kubebuilder:resource:path=clusteranalysistemplates,shortName=cat,scope=Cluster
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
 type ClusterAnalysisTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
