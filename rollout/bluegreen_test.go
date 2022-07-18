@@ -45,7 +45,7 @@ func TestBlueGreenComplateRolloutRestart(t *testing.T) {
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
 
-	completedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
+	completedCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionTrue, conditions.RolloutHealthyReason, conditions.RolloutHealthyReason)
 	conditions.SetRolloutCondition(&r.Status, *completedCond)
 
 	f.rolloutLister = append(f.rolloutLister, r)
@@ -57,7 +57,7 @@ func TestBlueGreenComplateRolloutRestart(t *testing.T) {
 
 	rs := newReplicaSet(r, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	generatedConditions := generateConditionsPatchWithComplete(false, conditions.ReplicaSetNotAvailableReason, rs, false, "", false)
+	generatedConditions := generateConditionsPatchWithHealthy(false, conditions.ReplicaSetNotAvailableReason, rs, false, "", false)
 
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
@@ -1147,7 +1147,7 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 
 	f.run(getKey(r2, t))
 
-	newConditions := generateConditionsPatchWithComplete(true, conditions.NewRSAvailableReason, rs2, true, "", true)
+	newConditions := generateConditionsPatchWithHealthy(true, conditions.NewRSAvailableReason, rs2, true, "", true)
 	expectedPatch := fmt.Sprintf(`{
 		"status":{
 			"conditions":%s
@@ -1157,13 +1157,13 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 	assert.Equal(t, cleanPatch(expectedPatch), patch)
 }
 
-func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
+func TestBlueGreenRolloutHealthyFalse(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
-	completedCondition, _ := newCompletedCondition(true)
-	conditions.SetRolloutCondition(&r1.Status, completedCondition)
+	healthyCondition, _ := newHealthyCondition(true)
+	conditions.SetRolloutCondition(&r1.Status, healthyCondition)
 
 	r2 := bumpVersion(r1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -1198,7 +1198,7 @@ func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
 	assert.NoError(t, err)
 
 	index := len(rolloutPatch.Status.Conditions) - 2
-	assert.Equal(t, v1alpha1.RolloutCompleted, rolloutPatch.Status.Conditions[index].Type)
+	assert.Equal(t, v1alpha1.RolloutHealthy, rolloutPatch.Status.Conditions[index].Type)
 	assert.Equal(t, corev1.ConditionFalse, rolloutPatch.Status.Conditions[index].Status)
 }
 
@@ -1522,8 +1522,8 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true)
-	completedCondition, _ := newCompletedCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	healthyCondition, _ := newHealthyCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 

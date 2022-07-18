@@ -64,10 +64,13 @@ const (
 	// RolloutUpdatedMessage indicates the rollout spec was updated.
 	RolloutUpdatedMessage = "Rollout updated to revision %s"
 
+	// RolloutHealthyReason is added in a rollout when it is healthy.
+	RolloutHealthyReason = "RolloutHealthy"
+	// RolloutHealthyMessage is added when the rollout is healthy
+	RolloutHealthyMessage = "Rollout healthy update to revision %d (%s): %s"
+
 	// RolloutCompletedReason is added in a rollout when it is completed.
 	RolloutCompletedReason = "RolloutCompleted"
-	// RolloutCompletedMessage is added when the rollout is completed
-	RolloutCompletedMessage = "Rollout completed update to revision %d (%s): %s"
 
 	// RolloutAbortedReason indicates that the rollout was aborted
 	RolloutAbortedReason = "RolloutAborted"
@@ -254,9 +257,14 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 		strategySpecificProgress
 }
 
-// RolloutComplete considers a rollout to be complete once all of its desired replicas
-// are updated, available, and receiving traffic from the active service, and no old pods are running.
+// RolloutComplete considers a rollout to be complete once pod hashes are equal.
 func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+	return newStatus.CurrentPodHash == newStatus.StableRS
+}
+
+// RolloutHealthy considers a rollout to be healthy once all of its desired replicas
+// are updated, available, and receiving traffic from the active service, and no old pods are running.
+func RolloutHealthy(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
 	completedStrategy := true
 	replicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 

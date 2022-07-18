@@ -93,7 +93,7 @@ spec:
 			"RolloutUpdated",       // Rollout updated to revision 1
 			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-698fbfb9dc (revision 1)
 			"ScalingReplicaSet",    // Scaled up ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) from 0 to 1
-			"RolloutCompleted",     // Rollout completed update to revision 1 (698fbfb9dc): Initial deploy
+			"RolloutHealthy",       // Rollout healthy update to revision 1 (698fbfb9dc): Initial deploy
 			"RolloutUpdated",       // Rollout updated to revision 2
 			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2)
 			"ScalingReplicaSet",    // Scaled up ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) from 0 to 1
@@ -107,7 +107,7 @@ spec:
 			"RolloutStepCompleted", // Rollout step 2/2 completed (pause: 3s)
 			"RolloutResumed",       // Rollout is resumed
 			"ScalingReplicaSet",    // Scaled down ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) from 1 to 0
-			"RolloutCompleted",     // Rollout completed update to revision 2 (75dcb5ddd6): Completed all 2 canary steps
+			"RolloutHealthy",       // Rollout healthy update to revision 2 (75dcb5ddd6): Completed all 2 canary steps
 		})
 }
 
@@ -702,13 +702,13 @@ func (s *FunctionalSuite) TestBlueGreenUpdate() {
 			"RolloutUpdated",       // Rollout updated to revision 1
 			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-7dcd8f8869 (revision 1)
 			"ScalingReplicaSet",    // Scaled up ReplicaSet bluegreen-7dcd8f8869 (revision 1) from 0 to 3
-			"RolloutCompleted",     // Rollout completed update to revision 1 (7dcd8f8869): Initial deploy
+			"RolloutHealthy",       // Rollout healthy update to revision 1 (7dcd8f8869): Initial deploy
 			"SwitchService",        // Switched selector for service 'bluegreen' from '' to '7dcd8f8869'
 			"RolloutUpdated",       // Rollout updated to revision 2
 			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-5498785cd6 (revision 2)
 			"ScalingReplicaSet",    // Scaled up ReplicaSet bluegreen-5498785cd6 (revision 2) from 0 to 3
 			"SwitchService",        // Switched selector for service 'bluegreen' from '7dcd8f8869' to '6c779b88b6'
-			"RolloutCompleted",     // Rollout completed update to revision 2 (6c779b88b6): Completed blue-green update
+			"RolloutHealthy",       // Rollout healthy update to revision 2 (6c779b88b6): Completed blue-green update
 		})
 }
 

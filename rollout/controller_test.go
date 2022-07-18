@@ -193,18 +193,18 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-func newCompletedCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
+func newHealthyCondition(isHealthy bool) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
-	if !isCompleted {
+	if !isHealthy {
 		status = corev1.ConditionFalse
 	}
 	condition := v1alpha1.RolloutCondition{
 		LastTransitionTime: timeutil.MetaNow(),
 		LastUpdateTime:     timeutil.MetaNow(),
-		Message:            conditions.RolloutCompletedReason,
-		Reason:             conditions.RolloutCompletedReason,
+		Message:            conditions.RolloutHealthyReason,
+		Reason:             conditions.RolloutHealthyReason,
 		Status:             status,
-		Type:               v1alpha1.RolloutCompleted,
+		Type:               v1alpha1.RolloutHealthy,
 	}
 	conditionBytes, err := json.Marshal(condition)
 	if err != nil {
@@ -334,14 +334,14 @@ func generateConditionsPatchWithPause(available bool, progressingReason string, 
 	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, pauseCondition, availableCondition)
 }
 
-func generateConditionsPatchWithComplete(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
+func generateConditionsPatchWithHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
-	_, completeCondition := newCompletedCondition(isCompleted)
+	_, healthyCondition := newHealthyCondition(isHealthy)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s, %s]", availableCondition, completeCondition, progressingCondition)
+		return fmt.Sprintf("[%s, %s, %s]", availableCondition, healthyCondition, progressingCondition)
 	}
-	return fmt.Sprintf("[%s, %s, %s]", completeCondition, progressingCondition, availableCondition)
+	return fmt.Sprintf("[%s, %s, %s]", healthyCondition, progressingCondition, availableCondition)
 }
 
 func updateConditionsPatch(r v1alpha1.Rollout, newCondition v1alpha1.RolloutCondition) string {
@@ -373,6 +373,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
 	}
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
+
 	return newRollout
 }
 func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool) *v1alpha1.Rollout {
@@ -387,6 +388,7 @@ func updateCanaryRolloutStatus(r *v1alpha1.Rollout, stableRS string, availableRe
 		newRollout.Status.ControllerPause = true
 		newRollout.Status.PauseConditions = append(newRollout.Status.PauseConditions, cond)
 	}
+
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, newRollout.Status)
 	return newRollout
 }
@@ -1159,7 +1161,7 @@ func TestAdoptReplicaSet(t *testing.T) {
 }
 
 func TestRequeueStuckRollout(t *testing.T) {
-	rollout := func(progressingConditionReason string, rolloutCompleted bool, rolloutPaused bool, progressDeadlineSeconds *int32) *v1alpha1.Rollout {
+	rollout := func(progressingConditionReason string, rolloutHealthy bool, rolloutPaused bool, progressDeadlineSeconds *int32) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Replicas:                pointer.Int32Ptr(0),
@@ -1172,7 +1174,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 				Reason: v1alpha1.PauseReasonBlueGreenPause,
 			}}
 		}
-		if rolloutCompleted {
+		if rolloutHealthy {
 			r.Status.ObservedGeneration = strconv.Itoa(int(r.Generation))
 		}
 

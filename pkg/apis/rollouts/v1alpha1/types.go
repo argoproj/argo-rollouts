@@ -979,6 +979,8 @@ const (
 	RolloutReplicaFailure RolloutConditionType = "ReplicaFailure"
 	// RolloutPaused means that rollout is in a paused state. It is still progressing at this point.
 	RolloutPaused RolloutConditionType = "Paused"
+	// RolloutHealthy means that rollout is in a completed state. It is still progressing at this point.
+	RolloutHealthy RolloutConditionType = "Healthy"
 	// RolloutCompleted means that rollout is in a completed state. It is still progressing at this point.
 	RolloutCompleted RolloutConditionType = "Completed"
 )
