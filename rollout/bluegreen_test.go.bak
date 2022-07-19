@@ -38,7 +38,7 @@ func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32,
 	return rollout
 }
 
-func TestBlueGreenComplateRolloutRestart(t *testing.T) {
+func TestBlueGreenHealthyRolloutRestart(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -57,7 +57,7 @@ func TestBlueGreenComplateRolloutRestart(t *testing.T) {
 
 	rs := newReplicaSet(r, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	generatedConditions := generateConditionsPatchWithHealthy(false, conditions.ReplicaSetNotAvailableReason, rs, false, "", false, true)
+	generatedConditions := generateConditionsPatchWithHealthyAndComplete(false, conditions.ReplicaSetNotAvailableReason, rs, false, "", false, true)
 
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
@@ -107,7 +107,11 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 
 	rs := newReplicaSet(r, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	generatedConditions := generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
+
+	_, progressingCondition := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
+	_, completeCondition := newCompletedCondition(true)
+	_, availableCondition := newAvailableCondition(false)
+	generatedConditions := fmt.Sprintf("[%s,%s,%s]", progressingCondition, availableCondition, completeCondition)
 
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
@@ -271,12 +275,20 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 2, 2, 4, 2, false, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 2, 2, 4, 2, false, true)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 		activeSvc := newService("active", 80, activeSelector, r2)
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 		previewSvc := newService("preview", 80, previewSelector, r2)
+
+		//TODO: is this correct, we can add and remove this with the condition for complete code removed and it dose not affect the test but is needed for the test to pass with the complete condition being set
+		progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+		availableCondition, _ := newAvailableCondition(true)
+		conditions.SetRolloutCondition(&r2.Status, availableCondition)
+		completedCondition, _ := newCompletedCondition(false)
+		conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, activeSvc, previewSvc, rs1, rs2)
@@ -302,11 +314,19 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 		previewSvc := newService("preview", 80, previewSelector, r2)
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 		activeSvc := newService("active", 80, activeSelector, r2)
+
+		//TODO: is this correct, we can add and remove this with the condition for complete code removed and it dose not affect the test but is needed for the test to pass with the complete condition being set
+		progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+		availableCondition, _ := newAvailableCondition(true)
+		conditions.SetRolloutCondition(&r2.Status, availableCondition)
+		completedCondition, _ := newCompletedCondition(false)
+		conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
@@ -350,7 +370,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 		previewSvc := newService("preview", 80, previewSelector, r2)
@@ -373,7 +393,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"conditions": %s
 			}
 		}`
-		addedConditions := generateConditionsPatchWithPause(true, conditions.RolloutPausedReason, rs2, true, "", true, false)
+		addedConditions := generateConditionsPatchWithPauseAndCompleted(true, conditions.RolloutPausedReason, rs2, true, "", true, false)
 		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, addedConditions)), patch)
 	})
 
@@ -390,7 +410,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
@@ -402,6 +422,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		previewSvc := newService("preview", 80, previewSelector, r2)
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 		activeSvc := newService("active", 80, activeSelector, r2)
+
+		completedCondition, _ := newCompletedCondition(false)
+		conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, previewSvc, activeSvc, rs1, rs2)
@@ -433,7 +456,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 		now := timeutil.MetaNow()
 		r2.Status.PauseConditions = append(r2.Status.PauseConditions, v1alpha1.PauseCondition{
 			Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
@@ -444,6 +467,10 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		pausedCondition, _ := newPausedCondition(true)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+		completedCondition, _ := newCompletedCondition(false)
+		conditions.SetRolloutCondition(&r2.Status, completedCondition)
+
 		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
@@ -479,12 +506,15 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 		progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 		pausedCondition, _ := newPausedCondition(true)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+		completedCondition, _ := newCompletedCondition(false)
+		conditions.SetRolloutCondition(&r2.Status, completedCondition)
 		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 		previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
@@ -517,7 +547,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 		now := timeutil.MetaNow()
 		before := metav1.NewTime(now.Add(-1 * time.Minute))
 		r2.Status.PauseConditions[0].StartTime = before
@@ -527,6 +557,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		pausedCondition, _ := newPausedCondition(true)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+		completedCondition, _ := newCompletedCondition(false)
+		conditions.SetRolloutCondition(&r2.Status, completedCondition)
 		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -575,7 +608,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 		now := timeutil.MetaNow()
 		before := metav1.NewTime(now.Add(-1 * time.Minute))
 		r2.Status.PauseConditions[0].StartTime = before
@@ -586,6 +619,9 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		pausedCondition, _ := newPausedCondition(true)
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+		completedCondition, _ := newCompletedCondition(false)
+		conditions.SetRolloutCondition(&r2.Status, completedCondition)
 		r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -619,13 +655,15 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 		r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = pointer.Int32Ptr(10)
 
 		progressingCondition, _ := newProgressingCondition(conditions.NewReplicaSetReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
-		completeCondition, _ := newCompletedCondition(false)
-		conditions.SetRolloutCondition(&r2.Status, completeCondition)
+
+		completedCondition, _ := newCompletedCondition(false)
+		conditions.SetRolloutCondition(&r2.Status, completedCondition)
+
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 		activeSvc := newService("active", 80, activeSelector, r2)
 
@@ -637,7 +675,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs2PodHash)
 
-		generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
+		generatedConditions := generateConditionsPatchWithComplete(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
 		newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
 		expectedPatchWithoutSubs := `{
 			"status": {
@@ -672,10 +710,14 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs2 := newReplicaSetWithStatus(r2, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 
 		progressingCondition, _ := newProgressingCondition(conditions.NewReplicaSetReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+
+		completedCondition, _ := newCompletedCondition(false)
+		conditions.SetRolloutCondition(&r2.Status, completedCondition)
+
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 		activeSvc := newService("active", 80, activeSelector, r2)
 
@@ -715,7 +757,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs1 := newReplicaSetWithStatus(r1, 1, 1)
 		rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-		r1 = updateBlueGreenRolloutStatus(r1, "", "", "", 1, 1, 1, 1, false, false, false)
+		r1 = updateBlueGreenRolloutStatus(r1, "", "", "", 1, 1, 1, 1, false, false)
 
 		activeSelector := map[string]string{"foo": "bar"}
 
@@ -741,7 +783,12 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			}
 		}`
 
-		generateConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
+		//_, availableCondition := newAvailableCondition(true)
+		//_, progressingCondition := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs1, "")
+		//_, completeCondition := newCompletedCondition(true)
+		//generateConditions := fmt.Sprintf("[%s, %s, %s]", progressingCondition, availableCondition, completeCondition)
+
+		generateConditions := generateConditionsPatchWithComplete(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
 		newSelector := metav1.FormatLabelSelector(rs1.Spec.Selector)
 		expectedPatch := calculatePatch(r1, fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash, rs1PodHash, generateConditions, newSelector))
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r1, expectedPatch)
@@ -767,7 +814,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 		r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = pointer.Int32Ptr(10)
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 		r2.Status.ControllerPause = true
 		pausedCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
@@ -790,11 +837,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
 		unpausePatch := f.getPatchedRollout(unpausePatchIndex)
-		//unpauseConditions := generateConditionsPatch(true, conditions.RolloutResumedReason, rs2, true, "", false)
-		_, availableCondition := newAvailableCondition(true)
-		_, progressingCondition := newProgressingCondition(conditions.RolloutResumedReason, rs2, "")
-		_, completedCondition := newCompletedCondition(false)
-		unpauseConditions := fmt.Sprintf("[%s, %s, %s]", availableCondition, completedCondition, progressingCondition)
+		unpauseConditions := generateConditionsPatch(true, conditions.RolloutResumedReason, rs2, true, "")
 		expectedUnpausePatch := `{
 			"status": {
 				"conditions": %s
@@ -802,7 +845,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		}`
 		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedUnpausePatch, unpauseConditions)), unpausePatch)
 
-		generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
+		generatedConditions := generateConditionsPatchWithComplete(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
 		expected2ndPatchWithoutSubs := `{
 			"status": {
 				"blueGreen": {
@@ -841,7 +884,7 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
 	r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = pointer.Int32Ptr(10)
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
@@ -864,7 +907,7 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 		}
 	}`
 	newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
-	expectedCondition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
+	expectedCondition := generateConditionsPatchWithComplete(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, expectedCondition, newSelector))
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -885,7 +928,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
 	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
 
-	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 0, 0, 0, 0, true, false, false)
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 0, 0, 0, 0, true, false)
 	r2.Status.Selector = ""
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
@@ -946,7 +989,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 	assert.Len(t, f.client.Actions(), 1)
 	result := f.client.Actions()[0].(core.PatchAction).GetPatch()
 	_, availableStr := newAvailableCondition(false)
-	_, completedCondition := newCompletedCondition(true)
+	_, completedStr := newCompletedCondition(true)
 	expectedPatchWithoutSub := `{
 		"status":{
 			"HPAReplicas":1,
@@ -958,7 +1001,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsNoActiveSelector(t *testing.T) {
 			"selector":"foo=bar"
 		}
 	}`
-	expectedPatch := calculatePatch(ro, fmt.Sprintf(expectedPatchWithoutSub, progressingConditionStr, availableStr, completedCondition))
+	expectedPatch := calculatePatch(ro, fmt.Sprintf(expectedPatchWithoutSub, progressingConditionStr, availableStr, completedStr))
 	assert.Equal(t, expectedPatch, string(result))
 }
 
@@ -980,7 +1023,7 @@ func TestBlueGreenRolloutScaleUpdateActiveRS(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 1, 1, false, true, false)
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 1, 1, false, true)
 	f.objects = append(f.objects, r2)
 	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
 	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
@@ -1013,7 +1056,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 
 		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 3, 3, 8, 5, false, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 3, 3, 8, 5, false, true)
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.objects = append(f.objects, r2)
 		f.kubeobjects = append(f.kubeobjects, activeSvc)
@@ -1045,7 +1088,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 
 		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 5, 5, 8, 5, false, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 5, 5, 8, 5, false, true)
 		r2.Status.BlueGreen.ScaleUpPreviewCheckPoint = true
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.objects = append(f.objects, r2)
@@ -1076,7 +1119,7 @@ func TestPreviewReplicaCountHandleScaleUpPreviewCheckPoint(t *testing.T) {
 
 		activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
 
-		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 5, 5, 8, 5, false, true, false)
+		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 5, 5, 8, 5, false, true)
 		r2.Status.BlueGreen.ScaleUpPreviewCheckPoint = true
 		f.rolloutLister = append(f.rolloutLister, r2)
 		f.objects = append(f.objects, r2)
@@ -1110,7 +1153,7 @@ func TestBlueGreenRolloutIgnoringScalingUsePreviewRSCount(t *testing.T) {
 	previewSvc := newService("preview", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
 	activeSvc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}, r2)
 
-	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 2, 1, 1, 1, false, true, false)
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 2, 1, 1, 1, false, true)
 	// Scaling up the rollout
 	r2.Spec.Replicas = pointer.Int32Ptr(2)
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1143,7 +1186,7 @@ func TestBlueGreenRolloutHealthy(t *testing.T) {
 	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s)
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true, false)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1154,7 +1197,7 @@ func TestBlueGreenRolloutHealthy(t *testing.T) {
 
 	f.run(getKey(r2, t))
 
-	newConditions := generateConditionsPatchWithHealthy(true, conditions.NewRSAvailableReason, rs2, true, "", true, true)
+	newConditions := generateConditionsPatchWithHealthyAndComplete(true, conditions.NewRSAvailableReason, rs2, true, "", true, true)
 	expectedPatch := fmt.Sprintf(`{
 		"status":{
 			"conditions":%s
@@ -1169,8 +1212,8 @@ func TestBlueGreenRolloutHealthyFalse(t *testing.T) {
 	defer f.Close()
 
 	r1 := newBlueGreenRollout("foo", 1, nil, "bar", "")
-	healthyCondition, _ := newHealthyCondition(true)
-	conditions.SetRolloutCondition(&r1.Status, healthyCondition)
+	completedCondition, _ := newHealthyCondition(true)
+	conditions.SetRolloutCondition(&r1.Status, completedCondition)
 
 	r2 := bumpVersion(r1)
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
@@ -1189,7 +1232,7 @@ func TestBlueGreenRolloutHealthyFalse(t *testing.T) {
 	s := newService("bar", 80, serviceSelector, r2)
 	f.kubeobjects = append(f.kubeobjects, s)
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, true, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, true, false)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1204,7 +1247,7 @@ func TestBlueGreenRolloutHealthyFalse(t *testing.T) {
 	err := json.Unmarshal([]byte(patch), &rolloutPatch)
 	assert.NoError(t, err)
 
-	index := len(rolloutPatch.Status.Conditions) - 2
+	index := len(rolloutPatch.Status.Conditions) - 3
 	assert.Equal(t, v1alpha1.RolloutHealthy, rolloutPatch.Status.Conditions[index].Type)
 	assert.Equal(t, corev1.ConditionFalse, rolloutPatch.Status.Conditions[index].Status)
 }
@@ -1227,7 +1270,7 @@ func TestBlueGreenUnableToReadScaleDownAt(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
@@ -1240,6 +1283,7 @@ func TestBlueGreenUnableToReadScaleDownAt(t *testing.T) {
 	patch := f.getPatchedRollout(patchIndex)
 
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
+
 	assert.Equal(t, expectedPatch, patch)
 
 }
@@ -1264,7 +1308,7 @@ func TestBlueGreenNotReadyToScaleDownOldReplica(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
@@ -1272,8 +1316,17 @@ func TestBlueGreenNotReadyToScaleDownOldReplica(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
+	expectedPatchWithoutSubs := `{
+	"status": {
+		"conditions": %s,
+		"observedGeneration": "124"
+	}
+    }`
+
 	patch := f.getPatchedRollout(patchIndex)
-	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
+	condition := generateConditionsPatchWithComplete(true, conditions.ReplicaSetUpdatedReason, r2, false, "", true)
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, condition))
+
 	assert.Equal(t, expectedPatch, patch)
 }
 
@@ -1297,7 +1350,7 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
@@ -1342,7 +1395,7 @@ func TestFastRollback(t *testing.T) {
 	r2.Status.CurrentPodHash = rs1PodHash
 	rs1.Annotations[annotations.RevisionAnnotation] = "3"
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
@@ -1380,7 +1433,7 @@ func TestBlueGreenScaleDownLimit(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2, rs3)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2, rs3)
 
-	r3 = updateBlueGreenRolloutStatus(r3, "", rs3PodHash, rs3PodHash, 1, 1, 3, 1, false, true, true)
+	r3 = updateBlueGreenRolloutStatus(r3, "", rs3PodHash, rs3PodHash, 1, 1, 3, 1, false, true)
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.objects = append(f.objects, r3)
 	f.serviceLister = append(f.serviceLister, s)
@@ -1419,7 +1472,7 @@ func TestBlueGreenAbort(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, s, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 	f.serviceLister = append(f.serviceLister, s)
@@ -1427,7 +1480,7 @@ func TestBlueGreenAbort(t *testing.T) {
 	f.expectPatchServiceAction(s, rs1PodHash)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
-	expectedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, true, "", false)
+	expectedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, true, "")
 	expectedPatch := fmt.Sprintf(`{
 		"status": {
 			"blueGreen": {
@@ -1456,7 +1509,7 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
 	now := timeutil.MetaNow()
 	before := metav1.NewTime(now.Add(-1 * time.Minute))
 	r2.Status.PauseConditions[0].StartTime = before
@@ -1488,7 +1541,7 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 				"blueGreen": {
 					"activeSelector": "%s"
 				},
-				"conditions": [%s, %s, %s, %s],
+				"conditions": [%s, %s, %s],
 				"stableRS": "%s",
 				"pauseConditions": null,
 				"controllerPause": null,
@@ -1499,17 +1552,12 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 		}`
 	availableCondBytes, err := json.Marshal(r2.Status.Conditions[0])
 	assert.Nil(t, err)
-
-	_, completedCond := newCompletedCondition(true)
-
 	updatedProgressingCond, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, fmt.Sprintf("ReplicaSet \"%s\" is progressing.", rs2.Name))
 	progressingCondBytes, err := json.Marshal(updatedProgressingCond)
 	assert.Nil(t, err)
-
-	pausedCondBytes, err := json.Marshal(r2.Status.Conditions[3])
+	pausedCondBytes, err := json.Marshal(r2.Status.Conditions[2])
 	assert.Nil(t, err)
-
-	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, string(availableCondBytes), string(pausedCondBytes), string(progressingCondBytes), completedCond, rs2PodHash, rs2PodHash))
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, string(availableCondBytes), string(pausedCondBytes), string(progressingCondBytes), rs2PodHash, rs2PodHash))
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 	f.run(getKey(r2, t))
@@ -1533,13 +1581,11 @@ func TestBlueGreenAddScaleDownDelay(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true, false)
-	healthyCondition, _ := newHealthyCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 2, 1, false, true)
+	completedCondition, _ := newHealthyCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
-	completedCondtion, _ := newCompletedCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, completedCondtion)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)

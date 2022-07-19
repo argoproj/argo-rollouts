@@ -302,7 +302,7 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	svc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true, false)
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	healthyCondition, _ := newHealthyCondition(true)
@@ -385,13 +385,15 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	svc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true, false)
 	r2.Status.Message = "waiting for post-promotion verification to complete"
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	healthyCondition, _ := newHealthyCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondtion, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondtion)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
@@ -490,6 +492,8 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondtion, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondtion)
 	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -584,6 +588,8 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -643,6 +649,8 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)

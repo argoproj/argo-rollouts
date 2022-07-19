@@ -213,6 +213,26 @@ func newHealthyCondition(isHealthy bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
+func newCompletedCondition(isHealthy bool) (v1alpha1.RolloutCondition, string) {
+	status := corev1.ConditionTrue
+	if !isHealthy {
+		status = corev1.ConditionFalse
+	}
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
+		Message:            conditions.RolloutCompletedReason,
+		Reason:             conditions.RolloutCompletedReason,
+		Status:             status,
+		Type:               v1alpha1.RolloutCompleted,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
+}
+
 func newProgressingCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	msg := ""
@@ -315,7 +335,16 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string) string {
+//stripConditionFromStatus removes the conditions field from a string representation of a status object
+func stripConditionFromStatus(statusPatch string) string {
+	var patchMap map[string]interface{}
+	json.Unmarshal([]byte(statusPatch), &patchMap)
+	delete(patchMap["status"].(map[string]interface{}), "conditions")
+	patchBytes, _ := json.Marshal(patchMap)
+	return string(patchBytes)
+}
+
+func generateConditionsPatchRemoveDELETEME(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	if availableConditionFirst {
@@ -324,24 +353,36 @@ func generateConditionsPatch(available bool, progressingReason string, progressi
 	return fmt.Sprintf("[%s, %s]", progressingCondition, availableCondition)
 }
 
-func generateConditionsPatchWithPause(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isPaused bool) string {
+func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
+	_, availableCondition := newAvailableCondition(available)
+	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, completedCondition := newCompletedCondition(isCompleted)
+	if availableConditionFirst {
+		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, completedCondition)
+	}
+	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, availableCondition, completedCondition)
+}
+
+func generateConditionsPatchWithPause(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isPaused bool, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	_, pauseCondition := newPausedCondition(isPaused)
+	_, completedCondition := newCompletedCondition(isCompleted)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, pauseCondition)
+		return fmt.Sprintf("[%s, %s, %s, %s]", availableCondition, completedCondition, progressingCondition, pauseCondition)
 	}
-	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, pauseCondition, availableCondition)
+	return fmt.Sprintf("[%s, %s, %s, %s]", progressingCondition, pauseCondition, availableCondition, completedCondition)
 }
 
-func generateConditionsPatchWithHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool) string {
+func generateConditionsPatchWithHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	_, healthyCondition := newHealthyCondition(isHealthy)
+	_, completedCondition := newCompletedCondition(isCompleted)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s, %s]", availableCondition, healthyCondition, progressingCondition)
+		return fmt.Sprintf("[%s, %s, %s, %s]", availableCondition, healthyCondition, progressingCondition, completedCondition)
 	}
-	return fmt.Sprintf("[%s, %s, %s]", healthyCondition, progressingCondition, availableCondition)
+	return fmt.Sprintf("[%s, %s, %s, %s]", healthyCondition, progressingCondition, availableCondition, completedCondition)
 }
 
 func updateConditionsPatch(r v1alpha1.Rollout, newCondition v1alpha1.RolloutCondition) string {
@@ -351,7 +392,7 @@ func updateConditionsPatch(r v1alpha1.Rollout, newCondition v1alpha1.RolloutCond
 }
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
-func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
+func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool, isCompleted bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas)
 	selector := newRollout.Spec.Selector.DeepCopy()
 	if active != "" {
@@ -363,6 +404,8 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 	newRollout.Status.StableRS = stable
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
+	completedCondition, _ := newCompletedCondition(isCompleted)
+	newRollout.Status.Conditions = append(newRollout.Status.Conditions, completedCondition)
 	if pause {
 		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
@@ -1392,6 +1435,8 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&r.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r.Status, completedCondition)
 	r.Status.Phase, r.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, r.Status)
 
 	podTemplate := corev1.PodTemplate{
@@ -1436,6 +1481,8 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&r.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r.Status, completedCondition)
 
 	podTemplate := corev1.PodTemplate{
 		Template: rs.Spec.Template,
@@ -1463,7 +1510,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	activeSvc := newService("active", 80, nil, r)
 	rs := newReplicaSetWithStatus(r, 1, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true)
+	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true, false)
 	// StableRS is set to avoid running the migration code. When .status.canary.stableRS is removed, the line below can be deleted
 	//r.Status.Canary.StableRS = rsPodHash
 	r.Spec.Strategy.BlueGreen = nil
@@ -1481,7 +1528,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f.run(getKey(r, t))
 	patch := f.getPatchedRollout(i)
 
-	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "")
+	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "", true)
 	expectedPatch := fmt.Sprintf(`{
 			"status": {
 				"blueGreen": {
