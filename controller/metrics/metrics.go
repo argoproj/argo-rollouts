@@ -28,6 +28,7 @@ type MetricsServer struct {
 	errorAnalysisRunCounter       *prometheus.CounterVec
 	successNotificationCounter    *prometheus.CounterVec
 	errorNotificationCounter      *prometheus.CounterVec
+	rolloutInfoCounter            *prometheus.CounterVec
 	sendNotificationRunHistogram  *prometheus.HistogramVec
 	k8sRequestsCounter            *K8sRequestsCountProvider
 }
@@ -72,6 +73,7 @@ func NewMetricsServer(cfg ServerConfig, isPrimary bool) *MetricsServer {
 	cfg.K8SRequestProvider.MustRegister(reg)
 	reg.MustRegister(MetricRolloutReconcile)
 	reg.MustRegister(MetricRolloutReconcileError)
+	reg.MustRegister(MetricRolloutInfoTotal)
 	reg.MustRegister(MetricRolloutEventsTotal)
 	reg.MustRegister(MetricExperimentReconcile)
 	reg.MustRegister(MetricExperimentReconcileError)
@@ -104,6 +106,7 @@ func NewMetricsServer(cfg ServerConfig, isPrimary bool) *MetricsServer {
 		successNotificationCounter:    MetricNotificationSuccessTotal,
 		errorNotificationCounter:      MetricNotificationFailedTotal,
 		sendNotificationRunHistogram:  MetricNotificationSend,
+		rolloutInfoCounter:            MetricRolloutInfoTotal,
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
 	}
@@ -134,6 +137,11 @@ func (m *MetricsServer) IncError(namespace, name string, kind string) {
 	case log.ExperimentKey:
 		m.errorExperimentCounter.WithLabelValues(namespace, name).Inc()
 	}
+}
+
+// IncAnalysisFailed increments rolloutInfoCounter counter for a rollout
+func (m *MetricsServer) IncAnalysisFailed(namespace, name string, reason string) {
+	m.rolloutInfoCounter.WithLabelValues(namespace, name, reason).Inc()
 }
 
 func boolFloat64(b bool) float64 {

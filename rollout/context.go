@@ -3,6 +3,8 @@ package rollout
 import (
 	"time"
 
+	"github.com/argoproj/argo-rollouts/controller/metrics"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -39,8 +41,9 @@ type rolloutContext struct {
 	currentEx *v1alpha1.Experiment
 	otherExs  []*v1alpha1.Experiment
 
-	newStatus    v1alpha1.RolloutStatus
-	pauseContext *pauseContext
+	metricsServer *metrics.MetricsServer
+	newStatus     v1alpha1.RolloutStatus
+	pauseContext  *pauseContext
 
 	// targetsVerified indicates if the pods targets have been verified with underlying LoadBalancer.
 	// This is used in pod-aware flat networks where LoadBalancers target Pods and not Nodes.

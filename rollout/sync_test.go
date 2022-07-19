@@ -1,9 +1,16 @@
 package rollout
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/controller/metrics"
+	informerfactory "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
+	analysisutil "github.com/argoproj/argo-rollouts/utils/analysis"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -451,5 +458,215 @@ func TestSendStateChangeEvents(t *testing.T) {
 		roCtx.recorder = recorder
 		roCtx.sendStateChangeEvents(&test.prevStatus, &test.newStatus)
 		assert.Equal(t, test.expectedEventReasons, recorder.Events)
+	}
+}
+
+// TestSendStateChangeEvents verifies we emit appropriate events on rollout state changes
+func TestCalculateRolloutConditions(t *testing.T) {
+	now := timeutil.MetaNow()
+	before := metav1.Time{Time: now.Add(-time.Minute)}
+	testStatus := []struct {
+		newStatus v1alpha1.RolloutStatus
+	}{
+		{
+			newStatus: v1alpha1.RolloutStatus{
+				PauseConditions: []v1alpha1.PauseCondition{
+					{Reason: conditions.RolloutAnalysisRunFailedReason, StartTime: now},
+				},
+				HPAReplicas:       4,
+				Abort:             true,
+				AbortedAt:         &now,
+				AvailableReplicas: 4,
+				Canary: v1alpha1.CanaryStatus{
+					CurrentStepAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
+						Name:    "rollouts-demo-98447df77-2-1",
+						Message: "Metric \"success-rate\" assessed Failed due to failed (1) \u003e failureLimit (0)",
+						Status:  v1alpha1.AnalysisPhaseFailed,
+					},
+				},
+			},
+		},
+	}
+	promAddress := "http://prom-test"
+	promPort := "9090"
+	testAnalysis := []struct {
+		newAr analysisutil.CurrentAnalysisRuns
+	}{
+		{
+			newAr: analysisutil.CurrentAnalysisRuns{
+				CanaryStep: &v1alpha1.AnalysisRun{
+					Spec: v1alpha1.AnalysisRunSpec{
+						Args: []v1alpha1.Argument{
+							{
+								Name:  "service-name",
+								Value: &promAddress,
+							},
+							{
+								Name:  "prometheus-port",
+								Value: &promPort,
+							},
+						},
+						Metrics: []v1alpha1.Metric{
+							{
+								Name: "success-rate",
+								Provider: v1alpha1.MetricProvider{
+									Prometheus: &v1alpha1.PrometheusMetric{
+										Address: "{{args.service-name}}:{{args.prometheus-port}}",
+										Query:   "sum(rate(container_cpu_usage_seconds_total{namespace=\"rollout-canary\", container=\"rollouts-demo\"}[5m]))\n",
+									},
+								},
+								SuccessCondition: "len(result) \u003e 0 ? result[0] \u003e= 1 : false",
+							},
+						},
+					},
+					Status: v1alpha1.AnalysisRunStatus{
+						DryRunSummary: &v1alpha1.RunSummary{},
+						Message:       "Metric \"success-rate\" assessed Failed due to failed (1) \u003e failureLimit (0)",
+						MetricResults: []v1alpha1.MetricResult{
+							{
+								Count:  1,
+								Error:  3,
+								Failed: 1,
+								Measurements: []v1alpha1.Measurement{
+									{
+										FinishedAt: &now,
+										Phase:      "Failed",
+										StartedAt:  &before,
+										Value:      "[0.0000009797031305628261]",
+									},
+								},
+								Metadata: map[string]string{
+									"ResolvedPrometheusQuery": "sum(rate(container_cpu_usage_seconds_total{namespace=\"rollout-canary\", container=\"rollouts-demo\"}[5m]))\n",
+								},
+								Name:  "success-rate",
+								Phase: "Failed",
+							},
+						},
+						Phase: "Failed",
+						RunSummary: v1alpha1.RunSummary{
+							Count:  1,
+							Failed: 1,
+						},
+						StartedAt: &before,
+					},
+				},
+			},
+		},
+		{
+			newAr: analysisutil.CurrentAnalysisRuns{
+				CanaryBackground: &v1alpha1.AnalysisRun{
+					Spec: v1alpha1.AnalysisRunSpec{
+						Args: []v1alpha1.Argument{
+							{
+								Name:  "service-name",
+								Value: &promAddress,
+							},
+							{
+								Name:  "prometheus-port",
+								Value: &promPort,
+							},
+						},
+						Metrics: []v1alpha1.Metric{
+							{
+								Name: "success-rate",
+								Provider: v1alpha1.MetricProvider{
+									Prometheus: &v1alpha1.PrometheusMetric{
+										Address: "{{args.service-name}}:{{args.prometheus-port}}",
+										Query:   "sum(rate(container_cpu_usage_seconds_total{namespace=\"rollout-canary\", container=\"rollouts-demo\"}[5m]))\n",
+									},
+								},
+								SuccessCondition: "len(result) \u003e 0 ? result[0] \u003e= 1 : false",
+							},
+						},
+					},
+					Status: v1alpha1.AnalysisRunStatus{
+						DryRunSummary: &v1alpha1.RunSummary{},
+						Message:       "Metric \"success-rate\" assessed Failed due to failed (1) \u003e failureLimit (0)",
+						MetricResults: []v1alpha1.MetricResult{
+							{
+								Count:  1,
+								Error:  3,
+								Failed: 1,
+								Measurements: []v1alpha1.Measurement{
+									{
+										FinishedAt: &now,
+										Phase:      "Failed",
+										StartedAt:  &before,
+										Value:      "[0.0000009797031305628261]",
+									},
+								},
+								Metadata: map[string]string{
+									"ResolvedPrometheusQuery": "sum(rate(container_cpu_usage_seconds_total{namespace=\"rollout-canary\", container=\"rollouts-demo\"}[5m]))\n",
+								},
+								Name:  "success-rate",
+								Phase: "Failed",
+							},
+						},
+						Phase: "Failed",
+						RunSummary: v1alpha1.RunSummary{
+							Count:  1,
+							Failed: 1,
+						},
+						StartedAt: &before,
+					},
+				},
+			},
+		},
+	}
+	for _, test := range testAnalysis {
+		r := &v1alpha1.Rollout{ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+			Status: testStatus[0].newStatus}
+		roCtx := &rolloutContext{
+			rollout: r,
+			pauseContext: &pauseContext{
+				rollout:      r,
+				addAbort:     true,
+				abortMessage: "Failed",
+			},
+			metricsServer: metrics.NewMetricsServer(newFakeServerConfig(), true),
+			currentArs:    test.newAr,
+		}
+		recorder := record.NewFakeEventRecorder()
+		roCtx.recorder = recorder
+		status := roCtx.calculateRolloutConditions(r.Status)
+		assert.Equal(t, status.Abort, true)
+	}
+}
+
+func newFakeServerConfig(objs ...runtime.Object) metrics.ServerConfig {
+	fakeClient := fake.NewSimpleClientset(objs...)
+	factory := informerfactory.NewSharedInformerFactory(fakeClient, 0)
+	roInformer := factory.Argoproj().V1alpha1().Rollouts()
+	arInformer := factory.Argoproj().V1alpha1().AnalysisRuns()
+	atInformer := factory.Argoproj().V1alpha1().AnalysisTemplates()
+	catInformer := factory.Argoproj().V1alpha1().ClusterAnalysisTemplates()
+	exInformer := factory.Argoproj().V1alpha1().Experiments()
+	ctx, cancel := context.WithCancel(context.TODO())
+
+	var hasSyncedFuncs = make([]cache.InformerSynced, 0)
+	for _, inf := range []cache.SharedIndexInformer{
+		roInformer.Informer(),
+		arInformer.Informer(),
+		atInformer.Informer(),
+		catInformer.Informer(),
+		exInformer.Informer(),
+	} {
+		go inf.Run(ctx.Done())
+		hasSyncedFuncs = append(hasSyncedFuncs, inf.HasSynced)
+
+	}
+	cache.WaitForCacheSync(ctx.Done(), hasSyncedFuncs...)
+	cancel()
+
+	return metrics.ServerConfig{
+		RolloutLister:                 roInformer.Lister(),
+		AnalysisRunLister:             arInformer.Lister(),
+		AnalysisTemplateLister:        atInformer.Lister(),
+		ClusterAnalysisTemplateLister: catInformer.Lister(),
+		ExperimentLister:              exInformer.Lister(),
+		K8SRequestProvider:            &metrics.K8sRequestsCountProvider{},
 	}
 }

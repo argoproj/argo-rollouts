@@ -561,12 +561,25 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 
 	if isAborted {
 		revision, _ := replicasetutil.Revision(c.rollout)
+		var analysisRunStatusCanaryStep, analysisRunStatusCanaryBackground, analysisRunStatus v1alpha1.AnalysisPhase
+		if c.currentArs.CanaryStep != nil {
+			analysisRunStatusCanaryStep = c.currentArs.CanaryStep.Status.Phase
+		}
+		if c.currentArs.CanaryBackground != nil {
+			analysisRunStatusCanaryBackground = c.currentArs.CanaryBackground.Status.Phase
+		}
+		if analysisRunStatusCanaryStep == "Failed" || analysisRunStatusCanaryBackground == "Failed" {
+			analysisRunStatus = conditions.RolloutAbortedWithAnalysisFailure
+		}
 		message := fmt.Sprintf(conditions.RolloutAbortedMessage, revision)
 		if c.pauseContext.abortMessage != "" {
 			message = fmt.Sprintf("%s: %s", message, c.pauseContext.abortMessage)
 		}
 		condition := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.RolloutAbortedReason, message)
 		if conditions.SetRolloutCondition(&newStatus, *condition) {
+			if analysisRunStatus == conditions.RolloutAbortedWithAnalysisFailure {
+				c.metricsServer.IncAnalysisFailed(c.rollout.Namespace, c.rollout.Name, conditions.RolloutAbortedWithAnalysisFailure)
+			}
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutAbortedReason}, message)
 		}
 	}

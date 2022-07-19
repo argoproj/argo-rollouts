@@ -73,6 +73,8 @@ const (
 	RolloutAbortedReason = "RolloutAborted"
 	// RolloutAbortedMessage indicates that the rollout was aborted
 	RolloutAbortedMessage = "Rollout aborted update to revision %d"
+	// RolloutAbortedWithAnalysisFailure indicates that the rollout was aborted with analysis failure
+	RolloutAbortedWithAnalysisFailure = "RolloutAbortedWithAnalysisFailure"
 
 	// RolloutRetryReason indicates that the rollout is retrying after being aborted
 	RolloutRetryReason = "RolloutRetry"
