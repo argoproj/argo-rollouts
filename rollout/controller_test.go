@@ -335,24 +335,6 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-//stripConditionFromStatus removes the conditions field from a string representation of a status object
-func stripConditionFromStatus(statusPatch string) string {
-	var patchMap map[string]interface{}
-	json.Unmarshal([]byte(statusPatch), &patchMap)
-	delete(patchMap["status"].(map[string]interface{}), "conditions")
-	patchBytes, _ := json.Marshal(patchMap)
-	return string(patchBytes)
-}
-
-func generateConditionsPatchRemoveDELETEME(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
-	_, availableCondition := newAvailableCondition(available)
-	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
-	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s]", availableCondition, progressingCondition)
-	}
-	return fmt.Sprintf("[%s, %s]", progressingCondition, availableCondition)
-}
-
 func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
