@@ -1164,15 +1164,15 @@ spec:
 		When().
 		UpdateSpec().
 		Then().
-		ExpectRollout("Completed=False", func(r *v1alpha1.Rollout) bool {
-			cmd := exec.Command("kubectl", "wait", "--for=condition=Completed=False", fmt.Sprintf("rollout/%s", r.Name))
+		ExpectRollout("Healthy=False", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "wait", "--for=condition=Healthy=False", fmt.Sprintf("rollout/%s", r.Name))
 			out, err := cmd.CombinedOutput()
 			return err == nil && strings.Contains(string(out), fmt.Sprintf("rollout.argoproj.io/%s condition met", r.Name))
 		}).
 		ExpectRolloutStatus("Progressing").
 		ExpectActiveRevision("1").
-		ExpectRollout("Completed=True", func(r *v1alpha1.Rollout) bool {
-			cmd := exec.Command("kubectl", "wait", "--for=condition=Completed=True", fmt.Sprintf("rollout/%s", r.Name))
+		ExpectRollout("Healthy=True", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "wait", "--for=condition=Healthy=True", fmt.Sprintf("rollout/%s", r.Name))
 			out, err := cmd.CombinedOutput()
 			return err == nil && strings.Contains(string(out), fmt.Sprintf("rollout.argoproj.io/%s condition met", r.Name))
 		}).
