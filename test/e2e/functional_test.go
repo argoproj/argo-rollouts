@@ -959,7 +959,7 @@ spec:
 		Then().
 		ExpectRevisionPodCount("2", 0).
 		ExpectRollout("Abort=True", func(r *v1alpha1.Rollout) bool {
-			return r.Status.Abort == true && len(r.Status.Conditions) == 3
+			return r.Status.Abort == true && len(r.Status.Conditions) == 4
 		})
 }
 
