@@ -481,6 +481,17 @@ func TestRolloutHealthy(t *testing.T) {
 
 }
 
+func TestRolloutComplete(t *testing.T) {
+	assert.True(t, RolloutComplete(&v1alpha1.Rollout{}, &v1alpha1.RolloutStatus{
+		CurrentPodHash: "foobar",
+		StableRS:       "foobar",
+	}))
+	assert.False(t, RolloutComplete(&v1alpha1.Rollout{}, &v1alpha1.RolloutStatus{
+		CurrentPodHash: "foo",
+		StableRS:       "bar",
+	}))
+}
+
 func TestRolloutTimedOut(t *testing.T) {
 
 	before := metav1.Time{
