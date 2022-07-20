@@ -120,7 +120,7 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 }
 
 // Gets the controller configuration flag for verifying alb weights
-func (r *Reconciler) shouldVerifyWeight() bool {
+func (r *Reconciler) getShouldVerifyWeightCfg() bool {
 	if r.cfg.VerifyWeight != nil {
 		return *r.cfg.VerifyWeight
 	}
@@ -128,7 +128,7 @@ func (r *Reconciler) shouldVerifyWeight() bool {
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
-	if !r.shouldVerifyWeight() {
+	if !r.getShouldVerifyWeightCfg() {
 		r.cfg.Status.ALB = nil
 		return nil, nil
 	}
