@@ -673,7 +673,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 		conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutReplicaFailure)
 	}
 
-	if conditions.RolloutComplete(c.rollout, &newStatus) {
+	if conditions.RolloutComplete(&newStatus) {
 		updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
 		conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
 	} else {

@@ -258,7 +258,8 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 }
 
 // RolloutComplete considers a rollout to be complete once pod hashes are equal.
-func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+// newStatus is the status of the rollout that the controller is reconciling too.
+func RolloutComplete(newStatus *v1alpha1.RolloutStatus) bool {
 	return newStatus.CurrentPodHash == newStatus.StableRS
 }
 
