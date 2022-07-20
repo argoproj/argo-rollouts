@@ -3,6 +3,7 @@ package rollout
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -238,19 +239,19 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
 			return nil // return nil instead of error since we want to continue with normal reconciliation
 		}
+
+		var indexString string
+		if index != nil {
+			indexString = strconv.FormatInt(int64(*index), 10)
+		} else {
+			indexString = "n/a"
+		}
+
 		if weightVerified != nil {
 			if *weightVerified {
-				if index != nil {
-					c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
-				} else {
-					c.log.Infof("Desired weight (stepIdx: n/a) %d verified", desiredWeight)
-				}
+				c.log.Infof("Desired weight (stepIdx: %s) %d verified", indexString, desiredWeight)
 			} else {
-				if index != nil {
-					c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
-				} else {
-					c.log.Infof("Desired weight (stepIdx: n/a) %d verified", desiredWeight)
-				}
+				c.log.Infof("Desired weight (stepIdx: %s) %d not yet verified", indexString, desiredWeight)
 				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 			}
 		}
