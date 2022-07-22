@@ -140,8 +140,8 @@ func (s *E2ESuite) SetupSuite() {
 	restConfig, err := config.ClientConfig()
 	s.CheckError(err)
 	s.Common.kubernetesHost = restConfig.Host
-	restConfig.Burst = defaults.DefaultBurst
-	restConfig.QPS = defaults.DefaultQPS
+	restConfig.Burst = defaults.DefaultBurst * 2
+	restConfig.QPS = defaults.DefaultQPS * 2
 	s.namespace, _, err = config.Namespace()
 	s.CheckError(err)
 	s.kubeClient, err = kubernetes.NewForConfig(restConfig)
