@@ -3,6 +3,8 @@ package analysis
 import (
 	"time"
 
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
+
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -117,7 +119,14 @@ func NewController(cfg ControllerConfig) *Controller {
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueAnalysis(new)
 		},
-		DeleteFunc: controller.enqueueAnalysis,
+		DeleteFunc: func(obj interface{}) {
+			controller.enqueueAnalysis(obj)
+			if ar := unstructuredutil.ObjectToAnalysisRun(obj); ar != nil {
+				logCtx := logutil.WithAnalysisRun(ar)
+				logCtx.Info("analysis run deleted")
+				controller.metricsServer.Remove(ar.Namespace, ar.Name, logutil.AnalysisRunKey)
+			}
+		},
 	})
 	return controller
 }
