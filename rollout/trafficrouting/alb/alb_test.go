@@ -463,6 +463,10 @@ func (f *fakeAWSClient) getAlbStatus() *v1alpha1.ALBStatus {
 func TestVerifyWeight(t *testing.T) {
 	newFakeReconciler := func(status *v1alpha1.RolloutStatus) (*Reconciler, *fakeAWSClient) {
 		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+		ro.Status.StableRS = "a45fe23"
+		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetWeight: pointer.Int32Ptr(10),
+		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
 			Ingress: []corev1.LoadBalancerIngress{
@@ -501,6 +505,29 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
+	}
+
+	// VeryifyWeight not needed
+	{
+		var status v1alpha1.RolloutStatus
+		r, _ := newFakeReconciler(&status)
+		status.StableRS = ""
+		r.cfg.Rollout.Status.StableRS = ""
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.False(t, *weightVerified)
+	}
+
+	// VeryifyWeight that we do not need to verify weight and status.ALB is already set
+	{
+		var status v1alpha1.RolloutStatus
+		r, _ := newFakeReconciler(&status)
+		r.cfg.Rollout.Status.ALB = &v1alpha1.ALBStatus{}
+		r.cfg.Rollout.Status.CurrentStepIndex = nil
+		r.cfg.Rollout.Spec.Strategy.Canary.Steps = nil
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.Nil(t, weightVerified)
 	}
 
 	// LoadBalancer found, not at weight
@@ -642,6 +669,10 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 	}
 	newFakeReconciler := func(status *v1alpha1.RolloutStatus) (*Reconciler, *fakeAWSClient) {
 		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+		ro.Status.StableRS = "a45fe23"
+		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetWeight: pointer.Int32Ptr(10),
+		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
 
