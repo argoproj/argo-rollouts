@@ -9,15 +9,17 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/blang/semver/v4"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	kubeopenapiutil "k8s.io/kube-openapi/pkg/util"
+	kOpenAPISpec "k8s.io/kube-openapi/pkg/validation/spec"
+
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
-	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	kubeopenapiutil "k8s.io/kube-openapi/pkg/util"
-	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 const metadataValidation = `properties:
@@ -276,8 +278,31 @@ func checkErr(err error) {
 	}
 }
 
-// loadK8SDefinitions loads K8S types API schema definitions
-func loadK8SDefinitions() (spec.Definitions, error) {
+type xKubernetesGroupVersionKind struct {
+	Group   string `json:"group"`
+	Kind    string `json:"kind"`
+	Version string `json:"version"`
+}
+type gvkMeta struct {
+	XKubernetesGroupVersionKind []xKubernetesGroupVersionKind `json:"x-kubernetes-group-version-kind"`
+}
+type k8sGvkMapping struct {
+	Definitions map[string]gvkMeta `json:"definitions"`
+}
+
+type openAPISchema struct {
+	kOpenAPISpec.Schema
+	XKubernetesGroupVersionKind []xKubernetesGroupVersionKind `json:"x-kubernetes-group-version-kind"`
+}
+
+//Add marshal function so we don't call the embeeded marshal
+func (s *openAPISchema) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s)
+}
+
+// loadK8SDefinitions loads K8S types API schema definitions starting with the version specified in go.mod then the fucnction
+// parameter versions
+func loadK8SDefinitions(versions []int) (*k8sGvkMapping, error) {
 	// detects minor version of k8s client
 	k8sVersionCmd := exec.Command("sh", "-c", "cat go.mod | grep \"k8s.io/client-go\" |  head -n 1 | cut -d' ' -f2")
 	versionData, err := k8sVersionCmd.Output()
@@ -288,6 +313,7 @@ func loadK8SDefinitions() (spec.Definitions, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.%d/api/openapi-spec/swagger.json", v.Minor))
 	if err != nil {
 		return nil, err
@@ -297,151 +323,109 @@ func loadK8SDefinitions() (spec.Definitions, error) {
 	if err != nil {
 		return nil, err
 	}
-	schema := spec.Schema{}
-	err = json.Unmarshal(data, &schema)
+
+	schemaGoMod := k8sGvkMapping{}
+	err = json.Unmarshal(data, &schemaGoMod)
 	if err != nil {
 		return nil, err
 	}
-	return schema.Definitions, nil
-}
 
-// normalizeRef normalizes rollouts and k8s type references since they are slightly different:
-// rollout refs are prefixed with #/definitions/ and k8s types refs starts with io.k8s instead of k8s.io and have no /
-func normalizeRef(ref string) string {
-	if strings.HasPrefix(ref, "#/definitions/") {
-		ref = ref[len("#/definitions/"):]
-	}
-
-	if strings.HasPrefix(ref, "io.k8s.") {
-		ref = "k8s.io." + ref[len("io.k8s."):]
-	}
-	return strings.ReplaceAll(ref, "/", ".")
-}
-
-var patchAnnotationKeys = map[string]bool{
-	"x-kubernetes-patch-merge-key": true,
-	"x-kubernetes-patch-strategy":  true,
-	"x-kubernetes-list-map-keys":   true,
-	"x-kubernetes-list-type":       true,
-}
-
-// injectPatchAnnotations injects patch annotations from given schema definitions and drop properties that don't have
-// patch annotations injected
-func injectPatchAnnotations(prop map[string]interface{}, propSchema spec.Schema, schemaDefinitions spec.Definitions) (bool, error) {
-	injected := false
-	for k, v := range propSchema.Extensions {
-		if patchAnnotationKeys[k] {
-			prop[k] = v
-			injected = true
-		}
-	}
-
-	var propSchemas map[string]spec.Schema
-	refStr := propSchema.Ref.String()
-	normalizedRef := normalizeRef(refStr)
-	switch {
-	case normalizedRef == "":
-		propSchemas = propSchema.Properties
-	default:
-		schema, ok := schemaDefinitions[normalizedRef]
-		if !ok {
-			return false, fmt.Errorf("not supported ref: %s", refStr)
-		}
-		propSchemas = schema.Properties
-	}
-
-	childProps, ok := prop["properties"].(map[string]interface{})
-	if !ok {
-		childProps = map[string]interface{}{}
-	}
-
-	for k, v := range childProps {
-		childInjected, err := injectPatchAnnotations(v.(map[string]interface{}), propSchemas[k], schemaDefinitions)
+	for _, v := range versions {
+		//Download fixe old version to keep old schema's compatibility
+		resp, err = http.Get(fmt.Sprintf("https://raw.githubusercontent.com/kubernetes/kubernetes/release-1.%d/api/openapi-spec/swagger.json", v))
 		if err != nil {
-			return false, err
+			return nil, err
 		}
-		if !childInjected {
-			delete(childProps, k)
-		} else {
-			injected = true
-			childProps[k] = v
+		data, err = ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+
+		schemaFixedVer := k8sGvkMapping{}
+		err = json.Unmarshal(data, &schemaFixedVer)
+		if err != nil {
+			return nil, err
+		}
+
+		//Merge old and new schema
+		for k, v := range schemaFixedVer.Definitions {
+			schemaGoMod.Definitions[k] = v
 		}
 	}
-	return injected, nil
+
+	return &schemaGoMod, nil
 }
 
-const (
-	rolloutsDefinitionsPrefix = "github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
-)
-
-// generateKustomizeSchema generates open api schema that has properties with patch annotations only
-func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, outputPath string) error {
-	k8sDefinitions, err := loadK8SDefinitions()
-	if err != nil {
-		return err
-	}
-	schemaDefinitions := map[string]spec.Schema{}
-	for k, v := range k8sDefinitions {
-		schemaDefinitions[normalizeRef(k)] = v
-	}
-
-	for k, v := range v1alpha1.GetOpenAPIDefinitions(func(path string) spec.Ref {
-		return spec.MustCreateRef(path)
-	}) {
-		schemaDefinitions[normalizeRef(k)] = v.Schema
+func generateOpenApiSchema(outputPath string) error {
+	// We replace the generated names with group specific names aka argocd is `argocd.argoproj.io` instead of the real
+	// group kind because within all the argo projects we have overlapping types due to all argo projects being under the same
+	// argoproj.io group. Kustomize does not care about the name as long as all the links match up and the `x-kubernetes-group-version-kind`
+	// metadata is correct.
+	var argoMappings = map[string]string{
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application":     "argocd.argoproj.io",
+		"github.com/argoproj/argo-events/pkg/apis/eventbus":       "eventbus.argoproj.io",
+		"github.com/argoproj/argo-events/pkg/apis/eventsource":    "eventsource.argoproj.io",
+		"github.com/argoproj/argo-events/pkg/apis/sensor":         "sensor.argoproj.io",
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts":     "rollouts.argoproj.io",
+		"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow": "workflow.argoproj.io",
 	}
 
-	definitions := map[string]interface{}{}
-	for _, crd := range crds {
-		var version string
-		var props map[string]extensionsobj.JSONSchemaProps
-		for _, v := range crd.Spec.Versions {
-			if v.Schema == nil || v.Schema.OpenAPIV3Schema == nil {
-				continue
-			}
-			version = v.Name
-			props = v.Schema.OpenAPIV3Schema.Properties
+	d := v1alpha1.GetOpenAPIDefinitions(func(path string) kOpenAPISpec.Ref {
+		for k, v := range argoMappings {
+			path = strings.ReplaceAll(path, k, v)
+		}
+		return kOpenAPISpec.MustCreateRef(fmt.Sprintf("#/definitions/%s", kubeopenapiutil.ToRESTFriendlyName(path)))
+	})
+
+	var def = make(map[string]openAPISchema)
+	for pathKey, definition := range d {
+		for k, v := range argoMappings {
+			pathKey = strings.ReplaceAll(pathKey, k, v)
+		}
+		def[kubeopenapiutil.ToRESTFriendlyName(pathKey)] = openAPISchema{
+			Schema:                      definition.Schema,
+			XKubernetesGroupVersionKind: make([]xKubernetesGroupVersionKind, 0),
+		}
+	}
+
+	k8sDefs, err := loadK8SDefinitions([]int{18, 21, 24})
+	checkErr(err)
+	for k, v := range def {
+		//We pull out argo crd information based on the dot pattern of the key in the dictionary we are also setting it for all
+		//argo types instead of just the ones needed this could be incorrect as far as spec goes, but it works.
+		if strings.HasPrefix(k, "io.argoproj") {
+			argoGVK := strings.Split(k, ".")
+			v.XKubernetesGroupVersionKind = []xKubernetesGroupVersionKind{{
+				Group:   "argoproj.io",
+				Kind:    argoGVK[4],
+				Version: argoGVK[3],
+			}}
+			def[k] = v
+			continue
 		}
 
-		data, err := json.Marshal(props)
-		if err != nil {
-			return err
-		}
-		propsMap := map[string]interface{}{}
-		err = json.Unmarshal(data, &propsMap)
-		if err != nil {
-			return err
-		}
-
-		crdSchema := schemaDefinitions[normalizeRef(fmt.Sprintf("%s/%s.%s", rolloutsDefinitionsPrefix, version, crd.Spec.Names.Kind))]
-		for k, p := range propsMap {
-			injected, err := injectPatchAnnotations(p.(map[string]interface{}), crdSchema.Properties[k], schemaDefinitions)
-			if err != nil {
-				return err
-			}
-			if injected {
-				propsMap[k] = p
-			} else {
-				delete(propsMap, k)
+		// Pull the group version kind information from the k8s definitions that we downloaded via loadK8SDefinitions
+		entry, ok := k8sDefs.Definitions[k]
+		if ok {
+			e, ok := def[k]
+			if ok {
+				if len(entry.XKubernetesGroupVersionKind) > 0 {
+					e.XKubernetesGroupVersionKind = entry.XKubernetesGroupVersionKind
+					def[k] = e
+				}
 			}
 		}
 
-		definitionName := kubeopenapiutil.ToRESTFriendlyName(fmt.Sprintf("%s/%s.%s", crd.Spec.Group, version, crd.Spec.Names.Kind))
-		definitions[definitionName] = map[string]interface{}{
-			"properties": propsMap,
-			"x-kubernetes-group-version-kind": []map[string]string{{
-				"group":   crd.Spec.Group,
-				"kind":    crd.Spec.Names.Kind,
-				"version": version,
-			}},
-		}
 	}
+
 	data, err := json.MarshalIndent(map[string]interface{}{
-		"definitions": definitions,
+		"definitions": def,
 	}, "", "    ")
 	if err != nil {
 		return err
 	}
+
 	return ioutil.WriteFile(outputPath, data, 0644)
 }
 
@@ -449,7 +433,7 @@ func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, out
 func main() {
 	crds := NewCustomResourceDefinition()
 
-	err := generateKustomizeSchema(crds, "docs/features/kustomize/rollout_cr_schema.json")
+	err := generateOpenApiSchema("docs/features/kustomize/rollout_cr_schema.json")
 	checkErr(err)
 
 	for i := range crds {

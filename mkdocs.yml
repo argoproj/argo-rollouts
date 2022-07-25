@@ -68,6 +68,7 @@ nav:
     - generated/notification-services/mattermost.md
     - generated/notification-services/opsgenie.md
     - generated/notification-services/overview.md
+    - generated/notification-services/pagerduty.md
     - generated/notification-services/pushover.md
     - generated/notification-services/rocketchat.md
     - generated/notification-services/slack.md
