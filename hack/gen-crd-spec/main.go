@@ -296,8 +296,20 @@ type openAPISchema struct {
 }
 
 //Add marshal function so we don't call the embeeded marshal
-func (s *openAPISchema) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s)
+func (s openAPISchema) MarshalJSON() ([]byte, error) {
+	b1, err := json.Marshal(s.Schema)
+	if err != nil {
+		return nil, fmt.Errorf("schema %v", err)
+	}
+
+	if s.XKubernetesGroupVersionKind != nil {
+		b2, err := json.Marshal(s.XKubernetesGroupVersionKind)
+		if err != nil {
+			return nil, fmt.Errorf("x-kubernetes-group-version-kind %v", err)
+		}
+		b1 = append(b1[:len(b1)-1], fmt.Sprintf(",\"x-kubernetes-group-version-kind\":%s}", string(b2))...)
+	}
+	return b1, nil
 }
 
 // loadK8SDefinitions loads K8S types API schema definitions starting with the version specified in go.mod then the fucnction
