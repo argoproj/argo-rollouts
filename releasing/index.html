@@ -2120,14 +2120,17 @@
 </li>
 <li>
 <p>Update Brew formula:</p>
-<div class="highlight"><pre><span></span><code>git clone git@github.com:argoproj/homebrew-tap.git
-<span class="nb">cd</span> homebrew-tap
-git pull
+</li>
+<li>
+<p>Fork the repo https://github.com/argoproj/homebrew-tap</p>
+</li>
+<li>Run the following commands to update the brew formula:
+    <div class="highlight"><pre><span></span><code><span class="nb">cd</span> homebrew-tap
 ./update.sh kubectl-argo-rollouts <span class="nv">$VERSION</span>
 git commit -am <span class="s2">&quot;Update kubectl-argo-rollouts to </span><span class="nv">$VERSION</span><span class="s2">&quot;</span>
-git push
-</code></pre></div>
-</li>
+</code></pre></div></li>
+<li>Create a PR with the modified files pointing to upstream/master</li>
+<li>Once the PR is approved by a maintainer, it can be merged.</li>
 </ol>
 <h3 id="verify">Verify<a class="headerlink" href="#verify" title="Permanent link">&para;</a></h3>
 <ol>
