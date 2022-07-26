@@ -86,3 +86,12 @@ You can run it like any other Docker image or use it in any CI platform that sup
 docker run quay.io/argoproj/kubectl-argo-rollouts:master version
 ```
 
+## Supported versions
+
+At any point in time the officially supported version of Argo Rollouts is the latest released one, on Kubernetes versions N and N-1 (as supported by the Kubernetes project itself).
+
+For example if the latest minor version of Argo Rollouts is 1.2.1 and supported Kubernetes versions are 1.24, 1.23 and 1.22 then the following combinations are supported:
+
+* Argo Rollouts 1.2.1 on Kubernetes 1.24
+* Argo Rollouts 1.2.1 on Kubernetes 1.23
+
