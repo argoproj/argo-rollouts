@@ -254,6 +254,7 @@ func NewController(cfg ControllerConfig) *Controller {
 				for _, key := range istioutil.GetRolloutDesinationRuleKeys(ro) {
 					controller.IstioController.EnqueueDestinationRule(key)
 				}
+				controller.recorder.Eventf(ro, record.EventOptions{EventReason: conditions.RolloutDeletedReason}, conditions.RolloutDeletedMessage, ro.Name, ro.Namespace)
 			}
 		},
 	})
