@@ -189,8 +189,8 @@ func newReplicaSetFromTemplate(experiment *v1alpha1.Experiment, template v1alpha
 	}
 
 	// If experiment is created from a rollout, add the rollout to the rs labels
-	if roName, ok := experiment.ObjectMeta.Labels[v1alpha1.DefaultRolloutLabelKey]; ok {
-		rs.ObjectMeta.Labels[v1alpha1.DefaultRolloutLabelKey] = roName
+	if roName, ok := experiment.ObjectMeta.Labels[v1alpha1.ManagedByRolloutsKey]; ok {
+		rs.ObjectMeta.Labels[v1alpha1.ManagedByRolloutsKey] = roName
 	}
 
 	return rs

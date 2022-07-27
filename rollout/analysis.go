@@ -457,7 +457,7 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 		return nil, err
 	}
 	run.Labels = labels
-	run.Labels[v1alpha1.DefaultRolloutLabelKey] = c.rollout.Name
+	run.Labels[v1alpha1.ManagedByRolloutsKey] = c.rollout.Name
 	run.Annotations = map[string]string{
 		annotations.RevisionAnnotation: revision,
 	}

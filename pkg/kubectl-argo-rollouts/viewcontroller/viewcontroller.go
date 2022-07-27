@@ -198,7 +198,7 @@ func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 
 	// Get experiments and their rs
 	selector = labels.SelectorFromSet(map[string]string{
-		v1alpha1.DefaultRolloutLabelKey: ro.Name,
+		v1alpha1.ManagedByRolloutsKey: ro.Name,
 	})
 	allExps, err := c.experimentLister.List(selector)
 	if err != nil {
