@@ -955,6 +955,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../graphite/" class="md-nav__link">
+        Graphite
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../influxdb/" class="md-nav__link">
         InfluxDB
       </a>
@@ -2072,7 +2086,7 @@
 <span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
 <span class="w">          </span><span class="no">sum(irate(</span><span class="w"></span>
 <span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code!~&quot;5.*&quot;}[5m]</span><span class="w"></span>
-<span class="w">          </span><span class="no">)) / </span><span class="w"></span>
+<span class="w">          </span><span class="no">)) /</span><span class="w"></span>
 <span class="w">          </span><span class="no">sum(irate(</span><span class="w"></span>
 <span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span><span class="w"></span>
 <span class="w">          </span><span class="no">))</span><span class="w"></span>
@@ -2081,7 +2095,7 @@
 you validate your <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/">PromQL expression</a> using the <a href="https://prometheus.io/docs/introduction/first_steps/#using-the-expression-browser">Prometheus GUI first</a>.</p>
 <p>See the <a href="../../features/analysis">Analysis Overview page</a> for more details on the available options.</p>
 <h1 id="additional-metadata">Additional Metadata<a class="headerlink" href="#additional-metadata" title="Permanent link">&para;</a></h1>
-<p>Any additional metadata from the Prometheus controller, like the resolved queries after substituting the template's 
+<p>Any additional metadata from the Prometheus controller, like the resolved queries after substituting the template's
 arguments, etc. will appear under the <code>Metadata</code> map in the <code>MetricsResult</code> object of <code>AnalysisRun</code>.</p>
 
               

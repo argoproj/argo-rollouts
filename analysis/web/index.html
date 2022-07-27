@@ -986,6 +986,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../graphite/" class="md-nav__link">
+        Graphite
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../influxdb/" class="md-nav__link">
         InfluxDB
       </a>
@@ -2112,7 +2126,7 @@ of the as the result variable.</p>
 <span class="w">        </span><span class="nt">headers</span><span class="p">:</span><span class="w"></span>
 <span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Authorization</span><span class="w"></span>
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span><span class="w"></span>
-<span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data.ok}&quot;</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data.ok}&quot;</span><span class="w"></span>
 </code></pre></div>
 <p>In the following example, given the payload, the measurement will be Successful if the <code>data.ok</code> field was <code>true</code>, and the <code>data.successPercent</code>
 was greater than <code>0.90</code></p>
@@ -2132,7 +2146,7 @@ was greater than <code>0.90</code></p>
 <span class="w">        </span><span class="nt">headers</span><span class="p">:</span><span class="w"></span>
 <span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Authorization</span><span class="w"></span>
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span><span class="w"></span>
-<span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data}&quot;</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data}&quot;</span><span class="w"></span>
 </code></pre></div>
 <p>NOTE: if the result is a string, two convenience functions <code>asInt</code> and <code>asFloat</code> are provided
 to convert a result value to a numeric type so that mathematical comparison operators can be used
@@ -2153,7 +2167,7 @@ to convert a result value to a numeric type so that mathematical comparison oper
 <span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Content-Type</span><span class="w"> </span><span class="c1"># if body is a json, it is recommended to set the Content-Type</span><span class="w"></span>
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;application/json&quot;</span><span class="w"></span>
 <span class="w">        </span><span class="nt">body</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{\&quot;key\&quot;:</span><span class="nv"> </span><span class="s">\&quot;string</span><span class="nv"> </span><span class="s">value\&quot;}&quot;</span><span class="w"></span>
-<span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data.ok}&quot;</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data.ok}&quot;</span><span class="w"></span>
 </code></pre></div>
   !!! tip
       In order to send in JSON, you have to encode it yourself, and send the correct Content-Type as well.

@@ -982,6 +982,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../graphite/" class="md-nav__link">
+        Graphite
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../influxdb/" class="md-nav__link">
         InfluxDB
       </a>
@@ -2093,7 +2107,7 @@
   <h1>Kayenta</h1>
 
 <h2 id="kayenta-eg-mann-whitney-analysis">Kayenta (e.g. Mann-Whitney Analysis)<a class="headerlink" href="#kayenta-eg-mann-whitney-analysis" title="Permanent link">&para;</a></h2>
-<p>Analysis can also be done as part of an <a href="../../features/experiment/">Experiment</a>. </p>
+<p>Analysis can also be done as part of an <a href="../../features/experiment/">Experiment</a>.</p>
 <p>This example starts both a canary and baseline ReplicaSet. The ReplicaSets run for 1 hour, then
 scale down to zero. Call out to Kayenta to perform Mann-Whintney analysis against the two pods. Demonstrates ability to start a
 short-lived experiment and an asynchronous analysis.</p>
@@ -2112,7 +2126,7 @@ short-lived experiment and an asynchronous analysis.</p>
 <span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span><span class="w"></span>
 <span class="nt">spec</span><span class="p">:</span><span class="w"></span>
 <span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"> </span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
 <span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">experiment</span><span class="p">:</span><span class="w"></span>
 <span class="w">          </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span><span class="w"></span>
