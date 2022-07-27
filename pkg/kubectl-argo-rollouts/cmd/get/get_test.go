@@ -212,7 +212,6 @@ func TestGetBlueGreenRolloutScaleDownDelayPassed(t *testing.T) {
 	rolloutObjs := testdata.NewBlueGreenRollout()
 	anHourAgo := timeutil.Now().Add(-1 * time.Hour).Truncate(time.Second).UTC().Format(time.RFC3339)
 	rolloutObjs.ReplicaSets[2].Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = anHourAgo
-	// delete(rolloutObjs.ReplicaSets[2].Labels, v1alpha1.DefaultRolloutUniqueLabelKey)
 
 	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
 	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
