@@ -177,7 +177,7 @@ func TestRolloutUseDesiredWeight(t *testing.T) {
 		return nil
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.run(getKey(r2, t))
 }
 
@@ -226,7 +226,7 @@ func TestRolloutUseDesiredWeight100(t *testing.T) {
 		return nil
 	})
 	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(true, nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.run(getKey(r2, t))
 }
 
@@ -723,7 +723,9 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	r1 := newCanaryRollout("foo", 1, nil, nil, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, []v1alpha1.CanaryStep{{
+		SetWeight: pointer.Int32Ptr(10),
+	}}, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.CanaryService = "canary"
 	r1.Spec.Strategy.Canary.StableService = "stable"
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
@@ -735,7 +737,6 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 2, 1, 2, false)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
-	r2.Status.CurrentStepIndex = nil
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
@@ -763,7 +764,9 @@ func TestCanaryWithTrafficRoutingScaleDownLimit(t *testing.T) {
 
 	inTheFuture := timeutil.MetaNow().Add(10 * time.Second).UTC().Format(time.RFC3339)
 
-	r1 := newCanaryRollout("foo", 1, nil, nil, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1 := newCanaryRollout("foo", 1, nil, []v1alpha1.CanaryStep{{
+		SetWeight: pointer.Int32Ptr(10),
+	}}, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(1))
 	rs1 := newReplicaSetWithStatus(r1, 1, 1)
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
 	r1.Spec.Strategy.Canary.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(1)

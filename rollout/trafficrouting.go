@@ -3,6 +3,7 @@ package rollout
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -232,27 +233,26 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			c.newStatus.Canary.Weights = newWeights
 		}
 
-		// If we are in the middle of an update at a setWeight step, also perform weight verification.
-		// Note that we don't do this every reconciliation because weight verification typically involves
-		// API calls to the cloud provider which could incur rate limiting
-		shouldVerifyWeight := c.rollout.Status.StableRS != "" &&
-			!rolloututil.IsFullyPromoted(c.rollout) &&
-			currentStep != nil && currentStep.SetWeight != nil
+		weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
+		c.newStatus.Canary.Weights.Verified = weightVerified
+		if err != nil {
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
+			return nil // return nil instead of error since we want to continue with normal reconciliation
+		}
 
-		if shouldVerifyWeight {
-			weightVerified, err := reconciler.VerifyWeight(desiredWeight, weightDestinations...)
-			c.newStatus.Canary.Weights.Verified = weightVerified
-			if err != nil {
-				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.WeightVerifyErrorReason}, conditions.WeightVerifyErrorMessage, err)
-				return nil // return nil instead of error since we want to continue with normal reconciliation
-			}
-			if weightVerified != nil {
-				if *weightVerified {
-					c.log.Infof("Desired weight (stepIdx: %d) %d verified", *index, desiredWeight)
-				} else {
-					c.log.Infof("Desired weight (stepIdx: %d) %d not yet verified", *index, desiredWeight)
-					c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
-				}
+		var indexString string
+		if index != nil {
+			indexString = strconv.FormatInt(int64(*index), 10)
+		} else {
+			indexString = "n/a"
+		}
+
+		if weightVerified != nil {
+			if *weightVerified {
+				c.log.Infof("Desired weight (stepIdx: %s) %d verified", indexString, desiredWeight)
+			} else {
+				c.log.Infof("Desired weight (stepIdx: %s) %d not yet verified", indexString, desiredWeight)
+				c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
 			}
 		}
 	}

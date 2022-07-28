@@ -39,4 +39,3 @@ data:
   example1.wavefront.com: <token1>
   example2.wavefront.com: <token2>
 ```
-

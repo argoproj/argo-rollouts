@@ -3,7 +3,7 @@
 !!! important
     Available since v0.10.0
 
-A [New Relic](https://newrelic.com/) query using [NRQL](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/introduction-nrql-new-relics-query-language) can be used to obtain measurements for analysis.  
+A [New Relic](https://newrelic.com/) query using [NRQL](https://docs.newrelic.com/docs/query-your-data/nrql-new-relic-query-language/get-started/introduction-nrql-new-relics-query-language) can be used to obtain measurements for analysis.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

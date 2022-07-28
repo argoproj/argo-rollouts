@@ -266,6 +266,17 @@
                                                 },
                                                 "type": "object"
                                             },
+                                            "influxdb": {
+                                                "properties": {
+                                                    "profile": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
                                             "job": {
                                                 "properties": {
                                                     "metadata": {
@@ -3962,6 +3973,10 @@
                                                                                             "type": "object"
                                                                                         },
                                                                                         "maxSkew": {
+                                                                                            "format": "int32",
+                                                                                            "type": "integer"
+                                                                                        },
+                                                                                        "minDomains": {
                                                                                             "format": "int32",
                                                                                             "type": "integer"
                                                                                         },
@@ -4515,6 +4530,17 @@
                                                 },
                                                 "type": "object"
                                             },
+                                            "influxdb": {
+                                                "properties": {
+                                                    "profile": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
                                             "job": {
                                                 "properties": {
                                                     "metadata": {
@@ -8214,6 +8240,10 @@
                                                                                             "format": "int32",
                                                                                             "type": "integer"
                                                                                         },
+                                                                                        "minDomains": {
+                                                                                            "format": "int32",
+                                                                                            "type": "integer"
+                                                                                        },
                                                                                         "topologyKey": {
                                                                                             "type": "string"
                                                                                         },
@@ -8756,6 +8786,17 @@
                                             "graphite": {
                                                 "properties": {
                                                     "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "influxdb": {
+                                                "properties": {
+                                                    "profile": {
                                                         "type": "string"
                                                     },
                                                     "query": {
@@ -12460,6 +12501,10 @@
                                                                                             "type": "object"
                                                                                         },
                                                                                         "maxSkew": {
+                                                                                            "format": "int32",
+                                                                                            "type": "integer"
+                                                                                        },
+                                                                                        "minDomains": {
                                                                                             "format": "int32",
                                                                                             "type": "integer"
                                                                                         },
@@ -16532,6 +16577,10 @@
                                                                     "format": "int32",
                                                                     "type": "integer"
                                                                 },
+                                                                "minDomains": {
+                                                                    "format": "int32",
+                                                                    "type": "integer"
+                                                                },
                                                                 "topologyKey": {
                                                                     "type": "string"
                                                                 },
@@ -19659,6 +19708,10 @@
                                                         "type": "object"
                                                     },
                                                     "maxSkew": {
+                                                        "format": "int32",
+                                                        "type": "integer"
+                                                    },
+                                                    "minDomains": {
                                                         "format": "int32",
                                                         "type": "integer"
                                                     },

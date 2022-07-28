@@ -113,12 +113,6 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 		removeK8S118Fields(obj)
 		createMetadataValidation(obj)
 		crd := toCRD(obj)
-
-		if crd.Name == "clusteranalysistemplates.argoproj.io" {
-			crd.Spec.Scope = "Cluster"
-		} else {
-			crd.Spec.Scope = "Namespaced"
-		}
 		crds = append(crds, crd)
 	}
 
