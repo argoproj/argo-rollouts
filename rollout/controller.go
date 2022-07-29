@@ -426,7 +426,7 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 	// which the notification controller expects when it converts rolloutobject to toUnstructured and if not present
 	// and that throws an error "Failed to process: Object 'Kind' is missing in ..."
 	// Fixing this here as the informer is shared by notification controller by updating typemetafileds.
-	// TODO: Ned to revisit this in the future and maybe we should have a dedicated informer for notification
+	// TODO: Need to revisit this in the future and maybe we should have a dedicated informer for notification
 	gvk := un.GetObjectKind().GroupVersionKind()
 	if len(gvk.Version) == 0 || len(gvk.Group) == 0 || len(gvk.Kind) == 0 {
 		un.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
