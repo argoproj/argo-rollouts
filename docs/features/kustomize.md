@@ -63,7 +63,7 @@ resources:
 - rollout-canary.yaml
 
 openapi:
- path: <path-to-directory>/rollout_cr_schema.json
+  path: <path-to-directory>/rollout_cr_schema.json
 
 patchesStrategicMerge:
 - |-
@@ -83,3 +83,10 @@ The OpenAPI data is auto-generated and defined in this [file](https://github.com
 
 An example kustomize app demonstrating the ability to use OpenAPI data with Rollouts can be seen
 [here](https://github.com/argoproj/argo-rollouts/blob/master/test/kustomize/rollout).
+
+- With Kustomize 4.5.5 it is possible to reference the OpenAPI data directly from a remote resource:
+
+```yaml
+openapi:
+  path: https://argoproj.github.io/argo-rollouts/features/kustomize/rollout_cr_schema.json
+```
