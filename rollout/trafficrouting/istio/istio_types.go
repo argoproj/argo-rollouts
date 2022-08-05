@@ -14,6 +14,7 @@ type VirtualService struct {
 type VirtualServiceSpec struct {
 	HTTP []VirtualServiceHTTPRoute `json:"http,omitempty"`
 	TLS  []VirtualServiceTLSRoute  `json:"tls,omitempty"`
+	TCP  []VirtualServiceTCPRoute  `json:"tcp,omitempty"`
 }
 
 // VirtualServiceHTTPRoute is a HTTP route in a VirtualService
@@ -50,6 +51,21 @@ type VirtualServiceTLSRoute struct {
 // TLSMatchAttributes is the route matcher for a TLS route in a VirtualService
 type TLSMatchAttributes struct {
 	SNI                []string          `json:"sniHosts,omitempty"`
+	DestinationSubnets []string          `json:"destinationSubnets,omitempty"`
+	Port               int64             `json:"port,omitempty"`
+	SourceLabels       map[string]string `json:"sourceLabels,omitempty"`
+	Gateways           []string          `json:"gateways,omitempty"`
+	SourceNamespace    string            `json:"sourceNamespace,omitempty"`
+}
+
+// VirtualServiceTCPRoute is a TLS route in a VirtualService
+type VirtualServiceTCPRoute struct {
+	Match []L4MatchAttributes              `json:"match,omitempty"`
+	Route []VirtualServiceRouteDestination `json:"route,omitempty"`
+}
+
+// L4MatchAttributes is the route matcher for a TCP route in a VirtualService
+type L4MatchAttributes struct {
 	DestinationSubnets []string          `json:"destinationSubnets,omitempty"`
 	Port               int64             `json:"port,omitempty"`
 	SourceLabels       map[string]string `json:"sourceLabels,omitempty"`

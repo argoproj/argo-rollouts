@@ -797,6 +797,9 @@ message IstioVirtualService {
 
   // A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
   repeated TLSRoute tlsRoutes = 3;
+
+  // A list of TCP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
+  repeated TCPRoute tcpRoutes = 4;
 }
 
 // JobMetric defines a job to run which acts as a metric
@@ -1557,6 +1560,12 @@ message StringMatch {
 
   // Regex The string will be regular expression matched
   optional string regex = 3;
+}
+
+// TCPRoute holds the information on the virtual service's TCP routes that are desired to be matched for changing weights.
+message TCPRoute {
+  // Port number of the TCP Route desired to be matched in the given Istio VirtualService.
+  optional int64 port = 1;
 }
 
 // TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.
