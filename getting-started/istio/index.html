@@ -2194,12 +2194,14 @@ mandatory fields:</p>
 <span class="w">                </span><span class="nt">sniHosts</span><span class="p">:</span><span class="w"></span>
 <span class="w">                  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reviews.bookinfo.com</span><span class="w"></span>
 <span class="w">                  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">localhost</span><span class="w"></span>
-<span class="nn">...</span><span class="w"></span>
+<span class="w">            </span><span class="nt">tcpRoutes</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="c1"># Below fields are optional but if defined, they should match exactly with at least one of the TCP route match rules in your VirtualService</span><span class="w"></span>
+<span class="w">              </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8020</span><span class="w"> </span><span class="c1"># Only required if you want to match any rule in your VirtualService which contains this port</span><span class="w"></span>
 </code></pre></div>
 <p>The VirtualService and route referenced in either <code>trafficRouting.istio.virtualService</code> or
 <code>trafficRouting.istio.virtualServices</code>. <code>trafficRouting.istio.virtualServices</code> helps in adding
 one or more virtualServices unlike <code>trafficRouting.istio.virtualService</code> where only single virtualService can be added.
-This is required to have either HTTP or TLS, or both route specs that splits between the stable and the canary
+This is required to have either HTTP, TLS, TCP or a mixed route specs that splits between the stable and the canary
 services referenced in the rollout. If the route is HTTPS/TLS, we can match it based on the
 given port number and/or SNI hosts. Note that both of them are optional and only needed if you
 want to match any rule in your VirtualService which contains these.</p>
@@ -2245,6 +2247,16 @@ VirtualService specs, weights will get modified for both these routes.</p>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
 <span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w">  </span><span class="c1"># Should match rollout.spec.strategy.canary.canaryService</span><span class="w"></span>
 <span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
+<span class="w">  </span><span class="nt">tcp</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">match</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8020</span><span class="w"> </span><span class="c1"># Should match the port number of the route defined in rollout.spec.strategy.canary.trafficRouting.istio.virtualServices.tcpRoutes</span><span class="w"></span>
+<span class="w">    </span><span class="nt">route</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"> </span><span class="c1"># Should match rollout.spec.strategy.canary.stableService</span><span class="w"></span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"> </span><span class="c1"># Should match rollout.spec.strategy.canary.canaryService</span><span class="w"></span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.istio.io/v1alpha3</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">VirtualService</span><span class="w"></span>
@@ -2273,6 +2285,16 @@ VirtualService specs, weights will get modified for both these routes.</p>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">443</span><span class="w">  </span><span class="c1"># Should match the port number of the route defined in rollout.spec.strategy.canary.trafficRouting.istio.virtualServices.tlsRoutes</span><span class="w"></span>
 <span class="w">      </span><span class="nt">sniHosts</span><span class="p">:</span><span class="w"> </span><span class="c1"># Should match all the SNI hosts of the route defined in rollout.spec.strategy.canary.trafficRouting.istio.virtualServices.tlsRoutes</span><span class="w"></span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reviews.bookinfo.com</span><span class="w"></span>
+<span class="w">    </span><span class="nt">route</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w">  </span><span class="c1"># Should match rollout.spec.strategy.canary.stableService</span><span class="w"></span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w">  </span><span class="c1"># Should match rollout.spec.strategy.canary.canaryService</span><span class="w"></span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
+<span class="w">  </span><span class="nt">tcp</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">match</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8020</span><span class="w">  </span><span class="c1"># Should match the port number of the route defined in rollout.spec.strategy.canary.trafficRouting.istio.virtualServices.tcpRoutes</span><span class="w"></span>
 <span class="w">    </span><span class="nt">route</span><span class="p">:</span><span class="w"></span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
 <span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w">  </span><span class="c1"># Should match rollout.spec.strategy.canary.stableService</span><span class="w"></span>
@@ -2362,6 +2384,16 @@ weights have been modified by the controller to reflect the current weight of th
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
 <span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
 <span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
+<span class="w">  </span><span class="nt">tcp</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">match</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8020</span><span class="w"></span>
+<span class="w">    </span><span class="nt">route</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">95</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.istio.io/v1beta1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">VirtualService</span><span class="w"></span>
@@ -2398,8 +2430,18 @@ weights have been modified by the controller to reflect the current weight of th
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
 <span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
 <span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
+<span class="w">  </span><span class="nt">tcp</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">match</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8020</span><span class="w"></span>
+<span class="w">    </span><span class="nt">route</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">95</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
+<span class="w">      </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
 </code></pre></div>
-<p>As the Rollout progresses through steps, the HTTP and/or TLS route(s) destination weights will be
+<p>As the Rollout progresses through steps, the HTTP, TLS, and/or TCP route(s) destination weights will be
 adjusted to match the current <code>setWeight</code> of the steps.</p>
 
               

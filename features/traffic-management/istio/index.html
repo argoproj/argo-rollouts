@@ -784,6 +784,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tcp-traffic-splitting" class="md-nav__link">
+    TCP Traffic Splitting
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#multicluster-setup" class="md-nav__link">
     Multicluster Setup
   </a>
@@ -2189,6 +2196,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tcp-traffic-splitting" class="md-nav__link">
+    TCP Traffic Splitting
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#multicluster-setup" class="md-nav__link">
     Multicluster Setup
   </a>
@@ -2280,7 +2294,7 @@ traffic to a web service. Istio offers this functionality through a set of CRDs,
 automates the management of these resources to provide advanced traffic shaping capabilities to the
 different versions of the Rollout during an update.</p>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>Traffic splitting is accomplished in Istio by adjusting traffic weights defined in an 
+<p>Traffic splitting is accomplished in Istio by adjusting traffic weights defined in an
 <a href="https://istio.io/latest/docs/reference/config/networking/virtual-service/">Istio VirtualService</a>.
 When using Argo Rollouts with Istio, a user deploys a VirtualService containing at least one
 <a href="https://istio.io/latest/docs/reference/config/networking/virtual-service/#HTTPRoute">HTTP route</a> containing two
@@ -2316,7 +2330,7 @@ Nginx). Using this approach, the user is required to deploy the following resour
 <span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-svc</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
 <span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
 <span class="w">        </span><span class="nt">istio</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">virtualService</span><span class="p">:</span><span class="w"> </span>
+<span class="w">          </span><span class="nt">virtualService</span><span class="p">:</span><span class="w"></span>
 <span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-vsvc</span><span class="w">   </span><span class="c1"># required</span><span class="w"></span>
 <span class="w">            </span><span class="nt">routes</span><span class="p">:</span><span class="w"></span>
 <span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary</span><span class="w">            </span><span class="c1"># optional if there is a single route in VirtualService, required otherwise</span><span class="w"></span>
@@ -2326,7 +2340,7 @@ Nginx). Using this approach, the user is required to deploy the following resour
 <span class="w">          </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10m</span><span class="w"></span>
 </code></pre></div>
 <p>The VirtualService must contain an HTTP route with a name referenced in the Rollout, containing
-two route destinations with <code>host</code> values that match the <code>canaryService</code> and <code>stableService</code> 
+two route destinations with <code>host</code> values that match the <code>canaryService</code> and <code>stableService</code>
 referenced in the Rollout.  If the VirtualService is defined in a different namespace than the rollout,
 its name should be <code>rollout-vsvc.&lt;vsvc namespace name&gt;</code>. Note that Istio requires that all weights add to
 100, so the initial weights can be 100% to stable, and 0% to canary.</p>
@@ -2390,7 +2404,7 @@ Note that if the VirtualService and destination host resides in different namesp
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Rollout does not make any other assumptions about the fields within the VirtualService or the Istio mesh. The user could specify additional configurations for the VirtualService like URI rewrite rules on the primary route or any other route if desired. The user can also create specific DestinationRules for each of the services. </p>
+<p>Rollout does not make any other assumptions about the fields within the VirtualService or the Istio mesh. The user could specify additional configurations for the VirtualService like URI rewrite rules on the primary route or any other route if desired. The user can also create specific DestinationRules for each of the services.</p>
 </div>
 <h2 id="subset-level-traffic-splitting">Subset-level Traffic Splitting<a class="headerlink" href="#subset-level-traffic-splitting" title="Permanent link">&para;</a></h2>
 <div class="admonition important">
@@ -2418,7 +2432,7 @@ required to deploy the following resources:</p>
 <span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
 <span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
 <span class="w">        </span><span class="nt">istio</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">virtualService</span><span class="p">:</span><span class="w"> </span>
+<span class="w">          </span><span class="nt">virtualService</span><span class="p">:</span><span class="w"></span>
 <span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-vsvc</span><span class="w">        </span><span class="c1"># required</span><span class="w"></span>
 <span class="w">            </span><span class="nt">routes</span><span class="p">:</span><span class="w"></span>
 <span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary</span><span class="w">                 </span><span class="c1"># optional if there is a single route in VirtualService, required otherwise</span><span class="w"></span>
@@ -2449,7 +2463,7 @@ the rollout controller.</p>
 <span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-example</span><span class="w"></span>
 </code></pre></div>
 <p>The VirtualService must contain an HTTP route with a name referenced in the Rollout, containing
-two route destinations with <code>subset</code> values that match the <code>canarySubsetName</code> and <code>stableSubsetName</code> 
+two route destinations with <code>subset</code> values that match the <code>canarySubsetName</code> and <code>stableSubsetName</code>
 referenced in the Rollout. Note that Istio requires that all weights add to 100, so the initial
 weights can be 100% to stable, and 0% to canary.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.istio.io/v1alpha3</span><span class="w"></span>
@@ -2494,6 +2508,55 @@ weights can be 100% to stable, and 0% to canary.</p>
 <li>modify the DestinationRule <code>spec.subsets[].labels</code> to contain the <code>rollouts-pod-template-hash</code>
   label of the canary and stable ReplicaSets</li>
 </ul>
+<h2 id="tcp-traffic-splitting">TCP Traffic Splitting<a class="headerlink" href="#tcp-traffic-splitting" title="Permanent link">&para;</a></h2>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Available since v1.2.2</p>
+</div>
+<p>Support for splitting TCP traffic was introduced and requires the Rollout to define the following fields:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-example</span><span class="w"></span>
+<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">strategy</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-svc</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-svc</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">istio</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">virtualService</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-vsvc</span><span class="w">   </span><span class="c1"># required</span><span class="w"></span>
+<span class="w">            </span><span class="nt">tcpRoutes</span><span class="p">:</span><span class="w"></span>
+<span class="w">              </span><span class="c1"># Below fields are optional but if defined, they should match exactly with at least one of the TCP route match rules in your VirtualService</span><span class="w"></span>
+<span class="w">              </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3000</span><span class="w"> </span><span class="c1"># Only required if you want to match any rule in your VirtualService which contains this port</span><span class="w"></span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10m</span><span class="w"></span>
+</code></pre></div>
+<p>The VirtualService must contain a TCP route with a matching port referenced in the Rollout</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.istio.io/v1alpha3</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">VirtualService</span><span class="w"></span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-vsvc</span><span class="w"></span>
+<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">gateways</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">istio-rollout-gateway</span><span class="w"></span>
+<span class="w">  </span><span class="nt">hosts</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">istio-rollout.dev.argoproj.io</span><span class="w"></span>
+<span class="w">  </span><span class="nt">tcp</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">match</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3000</span><span class="w"></span>
+<span class="w">      </span><span class="nt">route</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-svc</span><span class="w"> </span><span class="c1"># referenced in canary.stableService</span><span class="w"></span>
+<span class="w">          </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">destination</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-svc</span><span class="w"> </span><span class="c1"># referenced in canary.canaryService</span><span class="w"></span>
+<span class="w">          </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
+</code></pre></div>
 <h2 id="multicluster-setup">Multicluster Setup<a class="headerlink" href="#multicluster-setup" title="Permanent link">&para;</a></h2>
 <p>If you have <a href="https://istio.io/latest/docs/setup/install/multicluster/">Istio multicluster setup</a>
 where the primary Istio cluster is different than the cluster where the Argo Rollout controller
@@ -2524,8 +2587,8 @@ is running, then you need to do the following setup:</p>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">update</span><span class="w"></span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">patch</span><span class="w"></span>
 </code></pre></div>
-Note: If Argo Rollout controller is also installed in the Istio primary cluster, then you can reuse the 
-<code>argo-rollouts-clusterrole</code> ClusterRole instead of creating a new one. </li>
+Note: If Argo Rollout controller is also installed in the Istio primary cluster, then you can reuse the
+<code>argo-rollouts-clusterrole</code> ClusterRole instead of creating a new one.</li>
 <li>Link the <code>ClusterRole</code> with the <code>ServiceAccount</code> in the Istio primary cluster.
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rbac.authorization.k8s.io/v1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterRoleBinding</span><span class="w"></span>
