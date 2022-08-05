@@ -995,6 +995,13 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute"
           },
           "description": "A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
+        },
+        "tcpRoutes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TCPRoute"
+          },
+          "description": "A list of TCP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
         }
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
@@ -1688,6 +1695,17 @@
         }
       },
       "title": "StringMatch Used to define what type of matching we will use exact, prefix, or regular expression"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TCPRoute": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "string",
+          "format": "int64",
+          "description": "Port number of the TCP Route desired to be matched in the given Istio VirtualService."
+        }
+      },
+      "description": "TCPRoute holds the information on the virtual service's TCP routes that are desired to be matched for changing weights."
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute": {
       "type": "object",
