@@ -796,3 +796,8 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 	}
 
 }
+
+func TestDelayServiceSelectorSwapError(t *testing.T) {
+	assert.Error(t, DelayServiceSelectorSwapError)
+	assert.NotEqual(t, DelayServiceSelectorSwapError.Error(), "")
+}
