@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"errors"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -50,6 +51,11 @@ func (c *rolloutContext) rolloutCanary() error {
 	}
 
 	if err := c.reconcileStableAndCanaryService(); err != nil {
+		// if we cannot reconcile the stable and canary services then
+		// we should not continue to adjust traffic routing
+		if errors.Is(err, DelayServiceSelectorSwapError) {
+			return nil
+		}
 		return err
 	}
 

@@ -781,7 +781,8 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 0)
 
 		err = roCtx.reconcileStableAndCanaryService()
-		assert.NoError(t, err)
+		// an error is returned because we are delaying
+		assert.Equal(t, err, DelayServiceSelectorSwapError)
 		_, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 		assert.False(t, canaryInjected)
 		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
