@@ -1,13 +1,12 @@
 package server
 
 import (
-	"bufio"
 	"context"
 	"embed"
 	"fmt"
 	"net"
 	"net/http"
-	"os"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -81,45 +80,11 @@ func NewServer(o ServerOptions) *ArgoRolloutsServer {
 	return &ArgoRolloutsServer{Options: o}
 }
 
-type spaFileSystem struct {
-	root http.FileSystem
-}
+var re = regexp.MustCompile(`<base href=".*".*/>`)
 
-func (fs *spaFileSystem) Open(name string) (http.File, error) {
-	f, err := fs.root.Open(name)
-	if os.IsNotExist(err) {
-		return fs.root.Open("index.html")
-	}
-	return f, err
-}
-
-//This function helps in changing base href to point to rootpath as basepath, we are making modification in only server/static/index.html file
-func withRootPath(rootpath string) {
-	inputFile, inputError := os.Open("./server/static/index.html")
-	if inputError != nil {
-		log.Error("An error occurred on opening the inputfile\n" +
-			"Does the file exist?\n" +
-			"Have you got access to it?\n")
-		panic(inputError) // exit on error
-	}
-	defer inputFile.Close()
-	inputReader := bufio.NewReader(inputFile)
-	inputString, _ := inputReader.ReadString('\n')
-	re := regexp.MustCompile(`<base href="/[^/]*/*"/>`)
-	var temp = re.ReplaceAllString(inputString, "<base href=\"/"+rootpath+"/\"/>") // href="/root/"
-
-	outputFile, _ := os.OpenFile("./server/static/index.html", os.O_TRUNC|os.O_WRONLY, 0666)
-	defer outputFile.Close()
-	outputWriter := bufio.NewWriter(outputFile)
-	outputWriter.WriteString(temp)
-	outputWriter.Flush()
-
-	//To make ui/dist/index.html file consistent with server/static/index.html
-	outputFileDist, _ := os.OpenFile("./ui/dist/app/index.html", os.O_TRUNC|os.O_WRONLY, 0666)
-	defer outputFileDist.Close()
-	outputWriterDist := bufio.NewWriter(outputFileDist)
-	outputWriterDist.WriteString(temp)
-	outputWriterDist.Flush()
+func withRootPath(fileContent []byte, rootpath string) []byte {
+	var temp = re.ReplaceAllString(string(fileContent), `<base href="`+path.Clean("/"+rootpath)+`/" />`)
+	return []byte(temp)
 }
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
@@ -153,11 +118,38 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 
 	var handler http.Handler = gwmux
 
-	withRootPath(s.Options.RootPath)
-
 	mux.Handle("/api/", handler)
 
-	mux.Handle("/"+s.Options.RootPath+"/", http.StripPrefix("/"+s.Options.RootPath+"/", http.FileServer(http.Dir("./server/static"))))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		requestedURI := path.Clean(r.RequestURI)
+		if requestedURI == path.Clean("/"+s.Options.RootPath) {
+			requestedURI = path.Clean("/" + s.Options.RootPath + "/index.html")
+		}
+
+		embedPath := path.Join("static", strings.TrimPrefix(requestedURI, path.Clean("/"+s.Options.RootPath)))
+		file, err := static.Open(embedPath)
+		if err != nil {
+			log.Errorf("Failed to open file %s: %v", embedPath, err)
+			http.NotFound(w, r)
+			return
+		}
+
+		stat, err := file.Stat()
+		if err != nil {
+			log.Errorf("Failed to stat file %s: %v", embedPath, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		fileBytes := make([]byte, stat.Size())
+		_, err = file.Read(fileBytes)
+		if err != nil {
+			log.Errorf("Failed to read file %s: %v", embedPath, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Write(withRootPath(fileBytes, s.Options.RootPath))
+	})
 
 	return &httpS
 }
