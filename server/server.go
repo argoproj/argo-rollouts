@@ -123,13 +123,14 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		requestedURI := path.Clean(r.RequestURI)
+		rootPath := path.Clean("/" + s.Options.RootPath)
 		//If the rootPath is not in the prefix 404
-		if !strings.HasPrefix(requestedURI, path.Clean("/"+s.Options.RootPath)) {
+		if !strings.HasPrefix(requestedURI, rootPath) {
 			http.NotFound(w, r)
 			return
 		}
 		//If the rootPath is the requestedURI, serve index.html
-		if requestedURI == path.Clean("/"+s.Options.RootPath) {
+		if requestedURI == rootPath {
 			fileBytes, openErr := s.readIndexHtml()
 			if openErr != nil {
 				log.Errorf("Error opening file index.html: %v", openErr)
@@ -140,7 +141,7 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 			return
 		}
 
-		embedPath := path.Join("static", strings.TrimPrefix(requestedURI, path.Clean("/"+s.Options.RootPath)))
+		embedPath := path.Join("static", strings.TrimPrefix(requestedURI, rootPath))
 		file, openErr := static.Open(embedPath)
 		if openErr != nil {
 			fErr := openErr.(*fs.PathError)
