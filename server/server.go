@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"path"
@@ -122,24 +123,52 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		requestedURI := path.Clean(r.RequestURI)
-		if requestedURI == path.Clean("/"+s.Options.RootPath) {
-			requestedURI = path.Clean("/" + s.Options.RootPath + "/index.html")
-		}
-
-		embedPath := path.Join("static", strings.TrimPrefix(requestedURI, path.Clean("/"+s.Options.RootPath)))
-		file, err := static.Open(embedPath)
-		if err != nil {
-			log.Errorf("Failed to open file %s: %v", embedPath, err)
+		//If the rootPath is not in the prefix 404
+		if !strings.HasPrefix(requestedURI, path.Clean("/"+s.Options.RootPath)) {
 			http.NotFound(w, r)
 			return
 		}
+		//If the rootPath is the requestedURI, serve index.html
+		if requestedURI == path.Clean("/"+s.Options.RootPath) {
+			fileBytes, openErr := s.readIndexHtml()
+			if openErr != nil {
+				log.Errorf("Error opening file index.html: %v", openErr)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.Write(fileBytes)
+			return
+		}
 
-		stat, err := file.Stat()
-		if err != nil {
-			log.Errorf("Failed to stat file %s: %v", embedPath, err)
+		embedPath := path.Join("static", strings.TrimPrefix(requestedURI, path.Clean("/"+s.Options.RootPath)))
+		file, openErr := static.Open(embedPath)
+		if openErr != nil {
+			fErr := openErr.(*fs.PathError)
+			//If the file is not found, serve index.html
+			if fErr.Err == fs.ErrNotExist {
+				fileBytes, openErr := s.readIndexHtml()
+				if openErr != nil {
+					log.Errorf("Error opening file index.html: %v", openErr)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.Write(fileBytes)
+				return
+			} else {
+				log.Errorf("Error opening file %s: %v", embedPath, openErr)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+		}
+		defer file.Close()
+
+		stat, statErr := file.Stat()
+		if statErr != nil {
+			log.Errorf("Failed to stat file or dir %s: %v", embedPath, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
 		fileBytes := make([]byte, stat.Size())
 		_, err = file.Read(fileBytes)
 		if err != nil {
@@ -148,10 +177,40 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 			return
 		}
 
-		w.Write(withRootPath(fileBytes, s.Options.RootPath))
+		w.Write(fileBytes)
 	})
 
 	return &httpS
+}
+
+func (s *ArgoRolloutsServer) readIndexHtml() ([]byte, error) {
+	file, err := static.Open("static/index.html")
+	if err != nil {
+		log.Errorf("Failed to open file %s: %v", "static/index.html", err)
+		return nil, err
+	}
+	defer func() {
+		if file != nil {
+			if err := file.Close(); err != nil {
+				log.Errorf("Error closing file: %v", err)
+			}
+		}
+	}()
+
+	stat, err := file.Stat()
+	if err != nil {
+		log.Errorf("Failed to stat file or dir %s: %v", "static/index.html", err)
+		return nil, err
+	}
+
+	fileBytes := make([]byte, stat.Size())
+	_, err = file.Read(fileBytes)
+	if err != nil {
+		log.Errorf("Failed to read file %s: %v", "static/index.html", err)
+		return nil, err
+	}
+
+	return withRootPath(fileBytes, s.Options.RootPath), nil
 }
 
 func (s *ArgoRolloutsServer) newGRPCServer() *grpc.Server {
