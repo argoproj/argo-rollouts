@@ -143,3 +143,10 @@ data:
 ```
 
 Each condition might use several templates. Typically each template is responsible for generating a service-specific notification part.
+
+### Notification Metrics
+
+The following prometheus metrics are emitted when notifications are enabled in argo-rollouts.
+- notification_send_success is a counter that measures how many times the notification is sent successfully.
+- notification_send_error is a counter that measures how many times the notification failed to send.
+- notification_send is a histogram that measures performance of sending notification.

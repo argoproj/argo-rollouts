@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/aws/aws-sdk-go-v2/config"
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
@@ -128,13 +130,18 @@ func FakeNewClientFunc(elbClient ELBv2APIClient) func() (Client, error) {
 }
 
 func (c *ClientAdapter) FindLoadBalancerByDNSName(ctx context.Context, dnsName string) (*elbv2types.LoadBalancer, error) {
-	lbOutput, err := c.ELBV2.DescribeLoadBalancers(ctx, &elbv2.DescribeLoadBalancersInput{})
-	if err != nil {
-		return nil, err
-	}
-	for _, lb := range lbOutput.LoadBalancers {
-		if lb.DNSName != nil && *lb.DNSName == dnsName {
-			return &lb, nil
+	paginator := elbv2.NewDescribeLoadBalancersPaginator(c.ELBV2, &elbv2.DescribeLoadBalancersInput{
+		PageSize: aws.Int32(defaults.DefaultAwsLoadBalancerPageSize),
+	})
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, lb := range output.LoadBalancers {
+			if lb.DNSName != nil && *lb.DNSName == dnsName {
+				return &lb, nil
+			}
 		}
 	}
 	return nil, nil

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -113,7 +115,12 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return nil
 }
 
-func (r *Reconciler) shouldVerifyWeight() bool {
+func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) error {
+	return nil
+}
+
+// Gets the controller configuration flag for verifying alb weights
+func (r *Reconciler) getShouldVerifyWeightCfg() bool {
 	if r.cfg.VerifyWeight != nil {
 		return *r.cfg.VerifyWeight
 	}
@@ -121,13 +128,25 @@ func (r *Reconciler) shouldVerifyWeight() bool {
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
-	if !r.shouldVerifyWeight() {
+	if !r.getShouldVerifyWeightCfg() {
 		r.cfg.Status.ALB = nil
 		return nil, nil
 	}
+
+	if !rolloututil.ShouldVerifyWeight(r.cfg.Rollout) {
+		// If we should not verify weight but the ALB status has not been set yet due to a Rollout resource just being
+		// installed in the cluster we want to actually run the rest of the function, so we do not return if
+		// r.cfg.Rollout.Status.ALB is nil. However, if we should not verify, and we have already updated the status once
+		// we return early to avoid calling AWS apis.
+		if r.cfg.Rollout.Status.ALB != nil {
+			return nil, nil
+		}
+	}
+
 	if r.cfg.Status.ALB == nil {
 		r.cfg.Status.ALB = &v1alpha1.ALBStatus{}
 	}
+
 	ctx := context.TODO()
 	rollout := r.cfg.Rollout
 	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
@@ -162,7 +181,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 			return pointer.BoolPtr(false), err
 		}
 		if lb == nil || lb.LoadBalancerArn == nil {
-			r.log.Infof("LoadBalancer %s not found", lbIngress.Hostname)
+			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.LoadBalancerNotFoundReason}, conditions.LoadBalancerNotFoundMessage, lbIngress.Hostname)
 			return pointer.BoolPtr(false), nil
 		}
 
@@ -286,5 +305,13 @@ func getDesiredAnnotations(current *ingressutil.Ingress, r *v1alpha1.Rollout, po
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
 func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	return nil
+}
+
+func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) error {
+	return nil
+}
+
+func (r *Reconciler) RemoveManagedRoutes() error {
 	return nil
 }

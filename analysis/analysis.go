@@ -316,7 +316,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 	for _, task := range tasks {
 		wg.Add(1)
 
-		go func(t metricTask) {
+		go func(t metricTask) error {
 			defer wg.Done()
 			//redact secret values from logs
 			logger := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
@@ -326,6 +326,10 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			resultsLock.Unlock()
 
 			provider, err := c.newProvider(*logger, t.metric)
+			if err != nil {
+				log.Errorf("Error in getting provider :%v", err)
+				return err
+			}
 			if metricResult == nil {
 				metricResult = &v1alpha1.MetricResult{
 					Name:     t.metric.Name,
@@ -404,7 +408,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			resultsLock.Lock()
 			analysisutil.SetResult(run, *metricResult)
 			resultsLock.Unlock()
-
+			return nil
 		}(task)
 	}
 	wg.Wait()
@@ -506,12 +510,7 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 				} else {
 					// Update metric result message
 					if message != "" {
-						failureMessage := fmt.Sprintf("Metric assessed %s due to %s", metricStatus, message)
-						if result.Message != "" {
-							result.Message = fmt.Sprintf("%s: \"Error Message: %s\"", failureMessage, result.Message)
-						} else {
-							result.Message = failureMessage
-						}
+						result.Message = fmt.Sprintf("Metric assessed %s due to %s", metricStatus, message)
 						analysisutil.SetResult(run, *result)
 					}
 					// Update DryRun Summary

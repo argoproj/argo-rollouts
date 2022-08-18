@@ -163,7 +163,7 @@ func testRolloutDescribe(t *testing.T, fakeRollout string, cond *v1alpha1.Rollou
 	registry.MustRegister(NewRolloutCollector(config.RolloutLister))
 	mux := http.NewServeMux()
 	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-	testHttpResponse(t, mux, expectedResponse)
+	testHttpResponse(t, mux, expectedResponse, assert.Contains)
 }
 
 func TestIncRolloutReconcile(t *testing.T) {
@@ -188,7 +188,7 @@ rollout_reconcile_count{name="ro-test",namespace="ro-namespace"} 1
 		},
 	}
 	metricsServ.IncRolloutReconcile(ro, time.Millisecond)
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }
 
 func TestGetStrategyAndTrafficRouter(t *testing.T) {
@@ -310,5 +310,5 @@ rollout_events_total{name="ro-test-2",namespace="ro-namespace",reason="BazEvent"
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-1", corev1.EventTypeNormal, "BarEvent").Inc()
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-2", corev1.EventTypeWarning, "BazEvent").Inc()
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-2", corev1.EventTypeWarning, "BazEvent").Inc()
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }

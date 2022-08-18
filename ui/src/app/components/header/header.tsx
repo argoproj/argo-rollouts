@@ -13,6 +13,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
     const history = useHistory();
     const namespaceInfo = React.useContext(NamespaceContext);
     const {name} = useParams<{name: string}>();
+    const {namespace} = useParams<{namespace: string}>();
     const api = React.useContext(RolloutAPIContext);
     const [version, setVersion] = React.useState('v?');
     const [nsInput, setNsInput] = React.useState(namespaceInfo.namespace);
@@ -22,6 +23,12 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
             setVersion(v.rolloutsVersion);
         };
         getVersion();
+    }, []);
+    React.useEffect(() => {
+      if (namespace && namespace != namespaceInfo.namespace) {
+        props.changeNamespace(namespace);
+        setNsInput(namespace);
+      }
     }, []);
     return (
         <GenericHeader>
@@ -54,8 +61,9 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                             placeholder='Namespace'
                             onChange={(el) => setNsInput(el.target.value)}
                             onItemClick={(val) => {
-                                props.changeNamespace(val ? val : nsInput);
-                                history.push(`/rollouts`);
+                                const selectedNamespace = val ? val : nsInput;
+                                props.changeNamespace(selectedNamespace);
+                                history.push(`/${selectedNamespace}`);
                             }}
                             value={nsInput}
                         />

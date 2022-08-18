@@ -1014,6 +1014,130 @@ func TestGetCurrentSetWeight(t *testing.T) {
 
 }
 
+func TestAtDesiredReplicaCountsForCanary(t *testing.T) {
+
+	t.Run("we are at desired replica counts and availability", func(t *testing.T) {
+		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
+			Weight:             pointer.Int32Ptr(2),
+			Replicas:           pointer.Int32Ptr(2),
+			MatchTrafficWeight: false,
+		}, nil)
+
+		newReplicaSet := newRS("", 2, 2)
+		newReplicaSet.Name = "newRS"
+		newReplicaSet.Status.Replicas = 2
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Name = "stableRS"
+		stableReplicaSet.Status.Replicas = 2
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+		})
+		assert.Equal(t, true, atDesiredReplicaCounts)
+	})
+
+	t.Run("new replicaset is not at desired counts or availability", func(t *testing.T) {
+		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
+			Weight:             pointer.Int32Ptr(2),
+			Replicas:           pointer.Int32Ptr(2),
+			MatchTrafficWeight: false,
+		}, nil)
+
+		newReplicaSet := newRS("", 2, 1)
+		newReplicaSet.Name = "newRS"
+		newReplicaSet.Status.Replicas = 2
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Name = "stableRS"
+		stableReplicaSet.Status.Replicas = 2
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+		})
+		assert.Equal(t, false, atDesiredReplicaCounts)
+	})
+
+	t.Run("stable replicaset is not at desired counts or availability", func(t *testing.T) {
+		rollout := newRollout(4, 75, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{}, nil)
+		newReplicaSet := newRS("", 3, 3)
+		newReplicaSet.Name = "newRS"
+		newReplicaSet.Status.Replicas = 3
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Name = "stableRS"
+		stableReplicaSet.Status.Replicas = 2
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 75,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 25,
+			},
+		})
+		assert.Equal(t, false, atDesiredReplicaCounts)
+	})
+
+	t.Run("stable replicaset is not at desired availability but is at correct count", func(t *testing.T) {
+		// This test returns true because for stable replicasets we only check the count of the pods but not availability
+		rollout := newRollout(4, 75, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{}, nil)
+		newReplicaSet := newRS("", 3, 3)
+		newReplicaSet.Name = "newRS"
+		newReplicaSet.Status.Replicas = 1
+
+		stableReplicaSet := newRS("", 1, 0)
+		stableReplicaSet.Name = "stableRS"
+		stableReplicaSet.Status.Replicas = 1
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 75,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 25,
+			},
+		})
+		assert.Equal(t, true, atDesiredReplicaCounts)
+	})
+
+	t.Run("test that when status field lags behind spec.replicas we fail", func(t *testing.T) {
+		rollout := newRollout(4, 50, intstr.FromInt(1), intstr.FromInt(1), "current", "stable", &v1alpha1.SetCanaryScale{
+			Weight:             pointer.Int32Ptr(2),
+			Replicas:           pointer.Int32Ptr(2),
+			MatchTrafficWeight: false,
+		}, nil)
+
+		newReplicaSet := newRS("", 2, 2)
+		newReplicaSet.Name = "newRS"
+		newReplicaSet.Status.Replicas = 2
+
+		stableReplicaSet := newRS("", 2, 2)
+		stableReplicaSet.Name = "stableRS"
+		stableReplicaSet.Status.Replicas = 3
+
+		atDesiredReplicaCounts := AtDesiredReplicaCountsForCanary(rollout, newReplicaSet, stableReplicaSet, nil, &v1alpha1.TrafficWeights{
+			Canary: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+			Stable: v1alpha1.WeightDestination{
+				Weight: 50,
+			},
+		})
+		assert.Equal(t, false, atDesiredReplicaCounts)
+	})
+}
+
 func TestGetCurrentExperiment(t *testing.T) {
 	rollout := &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{

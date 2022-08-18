@@ -29,6 +29,7 @@ nav:
     - Canary: features/canary.md
   - Rollout Spec: features/specification.md
   - HPA: features/hpa-support.md
+  - VPA: features/vpa-support.md
   - Ephemeral Metadata: features/ephemeral-metadata.md
   - Restarting Rollouts: features/restart.md
   - Scaledown Aborted Rollouts: features/scaledown-aborted-rs.md
@@ -43,6 +44,7 @@ nav:
   - Istio: features/traffic-management/istio.md
   - NGINX: features/traffic-management/nginx.md
   - SMI: features/traffic-management/smi.md
+  - Traefik: features/traffic-management/traefik.md
 - Analysis:
   - Overview: features/analysis.md
   - Prometheus: analysis/prometheus.md
@@ -53,6 +55,8 @@ nav:
   - Web: analysis/web.md
   - Kayenta: analysis/kayenta.md
   - CloudWatch: analysis/cloudwatch.md
+  - Graphite: analysis/graphite.md
+  - InfluxDB: analysis/influxdb.md
 - Experiments: features/experiment.md
 - Notifications:
   - Overview: features/notifications.md

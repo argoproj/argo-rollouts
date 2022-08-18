@@ -5,14 +5,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	logutil "github.com/argoproj/argo-rollouts/utils/log"
-	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/dynamic"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
 const (
@@ -132,6 +133,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 
 	r.log.Debugf("SetWeight: updated virtual router (%s) with desiredWeight (%d)", uVr.GetName(), desiredWeight)
 
+	return nil
+}
+
+func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) error {
 	return nil
 }
 
@@ -385,4 +390,12 @@ func GetRouteRule(route map[string]interface{}) (map[string]interface{}, string,
 	}
 
 	return routeRule, routeType, nil
+}
+
+func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) error {
+	return nil
+}
+
+func (r *Reconciler) RemoveManagedRoutes() error {
+	return nil
 }

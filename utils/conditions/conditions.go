@@ -129,6 +129,9 @@ const (
 	// within the given deadline (progressDeadlineSeconds).
 	RolloutTimeOutMessage = "Rollout %q has timed out progressing."
 
+	RolloutDeletedReason  = "RolloutDeleted"
+	RolloutDeletedMessage = "Rollout %s/%s is deleted."
+
 	ScalingReplicaSetReason  = "ScalingReplicaSet"
 	ScalingReplicaSetMessage = "Scaled %s ReplicaSet %s (revision %d) from %d to %d"
 
@@ -157,6 +160,9 @@ const (
 	// WeightVerifyErrorReason is emitted when there is an error verifying the set weight
 	WeightVerifyErrorReason  = "WeightVerifyError"
 	WeightVerifyErrorMessage = "Failed to verify weight: %s"
+	// LoadBalancerNotFoundReason is emitted when load balancer can not be found
+	LoadBalancerNotFoundReason  = "LoadBalancerNotFound"
+	LoadBalancerNotFoundMessage = "Failed to find load balancer: %s"
 )
 
 // NewRolloutCondition creates a new rollout condition.

@@ -26,32 +26,72 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 				UID:               run.UID,
 			},
 		}
+		if run.Spec.Metrics != nil {
+			for _, metric := range run.Spec.Metrics {
+
+				metrics := rollout.Metrics{
+					Name:             metric.Name,
+					SuccessCondition: metric.SuccessCondition,
+				}
+
+				if metric.InconclusiveLimit != nil {
+					metrics.InconclusiveLimit = metric.InconclusiveLimit.IntVal
+				} else {
+					metrics.InconclusiveLimit = 0
+				}
+
+				if metric.Count != nil {
+					metrics.Count = metric.Count.IntVal
+				} else {
+					metrics.Count = 0
+				}
+
+				if metric.FailureLimit != nil {
+					metrics.FailureLimit = metric.FailureLimit.IntVal
+				} else {
+					metrics.FailureLimit = 0
+				}
+
+				arInfo.Metrics = append(arInfo.Metrics, &metrics)
+			}
+		}
 		arInfo.Status = string(run.Status.Phase)
 		for _, mr := range run.Status.MetricResults {
 			arInfo.Successful += mr.Successful
 			arInfo.Failed += mr.Failed
 			arInfo.Inconclusive += mr.Inconclusive
 			arInfo.Error += mr.Error
-			lastMeasurement := analysisutil.LastMeasurement(run, mr.Name)
-			if lastMeasurement != nil && lastMeasurement.Metadata != nil {
-				if jobName, ok := lastMeasurement.Metadata[job.JobNameKey]; ok {
-					jobInfo := rollout.JobInfo{
-						ObjectMeta: &v1.ObjectMeta{
-							Name: jobName,
-						},
-						Icon:   analysisIcon(lastMeasurement.Phase),
-						Status: string(lastMeasurement.Phase),
+			for _, measurement := range analysisutil.ArrayMeasurement(run, mr.Name) {
+				if measurement.Metadata != nil {
+					if jobName, ok := measurement.Metadata[job.JobNameKey]; ok {
+						jobInfo := rollout.JobInfo{
+							ObjectMeta: &v1.ObjectMeta{
+								Name: jobName,
+							},
+							Icon:       analysisIcon(measurement.Phase),
+							Status:     string(measurement.Phase),
+							StartedAt:  measurement.StartedAt,
+							MetricName: mr.Name,
+						}
+						if measurement.StartedAt != nil {
+							jobInfo.ObjectMeta.CreationTimestamp = *measurement.StartedAt
+						}
+						arInfo.Jobs = append(arInfo.Jobs, &jobInfo)
 					}
-					if lastMeasurement.StartedAt != nil {
-						jobInfo.ObjectMeta.CreationTimestamp = *lastMeasurement.StartedAt
+				} else {
+					nonJobInfo := rollout.NonJobInfo{
+						Value:      measurement.Value,
+						Status:     string(measurement.Phase),
+						StartedAt:  measurement.StartedAt,
+						MetricName: mr.Name,
 					}
-					arInfo.Jobs = append(arInfo.Jobs, &jobInfo)
+					arInfo.NonJobInfo = append(arInfo.NonJobInfo, &nonJobInfo)
 				}
+
 			}
 		}
 		arInfo.Icon = analysisIcon(run.Status.Phase)
-		arInfo.Revision = int32(parseRevision(run.ObjectMeta.Annotations))
-
+		arInfo.Revision = int64(parseRevision(run.ObjectMeta.Annotations))
 		arInfos = append(arInfos, &arInfo)
 	}
 	sort.Slice(arInfos[:], func(i, j int) bool {

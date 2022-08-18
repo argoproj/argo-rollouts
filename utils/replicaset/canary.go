@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"math"
 
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -19,6 +19,10 @@ const (
 
 func allDesiredAreAvailable(rs *appsv1.ReplicaSet, desired int32) bool {
 	return rs != nil && desired == *rs.Spec.Replicas && desired == rs.Status.AvailableReplicas
+}
+
+func allDesiredAreCreated(rs *appsv1.ReplicaSet, desired int32) bool {
+	return rs != nil && desired == *rs.Spec.Replicas && desired == rs.Status.Replicas
 }
 
 func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, weights *v1alpha1.TrafficWeights) bool {
@@ -32,7 +36,7 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 		return false
 	}
 	if ro.Spec.Strategy.Canary.TrafficRouting == nil || !ro.Spec.Strategy.Canary.DynamicStableScale {
-		if !allDesiredAreAvailable(stableRS, desiredStableRSReplicaCount) {
+		if !allDesiredAreCreated(stableRS, desiredStableRSReplicaCount) {
 			// only check stable RS if we are not using dynamic stable scaling
 			return false
 		}

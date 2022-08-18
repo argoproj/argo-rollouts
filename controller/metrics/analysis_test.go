@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/ghodss/yaml"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -162,7 +164,7 @@ func testAnalysisRunDescribe(t *testing.T, fakeAnalysisRun string, expectedRespo
 	registry.MustRegister(NewAnalysisRunCollector(serverCfg.AnalysisRunLister, serverCfg.AnalysisTemplateLister, serverCfg.ClusterAnalysisTemplateLister))
 	mux := http.NewServeMux()
 	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-	testHttpResponse(t, mux, expectedResponse)
+	testHttpResponse(t, mux, expectedResponse, assert.Contains)
 }
 
 func TestIncAnalysisRunReconcile(t *testing.T) {
@@ -184,7 +186,7 @@ analysis_run_reconcile_count{name="ar-test",namespace="ar-namespace"} 1`
 		},
 	}
 	metricsServ.IncAnalysisRunReconcile(ar, time.Millisecond)
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }
 
 func TestAnalysisTemplateDescribe(t *testing.T) {
@@ -206,5 +208,5 @@ analysis_template_metric_info{metric="web-metric-2",name="http-benchmark-test",n
 	registry.MustRegister(NewAnalysisRunCollector(serverCfg.AnalysisRunLister, serverCfg.AnalysisTemplateLister, serverCfg.ClusterAnalysisTemplateLister))
 	mux := http.NewServeMux()
 	mux.Handle(MetricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
-	testHttpResponse(t, mux, expectedResponse)
+	testHttpResponse(t, mux, expectedResponse, assert.Contains)
 }

@@ -7,26 +7,47 @@ on:
   pull_request:
     branches:
       - "master"
+env:
+  # Golang version to use across CI steps
+  GOLANG_VERSION: '1.18'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  event_file:
+    name: "Event File"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: Event File
+          path: ${{ github.event_path }}
   lint-go:
     name: Lint Go code
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v2
+      - name: Set up Go
+        uses: actions/setup-go@v3
         with:
-          version: v1.30
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.47.2
           args: --timeout 5m
   build:
     name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: ${{ env.GOLANG_VERSION }}
         id: go
 
       - name: Check out code into the Go module directory
@@ -46,7 +67,15 @@ jobs:
         run: make controller plugin
 
       - name: Test
-        run: go test -failfast -covermode=count -coverprofile=coverage.out ./...
+        run: make test-unit
+
+      - name: Upload Unit Test Results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: Unit Test Results
+          path: |
+            junit.xml
 
       - name: Generate code coverage artifacts
         uses: actions/upload-artifact@v2
@@ -70,7 +99,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v1
         with:
-          go-version: 1.17.6
+          go-version: ${{ env.GOLANG_VERSION }}
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
       # This symlink is necessary to ensure that `git diff` detects changes
       - name: Create symlink in GOPATH
