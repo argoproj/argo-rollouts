@@ -86,7 +86,18 @@ spec:
       # Reference to service that the rollout modifies as the active service.
       # Required.
       activeService: active-service
-
+      previewService: bluegreen-preview
+      previewMetadata:
+        labels:
+          version: preview
+        annotations:
+           myorg/team: v2
+      activeMetadata:
+        labels:
+          version: active
+        annotations:
+           myorg/team: v1
+           
       # Pre-promotion analysis run which performs analysis before the service
       # cutover. +optional
       prePromotionAnalysis:
