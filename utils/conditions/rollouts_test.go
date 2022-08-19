@@ -351,7 +351,7 @@ func TestRolloutProgressing(t *testing.T) {
 }
 
 func TestRolloutHealthyComplete(t *testing.T) {
-	rollout := func(desired, current, updated, available int32, correctObservedGeneration bool) *v1alpha1.Rollout {
+	rollout := func(desired, current, updated, available int32, correctObservedGeneration bool, isCompleted bool) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
 				Replicas: &desired,
@@ -365,11 +365,14 @@ func TestRolloutHealthyComplete(t *testing.T) {
 		r.Generation = 123
 		podHash := hash.ComputePodTemplateHash(&r.Spec.Template, r.Status.CollisionCount)
 		r.Status.CurrentPodHash = podHash
+		if isCompleted {
+			r.Status.StableRS = r.Status.CurrentPodHash
+		}
 		return r
 	}
 
-	blueGreenRollout := func(desired, current, updated, available int32, correctObservedGeneration bool, activeSelector, previewSelector string) *v1alpha1.Rollout {
-		r := rollout(desired, current, updated, available, correctObservedGeneration)
+	blueGreenRollout := func(desired, current, updated, available int32, correctObservedGeneration bool, activeSelector, previewSelector string, isCompleted bool) *v1alpha1.Rollout {
+		r := rollout(desired, current, updated, available, correctObservedGeneration, isCompleted)
 		r.Spec.Strategy = v1alpha1.RolloutStrategy{
 			BlueGreen: &v1alpha1.BlueGreenStrategy{
 				PreviewService: "preview",
@@ -384,8 +387,8 @@ func TestRolloutHealthyComplete(t *testing.T) {
 		return r
 	}
 
-	canaryRollout := func(desired, current, updated, available int32, correctObservedGeneration bool, stableRS string, hasSteps bool, stepIndex *int32) *v1alpha1.Rollout {
-		r := rollout(desired, current, updated, available, correctObservedGeneration)
+	canaryRollout := func(desired, current, updated, available int32, correctObservedGeneration bool, hasSteps bool, stepIndex *int32, isCompleted bool) *v1alpha1.Rollout {
+		r := rollout(desired, current, updated, available, correctObservedGeneration, isCompleted)
 		steps := []v1alpha1.CanaryStep{}
 		if hasSteps {
 			steps = append(steps, v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(30)})
@@ -395,7 +398,6 @@ func TestRolloutHealthyComplete(t *testing.T) {
 				Steps: steps,
 			},
 		}
-		r.Status.StableRS = stableRS
 		r.Status.CurrentStepIndex = stepIndex
 		if correctObservedGeneration {
 			r.Status.ObservedGeneration = strconv.Itoa(int(r.Generation))
@@ -412,77 +414,77 @@ func TestRolloutHealthyComplete(t *testing.T) {
 		{
 			name: "BlueGreen complete",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:                blueGreenRollout(5, 5, 5, 5, true, "76bbb58f74", "76bbb58f74"),
+			r:                blueGreenRollout(5, 5, 5, 5, true, "76bbb58f74", "76bbb58f74", true),
 			expectedHealthy:  true,
 			expectedComplete: true,
 		},
 		{
 			name: "BlueGreen complete with extra old replicas",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:                blueGreenRollout(5, 6, 5, 5, true, "76bbb58f74", "76bbb58f74"),
+			r:                blueGreenRollout(5, 6, 5, 5, true, "76bbb58f74", "76bbb58f74", true),
 			expectedHealthy:  true,
 			expectedComplete: true,
 		},
 		{
 			name:             "BlueGreen not completed: active service does not point at updated rs",
-			r:                blueGreenRollout(1, 1, 1, 1, true, "not-active", ""),
+			r:                blueGreenRollout(1, 1, 1, 1, true, "not-active", "", false),
 			expectedHealthy:  false,
 			expectedComplete: false,
 		},
 		{
 			name: "BlueGreen not completed: preview service does not point at updated rs",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:                blueGreenRollout(1, 1, 1, 1, true, "6cb88c6bcf", ""),
+			r:                blueGreenRollout(1, 1, 1, 1, true, "6cb88c6bcf", "", false),
 			expectedHealthy:  false,
 			expectedComplete: false,
 		},
 		{
-			name:             "CanaryWithSteps Completed",
-			r:                canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(1)),
-			expectedHealthy:  false,
-			expectedComplete: false,
+			name:             "CanaryWithSteps Completed and Healthy",
+			r:                canaryRollout(1, 1, 1, 1, true, true, pointer.Int32Ptr(1), true),
+			expectedHealthy:  true,
+			expectedComplete: true,
 		},
 		{
-			name:             "CanaryWithSteps Not Completed: Steps left",
-			r:                canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(0)),
+			name:             "CanaryWithSteps Not Healthy and Not completed: Steps left",
+			r:                canaryRollout(1, 1, 1, 1, true, true, pointer.Int32Ptr(0), false),
 			expectedHealthy:  false,
 			expectedComplete: false,
 		},
 		{
 			name:             "CanaryNoSteps Completed",
-			r:                canaryRollout(1, 1, 1, 1, true, "active", false, nil),
-			expectedHealthy:  false,
-			expectedComplete: false,
+			r:                canaryRollout(1, 1, 1, 1, true, false, nil, true),
+			expectedHealthy:  true,
+			expectedComplete: true,
 		},
 		{
 			name:             "Canary Not Completed: Diff stableRs",
-			r:                canaryRollout(1, 1, 1, 1, true, "not-active", false, nil),
+			r:                canaryRollout(1, 1, 1, 1, true, false, nil, false),
 			expectedHealthy:  false,
 			expectedComplete: false,
 		},
 		{
 			name:             "not complete: min but not all pods become available",
-			r:                rollout(5, 5, 5, 4, true),
+			r:                rollout(5, 5, 5, 4, true, true),
 			expectedHealthy:  false,
 			expectedComplete: true,
 		},
 		{
 			name:             "not complete: all pods are available but not all active",
-			r:                rollout(5, 5, 4, 5, true),
+			r:                rollout(5, 5, 4, 5, true, true),
 			expectedHealthy:  false,
-			expectedComplete: false,
+			expectedComplete: true,
 		},
 		{
 			name:             "Canary not complete: still running old pods",
-			r:                rollout(1, 2, 1, 1, true),
+			r:                rollout(1, 2, 1, 1, true, true),
 			expectedHealthy:  false,
 			expectedComplete: true,
 		},
 		{
 			name:             "not complete: Mismatching ObservedGeneration",
-			r:                rollout(1, 2, 1, 1, false),
+			r:                rollout(1, 2, 1, 1, false, true),
 			expectedHealthy:  false,
-			expectedComplete: false,
+			expectedComplete: true,
 		},
 	}
 
