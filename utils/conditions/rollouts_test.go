@@ -470,7 +470,7 @@ func TestRolloutHealthyComplete(t *testing.T) {
 			name:             "not complete: all pods are available but not all active",
 			r:                rollout(5, 5, 4, 5, true),
 			expectedHealthy:  false,
-			expectedComplete: true,
+			expectedComplete: false,
 		},
 		{
 			name:             "Canary not complete: still running old pods",
@@ -482,7 +482,7 @@ func TestRolloutHealthyComplete(t *testing.T) {
 			name:             "not complete: Mismatching ObservedGeneration",
 			r:                rollout(1, 2, 1, 1, false),
 			expectedHealthy:  false,
-			expectedComplete: true,
+			expectedComplete: false,
 		},
 	}
 
