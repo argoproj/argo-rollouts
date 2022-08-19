@@ -548,14 +548,16 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	isAborted := c.pauseContext.IsAborted()
 
 	var becameIncomplete bool // remember if we transitioned from completed
-	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutCompleted)
-	if !isPaused && conditions.RolloutComplete(c.rollout, &newStatus) {
-		updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
-		conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutHealthy)
+	if !isPaused && conditions.RolloutHealthyAndComplete(c.rollout, &newStatus) {
+		updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionTrue, conditions.RolloutHealthyReason, conditions.RolloutHealthyReason)
+		conditions.SetRolloutCondition(&newStatus, *updateHealthyCond)
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutHealthyMessage)
 	} else {
 		if completeCond != nil {
-			updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionFalse, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
-			becameIncomplete = conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+			updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionFalse, conditions.RolloutHealthyReason, conditions.RolloutHealthyReason)
+			becameIncomplete = conditions.SetRolloutCondition(&newStatus, *updateHealthyCond)
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutNotHealthyMessage)
 		}
 	}
 
@@ -576,11 +578,11 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	// In such a case, we should simply not estimate any progress for this rollout.
 	currentCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutProgressing)
 
-	isCompleteRollout := newStatus.Replicas == newStatus.AvailableReplicas && currentCond != nil && currentCond.Reason == conditions.NewRSAvailableReason && currentCond.Type != v1alpha1.RolloutProgressing
+	isHealthyRollout := newStatus.Replicas == newStatus.AvailableReplicas && currentCond != nil && currentCond.Reason == conditions.NewRSAvailableReason && currentCond.Type != v1alpha1.RolloutProgressing
 	// Check for progress. Only do this if the latest rollout hasn't completed yet and it is not aborted
-	if !isCompleteRollout && !isAborted {
+	if !isHealthyRollout && !isAborted {
 		switch {
-		case conditions.RolloutComplete(c.rollout, &newStatus):
+		case conditions.RolloutHealthyAndComplete(c.rollout, &newStatus):
 			// Update the rollout conditions with a message for the new replica set that
 			// was successfully deployed. If the condition already exists, we ignore this update.
 			rsName := ""
@@ -754,7 +756,7 @@ func (c *rolloutContext) requeueStuckRollout(newStatus v1alpha1.RolloutStatus) t
 	}
 	// No need to estimate progress if the rollout is complete or already timed out.
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
-	if conditions.RolloutComplete(c.rollout, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || c.rollout.Status.Abort || isIndefiniteStep(c.rollout) {
+	if conditions.RolloutHealthyAndComplete(c.rollout, &newStatus) || currentCond.Reason == conditions.TimedOutReason || isPaused || c.rollout.Status.Abort || isIndefiniteStep(c.rollout) {
 		return time.Duration(-1)
 	}
 	// If there is no sign of progress at this point then there is a high chance that the
@@ -926,6 +928,10 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		revision, _ := replicasetutil.Revision(c.rollout)
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},
 			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
+		if conditions.RolloutComplete(c.rollout, newStatus) {
+			updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
+			conditions.SetRolloutCondition(newStatus, *updateCompletedCond)
+		}
 	}
 	return nil
 }

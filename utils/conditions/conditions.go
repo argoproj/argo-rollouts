@@ -69,6 +69,13 @@ const (
 	// RolloutCompletedMessage is added when the rollout is completed
 	RolloutCompletedMessage = "Rollout completed update to revision %d (%s): %s"
 
+	// RolloutHealthyReason is added in a rollout when it is completed.
+	RolloutHealthyReason = "RolloutHealthy"
+	// RolloutHealthyMessage is added when the rollout is healthy
+	RolloutHealthyMessage = "Rollout is healthy"
+	// RolloutNotHealthyMessage is added when the rollout is not healthy
+	RolloutNotHealthyMessage = "Rollout is not healthy"
+
 	// RolloutAbortedReason indicates that the rollout was aborted
 	RolloutAbortedReason = "RolloutAborted"
 	// RolloutAbortedMessage indicates that the rollout was aborted
@@ -125,7 +132,7 @@ const (
 	// TimedOutReason is added in a rollout when its newest replica set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	TimedOutReason = "ProgressDeadlineExceeded"
-	// RolloutTimeOutMessage is is added in a rollout when the rollout fails to show any progress
+	// RolloutTimeOutMessage is added in a rollout when the rollout fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	RolloutTimeOutMessage = "Rollout %q has timed out progressing."
 
@@ -257,9 +264,9 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 		strategySpecificProgress
 }
 
-// RolloutComplete considers a rollout to be complete once all of its desired replicas
+// RolloutHealthyAndComplete considers a rollout to be complete once all of its desired replicas
 // are updated, available, and receiving traffic from the active service, and no old pods are running.
-func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+func RolloutHealthyAndComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
 	completedStrategy := true
 	replicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 
@@ -286,6 +293,31 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 		newStatus.AvailableReplicas == replicas &&
 		rollout.Status.ObservedGeneration == strconv.Itoa(int(rollout.Generation)) &&
 		completedStrategy
+}
+
+// RolloutComplete considers a rollout to be complete once
+func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+	completedStrategy := true
+
+	if rollout.Spec.Strategy.BlueGreen != nil {
+		activeSelectorComplete := newStatus.BlueGreen.ActiveSelector == newStatus.CurrentPodHash
+		previewSelectorComplete := true
+		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
+			previewSelectorComplete = newStatus.BlueGreen.PreviewSelector == newStatus.CurrentPodHash
+		}
+		completedStrategy = activeSelectorComplete && previewSelectorComplete
+	}
+	if rollout.Spec.Strategy.Canary != nil {
+		stepCount := len(rollout.Spec.Strategy.Canary.Steps)
+		executedAllSteps := true
+		if stepCount > 0 && newStatus.CurrentStepIndex != nil {
+			executedAllSteps = int32(stepCount) == *newStatus.CurrentStepIndex
+		}
+		currentRSIsStable := newStatus.StableRS != "" && newStatus.StableRS == newStatus.CurrentPodHash
+		completedStrategy = executedAllSteps && currentRSIsStable
+	}
+
+	return rollout.Status.ObservedGeneration == strconv.Itoa(int(rollout.Generation)) && completedStrategy
 }
 
 // ComputeStepHash returns a hash value calculated from the Rollout's steps. The hash will
