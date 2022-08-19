@@ -324,7 +324,7 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
-		conditions.RolloutHealthyReason,
+		conditions.RolloutHealthyAndCompletedReason,
 	})
 }
 
@@ -411,7 +411,7 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
 		conditions.RolloutCompletedReason,
-		conditions.RolloutHealthyReason,
+		conditions.RolloutHealthyAndCompletedReason,
 	})
 }
 
@@ -509,7 +509,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	f.run(getKey(r2, t))
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
-		conditions.RolloutHealthyReason,
+		conditions.RolloutHealthyAndCompletedReason,
 	})
 }
 
@@ -608,7 +608,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.verifyPatchedReplicaSet(scaleDownRSIndex, 30)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
-		conditions.RolloutHealthyReason,
+		conditions.RolloutHealthyAndCompletedReason,
 	})
 }
 
@@ -666,7 +666,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 
 	f.run(getKey(r2, t)) // there should be no api calls
 	f.assertEvents([]string{
-		conditions.RolloutHealthyReason,
+		conditions.RolloutHealthyAndCompletedReason,
 	})
 }
 

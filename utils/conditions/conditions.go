@@ -69,12 +69,12 @@ const (
 	// RolloutCompletedMessage is added when the rollout is completed
 	RolloutCompletedMessage = "Rollout completed update to revision %d (%s): %s"
 
-	// RolloutHealthyReason is added in a rollout when it is completed.
-	RolloutHealthyReason = "RolloutHealthy"
-	// RolloutHealthyMessage is added when the rollout is healthy
-	RolloutHealthyMessage = "Rollout is healthy"
-	// RolloutNotHealthyMessage is added when the rollout is not healthy
-	RolloutNotHealthyMessage = "Rollout is not healthy"
+	// RolloutHealthyAndCompletedReason is added in a rollout when it is healthy.
+	RolloutHealthyAndCompletedReason = "HealthyAndCompleted"
+	// RolloutHealthyAndCompletedMessage is added when the rollout is completed and is healthy or not.
+	RolloutHealthyAndCompletedMessage = "Rollout is healthy and completed"
+	// RolloutNotHealthyAndCompletedMessage is added when the rollout is completed and is healthy or not.
+	RolloutNotHealthyAndCompletedMessage = "Rollout is not healthy and completed"
 
 	// RolloutAbortedReason indicates that the rollout was aborted
 	RolloutAbortedReason = "RolloutAborted"

@@ -548,16 +548,16 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	isAborted := c.pauseContext.IsAborted()
 
 	var becameIncomplete bool // remember if we transitioned from completed
-	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.RolloutHealthy)
+	completeCond := conditions.GetRolloutCondition(c.rollout.Status, v1alpha1.HealthyAndCompleted)
 	if !isPaused && conditions.RolloutHealthyAndComplete(c.rollout, &newStatus) {
-		updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionTrue, conditions.RolloutHealthyReason, conditions.RolloutHealthyReason)
+		updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.HealthyAndCompleted, corev1.ConditionTrue, conditions.RolloutHealthyAndCompletedReason, conditions.RolloutHealthyAndCompletedMessage)
 		conditions.SetRolloutCondition(&newStatus, *updateHealthyCond)
-		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutHealthyMessage)
+		//c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyAndCompletedReason}, conditions.RolloutHealthyAndCompletedMessage)
 	} else {
 		if completeCond != nil {
-			updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionFalse, conditions.RolloutHealthyReason, conditions.RolloutHealthyReason)
+			updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.HealthyAndCompleted, corev1.ConditionFalse, conditions.RolloutHealthyAndCompletedReason, conditions.RolloutNotHealthyAndCompletedMessage)
 			becameIncomplete = conditions.SetRolloutCondition(&newStatus, *updateHealthyCond)
-			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutNotHealthyMessage)
+			//c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyAndCompletedReason}, conditions.RolloutNotHealthyAndCompletedMessage)
 		}
 	}
 

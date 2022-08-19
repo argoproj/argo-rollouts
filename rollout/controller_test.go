@@ -201,10 +201,10 @@ func newHealthyCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
 	condition := v1alpha1.RolloutCondition{
 		LastTransitionTime: timeutil.MetaNow(),
 		LastUpdateTime:     timeutil.MetaNow(),
-		Message:            conditions.RolloutHealthyReason,
-		Reason:             conditions.RolloutHealthyReason,
+		Message:            conditions.RolloutHealthyAndCompletedReason,
+		Reason:             conditions.RolloutHealthyAndCompletedReason,
 		Status:             status,
-		Type:               v1alpha1.RolloutHealthy,
+		Type:               v1alpha1.HealthyAndCompleted,
 	}
 	conditionBytes, err := json.Marshal(condition)
 	if err != nil {
