@@ -925,16 +925,14 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 			}
 		}
 		newStatus.StableRS = newStatus.CurrentPodHash
-		//revision, _ := replicasetutil.Revision(c.rollout)
-		//c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},
-		//	conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
+
 		if conditions.RolloutComplete(c.rollout, newStatus) {
 			revision, _ := replicasetutil.Revision(c.rollout)
 			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},
 				conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
 
 			updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue,
-				conditions.RolloutCompletedReason, fmt.Sprintf(conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason))
+				conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
 			conditions.SetRolloutCondition(newStatus, *updateCompletedCond)
 		}
 	}

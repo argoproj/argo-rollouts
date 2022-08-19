@@ -57,7 +57,7 @@ func TestBlueGreenComplateRolloutRestart(t *testing.T) {
 
 	rs := newReplicaSet(r, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	generatedConditions := generateConditionsPatchWithComplete(false, conditions.ReplicaSetNotAvailableReason, rs, false, "", false)
+	generatedConditions := generateConditionsPatchWithHealthy(false, conditions.ReplicaSetNotAvailableReason, rs, false, "", false)
 
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
@@ -635,7 +635,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		servicePatchIndex := f.expectPatchServiceAction(activeSvc, rs2PodHash)
 
-		generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, true, "")
+		generatedConditions := generateConditionsPatchWithComplete(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
 		newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
 		expectedPatchWithoutSubs := `{
 			"status": {
@@ -739,7 +739,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			}
 		}`
 
-		generateConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "")
+		generateConditions := generateConditionsPatchWithComplete(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
 		newSelector := metav1.FormatLabelSelector(rs1.Spec.Selector)
 		expectedPatch := calculatePatch(r1, fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash, rs1PodHash, generateConditions, newSelector))
 		patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r1, expectedPatch)
@@ -796,7 +796,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		}`
 		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedUnpausePatch, unpauseConditions)), unpausePatch)
 
-		generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, true, "")
+		generatedConditions := generateConditionsPatchWithComplete(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
 		expected2ndPatchWithoutSubs := `{
 			"status": {
 				"blueGreen": {
@@ -858,7 +858,7 @@ func TestBlueGreenAddScaleDownDelayToPreviousActiveReplicaSet(t *testing.T) {
 		}
 	}`
 	newSelector := metav1.FormatLabelSelector(rs2.Spec.Selector)
-	expectedCondition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, true, "")
+	expectedCondition := generateConditionsPatchWithComplete(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, rs2PodHash, expectedCondition, newSelector))
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1147,7 +1147,7 @@ func TestBlueGreenRolloutCompleted(t *testing.T) {
 
 	f.run(getKey(r2, t))
 
-	newConditions := generateConditionsPatchWithComplete(true, conditions.NewRSAvailableReason, rs2, true, "", true)
+	newConditions := generateConditionsPatchWithHealthy(true, conditions.NewRSAvailableReason, rs2, true, "", true)
 	expectedPatch := fmt.Sprintf(`{
 		"status":{
 			"conditions":%s
@@ -1481,7 +1481,7 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 				"blueGreen": {
 					"activeSelector": "%s"
 				},
-				"conditions": [%s, %s, %s],
+				"conditions": [%s, %s, %s, %s],
 				"stableRS": "%s",
 				"pauseConditions": null,
 				"controllerPause": null,
@@ -1497,7 +1497,9 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 	assert.Nil(t, err)
 	pausedCondBytes, err := json.Marshal(r2.Status.Conditions[2])
 	assert.Nil(t, err)
-	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, string(availableCondBytes), string(pausedCondBytes), string(progressingCondBytes), rs2PodHash, rs2PodHash))
+	completeCond, _ := newCompleteCondition(true)
+	completeCondBytes, err := json.Marshal(completeCond)
+	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, string(availableCondBytes), string(pausedCondBytes), string(completeCondBytes), string(progressingCondBytes), rs2PodHash, rs2PodHash))
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
 	f.run(getKey(r2, t))

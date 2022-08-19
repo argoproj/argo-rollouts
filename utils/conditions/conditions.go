@@ -317,7 +317,7 @@ func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatu
 		completedStrategy = executedAllSteps && currentRSIsStable
 	}
 
-	return completedStrategy
+	return completedStrategy // && rollout.Status.ObservedGeneration == strconv.Itoa(int(rollout.Generation))
 }
 
 // ComputeStepHash returns a hash value calculated from the Rollout's steps. The hash will

@@ -379,7 +379,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 		}
 	}`
 
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, ""))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatchWithComplete(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", true))
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -502,7 +502,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 		}
 	}`
 
-	newConditions := generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false, "")
+	newConditions := generateConditionsPatchWithComplete(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
 
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, newConditions)), patch)
 }
@@ -542,7 +542,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	expectedPatch := fmt.Sprintf(expectedPatchWithSub, generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false, ""))
+	expectedPatch := fmt.Sprintf(expectedPatchWithSub, generateConditionsPatchWithComplete(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true))
 
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }

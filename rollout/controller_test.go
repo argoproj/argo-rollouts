@@ -193,10 +193,10 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-func newHealthyCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
+func newHealthyCondition(isHealthy bool) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	msg := conditions.RolloutHealthyAndCompletedMessage
-	if !isCompleted {
+	if !isHealthy {
 		status = corev1.ConditionFalse
 		msg = conditions.RolloutNotHealthyAndCompletedMessage
 	}
@@ -207,6 +207,26 @@ func newHealthyCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
 		Reason:             conditions.RolloutHealthyAndCompletedReason,
 		Status:             status,
 		Type:               v1alpha1.HealthyAndCompleted,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
+}
+
+func newCompleteCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
+	status := corev1.ConditionTrue
+	if !isCompleted {
+		status = corev1.ConditionFalse
+	}
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
+		Message:            conditions.RolloutCompletedReason,
+		Reason:             conditions.RolloutCompletedReason,
+		Status:             status,
+		Type:               v1alpha1.RolloutCompleted,
 	}
 	conditionBytes, err := json.Marshal(condition)
 	if err != nil {
@@ -336,10 +356,20 @@ func generateConditionsPatchWithPause(available bool, progressingReason string, 
 	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, pauseCondition, availableCondition)
 }
 
+func generateConditionsPatchWithHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool) string {
+	_, availableCondition := newAvailableCondition(available)
+	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, completeCondition := newHealthyCondition(isHealthy)
+	if availableConditionFirst {
+		return fmt.Sprintf("[%s, %s, %s]", availableCondition, completeCondition, progressingCondition)
+	}
+	return fmt.Sprintf("[%s, %s, %s]", completeCondition, progressingCondition, availableCondition)
+}
+
 func generateConditionsPatchWithComplete(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
-	_, completeCondition := newHealthyCondition(isCompleted)
+	_, completeCondition := newCompleteCondition(isCompleted)
 	if availableConditionFirst {
 		return fmt.Sprintf("[%s, %s, %s]", availableCondition, completeCondition, progressingCondition)
 	}
@@ -365,6 +395,8 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 	newRollout.Status.StableRS = stable
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
+	//completeCond, _ := newCompleteCondition(isCompleted)
+	//newRollout.Status.Conditions = append(newRollout.Status.Conditions, completeCond)
 	if pause {
 		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{

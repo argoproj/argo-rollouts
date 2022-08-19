@@ -1661,7 +1661,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 
 	f.run(getKey(r2, t))
 
-	newConditions := generateConditionsPatchWithComplete(true, conditions.NewRSAvailableReason, rs2, true, "", true)
+	newConditions := generateConditionsPatchWithHealthy(true, conditions.NewRSAvailableReason, rs2, true, "", true)
 	expectedPatch := fmt.Sprintf(`{
 		"status":{
 			"conditions":%s
@@ -2140,6 +2140,9 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)
+
+	cond, _ := newCompleteCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, cond)
 
 	f.objects = append(f.objects, r2, at, ar)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
