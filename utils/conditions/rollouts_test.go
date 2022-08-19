@@ -350,7 +350,7 @@ func TestRolloutProgressing(t *testing.T) {
 
 }
 
-func TestRolloutComplete(t *testing.T) {
+func TestRolloutHealthyComplete(t *testing.T) {
 	rollout := func(desired, current, updated, available int32, correctObservedGeneration bool) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
@@ -475,6 +475,7 @@ func TestRolloutComplete(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, RolloutComplete(test.r, &test.r.Status))
 			assert.Equal(t, test.expected, RolloutHealthyAndComplete(test.r, &test.r.Status))
 		})
 	}
