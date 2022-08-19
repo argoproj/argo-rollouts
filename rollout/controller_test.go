@@ -195,13 +195,15 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 
 func newHealthyCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
+	msg := conditions.RolloutHealthyAndCompletedMessage
 	if !isCompleted {
 		status = corev1.ConditionFalse
+		msg = conditions.RolloutNotHealthyAndCompletedMessage
 	}
 	condition := v1alpha1.RolloutCondition{
 		LastTransitionTime: timeutil.MetaNow(),
 		LastUpdateTime:     timeutil.MetaNow(),
-		Message:            conditions.RolloutHealthyAndCompletedReason,
+		Message:            msg,
 		Reason:             conditions.RolloutHealthyAndCompletedReason,
 		Status:             status,
 		Type:               v1alpha1.HealthyAndCompleted,
