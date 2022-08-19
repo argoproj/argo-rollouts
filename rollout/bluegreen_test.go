@@ -1499,6 +1499,7 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 	assert.Nil(t, err)
 	completeCond, _ := newCompleteCondition(true)
 	completeCondBytes, err := json.Marshal(completeCond)
+	assert.Nil(t, err)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, string(availableCondBytes), string(pausedCondBytes), string(completeCondBytes), string(progressingCondBytes), rs2PodHash, rs2PodHash))
 	f.expectPatchServiceAction(activeSvc, rs2PodHash)
 	patchRolloutIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)

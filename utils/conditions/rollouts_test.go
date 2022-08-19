@@ -404,79 +404,92 @@ func TestRolloutHealthyComplete(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		r        *v1alpha1.Rollout
-		expected bool
+		name             string
+		r                *v1alpha1.Rollout
+		expectedHealthy  bool
+		expectedComplete bool
 	}{
 		{
 			name: "BlueGreen complete",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 5, 5, 5, true, "76bbb58f74", "76bbb58f74"),
-			expected: true,
+			r:                blueGreenRollout(5, 5, 5, 5, true, "76bbb58f74", "76bbb58f74"),
+			expectedHealthy:  true,
+			expectedComplete: true,
 		},
 		{
 			name: "BlueGreen complete with extra old replicas",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(5, 6, 5, 5, true, "76bbb58f74", "76bbb58f74"),
-			expected: true,
+			r:                blueGreenRollout(5, 6, 5, 5, true, "76bbb58f74", "76bbb58f74"),
+			expectedHealthy:  true,
+			expectedComplete: true,
 		},
 		{
-			name:     "BlueGreen not completed: active service does not point at updated rs",
-			r:        blueGreenRollout(1, 1, 1, 1, true, "not-active", ""),
-			expected: false,
+			name:             "BlueGreen not completed: active service does not point at updated rs",
+			r:                blueGreenRollout(1, 1, 1, 1, true, "not-active", ""),
+			expectedHealthy:  false,
+			expectedComplete: false,
 		},
 		{
 			name: "BlueGreen not completed: preview service does not point at updated rs",
 			// update hash to status.CurrentPodHash after k8s library update
-			r:        blueGreenRollout(1, 1, 1, 1, true, "6cb88c6bcf", ""),
-			expected: false,
+			r:                blueGreenRollout(1, 1, 1, 1, true, "6cb88c6bcf", ""),
+			expectedHealthy:  false,
+			expectedComplete: false,
 		},
 		{
-			name:     "CanaryWithSteps Completed",
-			r:        canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(1)),
-			expected: false,
+			name:             "CanaryWithSteps Completed",
+			r:                canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(1)),
+			expectedHealthy:  false,
+			expectedComplete: false,
 		},
 		{
-			name:     "CanaryWithSteps Not Completed: Steps left",
-			r:        canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(0)),
-			expected: false,
+			name:             "CanaryWithSteps Not Completed: Steps left",
+			r:                canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(0)),
+			expectedHealthy:  false,
+			expectedComplete: false,
 		},
 		{
-			name:     "CanaryNoSteps Completed",
-			r:        canaryRollout(1, 1, 1, 1, true, "active", false, nil),
-			expected: false,
+			name:             "CanaryNoSteps Completed",
+			r:                canaryRollout(1, 1, 1, 1, true, "active", false, nil),
+			expectedHealthy:  false,
+			expectedComplete: false,
 		},
 		{
-			name:     "Canary Not Completed: Diff stableRs",
-			r:        canaryRollout(1, 1, 1, 1, true, "not-active", false, nil),
-			expected: false,
+			name:             "Canary Not Completed: Diff stableRs",
+			r:                canaryRollout(1, 1, 1, 1, true, "not-active", false, nil),
+			expectedHealthy:  false,
+			expectedComplete: false,
 		},
 		{
-			name:     "not complete: min but not all pods become available",
-			r:        rollout(5, 5, 5, 4, true),
-			expected: false,
+			name:             "not complete: min but not all pods become available",
+			r:                rollout(5, 5, 5, 4, true),
+			expectedHealthy:  false,
+			expectedComplete: true,
 		},
 		{
-			name:     "not complete: all pods are available but not all active",
-			r:        rollout(5, 5, 4, 5, true),
-			expected: false,
+			name:             "not complete: all pods are available but not all active",
+			r:                rollout(5, 5, 4, 5, true),
+			expectedHealthy:  false,
+			expectedComplete: true,
 		},
 		{
-			name:     "Canary not complete: still running old pods",
-			r:        rollout(1, 2, 1, 1, true),
-			expected: false,
+			name:             "Canary not complete: still running old pods",
+			r:                rollout(1, 2, 1, 1, true),
+			expectedHealthy:  false,
+			expectedComplete: true,
 		},
 		{
-			name:     "not complete: Mismatching ObservedGeneration",
-			r:        rollout(1, 2, 1, 1, false),
-			expected: false,
+			name:             "not complete: Mismatching ObservedGeneration",
+			r:                rollout(1, 2, 1, 1, false),
+			expectedHealthy:  false,
+			expectedComplete: true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, RolloutComplete(test.r, &test.r.Status))
-			assert.Equal(t, test.expected, RolloutHealthyAndComplete(test.r, &test.r.Status))
+			assert.Equal(t, test.expectedComplete, RolloutComplete(test.r, &test.r.Status))
+			assert.Equal(t, test.expectedHealthy, RolloutHealthyAndComplete(test.r, &test.r.Status))
 		})
 	}
 
