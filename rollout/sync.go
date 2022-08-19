@@ -552,6 +552,8 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	if !isPaused && conditions.RolloutHealthyAndComplete(c.rollout, &newStatus) {
 		updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.HealthyAndCompleted, corev1.ConditionTrue, conditions.RolloutHealthyAndCompletedReason, conditions.RolloutHealthyAndCompletedMessage)
 		conditions.SetRolloutCondition(&newStatus, *updateHealthyCond)
+		// If we ever wanted to emit a healthy event here it would be noisy and somewhat unpredictable for tests and so should probably skip
+		// checking in e2e tests.
 		//c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyAndCompletedReason}, conditions.RolloutHealthyAndCompletedMessage)
 	} else {
 		if completeCond != nil {

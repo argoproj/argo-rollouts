@@ -38,15 +38,17 @@ func newBlueGreenRollout(name string, replicas int, revisionHistoryLimit *int32,
 	return rollout
 }
 
-func TestBlueGreenComplateRolloutRestart(t *testing.T) {
+func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
 
-	completedCond := conditions.NewRolloutCondition(v1alpha1.HealthyAndCompleted, corev1.ConditionTrue, conditions.RolloutHealthyAndCompletedReason, conditions.RolloutHealthyAndCompletedReason)
-	conditions.SetRolloutCondition(&r.Status, *completedCond)
+	completedHealthyCond := conditions.NewRolloutCondition(v1alpha1.HealthyAndCompleted, corev1.ConditionFalse, conditions.RolloutHealthyAndCompletedReason, conditions.RolloutNotHealthyAndCompletedMessage)
+	conditions.SetRolloutCondition(&r.Status, *completedHealthyCond)
+	completedCond, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r.Status, completedCond)
 
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
@@ -57,7 +59,7 @@ func TestBlueGreenComplateRolloutRestart(t *testing.T) {
 
 	rs := newReplicaSet(r, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	generatedConditions := generateConditionsPatchWithHealthy(false, conditions.ReplicaSetNotAvailableReason, rs, false, "", false)
+	generatedConditions := generateConditionsPatchWithCompletedHealthy(false, conditions.ReplicaSetUpdatedReason, rs, false, "", false, true)
 
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
@@ -107,7 +109,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 
 	rs := newReplicaSet(r, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	generatedConditions := generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false, "")
+	generatedConditions := generateConditionsPatchWithComplete(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
 
 	f.expectCreateReplicaSetAction(rs)
 	servicePatchIndex := f.expectPatchServiceAction(previewSvc, rsPodHash)
@@ -1497,7 +1499,7 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 	assert.Nil(t, err)
 	pausedCondBytes, err := json.Marshal(r2.Status.Conditions[2])
 	assert.Nil(t, err)
-	completeCond, _ := newCompleteCondition(true)
+	completeCond, _ := newCompletedCondition(true)
 	completeCondBytes, err := json.Marshal(completeCond)
 	assert.Nil(t, err)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs2PodHash, string(availableCondBytes), string(pausedCondBytes), string(completeCondBytes), string(progressingCondBytes), rs2PodHash, rs2PodHash))

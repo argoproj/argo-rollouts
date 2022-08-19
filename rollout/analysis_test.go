@@ -2141,7 +2141,7 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)
 
-	cond, _ := newCompleteCondition(true)
+	cond, _ := newCompletedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, cond)
 
 	f.objects = append(f.objects, r2, at, ar)

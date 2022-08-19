@@ -215,7 +215,7 @@ func newHealthyCondition(isHealthy bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-func newCompleteCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
+func newCompletedCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	if !isCompleted {
 		status = corev1.ConditionFalse
@@ -359,21 +359,32 @@ func generateConditionsPatchWithPause(available bool, progressingReason string, 
 func generateConditionsPatchWithHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
-	_, completeCondition := newHealthyCondition(isHealthy)
+	_, healthyCondition := newHealthyCondition(isHealthy)
+	if availableConditionFirst {
+		return fmt.Sprintf("[%s, %s, %s]", availableCondition, healthyCondition, progressingCondition)
+	}
+	return fmt.Sprintf("[%s, %s, %s]", healthyCondition, progressingCondition, availableCondition)
+}
+
+func generateConditionsPatchWithComplete(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
+	_, availableCondition := newAvailableCondition(available)
+	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, completeCondition := newCompletedCondition(isCompleted)
 	if availableConditionFirst {
 		return fmt.Sprintf("[%s, %s, %s]", availableCondition, completeCondition, progressingCondition)
 	}
 	return fmt.Sprintf("[%s, %s, %s]", completeCondition, progressingCondition, availableCondition)
 }
 
-func generateConditionsPatchWithComplete(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
+func generateConditionsPatchWithCompletedHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool, isCompleted bool) string {
+	_, completedCondition := newCompletedCondition(isCompleted)
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
-	_, completeCondition := newCompleteCondition(isCompleted)
+	_, healthyCondition := newHealthyCondition(isHealthy)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s, %s]", availableCondition, completeCondition, progressingCondition)
+		return fmt.Sprintf("[%s, %s, %s, %s]", availableCondition, healthyCondition, completedCondition, progressingCondition)
 	}
-	return fmt.Sprintf("[%s, %s, %s]", completeCondition, progressingCondition, availableCondition)
+	return fmt.Sprintf("[%s, %s, %s, %s]", healthyCondition, completedCondition, progressingCondition, availableCondition)
 }
 
 func updateConditionsPatch(r v1alpha1.Rollout, newCondition v1alpha1.RolloutCondition) string {
@@ -395,7 +406,7 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 	newRollout.Status.StableRS = stable
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
-	//completeCond, _ := newCompleteCondition(isCompleted)
+	//completeCond, _ := newCompletedCondition(isCompleted)
 	//newRollout.Status.Conditions = append(newRollout.Status.Conditions, completeCond)
 	if pause {
 		now := timeutil.MetaNow()

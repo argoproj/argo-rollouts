@@ -297,27 +297,7 @@ func RolloutHealthyAndComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.Ro
 
 // RolloutComplete considers a rollout to be complete once
 func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
-	completedStrategy := true
-
-	if rollout.Spec.Strategy.BlueGreen != nil {
-		activeSelectorComplete := newStatus.BlueGreen.ActiveSelector == newStatus.CurrentPodHash
-		previewSelectorComplete := true
-		if rollout.Spec.Strategy.BlueGreen.PreviewService != "" {
-			previewSelectorComplete = newStatus.BlueGreen.PreviewSelector == newStatus.CurrentPodHash
-		}
-		completedStrategy = activeSelectorComplete && previewSelectorComplete
-	}
-	if rollout.Spec.Strategy.Canary != nil {
-		stepCount := len(rollout.Spec.Strategy.Canary.Steps)
-		executedAllSteps := true
-		if stepCount > 0 && newStatus.CurrentStepIndex != nil {
-			executedAllSteps = int32(stepCount) == *newStatus.CurrentStepIndex
-		}
-		currentRSIsStable := newStatus.StableRS != "" && newStatus.StableRS == newStatus.CurrentPodHash
-		completedStrategy = executedAllSteps && currentRSIsStable
-	}
-
-	return completedStrategy // && rollout.Status.ObservedGeneration == strconv.Itoa(int(rollout.Generation))
+	return newStatus.StableRS != "" && newStatus.StableRS == newStatus.CurrentPodHash
 }
 
 // ComputeStepHash returns a hash value calculated from the Rollout's steps. The hash will
