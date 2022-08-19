@@ -475,7 +475,7 @@ func TestRolloutHealthyAndComplete(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, RolloutHealthyAndComplete(test.r, &test.r.Status))
+			assert.Equal(t, test.expected, RolloutHealthyAndCompleted(test.r, &test.r.Status))
 		})
 	}
 
@@ -499,10 +499,10 @@ func TestRolloutComplete(t *testing.T) {
 		return r
 	}
 	r := rollout(5, 5, 5, 5)
-	assert.Equal(t, true, RolloutComplete(r, &r.Status))
+	assert.Equal(t, true, RolloutCompleted(r, &r.Status))
 
 	r.Status.StableRS = "not-current-pod-hash"
-	assert.Equal(t, false, RolloutComplete(r, &r.Status))
+	assert.Equal(t, false, RolloutCompleted(r, &r.Status))
 }
 
 func TestRolloutTimedOut(t *testing.T) {

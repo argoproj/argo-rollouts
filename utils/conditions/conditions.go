@@ -264,9 +264,9 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 		strategySpecificProgress
 }
 
-// RolloutHealthyAndComplete considers a rollout to be complete once all of its desired replicas
+// RolloutHealthyAndCompleted considers a rollout to be complete once all of its desired replicas
 // are updated, available, and receiving traffic from the active service, and no old pods are running.
-func RolloutHealthyAndComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+func RolloutHealthyAndCompleted(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
 	completedStrategy := true
 	replicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 
@@ -295,8 +295,8 @@ func RolloutHealthyAndComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.Ro
 		completedStrategy
 }
 
-// RolloutComplete considers a rollout to be complete once
-func RolloutComplete(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+// RolloutCompleted considers a rollout to be complete once StableRS == CurrentPodHash
+func RolloutCompleted(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
 	return newStatus.StableRS != "" && newStatus.StableRS == newStatus.CurrentPodHash
 }
 
