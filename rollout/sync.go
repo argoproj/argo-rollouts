@@ -681,6 +681,10 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 		updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionFalse,
 			conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
 		conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
+
+		revision, _ := replicasetutil.Revision(c.rollout)
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},
+			conditions.RolloutNotCompletedMessage, revision, newStatus.CurrentPodHash)
 	}
 	return newStatus
 }
