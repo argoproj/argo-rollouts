@@ -69,7 +69,7 @@ const (
 	// RolloutCompletedMessage is added when the rollout is completed
 	RolloutCompletedMessage = "Rollout completed update to revision %d (%s): %s"
 	// RolloutNotCompletedMessage is added when the rollout is completed
-	RolloutNotCompletedMessage = "Rollout went to not completed state started update to revision %d (%s)"
+	RolloutNotCompletedMessage = "Rollout not completed, started update to revision %d (%s)"
 
 	// RolloutHealthyAndCompletedReason is added in a rollout when it is healthy.
 	RolloutHealthyAndCompletedReason = "HealthyAndCompleted"
