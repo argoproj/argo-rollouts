@@ -1,4 +1,4 @@
-## This examples sets up istio mirroring if running locally using docker for destkop you can add
+## This examples sets up istio mirroring if running locally using docker for desktop you can add
 ## istio-host-split.com to your /etc/hosts and point it to 127.0.0.1 to view demo.
 apiVersion: v1
 kind: Service
