@@ -350,7 +350,7 @@ func TestRolloutProgressing(t *testing.T) {
 
 }
 
-func TestRolloutHealthyAndComplete(t *testing.T) {
+func TestRolloutHealthyAndCompleted(t *testing.T) {
 	rollout := func(desired, current, updated, available int32, correctObservedGeneration bool) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{

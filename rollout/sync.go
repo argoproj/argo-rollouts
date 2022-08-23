@@ -678,6 +678,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 	}
 
 	if conditions.RolloutCompleted(c.rollout, &newStatus) {
+		// The event gets triggered in function promoteStable
 		updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue,
 			conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
 		conditions.SetRolloutCondition(&newStatus, *updateCompletedCond)
@@ -686,7 +687,7 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 			conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
 		if conditions.SetRolloutCondition(&newStatus, *updateCompletedCond) {
 			revision, _ := replicasetutil.Revision(c.rollout)
-			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "RolloutNotCompleted"},
+			c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutNotCompletedReason},
 				conditions.RolloutNotCompletedMessage, revision+1, newStatus.CurrentPodHash)
 		}
 	}
@@ -946,16 +947,6 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		revision, _ := replicasetutil.Revision(c.rollout)
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},
 			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
-
-		//if conditions.RolloutCompleted(c.rollout, newStatus) {
-		//	updateCompletedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue,
-		//		conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
-		//	if conditions.SetRolloutCondition(newStatus, *updateCompletedCond) {
-		//		revision, _ := replicasetutil.Revision(c.rollout)
-		//		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},
-		//			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
-		//	}
-		//}
 	}
 	return nil
 }
