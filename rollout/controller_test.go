@@ -369,17 +369,6 @@ func generateConditionsPatchWithHealthy(available bool, progressingReason string
 	return fmt.Sprintf("[%s, %s, %s, %s]", completedCondition, healthyCondition, progressingCondition, availableCondition)
 }
 
-func generateConditionsPatchWithHealthyAndCompleted(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool) string {
-	_, availableCondition := newAvailableCondition(available)
-	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
-	_, healthyCondition := newHealthyCondition(isHealthy)
-	_, completeCondition := newCompletedCondition(true)
-	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s, %s, %s]", availableCondition, completeCondition, healthyCondition, progressingCondition)
-	}
-	return fmt.Sprintf("[%s, %s, %s, %s]", progressingCondition, availableCondition, healthyCondition, completeCondition)
-}
-
 func generateConditionsPatchWithCompleted(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
