@@ -781,10 +781,10 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r2.Spec.Strategy.BlueGreen.ScaleDownDelaySeconds = pointer.Int32Ptr(10)
 		r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
 		r2.Status.ControllerPause = true
-		pausedCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
-		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 		completedCondition, _ := newCompletedCondition(false)
 		conditions.SetRolloutCondition(&r2.Status, completedCondition)
+		pausedCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, rs2, "")
+		conditions.SetRolloutCondition(&r2.Status, pausedCondition)
 
 		activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 		activeSvc := newService("active", 80, activeSelector, r2)
@@ -804,7 +804,10 @@ func TestBlueGreenHandlePause(t *testing.T) {
 
 		f.verifyPatchedService(servicePatchIndex, rs2PodHash, "")
 		unpausePatch := f.getPatchedRollout(unpausePatchIndex)
-		unpauseConditions := generateConditionsPatch(true, conditions.RolloutResumedReason, rs2, true, "", false)
+		_, availableCondition := newAvailableCondition(true)
+		_, progressingCondition := newProgressingCondition(conditions.RolloutResumedReason, rs2, "")
+		_, compCondition := newCompletedCondition(false)
+		unpauseConditions := fmt.Sprintf("[%s, %s, %s]", availableCondition, compCondition, progressingCondition)
 		expectedUnpausePatch := `{
 			"status": {
 				"conditions": %s
