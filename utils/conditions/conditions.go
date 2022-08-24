@@ -76,9 +76,9 @@ const (
 	// RolloutHealthyReason is added in a rollout when it is healthy.
 	RolloutHealthyReason = "RolloutHealthy"
 	// RolloutHealthyMessage is added when the rollout is completed and is healthy or not.
-	RolloutHealthyMessage = "Rollout is healthy and completed"
+	RolloutHealthyMessage = "Rollout is healthy"
 	// RolloutNotHealthyMessage is added when the rollout is completed and is healthy or not.
-	RolloutNotHealthyMessage = "Rollout is not healthy and completed"
+	RolloutNotHealthyMessage = "Rollout is not healthy"
 
 	// RolloutAbortedReason indicates that the rollout was aborted
 	RolloutAbortedReason = "RolloutAborted"
