@@ -45,7 +45,7 @@ func TestBlueGreenCompletedRolloutRestart(t *testing.T) {
 	r := newBlueGreenRollout("foo", 1, nil, "active", "preview")
 	r.Status.Conditions = []v1alpha1.RolloutCondition{}
 
-	completedHealthyCond := conditions.NewRolloutCondition(v1alpha1.HealthyAndCompleted, corev1.ConditionFalse, conditions.RolloutHealthyAndCompletedReason, conditions.RolloutNotHealthyAndCompletedMessage)
+	completedHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionFalse, conditions.RolloutHealthyReason, conditions.RolloutNotHealthyMessage)
 	conditions.SetRolloutCondition(&r.Status, *completedHealthyCond)
 	completedCond, _ := newCompletedCondition(true)
 	conditions.SetRolloutCondition(&r.Status, completedCond)
@@ -1218,7 +1218,7 @@ func TestBlueGreenRolloutCompletedFalse(t *testing.T) {
 	assert.NoError(t, err)
 
 	index := len(rolloutPatch.Status.Conditions) - 3
-	assert.Equal(t, v1alpha1.HealthyAndCompleted, rolloutPatch.Status.Conditions[index].Type)
+	assert.Equal(t, v1alpha1.RolloutHealthy, rolloutPatch.Status.Conditions[index].Type)
 	assert.Equal(t, corev1.ConditionFalse, rolloutPatch.Status.Conditions[index].Status)
 }
 

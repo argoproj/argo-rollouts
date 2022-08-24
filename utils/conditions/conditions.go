@@ -73,12 +73,12 @@ const (
 	// RolloutNotCompletedMessage is added when the rollout is completed
 	RolloutNotCompletedMessage = "Rollout not completed, started update to revision %d (%s)"
 
-	// RolloutHealthyAndCompletedReason is added in a rollout when it is healthy.
-	RolloutHealthyAndCompletedReason = "HealthyAndCompleted"
-	// RolloutHealthyAndCompletedMessage is added when the rollout is completed and is healthy or not.
-	RolloutHealthyAndCompletedMessage = "Rollout is healthy and completed"
-	// RolloutNotHealthyAndCompletedMessage is added when the rollout is completed and is healthy or not.
-	RolloutNotHealthyAndCompletedMessage = "Rollout is not healthy and completed"
+	// RolloutHealthyReason is added in a rollout when it is healthy.
+	RolloutHealthyReason = "RolloutHealthy"
+	// RolloutHealthyMessage is added when the rollout is completed and is healthy or not.
+	RolloutHealthyMessage = "Rollout is healthy and completed"
+	// RolloutNotHealthyMessage is added when the rollout is completed and is healthy or not.
+	RolloutNotHealthyMessage = "Rollout is not healthy and completed"
 
 	// RolloutAbortedReason indicates that the rollout was aborted
 	RolloutAbortedReason = "RolloutAborted"
@@ -268,9 +268,9 @@ func RolloutProgressing(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutSt
 		strategySpecificProgress
 }
 
-// RolloutHealthyAndCompleted considers a rollout to be complete once all of its desired replicas
+// RolloutHealthy considers a rollout to be healthy once all of its desired replicas
 // are updated, available, and receiving traffic from the active service, and no old pods are running.
-func RolloutHealthyAndCompleted(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
+func RolloutHealthy(rollout *v1alpha1.Rollout, newStatus *v1alpha1.RolloutStatus) bool {
 	completedStrategy := true
 	replicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
 

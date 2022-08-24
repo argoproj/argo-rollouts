@@ -1123,10 +1123,10 @@ func (s *FunctionalSuite) TestKubectlWaitForCompleted() {
 kind: Service
 apiVersion: v1
 metadata:
-  name: kubectl-wait-completed
+  name: kubectl-wait-healthy
 spec:
   selector:
-    app: kubectl-wait-completed
+    app: kubectl-wait-healthy
   ports:
   - protocol: TCP
     port: 80
@@ -1135,19 +1135,19 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: kubectl-wait-completed
+  name: kubectl-wait-healthy
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kubectl-wait-completed
+      app: kubectl-wait-healthy
   template:
     metadata:
       labels:
-        app: kubectl-wait-completed
+        app: kubectl-wait-healthy
     spec:
       containers:
-      - name: kubectl-wait-completed
+      - name: kubectl-wait-healthy
         image: nginx:1.19-alpine
         imagePullPolicy: Always
         ports:
@@ -1161,21 +1161,21 @@ spec:
 
   strategy:
     blueGreen:
-      activeService: kubectl-wait-completed
+      activeService: kubectl-wait-healthy
       autoPromotionEnabled: true
 `).
 		When().
 		UpdateSpec().
 		Then().
-		ExpectRollout("HealthyAndCompleted=False", func(r *v1alpha1.Rollout) bool {
-			cmd := exec.Command("kubectl", "wait", "--for=condition=HealthyAndCompleted=False", fmt.Sprintf("rollout/%s", r.Name))
+		ExpectRollout("Healthy=False", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "wait", "--for=condition=Healthy=False", fmt.Sprintf("rollout/%s", r.Name))
 			out, err := cmd.CombinedOutput()
 			return err == nil && strings.Contains(string(out), fmt.Sprintf("rollout.argoproj.io/%s condition met", r.Name))
 		}).
 		ExpectRolloutStatus("Progressing").
 		ExpectActiveRevision("1").
-		ExpectRollout("HealthyAndCompleted=True", func(r *v1alpha1.Rollout) bool {
-			cmd := exec.Command("kubectl", "wait", "--for=condition=HealthyAndCompleted=True", fmt.Sprintf("rollout/%s", r.Name))
+		ExpectRollout("Healthy=True", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "wait", "--for=condition=Healthy=True", fmt.Sprintf("rollout/%s", r.Name))
 			out, err := cmd.CombinedOutput()
 			return err == nil && strings.Contains(string(out), fmt.Sprintf("rollout.argoproj.io/%s condition met", r.Name))
 		}).

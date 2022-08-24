@@ -987,10 +987,12 @@ const (
 	RolloutReplicaFailure RolloutConditionType = "ReplicaFailure"
 	// RolloutPaused means that rollout is in a paused state. It is still progressing at this point.
 	RolloutPaused RolloutConditionType = "Paused"
-	// RolloutCompleted means that rollout is in a completed state. It is still progressing at this point.
+	// RolloutCompleted indicates that the rollout completed its update to the desired revision and is not in the middle
+	// of any update. Note that a Completed rollout could also be considered Progressing or Degraded, if its Pods become
+	// unavailable sometime after the update completes.
 	RolloutCompleted RolloutConditionType = "Completed"
-	// HealthyAndCompleted means that rollout is in a completed state and is healthy.
-	HealthyAndCompleted RolloutConditionType = "HealthyAndCompleted"
+	// RolloutHealthy means that rollout is in a completed state and is healthy.
+	RolloutHealthy RolloutConditionType = "Healthy"
 )
 
 // RolloutCondition describes the state of a rollout at a certain point.
