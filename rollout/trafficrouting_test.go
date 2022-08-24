@@ -739,6 +739,8 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
