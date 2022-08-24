@@ -68,7 +68,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
@@ -125,7 +125,7 @@ func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
@@ -177,7 +177,7 @@ func TestCreateExperimentWithCollision(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, createdEx.Name, conds)), patch)
 }
 
@@ -228,7 +228,7 @@ func TestCreateExperimentWithCollisionAndSemanticEquality(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
@@ -256,6 +256,8 @@ func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.experimentLister = append(f.experimentLister, ex)
@@ -311,7 +313,7 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 		}
 	}`
 	now := timeutil.Now().UTC().Format(time.RFC3339)
-	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
+	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))), patch)
 }
 
@@ -477,7 +479,7 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "")
+	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", false)
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, generatedConditions)), patch)
 }

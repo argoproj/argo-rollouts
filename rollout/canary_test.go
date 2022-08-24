@@ -178,7 +178,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 		}
 	}`
 
-	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	conditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, v1alpha1.PauseReasonCanaryPauseStep, now, conditions, v1alpha1.PauseReasonCanaryPauseStep)
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
@@ -238,6 +238,9 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	rs1 := newReplicaSetWithStatus(r1, 10, 10)
 	rs2 := newReplicaSetWithStatus(r2, 0, 0)
@@ -337,7 +340,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 		"currentStepIndex": 1
 	}
 }`
-	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "")
+	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", false)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchTemplate, generatedConditions))
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -379,7 +382,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 		}
 	}`
 
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, ""))
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatchWithCompleted(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", true))
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
@@ -421,7 +424,7 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, expectedCurrentStepHash, newConditions)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 
@@ -462,7 +465,7 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, newConditions)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -502,7 +505,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 		}
 	}`
 
-	newConditions := generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false, "")
+	newConditions := generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
 
 	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, newConditions)), patch)
 }
@@ -542,7 +545,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	expectedPatch := fmt.Sprintf(expectedPatchWithSub, generateConditionsPatch(false, conditions.ReplicaSetUpdatedReason, rs, false, ""))
+	expectedPatch := fmt.Sprintf(expectedPatchWithSub, generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true))
 
 	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
 }
@@ -840,7 +843,7 @@ func TestRollBackToStable(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "")
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -883,7 +886,7 @@ func TestGradualShiftToNewStable(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -931,7 +934,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	}`
 	newPodHash := hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount)
 	newStepHash := conditions.ComputeStepHash(r2)
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "")
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newPodHash, newStepHash, newConditions)
 	patch := f.getPatchedRollout(patchIndex)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
@@ -969,7 +972,7 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs3, false, "")
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs3, false, "", false)
 	assert.Equal(t, calculatePatch(r3, fmt.Sprintf(expectedPatch, newConditions)), patch)
 }
 
@@ -1004,6 +1007,9 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1052,6 +1058,9 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
@@ -1617,6 +1626,9 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+
 	f.kubeobjects = append(f.kubeobjects, rs1)
 	f.replicaSetLister = append(f.replicaSetLister, rs1)
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1672,7 +1684,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 			}
 		}`
 		errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
-		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
+		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
 		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, conditions.RolloutAbortedReason, errmsg)), patch)
 	})
 
@@ -1710,7 +1722,7 @@ func TestHandleCanaryAbort(t *testing.T) {
 			}
 		}`
 		errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 1)
-		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r1, false, "")
+		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r1, false, "", true)
 		assert.Equal(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions, conditions.RolloutAbortedReason, errmsg)), patch)
 	})
 }

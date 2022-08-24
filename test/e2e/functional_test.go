@@ -90,10 +90,12 @@ spec:
 		ExpectRevisionPodCount("1", 0).
 		ExpectRevisionPodCount("2", 1).
 		ExpectRolloutEvents([]string{
+			"RolloutNotCompleted",  // Rollout not completed, started update to revision 0 (7fd9b5545c)
 			"RolloutUpdated",       // Rollout updated to revision 1
 			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-698fbfb9dc (revision 1)
 			"ScalingReplicaSet",    // Scaled up ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) from 0 to 1
 			"RolloutCompleted",     // Rollout completed update to revision 1 (698fbfb9dc): Initial deploy
+			"RolloutNotCompleted",
 			"RolloutUpdated",       // Rollout updated to revision 2
 			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2)
 			"ScalingReplicaSet",    // Scaled up ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2) from 0 to 1
@@ -706,6 +708,7 @@ func (s *FunctionalSuite) TestBlueGreenUpdate() {
 			"SwitchService",        // Switched selector for service 'bluegreen' from '' to '7dcd8f8869'
 			"RolloutUpdated",       // Rollout updated to revision 2
 			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-5498785cd6 (revision 2)
+			"RolloutNotCompleted",  // Rollout went to not completed state started update to revision 2 (85c6899)
 			"ScalingReplicaSet",    // Scaled up ReplicaSet bluegreen-5498785cd6 (revision 2) from 0 to 3
 			"SwitchService",        // Switched selector for service 'bluegreen' from '7dcd8f8869' to '6c779b88b6'
 			"RolloutCompleted",     // Rollout completed update to revision 2 (6c779b88b6): Completed blue-green update
@@ -959,7 +962,7 @@ spec:
 		Then().
 		ExpectRevisionPodCount("2", 0).
 		ExpectRollout("Abort=True", func(r *v1alpha1.Rollout) bool {
-			return r.Status.Abort == true && len(r.Status.Conditions) == 3
+			return r.Status.Abort == true && len(r.Status.Conditions) == 4
 		})
 }
 
@@ -1120,10 +1123,10 @@ func (s *FunctionalSuite) TestKubectlWaitForCompleted() {
 kind: Service
 apiVersion: v1
 metadata:
-  name: kubectl-wait-completed
+  name: kubectl-wait-healthy
 spec:
   selector:
-    app: kubectl-wait-completed
+    app: kubectl-wait-healthy
   ports:
   - protocol: TCP
     port: 80
@@ -1132,19 +1135,19 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: kubectl-wait-completed
+  name: kubectl-wait-healthy
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kubectl-wait-completed
+      app: kubectl-wait-healthy
   template:
     metadata:
       labels:
-        app: kubectl-wait-completed
+        app: kubectl-wait-healthy
     spec:
       containers:
-      - name: kubectl-wait-completed
+      - name: kubectl-wait-healthy
         image: nginx:1.19-alpine
         imagePullPolicy: Always
         ports:
@@ -1158,21 +1161,21 @@ spec:
 
   strategy:
     blueGreen:
-      activeService: kubectl-wait-completed
+      activeService: kubectl-wait-healthy
       autoPromotionEnabled: true
 `).
 		When().
 		UpdateSpec().
 		Then().
-		ExpectRollout("Completed=False", func(r *v1alpha1.Rollout) bool {
-			cmd := exec.Command("kubectl", "wait", "--for=condition=Completed=False", fmt.Sprintf("rollout/%s", r.Name))
+		ExpectRollout("Healthy=False", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "wait", "--for=condition=Healthy=False", fmt.Sprintf("rollout/%s", r.Name))
 			out, err := cmd.CombinedOutput()
 			return err == nil && strings.Contains(string(out), fmt.Sprintf("rollout.argoproj.io/%s condition met", r.Name))
 		}).
 		ExpectRolloutStatus("Progressing").
 		ExpectActiveRevision("1").
-		ExpectRollout("Completed=True", func(r *v1alpha1.Rollout) bool {
-			cmd := exec.Command("kubectl", "wait", "--for=condition=Completed=True", fmt.Sprintf("rollout/%s", r.Name))
+		ExpectRollout("Healthy=True", func(r *v1alpha1.Rollout) bool {
+			cmd := exec.Command("kubectl", "wait", "--for=condition=Healthy=True", fmt.Sprintf("rollout/%s", r.Name))
 			out, err := cmd.CombinedOutput()
 			return err == nil && strings.Contains(string(out), fmt.Sprintf("rollout.argoproj.io/%s condition met", r.Name))
 		}).
