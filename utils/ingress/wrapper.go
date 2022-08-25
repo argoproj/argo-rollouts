@@ -10,6 +10,7 @@ import (
 	v1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
 	extensionsv1beta1 "k8s.io/client-go/informers/extensions/v1beta1"
 	networkingv1 "k8s.io/client-go/informers/networking/v1"
@@ -61,6 +62,29 @@ func NewIngressWithAnnotations(mode IngressMode, annotations map[string]string) 
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: annotations,
 			},
+		}
+		return NewLegacyIngress(i)
+	default:
+		return nil
+	}
+}
+
+func NewIngressWithSpecAndAnnotations(ingress *Ingress, annotations map[string]string) *Ingress {
+	switch ingress.mode {
+	case IngressModeNetworking:
+		i := &v1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: annotations,
+			},
+			Spec: *ingress.ingress.Spec.DeepCopy(),
+		}
+		return NewIngress(i)
+	case IngressModeExtensions:
+		i := &v1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: annotations,
+			},
+			Spec: *ingress.legacyIngress.Spec.DeepCopy(),
 		}
 		return NewLegacyIngress(i)
 	default:
@@ -147,6 +171,85 @@ func (i *Ingress) SetAnnotations(annotations map[string]string) {
 	case IngressModeExtensions:
 		i.legacyIngress.SetAnnotations(annotations)
 	}
+}
+
+func (i *Ingress) CreateAnnotationBasedPath(actionName string) {
+	i.mux.Lock()
+	defer i.mux.Unlock()
+	if HasRuleWithService(i, actionName) {
+		return
+	}
+	switch i.mode {
+	case IngressModeNetworking:
+		t := v1.PathTypeImplementationSpecific
+		p := v1.HTTPIngressPath{
+			Path:     "/*",
+			PathType: &t,
+			Backend: v1.IngressBackend{
+				Service: &v1.IngressServiceBackend{
+					Name: actionName,
+					Port: v1.ServiceBackendPort{
+						Name: "use-annotation",
+					},
+				},
+			},
+		}
+		for _, rule := range i.ingress.Spec.Rules {
+			rule.HTTP.Paths = append(rule.HTTP.Paths[:1], rule.HTTP.Paths[0:]...)
+			rule.HTTP.Paths[0] = p
+		}
+	case IngressModeExtensions:
+		t := v1beta1.PathTypeImplementationSpecific
+		p := v1beta1.HTTPIngressPath{
+			Path:     "/*",
+			PathType: &t,
+			Backend: v1beta1.IngressBackend{
+				ServiceName: actionName,
+				ServicePort: intstr.FromString("use-annotation"),
+			},
+		}
+		for _, rule := range i.legacyIngress.Spec.Rules {
+			rule.HTTP.Paths = append(rule.HTTP.Paths[:1], rule.HTTP.Paths[0:]...)
+			rule.HTTP.Paths[0] = p
+		}
+	}
+}
+
+func (i *Ingress) RemovePathByServiceName(actionName string) {
+	i.mux.Lock()
+	defer i.mux.Unlock()
+	switch i.mode {
+	case IngressModeNetworking:
+		for _, rule := range i.ingress.Spec.Rules {
+			if j := indexPathByService(rule, actionName); j != -1 {
+				rule.HTTP.Paths = append(rule.HTTP.Paths[:j], rule.HTTP.Paths[j+1:]...)
+			}
+		}
+	case IngressModeExtensions:
+		for _, rule := range i.legacyIngress.Spec.Rules {
+			if j := indexLegacyPathByService(rule, actionName); j != -1 {
+				rule.HTTP.Paths = append(rule.HTTP.Paths[:j], rule.HTTP.Paths[j+1:]...)
+			}
+		}
+	}
+}
+
+func indexPathByService(rule v1.IngressRule, name string) int {
+	for i, path := range rule.HTTP.Paths {
+		if path.Backend.Service.Name == name {
+			return i
+		}
+	}
+	return -1
+}
+
+func indexLegacyPathByService(rule v1beta1.IngressRule, name string) int {
+	for i, path := range rule.HTTP.Paths {
+		if path.Backend.ServiceName == name {
+			return i
+		}
+	}
+	return -1
 }
 
 func (i *Ingress) DeepCopy() *Ingress {

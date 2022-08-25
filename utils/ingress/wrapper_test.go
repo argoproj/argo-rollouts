@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/utils/ingress"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -14,6 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubeinformers "k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-rollouts/utils/ingress"
 )
 
 func TestNewIngressWithAnnotations(t *testing.T) {
@@ -65,6 +67,57 @@ func TestNewIngressWithAnnotations(t *testing.T) {
 
 		// then
 		assert.Nil(t, i)
+	})
+}
+
+func TestNewIngressWithSpecAndAnnotations(t *testing.T) {
+	annotations := make(map[string]string)
+	annotations["some.annotation.key1"] = "some.annotation.value1"
+	annotations["some.annotation.key2"] = "some.annotation.value2"
+	getAnnotations := func() map[string]string {
+		annotations := make(map[string]string)
+		annotations["some.annotation.key1"] = "some.annotation.value1"
+		annotations["some.annotation.key2"] = "some.annotation.value2"
+		return annotations
+	}
+	t.Run("will instantiate an Ingress wrapped with an annotated networkingv1.Ingress", func(t *testing.T) {
+		ing := networkingIngress()
+
+		// given
+		t.Parallel()
+
+		// when
+		i := ingress.NewIngressWithSpecAndAnnotations(ing, getAnnotations())
+
+		// then
+		assert.NotNil(t, i)
+		a := i.GetAnnotations()
+		assert.Equal(t, 2, len(a))
+		a["extra-annotation-key"] = "extra-annotation-value"
+		i.SetAnnotations(a)
+		assert.Equal(t, 3, len(a))
+		actualIngress, _ := i.GetNetworkingIngress()
+		expectedIngress, _ := ing.GetNetworkingIngress()
+		assert.Equal(t, expectedIngress.Spec, actualIngress.Spec)
+	})
+	t.Run("will instantiate an Ingress wrapped with an annotated extensions/v1beta1.Ingress", func(t *testing.T) {
+		ing := extensionsIngress()
+		// given
+		t.Parallel()
+
+		// when
+		i := ingress.NewIngressWithSpecAndAnnotations(ing, getAnnotations())
+
+		// then
+		assert.NotNil(t, i)
+		a := i.GetAnnotations()
+		assert.Equal(t, 2, len(a))
+		a["extra-annotation-key"] = "extra-annotation-value"
+		i.SetAnnotations(a)
+		assert.Equal(t, 3, len(a))
+		actualIngress, _ := i.GetExtensionsIngress()
+		expectedIngress, _ := ing.GetExtensionsIngress()
+		assert.Equal(t, expectedIngress.Spec, actualIngress.Spec)
 	})
 }
 
@@ -272,6 +325,74 @@ func TestGetObjectMeta(t *testing.T) {
 		assert.Equal(t, "extensions-ingress", om.GetName())
 		assert.Equal(t, "some-namespace", om.GetNamespace())
 		assert.Equal(t, 2, len(om.GetLabels()))
+	})
+}
+
+func TestCreateAnnotationBasedPath(t *testing.T) {
+	t.Run("v1 ingress, create path", func(t *testing.T) {
+		ing := networkingIngress()
+		ni, _ := ing.GetNetworkingIngress()
+
+		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
+		ing.CreateAnnotationBasedPath("test-route")
+		assert.Equal(t, 2, len(ni.Spec.Rules[0].HTTP.Paths))
+	})
+	t.Run("v1 ingress, create existing path", func(t *testing.T) {
+		ing := networkingIngress()
+		ni, _ := ing.GetNetworkingIngress()
+
+		ing.CreateAnnotationBasedPath("v1backend")
+		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
+	})
+	t.Run("v1beta1 ingress, create path", func(t *testing.T) {
+		ing := extensionsIngress()
+		ni, _ := ing.GetExtensionsIngress()
+
+		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
+		ing.CreateAnnotationBasedPath("test-route")
+		assert.Equal(t, 2, len(ni.Spec.Rules[0].HTTP.Paths))
+	})
+	t.Run("v1beta1 ingress, create existing path", func(t *testing.T) {
+		ing := extensionsIngress()
+		ni, _ := ing.GetExtensionsIngress()
+
+		ing.CreateAnnotationBasedPath("v1beta1backend")
+		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
+	})
+}
+
+func TestRemoveAnnotationBasedPath(t *testing.T) {
+	t.Run("v1 ingress, remove path", func(t *testing.T) {
+		ing := networkingIngress()
+		ni, _ := ing.GetNetworkingIngress()
+
+		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
+		ing.RemovePathByServiceName("v1backend")
+		assert.Equal(t, 0, len(ni.Spec.Rules[0].HTTP.Paths))
+	})
+	t.Run("v1 ingress, remove non existing path", func(t *testing.T) {
+		ing := networkingIngress()
+		ni, _ := ing.GetNetworkingIngress()
+
+		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
+		ing.RemovePathByServiceName("non-exsisting-route")
+		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
+	})
+	t.Run("v1beta1 ingress, remove path", func(t *testing.T) {
+		ing := extensionsIngress()
+		ni, _ := ing.GetExtensionsIngress()
+
+		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
+		ing.RemovePathByServiceName("v1beta1backend")
+		assert.Equal(t, 0, len(ni.Spec.Rules[0].HTTP.Paths))
+	})
+	t.Run("v1beta1 ingress, remove non existing path", func(t *testing.T) {
+		ing := extensionsIngress()
+		ni, _ := ing.GetExtensionsIngress()
+
+		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
+		ing.RemovePathByServiceName("non-exsisting-route")
+		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
 	})
 }
 
@@ -822,4 +943,64 @@ func getExtensionsIngress() *v1beta1.Ingress {
 			},
 		},
 	}
+}
+
+func networkingIngress() *ingress.Ingress {
+	pathType := v1.PathTypeImplementationSpecific
+	res := v1.Ingress{
+		Spec: v1.IngressSpec{
+			IngressClassName: pointer.String("v1ingress"),
+			Rules: []v1.IngressRule{
+				{
+					Host: "v1host",
+					IngressRuleValue: v1.IngressRuleValue{
+						HTTP: &v1.HTTPIngressRuleValue{
+							Paths: []v1.HTTPIngressPath{
+								{
+									Backend: v1.IngressBackend{
+										Service: &v1.IngressServiceBackend{
+											Name: "v1backend",
+											Port: v1.ServiceBackendPort{Name: "use-annotation"},
+										},
+									},
+									Path:     "/*",
+									PathType: &pathType,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return ingress.NewIngress(&res)
+}
+
+func extensionsIngress() *ingress.Ingress {
+	pathType := v1beta1.PathTypeImplementationSpecific
+	res := v1beta1.Ingress{
+		Spec: v1beta1.IngressSpec{
+			IngressClassName: pointer.String("v1beta1ingress"),
+			Rules: []v1beta1.IngressRule{
+				{
+					Host: "v1beta1host",
+					IngressRuleValue: v1beta1.IngressRuleValue{
+						HTTP: &v1beta1.HTTPIngressRuleValue{
+							Paths: []v1beta1.HTTPIngressPath{
+								{
+									Backend: v1beta1.IngressBackend{
+										ServiceName: "v1beta1backend",
+										ServicePort: intstr.FromString("use-annotation"),
+									},
+									Path:     "/*",
+									PathType: &pathType,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return ingress.NewLegacyIngress(&res)
 }
