@@ -853,8 +853,8 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#custom-kubernetesioingressclass" class="md-nav__link">
-    Custom kubernetes.io/ingress.class
+  <a href="#custom-ingress-class" class="md-nav__link">
+    Custom Ingress Class
   </a>
   
 </li>
@@ -2299,8 +2299,8 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#custom-kubernetesioingressclass" class="md-nav__link">
-    Custom kubernetes.io/ingress.class
+  <a href="#custom-ingress-class" class="md-nav__link">
+    Custom Ingress Class
   </a>
   
 </li>
@@ -2511,7 +2511,7 @@ when running the AWS LoadBalancer in IP mode. Readiness gates allow for the AWS 
 controller to verify that TargetGroups are accurate before marking newly created Pods as "ready",
 preventing premature scale down of the older ReplicaSet.</p>
 <p>Pod readiness gate injection uses a mutating webhook which decides to inject readiness gates when a
-pod is created based on the following conditions:  </p>
+pod is created based on the following conditions:</p>
 <ul>
 <li>There exists a service matching the pod labels in the same namespace</li>
 <li>There exists at least one target group binding that refers to the matching service</li>
@@ -2647,7 +2647,7 @@ services are not changing their labels at the end of the rollout progress.</p>
 <span class="w">        </span><span class="nt">ports</span><span class="p">:</span><span class="w"></span>
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
 <span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"> </span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
 <span class="w">      </span><span class="nt">pingPong</span><span class="p">:</span><span class="w"> </span><span class="c1">#Indicates that the ping-pong services enabled</span><span class="w"></span>
 <span class="w">        </span><span class="nt">pingService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ping-service</span><span class="w"></span>
 <span class="w">        </span><span class="nt">pongService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pong-service</span><span class="w"></span>
@@ -2675,7 +2675,7 @@ object will be annotated in a manner understood by the cluster's aws load balanc
 <span class="w">        </span><span class="nt">alb</span><span class="p">:</span><span class="w"></span>
 <span class="w">          </span><span class="nt">annotationPrefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">custom.alb.ingress.kubernetes.io</span><span class="w"></span>
 </code></pre></div>
-<h3 id="custom-kubernetesioingressclass">Custom kubernetes.io/ingress.class<a class="headerlink" href="#custom-kubernetesioingressclass" title="Permanent link">&para;</a></h3>
+<h3 id="custom-ingress-class">Custom Ingress Class<a class="headerlink" href="#custom-ingress-class" title="Permanent link">&para;</a></h3>
 <p>By default, Argo Rollout will operate on Ingresses with the annotation:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span><span class="w"></span>
@@ -2683,14 +2683,20 @@ object will be annotated in a manner understood by the cluster's aws load balanc
 <span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w"></span>
 <span class="w">    </span><span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alb</span><span class="w"></span>
 </code></pre></div>
-<p>To configure the controller to operate on Ingresses with different <code>kubernetes.io/ingress.class</code>
-values, the controller can specify a different value through the <code>--alb-ingress-classes</code> flag in
+<p>Or with the <code>ingressClassName</code>:
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span><span class="w"></span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span><span class="w"></span>
+<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">ingressClassName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alb</span><span class="w"></span>
+</code></pre></div></p>
+<p>To configure the controller to operate on Ingresses with a different class name,
+you can specify a different value through the <code>--alb-ingress-classes</code> flag in
 the controller command line arguments.</p>
 <p>Note that the <code>--alb-ingress-classes</code> flag can be specified multiple times if the Argo Rollouts
 controller should operate on multiple values. This may be desired when a cluster has multiple
-Ingress controllers that operate on different <code>kubernetes.io/ingress.class</code> values.</p>
+Ingress controllers that operate on different <code>kubernetes.io/ingress.class</code> or <code>spec.ingressClassName</code> values.</p>
 <p>If the controller needs to operate on any Ingress without the <code>kubernetes.io/ingress.class</code>
-annotation, the flag can be specified with an empty string (e.g. <code>--alb-ingress-classes ''</code>).</p>
+annotation or <code>spec.ingressClassName</code>, the flag can be specified with an empty string (e.g. <code>--alb-ingress-classes ''</code>).</p>
 
 
 
