@@ -23,6 +23,37 @@ import (
 )
 
 func newNginxIngress(name string, port int, serviceName string) *extensionsv1beta1.Ingress {
+	class := "nginx"
+	return &extensionsv1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: extensionsv1beta1.IngressSpec{
+			IngressClassName: &class,
+			Rules: []extensionsv1beta1.IngressRule{
+				{
+					Host: "fakehost.example.com",
+					IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+						HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+							Paths: []extensionsv1beta1.HTTPIngressPath{
+								{
+									Path: "/foo",
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: serviceName,
+										ServicePort: intstr.FromInt(port),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func newNginxIngressWithAnnotation(name string, port int, serviceName string) *extensionsv1beta1.Ingress {
 	return &extensionsv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -165,8 +196,8 @@ func TestSyncIngressReferencedByRollout(t *testing.T) {
 	assert.Equal(t, 1, enqueuedObjects["default/rollout"])
 }
 
-func TestSkipIngressWithNoAnnotations(t *testing.T) {
-	ing := newNginxIngress("test-stable-ingress", 80, "stable-service")
+func TestSkipIngressWithNoClass(t *testing.T) {
+	ing := newNginxIngressWithAnnotation("test-stable-ingress", 80, "stable-service")
 	ing.Annotations = nil
 	rollout := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{

@@ -140,12 +140,7 @@ func (c *Controller) syncIngress(key string) error {
 	if err != nil {
 		return nil
 	}
-	// An ingress without annotations cannot be a alb or nginx ingress
-	if ingress.GetAnnotations() == nil {
-		return nil
-	}
-	annotations := ingress.GetAnnotations()
-	class := annotations["kubernetes.io/ingress.class"]
+	class := ingress.GetClass()
 	switch {
 	case hasClass(c.albClasses, class):
 		return c.syncALBIngress(ingress, rollouts)
