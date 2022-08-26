@@ -83,6 +83,15 @@ func TestQuery(t *testing.T) {
 		]`, value, timestamp),
 		200,
 	}, {
+		"graphite response with empty array",
+		query,
+		targetQuery,
+		fromQuery,
+		[]dataPoint{},
+		nil,
+		`[]`,
+		200,
+	}, {
 		"graphite response body with invalid JSON",
 		query,
 		targetQuery,

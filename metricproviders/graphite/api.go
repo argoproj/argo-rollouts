@@ -68,6 +68,10 @@ func (api APIClient) Query(quer string) ([]dataPoint, error) {
 		return []dataPoint{}, err
 	}
 
+	if len(result) == 0 {
+		return []dataPoint{}, nil
+	}
+
 	return result[0].DataPoints, nil
 }
 
