@@ -872,6 +872,9 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 
 func TestSetHeaderRoute(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -899,6 +902,11 @@ func TestSetHeaderRoute(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 1)
+
+	// no managed routes, no changes expected
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
 }
 
 func TestRemoveManagedRoutes(t *testing.T) {
@@ -917,6 +925,36 @@ func TestRemoveManagedRoutes(t *testing.T) {
 	i.Annotations["alb.ingress.kubernetes.io/actions.header-route"] = "{}"
 	i.Annotations["alb.ingress.kubernetes.io/conditions.header-route"] = "{}"
 	i.Annotations[ingressutil.ManagedAnnotations] = managedByValue.String()
+	i.Spec.Rules = []extensionsv1beta1.IngressRule{
+		{
+			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+					Paths: []extensionsv1beta1.HTTPIngressPath{
+						{
+							Backend: extensionsv1beta1.IngressBackend{
+								ServiceName: "action1",
+								ServicePort: intstr.Parse("use-annotation"),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+					Paths: []extensionsv1beta1.HTTPIngressPath{
+						{
+							Backend: extensionsv1beta1.IngressBackend{
+								ServiceName: "header-route",
+								ServicePort: intstr.Parse("use-annotation"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -934,9 +972,15 @@ func TestRemoveManagedRoutes(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = r.RemoveManagedRoutes()
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+	})
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 1)
+
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 2)
 }
 
 func TestSetMirrorRoute(t *testing.T) {
