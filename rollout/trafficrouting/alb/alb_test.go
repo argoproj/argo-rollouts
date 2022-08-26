@@ -872,8 +872,8 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 
 func TestSetHeaderRoute(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
-	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
-	client := fake.NewSimpleClientset()
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
@@ -889,20 +889,54 @@ func TestSetHeaderRoute(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-		Name: "set-header",
+		Name: "header-route",
 		Match: []v1alpha1.HeaderRoutingMatch{{
-			HeaderName: "header-name",
+			HeaderName: "Agent",
 			HeaderValue: &v1alpha1.StringMatch{
-				Exact: "value",
+				Prefix: "Chrome",
 			},
 		}},
 	})
 	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+}
+
+func TestRemoveManagedRoutes(t *testing.T) {
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	managedByValue := ingressutil.ManagedALBAnnotations{
+		ro.Name: ingressutil.ManagedALBAnnotation{
+			"alb.ingress.kubernetes.io/actions.action1",
+			"alb.ingress.kubernetes.io/actions.header-route",
+			"alb.ingress.kubernetes.io/conditions.header-route",
+		},
+	}
+	i.Annotations["alb.ingress.kubernetes.io/actions.header-route"] = "{}"
+	i.Annotations["alb.ingress.kubernetes.io/conditions.header-route"] = "{}"
+	i.Annotations[ingressutil.ManagedAnnotations] = managedByValue.String()
+
+	client := fake.NewSimpleClientset(i)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
 
 	err = r.RemoveManagedRoutes()
 	assert.Nil(t, err)
-
-	assert.Len(t, client.Actions(), 0)
+	assert.Len(t, client.Actions(), 1)
 }
 
 func TestSetMirrorRoute(t *testing.T) {
