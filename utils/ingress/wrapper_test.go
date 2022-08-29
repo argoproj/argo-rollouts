@@ -124,6 +124,93 @@ func TestGetNetworkingIngress(t *testing.T) {
 	})
 }
 
+func TestGetClass(t *testing.T) {
+	t.Run("will get the class from network Ingress annotation", func(t *testing.T) {
+		// given
+		t.Parallel()
+		i := getNetworkingIngress()
+		annotations := map[string]string{"kubernetes.io/ingress.class": "ingress-name-annotation"}
+		i.SetAnnotations(annotations)
+		emptyClass := ""
+		i.Spec.IngressClassName = &emptyClass
+		w := ingress.NewIngress(i)
+
+		// when
+		class := w.GetClass()
+
+		// then
+		assert.Equal(t, "ingress-name-annotation", class)
+	})
+	t.Run("will get the class from network Ingress annotation with priority", func(t *testing.T) {
+		// given
+		t.Parallel()
+		i := getNetworkingIngress()
+		annotations := map[string]string{"kubernetes.io/ingress.class": "ingress-name-annotation"}
+		i.SetAnnotations(annotations)
+		w := ingress.NewIngress(i)
+
+		// when
+		class := w.GetClass()
+
+		// then
+		assert.Equal(t, "ingress-name-annotation", class)
+	})
+	t.Run("will get the class from network Ingress spec", func(t *testing.T) {
+		// given
+		t.Parallel()
+		i := getNetworkingIngress()
+		w := ingress.NewIngress(i)
+
+		// when
+		class := w.GetClass()
+
+		// then
+		assert.Equal(t, "ingress-name", class)
+	})
+	t.Run("will get the class from extensions Ingress annotation", func(t *testing.T) {
+		// given
+		t.Parallel()
+		i := getExtensionsIngress()
+		annotations := map[string]string{"kubernetes.io/ingress.class": "ingress-name-annotation"}
+		i.SetAnnotations(annotations)
+		emptyClass := ""
+		i.Spec.IngressClassName = &emptyClass
+		w := ingress.NewLegacyIngress(i)
+
+		// when
+		class := w.GetClass()
+
+		// then
+		assert.Equal(t, "ingress-name-annotation", class)
+	})
+	t.Run("will get the class from extensions Ingress annotation with priority", func(t *testing.T) {
+		// given
+		t.Parallel()
+		i := getExtensionsIngress()
+		annotations := map[string]string{"kubernetes.io/ingress.class": "ingress-name-annotation"}
+		i.SetAnnotations(annotations)
+		w := ingress.NewLegacyIngress(i)
+
+		// when
+		class := w.GetClass()
+
+		// then
+		assert.Equal(t, "ingress-name-annotation", class)
+	})
+	t.Run("will get the class from extensions Ingress spec", func(t *testing.T) {
+		// given
+		t.Parallel()
+		i := getExtensionsIngress()
+		w := ingress.NewLegacyIngress(i)
+
+		// when
+		class := w.GetClass()
+
+		// then
+		assert.Equal(t, "ingress-name", class)
+	})
+}
+
 func TestGetLabels(t *testing.T) {
 	t.Run("will get the labels from network Ingress successfully", func(t *testing.T) {
 		// given
