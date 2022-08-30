@@ -114,6 +114,8 @@ github.com/antonmedv/expr v1.9.0/go.mod h1:5qsM3oLGDND7sDmQGDXHkYfkjYMUX14qsgqmH
 github.com/appscode/go v0.0.0-20190808133642-1d4ef1f1c1e0/go.mod h1:iy07dV61Z7QQdCKJCIvUoDL21u6AIceRhZzyleh2ymc=
 github.com/argoproj/notifications-engine v0.3.1-0.20220129012210-32519f8f68ec h1:ulv8ieYQZLyQrTVR4za1ucLFnemS0Dksz8y5e91xxak=
 github.com/argoproj/notifications-engine v0.3.1-0.20220129012210-32519f8f68ec/go.mod h1:QF4tr3wfWOnhkKSaRpx7k/KEErQAh8iwKQ2pYFu/SfA=
+github.com/argoproj/pkg v0.9.0 h1:PfWWYykfcEQdN0g41XLbVh/aonTjD+dPkvDp3hwpLYM=
+github.com/argoproj/pkg v0.9.0/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0 h1:Cfp7rO/HpVxnwlRqJe0jHiBbZ77ZgXhB6HWlYD02Xdc=
 github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0/go.mod h1:ra+bQPmbVAoEL+gYSKesuigt4m49i3Qa3mE/xQcjCiA=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
