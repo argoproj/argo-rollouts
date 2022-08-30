@@ -74,7 +74,7 @@ func TestGetRolloutIngressKeysForCanaryWithTrafficRoutingMultiIngress(t *testing
 					StableService: "stable-service",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress: "stable-ingress",
+							StableIngress:             "stable-ingress",
 							AdditionalStableIngresses: []string{"stable-ingress-additional"},
 						},
 						ALB: &v1alpha1.ALBTrafficRouting{
@@ -101,7 +101,7 @@ func TestGetCanaryIngressName(t *testing.T) {
 					StableService: "stable-service",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress: "stable-ingress",
+							StableIngress:             "stable-ingress",
 							AdditionalStableIngresses: []string{"stable-ingress-additional"},
 						},
 					},

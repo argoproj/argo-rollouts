@@ -1693,7 +1693,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Nginx: &v1alpha1.NginxTrafficRouting{
-			StableIngress: "nginx-ingress-name",
+			StableIngress:             "nginx-ingress-name",
 			AdditionalStableIngresses: []string{"nginx-ingress-additional"},
 		},
 	}

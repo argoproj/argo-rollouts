@@ -216,7 +216,7 @@ func TestSyncIngressReferencedByRolloutMultiIngress(t *testing.T) {
 					CanaryService: "canary-service",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress: "test-stable-ingress",
+							StableIngress:             "test-stable-ingress",
 							AdditionalStableIngresses: []string{"test-stable-ingress-additional"},
 						},
 					},
@@ -287,7 +287,7 @@ func TestSkipIngressWithNoAnnotationsMultiIngress(t *testing.T) {
 					CanaryService: "canary-service",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress: "test-stable-ingress",
+							StableIngress:             "test-stable-ingress",
 							AdditionalStableIngresses: []string{"test-stable-ingress-additional"},
 						},
 					},
