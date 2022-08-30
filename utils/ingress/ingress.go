@@ -21,6 +21,7 @@ const (
 	// CanaryIngressSuffix is the name suffix all canary ingresses created by the rollouts controller will have
 	CanaryIngressSuffix = "-canary"
 	// ManagedActionsAnnotation holds list of ALB actions that are managed by rollouts
+	// DEPRECATED in favor of ManagedAnnotations
 	ManagedActionsAnnotation = "rollouts.argoproj.io/managed-alb-actions"
 	// ManagedAnnotations holds list of ALB annotations that are managed by rollouts supports multiple annotations
 	ManagedAnnotations = "rollouts.argoproj.io/managed-alb-annotations"
