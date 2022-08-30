@@ -83,8 +83,8 @@ jobs:
       # This symlink is necessary to ensure that `git diff` detects changes
       - name: Create symlink in GOPATH
         run: |
-          mkdir -p ~/go/src/github.com/argoproj
-          ln -s $(pwd) ~/go/src/github.com/argoproj/argo-rollouts
+          mkdir -p ~/go/src/github.com/rallyhealth
+          ln -s $(pwd) ~/go/src/github.com/rallyhealth/argo-rollouts
       - uses: actions/cache@v2
         with:
           path: /home/runner/.cache/go-build
