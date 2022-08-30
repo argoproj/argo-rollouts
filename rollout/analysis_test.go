@@ -1650,8 +1650,8 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
-//TestDoNotCreatePrePromotionAnalysisProgressedRollout ensures a pre-promotion analysis is not created after a Rollout
-//points the active service at the new ReplicaSet
+// TestDoNotCreatePrePromotionAnalysisProgressedRollout ensures a pre-promotion analysis is not created after a Rollout
+// points the active service at the new ReplicaSet
 func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1700,8 +1700,8 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 
 }
 
-//TestDoNotCreatePrePromotionAnalysisRunOnNewRollout ensures that a pre-promotion analysis is not created
-//if the Rollout does not have a stable ReplicaSet
+// TestDoNotCreatePrePromotionAnalysisRunOnNewRollout ensures that a pre-promotion analysis is not created
+// if the Rollout does not have a stable ReplicaSet
 func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1731,8 +1731,8 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	f.run(getKey(r, t))
 }
 
-//TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
-//the new ReplicaSet is saturated
+// TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
+// the new ReplicaSet is saturated
 func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
