@@ -820,6 +820,10 @@
         "setCanaryScale": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetCanaryScale",
           "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight\n+optional"
+        },
+        "setHeaderRouting": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetHeaderRouting",
+          "title": "SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service"
         }
       },
       "description": "CanaryStep defines a step of a canary deployment."
@@ -912,6 +916,19 @@
         "fieldPath": {
           "type": "string",
           "title": "Required: Path of the field to select in the specified API version"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.HeaderRoutingMatch": {
+      "type": "object",
+      "properties": {
+        "headerName": {
+          "type": "string",
+          "title": "HeaderName the name of the request header"
+        },
+        "headerValue": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch",
+          "title": "HeaderValue the value of the header"
         }
       }
     },
@@ -1010,6 +1027,13 @@
             "type": "string"
           },
           "title": "+optional"
+        },
+        "additionalStableIngresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "AdditionalStableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario\n+optional"
         }
       },
       "title": "NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing"
@@ -1352,7 +1376,7 @@
         },
         "progressDeadlineAbort": {
           "type": "boolean",
-          "title": "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds\nis exceeded if analysis is not used. Default is false.\n+optional"
+          "title": "ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds\nis exceeded.\n+optional"
         },
         "restartAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
@@ -1524,6 +1548,10 @@
         "appMesh": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshTrafficRouting",
           "title": "AppMesh holds specific configuration to use AppMesh to route traffic"
+        },
+        "traefik": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting",
+          "title": "Traefik holds specific configuration to use Traefik to route traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"
@@ -1562,6 +1590,18 @@
       },
       "title": "SetCanaryScale defines how to scale the newRS without changing traffic weight"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetHeaderRouting": {
+      "type": "object",
+      "properties": {
+        "match": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.HeaderRoutingMatch"
+          }
+        }
+      },
+      "title": "SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StickinessConfig": {
       "type": "object",
       "properties": {
@@ -1573,6 +1613,24 @@
           "format": "int64"
         }
       }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StringMatch": {
+      "type": "object",
+      "properties": {
+        "exact": {
+          "type": "string",
+          "title": "Exact The string must match exactly"
+        },
+        "prefix": {
+          "type": "string",
+          "title": "Prefix The string will be prefixed matched"
+        },
+        "regex": {
+          "type": "string",
+          "title": "Regex The string will be regular expression matched"
+        }
+      },
+      "title": "StringMatch Used to define what type of matching we will use exact, prefix, or regular expression"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute": {
       "type": "object",
@@ -1591,6 +1649,16 @@
         }
       },
       "description": "TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting": {
+      "type": "object",
+      "properties": {
+        "weightedTraefikServiceName": {
+          "type": "string",
+          "title": "TraefikServiceName refer to the name of the Traefik service used to route traffic to the service"
+        }
+      },
+      "title": "TraefikTrafficRouting defines the configuration required to use Traefik as traffic router"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TrafficWeights": {
       "type": "object",
@@ -4395,8 +4463,8 @@
           "type": "string"
         },
         "revision": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "int64"
         },
         "status": {
           "type": "string"
@@ -4422,6 +4490,18 @@
           "items": {
             "$ref": "#/definitions/rollout.JobInfo"
           }
+        },
+        "nonJobInfo": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.NonJobInfo"
+          }
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.Metrics"
+          }
         }
       }
     },
@@ -4446,8 +4526,8 @@
           "type": "string"
         },
         "revision": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "int64"
         },
         "status": {
           "type": "string"
@@ -4480,6 +4560,35 @@
         },
         "icon": {
           "type": "string"
+        },
+        "metricName": {
+          "type": "string"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
+        }
+      }
+    },
+    "rollout.Metrics": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "successCondition": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "inconclusiveLimit": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "failureLimit": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -4494,6 +4603,23 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "rollout.NonJobInfo": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "metricName": {
+          "type": "string"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
         }
       }
     },
@@ -4545,8 +4671,8 @@
           "type": "string"
         },
         "revision": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "int64"
         },
         "stable": {
           "type": "boolean"

@@ -26,8 +26,10 @@ type MetricsServer struct {
 
 	reconcileAnalysisRunHistogram *prometheus.HistogramVec
 	errorAnalysisRunCounter       *prometheus.CounterVec
-
-	k8sRequestsCounter *K8sRequestsCountProvider
+	successNotificationCounter    *prometheus.CounterVec
+	errorNotificationCounter      *prometheus.CounterVec
+	sendNotificationRunHistogram  *prometheus.HistogramVec
+	k8sRequestsCounter            *K8sRequestsCountProvider
 }
 
 const (
@@ -75,6 +77,9 @@ func NewMetricsServer(cfg ServerConfig, isPrimary bool) *MetricsServer {
 	reg.MustRegister(MetricExperimentReconcileError)
 	reg.MustRegister(MetricAnalysisRunReconcile)
 	reg.MustRegister(MetricAnalysisRunReconcileError)
+	reg.MustRegister(MetricNotificationSuccessTotal)
+	reg.MustRegister(MetricNotificationFailedTotal)
+	reg.MustRegister(MetricNotificationSend)
 	reg.MustRegister(MetricVersionGauge)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
@@ -96,6 +101,9 @@ func NewMetricsServer(cfg ServerConfig, isPrimary bool) *MetricsServer {
 
 		reconcileAnalysisRunHistogram: MetricAnalysisRunReconcile,
 		errorAnalysisRunCounter:       MetricAnalysisRunReconcileError,
+		successNotificationCounter:    MetricNotificationSuccessTotal,
+		errorNotificationCounter:      MetricNotificationFailedTotal,
+		sendNotificationRunHistogram:  MetricNotificationSend,
 
 		k8sRequestsCounter: cfg.K8SRequestProvider,
 	}

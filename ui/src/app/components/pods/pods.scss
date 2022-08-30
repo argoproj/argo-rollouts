@@ -32,6 +32,7 @@ $POD_SIZE: 30px;
     }
 }
 
+/*This is used as an icon in pod, analysis job and analysis nonjob */
 .pod-icon {
     width: $POD_SIZE;
     height: $POD_SIZE;
@@ -42,6 +43,7 @@ $POD_SIZE: 30px;
     background-color: $fog;
     color: $shine;
     border-radius: 3px;
+    margin: 2px;
     cursor: pointer;
 
     &--success {

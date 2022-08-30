@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.13.1
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.15.0
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.16.0
+	github.com/aws/smithy-go v1.10.0
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/evanphx/json-patch/v5 v5.6.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -21,7 +22,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/newrelic/newrelic-client-go v0.72.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.32.1
 	github.com/servicemeshinterface/smi-sdk-go v0.4.1
@@ -75,7 +76,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.7.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.9.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.14.0 // indirect
-	github.com/aws/smithy-go v1.10.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -135,7 +135,7 @@ require (
 	github.com/opsgenie/opsgenie-go-sdk-v2 v1.0.5 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/russross/blackfriday v1.5.2 // indirect
 	github.com/slack-go/slack v0.10.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect

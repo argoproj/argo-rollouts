@@ -229,7 +229,7 @@ func Revisions(r *rollout.RolloutInfo) []int {
 func ReplicaSetsByRevision(r *rollout.RolloutInfo, rev int) []*rollout.ReplicaSetInfo {
 	var replicaSets []*rollout.ReplicaSetInfo
 	for _, rs := range r.ReplicaSets {
-		if rs.Revision == int32(rev) {
+		if rs.Revision == int64(rev) {
 			replicaSets = append(replicaSets, rs)
 		}
 	}

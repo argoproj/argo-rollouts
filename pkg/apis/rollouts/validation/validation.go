@@ -33,6 +33,12 @@ const (
 	InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting = "Experiment template weight cannot be set unless TrafficRouting is enabled"
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetCanaryScaleTrafficPolicy = "SetCanaryScale requires TrafficRouting to be set"
+	// InvalidSetHeaderRoutingTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
+	InvalidSetHeaderRoutingTrafficPolicy = "SetHeaderRouting requires TrafficRouting, supports Istio only"
+	// InvalidSetHeaderRoutingMultipleValuePolicy indicates that SetCanaryScale, has multiple values set
+	InvalidSetHeaderRoutingMultipleValuePolicy = "SetHeaderRouting match value must have one of the following: exact, regex, prefix"
+	// InvalidSetHeaderRoutingMissedValuePolicy indicates that SetCanaryScale, has multiple values set
+	InvalidSetHeaderRoutingMissedValuePolicy = "SetHeaderRouting value missed, match value must have one of the following: exact, regex, prefix"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
@@ -274,9 +280,9 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	for i, step := range canary.Steps {
 		stepFldPath := fldPath.Child("steps").Index(i)
 		allErrs = append(allErrs, hasMultipleStepsType(step, stepFldPath)...)
-		if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil && step.SetCanaryScale == nil {
-			errVal := fmt.Sprintf("step.Experiment: %t step.Pause: %t step.SetWeight: %t step.Analysis: %t step.SetCanaryScale %t",
-				step.Experiment == nil, step.Pause == nil, step.SetWeight == nil, step.Analysis == nil, step.SetCanaryScale == nil)
+		if step.Experiment == nil && step.Pause == nil && step.SetWeight == nil && step.Analysis == nil && step.SetCanaryScale == nil && step.SetHeaderRouting == nil {
+			errVal := fmt.Sprintf("step.Experiment: %t step.Pause: %t step.SetWeight: %t step.Analysis: %t step.SetCanaryScale: %t step.SetHeaderRouting: %t",
+				step.Experiment == nil, step.Pause == nil, step.SetWeight == nil, step.Analysis == nil, step.SetCanaryScale == nil, step.SetHeaderRouting == nil)
 			allErrs = append(allErrs, field.Invalid(stepFldPath, errVal, InvalidStepMessage))
 		}
 		if step.SetWeight != nil && (*step.SetWeight < 0 || *step.SetWeight > 100) {
@@ -285,9 +291,22 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if step.Pause != nil && step.Pause.DurationSeconds() < 0 {
 			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("pause").Child("duration"), step.Pause.DurationSeconds(), InvalidDurationMessage))
 		}
-		if rollout.Spec.Strategy.Canary != nil && rollout.Spec.Strategy.Canary.TrafficRouting == nil && step.SetCanaryScale != nil {
-			allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setCanaryScale"), step.SetCanaryScale, InvalidSetCanaryScaleTrafficPolicy))
+		if step.SetCanaryScale != nil && canary.TrafficRouting == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("trafficRouting"), InvalidSetCanaryScaleTrafficPolicy))
 		}
+		if step.SetHeaderRouting != nil {
+			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
+			if trafficRouting == nil || trafficRouting.Istio == nil {
+				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRouting"), step.SetHeaderRouting, InvalidSetHeaderRoutingTrafficPolicy))
+			}
+			if step.SetHeaderRouting.Match != nil && len(step.SetHeaderRouting.Match) > 0 {
+				for j, match := range step.SetHeaderRouting.Match {
+					matchFld := stepFldPath.Child("setHeaderRouting").Child("match").Index(j)
+					allErrs = append(allErrs, hasMultipleMatchValues(match.HeaderValue, matchFld)...)
+				}
+			}
+		}
+
 		analysisRunArgs := make([]v1alpha1.AnalysisRunArgument, 0)
 		if step.Experiment != nil {
 			for tmplIndex, template := range step.Experiment.Templates {
@@ -390,6 +409,30 @@ func hasMultipleStepsType(s v1alpha1.CanaryStep, fldPath *field.Path) field.Erro
 			}
 			hasMultipleStepTypes = true
 		}
+	}
+	return allErrs
+}
+
+func hasMultipleMatchValues(match v1alpha1.StringMatch, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	oneOf := make([]bool, 3)
+	oneOf = append(oneOf, match.Exact != "")
+	oneOf = append(oneOf, match.Regex != "")
+	oneOf = append(oneOf, match.Prefix != "")
+	hasValue := false
+	for i := range oneOf {
+		if oneOf[i] {
+			if hasValue {
+				e := field.Invalid(fldPath, match, InvalidSetHeaderRoutingMultipleValuePolicy)
+				allErrs = append(allErrs, e)
+				break
+			}
+			hasValue = true
+		}
+	}
+	if !hasValue {
+		e := field.Invalid(fldPath, match, InvalidSetHeaderRoutingMissedValuePolicy)
+		allErrs = append(allErrs, e)
 	}
 	return allErrs
 }

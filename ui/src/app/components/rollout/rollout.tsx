@@ -151,6 +151,7 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                                     initCollapsed={false}
                                     rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
                                     current={i === 0}
+                                    message={rollout.message}
                                 />
                             ))}
                         </div>
@@ -160,9 +161,11 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                     <ThemeDiv className='info steps'>
                         <ThemeDiv className='info__title'>Steps</ThemeDiv>
                         <div style={{marginTop: '1em'}}>
-                            {rollout.steps.map((step, i) => (
-                                <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === (rollout.steps || []).length - 1} />
-                            ))}
+                            {rollout.steps
+                                .filter((step) => Object.keys(step).length)
+                                .map((step, i, arr) => (
+                                    <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === arr.length - 1} />
+                                ))}
                         </div>
                     </ThemeDiv>
                 )}
@@ -228,7 +231,7 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
     if (!ri) {
         return;
     }
-    const map: {[key: number]: Revision} = {};
+    const map: {[key: string]: Revision} = {};
 
     const emptyRevision = {replicaSets: [], experiments: [], analysisRuns: []} as Revision;
 
@@ -274,6 +277,9 @@ const parseDuration = (duration: string): string => {
 
 const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
     const [openedTemplate, setOpenedTemplate] = React.useState('');
+    const [openCanary, setOpenCanary] = React.useState(false);
+    const [openAnalysis, setOpenAnalysis] = React.useState(false);
+
     let icon: string;
     let content = '';
     let unit = '';
@@ -305,9 +311,22 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     return (
         <React.Fragment>
             <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-                <div className={`steps__step-title ${props.step.experiment ? 'steps__step-title--experiment' : ''}`}>
-                    <i className={`fa ${icon}`} /> {content}
+                <div
+                    className={`steps__step-title ${
+                        props.step.experiment || (props.step.setCanaryScale && openCanary) || (props.step.analysis && openAnalysis) ? 'steps__step-title--experiment' : ''
+                    }`}>
+                    {icon && <i className={`fa ${icon}`} />} {content}
                     {unit}
+                    {props.step.setCanaryScale && (
+                        <ThemeDiv style={{marginLeft: 'auto'}} onClick={() => setOpenCanary(!openCanary)}>
+                            <i className={`fa ${openCanary ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </ThemeDiv>
+                    )}
+                    {props.step.analysis && (
+                        <ThemeDiv style={{marginLeft: 'auto'}} onClick={() => setOpenAnalysis(!openAnalysis)}>
+                            <i className={`fa ${openAnalysis ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </ThemeDiv>
+                    )}
                 </div>
                 {props.step.experiment?.templates && (
                     <div className='steps__step__content'>
@@ -316,6 +335,22 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                         })}
                     </div>
                 )}
+
+                {props.step.analysis?.templates && openAnalysis && (
+                    <div className='steps__step__content'>
+                        <div style={{paddingLeft: 15, marginTop: 12, marginBottom: 8, color: 'rgba(0,0,0, 0.5)'}}>Templates</div>
+                        <ul>
+                            {props.step.analysis?.templates.map((template) => {
+                                return (
+                                    <div style={{paddingLeft: 15, fontWeight: 600}} key={template.templateName}>
+                                        <li>{template.templateName}</li>
+                                    </div>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                )}
+                {props.step?.setCanaryScale && openCanary && <WidgetItem values={props.step.setCanaryScale} />}
             </EffectDiv>
             {!props.last && <ThemeDiv className='steps__connector' />}
         </React.Fragment>
@@ -340,17 +375,23 @@ const ExperimentWidget = ({
                     <i className={`fa ${icon}`} />
                 </ThemeDiv>
             </ThemeDiv>
-            {opened && (
-                <EffectDiv>
-                    <div className='steps__step__content-title'>SPECREF</div>
-                    <div className='steps__step__content-value'>{template.specRef}</div>
-                    {template.weight && (
-                        <Fragment>
-                            <div className='steps__step__content-title'>WEIGHT</div> <div className='steps__step__content-value'>{template.weight}</div>
-                        </Fragment>
-                    )}
-                </EffectDiv>
-            )}
+            {opened && <WidgetItem values={{specRef: template.specRef, weight: template.weight}} />}
+        </EffectDiv>
+    );
+};
+
+const WidgetItem = ({values}: {values: Record<string, any>}) => {
+    return (
+        <EffectDiv>
+            {Object.keys(values).map((val) => {
+                if (!values[val]) return null;
+                return (
+                    <Fragment key={val}>
+                        <div className='steps__step__content-title'>{val.toUpperCase()}</div>
+                        <div className='steps__step__content-value'>{String(values[val])}</div>
+                    </Fragment>
+                );
+            })}
         </EffectDiv>
     );
 };

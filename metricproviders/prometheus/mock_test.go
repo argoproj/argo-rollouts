@@ -14,6 +14,10 @@ type mockAPI struct {
 	warnings v1.Warnings
 }
 
+func (m mockAPI) WalReplay(ctx context.Context) (v1.WalReplayStatus, error) {
+	panic("Not used")
+}
+
 // Query performs a query for the given time.
 func (m mockAPI) Query(ctx context.Context, query string, ts time.Time) (model.Value, v1.Warnings, error) {
 	if m.err != nil {

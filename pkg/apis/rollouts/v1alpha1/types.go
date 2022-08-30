@@ -71,7 +71,7 @@ type RolloutSpec struct {
 	// Defaults to 600s.
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty" protobuf:"varint,8,opt,name=progressDeadlineSeconds"`
 	// ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds
-	// is exceeded if analysis is not used. Default is false.
+	// is exceeded.
 	// +optional
 	ProgressDeadlineAbort bool `json:"progressDeadlineAbort,omitempty" protobuf:"varint,12,opt,name=progressDeadlineAbort"`
 	// RestartAt indicates when all the pods of a Rollout should be restarted
@@ -361,6 +361,14 @@ type RolloutTrafficRouting struct {
 	Ambassador *AmbassadorTrafficRouting `json:"ambassador,omitempty" protobuf:"bytes,5,opt,name=ambassador"`
 	// AppMesh holds specific configuration to use AppMesh to route traffic
 	AppMesh *AppMeshTrafficRouting `json:"appMesh,omitempty" protobuf:"bytes,6,opt,name=appMesh"`
+	// Traefik holds specific configuration to use Traefik to route traffic
+	Traefik *TraefikTrafficRouting `json:"traefik,omitempty" protobuf:"bytes,7,opt,name=traefik"`
+}
+
+// TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
+type TraefikTrafficRouting struct {
+	// TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
+	WeightedTraefikServiceName string `json:"weightedTraefikServiceName" protobuf:"bytes,1,name=weightedTraefikServiceName"`
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
@@ -390,6 +398,9 @@ type NginxTrafficRouting struct {
 	StableIngress string `json:"stableIngress" protobuf:"bytes,2,opt,name=stableIngress"`
 	// +optional
 	AdditionalIngressAnnotations map[string]string `json:"additionalIngressAnnotations,omitempty" protobuf:"bytes,3,rep,name=additionalIngressAnnotations"`
+	// AdditionalStableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
+	// +optional
+	AdditionalStableIngresses []string `json:"additionalStableIngresses,omitempty" protobuf:"bytes,4,rep,name=additionalStableIngresses"`
 }
 
 // IstioTrafficRouting configuration for Istio service mesh to enable fine grain configuration
@@ -546,6 +557,30 @@ type CanaryStep struct {
 	// SetCanaryScale defines how to scale the newRS without changing traffic weight
 	// +optional
 	SetCanaryScale *SetCanaryScale `json:"setCanaryScale,omitempty" protobuf:"bytes,5,opt,name=setCanaryScale"`
+	// SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
+	SetHeaderRouting *SetHeaderRouting `json:"setHeaderRouting,omitempty" protobuf:"bytes,6,opt,name=setHeaderRouting"`
+}
+
+// SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
+type SetHeaderRouting struct {
+	Match []HeaderRoutingMatch `json:"match,omitempty" protobuf:"bytes,1,rep,name=match"`
+}
+
+type HeaderRoutingMatch struct {
+	// HeaderName the name of the request header
+	HeaderName string `json:"headerName" protobuf:"bytes,1,opt,name=headerName"`
+	// HeaderValue the value of the header
+	HeaderValue StringMatch `json:"headerValue" protobuf:"bytes,2,opt,name=headerValue"`
+}
+
+// StringMatch Used to define what type of matching we will use exact, prefix, or regular expression
+type StringMatch struct {
+	// Exact The string must match exactly
+	Exact string `json:"exact,omitempty" protobuf:"bytes,1,opt,name=exact"`
+	// Prefix The string will be prefixed matched
+	Prefix string `json:"prefix,omitempty" protobuf:"bytes,2,opt,name=prefix"`
+	// Regex The string will be regular expression matched
+	Regex string `json:"regex,omitempty" protobuf:"bytes,3,opt,name=regex"`
 }
 
 // SetCanaryScale defines how to scale the newRS without changing traffic weight

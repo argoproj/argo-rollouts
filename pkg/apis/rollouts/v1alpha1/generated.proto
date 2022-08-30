@@ -402,6 +402,9 @@ message CanaryStep {
   // SetCanaryScale defines how to scale the newRS without changing traffic weight
   // +optional
   optional SetCanaryScale setCanaryScale = 5;
+
+  // SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
+  optional SetHeaderRouting setHeaderRouting = 6;
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
@@ -736,6 +739,14 @@ message GraphiteMetric {
 
   // Query is a raw Graphite query to perform
   optional string query = 2;
+}
+
+message HeaderRoutingMatch {
+  // HeaderName the name of the request header
+  optional string headerName = 1;
+
+  // HeaderValue the value of the header
+  optional StringMatch headerValue = 2;
 }
 
 // IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic
@@ -1250,7 +1261,7 @@ message RolloutSpec {
   optional int32 progressDeadlineSeconds = 8;
 
   // ProgressDeadlineAbort is whether to abort the update when ProgressDeadlineSeconds
-  // is exceeded if analysis is not used. Default is false.
+  // is exceeded.
   // +optional
   optional bool progressDeadlineAbort = 12;
 
@@ -1398,6 +1409,9 @@ message RolloutTrafficRouting {
 
   // AppMesh holds specific configuration to use AppMesh to route traffic
   optional AppMeshTrafficRouting appMesh = 6;
+
+  // Traefik holds specific configuration to use Traefik to route traffic
+  optional TraefikTrafficRouting traefik = 7;
 }
 
 // RunSummary contains the final results from the metric executions
@@ -1464,10 +1478,27 @@ message SetCanaryScale {
   optional bool matchTrafficWeight = 3;
 }
 
+// SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
+message SetHeaderRouting {
+  repeated HeaderRoutingMatch match = 1;
+}
+
 message StickinessConfig {
   optional bool enabled = 1;
 
   optional int64 durationSeconds = 2;
+}
+
+// StringMatch Used to define what type of matching we will use exact, prefix, or regular expression
+message StringMatch {
+  // Exact The string must match exactly
+  optional string exact = 1;
+
+  // Prefix The string will be prefixed matched
+  optional string prefix = 2;
+
+  // Regex The string will be regular expression matched
+  optional string regex = 3;
 }
 
 // TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.
@@ -1547,6 +1578,12 @@ message TemplateStatus {
 
   // PodTemplateHash is the value of the Replicas' PodTemplateHash
   optional string podTemplateHash = 11;
+}
+
+// TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
+message TraefikTrafficRouting {
+  // TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
+  optional string weightedTraefikServiceName = 1;
 }
 
 // TrafficWeights describes the current status of how traffic has been split

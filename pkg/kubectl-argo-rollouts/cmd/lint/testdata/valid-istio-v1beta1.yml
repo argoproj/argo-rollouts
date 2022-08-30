@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-host-split-canary
+spec:
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: istio-host-split
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-host-split-stable
+spec:
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: istio-host-split
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: istio-host-split-vsvc
+spec:
+  hosts:
+    - istio-host-split.com
+  gateways:
+    - istio-host-split-gateway
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: istio-host-split-stable
+          weight: 100
+        - destination:
+            host: istio-host-split-canary
+          weight: 0
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: istio-host-split
+spec:
+  strategy:
+    canary:
+      canaryService: istio-host-split-canary
+      stableService: istio-host-split-stable
+      trafficRouting:
+        istio:
+          virtualService:
+            name: istio-host-split-vsvc
+            routes:
+              - primary
+      steps:
+        - setWeight: 10
+        - experiment:
+            templates:
+              - name: experiment-istio
+                specRef: canary
+                weight: 20
+  selector:
+    matchLabels:
+      app: istio-host-split
+  template:
+    metadata:
+      labels:
+        app: istio-host-split
+    spec:
+      containers:
+        - name: istio-host-split
+          image: argoproj/rollouts-demo:red
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 5m

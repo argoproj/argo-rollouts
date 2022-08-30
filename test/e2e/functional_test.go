@@ -644,7 +644,8 @@ spec:
       maxUnavailable: 0
       steps:
       - setWeight: 50
-      - pause: {}
+      - pause:
+          duration: 5s
   selector:
     matchLabels:
       app: bad2good-setweight
@@ -671,10 +672,10 @@ spec:
       containers:
       - name: bad2good-setweight
         command: null`).
-		WaitForRolloutStatus("Progressing").
-		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectCanaryStablePodCount(2, 2)
+		ExpectRevisionPodCount("2", 4).
+		ExpectRevisionPodCount("1", 0)
 }
 
 // TestBlueGreenUpdate
@@ -757,6 +758,7 @@ spec:
       - pause: {}
 `).
 		WaitForRolloutStatus("Paused").
+		WaitForRolloutAvailableReplicas(2).
 		Then().
 		ExpectReplicaCounts(2, 2, 1, 2, 2). // desired, current, updated, ready, available
 		ExpectServiceSelector("bluegreen-to-canary", map[string]string{"app": "bluegreen-to-canary"}, false)
