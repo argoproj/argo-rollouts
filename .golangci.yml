@@ -18,8 +18,3 @@ linters:
     - unconvert
     - misspell
   disable-all: true
-issues:
-  exclude-rules:
-    - path: '(.+)_test\.go'
-      linters:
-        - unused

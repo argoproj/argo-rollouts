@@ -810,7 +810,7 @@ func (f *fixture) expectListPodAction(namespace string) int {
 	return len
 }
 
-func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
+func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int { //nolint:unused
 	len := len(f.actions)
 	f.kubeactions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
 	return len
@@ -823,7 +823,7 @@ func (f *fixture) expectCreateExperimentAction(ex *v1alpha1.Experiment) int {
 	return len
 }
 
-func (f *fixture) expectUpdateExperimentAction(ex *v1alpha1.Experiment) int {
+func (f *fixture) expectUpdateExperimentAction(ex *v1alpha1.Experiment) int { //nolint:unused
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
@@ -1000,7 +1000,7 @@ func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
 	return rollout
 }
 
-func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun {
+func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nolint:unused
 	action := filterInformerActions(f.client.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
@@ -1120,7 +1120,7 @@ func (f *fixture) expectDeleteReplicaSetAction(rs *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) getDeletedReplicaSet(index int) string {
+func (f *fixture) getDeletedReplicaSet(index int) string { //nolint:unused
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
