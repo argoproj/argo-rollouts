@@ -15,6 +15,7 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/ingress"
 )
 
@@ -393,6 +394,32 @@ func TestRemoveAnnotationBasedPath(t *testing.T) {
 		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
 		ing.RemovePathByServiceName("non-exsisting-route")
 		assert.Equal(t, 1, len(ni.Spec.Rules[0].HTTP.Paths))
+	})
+}
+
+func TestSortHttpPaths(t *testing.T) {
+	managedRoutes := []v1alpha1.MangedRoutes{{Name: "route1"}, {Name: "route2"}, {Name: "route3"}}
+	t.Run("v1 ingress, sort path", func(t *testing.T) {
+		ing := networkingIngressWithPath("action1", "route3", "route1", "route2")
+		ing.SortHttpPaths(managedRoutes)
+		ni, _ := ing.GetNetworkingIngress()
+
+		assert.Equal(t, 4, len(ni.Spec.Rules[0].HTTP.Paths))
+		assert.Equal(t, "route1", ni.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name)
+		assert.Equal(t, "route2", ni.Spec.Rules[0].HTTP.Paths[1].Backend.Service.Name)
+		assert.Equal(t, "route3", ni.Spec.Rules[0].HTTP.Paths[2].Backend.Service.Name)
+		assert.Equal(t, "action1", ni.Spec.Rules[0].HTTP.Paths[3].Backend.Service.Name)
+	})
+	t.Run("v1beta1 ingress, sort path", func(t *testing.T) {
+		ing := extensionsIngressWithPath("action1", "route3", "route1", "route2")
+		ing.SortHttpPaths(managedRoutes)
+		ni, _ := ing.GetExtensionsIngress()
+
+		assert.Equal(t, 4, len(ni.Spec.Rules[0].HTTP.Paths))
+		assert.Equal(t, "route1", ni.Spec.Rules[0].HTTP.Paths[0].Backend.ServiceName)
+		assert.Equal(t, "route2", ni.Spec.Rules[0].HTTP.Paths[1].Backend.ServiceName)
+		assert.Equal(t, "route3", ni.Spec.Rules[0].HTTP.Paths[2].Backend.ServiceName)
+		assert.Equal(t, "action1", ni.Spec.Rules[0].HTTP.Paths[3].Backend.ServiceName)
 	})
 }
 
@@ -976,6 +1003,43 @@ func networkingIngress() *ingress.Ingress {
 	return ingress.NewIngress(&res)
 }
 
+func networkingIngressWithPath(paths ...string) *ingress.Ingress {
+	var ingressPaths []v1.HTTPIngressPath
+	for _, path := range paths {
+		ingressPaths = append(ingressPaths, v1IngressPath(path))
+	}
+	res := v1.Ingress{
+		Spec: v1.IngressSpec{
+			IngressClassName: pointer.String("v1ingress"),
+			Rules: []v1.IngressRule{
+				{
+					Host: "v1host",
+					IngressRuleValue: v1.IngressRuleValue{
+						HTTP: &v1.HTTPIngressRuleValue{
+							Paths: ingressPaths,
+						},
+					},
+				},
+			},
+		},
+	}
+	return ingress.NewIngress(&res)
+}
+
+func v1IngressPath(serviceName string) v1.HTTPIngressPath {
+	pathType := v1.PathTypeImplementationSpecific
+	return v1.HTTPIngressPath{
+		Backend: v1.IngressBackend{
+			Service: &v1.IngressServiceBackend{
+				Name: serviceName,
+				Port: v1.ServiceBackendPort{Name: "use-annotation"},
+			},
+		},
+		Path:     "/*",
+		PathType: &pathType,
+	}
+}
+
 func extensionsIngress() *ingress.Ingress {
 	pathType := v1beta1.PathTypeImplementationSpecific
 	res := v1beta1.Ingress{
@@ -1003,4 +1067,39 @@ func extensionsIngress() *ingress.Ingress {
 		},
 	}
 	return ingress.NewLegacyIngress(&res)
+}
+
+func extensionsIngressWithPath(paths ...string) *ingress.Ingress {
+	var ingressPaths []v1beta1.HTTPIngressPath
+	for _, path := range paths {
+		ingressPaths = append(ingressPaths, extensionIngressPath(path))
+	}
+	res := v1beta1.Ingress{
+		Spec: v1beta1.IngressSpec{
+			IngressClassName: pointer.String("v1beta1ingress"),
+			Rules: []v1beta1.IngressRule{
+				{
+					Host: "v1beta1host",
+					IngressRuleValue: v1beta1.IngressRuleValue{
+						HTTP: &v1beta1.HTTPIngressRuleValue{
+							Paths: ingressPaths,
+						},
+					},
+				},
+			},
+		},
+	}
+	return ingress.NewLegacyIngress(&res)
+}
+
+func extensionIngressPath(serviceName string) v1beta1.HTTPIngressPath {
+	pathType := v1beta1.PathTypeImplementationSpecific
+	return v1beta1.HTTPIngressPath{
+		Backend: v1beta1.IngressBackend{
+			ServiceName: serviceName,
+			ServicePort: intstr.FromString("use-annotation"),
+		},
+		Path:     "/*",
+		PathType: &pathType,
+	}
 }

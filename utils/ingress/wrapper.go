@@ -3,6 +3,7 @@ package ingress
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +17,8 @@ import (
 	networkingv1 "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 // Ingress defines an Ingress resource abstraction used to allow Rollouts to
@@ -231,6 +234,38 @@ func (i *Ingress) RemovePathByServiceName(actionName string) {
 				rule.HTTP.Paths = append(rule.HTTP.Paths[:j], rule.HTTP.Paths[j+1:]...)
 			}
 		}
+	}
+}
+
+func (i *Ingress) SortHttpPaths(routes []v1alpha1.MangedRoutes) {
+	var routeWeight = make(map[string]int) // map of route name for ordering
+	for j, route := range routes {
+		routeWeight[route.Name] = j
+	}
+
+	i.mux.Lock()
+	defer i.mux.Unlock()
+	switch i.mode {
+	case IngressModeNetworking:
+		for _, rule := range i.ingress.Spec.Rules {
+			sort.SliceStable(rule.HTTP.Paths, func(i, j int) bool {
+				return getKeyWeight(routeWeight, rule.HTTP.Paths[i].Backend.Service.Name) < getKeyWeight(routeWeight, rule.HTTP.Paths[j].Backend.Service.Name)
+			})
+		}
+	case IngressModeExtensions:
+		for _, rule := range i.legacyIngress.Spec.Rules {
+			sort.SliceStable(rule.HTTP.Paths, func(i, j int) bool {
+				return getKeyWeight(routeWeight, rule.HTTP.Paths[i].Backend.ServiceName) < getKeyWeight(routeWeight, rule.HTTP.Paths[j].Backend.ServiceName)
+			})
+		}
+	}
+}
+
+func getKeyWeight(weight map[string]int, key string) int {
+	if val, ok := weight[key]; ok {
+		return val
+	} else {
+		return len(weight)
 	}
 }
 

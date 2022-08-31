@@ -142,6 +142,7 @@ func (r *Reconciler) SetHeaderRoute(headerRoute *v1alpha1.SetHeaderRoute) error 
 	if !hasRule && headerRoute.Match != nil {
 		desiredIngress.CreateAnnotationBasedPath(action)
 	}
+	desiredIngress.SortHttpPaths(rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes)
 	patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations(), ingressutil.WithSpec())
 	if err != nil {
 		return nil
