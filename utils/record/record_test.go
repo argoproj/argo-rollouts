@@ -112,6 +112,33 @@ func TestSendNotifications(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestSendNotificationsWhenCondition(t *testing.T) {
+	r := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "guestbook",
+			Namespace:   "default",
+			Annotations: map[string]string{"notifications.argoproj.io/subscribe.on-foo-reason.console": "console"},
+		},
+	}
+	mockCtrl := gomock.NewController(t)
+	mockAPI := mocks.NewMockAPI(mockCtrl)
+	cr := []triggers.ConditionResult{{
+		Key:       "",
+		Triggered: true,
+		Templates: []string{"my-template"},
+	}}
+	mockAPI.EXPECT().RunTrigger(gomock.Any(), gomock.Any()).Return(cr, nil).AnyTimes()
+	mockAPI.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockAPI.EXPECT().GetConfig().Return(api.Config{
+		Triggers: map[string][]triggers.Condition{"on-foo-reason": {triggers.Condition{When: "rollout.spec.template.spec.containers[0].image == test:blue", Send: []string{"my-template"}}}}}).AnyTimes()
+	apiFactory := &mocks.FakeFactory{Api: mockAPI}
+	rec := NewFakeEventRecorder()
+	rec.EventRecorderAdapter.apiFactory = apiFactory
+	//ch := make(chan prometheus.HistogramVec, 1)
+	err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
+	assert.NoError(t, err)
+}
+
 func TestNotificationFailedCounter(t *testing.T) {
 	r := v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
