@@ -290,7 +290,7 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 			for _, dest := range destinations {
 				for _, c := range res {
 					if c.Triggered == true {
-						err = notificationsAPI.Send(objMap, triggerActions[0].Send, dest)
+						err = notificationsAPI.Send(objMap, ta.Send, dest)
 						if err != nil {
 							log.Errorf("notification error: %s", err.Error())
 							return err
@@ -300,7 +300,7 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 			}
 		} else {
 			for _, dest := range destinations {
-				err = notificationsAPI.Send(objMap, triggerActions[0].Send, dest)
+				err = notificationsAPI.Send(objMap, ta.Send, dest)
 				if err != nil {
 					log.Errorf("notification error: %s", err.Error())
 					return err
