@@ -17,6 +17,7 @@ nav:
 - Architecture: architecture.md
 - Getting Started:
   - Basic Usage: getting-started.md
+  - Environment Setup: getting-started/setup/index.md
   - Ambassador: getting-started/ambassador/index.md
   - AWS ALB: getting-started/alb/index.md
   - Istio: getting-started/istio/index.md
@@ -119,7 +120,6 @@ nav:
 - Roadmap: roadmap.md
 - Contributing:
   - Contribution Guide: CONTRIBUTING.md
-  - Environment Setup: getting-started/setup/index.md
   - Releasing: releasing.md
 - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
 - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
