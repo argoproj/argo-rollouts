@@ -33,14 +33,16 @@ const (
 	InvalidCanaryExperimentTemplateWeightWithoutTrafficRouting = "Experiment template weight cannot be set unless TrafficRouting is enabled"
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetCanaryScaleTrafficPolicy = "SetCanaryScale requires TrafficRouting to be set"
-	// InvalidSetHeaderRoutingTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
-	InvalidSetHeaderRoutingTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio only"
+	// InvalidSetHeaderRouteTrafficPolicy indicates that TrafficRouting required for SetHeaderRoute is missing
+	InvalidSetHeaderRouteTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio and ALB"
 	// InvalidSetMirrorRouteTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetMirrorRouteTrafficPolicy = "SetMirrorRoute requires TrafficRouting, supports Istio only"
 	// InvalidStringMatchMultipleValuePolicy indicates that SetCanaryScale, has multiple values set
 	InvalidStringMatchMultipleValuePolicy = "StringMatch match value must have exactly one of the following: exact, regex, prefix"
 	// InvalidStringMatchMissedValuePolicy indicates that SetCanaryScale, has multiple values set
 	InvalidStringMatchMissedValuePolicy = "StringMatch value missed, match value must have one of the following: exact, regex, prefix"
+	// InvalidSetHeaderRouteALBValuePolicy indicates that SetHeaderRouting using with ALB missed the 'exact' value
+	InvalidSetHeaderRouteALBValuePolicy = "SetHeaderRoute match value invalid. ALB supports 'exact' value only"
 	// InvalidDurationMessage indicates the Duration value needs to be greater than 0
 	InvalidDurationMessage = "Duration needs to be greater than 0"
 	// InvalidMaxSurgeMaxUnavailable indicates both maxSurge and MaxUnavailable can not be set to zero
@@ -78,8 +80,6 @@ const (
 	MissedAlbRootServiceMessage = "Root service field is required for the configuration with ALB and ping-pong feature enabled"
 	// PingPongWithAlbOnlyMessage At this moment ping-pong feature works with the ALB traffic routing only
 	PingPongWithAlbOnlyMessage = "Ping-pong feature works with the ALB traffic routing only"
-	// InvalidStepMissingManagedRoutesField We have a step configured that requires managedRoutes to be configured which is not.
-	InvalidStepMissingManagedRoutesField = "Step requires spec.strategy.canary.trafficRouting.managedRoutes to be configured"
 	// InvalideStepRouteNameNotFoundInManagedRoutes A step has been configured that requires managedRoutes and the route name
 	// is missing from managedRoutes
 	InvalideStepRouteNameNotFoundInManagedRoutes = "Steps define a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
@@ -305,13 +305,17 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		if step.SetHeaderRoute != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
-			if trafficRouting == nil || trafficRouting.Istio == nil {
-				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRoute"), step.SetHeaderRoute, InvalidSetHeaderRoutingTrafficPolicy))
-			}
-			if step.SetHeaderRoute.Match != nil && len(step.SetHeaderRoute.Match) > 0 {
+			if trafficRouting == nil || (trafficRouting.Istio == nil && trafficRouting.ALB == nil) {
+				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRoute"), step.SetHeaderRoute, InvalidSetHeaderRouteTrafficPolicy))
+			} else if step.SetHeaderRoute.Match != nil && len(step.SetHeaderRoute.Match) > 0 {
 				for j, match := range step.SetHeaderRoute.Match {
-					matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
-					allErrs = append(allErrs, hasMultipleMatchValues(match.HeaderValue, matchFld)...)
+					if trafficRouting.ALB != nil {
+						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
+						allErrs = append(allErrs, hasALBInvalidValues(match.HeaderValue, matchFld)...)
+					} else {
+						matchFld := stepFldPath.Child("setHeaderRoute").Child("match").Index(j)
+						allErrs = append(allErrs, hasMultipleMatchValues(match.HeaderValue, matchFld)...)
+					}
 				}
 			}
 		}
@@ -340,7 +344,8 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if rollout.Spec.Strategy.Canary.TrafficRouting != nil {
 			if step.SetHeaderRoute != nil || step.SetMirrorRoute != nil {
 				if rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes == nil {
-					allErrs = append(allErrs, field.Invalid(stepFldPath, step, InvalidStepMissingManagedRoutesField))
+					message := fmt.Sprintf(MissingFieldMessage, "spec.strategy.canary.trafficRouting.managedRoutes")
+					allErrs = append(allErrs, field.Required(fldPath.Child("trafficRouting", "managedRoutes"), message))
 				}
 			}
 		}
@@ -469,6 +474,19 @@ func hasMultipleStepsType(s v1alpha1.CanaryStep, fldPath *field.Path) field.Erro
 			}
 			hasMultipleStepTypes = true
 		}
+	}
+	return allErrs
+}
+
+func hasALBInvalidValues(match *v1alpha1.StringMatch, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if match == nil {
+		e := field.Invalid(fldPath, match, InvalidStringMatchMissedValuePolicy)
+		allErrs = append(allErrs, e)
+		return allErrs
+	}
+	if match.Exact == "" || match.Regex != "" || match.Prefix != "" {
+		return append(allErrs, field.Invalid(fldPath, match, InvalidSetHeaderRouteALBValuePolicy))
 	}
 	return allErrs
 }
