@@ -96,7 +96,7 @@ func TestSendNotifications(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	mockAPI := mocks.NewMockAPI(mockCtrl)
 	cr := []triggers.ConditionResult{{
-		Key:       "",
+		Key:       "1."+hash(""),
 		Triggered: true,
 		Templates: []string{"my-template"},
 	}}
@@ -123,7 +123,7 @@ func TestSendNotificationsWhenCondition(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	mockAPI := mocks.NewMockAPI(mockCtrl)
 	cr := []triggers.ConditionResult{{
-		Key:       "",
+		Key:       "1."+hash(""),
 		Triggered: true,
 		Templates: []string{"my-template"},
 	}}
@@ -228,7 +228,7 @@ func TestSendNotificationsFails(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		mockAPI := mocks.NewMockAPI(mockCtrl)
 		cr := []triggers.ConditionResult{{
-			Key:       "",
+			Key:       "1."+hash(""),
 			Triggered: true,
 			Templates: []string{"my-template"},
 		}}
@@ -268,7 +268,7 @@ func TestSendNotificationsFailsWithRunTriggerError(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		mockAPI := mocks.NewMockAPI(mockCtrl)
 		cr := []triggers.ConditionResult{{
-			Key:       "",
+			Key:       "1."+hash(""),
 			Triggered: true,
 			Templates: []string{"my-template"},
 		}}
@@ -306,6 +306,12 @@ func TestSendNotificationsNoTrigger(t *testing.T) {
 
 	mockCtrl := gomock.NewController(t)
 	mockAPI := mocks.NewMockAPI(mockCtrl)
+	cr := []triggers.ConditionResult{{
+		Key:       "1."+hash(""),
+		Triggered: false,
+		Templates: []string{"my-template"},
+	}}
+	mockAPI.EXPECT().RunTrigger(gomock.Any(), gomock.Any()).Return(cr, errors.New("trigger 'on-missing-reason' is not configured")).AnyTimes()
 	mockAPI.EXPECT().GetConfig().Return(api.Config{
 		Triggers: map[string][]triggers.Condition{"on-foo-reason": {triggers.Condition{Send: []string{"my-template"}}}}}).AnyTimes()
 	mockAPI.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("failed to send")).Times(0)
@@ -314,7 +320,7 @@ func TestSendNotificationsNoTrigger(t *testing.T) {
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 
 	err := rec.sendNotifications(&r, EventOptions{EventReason: "MissingReason"})
-	assert.NoError(t, err)
+	assert.Error(t, err)
 }
 
 func TestNewAPIFactorySettings(t *testing.T) {
