@@ -33,3 +33,4 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Ubie](https://ubie.life/)
 1. [VISITS Technologies](https://visits.world/en)
 1. [Opensurvey Inc.](https://opensurvey.co.kr)
+1. [Plaid](https://plaid.com)

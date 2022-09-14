@@ -45,6 +45,14 @@ const (
 }`
 )
 
+type delayServiceSelectorSwapError struct{}
+
+func (e delayServiceSelectorSwapError) Error() string {
+	return "Selectors cannot be swapped yet because not all pods are ready"
+}
+
+var DelayServiceSelectorSwapError = delayServiceSelectorSwapError{}
+
 func generatePatch(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) string {
 	if _, ok := service.Annotations[v1alpha1.ManagedByRolloutsKey]; !ok {
 		return fmt.Sprintf(switchSelectorAndAddManagedByPatch, r.Name, newRolloutUniqueLabelValue)
@@ -282,7 +290,7 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet,
 		if checkRsAvailability && !replicasetutil.IsReplicaSetAvailable(rs) {
 			logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
 			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
-			return nil
+			return DelayServiceSelectorSwapError
 		}
 		err = c.switchServiceSelector(svc, desiredSelector, c.rollout)
 		if err != nil {

@@ -19,6 +19,8 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-rollouts/rollout/mocks"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/hash"
@@ -58,6 +60,123 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 	newRollout.Status.CurrentStepHash = conditions.ComputeStepHash(newRollout)
 	newRollout.Status.Phase, newRollout.Status.Message = rolloututil.CalculateRolloutPhase(newRollout.Spec, newRollout.Status)
 	return newRollout
+}
+
+func TestCanaryRollout(t *testing.T) {
+	for _, tc := range []struct {
+		canaryReplicas      int32
+		canaryAvailReplicas int32
+
+		shouldRouteTraffic bool
+	}{
+		{0, 0, false},
+		{2, 0, false},
+		{2, 1, false},
+		{2, 2, true},
+	} {
+		namespace := "namespace"
+		selectorNewRSVal := "new-rs-xxx"
+		stableService := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "stable",
+				Namespace: namespace,
+			},
+		}
+		canaryService := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "canary",
+				Namespace: namespace,
+			},
+		}
+		canaryReplicaset := &v1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "canary",
+				Namespace: namespace,
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: selectorNewRSVal,
+				},
+			},
+			Spec: v1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(tc.canaryReplicas),
+			},
+			Status: v1.ReplicaSetStatus{
+				AvailableReplicas: tc.canaryAvailReplicas,
+			},
+		}
+
+		stableReplicaset := &v1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "stable",
+				Namespace: namespace,
+			},
+			Spec: v1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(0),
+			},
+		}
+
+		fake := fake.Clientset{}
+		kubeclient := k8sfake.NewSimpleClientset(
+			stableService, canaryService, canaryReplicaset, stableReplicaset)
+		informers := k8sinformers.NewSharedInformerFactory(kubeclient, 0)
+		servicesLister := informers.Core().V1().Services().Lister()
+
+		rollout := &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "selector-labels-test",
+				Namespace: namespace,
+			},
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{
+						StableService: stableService.Name,
+						CanaryService: canaryService.Name,
+					},
+				},
+			},
+		}
+
+		rollout.Status.CurrentStepHash = conditions.ComputeStepHash(rollout)
+		haveRoutedTraffic := false
+		trafficRouter := mocks.NewTrafficRoutingReconciler(t)
+		if tc.shouldRouteTraffic {
+			trafficRouter.On("Type").Return("mock")
+			trafficRouter.On("RemoveManagedRoutes").Return(nil)
+			trafficRouter.On("UpdateHash", "new-rs-xxx", "").Return(nil)
+			trafficRouter.On("SetWeight", int32(0)).Return(nil)
+			trafficRouter.On("VerifyWeight", int32(0)).Return(nil, nil)
+		}
+		mocks.NewTrafficRoutingReconciler(t)
+		rc := rolloutContext{
+			log: logutil.WithRollout(rollout),
+			reconcilerBase: reconcilerBase{
+				argoprojclientset: &fake,
+				servicesLister:    servicesLister,
+				kubeclientset:     kubeclient,
+				recorder:          record.NewFakeEventRecorder(),
+
+				newTrafficRoutingReconciler: func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
+					haveRoutedTraffic = true
+					return []trafficrouting.TrafficRoutingReconciler{
+						trafficRouter,
+					}, nil
+				},
+			},
+
+			rollout: rollout,
+			pauseContext: &pauseContext{
+				rollout: rollout,
+			},
+			newRS:    canaryReplicaset,
+			stableRS: stableReplicaset,
+		}
+		stopchan := make(chan struct{})
+		defer close(stopchan)
+		informers.Start(stopchan)
+		informers.WaitForCacheSync(stopchan)
+		err := rc.rolloutCanary()
+		assert.NoError(t, err)
+		assert.Equal(t, tc.shouldRouteTraffic, haveRoutedTraffic, " the traffic routing reconciler was called even though we are not ready to route traffic")
+	}
 }
 
 // TestCanaryRolloutBumpVersion verifies we correctly bump revision of Rollout and new ReplicaSet
@@ -1271,7 +1390,13 @@ func TestCanarySVCSelectors(t *testing.T) {
 		informers.Start(stopchan)
 		informers.WaitForCacheSync(stopchan)
 		err := rc.reconcileStableAndCanaryService()
-		assert.NoError(t, err, "unable to reconcileStableAndCanaryService")
+		// There is an error returned here because we could not reconcile
+		// unhealthy services.
+		if tc.shouldTargetNewRS {
+			assert.NoError(t, err, "unable to reconcileStableAndCanaryService")
+		} else {
+			assert.Error(t, err, "able to reconcileStableAndCanaryService for unhealthy replicas")
+		}
 		updatedCanarySVC, err := servicesLister.Services(rc.rollout.Namespace).Get(canaryService.Name)
 		assert.NoError(t, err, "unable to get updated canary service")
 		if tc.shouldTargetNewRS {
