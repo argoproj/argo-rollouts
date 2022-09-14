@@ -115,7 +115,50 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return nil
 }
 
-func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) error {
+func (r *Reconciler) SetHeaderRoute(headerRoute *v1alpha1.SetHeaderRoute) error {
+	if headerRoute == nil {
+		return nil
+	}
+	ctx := context.TODO()
+	rollout := r.cfg.Rollout
+	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
+	action := headerRoute.Name
+	port := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
+
+	ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
+	if err != nil {
+		return err
+	}
+
+	desiredAnnotations, err := getDesiredHeaderAnnotations(ingress, rollout, port, headerRoute)
+	if err != nil {
+		return err
+	}
+	desiredIngress := ingressutil.NewIngressWithSpecAndAnnotations(ingress, desiredAnnotations)
+	hasRule := ingressutil.HasRuleWithService(ingress, action)
+	if hasRule && headerRoute.Match == nil {
+		desiredIngress.RemovePathByServiceName(action)
+	}
+	if !hasRule && headerRoute.Match != nil {
+		desiredIngress.CreateAnnotationBasedPath(action)
+	}
+	desiredIngress.SortHttpPaths(rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes)
+	patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations(), ingressutil.WithSpec())
+	if err != nil {
+		return nil
+	}
+	if !modified {
+		r.log.Info("no changes to the ALB Ingress for header routing")
+		return nil
+	}
+	r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
+	r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to headerRoute '%d'", ingressName, headerRoute)
+
+	_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		r.log.WithField("err", err.Error()).Error("error patching alb ingress")
+		return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
+	}
 	return nil
 }
 
@@ -294,13 +337,125 @@ func getDesiredAnnotations(current *ingressutil.Ingress, r *v1alpha1.Rollout, po
 		return nil, err
 	}
 	desired[key] = value
-	m, err := ingressutil.NewManagedALBActions(desired[ingressutil.ManagedActionsAnnotation])
+	return modifyManagedAnnotation(desired, r.Name, true, key)
+}
+
+func getDesiredHeaderAnnotations(current *ingressutil.Ingress, r *v1alpha1.Rollout, port int32, headerRoute *v1alpha1.SetHeaderRoute) (map[string]string, error) {
+	desired := current.DeepCopy().GetAnnotations()
+	actionKey := ingressutil.ALBHeaderBasedActionAnnotationKey(r, headerRoute.Name)
+	conditionKey := ingressutil.ALBHeaderBasedConditionAnnotationKey(r, headerRoute.Name)
+	add := headerRoute.Match != nil
+	if add {
+		actionValue, err := getTrafficForwardActionString(r, port)
+		if err != nil {
+			return nil, err
+		}
+		conditionValue, err := getTrafficForwardConditionString(headerRoute)
+		if err != nil {
+			return nil, err
+		}
+		desired[actionKey] = actionValue
+		desired[conditionKey] = conditionValue
+	} else {
+		delete(desired, actionKey)
+		delete(desired, conditionKey)
+	}
+
+	return modifyManagedAnnotation(desired, r.Name, add, actionKey, conditionKey)
+}
+
+func modifyManagedAnnotation(annotations map[string]string, rolloutName string, add bool, annotationKeys ...string) (map[string]string, error) {
+	m, err := ingressutil.NewManagedALBAnnotations(annotations[ingressutil.ManagedAnnotations])
 	if err != nil {
 		return nil, err
 	}
-	m[r.Name] = key
-	desired[ingressutil.ManagedActionsAnnotation] = m.String()
-	return desired, nil
+	managedAnnotation := m[rolloutName]
+	if managedAnnotation == nil {
+		managedAnnotation = ingressutil.ManagedALBAnnotation{}
+	}
+	for _, annotationKey := range annotationKeys {
+		if add {
+			if !hasValue(managedAnnotation, annotationKey) {
+				managedAnnotation = append(managedAnnotation, annotationKey)
+			}
+		} else {
+			managedAnnotation = removeValue(managedAnnotation, annotationKey)
+		}
+	}
+	m[rolloutName] = managedAnnotation
+	annotations[ingressutil.ManagedAnnotations] = m.String()
+	return annotations, nil
+}
+
+func hasValue(array []string, key string) bool {
+	for _, item := range array {
+		if item == key {
+			return true
+		}
+	}
+	return false
+}
+
+func removeValue(array []string, key string) []string {
+	for i, v := range array {
+		if v == key {
+			array = append(array[:i], array[i+1:]...)
+		}
+	}
+	return array
+}
+
+func getTrafficForwardActionString(r *v1alpha1.Rollout, port int32) (string, error) {
+	_, canaryService := trafficrouting.GetStableAndCanaryServices(r)
+	portStr := strconv.Itoa(int(port))
+	weight := int64(100)
+	targetGroups := make([]ingressutil.ALBTargetGroup, 0)
+	// create target group for canary
+	targetGroups = append(targetGroups, ingressutil.ALBTargetGroup{
+		ServiceName: canaryService,
+		ServicePort: portStr,
+		Weight:      pointer.Int64Ptr(weight),
+	})
+
+	action := ingressutil.ALBAction{
+		Type: "forward",
+		ForwardConfig: ingressutil.ALBForwardConfig{
+			TargetGroups: targetGroups,
+		},
+	}
+
+	var stickinessConfig = r.Spec.Strategy.Canary.TrafficRouting.ALB.StickinessConfig
+	if stickinessConfig != nil && stickinessConfig.Enabled {
+		// AWS API valid range
+		// https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_TargetGroupStickinessConfig.html
+		if stickinessConfig.DurationSeconds < 1 || stickinessConfig.DurationSeconds > 604800 {
+			return "", fmt.Errorf("TargetGroupStickinessConfig's duration must be between 1 and 604800 seconds (7 days)!")
+		}
+		newStickyConfig := ingressutil.ALBTargetGroupStickinessConfig{
+			Enabled:         true,
+			DurationSeconds: stickinessConfig.DurationSeconds,
+		}
+		action.ForwardConfig.TargetGroupStickinessConfig = &newStickyConfig
+	}
+
+	bytes := jsonutil.MustMarshal(action)
+	return string(bytes), nil
+}
+
+func getTrafficForwardConditionString(headerRoute *v1alpha1.SetHeaderRoute) (string, error) {
+	var res []ingressutil.ALBCondition
+	for _, match := range headerRoute.Match {
+		condition := ingressutil.ALBCondition{
+			Field: "http-header",
+			HttpHeaderConfig: ingressutil.HttpHeaderConfig{
+				HttpHeaderName: match.HeaderName,
+				Values:         []string{match.HeaderValue.Exact},
+			},
+		}
+		res = append(res, condition)
+	}
+	bytes := jsonutil.MustMarshal(res)
+	return string(bytes), nil
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
@@ -313,5 +468,53 @@ func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) err
 }
 
 func (r *Reconciler) RemoveManagedRoutes() error {
+	if len(r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes) == 0 {
+		return nil
+	}
+	ctx := context.TODO()
+	rollout := r.cfg.Rollout
+	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
+
+	ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
+	if err != nil {
+		return err
+	}
+
+	desiredAnnotations := ingress.DeepCopy().GetAnnotations()
+	var actionKeys []string
+	for _, managedRoute := range rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
+		actionKey := ingressutil.ALBHeaderBasedActionAnnotationKey(rollout, managedRoute.Name)
+		conditionKey := ingressutil.ALBHeaderBasedConditionAnnotationKey(rollout, managedRoute.Name)
+		delete(desiredAnnotations, actionKey)
+		delete(desiredAnnotations, conditionKey)
+		actionKeys = append(actionKeys, actionKey, conditionKey)
+	}
+	desiredAnnotations, err = modifyManagedAnnotation(desiredAnnotations, rollout.Name, false, actionKeys...)
+	if err != nil {
+		return err
+	}
+
+	desiredIngress := ingressutil.NewIngressWithSpecAndAnnotations(ingress, desiredAnnotations)
+
+	for _, managedRoute := range rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
+		desiredIngress.RemovePathByServiceName(managedRoute.Name)
+	}
+
+	patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations(), ingressutil.WithSpec())
+	if err != nil {
+		return nil
+	}
+	if !modified {
+		r.log.Info("no changes to the ALB Ingress for header routing")
+		return nil
+	}
+	r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
+	r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` removing managed routes", ingressName)
+
+	_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		r.log.WithField("err", err.Error()).Error("error patching alb ingress")
+		return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
+	}
 	return nil
 }
