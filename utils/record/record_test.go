@@ -96,7 +96,7 @@ func TestSendNotifications(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	mockAPI := mocks.NewMockAPI(mockCtrl)
 	cr := []triggers.ConditionResult{{
-		Key:       "1."+hash(""),
+		Key:       "1." + hash(""),
 		Triggered: true,
 		Templates: []string{"my-template"},
 	}}
@@ -123,7 +123,7 @@ func TestSendNotificationsWhenCondition(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	mockAPI := mocks.NewMockAPI(mockCtrl)
 	cr := []triggers.ConditionResult{{
-		Key:       "1."+hash(""),
+		Key:       "1." + hash(""),
 		Triggered: true,
 		Templates: []string{"my-template"},
 	}}
@@ -228,7 +228,7 @@ func TestSendNotificationsFails(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		mockAPI := mocks.NewMockAPI(mockCtrl)
 		cr := []triggers.ConditionResult{{
-			Key:       "1."+hash(""),
+			Key:       "1." + hash(""),
 			Triggered: true,
 			Templates: []string{"my-template"},
 		}}
@@ -268,7 +268,7 @@ func TestSendNotificationsFailsWithRunTriggerError(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		mockAPI := mocks.NewMockAPI(mockCtrl)
 		cr := []triggers.ConditionResult{{
-			Key:       "1."+hash(""),
+			Key:       "1." + hash(""),
 			Triggered: true,
 			Templates: []string{"my-template"},
 		}}
@@ -307,7 +307,7 @@ func TestSendNotificationsNoTrigger(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	mockAPI := mocks.NewMockAPI(mockCtrl)
 	cr := []triggers.ConditionResult{{
-		Key:       "1."+hash(""),
+		Key:       "1." + hash(""),
 		Triggered: false,
 		Templates: []string{"my-template"},
 	}}
