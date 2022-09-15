@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var experimentKind = v1alpha1.SchemeGroupVersion.WithKind("Experiment")
@@ -74,11 +73,7 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: selector,
-			Ports: []corev1.ServicePort{{
-				Protocol:   "TCP",
-				Port:       int32(80),
-				TargetPort: intstr.FromInt(8080),
-			}},
+			Ports: template.Service.Ports,
 		},
 	}
 

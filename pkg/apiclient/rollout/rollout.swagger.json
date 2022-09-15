@@ -1329,6 +1329,9 @@
           "type": "integer",
           "format": "int32",
           "title": "Weight sets the percentage of traffic the template's replicas should receive"
+        },
+        "service": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TemplateService"
         }
       },
       "title": "RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step"
@@ -1724,6 +1727,17 @@
         }
       },
       "description": "TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TemplateService": {
+      "type": "object",
+      "properties": {
+        "ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/k8s.io.api.core.v1.ServicePort"
+          }
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting": {
       "type": "object",
@@ -3887,6 +3901,38 @@
         }
       },
       "description": "ServiceAccountTokenProjection represents a projected service account token\nvolume. This projection can be used to insert a service account token into\nthe pods runtime filesystem for use against APIs (Kubernetes API Server or\notherwise)."
+    },
+    "k8s.io.api.core.v1.ServicePort": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "The name of this port within the service. This must be a DNS_LABEL.\nAll ports within a ServiceSpec must have unique names. When considering\nthe endpoints for a Service, this must match the 'name' field in the\nEndpointPort.\nOptional if only one ServicePort is defined on this service.\n+optional"
+        },
+        "protocol": {
+          "type": "string",
+          "title": "The IP protocol for this port. Supports \"TCP\", \"UDP\", and \"SCTP\".\nDefault is TCP.\n+default=\"TCP\"\n+optional"
+        },
+        "appProtocol": {
+          "type": "string",
+          "title": "The application protocol for this port.\nThis field follows standard Kubernetes label syntax.\nUn-prefixed names are reserved for IANA standard service names (as per\nRFC-6335 and https://www.iana.org/assignments/service-names).\nNon-standard protocols should use prefixed names such as\nmycompany.com/my-custom-protocol.\n+optional"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The port that will be exposed by this service."
+        },
+        "targetPort": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.util.intstr.IntOrString",
+          "title": "Number or name of the port to access on the pods targeted by the service.\nNumber must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.\nIf this is a string, it will be looked up as a named port in the\ntarget Pod's container ports. If this is not specified, the value\nof the 'port' field is used (an identity map).\nThis field is ignored for services with clusterIP=None, and should be\nomitted or set equal to the 'port' field.\nMore info: https://kubernetes.io/docs/concepts/services-networking/service/#defining-a-service\n+optional"
+        },
+        "nodePort": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The port on each node on which this service is exposed when type is\nNodePort or LoadBalancer.  Usually assigned by the system. If a value is\nspecified, in-range, and not in use it will be used, otherwise the\noperation will fail.  If not specified, a port will be allocated if this\nService requires one.  If this field is specified when creating a\nService which does not need it, creation will fail. This field will be\nwiped when updating a Service to no longer need it (e.g. changing type\nfrom NodePort to ClusterIP).\nMore info: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport\n+optional"
+        }
+      },
+      "description": "ServicePort contains information on service's port."
     },
     "k8s.io.api.core.v1.StorageOSVolumeSource": {
       "type": "object",

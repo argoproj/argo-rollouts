@@ -1185,6 +1185,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExpe
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
      */
     weight?: number;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
+     */
+    service?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService;
 }
 /**
  * 
@@ -1697,6 +1703,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute
      */
     sniHosts?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService {
+    /**
+     * 
+     * @type {Array<K8sIoApiCoreV1ServicePort>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService
+     */
+    ports?: Array<K8sIoApiCoreV1ServicePort>;
 }
 /**
  * 
@@ -4452,6 +4471,49 @@ export interface K8sIoApiCoreV1ServiceAccountTokenProjection {
      * @memberof K8sIoApiCoreV1ServiceAccountTokenProjection
      */
     path?: string;
+}
+/**
+ * ServicePort contains information on service's port.
+ * @export
+ * @interface K8sIoApiCoreV1ServicePort
+ */
+export interface K8sIoApiCoreV1ServicePort {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ServicePort
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ServicePort
+     */
+    protocol?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ServicePort
+     */
+    appProtocol?: string;
+    /**
+     * The port that will be exposed by this service.
+     * @type {number}
+     * @memberof K8sIoApiCoreV1ServicePort
+     */
+    port?: number;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof K8sIoApiCoreV1ServicePort
+     */
+    targetPort?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiCoreV1ServicePort
+     */
+    nodePort?: number;
 }
 /**
  * Represents a StorageOS persistent volume resource.

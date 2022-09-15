@@ -65,8 +65,11 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			Replicas: templateStep.Replicas,
 		}
 		if templateStep.Weight != nil {
-			template.Service = &v1alpha1.TemplateService{}
+			template.Service = &v1alpha1.TemplateService{
+				Ports: templateStep.Service.Ports,
+			}
 		}
+
 		templateRS := &appsv1.ReplicaSet{}
 		switch templateStep.SpecRef {
 		case v1alpha1.CanarySpecRef:

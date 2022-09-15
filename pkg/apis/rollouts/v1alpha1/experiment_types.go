@@ -89,7 +89,9 @@ type TemplateSpec struct {
 	Service *TemplateService `json:"service,omitempty" protobuf:"bytes,6,opt,name=service"`
 }
 
-type TemplateService struct{}
+type TemplateService struct{
+	Ports []corev1.ServicePort `json:"ports,omitempty" protobuf:"bytes,1,opt,name=ports"`
+}
 
 type TemplateStatusCode string
 

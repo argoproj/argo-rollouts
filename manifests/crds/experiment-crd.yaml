@@ -149,6 +149,32 @@ spec:
                           type: object
                       type: object
                     service:
+                      properties:
+                        ports:
+                          items:
+                            properties:
+                              appProtocol:
+                                type: string
+                              name:
+                                type: string
+                              nodePort:
+                                format: int32
+                                type: integer
+                              port:
+                                format: int32
+                                type: integer
+                              protocol:
+                                default: TCP
+                                type: string
+                              targetPort:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                            required:
+                            - port
+                            type: object
+                          type: array
                       type: object
                     template:
                       properties:
