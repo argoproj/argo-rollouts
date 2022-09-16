@@ -35,7 +35,7 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringVar(&rootPath, "rootPath", "rollouts", "renders the ui url with rootPath prefixed")
+	cmd.Flags().StringVar(&rootPath, "root-path", "rollouts", "changes the root path of the dashboard")
 
 	return cmd
 }
