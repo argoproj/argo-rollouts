@@ -253,7 +253,7 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 
 	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
 	if dashboard {
-		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at localhost %d", port)
+		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at http://localhost:%d/%s", port, s.Options.RootPath)
 	}
 
 	log.Info(startupMessage)
