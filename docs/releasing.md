@@ -28,7 +28,7 @@
    * If there is a new minor version we want to update the versioned formula as well:
      * Run the following commands to update the versioned brew formula:
           ```bash
-          ./update.sh kubectl-argo-rollouts $VERSION @<version_without_patch>
+          ./update.sh kubectl-argo-rollouts $VERSION @<version_without_patch_and_v>
           ```
      * Example: If the new version is `v1.3.2`, we want to update the formula for `v1.3` as well.
          ```bash
