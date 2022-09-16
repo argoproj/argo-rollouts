@@ -85,6 +85,14 @@ func init() {
 	}
 }
 
+func GetStringOrDefault(value, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	} else {
+		return value
+	}
+}
+
 // GetReplicasOrDefault returns the deferenced number of replicas or the default number
 func GetReplicasOrDefault(replicas *int32) int32 {
 	if replicas == nil {
