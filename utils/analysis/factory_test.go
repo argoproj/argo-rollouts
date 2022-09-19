@@ -394,6 +394,7 @@ func TestValidateMetrics(t *testing.T) {
 						Job:        &v1alpha1.JobMetric{},
 						Wavefront:  &v1alpha1.WavefrontMetric{},
 						Kayenta:    &v1alpha1.KayentaMetric{},
+						OPSMX:      &v1alpha1.OPSMXMetric{},
 						Web:        &v1alpha1.WebMetric{},
 						Datadog:    &v1alpha1.DatadogMetric{},
 						NewRelic:   &v1alpha1.NewRelicMetric{},
@@ -430,7 +431,7 @@ func TestResolveMetricArgs(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("result < %s", arg2), newMetric2.SuccessCondition)
 }
 
-//TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
+// TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
 func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	arg := "foo \"bar\" baz"
 

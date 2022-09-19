@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
 	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
 	"github.com/argoproj/argo-rollouts/metricproviders/newrelic"
+	"github.com/argoproj/argo-rollouts/metricproviders/opsmx"
 	"github.com/argoproj/argo-rollouts/metricproviders/wavefront"
 	"github.com/argoproj/argo-rollouts/metricproviders/webmetric"
 
@@ -62,6 +63,9 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 	case kayenta.ProviderType:
 		c := kayenta.NewHttpClient()
 		return kayenta.NewKayentaProvider(logCtx, c), nil
+	case opsmx.ProviderType:
+		c := opsmx.NewHttpClient()
+		return opsmx.NewOPSMXProvider(logCtx, c), nil
 	case webmetric.ProviderType:
 		c := webmetric.NewWebMetricHttpClient(metric)
 		p, err := webmetric.NewWebMetricJsonParser(metric)
@@ -113,6 +117,8 @@ func Type(metric v1alpha1.Metric) string {
 		return job.ProviderType
 	} else if metric.Provider.Kayenta != nil {
 		return kayenta.ProviderType
+	} else if metric.Provider.OPSMX != nil {
+		return opsmx.ProviderType
 	} else if metric.Provider.Web != nil {
 		return webmetric.ProviderType
 	} else if metric.Provider.Datadog != nil {

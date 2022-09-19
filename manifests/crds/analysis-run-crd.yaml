@@ -2700,6 +2700,72 @@ spec:
                           required:
                           - query
                           type: object
+                        opsmx:
+                          properties:
+                            application:
+                              type: string
+                            baselineStartTime:
+                              type: string
+                            canaryStartTime:
+                              type: string
+                            endTime:
+                              type: string
+                            gateUrl:
+                              type: string
+                            globalLogTemplate:
+                              type: string
+                            globalMetricTemplate:
+                              type: string
+                            lifetimeHours:
+                              type: string
+                            services:
+                              items:
+                                properties:
+                                  baselineLogScope:
+                                    type: string
+                                  baselineMetricScope:
+                                    type: string
+                                  canaryLogScope:
+                                    type: string
+                                  canaryMetricScope:
+                                    type: string
+                                  logScopeVariables:
+                                    type: string
+                                  logTemplateName:
+                                    type: string
+                                  logTemplateVersion:
+                                    type: string
+                                  metricScopeVariables:
+                                    type: string
+                                  metricTemplateName:
+                                    type: string
+                                  metricTemplateVersion:
+                                    type: string
+                                  serviceName:
+                                    type: string
+                                type: object
+                              type: array
+                            threshold:
+                              properties:
+                                marginal:
+                                  format: int64
+                                  type: integer
+                                pass:
+                                  format: int64
+                                  type: integer
+                              required:
+                              - marginal
+                              - pass
+                              type: object
+                            user:
+                              type: string
+                          required:
+                          - application
+                          - gateUrl
+                          - services
+                          - threshold
+                          - user
+                          type: object
                         prometheus:
                           properties:
                             address:
