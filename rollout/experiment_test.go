@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
@@ -834,13 +834,13 @@ func TestRolloutCreateExperimentWithServicePorts(t *testing.T) {
 					SpecRef:  v1alpha1.StableSpecRef,
 					Replicas: pointer.Int32Ptr(1),
 					Weight:   pointer.Int32Ptr(5),
-					Service:  &v1alpha1.TemplateService{
+					Service: &v1alpha1.TemplateService{
 						Ports: []corev1.ServicePort{{
-								Name: "testport",
-								Port: 8080,
-								TargetPort: intstr.FromInt(8080),
-								Protocol: "TCP",
-							},
+							Name:       "testport",
+							Port:       8080,
+							TargetPort: intstr.FromInt(8080),
+							Protocol:   "TCP",
+						},
 						},
 					},
 				},
