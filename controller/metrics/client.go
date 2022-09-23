@@ -35,7 +35,7 @@ func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientm
 		name = "Unknown"
 		kind = "Unknown"
 	}
-	if m.k8sRequestsCount!=nil{
+	if m.k8sRequestsCount != nil {
 		m.k8sRequestsCount.WithLabelValues(kind, namespace, name, string(resourceInfo.Verb), statusCode).Inc()
 	}
 	return nil
