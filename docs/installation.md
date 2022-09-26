@@ -9,6 +9,8 @@ kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/rele
 
 This will create a new namespace, `argo-rollouts`, where Argo Rollouts controller will run.
 
+Or install it by helm chart checkout [here](https://github.com/argoproj/argo-helm)
+
 !!! tip
     If you are using another namspace name, please update `install.yaml` clusterrolebinding's serviceaccount namespace name.
 
