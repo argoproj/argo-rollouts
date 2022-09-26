@@ -1984,9 +1984,57 @@
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollbacks" class="md-nav__link">
+    Rollbacks
+  </a>
+  
+    <nav class="md-nav" aria-label="Rollbacks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" class="md-nav__link">
+    Does Argo Rollouts write back in Git when a rollback takes place?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#if-i-use-both-argo-rollouts-and-argo-cd-wouldnt-i-have-an-endless-loop-in-the-case-of-a-rollback" class="md-nav__link">
+    If I use both Argo Rollouts and Argo CD wouldn't I have an endless loop in the case of a Rollback?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#so-how-can-i-make-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" class="md-nav__link">
+    So how can I make Argo Rollouts write back in Git when a rollback takes place?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-relationship-between-rollbacks-with-argo-rollouts-and-rollbacks-with-argo-cd" class="md-nav__link">
+    What is the relationship between Rollbacks with Argo Rollouts and Rollbacks with Argo CD?
+  </a>
+  
+</li>
+        
           <li class="md-nav__item">
   <a href="#how-can-i-deploy-multiple-services-in-a-single-step-and-roll-them-back-according-to-their-dependencies" class="md-nav__link">
     How can I deploy multiple services in a single step and roll them back according to their dependencies?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-can-i-run-my-own-custom-tests-eg-smoke-tests-to-decide-if-a-rollback-should-take-place-or-not" class="md-nav__link">
+    How can I run my own custom tests (e.g. smoke tests) to decide if a Rollback should take place or not?
   </a>
   
 </li>
@@ -2319,9 +2367,57 @@
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollbacks" class="md-nav__link">
+    Rollbacks
+  </a>
+  
+    <nav class="md-nav" aria-label="Rollbacks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#does-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" class="md-nav__link">
+    Does Argo Rollouts write back in Git when a rollback takes place?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#if-i-use-both-argo-rollouts-and-argo-cd-wouldnt-i-have-an-endless-loop-in-the-case-of-a-rollback" class="md-nav__link">
+    If I use both Argo Rollouts and Argo CD wouldn't I have an endless loop in the case of a Rollback?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#so-how-can-i-make-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" class="md-nav__link">
+    So how can I make Argo Rollouts write back in Git when a rollback takes place?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-relationship-between-rollbacks-with-argo-rollouts-and-rollbacks-with-argo-cd" class="md-nav__link">
+    What is the relationship between Rollbacks with Argo Rollouts and Rollbacks with Argo CD?
+  </a>
+  
+</li>
+        
           <li class="md-nav__item">
   <a href="#how-can-i-deploy-multiple-services-in-a-single-step-and-roll-them-back-according-to-their-dependencies" class="md-nav__link">
     How can I deploy multiple services in a single step and roll them back according to their dependencies?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-can-i-run-my-own-custom-tests-eg-smoke-tests-to-decide-if-a-rollback-should-take-place-or-not" class="md-nav__link">
+    How can I run my own custom tests (e.g. smoke tests) to decide if a Rollback should take place or not?
   </a>
   
 </li>
@@ -2435,10 +2531,32 @@ solution that does not follow the GitOps approach.</p>
 <p>A BlueGreen Rollout keeps the old ReplicaSet up and running for 30 seconds or the value of the scaleDownDelaySeconds. The controller tracks the remaining time before scaling down by adding an annotation called <code>argo-rollouts.argoproj.io/scale-down-deadline</code> to the old ReplicaSet. If the user applies the old Rollout manifest before the old ReplicaSet scales down, the controller does something called a fast rollback. The controller immediately switches the active service’s selector back to the old ReplicaSet’s rollout-pod-template-hash and removes the scaled down annotation from that ReplicaSet. The controller does not do any of the normal operations when trying to introduce a new version since it is trying to revert as fast as possible. A non-fast-track rollback occurs when the scale down annotation has past and the old ReplicaSet has been scaled down. In this case, the Rollout treats the ReplicaSet like any other new ReplicaSet and follows the usual procedure for deploying a new ReplicaSet.</p>
 <h3 id="what-is-the-argo-rolloutsargoprojiomanaged-by-rollouts-annotation">What is the <code>argo-rollouts.argoproj.io/managed-by-rollouts</code> annotation?<a class="headerlink" href="#what-is-the-argo-rolloutsargoprojiomanaged-by-rollouts-annotation" title="Permanent link">&para;</a></h3>
 <p>Argo Rollouts adds an <code>argo-rollouts.argoproj.io/managed-by-rollouts</code> annotation to Services and Ingresses that the controller modifies. They are used when the Rollout managing these resources is deleted and the controller tries to revert them back into their previous state.</p>
+<h2 id="rollbacks">Rollbacks<a class="headerlink" href="#rollbacks" title="Permanent link">&para;</a></h2>
+<h3 id="does-argo-rollouts-write-back-in-git-when-a-rollback-takes-place">Does Argo Rollouts write back in Git when a rollback takes place?<a class="headerlink" href="#does-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" title="Permanent link">&para;</a></h3>
+<p>No. Argo Rollouts doesn't read/write anything to Git. Actually Argo Rollouts knows nothing about Git repositories (only Argo CD has this information if it manages the Rollout). When a rollback takes place, Argo Rollouts marks the application as "degraded" and changes the version on the cluster back to the known stable one.</p>
+<h3 id="if-i-use-both-argo-rollouts-and-argo-cd-wouldnt-i-have-an-endless-loop-in-the-case-of-a-rollback">If I use both Argo Rollouts and Argo CD wouldn't I have an endless loop in the case of a Rollback?<a class="headerlink" href="#if-i-use-both-argo-rollouts-and-argo-cd-wouldnt-i-have-an-endless-loop-in-the-case-of-a-rollback" title="Permanent link">&para;</a></h3>
+<p>No there is no endless loop. As explained already in the previous question, Argo Rollouts doesn't tamper with Git in any way. If you use both Argo projects together, the sequence of events for a rollback is the following:</p>
+<ol>
+<li>Version N runs on the cluster as a Rollout (managed by Argo CD). The Git repository is updated with version N+1 in the Rollout/Deployment manifest</li>
+<li>Argo CD sees the changes in Git and updates the live state in the cluster with the new Rollout object</li>
+<li>Argo Rollouts takes over as it watches for all changes in Rollout Objects. Argo Rollouts is completely oblivious to what is happening in Git. It only cares about what is happening with Rollout objects that are live in the cluster.</li>
+<li>Argo Rollouts tries to apply version N+1 with the selected strategy (e.g. blue/green)</li>
+<li>Version N+1 fails to deploy for some reason</li>
+<li>Argo Rollouts scales back again (or switches traffic back) to version N in the cluster. <strong>No change in Git takes place from Argo Rollouts</strong></li>
+<li>Cluster is running version N and is completely healthy</li>
+<li>The Rollout is marked as "Degraded" both in ArgoCD and Argo Rollouts.</li>
+<li>Argo CD syncs take no further action as the Rollout object in Git is exactly the same as in the cluster. They both mention version N+1</li>
+</ol>
+<h3 id="so-how-can-i-make-argo-rollouts-write-back-in-git-when-a-rollback-takes-place">So how can I make Argo Rollouts write back in Git when a rollback takes place?<a class="headerlink" href="#so-how-can-i-make-argo-rollouts-write-back-in-git-when-a-rollback-takes-place" title="Permanent link">&para;</a></h3>
+<p>You don't need to do that if you simply want to go back to the previous version using Argo CD. When a deployment fails, Argo Rollouts automatically sets the cluster back to the stable/previous version as explained in the previous question. You don't need to write anything in Git to achieve this. The cluster is still healthy and you have avoided downtime. You are then expected to fix the issue and roll-forward (i.e. deploy the next version) if you want to follow GitOps in a pedantic manner. If you want Argo Rollouts to write back in Git after a failed deployment then you need to orchestrate this with an external system or write custom glue code. But this is normally not needed.</p>
+<h3 id="what-is-the-relationship-between-rollbacks-with-argo-rollouts-and-rollbacks-with-argo-cd">What is the relationship between Rollbacks with Argo Rollouts and Rollbacks with Argo CD?<a class="headerlink" href="#what-is-the-relationship-between-rollbacks-with-argo-rollouts-and-rollbacks-with-argo-cd" title="Permanent link">&para;</a></h3>
+<p>They are completely unrelated. Argo Rollouts "rollbacks" switch the cluster back to the previous version as explained in the previous question. They don't touch or affect Git in any way. Argo CD <a href="https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd_app_rollback/">rollbacks</a> simply point the cluster back a previous Git hash. Normally if you have Argo Rollouts, you don't need to use the Argo CD rollback command.</p>
 <h3 id="how-can-i-deploy-multiple-services-in-a-single-step-and-roll-them-back-according-to-their-dependencies">How can I deploy multiple services in a single step and roll them back according to their dependencies?<a class="headerlink" href="#how-can-i-deploy-multiple-services-in-a-single-step-and-roll-them-back-according-to-their-dependencies" title="Permanent link">&para;</a></h3>
 <p>The Rollout specification focuses on a single application/deployment. Argo Rollouts knows nothing about application dependencies. If you want to deploy multiple applications together in a smart way (e.g. automatically rollback a frontend if backend deployment fails) you need to write your own solution
 on top of Argo Rollouts. In most cases, you would need one Rollout resource for each application that you
 are deploying. Ideally you should also make your services backwards and forwards compatible (i.e. frontend should be able to work with both backend-preview and backend-active).</p>
+<h3 id="how-can-i-run-my-own-custom-tests-eg-smoke-tests-to-decide-if-a-rollback-should-take-place-or-not">How can I run my own custom tests (e.g. smoke tests) to decide if a Rollback should take place or not?<a class="headerlink" href="#how-can-i-run-my-own-custom-tests-eg-smoke-tests-to-decide-if-a-rollback-should-take-place-or-not" title="Permanent link">&para;</a></h3>
+<p>Use a custom <a href="https://argoproj.github.io/argo-rollouts/analysis/job/">Job</a> or <a href="https://argoproj.github.io/argo-rollouts/analysis/web/">Web</a> Analysis. You can pack all your smoke tests in a single container and run them as a Job analysis. Argo Rollouts will use the results of the analysis to automatically rollback if the tests fail.</p>
 <h2 id="experiments">Experiments<a class="headerlink" href="#experiments" title="Permanent link">&para;</a></h2>
 <h3 id="why-doesnt-my-experiment-end">Why doesn't my Experiment end?<a class="headerlink" href="#why-doesnt-my-experiment-end" title="Permanent link">&para;</a></h3>
 <p>An Experiment’s duration is controlled by the <code>.spec.duration</code> field and the analyses created for the Experiment. The <code>.spec.duration</code> indicates how long the ReplicaSets created by the Experiment should run. Once the duration passes, the experiment scales down the ReplicaSets it created and marks the AnalysisRuns successful unless the <code>requiredForCompletion</code> field is used in the Experiment. If enabled, the ReplicaSets are still scaled-down, but the Experiment does not finish until the Analysis Run finishes.</p>
