@@ -60,7 +60,10 @@ func albActionAnnotation(stable string) string {
 func newALBIngress(name string, port int, serviceName string, rollout string, includeStickyConfig bool) *extensionsv1beta1.Ingress {
 	canaryService := fmt.Sprintf("%s-canary", serviceName)
 	albActionKey := albActionAnnotation(serviceName)
-	managedBy := fmt.Sprintf("%s:%s", rollout, albActionKey)
+	albConditionKey := fmt.Sprintf("%s%s%s", ingressutil.ALBIngressAnnotation, ingressutil.ALBConditionPrefix, serviceName)
+	managedBy := ingressutil.ManagedALBAnnotations{
+		rollout: ingressutil.ManagedALBAnnotation{albActionKey, albConditionKey},
+	}
 	action := fmt.Sprintf(actionTemplate, serviceName, port, canaryService, port)
 	if includeStickyConfig {
 		action = fmt.Sprintf(actionTemplateWithStickyConfig, serviceName, port, canaryService, port)
@@ -70,9 +73,9 @@ func newALBIngress(name string, port int, serviceName string, rollout string, in
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":        "alb",
-				albActionKey:                         action,
-				ingressutil.ManagedActionsAnnotation: managedBy,
+				"kubernetes.io/ingress.class":  "alb",
+				albActionKey:                   action,
+				ingressutil.ManagedAnnotations: managedBy.String(),
 			},
 		},
 		Spec: extensionsv1beta1.IngressSpec{
@@ -123,7 +126,7 @@ func rollout(name, service, ingress string) *v1alpha1.Rollout {
 func TestInvalidManagedALBActions(t *testing.T) {
 	rollout := rollout("rollout", "stable-service", "test-ingress")
 	ing := newALBIngress("test-ingress", 80, "stable-service", rollout.Name, false)
-	ing.Annotations[ingressutil.ManagedActionsAnnotation] = "invalid-managed-by"
+	ing.Annotations[ingressutil.ManagedAnnotations] = "invalid-managed-by"
 
 	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, rollout)
 
@@ -147,7 +150,7 @@ func TestInvalidPreviousALBActionAnnotationValue(t *testing.T) {
 
 func TestInvalidPreviousALBActionAnnotationKey(t *testing.T) {
 	ing := newALBIngress("test-ingress", 80, "stable-service", "also-not-existing-rollout", false)
-	ing.Annotations[ingressutil.ManagedActionsAnnotation] = "invalid-action-key"
+	ing.Annotations[ingressutil.ManagedAnnotations] = "invalid-action-key"
 	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, nil)
 
 	err := ctrl.syncIngress("default/test-ingress")
@@ -199,7 +202,7 @@ func TestALBIngressResetAction(t *testing.T) {
 		panic(err)
 	}
 	annotations := acc.GetAnnotations()
-	assert.NotContains(t, annotations, ingressutil.ManagedActionsAnnotation)
+	assert.NotContains(t, annotations, ingressutil.ManagedAnnotations)
 	expectedAction := `{"Type":"forward","ForwardConfig":{"TargetGroups":[{"ServiceName":"stable-service","ServicePort":"80","Weight":100}]}}`
 	assert.Equal(t, expectedAction, annotations[albActionAnnotation("stable-service")])
 }
@@ -223,7 +226,7 @@ func TestALBIngressResetActionWithStickyConfig(t *testing.T) {
 		panic(err)
 	}
 	annotations := acc.GetAnnotations()
-	assert.NotContains(t, annotations, ingressutil.ManagedActionsAnnotation)
+	assert.NotContains(t, annotations, ingressutil.ManagedAnnotations)
 	expectedAction := `{"Type":"forward","ForwardConfig":{"TargetGroups":[{"ServiceName":"stable-service","ServicePort":"80","Weight":100}],"TargetGroupStickinessConfig":{"Enabled":true,"DurationSeconds":300}}}`
 	assert.Equal(t, expectedAction, annotations[albActionAnnotation("stable-service")])
 }
