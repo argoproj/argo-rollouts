@@ -957,6 +957,9 @@ message MetricProvider {
 
   // Influxdb specifies the influxdb metric to query
   optional InfluxdbMetric influxdb = 10;
+
+  // opsmx specifies opsmx metric
+  optional OPSMXMetric opsmx = 11;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with
@@ -1023,6 +1026,60 @@ message NginxTrafficRouting {
 
   // +optional
   map<string, string> additionalIngressAnnotations = 3;
+}
+
+message OPSMXMetric {
+  optional string user = 1;
+
+  optional string gateUrl = 2;
+
+  optional string application = 3;
+
+  optional string baselineStartTime = 4;
+
+  optional string canaryStartTime = 5;
+
+  optional string lifetimeHours = 6;
+
+  optional string endTime = 7;
+
+  optional string globalLogTemplate = 8;
+
+  optional string globalMetricTemplate = 9;
+
+  optional OPSMXThreshold threshold = 10;
+
+  repeated OPSMXService services = 11;
+}
+
+message OPSMXService {
+  optional string logTemplateName = 1;
+
+  optional string logTemplateVersion = 2;
+
+  optional string metricTemplateName = 3;
+
+  optional string metricTemplateVersion = 4;
+
+  optional string logScopeVariables = 5;
+
+  optional string BaselineLogScope = 6;
+
+  optional string CanaryLogScope = 7;
+
+  optional string MetricScopeVariables = 8;
+
+  optional string BaselineMetricScope = 9;
+
+  optional string CanaryMetricScope = 10;
+
+  optional string serviceName = 11;
+}
+
+message OPSMXThreshold {
+  optional int64 pass = 1;
+
+  optional int64 marginal = 2;
 }
 
 // ObjectRef holds a references to the Kubernetes object

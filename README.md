@@ -39,7 +39,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Customizable metric queries and analysis of business KPIs
 * Ingress controller integration: NGINX, ALB
 * Service Mesh integration: Istio, Linkerd, SMI
-* Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, InfluxDB
+* Metric provider integration: Prometheus, Wavefront, Kayenta, OpsMx, Web, Kubernetes Jobs, Datadog, New Relic, InfluxDB
 
 ## Documentation
 To learn more about Argo Rollouts go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).

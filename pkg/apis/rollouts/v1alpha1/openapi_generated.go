@@ -90,6 +90,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult":                                    schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric":                                  schema_pkg_apis_rollouts_v1alpha1_NewRelicMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting":                             schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OPSMXMetric":                                     schema_pkg_apis_rollouts_v1alpha1_OPSMXMetric(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OPSMXService":                                    schema_pkg_apis_rollouts_v1alpha1_OPSMXService(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OPSMXThreshold":                                  schema_pkg_apis_rollouts_v1alpha1_OPSMXThreshold(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ObjectRef":                                       schema_pkg_apis_rollouts_v1alpha1_ObjectRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":                                  schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PingPongSpec":                                    schema_pkg_apis_rollouts_v1alpha1_PingPongSpec(ref),
@@ -2857,11 +2860,17 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric"),
 						},
 					},
+					"opsmx": {
+						SchemaProps: spec.SchemaProps{
+							Description: "opsmx specifies opsmx metric",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OPSMXMetric"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CloudWatchMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.CloudWatchMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DatadogMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.GraphiteMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.JobMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OPSMXMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric"},
 	}
 }
 
@@ -3051,6 +3060,202 @@ func schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref common.ReferenceC
 					},
 				},
 				Required: []string{"stableIngress"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_OPSMXMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"user": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"gateUrl": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"application": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"baselineStartTime": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"canaryStartTime": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"lifetimeHours": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"endTime": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"globalLogTemplate": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"globalMetricTemplate": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"threshold": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OPSMXThreshold"),
+						},
+					},
+					"services": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OPSMXService"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"user", "gateUrl", "application", "threshold", "services"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OPSMXService", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OPSMXThreshold"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_OPSMXService(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"logTemplateName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"logTemplateVersion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"metricTemplateName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"metricTemplateVersion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"logScopeVariables": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"baselineLogScope": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"canaryLogScope": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"metricScopeVariables": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"baselineMetricScope": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"canaryMetricScope": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"serviceName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_OPSMXThreshold(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"pass": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int64",
+						},
+					},
+					"marginal": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int64",
+						},
+					},
+				},
+				Required: []string{"pass", "marginal"},
 			},
 		},
 	}

@@ -172,6 +172,8 @@ type MetricProvider struct {
 	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,9,opt,name=graphite"`
 	// Influxdb specifies the influxdb metric to query
 	Influxdb *InfluxdbMetric `json:"influxdb,omitempty" protobuf:"bytes,10,opt,name=influxdb"`
+	// opsmx specifies opsmx metric
+	OPSMX *OPSMXMetric `json:"opsmx,omitempty" protobuf:"bytes,11,opt,name=opsmx"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -431,6 +433,39 @@ type Measurement struct {
 	Metadata map[string]string `json:"metadata,omitempty" protobuf:"bytes,6,rep,name=metadata"`
 	// ResumeAt is the  timestamp when the analysisRun should try to resume the measurement
 	ResumeAt *metav1.Time `json:"resumeAt,omitempty" protobuf:"bytes,7,opt,name=resumeAt"`
+}
+
+type OPSMXMetric struct {
+	User                 string         `json:"user" protobuf:"bytes,1,opt,name=user"`
+	GateUrl              string         `json:"gateUrl" protobuf:"bytes,2,opt,name=gateUrl"`
+	Application          string         `json:"application" protobuf:"bytes,3,opt,name=application"`
+	BaselineStartTime    string         `json:"baselineStartTime,omitempty" protobuf:"bytes,4,opt,name=baselineStartTime"`
+	CanaryStartTime      string         `json:"canaryStartTime,omitempty" protobuf:"bytes,5,opt,name=canaryStartTime"`
+	LifetimeHours        string         `json:"lifetimeHours,omitempty" protobuf:"bytes,6,opt,name=lifetimeHours"`
+	EndTime              string         `json:"endTime,omitempty" protobuf:"bytes,7,opt,name=endTime"`
+	GlobalLogTemplate    string         `json:"globalLogTemplate,omitempty" protobuf:"bytes,8,opt,name=globalLogTemplate"`
+	GlobalMetricTemplate string         `json:"globalMetricTemplate,omitempty" protobuf:"bytes,9,opt,name=globalMetricTemplate"`
+	Threshold            OPSMXThreshold `json:"threshold" protobuf:"bytes,10,opt,name=threshold"`
+	Services             []OPSMXService `json:"services" protobuf:"bytes,11,rep,name=services"`
+}
+
+type OPSMXService struct {
+	LogTemplateName       string `json:"logTemplateName,omitempty" protobuf:"varint,1,opt,name=logTemplateName"`
+	LogTemplateVersion    string `json:"logTemplateVersion,omitempty" protobuf:"varint,2,opt,name=logTemplateVersion"`
+	MetricTemplateName    string `json:"metricTemplateName,omitempty" protobuf:"varint,3,opt,name=metricTemplateName"`
+	MetricTemplateVersion string `json:"metricTemplateVersion,omitempty" protobuf:"varint,4,opt,name=metricTemplateVersion"`
+	LogScopeVariables     string `json:"logScopeVariables,omitempty" protobuf:"bytes,5,opt,name=logScopeVariables"`
+	BaselineLogScope      string `json:"baselineLogScope,omitempty" protobuf:"bytes,6,opt,name=BaselineLogScope"`
+	CanaryLogScope        string `json:"canaryLogScope,omitempty" protobuf:"bytes,7,opt,name=CanaryLogScope"`
+	MetricScopeVariables  string `json:"metricScopeVariables,omitempty" protobuf:"bytes,8,opt,name=MetricScopeVariables"`
+	BaselineMetricScope   string `json:"baselineMetricScope,omitempty" protobuf:"bytes,9,opt,name=BaselineMetricScope"`
+	CanaryMetricScope     string `json:"canaryMetricScope,omitempty" protobuf:"bytes,10,opt,name=CanaryMetricScope"`
+	ServiceName           string `json:"serviceName,omitempty" protobuf:"bytes,11,opt,name=serviceName"`
+}
+
+type OPSMXThreshold struct {
+	Pass     int64 `json:"pass" protobuf:"varint,1,opt,name=pass"`
+	Marginal int64 `json:"marginal" protobuf:"varint,2,opt,name=marginal"`
 }
 
 type KayentaMetric struct {
