@@ -1424,7 +1424,7 @@ func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1
 		for _, route := range httpRouteI {
 			r := route.(map[string]interface{})
 
-			// No need to check if exist because the emtpy string returned on cast failure is good for this check
+			// No need to check if exist because the empty string returned on cast failure is good for this check
 			name, _ := r["name"].(string)
 			if name == routeTyped.Name {
 				orderedInterfaceVSVCHTTPRoutes = append(orderedInterfaceVSVCHTTPRoutes, route)
