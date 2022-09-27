@@ -124,6 +124,12 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		requestedURI := path.Clean(r.RequestURI)
 		rootPath := path.Clean("/" + s.Options.RootPath)
+
+		if requestedURI == "/" {
+			http.Redirect(w, r, rootPath+"/", http.StatusFound)
+			return
+		}
+
 		//If the rootPath is not in the prefix 404
 		if !strings.HasPrefix(requestedURI, rootPath) {
 			http.NotFound(w, r)
