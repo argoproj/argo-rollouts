@@ -27,6 +27,7 @@ func TestLintValidRollout(t *testing.T) {
 		"testdata/valid-ingress-smi-multi.yml",
 		"testdata/valid-alb-canary.yml",
 		"testdata/valid-nginx-canary.yml",
+		"testdata/valid-nginx-basic-canary.yml",
 		"testdata/valid-istio-v1beta1-mulitiple-virtualsvcs.yml",
 	}
 
