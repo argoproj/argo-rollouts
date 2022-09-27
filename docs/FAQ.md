@@ -55,11 +55,41 @@ A BlueGreen Rollout keeps the old ReplicaSet up and running for 30 seconds or th
 ### What is the `argo-rollouts.argoproj.io/managed-by-rollouts` annotation?
 Argo Rollouts adds an `argo-rollouts.argoproj.io/managed-by-rollouts` annotation to Services and Ingresses that the controller modifies. They are used when the Rollout managing these resources is deleted and the controller tries to revert them back into their previous state.
 
+## Rollbacks
+
+### Does Argo Rollouts write back in Git when a rollback takes place?
+No. Argo Rollouts doesn't read/write anything to Git. Actually Argo Rollouts knows nothing about Git repositories (only Argo CD has this information if it manages the Rollout). When a rollback takes place, Argo Rollouts marks the application as "degraded" and changes the version on the cluster back to the known stable one.
+
+### If I use both Argo Rollouts and Argo CD wouldn't I have an endless loop in the case of a Rollback?
+No there is no endless loop. As explained already in the previous question, Argo Rollouts doesn't tamper with Git in any way. If you use both Argo projects together, the sequence of events for a rollback is the following:
+
+1. Version N runs on the cluster as a Rollout (managed by Argo CD). The Git repository is updated with version N+1 in the Rollout/Deployment manifest
+1. Argo CD sees the changes in Git and updates the live state in the cluster with the new Rollout object
+1. Argo Rollouts takes over as it watches for all changes in Rollout Objects. Argo Rollouts is completely oblivious to what is happening in Git. It only cares about what is happening with Rollout objects that are live in the cluster.
+1. Argo Rollouts tries to apply version N+1 with the selected strategy (e.g. blue/green)
+1. Version N+1 fails to deploy for some reason
+1. Argo Rollouts scales back again (or switches traffic back) to version N in the cluster. **No change in Git takes place from Argo Rollouts**
+1. Cluster is running version N and is completely healthy
+1. The Rollout is marked as "Degraded" both in ArgoCD and Argo Rollouts.
+1. Argo CD syncs take no further action as the Rollout object in Git is exactly the same as in the cluster. They both mention version N+1
+
+
+### So how can I make Argo Rollouts write back in Git when a rollback takes place?
+You don't need to do that if you simply want to go back to the previous version using Argo CD. When a deployment fails, Argo Rollouts automatically sets the cluster back to the stable/previous version as explained in the previous question. You don't need to write anything in Git to achieve this. The cluster is still healthy and you have avoided downtime. You are then expected to fix the issue and roll-forward (i.e. deploy the next version) if you want to follow GitOps in a pedantic manner. If you want Argo Rollouts to write back in Git after a failed deployment then you need to orchestrate this with an external system or write custom glue code. But this is normally not needed.
+
+### What is the relationship between Rollbacks with Argo Rollouts and Rollbacks with Argo CD?
+They are completely unrelated. Argo Rollouts "rollbacks" switch the cluster back to the previous version as explained in the previous question. They don't touch or affect Git in any way. Argo CD [rollbacks](https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd_app_rollback/) simply point the cluster back a previous Git hash. Normally if you have Argo Rollouts, you don't need to use the Argo CD rollback command.
+
+
 ### How can I deploy multiple services in a single step and roll them back according to their dependencies?
 
 The Rollout specification focuses on a single application/deployment. Argo Rollouts knows nothing about application dependencies. If you want to deploy multiple applications together in a smart way (e.g. automatically rollback a frontend if backend deployment fails) you need to write your own solution
 on top of Argo Rollouts. In most cases, you would need one Rollout resource for each application that you
 are deploying. Ideally you should also make your services backwards and forwards compatible (i.e. frontend should be able to work with both backend-preview and backend-active).
+
+### How can I run my own custom tests (e.g. smoke tests) to decide if a Rollback should take place or not?
+Use a custom [Job](https://argoproj.github.io/argo-rollouts/analysis/job/) or [Web](https://argoproj.github.io/argo-rollouts/analysis/web/) Analysis. You can pack all your smoke tests in a single container and run them as a Job analysis. Argo Rollouts will use the results of the analysis to automatically rollback if the tests fail.
+
 
 ## Experiments
 
