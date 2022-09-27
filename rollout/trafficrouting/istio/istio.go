@@ -1360,7 +1360,7 @@ func (r *Reconciler) orderRoutes(istioVirtualService *unstructured.Unstructured)
 		return fmt.Errorf("[orderRoutes] could not split routes between managed and non managed: %w", err)
 	}
 
-	finalRoutes, err := getOrderedVirtualServiceRoutes(managedRoutes, httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes)
+	finalRoutes, err := getOrderedVirtualServiceRoutes(httpRouteI, managedRoutes, httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes)
 	if err != nil {
 		return fmt.Errorf("[orderRoutes] could not get ordered virtual service routes: %w", err)
 	}
@@ -1407,7 +1407,7 @@ func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes
 // getOrderedVirtualServiceRoutes This returns an []interface{} of istio virtual routes where the routes are ordered based
 // on the rollouts managedRoutes field. We take the routes from the rollouts managedRoutes field order them and place them on top
 // of routes that are manually defined within the virtual service (aka. routes that users have defined manually)
-func getOrderedVirtualServiceRoutes(managedRoutes []v1alpha1.MangedRoutes, httpRoutesWithinManagedRoutes []VirtualServiceHTTPRoute, httpRoutesNotWithinManagedRoutes []VirtualServiceHTTPRoute) ([]interface{}, error) {
+func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1alpha1.MangedRoutes, httpRoutesWithinManagedRoutes []VirtualServiceHTTPRoute, httpRoutesNotWithinManagedRoutes []VirtualServiceHTTPRoute) ([]interface{}, error) {
 	var orderedManagedRoutes []VirtualServiceHTTPRoute
 	for _, route := range managedRoutes {
 		for _, managedRoute := range httpRoutesWithinManagedRoutes {
@@ -1417,18 +1417,22 @@ func getOrderedVirtualServiceRoutes(managedRoutes []v1alpha1.MangedRoutes, httpR
 		}
 	}
 
-	allIstioRoutes := append(orderedManagedRoutes, httpRoutesNotWithinManagedRoutes...)
+	orderedVirtualServiceHTTPRoutes := append(orderedManagedRoutes, httpRoutesNotWithinManagedRoutes...)
 
-	jsonAllIstioRoutes, err := json.Marshal(allIstioRoutes)
-	if err != nil {
-		return nil, fmt.Errorf("[getOrderedVirtualServiceRoutes] failed to marsharl istio routes: %w", err)
-	}
-	var orderedRoutes []interface{}
-	if err := json.Unmarshal(jsonAllIstioRoutes, &orderedRoutes); err != nil {
-		return nil, fmt.Errorf("[getOrderedVirtualServiceRoutes] failed to unmarsharl istio routes: %w", err)
+	var orderedInterfaceVSVCHTTPRoutes []interface{}
+	for _, routeTyped := range orderedVirtualServiceHTTPRoutes {
+		for _, route := range httpRouteI {
+			r := route.(map[string]interface{})
+
+			// No need to check if exist because the emtpy string returned on cast failure is good for this check
+			name, _ := r["name"].(string)
+			if name == routeTyped.Name {
+				orderedInterfaceVSVCHTTPRoutes = append(orderedInterfaceVSVCHTTPRoutes, route)
+			}
+		}
 	}
 
-	return orderedRoutes, nil
+	return orderedInterfaceVSVCHTTPRoutes, nil
 }
 
 // RemoveManagedRoutes this removes all the routes in all the istio virtual services rollouts is managing by getting two slices
