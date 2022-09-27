@@ -1276,6 +1276,8 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 		"mirror": VirtualServiceDestination{
 			Host:   canarySvc,
 			Subset: subset,
+			//Port: func() Port {return Port{Number: 80}}(), // This would be needed to support multiple ports on the same service for mirror routes, however
+			// we do not have an easy place to get the correct port without a spec change
 		},
 		"mirrorPercentage": map[string]interface{}{"value": float64(percent)},
 	}

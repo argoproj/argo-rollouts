@@ -2127,6 +2127,16 @@ spec:
       attempts: 3
       perTryTimeout: 10s
       retryOn: 'gateway-error,connect-failure,refused-stream'
+    corsPolicy:
+      allowOrigins:
+        - exact: https://example.com
+      allowMethods:
+        - POST
+        - GET
+      allowCredentials: false
+      allowHeaders:
+        - X-Foo-Bar
+      maxAge: "24h"
     route:
     - destination:
         host: 'stable'
@@ -2420,6 +2430,8 @@ func TestHttpReconcileMirrorRouteWithExtra(t *testing.T) {
 	r2 := routes[2].(map[string]interface{})
 	_, found = r2["retries"]
 	assert.True(t, found)
+	_, found = r2["corsPolicy"]
+	assert.True(t, found)
 
 	// HTTP Routes
 	httpRoutes := extractHttpRoutes(t, iVirtualService)
@@ -2471,6 +2483,8 @@ func TestHttpReconcileMirrorRouteWithExtra(t *testing.T) {
 
 	r2 = routes[3].(map[string]interface{})
 	_, found = r2["retries"]
+	assert.True(t, found)
+	_, found = r2["corsPolicy"]
 	assert.True(t, found)
 
 	r.RemoveManagedRoutes()
