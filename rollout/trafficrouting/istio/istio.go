@@ -1269,14 +1269,22 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 		})
 	}
 
+	// Type without port because we do not know which port to move over to the mirror from the user defined virtual service
+	// and when we marshal the object back to json it will be a 0 which dose not pass istio validation
+	type virtualServiceDestination struct {
+		Host   string `json:"host,omitempty"`
+		Subset string `json:"subset,omitempty"`
+	}
+	mirrorDestinations := virtualServiceDestination{
+		Host:   canarySvc,
+		Subset: subset,
+	}
+
 	mirrorRoute := map[string]interface{}{
-		"name":  mirrorRouting.Name,
-		"match": istioMatch,
-		"route": route,
-		"mirror": VirtualServiceDestination{
-			Host:   canarySvc,
-			Subset: subset,
-		},
+		"name":             mirrorRouting.Name,
+		"match":            istioMatch,
+		"route":            route,
+		"mirror":           mirrorDestinations,
 		"mirrorPercentage": map[string]interface{}{"value": float64(percent)},
 	}
 
