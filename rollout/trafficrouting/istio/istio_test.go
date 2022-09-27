@@ -2409,10 +2409,10 @@ func TestHttpReconcileMirrorRouteWithExtra(t *testing.T) {
 	assert.Nil(t, err)
 	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
+
 	routes, found, err := unstructured.NestedSlice(iVirtualService.Object, "spec", "http")
 	assert.NoError(t, err)
 	assert.True(t, found)
-
 	r1 := routes[1].(map[string]interface{})
 	_, found = r1["retries"]
 	assert.True(t, found)
@@ -2461,6 +2461,17 @@ func TestHttpReconcileMirrorRouteWithExtra(t *testing.T) {
 	httpRoutes = extractHttpRoutes(t, iVirtualService)
 	assert.Equal(t, len(httpRoutes), 4)
 	assert.Equal(t, httpRoutes[1].MirrorPercentage.Value, float64(90))
+
+	routes, found, err = unstructured.NestedSlice(iVirtualService.Object, "spec", "http")
+	assert.NoError(t, err)
+	assert.True(t, found)
+	r1 = routes[2].(map[string]interface{})
+	_, found = r1["retries"]
+	assert.True(t, found)
+
+	r2 = routes[3].(map[string]interface{})
+	_, found = r2["retries"]
+	assert.True(t, found)
 
 	r.RemoveManagedRoutes()
 	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
