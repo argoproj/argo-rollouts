@@ -19,14 +19,15 @@
 
 1. Update Brew formula:
 
+   * Fork the repo https://github.com/argoproj/homebrew-tap
+   * Run the following commands to update the brew formula:
     ```bash
-    git clone git@github.com:argoproj/homebrew-tap.git
     cd homebrew-tap
-    git pull
     ./update.sh kubectl-argo-rollouts $VERSION
     git commit -am "Update kubectl-argo-rollouts to $VERSION"
-    git push
     ```
+   * Create a PR with the modified files pointing to upstream/master
+   * Once the PR is approved by a maintainer, it can be merged.
 
 ### Verify
 

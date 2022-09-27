@@ -678,3 +678,42 @@ func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
 		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[2].GetResource(), "action: patch canary ingress")
 	}
 }
+
+func TestSetHeaderRoute(t *testing.T) {
+	r := Reconciler{
+		cfg: ReconcilerConfig{
+			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+		},
+	}
+	err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "set-header",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName: "header-name",
+			HeaderValue: &v1alpha1.StringMatch{
+				Exact: "value",
+			},
+		}},
+	})
+	assert.Nil(t, err)
+
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+}
+
+func TestSetMirrorRoute(t *testing.T) {
+	r := Reconciler{
+		cfg: ReconcilerConfig{
+			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+		},
+	}
+	err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+		Name: "mirror-route",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{Exact: "GET"},
+		}},
+	})
+	assert.Nil(t, err)
+
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+}

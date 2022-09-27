@@ -5,7 +5,9 @@ import {Key, KeybindingContext} from 'react-keyhooks';
 import {useHistory, useParams} from 'react-router-dom';
 import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate,
+    GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute,
     RolloutReplicaSetInfo,
     RolloutRolloutInfo,
     RolloutServiceApi,
@@ -128,11 +130,11 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                         interactive={
                             interactive
                                 ? {
-                                      editState: interactive.editState,
-                                      setImage: (container, image, tag) => {
-                                          interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
-                                      },
-                                  }
+                                    editState: interactive.editState,
+                                    setImage: (container, image, tag) => {
+                                        interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
+                                    },
+                                }
                                 : null
                         }
                     />
@@ -151,6 +153,7 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                                     initCollapsed={false}
                                     rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
                                     current={i === 0}
+                                    message={rollout.message}
                                 />
                             ))}
                         </div>
@@ -160,9 +163,11 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                     <ThemeDiv className='info steps'>
                         <ThemeDiv className='info__title'>Steps</ThemeDiv>
                         <div style={{marginTop: '1em'}}>
-                            {rollout.steps.map((step, i) => (
-                                <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === (rollout.steps || []).length - 1} />
-                            ))}
+                            {rollout.steps
+                                .filter((step) => Object.keys(step).length)
+                                .map((step, i, arr) => (
+                                    <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === arr.length - 1} />
+                                ))}
                         </div>
                     </ThemeDiv>
                 )}
@@ -228,7 +233,7 @@ const ProcessRevisions = (ri: RolloutInfo): Revision[] => {
     if (!ri) {
         return;
     }
-    const map: {[key: number]: Revision} = {};
+    const map: {[key: string]: Revision} = {};
 
     const emptyRevision = {replicaSets: [], experiments: [], analysisRuns: []} as Revision;
 
@@ -274,6 +279,11 @@ const parseDuration = (duration: string): string => {
 
 const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep; complete?: boolean; current?: boolean; last?: boolean}) => {
     const [openedTemplate, setOpenedTemplate] = React.useState('');
+    const [openCanary, setOpenCanary] = React.useState(false);
+    const [openAnalysis, setOpenAnalysis] = React.useState(false);
+    const [openHeader, setOpenHeader] = React.useState(false);
+    const [openMirror, setOpenMirror] = React.useState(false);
+
     let icon: string;
     let content = '';
     let unit = '';
@@ -302,12 +312,51 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
         icon = 'fa-flask';
     }
 
+    if (props.step.setMirrorRoute) {
+        content = `Set Mirror: ${props.step.setMirrorRoute.name}`;
+        if(!props.step.setMirrorRoute.match) {
+            content = `Remove Mirror: ${props.step.setMirrorRoute.name}`;
+        }
+    }
+
+    if (props.step.setHeaderRoute) {
+        content = `Set Header: ${props.step.setHeaderRoute.name}`;
+        if (!props.step.setHeaderRoute.match) {
+            content = `Remove Header: ${props.step.setHeaderRoute.name}`;
+        }
+    }
+
     return (
         <React.Fragment>
             <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
-                <div className={`steps__step-title ${props.step.experiment ? 'steps__step-title--experiment' : ''}`}>
-                    <i className={`fa ${icon}`} /> {content}
+                <div
+                    className={`steps__step-title ${
+                        props.step.experiment || (props.step.setCanaryScale && openCanary) || (props.step.analysis && openAnalysis) 
+                        || (props.step.setHeaderRoute && openHeader) || (props.step.setMirrorRoute && openMirror) ? 'steps__step-title--experiment' : ''
+                    }`}>
+                    {icon && <i className={`fa ${icon}`} />} {content}
                     {unit}
+                    {props.step.setCanaryScale && (
+                        <ThemeDiv style={{marginLeft: 'auto'}} onClick={() => setOpenCanary(!openCanary)}>
+                            <i className={`fa ${openCanary ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </ThemeDiv>
+                    )}
+                    {props.step.analysis && (
+                        <ThemeDiv style={{marginLeft: 'auto'}} onClick={() => setOpenAnalysis(!openAnalysis)}>
+                            <i className={`fa ${openAnalysis ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </ThemeDiv>
+                    )}
+
+                    {props.step.setHeaderRoute && props.step.setHeaderRoute.match &&(
+                        <ThemeDiv style={{marginLeft: 'auto'}} onClick={() => setOpenHeader(!openHeader)}>
+                            <i className={`fa ${openCanary ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </ThemeDiv>
+                    )}
+                    {props.step.setMirrorRoute && props.step.setMirrorRoute.match && (
+                        <ThemeDiv style={{marginLeft: 'auto'}} onClick={() => setOpenMirror(!openMirror)}>
+                            <i className={`fa ${openCanary ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
+                        </ThemeDiv>
+                    )}
                 </div>
                 {props.step.experiment?.templates && (
                     <div className='steps__step__content'>
@@ -316,17 +365,31 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                         })}
                     </div>
                 )}
+
+                {props.step.analysis?.templates && openAnalysis && (
+                    <div className='steps__step__content'>
+                        <div style={{paddingLeft: 15, marginTop: 12, marginBottom: 8, color: 'rgba(0,0,0, 0.5)'}}>Templates</div>
+                        <ul>
+                            {props.step.analysis?.templates.map((template) => {
+                                return (
+                                    <div style={{paddingLeft: 15, fontWeight: 600}} key={template.templateName}>
+                                        <li>{template.templateName}</li>
+                                    </div>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                )}
+                {props.step?.setCanaryScale && openCanary && <WidgetItem values={props.step.setCanaryScale} />}
+                {props.step?.setHeaderRoute && openHeader && <WidgetItemSetHeader values={props.step.setHeaderRoute.match} />}
+                {props.step?.setMirrorRoute && openMirror && <WidgetItemSetMirror value={props.step.setMirrorRoute} />}
             </EffectDiv>
             {!props.last && <ThemeDiv className='steps__connector' />}
         </React.Fragment>
     );
 };
 
-const ExperimentWidget = ({
-    template,
-    opened,
-    onToggle,
-}: {
+const ExperimentWidget = ({template, opened, onToggle}: {
     template: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate;
     opened: boolean;
     onToggle: (name: string) => void;
@@ -340,17 +403,101 @@ const ExperimentWidget = ({
                     <i className={`fa ${icon}`} />
                 </ThemeDiv>
             </ThemeDiv>
-            {opened && (
-                <EffectDiv>
-                    <div className='steps__step__content-title'>SPECREF</div>
-                    <div className='steps__step__content-value'>{template.specRef}</div>
-                    {template.weight && (
-                        <Fragment>
-                            <div className='steps__step__content-title'>WEIGHT</div> <div className='steps__step__content-value'>{template.weight}</div>
-                        </Fragment>
-                    )}
-                </EffectDiv>
-            )}
+            {opened && <WidgetItem values={{specRef: template.specRef, weight: template.weight}} />}
+        </EffectDiv>
+    );
+};
+
+const WidgetItem = ({values}: {values: Record<string, any>}) => {
+    return (
+        <EffectDiv>
+            {Object.keys(values).map((val) => {
+                if (!values[val]) return null;
+                return (
+                    <Fragment key={val}>
+                        <div className='steps__step__content-title'>{val.toUpperCase()}</div>
+                        <div className='steps__step__content-value'>{String(values[val])}</div>
+                    </Fragment>
+                );
+            })}
+        </EffectDiv>
+    );
+};
+
+const WidgetItemSetMirror = ({value}: {value: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute}) => {
+    if (!value) return null;
+    return (
+        <EffectDiv>
+            <Fragment key={value.name}>
+                <div className='steps__step__content-title'>Name</div>
+                <div className='steps__step__content-value'>{value.name}</div>
+                <div className='steps__step__content-title'>Percentage</div>
+                <div className='steps__step__content-value'>{value.percentage}</div>
+                {Object.values(value.match).map((val, index) => {
+                    if (!val) return null;
+                    let stringMatcherValue = ""
+                    let stringMatcherType = ""
+                    let fragments = []
+                    if (val.path != null) {
+                        if(val.path.exact != null) {stringMatcherValue = val.path.exact; stringMatcherType="Exact"}
+                        if(val.path.prefix != null) {stringMatcherValue = val.path.prefix; stringMatcherType="Prefix"}
+                        if(val.path.regex != null) {stringMatcherValue = val.path.regex; stringMatcherType="Regex"}
+                        fragments.push(
+                            <Fragment key={value.name}>
+                                <div className='steps__step__content-title'>{index} - Path ({stringMatcherType})</div>
+                                <div className='steps__step__content-value'>{stringMatcherValue}</div>
+                            </Fragment>
+                        );
+                    }
+                    if (val.method != null) {
+                        if(val.method.exact != null) {stringMatcherValue = val.method.exact; stringMatcherType="Exact"}
+                        if(val.method.prefix != null) {stringMatcherValue = val.method.prefix; stringMatcherType="Prefix"}
+                        if(val.method.regex != null) {stringMatcherValue = val.method.regex; stringMatcherType="Regex"}
+                        fragments.push(
+                            <Fragment key={value.name}>
+                                <div className='steps__step__content-title'>{index} - Method ({stringMatcherType})</div>
+                                <div className='steps__step__content-value'>{stringMatcherValue}</div>
+                            </Fragment>
+                        );
+                    }
+                    return fragments
+                })}
+            </Fragment>
+        </EffectDiv>
+    );
+};
+
+const WidgetItemSetHeader = ({values}: {values: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch[]}) => {
+    if (!values) return null;
+    return (
+        <EffectDiv>
+            {values.map((record) => {
+                if (!record.headerName) return null;
+                if (!record.headerValue) return null;
+
+                let headerValue = ""
+                let headerValueType = ""
+                if (record.headerValue.regex) {
+                    headerValue = record.headerValue.regex
+                    headerValueType = "Regex"
+                }
+                if (record.headerValue.prefix) {
+                    headerValue = record.headerValue.prefix
+                    headerValueType = "Prefix"
+                }
+                if (record.headerValue.exact) {
+                    headerValue = record.headerValue.exact
+                    headerValueType = "Exact"
+                }
+                return (
+                    <Fragment key={record.headerName}>
+                        <div className='steps__step__content-title'>Name</div>
+                        <div className='steps__step__content-value'>{record.headerName}</div>
+                        <div className='steps__step__content-title'>{headerValueType}</div>
+                        <div className='steps__step__content-value'>{headerValue}</div>
+                    </Fragment>
+                );
+            })}
         </EffectDiv>
     );
 };

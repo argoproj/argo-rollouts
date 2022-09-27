@@ -335,6 +335,27 @@ spec:
         host: canary
       weight: 0`
 
+const singleRouteSubsetVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - route:
+    - destination:
+        host: 'rollout-service'
+        subset: 'stable-subset'
+      weight: 100
+    - destination:
+        host: rollout-service
+        subset: 'canary-subset'
+      weight: 0`
+
 const singleRouteTlsVsvc = `apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -463,6 +484,158 @@ func TestHttpReconcileWeightsBaseCase(t *testing.T) {
 		assertHttpRouteWeightChanges(t, httpRoutes[0], "primary", 10, 90)
 		assertHttpRouteWeightChanges(t, httpRoutes[1], "secondary", 0, 100)
 	}
+}
+
+func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	const headerName = "test-header-route"
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: headerName,
+	},
+	}...)
+
+	// Test for both the HTTP VS & Mixed VS
+	hr := &v1alpha1.SetHeaderRoute{
+		Name: headerName,
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName:  "agent",
+				HeaderValue: &v1alpha1.StringMatch{Exact: "firefox"},
+			},
+		},
+	}
+
+	err := r.SetHeaderRoute(hr)
+	assert.Nil(t, err)
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, headerName)
+	checkDestination(t, httpRoutes[0].Route, "canary", 100)
+	assert.Equal(t, len(httpRoutes[0].Route), 1)
+	assert.Equal(t, httpRoutes[1].Name, "primary")
+	checkDestination(t, httpRoutes[1].Route, "stable", 100)
+	assert.Equal(t, httpRoutes[2].Name, "secondary")
+
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: headerName,
+	})
+	assert.Nil(t, err)
+
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	// HTTP Routes
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, "primary")
+	assert.Equal(t, httpRoutes[1].Name, "secondary")
+}
+
+func TestHttpReconcileHeaderRouteSubsetBased(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+	const RolloutService = "rollout-service"
+	const StableSubsetName = "stable-subset"
+	const CanarySubsetName = "canary-subset"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "vsvc"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes = nil
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.StableSubsetName = StableSubsetName
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName = CanarySubsetName
+	dRule := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  host: rollout-service
+  subsets:
+  - name: stable-subset
+  - name: canary-subset
+`)
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteSubsetVsvc)
+	client := testutil.NewFakeDynamicClient(obj, dRule)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	const headerName = "test-header-route"
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: headerName,
+	},
+	}...)
+
+	hr := &v1alpha1.SetHeaderRoute{
+		Name: headerName,
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName: "agent",
+				HeaderValue: &v1alpha1.StringMatch{
+					Regex: "firefox",
+				},
+			},
+		},
+	}
+
+	err := r.SetHeaderRoute(hr)
+	assert.Nil(t, err)
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, headerName)
+	assert.Equal(t, httpRoutes[0].Route[0].Destination.Host, "rollout-service")
+	assert.Equal(t, httpRoutes[0].Route[0].Destination.Subset, "canary-subset")
+}
+
+func TestReconcileUpdateHeader(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.MangedRoutes{
+		Name: "test-mirror-1",
+	})
+	AssertReconcileUpdateHeader(t, regularVsvc, ro)
+}
+func AssertReconcileUpdateHeader(t *testing.T, vsvc string, ro *v1alpha1.Rollout) *dynamicfake.FakeDynamicClient {
+	obj := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	var setHeader = &v1alpha1.SetHeaderRoute{
+		Name: "test-mirror-1",
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName: "browser",
+				HeaderValue: &v1alpha1.StringMatch{
+					Prefix: "Firefox",
+				},
+			},
+		},
+	}
+	err := r.SetHeaderRoute(setHeader)
+
+	assert.Nil(t, err)
+
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+	return client
 }
 
 func TestTlsReconcileWeightsBaseCase(t *testing.T) {
@@ -1157,7 +1330,7 @@ spec:
 
 	jsonBytes, err := json.Marshal(dRule)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"metadata":{"name":"istio-destrule","namespace":"default","creationTimestamp":null,"annotations":{"argo-rollouts.argoproj.io/managed-by-rollouts":"rollout"}},"spec":{"subsets":[{"name":"stable","labels":{"rollouts-pod-template-hash":"def456","version":"v3"}},{"name":"canary","labels":{"rollouts-pod-template-hash":"abc123"},"Extra":{"trafficPolicy":{"loadBalancer":{"simple":"ROUND_ROBIN"}}}}]}}`,
+	assert.Equal(t, `{"metadata":{"name":"istio-destrule","namespace":"default","creationTimestamp":null,"annotations":{"argo-rollouts.argoproj.io/managed-by-rollouts":"rollout"}},"spec":{"host":"ratings.prod.svc.cluster.local","subsets":[{"name":"stable","labels":{"rollouts-pod-template-hash":"def456","version":"v3"}},{"name":"canary","labels":{"rollouts-pod-template-hash":"abc123"},"Extra":{"trafficPolicy":{"loadBalancer":{"simple":"ROUND_ROBIN"}}}}]}}`,
 		string(jsonBytes))
 }
 
@@ -1207,6 +1380,7 @@ metadata:
   annotations:
     argo-rollouts.argoproj.io/managed-by-rollouts: rollout
 spec:
+  host: ratings.prod.svc.cluster.local
   subsets:
   - name: stable
     labels:
@@ -1610,4 +1784,386 @@ func TestMultipleVirtualServiceReconcileInferredSingleRoute(t *testing.T) {
 		// Assertions
 		assertHttpRouteWeightChanges(t, httpRoutes[0], "", 10, 90)
 	}
+}
+
+func TestHttpReconcileMirrorRoute(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	// Test for both the HTTP VS & Mixed VS
+	setMirror1 := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-1",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "GET",
+			},
+		}},
+	}
+	var percentage int32 = 90
+	setMirror2 := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-2",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "GET",
+			},
+		}},
+		Percentage: &percentage,
+	}
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: "test-mirror-1",
+	}, {
+		Name: "test-mirror-2",
+	},
+	}...)
+
+	err := r.SetMirrorRoute(setMirror1)
+	assert.Nil(t, err)
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 3)
+
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, "test-mirror-1")
+	checkDestination(t, httpRoutes[0].Route, "canary", 0)
+	assert.Equal(t, httpRoutes[0].Mirror.Host, "canary")
+	assert.Equal(t, httpRoutes[0].Mirror.Subset, "")
+	assert.Equal(t, httpRoutes[0].MirrorPercentage.Value, float64(100))
+	assert.Equal(t, len(httpRoutes[0].Route), 2)
+	assert.Equal(t, httpRoutes[1].Name, "primary")
+	checkDestination(t, httpRoutes[1].Route, "stable", 100)
+	assert.Equal(t, httpRoutes[2].Name, "secondary")
+	checkDestination(t, httpRoutes[2].Route, "stable", 100)
+
+	//Delete mirror route
+	deleteSetMirror := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-1",
+	}
+	err = r.SetMirrorRoute(deleteSetMirror)
+	assert.Nil(t, err)
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 2)
+	assert.Equal(t, httpRoutes[0].Name, "primary")
+	assert.Equal(t, httpRoutes[1].Name, "secondary")
+
+	//Test adding two routes using fake client then cleaning them up with RemoveManagedRoutes
+	err = r.SetMirrorRoute(setMirror1)
+	assert.Nil(t, err)
+	err = r.SetMirrorRoute(setMirror2)
+	assert.Nil(t, err)
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 4)
+	assert.Equal(t, httpRoutes[1].MirrorPercentage.Value, float64(90))
+
+	r.RemoveManagedRoutes()
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 2)
+
+}
+
+func TestHttpReconcileMirrorRouteOrder(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary", "secondary"})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	setMirror1 := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-1",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "GET",
+			},
+		}},
+	}
+	var percentage int32 = 90
+	setMirror2 := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-2",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "POST",
+			},
+		}},
+		Percentage: &percentage,
+	}
+	setMirror3 := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-3",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "GET",
+			},
+		}},
+		Percentage: &percentage,
+	}
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: "test-mirror-2",
+	}, {
+		Name: "test-mirror-3",
+	}, {
+		Name: "test-mirror-1",
+	},
+	}...)
+
+	err := r.SetMirrorRoute(setMirror1)
+	assert.Nil(t, err)
+	err = r.SetMirrorRoute(setMirror2)
+	assert.Nil(t, err)
+	err = r.SetMirrorRoute(setMirror3)
+	assert.Nil(t, err)
+	err = r.SetWeight(40)
+	assert.Nil(t, err)
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 5)
+	assert.Equal(t, httpRoutes[0].Name, "test-mirror-2")
+	checkDestination(t, httpRoutes[0].Route, "canary", 40)
+	checkDestination(t, httpRoutes[0].Route, "stable", 60)
+	assert.Equal(t, httpRoutes[1].Name, "test-mirror-3")
+	assert.Equal(t, httpRoutes[2].Name, "test-mirror-1")
+	assert.Equal(t, httpRoutes[3].Name, "primary")
+	assert.Equal(t, httpRoutes[4].Name, "secondary")
+
+	//Delete mirror route
+	deleteSetMirror := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-3",
+	}
+	err = r.SetMirrorRoute(deleteSetMirror)
+	assert.Nil(t, err)
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 4)
+	assert.Equal(t, httpRoutes[0].Name, "test-mirror-2")
+	assert.Equal(t, httpRoutes[1].Name, "test-mirror-1")
+	assert.Equal(t, httpRoutes[2].Name, "primary")
+	assert.Equal(t, httpRoutes[3].Name, "secondary")
+
+	r.RemoveManagedRoutes()
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 2)
+}
+
+func TestHttpReconcileMirrorRouteOrderSingleRouteNoName(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	_, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), nil, druleLister)
+	client.ClearActions()
+
+	setMirror1 := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-1",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "GET",
+			},
+		}},
+	}
+	var percentage int32 = 90
+	setMirror2 := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-2",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "POST",
+			},
+		}},
+		Percentage: &percentage,
+	}
+	setMirror3 := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-3",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "GET",
+			},
+		}},
+		Percentage: &percentage,
+	}
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: "test-mirror-2",
+	}, {
+		Name: "test-mirror-3",
+	}, {
+		Name: "test-mirror-1",
+	},
+	}...)
+
+	err := r.SetWeight(30)
+	assert.Nil(t, err)
+	err = r.SetMirrorRoute(setMirror1)
+	assert.Nil(t, err)
+	err = r.SetMirrorRoute(setMirror2)
+	assert.Nil(t, err)
+	err = r.SetMirrorRoute(setMirror3)
+	assert.Nil(t, err)
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 4)
+	assert.Equal(t, httpRoutes[0].Name, "test-mirror-2")
+	assert.Equal(t, httpRoutes[1].Name, "test-mirror-3")
+	assert.Equal(t, httpRoutes[2].Name, "test-mirror-1")
+	assert.Equal(t, httpRoutes[3].Name, "")
+	assert.Equal(t, httpRoutes[3].Route[0].Weight, int64(70))
+	assert.Equal(t, httpRoutes[3].Route[1].Weight, int64(30))
+	checkDestination(t, httpRoutes[0].Route, "canary", 30)
+	checkDestination(t, httpRoutes[1].Route, "stable", 70)
+
+	err = r.SetWeight(40)
+	assert.Nil(t, err)
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	// HTTP Routes
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	checkDestination(t, httpRoutes[0].Route, "canary", 40)
+	checkDestination(t, httpRoutes[1].Route, "stable", 60)
+
+	//Delete mirror route
+	deleteSetMirror := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-3",
+	}
+	err = r.SetMirrorRoute(deleteSetMirror)
+	assert.Nil(t, err)
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 3)
+	assert.Equal(t, httpRoutes[0].Name, "test-mirror-2")
+	assert.Equal(t, httpRoutes[1].Name, "test-mirror-1")
+	assert.Equal(t, httpRoutes[2].Name, "")
+
+	r.RemoveManagedRoutes()
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 1)
+}
+
+func TestHttpReconcileMirrorRouteSubset(t *testing.T) {
+
+	ro := rolloutWithDestinationRule()
+	const RolloutService = "rollout-service"
+	const StableSubsetName = "stable-subset"
+	const CanarySubsetName = "canary-subset"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "vsvc"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes = nil
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.StableSubsetName = StableSubsetName
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName = CanarySubsetName
+	dRule := unstructuredutil.StrToUnstructuredUnsafe(`
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-destrule
+  namespace: default
+spec:
+  host: rollout-service
+  subsets:
+  - name: stable-subset
+  - name: canary-subset
+`)
+
+	//ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteSubsetVsvc)
+	client := testutil.NewFakeDynamicClient(obj, dRule)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	// Test for both the HTTP VS & Mixed VS
+	setMirror1 := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-1",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "GET",
+			},
+		}},
+	}
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: "test-mirror-1",
+	},
+	}...)
+
+	err := r.SetMirrorRoute(setMirror1)
+	assert.Nil(t, err)
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 2)
+
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, "test-mirror-1")
+	assert.Equal(t, httpRoutes[0].Mirror.Host, RolloutService)
+	assert.Equal(t, httpRoutes[0].Mirror.Subset, CanarySubsetName)
+	assert.Equal(t, httpRoutes[0].Route[0].Destination.Host, RolloutService)
+	assert.Equal(t, httpRoutes[0].Route[0].Destination.Subset, StableSubsetName)
+	assert.Equal(t, httpRoutes[0].Route[1].Destination.Host, RolloutService)
+	assert.Equal(t, httpRoutes[0].Route[1].Destination.Subset, CanarySubsetName)
+	assert.Equal(t, len(httpRoutes[0].Route), 2)
+
+	assert.Equal(t, httpRoutes[1].Name, "")
+	assert.Nil(t, httpRoutes[1].Mirror)
+	assert.Equal(t, httpRoutes[1].Route[0].Destination.Host, RolloutService)
+	assert.Equal(t, httpRoutes[1].Route[0].Destination.Subset, StableSubsetName)
+	assert.Equal(t, httpRoutes[1].Route[1].Destination.Host, RolloutService)
+	assert.Equal(t, httpRoutes[1].Route[1].Destination.Subset, CanarySubsetName)
+	assert.Equal(t, len(httpRoutes[1].Route), 2)
+
+	r.RemoveManagedRoutes()
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	assert.Equal(t, len(httpRoutes), 1)
+}
+
+func TestReconcileUpdateMirror(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.MangedRoutes{
+		Name: "test-mirror-1",
+	})
+	AssertReconcileUpdateMirror(t, regularVsvc, ro)
+}
+func AssertReconcileUpdateMirror(t *testing.T, vsvc string, ro *v1alpha1.Rollout) *dynamicfake.FakeDynamicClient {
+	obj := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	setMirror := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-1",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "GET",
+			},
+		}},
+	}
+	err := r.SetMirrorRoute(setMirror)
+	assert.Nil(t, err)
+
+	actions := client.Actions()
+	assert.Len(t, actions, 1)
+	assert.Equal(t, "update", actions[0].GetVerb())
+	return client
 }

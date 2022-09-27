@@ -95,6 +95,27 @@ func (i *Ingress) GetAnnotations() map[string]string {
 	}
 }
 
+// GetClass returns the ingress class.
+// For backwards compatibility `kubernetes.io/ingress.class` annotation will be used if set,
+// otherwise `spec.ingressClassName` is used.
+func (i *Ingress) GetClass() string {
+	annotations := i.GetAnnotations()
+	class := annotations["kubernetes.io/ingress.class"]
+	if class == "" {
+		switch i.mode {
+		case IngressModeNetworking:
+			if c := i.ingress.Spec.IngressClassName; c != nil {
+				class = *c
+			}
+		case IngressModeExtensions:
+			if c := i.legacyIngress.Spec.IngressClassName; c != nil {
+				class = *c
+			}
+		}
+	}
+	return class
+}
+
 func (i *Ingress) GetLabels() map[string]string {
 	switch i.mode {
 	case IngressModeNetworking:

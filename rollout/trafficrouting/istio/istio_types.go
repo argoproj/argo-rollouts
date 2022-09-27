@@ -1,6 +1,7 @@
 package istio
 
 import (
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -17,8 +18,27 @@ type VirtualServiceSpec struct {
 
 // VirtualServiceHTTPRoute is a HTTP route in a VirtualService
 type VirtualServiceHTTPRoute struct {
-	Name  string                           `json:"name,omitempty"`
-	Route []VirtualServiceRouteDestination `json:"route,omitempty"`
+	Name             string                           `json:"name,omitempty"`
+	Match            []RouteMatch                     `json:"match,omitempty"`
+	Route            []VirtualServiceRouteDestination `json:"route,omitempty"`
+	Mirror           *VirtualServiceDestination       `json:"mirror,omitempty"`
+	MirrorPercentage *Percent                         `json:"mirrorPercentage,omitempty"`
+}
+
+type RouteMatch struct {
+	// Method What http methods should be mirrored
+	// +optional
+	Method *v1alpha1.StringMatch `json:"method,omitempty" protobuf:"bytes,1,opt,name=method"`
+	// Uri What url paths should be mirrored
+	// +optional
+	Uri *v1alpha1.StringMatch `json:"uri,omitempty" protobuf:"bytes,2,opt,name=uri"`
+	// Headers What request with matching headers should be mirrored
+	// +optional
+	Headers map[string]v1alpha1.StringMatch `json:"headers,omitempty" protobuf:"bytes,3,opt,name=headers"`
+}
+
+type Percent struct {
+	Value float64 `json:"value,omitempty"`
 }
 
 // VirtualServiceTLSRoute is a TLS route in a VirtualService
@@ -59,6 +79,7 @@ type DestinationRule struct {
 }
 
 type DestinationRuleSpec struct {
+	Host    string   `json:"host,omitempty"`
 	Subsets []Subset `json:"subsets,omitempty"`
 }
 

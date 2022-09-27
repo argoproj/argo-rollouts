@@ -6,16 +6,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	testutil "github.com/argoproj/argo-rollouts/test/util"
-	"github.com/argoproj/argo-rollouts/utils/record"
-	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 	"github.com/tj/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	k8stesting "k8s.io/client-go/testing"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	testutil "github.com/argoproj/argo-rollouts/test/util"
+	"github.com/argoproj/argo-rollouts/utils/record"
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
 const (
@@ -479,6 +480,63 @@ func TestUpdateHash(t *testing.T) {
 			assertUpdateHashAction(t, actions[3], fixture.args.expectedCanaryHash)
 		})
 	}
+}
+
+func TestSetHeaderRoute(t *testing.T) {
+	t.Run("not implemented check", func(t *testing.T) {
+		t.Parallel()
+		client := testutil.NewFakeDynamicClient()
+		cfg := ReconcilerConfig{
+			Rollout:  fakeRollout(),
+			Client:   client,
+			Recorder: record.NewFakeEventRecorder(),
+		}
+		r := NewReconciler(cfg)
+
+		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+			Name: "set-header",
+			Match: []v1alpha1.HeaderRoutingMatch{{
+				HeaderName: "header-name",
+				HeaderValue: &v1alpha1.StringMatch{
+					Exact: "value",
+				},
+			}},
+		})
+		assert.Nil(t, err)
+
+		err = r.RemoveManagedRoutes()
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 0)
+	})
+}
+
+func TestSetMirrorRoute(t *testing.T) {
+	t.Run("not implemented check", func(t *testing.T) {
+		t.Parallel()
+		client := testutil.NewFakeDynamicClient()
+		cfg := ReconcilerConfig{
+			Rollout:  fakeRollout(),
+			Client:   client,
+			Recorder: record.NewFakeEventRecorder(),
+		}
+		r := NewReconciler(cfg)
+
+		err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+			Name: "mirror-route",
+			Match: []v1alpha1.RouteMatch{{
+				Method: &v1alpha1.StringMatch{Exact: "GET"},
+			}},
+		})
+		assert.Nil(t, err)
+
+		err = r.RemoveManagedRoutes()
+		assert.Nil(t, err)
+
+		actions := client.Actions()
+		assert.Len(t, actions, 0)
+	})
 }
 
 func TestUpdateHashWhenGetStableVirtualNodeFails(t *testing.T) {

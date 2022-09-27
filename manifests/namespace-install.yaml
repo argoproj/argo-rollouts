@@ -193,6 +193,13 @@ spec:
                             query:
                               type: string
                           type: object
+                        influxdb:
+                          properties:
+                            profile:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         job:
                           properties:
                             metadata:
@@ -2564,6 +2571,9 @@ spec:
                                                     type: object
                                                 type: object
                                               maxSkew:
+                                                format: int32
+                                                type: integer
+                                              minDomains:
                                                 format: int32
                                                 type: integer
                                               topologyKey:
@@ -3057,6 +3067,13 @@ spec:
                             query:
                               type: string
                           type: object
+                        influxdb:
+                          properties:
+                            profile:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         job:
                           properties:
                             metadata:
@@ -5430,6 +5447,9 @@ spec:
                                               maxSkew:
                                                 format: int32
                                                 type: integer
+                                              minDomains:
+                                                format: int32
+                                                type: integer
                                               topologyKey:
                                                 type: string
                                               whenUnsatisfiable:
@@ -5803,6 +5823,13 @@ spec:
                         graphite:
                           properties:
                             address:
+                              type: string
+                            query:
+                              type: string
+                          type: object
+                        influxdb:
+                          properties:
+                            profile:
                               type: string
                             query:
                               type: string
@@ -8178,6 +8205,9 @@ spec:
                                                     type: object
                                                 type: object
                                               maxSkew:
+                                                format: int32
+                                                type: integer
+                                              minDomains:
                                                 format: int32
                                                 type: integer
                                               topologyKey:
@@ -10836,6 +10866,9 @@ spec:
                                   maxSkew:
                                     format: int32
                                     type: integer
+                                  minDomains:
+                                    format: int32
+                                    type: integer
                                   topologyKey:
                                     type: string
                                   whenUnsatisfiable:
@@ -11561,6 +11594,74 @@ spec:
                                   format: int32
                                   type: integer
                               type: object
+                            setHeaderRoute:
+                              properties:
+                                match:
+                                  items:
+                                    properties:
+                                      headerName:
+                                        type: string
+                                      headerValue:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                    required:
+                                    - headerName
+                                    - headerValue
+                                    type: object
+                                  type: array
+                                name:
+                                  type: string
+                              type: object
+                            setMirrorRoute:
+                              properties:
+                                match:
+                                  items:
+                                    properties:
+                                      headers:
+                                        additionalProperties:
+                                          properties:
+                                            exact:
+                                              type: string
+                                            prefix:
+                                              type: string
+                                            regex:
+                                              type: string
+                                          type: object
+                                        type: object
+                                      method:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                      path:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                    type: object
+                                  type: array
+                                name:
+                                  type: string
+                                percentage:
+                                  format: int32
+                                  type: integer
+                              required:
+                              - name
+                              type: object
                             setWeight:
                               format: int32
                               type: integer
@@ -11705,6 +11806,15 @@ spec:
                                   type: object
                                 type: array
                             type: object
+                          managedRoutes:
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
                           nginx:
                             properties:
                               additionalIngressAnnotations:
@@ -11724,6 +11834,13 @@ spec:
                                 type: string
                               trafficSplitName:
                                 type: string
+                            type: object
+                          traefik:
+                            properties:
+                              weightedTraefikServiceName:
+                                type: string
+                            required:
+                            - weightedTraefikServiceName
                             type: object
                         type: object
                     type: object
@@ -14045,6 +14162,9 @@ spec:
                             maxSkew:
                               format: int32
                               type: integer
+                            minDomains:
+                              format: int32
+                              type: integer
                             topologyKey:
                               type: string
                             whenUnsatisfiable:
@@ -14434,6 +14554,7 @@ rules:
   verbs:
   - list
   - update
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -14537,6 +14658,14 @@ rules:
   - list
   - update
   - patch
+- apiGroups:
+  - traefik.containo.us
+  resources:
+  - traefikservices
+  verbs:
+  - watch
+  - get
+  - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

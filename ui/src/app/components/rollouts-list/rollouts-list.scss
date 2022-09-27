@@ -24,12 +24,12 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
         width: 3 * $colWidth;
         margin: 0 auto;
 
-        @media screen and (max-width: 3 * $colWidth) {
+        @media screen and (max-width: (3 * $colWidth)) {
             width: 2 * $colWidth;
             margin: 0 auto;
         }
 
-        @media screen and (max-width: 2 * $colWidth) {
+        @media screen and (max-width: (2 * $colWidth)) {
             width: $colWidth;
 
             .rollouts-list__widget {
@@ -82,7 +82,7 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
             }
         }
 
-        @media screen and (max-width: 2 * $colWidth) {
+        @media screen and (max-width: (2 * $colWidth)) {
             width: 80%;
         }
     }

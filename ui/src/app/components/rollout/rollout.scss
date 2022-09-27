@@ -80,9 +80,14 @@
             padding-left: 16px;
             padding-right: 16px;
             margin: 0 -16px;
+            display: flex;
+            align-items: center;
             &--experiment {
                 padding-bottom: 8px;
                 border-bottom: 1px solid $argo-color-gray-6;
+            }
+            & > i:first-child {
+                margin-right: 5px;
             }
         }
 
@@ -191,29 +196,109 @@
     padding-top: 1em;
     border-top: 1px solid $argo-color-gray-4;
     &__runs {
-        margin-top: 1em;
+        margin: 12px 0px;
         display: flex;
+        flex-wrap: wrap;
+
+        &-action {
+            &.analysis--pending .action-button__background {
+                background-color: $argo-color-gray-4;
+                border-color: $argo-color-gray-4;
+            }
+
+            &.analysis--success .action-button__background {
+                background-color: $argo-success-color;
+                border-color: $argo-success-color;
+            }
+
+            &.analysis--failure .action-button__background {
+                background-color: rgb(238, 111, 111);
+                border-color: rgb(238, 111, 111);
+            }
+
+            .action-button {
+                font-size: '10px';
+                line-height: 1;
+                border: '1px solid';
+                padding: '8px 8px 8px 10px';
+                border-radius: '12px';
+                color: 'white';
+                margin-top: 4px;
+            }
+
+            &.analysis--success .action-button:hover {
+                .action-button__background {
+                    background-color: seagreen;
+                    border-color: seagreen;
+                }
+            }
+
+            &.analysis--failure .action-button:hover {
+                .action-button__background {
+                    background-color: red;
+                    border-color: red;
+                }
+            }
+        }
     }
     &--dark {
         border-top: 1px solid $silver-lining;
     }
+    &-header {
+        font-size: 16px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        & i {
+            margin-left: 4px;
+        }
+    }
     &__run {
         width: 40px;
+        cursor: pointer;
         margin-right: 5px;
+        margin-bottom: 12px;
         height: 10px;
-        border-radius: 3px;
+        border-radius: 5px;
         background-color: $argo-color-gray-4;
+
         &--successful {
             background-color: $argo-success-color;
         }
-
         &--failed {
             background-color: $coral;
         }
 
-        &--running {
-            background-color: $sky;
+        &__jobs {
+            margin-top: 8px;
+            margin-bottom: 12px;
+            background-color: $argo-color-gray-3;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            padding: 7px;
+
+            &-info {
+                font-size: 20px;
+                margin-left: 4px;
+            }
+
+            &-list {
+                flex: 1 1 0;
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+            }
         }
+    }
+    &--success {
+        color: $argo-success-color;
+        margin-left: 4px;
+    }
+
+    &--failure {
+        color: $clay;
+        margin-left: 4px;
     }
 }
 
