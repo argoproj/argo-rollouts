@@ -86,7 +86,7 @@ type VirtualServiceRouteDestination struct {
 type VirtualServiceDestination struct {
 	Host   string `json:"host,omitempty"`
 	Subset string `json:"subset,omitempty"`
-	Port   Port   `json:"port,omitempty"`
+	Port   *Port  `json:"port,omitempty"`
 }
 
 type Port struct {
