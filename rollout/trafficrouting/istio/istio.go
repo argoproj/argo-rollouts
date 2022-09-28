@@ -1451,6 +1451,8 @@ func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1
 	return orderedInterfaceVSVCHTTPRoutes, nil
 }
 
+// getVirtualServiceCanaryPort This function returns the port that the canary service is running on. It does this by looking at the
+// istio Virtual Service and finding any port from a destination that is suppose to be update via SetWeight.
 func getVirtualServiceCanaryPort(unVsvc *unstructured.Unstructured, virtualService v1alpha1.IstioVirtualService) (Port, error) {
 	httpRoutes, _, err := getVirtualServiceHttpRoutes(unVsvc)
 	if err != nil {
