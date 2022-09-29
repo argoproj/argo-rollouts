@@ -86,6 +86,11 @@ type VirtualServiceRouteDestination struct {
 type VirtualServiceDestination struct {
 	Host   string `json:"host,omitempty"`
 	Subset string `json:"subset,omitempty"`
+	Port   *Port  `json:"port,omitempty"`
+}
+
+type Port struct {
+	Number uint32 `json:"number,omitempty"`
 }
 
 // DestinationRule is an Istio DestinationRule containing only the fields which we care about

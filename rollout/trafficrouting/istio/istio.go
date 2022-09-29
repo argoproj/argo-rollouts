@@ -711,7 +711,7 @@ func (r *Reconciler) getVirtualService(namespace string, vsvcName string, client
 	return vsvc, err
 }
 
-func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(obj *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute) error {
+func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(virtualService v1alpha1.IstioVirtualService, obj *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute) error {
 	// HTTP Routes
 	httpRoutesI, err := GetHttpRoutesI(obj)
 	if err != nil {
@@ -746,7 +746,7 @@ func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(obj *unstructured.Unstr
 		return fmt.Errorf("[reconcileVirtualServiceHeaderRoutes] failed to remove http route from virtual service: %w", err)
 	}
 
-	httpRoutesI = append(httpRoutesI, createHeaderRoute(headerRouting, canarySvc, canarySubset))
+	httpRoutesI = append(httpRoutesI, createHeaderRoute(virtualService, obj, headerRouting, canarySvc, canarySubset))
 
 	err = unstructured.SetNestedSlice(obj.Object, httpRoutesI, "spec", Http)
 	if err != nil {
@@ -771,7 +771,7 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 			return fmt.Errorf("[SetHeaderRoute] failed to get istio virtual service: %w", err)
 		}
 
-		err = r.reconcileVirtualServiceHeaderRoutes(vsvc, headerRouting)
+		err = r.reconcileVirtualServiceHeaderRoutes(virtualService, vsvc, headerRouting)
 		if err != nil {
 			return fmt.Errorf("[SetHeaderRoute] failed to reconcile header routes: %w", err)
 		}
@@ -824,12 +824,19 @@ func (r *Reconciler) getDestinationRule(dRuleSpec *v1alpha1.IstioDestinationRule
 	return origBytes, dRule, dRuleNew, nil
 }
 
-func createHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute, host string, subset string) map[string]interface{} {
+func createHeaderRoute(virtualService v1alpha1.IstioVirtualService, unVsvc *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute, host string, subset string) map[string]interface{} {
 	var routeMatches []interface{}
 	for _, hrm := range headerRouting.Match {
 		routeMatches = append(routeMatches, createHeaderRouteMatch(hrm))
 	}
-	canaryDestination := routeDestination(host, subset, 100)
+
+	port, err := getVirtualServiceCanaryPort(unVsvc, virtualService)
+	if err != nil {
+		port = Port{Number: 0}
+	}
+
+	canaryDestination := routeDestination(host, port.Number, subset, 100)
+
 	return map[string]interface{}{
 		"name":  headerRouting.Name,
 		"match": routeMatches,
@@ -854,9 +861,12 @@ func setMapValueIfNotEmpty(m map[string]interface{}, key string, value string) {
 	}
 }
 
-func routeDestination(host, subset string, weight int64) map[string]interface{} {
+func routeDestination(host string, port uint32, subset string, weight int64) map[string]interface{} {
 	dest := map[string]interface{}{
 		"host": host,
+	}
+	if port > 0 {
+		dest["port"] = map[string]interface{}{"number": int64(port)}
 	}
 	if subset != "" {
 		dest["subset"] = subset
@@ -1269,14 +1279,20 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 		})
 	}
 
+	mirrorDestinations := VirtualServiceDestination{
+		Host:   canarySvc,
+		Subset: subset,
+	}
+	if len(route) >= 0 && route[0].Destination.Port != nil {
+		// We try to pull the port from any of the routes destinations that are supposed to be updated via SetWeight
+		mirrorDestinations.Port = &Port{Number: route[0].Destination.Port.Number}
+	}
+
 	mirrorRoute := map[string]interface{}{
-		"name":  mirrorRouting.Name,
-		"match": istioMatch,
-		"route": route,
-		"mirror": VirtualServiceDestination{
-			Host:   canarySvc,
-			Subset: subset,
-		},
+		"name":             mirrorRouting.Name,
+		"match":            istioMatch,
+		"route":            route,
+		"mirror":           mirrorDestinations,
 		"mirrorPercentage": map[string]interface{}{"value": float64(percent)},
 	}
 
@@ -1360,7 +1376,7 @@ func (r *Reconciler) orderRoutes(istioVirtualService *unstructured.Unstructured)
 		return fmt.Errorf("[orderRoutes] could not split routes between managed and non managed: %w", err)
 	}
 
-	finalRoutes, err := getOrderedVirtualServiceRoutes(managedRoutes, httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes)
+	finalRoutes, err := getOrderedVirtualServiceRoutes(httpRouteI, managedRoutes, httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes)
 	if err != nil {
 		return fmt.Errorf("[orderRoutes] could not get ordered virtual service routes: %w", err)
 	}
@@ -1407,7 +1423,7 @@ func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes
 // getOrderedVirtualServiceRoutes This returns an []interface{} of istio virtual routes where the routes are ordered based
 // on the rollouts managedRoutes field. We take the routes from the rollouts managedRoutes field order them and place them on top
 // of routes that are manually defined within the virtual service (aka. routes that users have defined manually)
-func getOrderedVirtualServiceRoutes(managedRoutes []v1alpha1.MangedRoutes, httpRoutesWithinManagedRoutes []VirtualServiceHTTPRoute, httpRoutesNotWithinManagedRoutes []VirtualServiceHTTPRoute) ([]interface{}, error) {
+func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1alpha1.MangedRoutes, httpRoutesWithinManagedRoutes []VirtualServiceHTTPRoute, httpRoutesNotWithinManagedRoutes []VirtualServiceHTTPRoute) ([]interface{}, error) {
 	var orderedManagedRoutes []VirtualServiceHTTPRoute
 	for _, route := range managedRoutes {
 		for _, managedRoute := range httpRoutesWithinManagedRoutes {
@@ -1417,18 +1433,45 @@ func getOrderedVirtualServiceRoutes(managedRoutes []v1alpha1.MangedRoutes, httpR
 		}
 	}
 
-	allIstioRoutes := append(orderedManagedRoutes, httpRoutesNotWithinManagedRoutes...)
+	orderedVirtualServiceHTTPRoutes := append(orderedManagedRoutes, httpRoutesNotWithinManagedRoutes...)
 
-	jsonAllIstioRoutes, err := json.Marshal(allIstioRoutes)
+	var orderedInterfaceVSVCHTTPRoutes []interface{}
+	for _, routeTyped := range orderedVirtualServiceHTTPRoutes {
+		for _, route := range httpRouteI {
+			r := route.(map[string]interface{})
+
+			// No need to check if exist because the empty string returned on cast failure is good for this check
+			name, _ := r["name"].(string)
+			if name == routeTyped.Name {
+				orderedInterfaceVSVCHTTPRoutes = append(orderedInterfaceVSVCHTTPRoutes, route)
+			}
+		}
+	}
+
+	return orderedInterfaceVSVCHTTPRoutes, nil
+}
+
+// getVirtualServiceCanaryPort This function returns the port that the canary service is running on. It does this by looking at the
+// istio Virtual Service and finding any port from a destination that is suppose to be update via SetWeight.
+func getVirtualServiceCanaryPort(unVsvc *unstructured.Unstructured, virtualService v1alpha1.IstioVirtualService) (Port, error) {
+	httpRoutes, _, err := getVirtualServiceHttpRoutes(unVsvc)
 	if err != nil {
-		return nil, fmt.Errorf("[getOrderedVirtualServiceRoutes] failed to marsharl istio routes: %w", err)
-	}
-	var orderedRoutes []interface{}
-	if err := json.Unmarshal(jsonAllIstioRoutes, &orderedRoutes); err != nil {
-		return nil, fmt.Errorf("[getOrderedVirtualServiceRoutes] failed to unmarsharl istio routes: %w", err)
+		return Port{}, fmt.Errorf("[getVirtualServiceCanaryPort] failed to get virtual service http routes: %w", err)
 	}
 
-	return orderedRoutes, nil
+	route, err := getVirtualServiceSetWeightRoute(virtualService.Routes, httpRoutes)
+	if err != nil {
+		return Port{}, fmt.Errorf("[getVirtualServiceCanaryPort] failed to get virtual service set weight route: %w", err)
+	}
+
+	var port uint32 = 0
+	if len(route) > 0 && route[0].Destination.Port != nil {
+		port = route[0].Destination.Port.Number
+	}
+
+	return Port{
+		Number: port,
+	}, nil
 }
 
 // RemoveManagedRoutes this removes all the routes in all the istio virtual services rollouts is managing by getting two slices

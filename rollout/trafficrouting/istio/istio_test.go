@@ -812,6 +812,80 @@ spec:
 	assert.Equal(t, httpRoutes[0].Route[0].Destination.Subset, "canary-subset")
 }
 
+func TestHttpReconcileHeaderRouteWithExtra(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvcWithExtra)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	const headerName = "test-header-route"
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: headerName,
+	},
+	}...)
+
+	// Test for both the HTTP VS & Mixed VS
+	hr := &v1alpha1.SetHeaderRoute{
+		Name: headerName,
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName:  "agent",
+				HeaderValue: &v1alpha1.StringMatch{Exact: "firefox"},
+			},
+		},
+	}
+
+	err := r.SetHeaderRoute(hr)
+	assert.Nil(t, err)
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, headerName)
+	checkDestination(t, httpRoutes[0].Route, "canary", 100)
+	assert.Equal(t, len(httpRoutes[0].Route), 1)
+	assert.Equal(t, httpRoutes[1].Name, "primary")
+	checkDestination(t, httpRoutes[1].Route, "stable", 100)
+	assert.Equal(t, httpRoutes[2].Name, "secondary")
+
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	// HTTP Routes
+	httpRoutes = extractHttpRoutes(t, iVirtualService)
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, headerName)
+	assert.Equal(t, httpRoutes[1].Name, "primary")
+	assert.Equal(t, httpRoutes[2].Name, "secondary")
+
+	routes, found, err := unstructured.NestedSlice(iVirtualService.Object, "spec", "http")
+	assert.NoError(t, err)
+	assert.True(t, found)
+
+	r0 := routes[0].(map[string]interface{})
+	route, found := r0["route"].([]interface{})
+	assert.True(t, found)
+
+	port1 := route[0].(map[string]interface{})["destination"].(map[string]interface{})["port"].(map[string]interface{})["number"]
+	assert.True(t, port1 == int64(8443))
+
+	r1 := routes[1].(map[string]interface{})
+	_, found = r1["retries"]
+	assert.True(t, found)
+
+	r2 := routes[2].(map[string]interface{})
+	_, found = r2["retries"]
+	assert.True(t, found)
+	_, found = r2["corsPolicy"]
+	assert.True(t, found)
+
+}
+
 func TestReconcileUpdateHeader(t *testing.T) {
 	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
 	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.MangedRoutes{
@@ -819,6 +893,7 @@ func TestReconcileUpdateHeader(t *testing.T) {
 	})
 	AssertReconcileUpdateHeader(t, regularVsvc, ro)
 }
+
 func AssertReconcileUpdateHeader(t *testing.T, vsvc string, ro *v1alpha1.Rollout) *dynamicfake.FakeDynamicClient {
 	obj := unstructuredutil.StrToUnstructuredUnsafe(vsvc)
 	client := testutil.NewFakeDynamicClient(obj)
@@ -2099,6 +2174,60 @@ spec:
         host: canary
       weight: 0`
 
+const regularVsvcWithExtra = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+  - name: primary
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 'gateway-error,connect-failure,refused-stream'
+    route:
+    - destination:
+        host: 'stable'
+        port:
+          number: 8443
+      weight: 100
+    - destination:
+        host: canary
+        port:
+          number: 8443
+      weight: 0
+  - name: secondary
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 'gateway-error,connect-failure,refused-stream'
+    corsPolicy:
+      allowOrigins:
+        - exact: https://example.com
+      allowMethods:
+        - POST
+        - GET
+      allowCredentials: false
+      allowHeaders:
+        - X-Foo-Bar
+      maxAge: "24h"
+    route:
+    - destination:
+        host: 'stable'
+        port:
+          number: 8443
+      weight: 100
+    - destination:
+        host: canary
+        port:
+          number: 8443
+      weight: 0`
+
 func TestMultipleVirtualServiceConfigured(t *testing.T) {
 	multipleVirtualService := []v1alpha1.IstioVirtualService{{Name: "vsvc1", Routes: []string{"primary", "secondary"}}, {Name: "vsvc2", Routes: []string{"blue-green"}}}
 	ro := multiVsRollout("stable", "canary", multipleVirtualService)
@@ -2332,6 +2461,58 @@ func TestHttpReconcileMirrorRoute(t *testing.T) {
 
 	httpRoutes = extractHttpRoutes(t, iVirtualService)
 	assert.Equal(t, len(httpRoutes), 2)
+
+}
+
+func TestHttpReconcileMirrorRouteWithExtraFields(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvcWithExtra)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	// Test for both the HTTP VS & Mixed VS
+	setMirror1 := &v1alpha1.SetMirrorRoute{
+		Name: "test-mirror-1",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{
+				Exact: "GET",
+			},
+		}},
+	}
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: "test-mirror-1",
+	},
+	}...)
+
+	err := r.SetMirrorRoute(setMirror1)
+	assert.Nil(t, err)
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	routes, found, err := unstructured.NestedSlice(iVirtualService.Object, "spec", "http")
+	assert.NoError(t, err)
+	assert.True(t, found)
+
+	r0 := routes[0].(map[string]interface{})
+	mirrorRoute, found := r0["route"].([]interface{})
+	assert.True(t, found)
+
+	port1 := mirrorRoute[0].(map[string]interface{})["destination"].(map[string]interface{})["port"].(map[string]interface{})["number"]
+	port2 := mirrorRoute[1].(map[string]interface{})["destination"].(map[string]interface{})["port"].(map[string]interface{})["number"]
+	assert.True(t, port1 == float64(8443))
+	assert.True(t, port2 == float64(8443))
+
+	r1 := routes[1].(map[string]interface{})
+	_, found = r1["retries"]
+	assert.True(t, found)
+
+	r2 := routes[2].(map[string]interface{})
+	_, found = r2["retries"]
+	assert.True(t, found)
+	_, found = r2["corsPolicy"]
+	assert.True(t, found)
 
 }
 
