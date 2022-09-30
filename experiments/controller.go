@@ -227,7 +227,7 @@ func (ec *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting Experiment workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
-			controllerutil.RunWorker(ec.experimentWorkqueue, logutil.ExperimentKey, ec.syncHandler, ec.metricsServer)
+			controllerutil.ProcessWorkItem(ec.experimentWorkqueue, logutil.ExperimentKey, ec.syncHandler, ec.metricsServer)
 		}, time.Second, stopCh)
 	}
 	log.Info("Started Experiment workers")

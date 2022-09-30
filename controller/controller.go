@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	kubeinformers "k8s.io/client-go/informers"
 	"net/http"
 	"os"
 	"time"
@@ -141,6 +143,16 @@ type Manager struct {
 	kubeClientSet kubernetes.Interface
 
 	namespace string
+
+	//ctxForWorkers                      context.Context
+	//cancelForWorkers                   context.CancelFunc
+	dynamicInformerFactory             dynamicinformer.DynamicSharedInformerFactory
+	clusterDynamicInformerFactory      dynamicinformer.DynamicSharedInformerFactory
+	istioDynamicInformerFactory        dynamicinformer.DynamicSharedInformerFactory
+	namespaced                         bool
+	kubeInformerFactory                kubeinformers.SharedInformerFactory
+	controllerNamespaceInformerFactory kubeinformers.SharedInformerFactory
+	jobInformerFactory                 kubeinformers.SharedInformerFactory
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -172,6 +184,15 @@ func NewManager(
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	nginxIngressClasses []string,
 	albIngressClasses []string,
+//contextForWorkers context.Context,
+//cancelForWorkers context.CancelFunc,
+	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	clusterDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	istioDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	namespaced bool,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	controllerNamespaceInformerFactory kubeinformers.SharedInformerFactory,
+	jobInformerFactory kubeinformers.SharedInformerFactory,
 ) *Manager {
 
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
@@ -320,6 +341,15 @@ func NewManager(
 		refResolver:                   refResolver,
 		namespace:                     namespace,
 		kubeClientSet:                 kubeclientset,
+		//ctxForWorkers:                      contextForWorkers,
+		//cancelForWorkers:                   cancelForWorkers,
+		dynamicInformerFactory:             dynamicInformerFactory,
+		clusterDynamicInformerFactory:      clusterDynamicInformerFactory,
+		istioDynamicInformerFactory:        istioDynamicInformerFactory,
+		namespaced:                         namespaced,
+		kubeInformerFactory:                kubeInformerFactory,
+		controllerNamespaceInformerFactory: controllerNamespaceInformerFactory,
+		jobInformerFactory:                 jobInformerFactory,
 	}
 
 	return cm
@@ -335,6 +365,9 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	defer c.rolloutWorkqueue.ShutDown()
 	defer c.experimentWorkqueue.ShutDown()
 	defer c.analysisRunWorkqueue.ShutDown()
+	defer func() {
+		log.Infof("Exiting Run function")
+	}()
 
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
@@ -365,6 +398,8 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 			log.Fatalf("Error LeaderElectionNamespace is empty")
 		}
 
+		var ctxForWorkers context.Context
+		var cancelForWorkers context.CancelFunc
 		// add a uniquifier so that two processes on the same host don't accidentally both become active
 		id = id + "_" + string(uuid.NewUUID())
 		log.Infof("Leaderelection get id %s", id)
@@ -379,36 +414,18 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 			RetryPeriod:     electOpts.LeaderElectionRetryPeriod,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) {
-					if c.secondaryMetricsServer != nil {
-						log.Warnln("Shutdown Secondary Metrics Server")
-						c.secondaryMetricsServer.Shutdown(ctx)
-					}
-					c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
+					log.Infof("I am the new leader: %s", id)
+					ctxForWorkers, cancelForWorkers = context.WithCancel(context.Background())
+					c.startLeading(ctxForWorkers, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
 				},
 				OnStoppedLeading: func() {
-					log.Infof("Stopped leading controller: %s", id)
+					if cancelForWorkers != nil {
+						cancelForWorkers()
+					}
 					return
 				},
 				OnNewLeader: func(identity string) {
-					if identity == id {
-						return
-					}
 					log.Infof("New leader elected: %s", identity)
-
-					if c.secondaryMetricsServer != nil {
-						log.Warn("Secondary metrics server already started")
-						return
-					}
-
-					log.Infof("Starting Secondary Metric Server at %s", c.metricsServer.Addr)
-					c.secondaryMetricsServer = metrics.NewMetricsServer(metrics.ServerConfig{
-						Addr: c.metricsServer.Addr,
-					}, false)
-					err = c.secondaryMetricsServer.ListenAndServe()
-					if err != nil {
-						err = errors.Wrap(err, "Starting Secondary Metric Server")
-						log.Warn(err)
-					}
 				},
 			},
 		})
@@ -420,6 +437,13 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		if err != nil {
 			err = errors.Wrap(err, "Starting Healthz Server")
 			log.Error(err)
+		}
+	}()
+
+	go func() {
+		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
+		if err := c.metricsServer.ListenAndServe(); err != nil {
+			log.Error(errors.Wrap(err, "Starting Metric Server"))
 		}
 	}()
 
@@ -439,13 +463,6 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	go wait.Until(func() { c.experimentController.Run(experimentThreadiness, ctx.Done()) }, time.Second, ctx.Done())
 	go wait.Until(func() { c.analysisController.Run(analysisThreadiness, ctx.Done()) }, time.Second, ctx.Done())
 	go wait.Until(func() { c.notificationsController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done())
-
-	go func() {
-		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
-		if err := c.metricsServer.ListenAndServe(); err != nil {
-			log.Error(errors.Wrap(err, "Starting Metric Server"))
-		}
-	}()
 
 	log.Info("Started controller")
 }

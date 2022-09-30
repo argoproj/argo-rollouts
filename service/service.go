@@ -133,13 +133,13 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting Service workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.serviceWorkqueue, logutil.ServiceKey, c.syncService, c.metricServer)
+			controllerutil.ProcessWorkItem(c.serviceWorkqueue, logutil.ServiceKey, c.syncService, c.metricServer)
 		}, time.Second, stopCh)
 	}
 
 	log.Info("Started Service workers")
 	<-stopCh
-	log.Info("Shutting down workers")
+	log.Info("Shutting down service workers")
 
 	return nil
 }

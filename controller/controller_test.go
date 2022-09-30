@@ -285,6 +285,13 @@ func TestNewManager(t *testing.T) {
 		k8sRequestProvider,
 		nil,
 		nil,
+		dynamicInformerFactory,
+		nil,
+		nil,
+		false,
+		nil,
+		nil,
+		nil,
 	)
 
 	assert.NotNil(t, cm)

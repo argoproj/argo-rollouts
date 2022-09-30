@@ -97,12 +97,13 @@ func WatchResourceWithExponentialBackoff(stopCh <-chan struct{}, client dynamic.
 	}
 }
 
-// RunWorker is a long-running function that will continually call the
+// ProcessWorkItem is a long-running function that will continually call the
 // processNextWorkItem function in order to read and process a message on the
 // workqueue.
-func RunWorker(workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(string) error, metricServer *metrics.MetricsServer) {
-	for processNextWorkItem(workqueue, objType, syncHandler, metricServer) {
-	}
+func ProcessWorkItem(workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(string) error, metricServer *metrics.MetricsServer) {
+	processNextWorkItem(workqueue, objType, syncHandler, metricServer)
+	//for processNextWorkItem(workqueue, objType, syncHandler, metricServer) {
+	//}
 }
 
 // processNextWorkItem will read a single work item off the workqueue and
