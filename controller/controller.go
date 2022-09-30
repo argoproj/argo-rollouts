@@ -19,7 +19,6 @@ import (
 	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
 	openshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 
-	openshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	"github.com/pkg/errors"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
