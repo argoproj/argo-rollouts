@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 	"net/http"
@@ -153,6 +154,7 @@ type Manager struct {
 	kubeInformerFactory                kubeinformers.SharedInformerFactory
 	controllerNamespaceInformerFactory kubeinformers.SharedInformerFactory
 	jobInformerFactory                 kubeinformers.SharedInformerFactory
+	istioPrimaryDynamicClient          dynamic.Interface
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -184,8 +186,8 @@ func NewManager(
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	nginxIngressClasses []string,
 	albIngressClasses []string,
-//contextForWorkers context.Context,
-//cancelForWorkers context.CancelFunc,
+	//contextForWorkers context.Context,
+	//cancelForWorkers context.CancelFunc,
 	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	clusterDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	istioDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
@@ -350,6 +352,7 @@ func NewManager(
 		kubeInformerFactory:                kubeInformerFactory,
 		controllerNamespaceInformerFactory: controllerNamespaceInformerFactory,
 		jobInformerFactory:                 jobInformerFactory,
+		istioPrimaryDynamicClient:          istioPrimaryDynamicClient,
 	}
 
 	return cm
@@ -369,17 +372,17 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		log.Infof("Exiting Run function")
 	}()
 
-	// Wait for the caches to be synced before starting workers
-	log.Info("Waiting for controller's informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
-		return fmt.Errorf("failed to wait for caches to sync")
-	}
-	// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
-	if c.namespace == metav1.NamespaceAll {
-		if ok := cache.WaitForCacheSync(stopCh, c.clusterAnalysisTemplateSynced); !ok {
-			return fmt.Errorf("failed to wait for cluster-scoped caches to sync")
-		}
-	}
+	//// Wait for the caches to be synced before starting workers
+	//log.Info("Waiting for controller's informer caches to sync")
+	//if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
+	//	return fmt.Errorf("failed to wait for caches to sync")
+	//}
+	//// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
+	//if c.namespace == metav1.NamespaceAll {
+	//	if ok := cache.WaitForCacheSync(stopCh, c.clusterAnalysisTemplateSynced); !ok {
+	//		return fmt.Errorf("failed to wait for cluster-scoped caches to sync")
+	//	}
+	//}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -457,6 +460,34 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	defer runtime.HandleCrash()
 	// Start the informer factories to begin populating the informer caches
 	log.Info("Starting Controllers")
+
+	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
+	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
+	c.dynamicInformerFactory.Start(ctx.Done())
+	if !c.namespaced {
+		c.clusterDynamicInformerFactory.Start(ctx.Done())
+	}
+	c.kubeInformerFactory.Start(ctx.Done())
+	c.controllerNamespaceInformerFactory.Start(ctx.Done())
+	c.jobInformerFactory.Start(ctx.Done())
+
+	// Check if Istio installed on cluster before starting dynamicInformerFactory
+	if istioutil.DoesIstioExist(c.istioPrimaryDynamicClient, c.namespace) {
+		c.istioDynamicInformerFactory.Start(ctx.Done())
+	}
+
+	// Wait for the caches to be synced before starting workers
+	log.Info("Waiting for controller's informer caches to sync")
+	if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
+		fmt.Errorf("failed to wait for caches to sync")
+	}
+	// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
+	if c.namespace == metav1.NamespaceAll {
+		if ok := cache.WaitForCacheSync(ctx.Done(), c.clusterAnalysisTemplateSynced); !ok {
+			fmt.Errorf("failed to wait for cluster-scoped caches to sync")
+		}
+	}
+
 	go wait.Until(func() { c.rolloutController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done())
 	go wait.Until(func() { c.serviceController.Run(serviceThreadiness, ctx.Done()) }, time.Second, ctx.Done())
 	go wait.Until(func() { c.ingressController.Run(ingressThreadiness, ctx.Done()) }, time.Second, ctx.Done())

@@ -200,20 +200,6 @@ func newCommand() *cobra.Command {
 				kubeInformerFactory,
 				controllerNamespaceInformerFactory,
 				jobInformerFactory)
-			// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
-			// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
-			dynamicInformerFactory.Start(stopCh)
-			if !namespaced {
-				clusterDynamicInformerFactory.Start(stopCh)
-			}
-			kubeInformerFactory.Start(stopCh)
-			controllerNamespaceInformerFactory.Start(stopCh)
-			jobInformerFactory.Start(stopCh)
-
-			// Check if Istio installed on cluster before starting dynamicInformerFactory
-			if istioutil.DoesIstioExist(istioPrimaryDynamicClient, namespace) {
-				istioDynamicInformerFactory.Start(stopCh)
-			}
 
 			if err = cm.Run(rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts, stopCh); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
