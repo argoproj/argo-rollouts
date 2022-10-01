@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-	kubeinformers "k8s.io/client-go/informers"
 	"net/http"
 	"os"
 	"time"
+
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	kubeinformers "k8s.io/client-go/informers"
 
 	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
@@ -372,18 +373,6 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		log.Infof("Exiting Run function")
 	}()
 
-	//// Wait for the caches to be synced before starting workers
-	//log.Info("Waiting for controller's informer caches to sync")
-	//if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
-	//	return fmt.Errorf("failed to wait for caches to sync")
-	//}
-	//// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
-	//if c.namespace == metav1.NamespaceAll {
-	//	if ok := cache.WaitForCacheSync(stopCh, c.clusterAnalysisTemplateSynced); !ok {
-	//		return fmt.Errorf("failed to wait for cluster-scoped caches to sync")
-	//	}
-	//}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -401,8 +390,6 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 			log.Fatalf("Error LeaderElectionNamespace is empty")
 		}
 
-		var ctxForWorkers context.Context
-		var cancelForWorkers context.CancelFunc
 		// add a uniquifier so that two processes on the same host don't accidentally both become active
 		id = id + "_" + string(uuid.NewUUID())
 		log.Infof("Leaderelection get id %s", id)
@@ -418,13 +405,11 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) {
 					log.Infof("I am the new leader: %s", id)
-					ctxForWorkers, cancelForWorkers = context.WithCancel(context.Background())
-					c.startLeading(ctxForWorkers, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
+					c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
 				},
 				OnStoppedLeading: func() {
-					if cancelForWorkers != nil {
-						cancelForWorkers()
-					}
+					//We have to exit here because leader election loop is stopped when OnStoppedLeading is called
+					log.Fatalf("I am no longer the leader, dying: %s", id)
 					return
 				},
 				OnNewLeader: func(identity string) {
@@ -479,12 +464,12 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
 	if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
-		fmt.Errorf("failed to wait for caches to sync")
+		log.Error("failed to wait for caches to sync")
 	}
 	// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
 	if c.namespace == metav1.NamespaceAll {
 		if ok := cache.WaitForCacheSync(ctx.Done(), c.clusterAnalysisTemplateSynced); !ok {
-			fmt.Errorf("failed to wait for cluster-scoped caches to sync")
+			log.Error("failed to wait for cluster-scoped caches to sync")
 		}
 	}
 
