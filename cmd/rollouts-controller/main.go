@@ -191,8 +191,6 @@ func newCommand() *cobra.Command {
 				k8sRequestProvider,
 				nginxIngressClasses,
 				albIngressClasses,
-				//ctxForWorkers,
-				//cancelForWorkers,
 				dynamicInformerFactory,
 				clusterDynamicInformerFactory,
 				istioDynamicInformerFactory,

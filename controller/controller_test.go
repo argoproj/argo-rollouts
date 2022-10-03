@@ -269,3 +269,14 @@ func TestNewManager(t *testing.T) {
 
 	assert.NotNil(t, cm)
 }
+
+func TestPrimaryController(t *testing.T) {
+	f := newFixture(t)
+
+	stopCh := make(chan struct{})
+
+	cm := f.newManager(t)
+	electOpts := NewLeaderElectionOptions()
+	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
+	time.Sleep(4 * time.Second) // Test that we stay up
+}
