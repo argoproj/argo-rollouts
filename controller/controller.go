@@ -146,8 +146,6 @@ type Manager struct {
 
 	namespace string
 
-	//ctxForWorkers                      context.Context
-	//cancelForWorkers                   context.CancelFunc
 	dynamicInformerFactory             dynamicinformer.DynamicSharedInformerFactory
 	clusterDynamicInformerFactory      dynamicinformer.DynamicSharedInformerFactory
 	istioDynamicInformerFactory        dynamicinformer.DynamicSharedInformerFactory
@@ -187,8 +185,6 @@ func NewManager(
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	nginxIngressClasses []string,
 	albIngressClasses []string,
-	//contextForWorkers context.Context,
-	//cancelForWorkers context.CancelFunc,
 	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	clusterDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	istioDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
