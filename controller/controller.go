@@ -409,7 +409,7 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 				},
 				OnStoppedLeading: func() {
 					//We have to exit here because leader election loop is stopped when OnStoppedLeading is called
-					log.Fatalf("I am no longer the leader, dying: %s", id)
+					log.Fatalf("I am no longer the leader, shutting down: %s", id)
 					return
 				},
 				OnNewLeader: func(identity string) {

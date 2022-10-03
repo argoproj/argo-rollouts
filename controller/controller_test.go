@@ -3,8 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -72,28 +70,26 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
 
 	cm := &Manager{
-
-		kubeClientSet: f.kubeclient,
-
-		ingressWorkqueue:     ingressWorkqueue,
-		serviceWorkqueue:     serviceWorkqueue,
-		rolloutWorkqueue:     rolloutWorkqueue,
-		experimentWorkqueue:  experimentWorkqueue,
-		analysisRunWorkqueue: analysisRunWorkqueue,
-
+		healthzServer:                 NewHealthzServer(fmt.Sprintf(listenAddr, 8080)),
 		rolloutSynced:                 alwaysReady,
-		serviceSynced:                 alwaysReady,
-		ingressSynced:                 alwaysReady,
-		jobSynced:                     alwaysReady,
 		experimentSynced:              alwaysReady,
 		analysisRunSynced:             alwaysReady,
 		analysisTemplateSynced:        alwaysReady,
+		clusterAnalysisTemplateSynced: alwaysReady,
+		serviceSynced:                 alwaysReady,
+		ingressSynced:                 alwaysReady,
+		jobSynced:                     alwaysReady,
 		replicasSetSynced:             alwaysReady,
 		configMapSynced:               alwaysReady,
 		secretSynced:                  alwaysReady,
-		clusterAnalysisTemplateSynced: alwaysReady,
-
-		healthzServer: NewHealthzServer(fmt.Sprintf(listenAddr, 8080)),
+		rolloutWorkqueue:              rolloutWorkqueue,
+		serviceWorkqueue:              serviceWorkqueue,
+		ingressWorkqueue:              ingressWorkqueue,
+		experimentWorkqueue:           experimentWorkqueue,
+		analysisRunWorkqueue:          analysisRunWorkqueue,
+		kubeClientSet:                 f.kubeclient,
+		namespace:                     "",
+		namespaced:                    false,
 	}
 
 	metricsAddr := fmt.Sprintf(listenAddr, 8090)
@@ -109,15 +105,26 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 		Resource: "targetgroupbindings",
 	}
 	vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+	destGVR := istioutil.GetIstioDestinationRuleGVR()
 	scheme := runtime.NewScheme()
 	listMapping := map[schema.GroupVersionResource]string{
 		tgbGVR:  "TargetGroupBindingList",
 		vsvcGVR: vsvcGVR.Resource + "List",
+		destGVR: destGVR.Resource + "List",
 	}
+
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
 	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
+
+	cm.dynamicInformerFactory = dynamicInformerFactory
+	cm.clusterDynamicInformerFactory = dynamicInformerFactory
+	cm.kubeInformerFactory = k8sI
+	cm.controllerNamespaceInformerFactory = k8sI
+	cm.jobInformerFactory = k8sI
+	cm.istioPrimaryDynamicClient = dynamicClient
+	cm.istioDynamicInformerFactory = dynamicInformerFactory
 
 	mode, err := ingressutil.DetermineIngressMode("extensions/v1beta1", &discoveryfake.FakeDiscovery{})
 	assert.NoError(t, err)
@@ -295,102 +302,4 @@ func TestNewManager(t *testing.T) {
 	)
 
 	assert.NotNil(t, cm)
-}
-
-func TestPrimaryController(t *testing.T) {
-	f := newFixture(t)
-
-	stopCh := make(chan struct{})
-
-	cm := f.newManager(t)
-	electOpts := NewLeaderElectionOptions()
-	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(2 * time.Second)
-	close(stopCh)
-
-	// Test primary controller shutdown secondary metrics server
-	cm.secondaryMetricsServer = metrics.NewMetricsServer(metrics.ServerConfig{}, false)
-	time.Sleep(2 * time.Second)
-	stopCh = make(chan struct{})
-	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(2 * time.Second)
-	close(stopCh)
-}
-
-func TestTwoControllers(t *testing.T) {
-	f := newFixture(t)
-
-	stopCh := make(chan struct{})
-	primary := f.newManager(t)
-	electOpts := NewLeaderElectionOptions()
-	go primary.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(1 * time.Second)
-
-	secondary := f.newManager(t)
-	secondary.healthzServer = NewHealthzServer(fmt.Sprintf(listenAddr, 8081))
-	secondary.metricsServer.Addr = (fmt.Sprintf(listenAddr, 8091))
-	go secondary.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(1 * time.Second)
-
-	var verifyEndpoints func(url string)
-	verifyEndpoints = func(url string) {
-		_, err := http.Get(url)
-		assert.NoErrorf(t, err, "error connecting to %s", url)
-		rr := httptest.NewRecorder()
-		assert.Equal(t, rr.Code, http.StatusOK)
-	}
-
-	verifyEndpoints("http://localhost:8080/healthz")
-	verifyEndpoints("http://localhost:8090/metrics")
-	verifyEndpoints("http://localhost:8081/healthz")
-	verifyEndpoints("http://localhost:8091/metrics")
-
-	// stop all controllers
-	time.Sleep(1 * time.Second)
-	close(stopCh)
-}
-
-func TestSecondaryController(t *testing.T) {
-	f := newFixture(t)
-
-	stopCh := make(chan struct{})
-
-	cm := f.newManager(t)
-
-	electOpts := NewLeaderElectionOptions()
-	lec := newElectorConfig(f.kubeclient, "holder-123-456", *electOpts)
-	le, err := leaderelection.NewLeaderElector(*lec)
-	assert.NoError(t, err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go le.Run(ctx)
-	time.Sleep(1 * time.Second)
-	assert.True(t, le.IsLeader())
-
-	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(2 * time.Second)
-	assert.True(t, le.IsLeader())
-	close(stopCh)
-	time.Sleep(1 * time.Second)
-
-	// Test secondary metrics server has been started
-	stopCh = make(chan struct{})
-	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(2 * time.Second)
-	assert.True(t, le.IsLeader())
-	close(stopCh)
-	time.Sleep(1 * time.Second)
-
-	// Test secondary metrics server listen port is taken
-	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr: fmt.Sprintf(listenAddr, DefaultMetricsPort),
-	}, false)
-	go metricsServer.ListenAndServe()
-	time.Sleep(1 * time.Second)
-	cm.secondaryMetricsServer = nil
-	stopCh = make(chan struct{})
-	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(2 * time.Second)
-	close(stopCh)
 }
