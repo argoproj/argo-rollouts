@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -9,7 +8,6 @@ import (
 	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
 	smifake "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned/fake"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -19,11 +17,8 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
-	"k8s.io/client-go/tools/leaderelection"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/analysis"
@@ -214,35 +209,6 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 	)
 
 	return cm
-}
-
-func newElectorConfig(kubeclientset kubernetes.Interface, id string, electOpts LeaderElectionOptions) *leaderelection.LeaderElectionConfig {
-	lec := leaderelection.LeaderElectionConfig{
-		Lock: &resourcelock.LeaseLock{
-			LeaseMeta: metav1.ObjectMeta{Name: defaultLeaderElectionLeaseLockName, Namespace: electOpts.LeaderElectionNamespace}, Client: kubeclientset.CoordinationV1(),
-			LockConfig: resourcelock.ResourceLockConfig{Identity: id},
-		},
-		ReleaseOnCancel: true,
-		LeaseDuration:   electOpts.LeaderElectionLeaseDuration,
-		RenewDeadline:   electOpts.LeaderElectionRenewDeadline,
-		RetryPeriod:     electOpts.LeaderElectionRetryPeriod,
-		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(ctx context.Context) {
-				log.Info("Starting leading")
-			},
-			OnStoppedLeading: func() {
-				log.Infof("Stopped leading controller: %s", id)
-				return
-			},
-			OnNewLeader: func(identity string) {
-				if identity == id {
-					return
-				}
-				log.Infof("New leader elected: %s", identity)
-			},
-		},
-	}
-	return &lec
 }
 
 func TestNewManager(t *testing.T) {

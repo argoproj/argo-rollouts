@@ -97,13 +97,10 @@ func WatchResourceWithExponentialBackoff(stopCh <-chan struct{}, client dynamic.
 	}
 }
 
-// ProcessWorkItem is a long-running function that will continually call the
-// processNextWorkItem function in order to read and process a message on the
-// workqueue.
+// ProcessWorkItem is a function that will call the processNextWorkItem function in order to read and process a message
+//on the workqueue.
 func ProcessWorkItem(workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(string) error, metricServer *metrics.MetricsServer) {
 	processNextWorkItem(workqueue, objType, syncHandler, metricServer)
-	//for processNextWorkItem(workqueue, objType, syncHandler, metricServer) {
-	//}
 }
 
 // processNextWorkItem will read a single work item off the workqueue and
