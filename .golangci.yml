@@ -13,9 +13,7 @@ linters:
     - vet
     - gofmt
     - goimports
-    - deadcode
-    - varcheck
-    - structcheck
+    - unused
     - ineffassign
     - unconvert
     - misspell

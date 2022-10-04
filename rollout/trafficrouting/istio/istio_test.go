@@ -753,7 +753,6 @@ func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
 
 func TestHttpReconcileHeaderRouteSubsetBased(t *testing.T) {
 	ro := rolloutWithDestinationRule()
-	const RolloutService = "rollout-service"
 	const StableSubsetName = "stable-subset"
 	const CanarySubsetName = "canary-subset"
 	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "vsvc"
@@ -2242,7 +2241,7 @@ func TestMultipleVirtualServiceConfigured(t *testing.T) {
 	assert.Equal(t, false, mvsvc)
 }
 
-//This Testcase validates the reconcileVirtualService using VirtualServices configuration
+// This Testcase validates the reconcileVirtualService using VirtualServices configuration
 func TestMultipleVirtualServiceReconcileWeightsBaseCase(t *testing.T) {
 	multipleVirtualService := []v1alpha1.IstioVirtualService{{
 		Name:      "vsvc",
