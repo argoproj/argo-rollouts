@@ -89,8 +89,9 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 
 	metricsAddr := fmt.Sprintf(listenAddr, 8090)
 	cm.metricsServer = metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr: metricsAddr,
-	}, false)
+		Addr:               metricsAddr,
+		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+	})
 
 	i := informers.NewSharedInformerFactory(f.client, noResyncPeriodFunc())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, noResyncPeriodFunc())

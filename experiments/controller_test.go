@@ -360,7 +360,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	}, true)
+	})
 
 	c := NewController(ControllerConfig{
 		KubeClientSet:                   f.kubeclient,

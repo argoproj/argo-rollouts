@@ -113,7 +113,6 @@ func NewLeaderElectionOptions() *LeaderElectionOptions {
 // Manager is the controller implementation for Argo-Rollout resources
 type Manager struct {
 	metricsServer           *metrics.MetricsServer
-	secondaryMetricsServer  *metrics.MetricsServer
 	healthzServer           *http.Server
 	rolloutController       *rollout.Controller
 	experimentController    *experiments.Controller
@@ -206,7 +205,7 @@ func NewManager(
 		ClusterAnalysisTemplateLister: clusterAnalysisTemplateInformer.Lister(),
 		ExperimentLister:              experimentsInformer.Lister(),
 		K8SRequestProvider:            k8sRequestProvider,
-	}, true)
+	})
 
 	healthzServer := NewHealthzServer(fmt.Sprintf(listenAddr, healthzPort))
 
