@@ -99,13 +99,6 @@ func TestVersionInfo(t *testing.T) {
 	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }
 
-func TestSecondaryMetricsServer(t *testing.T) {
-	expectedResponse := ``
-
-	metricsServ := NewMetricsServer(newFakeServerConfig())
-	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
-}
-
 func TestRemove(t *testing.T) {
 	defaults.SetMetricCleanupDelaySeconds(1)
 
