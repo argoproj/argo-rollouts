@@ -19,35 +19,36 @@ func newAnalysisRun() *v1alpha1.AnalysisRun {
 
 /*
 spec:
-  inputs:
-  - name: start-time #2019-03-29T01:08:34Z
-  - name: end-time   #2019-03-29T01:38:34Z
-  - name: stable-hash  #xxxx
-  - name: canary-hash  #yyyy
-  metrics:
-  - name: mann-whitney
-    kayenta:
-      address: https://kayenta.example.com
-      application: guestbook
-      canaryConfigName: my-test
-	  metricsAccountName: wavefront-prod
-      configurationAccountName: intuit-kayenta
-      storageAccountName:  intuit-kayenta
-      thresholds:
-        pass: 90
-        marginal: 75
-      scopes:
-      - name: default
-        controlScope:
-          scope: app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}
-          step: 60
-          start: "{{inputs.start-time}}"
-          end: "{{inputs.end-time}}"
-        experimentScope:
-          scope: app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}
-          step: 60
-          start: "{{inputs.start-time}}"
-          end: "{{inputs.end-time}}"
+
+	  inputs:
+	  - name: start-time #2019-03-29T01:08:34Z
+	  - name: end-time   #2019-03-29T01:38:34Z
+	  - name: stable-hash  #xxxx
+	  - name: canary-hash  #yyyy
+	  metrics:
+	  - name: mann-whitney
+	    kayenta:
+	      address: https://kayenta.example.com
+	      application: guestbook
+	      canaryConfigName: my-test
+		  metricsAccountName: wavefront-prod
+	      configurationAccountName: intuit-kayenta
+	      storageAccountName:  intuit-kayenta
+	      thresholds:
+	        pass: 90
+	        marginal: 75
+	      scopes:
+	      - name: default
+	        controlScope:
+	          scope: app=guestbook and rollouts-pod-template-hash={{inputs.stable-hash}}
+	          step: 60
+	          start: "{{inputs.start-time}}"
+	          end: "{{inputs.end-time}}"
+	        experimentScope:
+	          scope: app=guestbook and rollouts-pod-template-hash={{inputs.canary-hash}}
+	          step: 60
+	          start: "{{inputs.start-time}}"
+	          end: "{{inputs.end-time}}"
 */
 func buildMetric() v1alpha1.Metric {
 	return v1alpha1.Metric{
@@ -731,7 +732,7 @@ func (f RoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req), nil
 }
 
-//NewTestClient returns *http.Client with Transport replaced to avoid making real calls
+// NewTestClient returns *http.Client with Transport replaced to avoid making real calls
 func NewTestClient(fn RoundTripFunc) http.Client {
 	return http.Client{
 		Transport: fn,

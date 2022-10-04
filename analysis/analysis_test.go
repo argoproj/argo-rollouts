@@ -1279,7 +1279,7 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 	assert.True(t, strings.Contains(logMessage, "*****"))
 }
 
-//TestSecretContentReferenceAndMultipleArgResolutionSuccess verifies that both secret and non-secret arguments are resolved properly
+// TestSecretContentReferenceAndMultipleArgResolutionSuccess verifies that both secret and non-secret arguments are resolved properly
 func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 	f := newFixture(t)
 	secretName, secretKey, secretValue := "web-metric-secret", "apikey", "12345"
