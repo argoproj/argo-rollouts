@@ -98,7 +98,7 @@ func WatchResourceWithExponentialBackoff(stopCh <-chan struct{}, client dynamic.
 }
 
 // ProcessWorkItem is a function that will call the processNextWorkItem function in order to read and process a message
-//on the workqueue.
+// on the workqueue.
 func ProcessWorkItem(workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(string) error, metricServer *metrics.MetricsServer) {
 	processNextWorkItem(workqueue, objType, syncHandler, metricServer)
 }
