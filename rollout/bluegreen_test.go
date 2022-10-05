@@ -144,7 +144,7 @@ func TestBlueGreenCreatesReplicaSet(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
-//TestBlueGreenSetPreviewService ensures the preview service is set to the desired ReplicaSet
+// TestBlueGreenSetPreviewService ensures the preview service is set to the desired ReplicaSet
 func TestBlueGreenSetPreviewService(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -232,7 +232,7 @@ func TestBlueGreenProgressDeadlineAbort(t *testing.T) {
 	}
 }
 
-//TestSetServiceManagedBy ensures the managed by annotation is set in the service is set
+// TestSetServiceManagedBy ensures the managed by annotation is set in the service is set
 func TestSetServiceManagedBy(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
