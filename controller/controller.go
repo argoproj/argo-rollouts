@@ -457,12 +457,12 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
 	if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
-		log.Error("failed to wait for caches to sync")
+		log.Fatalf("failed to wait for caches to sync, exiting")
 	}
 	// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
 	if c.namespace == metav1.NamespaceAll {
 		if ok := cache.WaitForCacheSync(ctx.Done(), c.clusterAnalysisTemplateSynced); !ok {
-			log.Error("failed to wait for cluster-scoped caches to sync")
+			log.Fatalf("failed to wait for cluster-scoped caches to sync, exiting")
 		}
 	}
 
