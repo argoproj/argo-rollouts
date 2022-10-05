@@ -330,7 +330,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting Rollout workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
-			controllerutil.ProcessWorkItem(c.rolloutWorkqueue, logutil.RolloutKey, c.syncHandler, c.metricsServer)
+			controllerutil.RunWorker(c.rolloutWorkqueue, logutil.RolloutKey, c.syncHandler, c.metricsServer)
 		}, time.Second, stopCh)
 	}
 	log.Info("Started Rollout workers")

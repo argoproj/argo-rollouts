@@ -140,7 +140,7 @@ func (c *IstioController) Run(stopCh <-chan struct{}) {
 
 	for i := 0; i < destinationRuleWorkers; i++ {
 		go wait.Until(func() {
-			controllerutil.ProcessWorkItem(c.destinationRuleWorkqueue, "destinationrule", c.syncDestinationRule, nil)
+			controllerutil.RunWorker(c.destinationRuleWorkqueue, "destinationrule", c.syncDestinationRule, nil)
 		}, time.Second, stopCh)
 	}
 	log.Infof("Istio workers (%d) started", destinationRuleWorkers)

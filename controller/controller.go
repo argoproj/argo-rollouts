@@ -362,9 +362,6 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 	defer c.rolloutWorkqueue.ShutDown()
 	defer c.experimentWorkqueue.ShutDown()
 	defer c.analysisRunWorkqueue.ShutDown()
-	defer func() {
-		log.Infof("Exiting Run function")
-	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
