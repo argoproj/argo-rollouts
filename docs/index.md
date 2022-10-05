@@ -1,7 +1,7 @@
 # Argo Rollouts - Kubernetes Progressive Delivery Controller
 
 ## What is Argo Rollouts?
-Argo Rollouts is a [Kubernetes controller](https://kubernetes.io/docs/concepts/architecture/controller/) and set of [CRDs](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) which provide advanced deployment capabilities such as blue-green, canary, canary analysis, experimentation, and progressive delivery features to Kubernetes. 
+Argo Rollouts is a [Kubernetes controller](https://kubernetes.io/docs/concepts/architecture/controller/) and set of [CRDs](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) which provide advanced deployment capabilities such as blue-green, canary, canary analysis, experimentation, and progressive delivery features to Kubernetes.
 
 Argo Rollouts (optionally) integrates with [ingress controllers](https://kubernetes.io/docs/concepts/services-networking/ingress/) and service meshes, leveraging their traffic shaping abilities to gradually shift traffic to the new version during an update. Additionally, Rollouts can query and interpret metrics from various providers to verify key KPIs and drive automated promotion or rollback during an update.
 
@@ -30,7 +30,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Ingress controller integration: NGINX, ALB
 * Service Mesh integration: Istio, Linkerd, SMI
 * Simultaneous usage of multiple providers: SMI + NGINX, Istio + ALB, etc.
-* Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, Graphite
+* Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, Graphite, InfluxDB
 
 ## Quick Start
 
@@ -39,12 +39,12 @@ kubectl create namespace argo-rollouts
 kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
 ```
 
-Follow the full [getting started guide](getting-started.md) to walk through creating and then updating a rollout object. 
+Follow the full [getting started guide](getting-started.md) to walk through creating and then updating a rollout object.
 
 ## How does it work?
-Similar to the [deployment object](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), the Argo Rollouts controller will manage the creation, scaling, and deletion of [ReplicaSets](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/). These ReplicaSets are defined by the `spec.template` field inside the Rollout resource, which uses the same pod template as the deployment object. 
+Similar to the [deployment object](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), the Argo Rollouts controller will manage the creation, scaling, and deletion of [ReplicaSets](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/). These ReplicaSets are defined by the `spec.template` field inside the Rollout resource, which uses the same pod template as the deployment object.
 
-When the `spec.template` is changed, that signals to the Argo Rollouts controller that a new ReplicaSet will be introduced. The controller will use the strategy set within the `spec.strategy` field in order to determine how the rollout will progress from the old ReplicaSet to the new ReplicaSet. Once that new ReplicaSet is scaled up (and optionally passes an [Analysis](features/analysis/)), the controller will mark it as "stable". 
+When the `spec.template` is changed, that signals to the Argo Rollouts controller that a new ReplicaSet will be introduced. The controller will use the strategy set within the `spec.strategy` field in order to determine how the rollout will progress from the old ReplicaSet to the new ReplicaSet. Once that new ReplicaSet is scaled up (and optionally passes an [Analysis](features/analysis/)), the controller will mark it as "stable".
 
 If another change occurs in the `spec.template` during a transition from a stable ReplicaSet to a new ReplicaSet (i.e. you change the application version in the middle of a rollout), then the previously new ReplicaSet will be scaled down, and the controller will try to progress the ReplicasSet that reflects the updated `spec.template` field. There is more information on the behaviors of each strategy in the [spec](features/specification/) section.
 
@@ -60,7 +60,7 @@ If another change occurs in the `spec.template` during a transition from a stabl
 
 - A user wants to use the normal Rolling Update strategy from the deployment. If a user uses the canary strategy with no steps, the rollout will use the max surge and max unavailable values to roll to the new version. ([example](https://github.com/argoproj/argo-rollouts/blob/master/examples/rollout-rolling-update.yaml))
 
-## Examples 
+## Examples
 
 You can see more examples of Rollouts at:
 

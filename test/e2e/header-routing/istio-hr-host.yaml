@@ -76,6 +76,8 @@ spec:
       canaryService: canary-service
       stableService: stable-service
       trafficRouting:
+        managedRoutes:
+          - name: set-header-1
         istio:
           virtualService:
             name: rollouts-demo-vsvc
@@ -83,20 +85,23 @@ spec:
             - primary
       steps:
         - setWeight: 20
-        - setHeaderRouting:
+        - setHeaderRoute:
+            name: set-header-1
             match:
             - headerName: agent
               headerValue:
                 regex: firefox(.*)
         - pause: { }
-        - setHeaderRouting:
+        - setHeaderRoute:
+            name: set-header-1
             match:
             - headerName: agent
               headerValue:
                 regex: chrome(.*)
         - pause: { }
         - setWeight: 40
-        - setHeaderRouting: {}
+        - setHeaderRoute:
+            name: set-header-1
         - pause: {}
 ---
 apiVersion: networking.istio.io/v1alpha3

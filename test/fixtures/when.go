@@ -452,10 +452,17 @@ func (w *When) DeleteRollout() *When {
 func (w *When) WaitForExperimentCondition(name string, test func(ex *rov1.Experiment) bool, condition string, timeout time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for Experiment %s condition: %s", name, condition)
-	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
-	watch, err := w.rolloutClient.ArgoprojV1alpha1().Experiments(w.namespace).Watch(w.Context, opts)
+	exIf := w.dynamicClient.Resource(rov1.ExperimentGVR).Namespace(w.namespace)
+	ex, err := exIf.Get(w.Context, name, metav1.GetOptions{})
 	w.CheckError(err)
-	defer watch.Stop()
+	retryWatcher, err := watchutil.NewRetryWatcher(ex.GetResourceVersion(), &cache.ListWatch{
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
+			return w.rolloutClient.ArgoprojV1alpha1().Experiments(w.namespace).Watch(w.Context, opts)
+		},
+	})
+	w.CheckError(err)
+	defer retryWatcher.Stop()
 	timeoutCh := make(chan bool, 1)
 	go func() {
 		time.Sleep(timeout)
@@ -463,7 +470,7 @@ func (w *When) WaitForExperimentCondition(name string, test func(ex *rov1.Experi
 	}()
 	for {
 		select {
-		case event := <-watch.ResultChan():
+		case event := <-retryWatcher.ResultChan():
 			ex, ok := event.Object.(*rov1.Experiment)
 			if ok {
 				if test(ex) {
@@ -482,10 +489,17 @@ func (w *When) WaitForExperimentCondition(name string, test func(ex *rov1.Experi
 func (w *When) WaitForAnalysisRunCondition(name string, test func(ar *rov1.AnalysisRun) bool, condition string, timeout time.Duration) *When {
 	start := time.Now()
 	w.log.Infof("Waiting for AnalysisRun %s condition: %s", name, condition)
-	opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
-	watch, err := w.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(w.namespace).Watch(w.Context, opts)
+	arIf := w.dynamicClient.Resource(rov1.AnalysisRunGVR).Namespace(w.namespace)
+	ar, err := arIf.Get(w.Context, name, metav1.GetOptions{})
 	w.CheckError(err)
-	defer watch.Stop()
+	retryWatcher, err := watchutil.NewRetryWatcher(ar.GetResourceVersion(), &cache.ListWatch{
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			opts := metav1.ListOptions{FieldSelector: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name)).String()}
+			return w.rolloutClient.ArgoprojV1alpha1().AnalysisRuns(w.namespace).Watch(w.Context, opts)
+		},
+	})
+	w.CheckError(err)
+	defer retryWatcher.Stop()
 	timeoutCh := make(chan bool, 1)
 	go func() {
 		time.Sleep(timeout)
@@ -493,7 +507,7 @@ func (w *When) WaitForAnalysisRunCondition(name string, test func(ar *rov1.Analy
 	}()
 	for {
 		select {
-		case event := <-watch.ResultChan():
+		case event := <-retryWatcher.ResultChan():
 			ar, ok := event.Object.(*rov1.AnalysisRun)
 			if ok {
 				if test(ar) {

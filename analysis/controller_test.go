@@ -144,7 +144,7 @@ func (f *fixture) run(analysisRunName string) {
 	f.runController(analysisRunName, true, false, c, i, k8sI)
 }
 
-func (f *fixture) runExpectError(analysisRunName string, startInformers bool) {
+func (f *fixture) runExpectError(analysisRunName string, startInformers bool) { //nolint:unused
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(analysisRunName, startInformers, true, c, i, k8sI)
 }
@@ -238,14 +238,14 @@ func filterInformerActions(actions []core.Action) []core.Action {
 	return ret
 }
 
-func (f *fixture) expectUpdateAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int {
+func (f *fixture) expectUpdateAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int { //nolint:unused
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "analysisrun"}, analysisRun.Namespace, analysisRun)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
 	return len
 }
 
-func (f *fixture) getUpdatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
+func (f *fixture) getUpdatedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nolint:unused
 	action := filterInformerActions(f.client.Actions())[index]
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
@@ -259,7 +259,7 @@ func (f *fixture) getUpdatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
 	return ar
 }
 
-func (f *fixture) expectPatchAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int {
+func (f *fixture) expectPatchAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int { //nolint:unused
 	analysisRunSchema := schema.GroupVersionResource{
 		Resource: "analysisruns",
 		Version:  "v1alpha1",
@@ -269,7 +269,7 @@ func (f *fixture) expectPatchAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun
 	return len
 }
 
-func (f *fixture) getPatchedAnalysisRun(index int) v1alpha1.AnalysisRun {
+func (f *fixture) getPatchedAnalysisRun(index int) v1alpha1.AnalysisRun { //nolint:unused
 	action := filterInformerActions(f.client.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {

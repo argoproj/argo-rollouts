@@ -27,6 +27,7 @@ func TestLintValidRollout(t *testing.T) {
 		"testdata/valid-ingress-smi-multi.yml",
 		"testdata/valid-alb-canary.yml",
 		"testdata/valid-nginx-canary.yml",
+		"testdata/valid-nginx-basic-canary.yml",
 		"testdata/valid-istio-v1beta1-mulitiple-virtualsvcs.yml",
 	}
 
@@ -67,15 +68,15 @@ func TestLintInvalidRollout(t *testing.T) {
 		},
 		{
 			"testdata/invalid-service-labels.yml",
-			"Error: spec.strategy.canary.canaryService: Invalid value: \"istio-host-split-canary\": Service \"istio-host-split-canary\" has unmatch lable \"app\" in rollout\n",
+			"Error: spec.strategy.canary.canaryService: Invalid value: \"istio-host-split-canary\": Service \"istio-host-split-canary\" has unmatch label \"app\" in rollout\n",
 		},
 		{
 			"testdata/invalid-ping-pong.yml",
-			"Error: spec.strategy.canary.pingPong.pingService: Invalid value: \"ping-service\": Service \"ping-service\" has unmatch lable \"app\" in rollout\n",
+			"Error: spec.strategy.canary.pingPong.pingService: Invalid value: \"ping-service\": Service \"ping-service\" has unmatch label \"app\" in rollout\n",
 		},
 		{
 			"testdata/invalid-ingress-smi-multi.yml",
-			"Error: spec.strategy.canary.canaryService: Invalid value: \"rollout-smi-experiment-canary\": Service \"rollout-smi-experiment-canary\" has unmatch lable \"app\" in rollout\n",
+			"Error: spec.strategy.canary.canaryService: Invalid value: \"rollout-smi-experiment-canary\": Service \"rollout-smi-experiment-canary\" has unmatch label \"app\" in rollout\n",
 		},
 		{
 			filename: "testdata/invalid-nginx-canary.yml",

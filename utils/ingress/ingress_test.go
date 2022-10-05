@@ -514,3 +514,55 @@ func getExtensionsIngress() *extensionsv1beta1.Ingress {
 		},
 	}
 }
+
+func TestManagedALBAnnotations(t *testing.T) {
+	emptyJson, _ := NewManagedALBAnnotations("")
+	assert.NotNil(t, emptyJson)
+	assert.Equal(t, 0, len(emptyJson))
+	assert.Equal(t, "{}", emptyJson.String())
+
+	_, err := NewManagedALBAnnotations("invalid json")
+	assert.Error(t, err)
+
+	json := "{\"rollouts-demo\":[\"alb.ingress.kubernetes.io/actions.action1\", \"alb.ingress.kubernetes.io/actions.header-action\", \"alb.ingress.kubernetes.io/conditions.header-action\"]}"
+	actual, err := NewManagedALBAnnotations(json)
+	assert.NoError(t, err)
+
+	rolloutsDemoAnnotation := actual["rollouts-demo"]
+	assert.NotNil(t, rolloutsDemoAnnotation)
+	assert.Equal(t, 3, len(rolloutsDemoAnnotation))
+}
+
+func TestALBHeaderBasedActionAnnotationKey(t *testing.T) {
+	r := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						ALB: &v1alpha1.ALBTrafficRouting{
+							AnnotationPrefix: "alb.ingress.kubernetes.io",
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, "alb.ingress.kubernetes.io/actions.route", ALBHeaderBasedActionAnnotationKey(r, "route"))
+}
+
+func TestALBHeaderBasedConditionAnnotationKey(t *testing.T) {
+	r := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						ALB: &v1alpha1.ALBTrafficRouting{
+							AnnotationPrefix: "alb.ingress.kubernetes.io",
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, "alb.ingress.kubernetes.io/conditions.route", ALBHeaderBasedConditionAnnotationKey(r, "route"))
+}

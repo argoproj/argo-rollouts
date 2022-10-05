@@ -14,11 +14,13 @@ for Kubernetes, but you need to [configure it first](https://prometheus.io/docs/
 For example, if you used the Helm chart of Prometheus you need to annotate your Argo Rollouts Controller with the following:
 
 ```yaml
-metadata:
-  annotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/path: /metrics
-    prometheus.io/port: "8090"
+spec:
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8090"
 ```
 
 You can always see if the controller is reached successfully in the Prometheus "Targets" screen:

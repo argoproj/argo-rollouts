@@ -87,7 +87,9 @@ func IsTerminating(run *v1alpha1.AnalysisRun) bool {
 	for _, res := range run.Status.MetricResults {
 		switch res.Phase {
 		case v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError, v1alpha1.AnalysisPhaseInconclusive:
-			return true
+			// If this metric is running in the dryRun mode then we don't care about the failures and hence the terminal
+			// decision shouldn't be affected.
+			return !res.DryRun
 		}
 	}
 	return false

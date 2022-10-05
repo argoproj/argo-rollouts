@@ -55,6 +55,8 @@ nav:
   - Web: analysis/web.md
   - Kayenta: analysis/kayenta.md
   - CloudWatch: analysis/cloudwatch.md
+  - Graphite: analysis/graphite.md
+  - InfluxDB: analysis/influxdb.md
 - Experiments: features/experiment.md
 - Notifications:
   - Overview: features/notifications.md

@@ -29,7 +29,7 @@ import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 
 // Package-wide variables from generator "generated".
-option go_package = "v1alpha1";
+option go_package = "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1";
 
 message ALBStatus {
   optional AwsResourceRef loadBalancer = 1;
@@ -403,8 +403,13 @@ message CanaryStep {
   // +optional
   optional SetCanaryScale setCanaryScale = 5;
 
-  // SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
-  optional SetHeaderRouting setHeaderRouting = 6;
+  // SetHeaderRoute defines the route with specified header name to send 100% of traffic to the canary service
+  // +optional
+  optional SetHeaderRoute setHeaderRoute = 6;
+
+  // SetMirrorRoutes Mirrors traffic that matches rules to a particular destination
+  // +optional
+  optional SetMirrorRoute setMirrorRoute = 8;
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
@@ -544,7 +549,7 @@ message CloudWatchMetricStatMetricDimension {
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=clusteranalysistemplates,shortName=cat
+// +kubebuilder:resource:path=clusteranalysistemplates,shortName=cat,scope=Cluster
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
 message ClusterAnalysisTemplate {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
@@ -749,6 +754,15 @@ message HeaderRoutingMatch {
   optional StringMatch headerValue = 2;
 }
 
+// InfluxdbMetric defines the InfluxDB Flux query to perform canary analysis
+message InfluxdbMetric {
+  // Profile is the name of the secret holding InfluxDB account configuration
+  optional string profile = 1;
+
+  // Query is a raw InfluxDB flux query to perform
+  optional string query = 2;
+}
+
 // IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic
 message IstioDestinationRule {
   // Name holds the name of the DestinationRule
@@ -783,6 +797,9 @@ message IstioVirtualService {
 
   // A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
   repeated TLSRoute tlsRoutes = 3;
+
+  // A list of TCP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
+  repeated TCPRoute tcpRoutes = 4;
 }
 
 // JobMetric defines a job to run which acts as a metric
@@ -822,6 +839,10 @@ message KayentaThreshold {
   optional int64 pass = 1;
 
   optional int64 marginal = 2;
+}
+
+message MangedRoutes {
+  optional string name = 1;
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured
@@ -933,6 +954,9 @@ message MetricProvider {
 
   // Graphite specifies the Graphite metric to query
   optional GraphiteMetric graphite = 9;
+
+  // Influxdb specifies the influxdb metric to query
+  optional InfluxdbMetric influxdb = 10;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with
@@ -1412,6 +1436,24 @@ message RolloutTrafficRouting {
 
   // Traefik holds specific configuration to use Traefik to route traffic
   optional TraefikTrafficRouting traefik = 7;
+
+  // A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
+  // traffic router.
+  repeated MangedRoutes managedRoutes = 8;
+}
+
+message RouteMatch {
+  // Method What http methods should be mirrored
+  // +optional
+  optional StringMatch method = 1;
+
+  // Path What url paths should be mirrored
+  // +optional
+  optional StringMatch path = 2;
+
+  // Headers What request with matching headers should be mirrored
+  // +optional
+  map<string, StringMatch> headers = 3;
 }
 
 // RunSummary contains the final results from the metric executions
@@ -1478,9 +1520,28 @@ message SetCanaryScale {
   optional bool matchTrafficWeight = 3;
 }
 
-// SetHeaderRouting defines the route with specified header name to send 100% of traffic to the canary service
-message SetHeaderRouting {
-  repeated HeaderRoutingMatch match = 1;
+// SetHeaderRoute defines the route with specified header name to send 100% of traffic to the canary service
+message SetHeaderRoute {
+  // Name this is the name of the route to use for the mirroring of traffic this also needs
+  // to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field
+  optional string name = 1;
+
+  repeated HeaderRoutingMatch match = 2;
+}
+
+message SetMirrorRoute {
+  // Name this is the name of the route to use for the mirroring of traffic this also needs
+  // to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field
+  optional string name = 1;
+
+  // Match Contains a list of rules that if mated will mirror the traffic to the services
+  // +optional
+  repeated RouteMatch match = 2;
+
+  // Services The list of services to mirror the traffic to if the method, path, headers match
+  // Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
+  // Percentage What percent of the traffic that matched the rules should be mirrored
+  optional int32 percentage = 4;
 }
 
 message StickinessConfig {
@@ -1499,6 +1560,12 @@ message StringMatch {
 
   // Regex The string will be regular expression matched
   optional string regex = 3;
+}
+
+// TCPRoute holds the information on the virtual service's TCP routes that are desired to be matched for changing weights.
+message TCPRoute {
+  // Port number of the TCP Route desired to be matched in the given Istio VirtualService.
+  optional int64 port = 1;
 }
 
 // TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.
