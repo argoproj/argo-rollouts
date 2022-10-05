@@ -135,7 +135,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	log.Info("Starting analysis workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(func() {
-			controllerutil.ProcessWorkItem(c.analysisRunWorkQueue, logutil.AnalysisRunKey, c.syncHandler, c.metricsServer)
+			controllerutil.RunWorker(c.analysisRunWorkQueue, logutil.AnalysisRunKey, c.syncHandler, c.metricsServer)
 		}, time.Second, stopCh)
 	}
 	log.Infof("Started %d analysis workers", threadiness)
