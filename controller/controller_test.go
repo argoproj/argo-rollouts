@@ -281,3 +281,17 @@ func TestPrimaryController(t *testing.T) {
 	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
 	time.Sleep(4 * time.Second) // Test that we stay up
 }
+
+func TestPrimaryControllerSingleInstanceWithShutdown(t *testing.T) {
+	f := newFixture(t)
+
+	stopCh := make(chan struct{})
+
+	cm := f.newManager(t)
+	electOpts := NewLeaderElectionOptions()
+	electOpts.LeaderElect = false
+	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
+	time.Sleep(4 * time.Second) // Test that we stay up
+	close(stopCh)
+	time.Sleep(2 * time.Second) // Test that we shutdown
+}
