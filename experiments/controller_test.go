@@ -535,7 +535,7 @@ func filterInformerActions(actions []core.Action) []core.Action {
 	return ret
 }
 
-func (f *fixture) expectCreateServiceAction(service *corev1.Service) int {
+func (f *fixture) expectCreateServiceAction(service *corev1.Service) int { //nolint:unused
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewCreateAction(schema.GroupVersionResource{Resource: "services"}, service.Namespace, service))
 	return len
@@ -559,13 +559,13 @@ func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) expectGetExperimentAction(experiment *v1alpha1.Experiment) int {
+func (f *fixture) expectGetExperimentAction(experiment *v1alpha1.Experiment) int { //nolint:unused
 	len := len(f.actions)
 	f.actions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "experiments"}, experiment.Namespace, experiment.Name))
 	return len
 }
 
-func (f *fixture) expectUpdateExperimentAction(experiment *v1alpha1.Experiment) int {
+func (f *fixture) expectUpdateExperimentAction(experiment *v1alpha1.Experiment) int { //nolint:unused
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "experiments"}, experiment.Namespace, experiment)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
@@ -675,7 +675,7 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) getUpdatedExperiment(index int) *v1alpha1.Experiment {
+func (f *fixture) getUpdatedExperiment(index int) *v1alpha1.Experiment { //nolint:unused
 	action := filterInformerActions(f.client.Actions())[index]
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
