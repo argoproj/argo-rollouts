@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"k8s.io/client-go/dynamic/dynamicinformer"
