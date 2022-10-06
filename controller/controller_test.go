@@ -291,7 +291,7 @@ func TestPrimaryControllerSingleInstanceWithShutdown(t *testing.T) {
 	electOpts.LeaderElect = false
 	ctx, cancel := context.WithCancel(context.Background())
 	go cm.Run(ctx, 1, 1, 1, 1, 1, electOpts)
-	time.Sleep(2 * time.Second) // Test that we stay up
+	time.Sleep(6 * time.Second) // Time to start up
 	cancel()
-	time.Sleep(2 * time.Second) // Test that we shutdown
+	time.Sleep(2 * time.Second) // Test that we shut down
 }
