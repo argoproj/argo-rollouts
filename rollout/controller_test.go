@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -675,7 +676,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
 	}
 
-	err := c.syncHandler(rolloutName)
+	err := c.syncHandler(context.Background(), rolloutName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing rollout: %v", err)
 	} else if expectError && err == nil {

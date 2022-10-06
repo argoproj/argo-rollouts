@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/utils/queue"
@@ -110,7 +111,7 @@ func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*
 func TestSyncMissingService(t *testing.T) {
 	ctrl, _, _, _ := newFakeServiceController(nil, nil)
 
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 }
 
@@ -122,7 +123,7 @@ func TestSyncMissingServiceInCache(t *testing.T) {
 	})
 	ctrl, _, _, _ := newFakeServiceController(svc, nil)
 	ctrl.kubeclientset = k8sfake.NewSimpleClientset()
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 }
 
@@ -133,7 +134,7 @@ func TestSyncServiceNotReferencedByRollout(t *testing.T) {
 
 	ctrl, kubeclient, _, _ := newFakeServiceController(svc, nil)
 
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 1)
@@ -164,7 +165,7 @@ func TestSyncServiceWithNoManagedBy(t *testing.T) {
 
 	ctrl, kubeclient, client, _ := newFakeServiceController(svc, ro)
 
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)
@@ -192,7 +193,7 @@ func TestSyncServiceWithManagedByWithNoRolloutReference(t *testing.T) {
 
 	ctrl, kubeclient, client, _ := newFakeServiceController(svc, ro)
 
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	patch, ok := actions[0].(k8stesting.PatchAction)
@@ -227,7 +228,7 @@ func TestSyncServiceReferencedByRollout(t *testing.T) {
 
 	ctrl, kubeclient, _, enqueuedObjects := newFakeServiceController(svc, rollout)
 
-	err := ctrl.syncService("default/test-service")
+	err := ctrl.syncService(context.Background(), "default/test-service")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)

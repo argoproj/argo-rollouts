@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -445,7 +446,7 @@ func (f *fixture) runController(experimentName string, startInformers bool, expe
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.clusterAnalysisTemplateSynced))
 	}
 
-	err := c.syncHandler(experimentName)
+	err := c.syncHandler(context.Background(), experimentName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing experiment: %v", err)
 	} else if expectError && err == nil {

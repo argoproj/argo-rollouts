@@ -1,6 +1,7 @@
 package ingress
 
 import (
+	"context"
 	"sync"
 	"testing"
 
@@ -149,7 +150,7 @@ func newFakeIngressController(t *testing.T, ing *extensionsv1beta1.Ingress, roll
 func TestSyncMissingIngress(t *testing.T) {
 	ctrl, _, _ := newFakeIngressController(t, nil, nil)
 
-	err := ctrl.syncIngress("default/test-ingress")
+	err := ctrl.syncIngress(context.Background(), "default/test-ingress")
 	assert.NoError(t, err)
 }
 
@@ -158,7 +159,7 @@ func TestSyncIngressNotReferencedByRollout(t *testing.T) {
 
 	ctrl, kubeclient, _ := newFakeIngressController(t, ing, nil)
 
-	err := ctrl.syncIngress("default/test-stable-ingress")
+	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)
@@ -189,7 +190,7 @@ func TestSyncIngressReferencedByRollout(t *testing.T) {
 
 	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, rollout)
 
-	err := ctrl.syncIngress("default/test-stable-ingress")
+	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)
@@ -221,7 +222,7 @@ func TestSkipIngressWithNoClass(t *testing.T) {
 
 	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, rollout)
 
-	err := ctrl.syncIngress("default/test-stable-ingress")
+	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)

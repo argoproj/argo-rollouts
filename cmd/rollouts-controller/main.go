@@ -88,7 +88,7 @@ func newCommand() *cobra.Command {
 			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
 			// set up signals so we handle the first shutdown signal gracefully
-			stopCh := signals.SetupSignalHandler()
+			ctx := signals.SetupSignalHandlerContext()
 
 			defaults.SetVerifyTargetGroup(awsVerifyTargetGroup)
 			defaults.SetIstioAPIVersion(istioVersion)
@@ -199,7 +199,7 @@ func newCommand() *cobra.Command {
 				controllerNamespaceInformerFactory,
 				jobInformerFactory)
 
-			if err = cm.Run(rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts, stopCh); err != nil {
+			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
 			}
 			return nil

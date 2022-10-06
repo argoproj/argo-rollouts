@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -159,7 +160,7 @@ func (f *fixture) runController(analysisRunName string, startInformers bool, exp
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.analysisRunSynced))
 	}
 
-	err := c.syncHandler(analysisRunName)
+	err := c.syncHandler(context.Background(), analysisRunName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing experiment: %v", err)
 	} else if expectError && err == nil {
