@@ -31,7 +31,7 @@ jobs:
           done
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v1
+        uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           check_name: "${{ github.event.workflow.name }} Published Test Results"
           commit: ${{ github.event.workflow_run.head_sha }}
