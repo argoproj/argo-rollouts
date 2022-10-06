@@ -97,7 +97,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3.1.0
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
