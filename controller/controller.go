@@ -403,10 +403,11 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 				LeaseMeta: metav1.ObjectMeta{Name: defaultLeaderElectionLeaseLockName, Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
 				LockConfig: resourcelock.ResourceLockConfig{Identity: id},
 			},
-			ReleaseOnCancel: true,
-			LeaseDuration:   electOpts.LeaderElectionLeaseDuration,
-			RenewDeadline:   electOpts.LeaderElectionRenewDeadline,
-			RetryPeriod:     electOpts.LeaderElectionRetryPeriod,
+			ReleaseOnCancel: false, // We can not set this to true because our context is sent on sig which means our code
+			// is still running prior to calling cancel. We would need to shut down and then call cancel in order to set this to true.
+			LeaseDuration: electOpts.LeaderElectionLeaseDuration,
+			RenewDeadline: electOpts.LeaderElectionRenewDeadline,
+			RetryPeriod:   electOpts.LeaderElectionRetryPeriod,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) {
 					log.Infof("I am the new leader: %s", id)
