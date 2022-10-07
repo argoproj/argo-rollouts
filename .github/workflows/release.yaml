@@ -37,7 +37,7 @@ jobs:
 
       - name: Docker meta (controller)
         id: controller-meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
           images: |
             quay.io/argoproj/argo-rollouts
@@ -49,7 +49,7 @@ jobs:
 
       - name: Docker meta (plugin)
         id: plugin-meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
           images: |
             quay.io/argoproj/kubectl-argo-rollouts
