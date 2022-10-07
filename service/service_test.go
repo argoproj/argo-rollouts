@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
@@ -233,4 +234,17 @@ func TestSyncServiceReferencedByRollout(t *testing.T) {
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)
 	assert.Equal(t, 1, enqueuedObjects["default/rollout"])
+}
+
+func TestRun(t *testing.T) {
+	// make sure we can start and top the controller
+	c, _, _, _ := newFakeServiceController(nil, nil)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.serviceWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }

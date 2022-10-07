@@ -894,3 +894,18 @@ func TestRemoveInvalidSpec(t *testing.T) {
 	}`, templateStatus, cond)
 	assert.Equal(t, expectedPatch, patch)
 }
+
+func TestRun(t *testing.T) {
+	f := newFixture(t, nil)
+	defer f.Close()
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.experimentWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
+}

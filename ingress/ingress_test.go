@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/queue"
 
@@ -227,4 +228,17 @@ func TestSkipIngressWithNoClass(t *testing.T) {
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)
 	assert.Len(t, enqueuedObjects, 0)
+}
+
+func TestRun(t *testing.T) {
+	// make sure we can start and top the controller
+	c, _, _ := newFakeIngressController(t, nil, nil)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.ingressWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }

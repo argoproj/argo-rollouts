@@ -315,3 +315,19 @@ func TestNoReconcileForAnalysisRunWithDeletionTimestamp(t *testing.T) {
 
 	f.run(getKey(ar, t))
 }
+
+func TestRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.analysisRunWorkQueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
+}
