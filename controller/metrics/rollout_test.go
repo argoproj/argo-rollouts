@@ -113,7 +113,13 @@ rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 
 rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_updated The number of updated replicas per rollout.
+# TYPE rollout_info_replicas_updated gauge
+rollout_info_replicas_updated{name="guestbook-bluegreen",namespace="default"} 0`,
 		},
 
 		{
@@ -131,7 +137,13 @@ rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 
 rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_updated The number of updated replicas per rollout.
+# TYPE rollout_info_replicas_updated gauge
+rollout_info_replicas_updated{name="guestbook-bluegreen",namespace="default"} 0`,
 		},
 		{
 			fakeCanaryRollout,
@@ -148,7 +160,13 @@ rollout_info_replicas_available{name="guestbook-canary",namespace="default"} 1
 rollout_info_replicas_desired{name="guestbook-canary",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0`,
+rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0
+# HELP rollout_info_replicas_updated The number of updated replicas per rollout.
+# TYPE rollout_info_replicas_updated gauge
+rollout_info_replicas_updated{name="guestbook-canary",namespace="default"} 0`,
 		},
 	}
 
