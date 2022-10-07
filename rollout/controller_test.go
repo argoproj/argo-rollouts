@@ -546,9 +546,14 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Version:  "v1beta1",
 		Resource: "targetgroupbindings",
 	}
+	vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+	destGVR := istioutil.GetIstioDestinationRuleGVR()
 	listMapping := map[schema.GroupVersionResource]string{
-		tgbGVR: "TargetGroupBindingList",
+		tgbGVR:  "TargetGroupBindingList",
+		vsvcGVR: vsvcGVR.Resource + "List",
+		destGVR: destGVR.Resource + "List",
 	}
+
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, f.objects...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
@@ -1945,4 +1950,19 @@ func TestWriteBackToInformer(t *testing.T) {
 	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
 	assert.NotEmpty(t, stableRS)
 	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
+}
+
+func TestRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.rolloutWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }
