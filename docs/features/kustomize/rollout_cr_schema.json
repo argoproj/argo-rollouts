@@ -4213,6 +4213,10 @@
                                                     "insecure": {
                                                         "type": "boolean"
                                                     },
+                                                    "jsonBody": {
+                                                        "type": "object",
+                                                        "x-kubernetes-preserve-unknown-fields": true
+                                                    },
                                                     "jsonPath": {
                                                         "type": "string"
                                                     },
@@ -8477,6 +8481,10 @@
                                                     "insecure": {
                                                         "type": "boolean"
                                                     },
+                                                    "jsonBody": {
+                                                        "type": "object",
+                                                        "x-kubernetes-preserve-unknown-fields": true
+                                                    },
                                                     "jsonPath": {
                                                         "type": "string"
                                                     },
@@ -12740,6 +12748,10 @@
                                                     },
                                                     "insecure": {
                                                         "type": "boolean"
+                                                    },
+                                                    "jsonBody": {
+                                                        "type": "object",
+                                                        "x-kubernetes-preserve-unknown-fields": true
                                                     },
                                                     "jsonPath": {
                                                         "type": "string"
