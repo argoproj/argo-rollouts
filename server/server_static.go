@@ -51,12 +51,14 @@ func (s *ArgoRolloutsServer) staticFileHttpHandler(w http.ResponseWriter, r *htt
 	fileBytes, err := static.ReadFile(embedPath)
 	if err != nil {
 		if fileNotExistsOrIsDirectoryError(err) {
-			http.NotFound(w, r)
+			// send index.html, because UI will use path based router in React
+			fileBytes, _ = static.ReadFile(IndexHtmlFile)
+			embedPath = IndexHtmlFile
+		} else {
+			log.Errorf("Error reading file %s: %v", embedPath, err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		log.Errorf("Error reading file %s: %v", embedPath, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 
 	if embedPath == IndexHtmlFile {

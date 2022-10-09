@@ -31,14 +31,14 @@ func TestIndexHtmlIsServed(t *testing.T) {
 	tests := []struct {
 		requestPath string
 	}{
-		{"/"},
-		{"/index.html"},
-		{"/nonsense/../index.html"},
-		{"/test-dir/test.css"},
+		{TestRootPath + "/"},
+		{TestRootPath + "/index.html"},
+		{TestRootPath + "/nonsense/../index.html"},
+		{TestRootPath + "/test-dir/test.css"},
 	}
 	for _, test := range tests {
 		t.Run(test.requestPath, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, TestRootPath+test.requestPath, nil)
+			req := httptest.NewRequest(http.MethodGet, test.requestPath, nil)
 			w := httptest.NewRecorder()
 			mockServer.staticFileHttpHandler(w, req)
 			res := w.Result()
@@ -57,25 +57,16 @@ func TestIndexHtmlIsServed(t *testing.T) {
 	}
 }
 
-func TestInvalidFileAndExistingDirectoryReturns404(t *testing.T) {
-	tests := []struct {
-		requestPath string
-	}{
-		{"/test-dir"},
-		{"/invalid-file.html"},
-	}
-	for _, test := range tests {
-		t.Run(test.requestPath, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, TestRootPath+test.requestPath, nil)
-			w := httptest.NewRecorder()
-			mockServer.staticFileHttpHandler(w, req)
-			res := w.Result()
-			defer res.Body.Close()
-			_, err := io.ReadAll(res.Body)
-			assert.NoError(t, err)
-			assert.Equal(t, res.StatusCode, http.StatusNotFound)
-		})
-	}
+func TestWhenFileNotFoundSendIndexPageForUiReactRouter(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, TestRootPath+"/namespace-default", nil)
+	w := httptest.NewRecorder()
+	mockServer.staticFileHttpHandler(w, req)
+	res := w.Result()
+	defer res.Body.Close()
+	data, err := io.ReadAll(res.Body)
+	assert.NoError(t, err)
+	assert.Equal(t, res.StatusCode, http.StatusOK)
+	assert.Contains(t, string(data), "<title>index-title</title>")
 }
 
 func TestSlashWillBeRedirectedToRootPath(t *testing.T) {
