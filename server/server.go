@@ -124,6 +124,12 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		requestedURI := path.Clean(r.RequestURI)
 		rootPath := path.Clean("/" + s.Options.RootPath)
+
+		if requestedURI == "/" {
+			http.Redirect(w, r, rootPath+"/", http.StatusFound)
+			return
+		}
+
 		//If the rootPath is not in the prefix 404
 		if !strings.HasPrefix(requestedURI, rootPath) {
 			http.NotFound(w, r)
@@ -253,7 +259,7 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 
 	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
 	if dashboard {
-		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at localhost %d", port)
+		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at http://localhost:%d/%s", port, s.Options.RootPath)
 	}
 
 	log.Info(startupMessage)

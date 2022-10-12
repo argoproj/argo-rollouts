@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
         with:
           ref: ${{ github.event.inputs.tag }}
 
@@ -21,10 +21,10 @@ jobs:
         run: echo "::set-output name=sha::$(git log -1 --format='%H')"
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
         with:
           config-inline: |
             [worker.oci]
@@ -37,7 +37,7 @@ jobs:
 
       - name: Docker meta (controller)
         id: controller-meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
           images: |
             quay.io/argoproj/argo-rollouts
@@ -49,7 +49,7 @@ jobs:
 
       - name: Docker meta (plugin)
         id: plugin-meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
           images: |
             quay.io/argoproj/kubectl-argo-rollouts
@@ -61,7 +61,7 @@ jobs:
 
       # - name: Login to GitHub Container Registry
       #   if: github.event_name != 'pull_request'
-      #   uses: docker/login-action@v1
+      #   uses: docker/login-action@v2
       #   with:
       #     registry: ghcr.io
       #     username: ${{ github.repository_owner }}
@@ -69,14 +69,14 @@ jobs:
 
       - name: Login to Quay.io
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
       - name: Build and push (controller-image)
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -84,7 +84,7 @@ jobs:
           tags: ${{ steps.controller-meta.outputs.tags }}
 
       - name: Build and push (plugin-image)
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         with:
           context: .
           target: kubectl-argo-rollouts
@@ -99,14 +99,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
         with:
           ref: ${{ github.event.inputs.tag }}
 
       - name: Setup Golang
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.19
 
       - name: Generate release artifacts
         run: |
@@ -153,6 +153,7 @@ jobs:
             dist/kubectl-argo-rollouts-linux-amd64
             dist/kubectl-argo-rollouts-linux-arm64
             dist/kubectl-argo-rollouts-darwin-amd64
+            dist/kubectl-argo-rollouts-darwin-arm64
             dist/kubectl-argo-rollouts-windows-amd64
             manifests/dashboard-install.yaml
             manifests/install.yaml

@@ -9,7 +9,7 @@ on:
       - "master"
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.18'
+  GOLANG_VERSION: '1.19'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,11 +34,11 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.1.0
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.47.2
+          version: v1.49.0
           args: --timeout 5m
   build:
     name: Build
@@ -51,10 +51,10 @@ jobs:
         id: go
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3.1.0
 
       - name: Restore go build cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -95,9 +95,9 @@ jobs:
       GOPATH: /home/runner/go
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
@@ -106,15 +106,15 @@ jobs:
         run: |
           mkdir -p ~/go/src/github.com/argoproj
           ln -s $(pwd) ~/go/src/github.com/argoproj/argo-rollouts
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: /home/runner/.cache/go-build
           key: GOCACHE-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: /home/runner/go/pkg/mod
           key: GOMODCACHE-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: /home/runner/go/bin
           key: go-bin-v1-${{ hashFiles('**/go.mod') }}

@@ -35,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
-          go-version: 1.18
-      - uses: actions/checkout@v2
+          go-version: 1.19
+      - uses: actions/checkout@v3.1.0
       - name: Setup k3s
         run: |
           curl -sfL https://get.k3s.io | sh -
@@ -47,7 +47,7 @@ jobs:
           sudo chmod 755 ~/.kube/config
           kubectl version
           kubectl create ns argo-rollouts
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}

@@ -508,6 +508,11 @@ func (c *Controller) assessRunStatus(run *v1alpha1.AnalysisRun, metrics []v1alph
 						runSummary.Successful++
 					}
 				} else {
+					// We don't really care about the failures from dry-runs and hence, if there is no current status
+					// found then we just set it to `AnalysisPhaseSuccessful`
+					if worstStatus == "" {
+						worstStatus = v1alpha1.AnalysisPhaseSuccessful
+					}
 					// Update metric result message
 					if message != "" {
 						result.Message = fmt.Sprintf("Metric assessed %s due to %s", metricStatus, message)

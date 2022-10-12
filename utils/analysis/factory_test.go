@@ -430,7 +430,7 @@ func TestResolveMetricArgs(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("result < %s", arg2), newMetric2.SuccessCondition)
 }
 
-//TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
+// TestResolveMetricArgsWithQuotes verifies that metric arguments with quotes are resolved
 func TestResolveMetricArgsWithQuotes(t *testing.T) {
 	arg := "foo \"bar\" baz"
 
