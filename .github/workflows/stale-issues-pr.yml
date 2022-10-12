@@ -21,4 +21,4 @@ jobs:
           exempt-issue-labels: 'awaiting-approval,work-in-progress'
           stale-pr-label: 'no-pr-activity'
           exempt-pr-labels: 'awaiting-approval,work-in-progress'
-          exempt-all-pr-milestones: true
+          exempt-all-milestones: true
