@@ -29,6 +29,7 @@ func TestLintValidRollout(t *testing.T) {
 		"testdata/valid-nginx-canary.yml",
 		"testdata/valid-nginx-basic-canary.yml",
 		"testdata/valid-istio-v1beta1-mulitiple-virtualsvcs.yml",
+		"testdata/valid-nginx-smi-with-vsvc.yaml",
 	}
 
 	for _, filename := range tests {
@@ -57,10 +58,6 @@ func TestLintInvalidRollout(t *testing.T) {
 		{
 			"testdata/invalid-empty-rollout-vsvc.yml",
 			"Error: spec.selector: Required value: Rollout has missing field '.spec.selector'\n",
-		},
-		{
-			"testdata/invalid-nginx-with-vsvc.yaml",
-			"Error: spec.strategy.steps[1].experiment.templates[0].weight: Invalid value: 20: Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time\n",
 		},
 		{
 			"testdata/invalid.json",
