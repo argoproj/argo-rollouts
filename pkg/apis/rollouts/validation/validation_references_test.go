@@ -644,10 +644,14 @@ func TestValidateVirtualService(t *testing.T) {
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
 
-	t.Run("validate virtualService invalid tcp routes - failure1", func(t *testing.T) {
-		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseInvalidTcpRoutesVsvc)
+	t.Run("validate virtualService invalid tcp routes - failure", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(successCaseTcpVsvc)
 		allErrs := ValidateVirtualService(roWithoutIstio, *vsvc)
-		assert.Empty(t, allErrs)
+		assert.Len(t, allErrs, 1)
+
+		msg := "Rollout object is not configured with Istio traffic routing"
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio"), roWithoutIstio.Name, msg)
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
 }
 

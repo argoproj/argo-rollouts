@@ -276,6 +276,9 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 	if rollout.Spec.Strategy.Canary == nil ||
 		rollout.Spec.Strategy.Canary.TrafficRouting == nil ||
 		rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+
+		msg := "Rollout object is not configured with Istio traffic routing"
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", ), rollout.Name, msg))
 		return allErrs
 	}
 
