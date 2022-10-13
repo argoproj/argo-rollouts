@@ -150,7 +150,7 @@ experiment_reconcile_bucket{name="ex-test",namespace="ex-namespace",le="+Inf"} 1
 experiment_reconcile_sum{name="ex-test",namespace="ex-namespace"} 0.001
 experiment_reconcile_count{name="ex-test",namespace="ex-namespace"} 1`
 
-	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 	ex := &v1alpha1.Experiment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ex-test",
