@@ -1945,8 +1945,11 @@ func TestWriteBackToInformer(t *testing.T) {
 	f.runController(roKey, true, false, c, i, k8sI)
 
 	// Verify the informer was updated with the new unstructured object after reconciliation
-	obj, _, _ := c.rolloutsIndexer.GetByKey(roKey)
-	un := obj.(*unstructured.Unstructured)
+	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
+	assert.NoError(t, err)
+	assert.True(t, exists)
+	un, ok := obj.(*unstructured.Unstructured)
+	assert.True(t, ok)
 	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
 	assert.NotEmpty(t, stableRS)
 	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
