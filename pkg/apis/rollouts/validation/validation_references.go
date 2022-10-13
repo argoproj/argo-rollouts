@@ -273,6 +273,15 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 	allErrs := field.ErrorList{}
 	newObj := obj.DeepCopy()
 
+	if rollout.Spec.Strategy.Canary == nil ||
+		rollout.Spec.Strategy.Canary.TrafficRouting == nil ||
+		rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+
+		msg := "Rollout object is not configured with Istio traffic routing"
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio"), rollout.Name, msg))
+		return allErrs
+	}
+
 	if istioutil.MultipleVirtualServiceConfigured(rollout) {
 		fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualServices", "name")
 		virtualServices = rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
