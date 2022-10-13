@@ -53,11 +53,6 @@ func GetVirtualServiceNamespaceName(vsv string) (string, string) {
 }
 
 func MultipleVirtualServiceConfigured(rollout *v1alpha1.Rollout) bool {
-	if rollout.Spec.Strategy.Canary == nil ||
-		rollout.Spec.Strategy.Canary.TrafficRouting == nil ||
-		rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
-		return false
-	}
 	return rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices != nil
 }
 
