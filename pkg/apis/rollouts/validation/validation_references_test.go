@@ -648,9 +648,7 @@ func TestValidateVirtualService(t *testing.T) {
 		vsvc := unstructured.StrToUnstructuredUnsafe(successCaseTcpVsvc)
 		allErrs := ValidateVirtualService(roWithoutIstio, *vsvc)
 		assert.Len(t, allErrs, 1)
-
-		msg := "Rollout object is not configured with Istio traffic routing"
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio"), roWithoutIstio.Name, msg)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio"), roWithoutIstio.Name, "Rollout object is not configured with Istio traffic routing")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
 }
