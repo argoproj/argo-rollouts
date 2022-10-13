@@ -278,6 +278,11 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 		virtualServices = rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualServices
 	} else {
 		fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name")
+		if rollout.Spec.Strategy.Canary == nil ||
+			rollout.Spec.Strategy.Canary.TrafficRouting == nil ||
+			rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+			return allErrs
+		}
 		virtualServices = []v1alpha1.IstioVirtualService{*rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService}
 	}
 

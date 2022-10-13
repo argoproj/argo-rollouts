@@ -55,6 +55,10 @@ func TestLintInvalidRollout(t *testing.T) {
 			"Error: spec.strategy.maxSurge: Invalid value: intstr.IntOrString{Type:0, IntVal:0, StrVal:\"\"}: MaxSurge and MaxUnavailable both can not be zero\n",
 		},
 		{
+			"testdata/invalid-empty-rollout-vsvc.yml",
+			"Error: spec.selector: Required value: Rollout has missing field '.spec.selector'\n",
+		},
+		{
 			"testdata/invalid.json",
 			"Error: spec.strategy.maxSurge: Invalid value: intstr.IntOrString{Type:0, IntVal:0, StrVal:\"\"}: MaxSurge and MaxUnavailable both can not be zero\n",
 		},
