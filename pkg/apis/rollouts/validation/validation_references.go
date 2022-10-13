@@ -274,8 +274,7 @@ func ValidateVirtualService(rollout *v1alpha1.Rollout, obj unstructured.Unstruct
 	newObj := obj.DeepCopy()
 
 	if rollout.Spec.Strategy.Canary == nil ||
-		rollout.Spec.Strategy.Canary.TrafficRouting == nil ||
-		rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+		rollout.Spec.Strategy.Canary.TrafficRouting == nil {
 		return allErrs
 	}
 
