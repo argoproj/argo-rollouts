@@ -294,6 +294,9 @@ func setIngressManagedAnnotation(rollouts []v1alpha1.Rollout, refResource valida
 func setVirtualServiceManagedAnnotation(ro []v1alpha1.Rollout, refResource validation.ReferencedResources) {
 	for _, rollout := range ro {
 		for i := range refResource.VirtualServices {
+			if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil || rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+				return
+			}
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService != nil && rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == refResource.VirtualServices[i].GetName() {
 				annotations := refResource.VirtualServices[i].GetAnnotations()
 				if annotations == nil {
