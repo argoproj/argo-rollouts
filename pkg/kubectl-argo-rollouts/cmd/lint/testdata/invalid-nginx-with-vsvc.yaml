@@ -1,0 +1,41 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: nginx-rollout
+spec:
+  selector:
+    matchLabels:
+      app: nginx-rollout
+  template:
+    metadata:
+      labels:
+        app: nginx-rollout
+    spec:
+      containers:
+        - name: nginx-rollout
+          image: argoproj/rollouts-demo:blue
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 5m
+  strategy:
+    canary:
+      canaryService: nginx-rollout-canary
+      stableService: nginx-rollout-stable
+      trafficRouting:
+        nginx:
+          stableIngress: nginx-rollout-ingress
+      steps:
+        - setWeight: 10
+        - experiment:
+            templates:
+              - name: experiment-nginx
+                specRef: canary
+                weight: 20

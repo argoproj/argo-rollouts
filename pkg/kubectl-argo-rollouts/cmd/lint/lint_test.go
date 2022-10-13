@@ -59,6 +59,10 @@ func TestLintInvalidRollout(t *testing.T) {
 			"Error: spec.selector: Required value: Rollout has missing field '.spec.selector'\n",
 		},
 		{
+			"testdata/invalid-nginx-with-vsvc.yaml",
+			"Error: spec.strategy.steps[1].experiment.templates[0].weight: Invalid value: 20: Experiment template weight is only available for TrafficRouting with SMI, ALB, and Istio at this time\n",
+		},
+		{
 			"testdata/invalid.json",
 			"Error: spec.strategy.maxSurge: Invalid value: intstr.IntOrString{Type:0, IntVal:0, StrVal:\"\"}: MaxSurge and MaxUnavailable both can not be zero\n",
 		},
