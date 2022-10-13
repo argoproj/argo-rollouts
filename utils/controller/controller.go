@@ -100,14 +100,14 @@ func WatchResourceWithExponentialBackoff(stopCh <-chan struct{}, client dynamic.
 // RunWorker is a long-running function that will continually call the
 // processNextWorkItem function in order to read and process a message on the
 // workqueue.
-func RunWorker(workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(string) error, metricServer *metrics.MetricsServer) {
-	for processNextWorkItem(workqueue, objType, syncHandler, metricServer) {
+func RunWorker(ctx context.Context, workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(context.Context, string) error, metricServer *metrics.MetricsServer) {
+	for processNextWorkItem(ctx, workqueue, objType, syncHandler, metricServer) {
 	}
 }
 
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
-func processNextWorkItem(workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(string) error, metricsServer *metrics.MetricsServer) bool {
+func processNextWorkItem(ctx context.Context, workqueue workqueue.RateLimitingInterface, objType string, syncHandler func(context.Context, string) error, metricsServer *metrics.MetricsServer) bool {
 	obj, shutdown := workqueue.Get()
 
 	if shutdown {
@@ -150,7 +150,7 @@ func processNextWorkItem(workqueue workqueue.RateLimitingInterface, objType stri
 					err = fmt.Errorf("Recovered from Panic")
 				}
 			}()
-			return syncHandler(key)
+			return syncHandler(ctx, key)
 		}
 		// Run the syncHandler, passing it the namespace/name string of the
 		// Rollout resource to be synced.

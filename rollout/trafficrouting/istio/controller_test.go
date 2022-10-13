@@ -182,7 +182,7 @@ spec:
 			enqueueCalled = true
 		}
 
-		err = c.syncDestinationRule(key)
+		err = c.syncDestinationRule(context.Background(), key)
 		assert.NoError(t, err)
 		actions := c.DynamicClientSet.(*dynamicfake.FakeDynamicClient).Actions()
 		assert.Len(t, actions, 0)
@@ -203,7 +203,7 @@ spec:
 			enqueueCalled = true
 		}
 
-		err = c.syncDestinationRule(key)
+		err = c.syncDestinationRule(context.Background(), key)
 		assert.NoError(t, err)
 		actions := c.DynamicClientSet.(*dynamicfake.FakeDynamicClient).Actions()
 		assert.Len(t, actions, 1)
@@ -223,7 +223,7 @@ spec:
 			enqueueCalled = true
 		}
 
-		err = c.syncDestinationRule(key)
+		err = c.syncDestinationRule(context.Background(), key)
 		assert.NoError(t, err)
 		actions := c.DynamicClientSet.(*dynamicfake.FakeDynamicClient).Actions()
 		assert.Len(t, actions, 1)
@@ -238,10 +238,11 @@ func TestRun(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1000 * time.Millisecond)
+		c.destinationRuleWorkqueue.ShutDownWithDrain()
 		cancel()
 	}()
 	go c.DestinationRuleInformer.Run(ctx.Done())
 	go c.VirtualServiceInformer.Run(ctx.Done())
-	c.Run(ctx.Done())
+	c.Run(ctx)
 }
