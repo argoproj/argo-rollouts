@@ -110,6 +110,8 @@ jobs:
 
       - name: Generate release artifacts
         run: |
+          apt-get update
+          apt-get install -y libdigest-sha-perl
           make release-plugins
           make manifests IMAGE_TAG=${{ github.event.inputs.tag }}
 
