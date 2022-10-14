@@ -44,4 +44,4 @@ jobs:
         cli
 
       # Configure that a scope must always be provided.
-      requireScope: true
+      requireScope: false
