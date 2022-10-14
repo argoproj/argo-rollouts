@@ -20,7 +20,7 @@ jobs:
         uses: peter-evans/create-pull-request@v4
         with:
           commit-message: update changelog
-          title: Update Changelog
+          title: "docs: Update Changelog"
           body: Update changelog to reflect release changes
           branch: update-changelog
           base: master
