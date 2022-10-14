@@ -14,5 +14,9 @@ container_id=$(docker create ${rollout_iid})
 for plat in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64; do
     docker cp ${container_id}:/go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts-${plat} ${SRCROOT}/dist
 done
+
 docker rm -v ${container_id}
 rm -f ${rollout_iid_file}
+
+cd ${SRCROOT}/dist/
+shasum -a 256 kubectl-argo-rollouts-* > argo-rollouts-checksums.txt
