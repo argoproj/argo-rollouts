@@ -155,6 +155,7 @@ jobs:
             dist/kubectl-argo-rollouts-darwin-amd64
             dist/kubectl-argo-rollouts-darwin-arm64
             dist/kubectl-argo-rollouts-windows-amd64
+            dist/argo-rollouts-checksums.txt
             manifests/dashboard-install.yaml
             manifests/install.yaml
             manifests/namespace-install.yaml
