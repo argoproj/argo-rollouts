@@ -18,7 +18,7 @@ var (
 	//go:embed static/*
 	static         embed.FS //nolint
 	staticBasePath = "static"
-	IndexHtmlFile  = staticBasePath + "/index.html"
+	indexHtmlFile  = staticBasePath + "/index.html"
 )
 
 const (
@@ -45,15 +45,15 @@ func (s *ArgoRolloutsServer) staticFileHttpHandler(w http.ResponseWriter, r *htt
 
 	//If the rootPath is the requestedURI, serve index.html
 	if requestedURI == rootPath {
-		embedPath = IndexHtmlFile
+		embedPath = indexHtmlFile
 	}
 
 	fileBytes, err := static.ReadFile(embedPath)
 	if err != nil {
 		if fileNotExistsOrIsDirectoryError(err) {
 			// send index.html, because UI will use path based router in React
-			fileBytes, _ = static.ReadFile(IndexHtmlFile)
-			embedPath = IndexHtmlFile
+			fileBytes, _ = static.ReadFile(indexHtmlFile)
+			embedPath = indexHtmlFile
 		} else {
 			log.Errorf("Error reading file %s: %v", embedPath, err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -61,7 +61,7 @@ func (s *ArgoRolloutsServer) staticFileHttpHandler(w http.ResponseWriter, r *htt
 		}
 	}
 
-	if embedPath == IndexHtmlFile {
+	if embedPath == indexHtmlFile {
 		fileBytes = withRootPath(fileBytes, s.Options.RootPath)
 	}
 

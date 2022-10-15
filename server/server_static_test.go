@@ -23,7 +23,7 @@ var (
 func init() {
 	static = staticTestData
 	staticBasePath = "static_test"
-	IndexHtmlFile = staticBasePath + "/index.html"
+	indexHtmlFile = staticBasePath + "/index.html"
 	mockServer = mockArgoRolloutServer()
 }
 
