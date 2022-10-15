@@ -2,13 +2,12 @@
 name: Approve and enable auto-merge for dependabot
 on: pull_request
 
-permissions:
-  pull-requests: write
-  contents: write
-
 jobs:
   review:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
     if: ${{ github.actor == 'dependabot[bot]' && github.repository == 'argoproj/argo-rollouts'}}
     steps:
       - name: Dependabot metadata
