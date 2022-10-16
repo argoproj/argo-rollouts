@@ -98,24 +98,29 @@ jobs:
         with:
           cosign-release: 'v1.13.0'
 
-      - name: Sign Argo Rollout latest controller-image
+      - name: Sign Argo Rollouts latest controller-image
         run: |
           cosign sign --key env://COSIGN_PRIVATE_KEY ${TAGS}
-          # Displays the public key to share.
-          cosign public-key --key env://COSIGN_PRIVATE_KEY
         env:
           TAGS: ${{ steps.controller-meta.outputs.tags }}
           COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
           COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
         if: ${{ github.event_name == 'push' }}
 
-      - name: Sign Argo Rollout latest plugin-image
+      - name: Sign Argo Rollouts latest plugin-image
         run: |
           cosign sign --key env://COSIGN_PRIVATE_KEY ${TAGS}
-          # Displays the public key to share.
-          cosign public-key --key env://COSIGN_PRIVATE_KEY
         env:
           TAGS: ${{ steps.plugin-meta.outputs.tags }}
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+        if: ${{ github.event_name == 'push' }}
+
+      - name: Display the public key to share.
+        run: |
+          # Displays the public key to share
+          cosign public-key --key env://COSIGN_PRIVATE_KEY
+        env:
           COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
           COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
         if: ${{ github.event_name == 'push' }}
