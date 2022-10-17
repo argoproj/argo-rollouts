@@ -58,7 +58,8 @@ routes we also have to set a route precedence with the upstream traffic router. 
 field which is an array the order of the items in the array determine the precedence. This set of routes will also be placed
 in the order specified on top of any other routes defined manually. 
 
-#### WARNING: All routes listed in managed routes will be removed at the end of a rollout or on an abort. Do not put any manually created routes in the list.
+!!! warning
+    All routes listed in managed routes will be removed at the end of a rollout or on an abort. Do not put any manually created routes in the list.
 
 
 Here is an example:
