@@ -21,7 +21,7 @@ jobs:
           days-before-issue-close: 5
           days-before-pr-close: 10
           stale-issue-label: 'no-issue-activity'
-          exempt-issue-labels: 'awaiting-approval,work-in-progress'
+          exempt-issue-labels: 'awaiting-approval,work-in-progress,enhancement'
           stale-pr-label: 'no-pr-activity'
           exempt-pr-labels: 'awaiting-approval,work-in-progress'
           exempt-all-milestones: true
