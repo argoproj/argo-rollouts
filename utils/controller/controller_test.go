@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -38,47 +39,47 @@ func TestProcessNextWorkItemHandlePanic(t *testing.T) {
 	metricServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	}, true)
-	syncHandler := func(key string) error {
+	})
+	syncHandler := func(ctx context.Context, key string) error {
 		panic("Bad big panic :(")
 	}
-	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, metricServer))
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, metricServer))
 }
 
 func TestProcessNextWorkItemShutDownQueue(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
-	syncHandler := func(key string) error {
+	syncHandler := func(ctx context.Context, key string) error {
 		return nil
 	}
 	q.ShutDown()
-	assert.False(t, processNextWorkItem(q, log.RolloutKey, syncHandler, nil))
+	assert.False(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, nil))
 }
 
 func TestProcessNextWorkItemNoTStringKey(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add(1)
-	syncHandler := func(key string) error {
+	syncHandler := func(ctx context.Context, key string) error {
 		return nil
 	}
-	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, nil))
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, nil))
 }
 
 func TestProcessNextWorkItemNoValidKey(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add("invalid.key")
-	syncHandler := func(key string) error {
+	syncHandler := func(ctx context.Context, key string) error {
 		return nil
 	}
-	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, nil))
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, nil))
 }
 
 func TestProcessNextWorkItemNormalSync(t *testing.T) {
 	q := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	q.Add("valid/key")
-	syncHandler := func(key string) error {
+	syncHandler := func(ctx context.Context, key string) error {
 		return nil
 	}
-	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, nil))
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, nil))
 }
 
 func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {
@@ -87,11 +88,11 @@ func TestProcessNextWorkItemSyncHandlerReturnError(t *testing.T) {
 	metricServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	}, true)
-	syncHandler := func(key string) error {
+	})
+	syncHandler := func(ctx context.Context, key string) error {
 		return fmt.Errorf("error message")
 	}
-	assert.True(t, processNextWorkItem(q, log.RolloutKey, syncHandler, metricServer))
+	assert.True(t, processNextWorkItem(context.Background(), q, log.RolloutKey, syncHandler, metricServer))
 }
 
 func TestEnqueue(t *testing.T) {

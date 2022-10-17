@@ -29,6 +29,7 @@ func TestLintValidRollout(t *testing.T) {
 		"testdata/valid-nginx-canary.yml",
 		"testdata/valid-nginx-basic-canary.yml",
 		"testdata/valid-istio-v1beta1-mulitiple-virtualsvcs.yml",
+		"testdata/valid-nginx-smi-with-vsvc.yaml",
 	}
 
 	for _, filename := range tests {
@@ -53,6 +54,10 @@ func TestLintInvalidRollout(t *testing.T) {
 		{
 			"testdata/invalid.yml",
 			"Error: spec.strategy.maxSurge: Invalid value: intstr.IntOrString{Type:0, IntVal:0, StrVal:\"\"}: MaxSurge and MaxUnavailable both can not be zero\n",
+		},
+		{
+			"testdata/invalid-empty-rollout-vsvc.yml",
+			"Error: spec.selector: Required value: Rollout has missing field '.spec.selector'\n",
 		},
 		{
 			"testdata/invalid.json",
