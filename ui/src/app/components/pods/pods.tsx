@@ -115,7 +115,7 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                         <div style={{marginLeft: 'auto'}}>
                             <Ticker>
                                 {(now) => {
-                                    const time = moment(props.rs.scaleDownDeadline).diff(now, 'second');
+                                    const time = moment(props.rs.scaleDownDeadline).diff(now.toDate(), 'second');
                                     return time <= 0 ? null : (
                                         <Tooltip
                                             content={
