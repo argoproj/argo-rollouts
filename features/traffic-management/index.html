@@ -763,13 +763,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#warning-all-routes-listed-in-managed-routes-will-be-removed-at-the-end-of-a-rollout-or-on-an-abort-do-not-put-any-manually-created-routes-in-the-list" class="md-nav__link">
-    WARNING: All routes listed in managed routes will be removed at the end of a rollout or on an abort. Do not put any manually created routes in the list.
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2202,13 +2195,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#warning-all-routes-listed-in-managed-routes-will-be-removed-at-the-end-of-a-rollout-or-on-an-abort-do-not-put-any-manually-created-routes-in-the-list" class="md-nav__link">
-    WARNING: All routes listed in managed routes will be removed at the end of a rollout or on an abort. Do not put any manually created routes in the list.
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2319,7 +2305,10 @@ controlling the traffic weight to the canary. Two such routing rules are header 
 routes we also have to set a route precedence with the upstream traffic router. We do this using the <code>spec.strategy.canary.trafficRouting.managedRoutes</code>
 field which is an array the order of the items in the array determine the precedence. This set of routes will also be placed
 in the order specified on top of any other routes defined manually. </p>
-<h4 id="warning-all-routes-listed-in-managed-routes-will-be-removed-at-the-end-of-a-rollout-or-on-an-abort-do-not-put-any-manually-created-routes-in-the-list">WARNING: All routes listed in managed routes will be removed at the end of a rollout or on an abort. Do not put any manually created routes in the list.<a class="headerlink" href="#warning-all-routes-listed-in-managed-routes-will-be-removed-at-the-end-of-a-rollout-or-on-an-abort-do-not-put-any-manually-created-routes-in-the-list" title="Permanent link">&para;</a></h4>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>All routes listed in managed routes will be removed at the end of a rollout or on an abort. Do not put any manually created routes in the list.</p>
+</div>
 <p>Here is an example:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
