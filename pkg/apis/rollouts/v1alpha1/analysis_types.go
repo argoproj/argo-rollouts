@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"time"
 
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
@@ -477,7 +478,7 @@ type WebMetric struct {
 	// +patchStrategy=merge
 	// Headers are optional HTTP headers to use in the request
 	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,3,rep,name=headers"`
-	// Body is the body of the we metric (must be POST/PUT)
+	// Body is the body of the web metric (must be POST/PUT)
 	Body string `json:"body,omitempty" protobuf:"bytes,4,opt,name=body"`
 	// TimeoutSeconds is the timeout for the request in seconds (default: 10)
 	TimeoutSeconds int64 `json:"timeoutSeconds,omitempty" protobuf:"varint,5,opt,name=timeoutSeconds"`
@@ -485,6 +486,11 @@ type WebMetric struct {
 	JSONPath string `json:"jsonPath,omitempty" protobuf:"bytes,6,opt,name=jsonPath"`
 	// Insecure skips host TLS verification
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,7,opt,name=insecure"`
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// JSONBody is the body of the web metric in a json format (method must be POST/PUT)
+	JSONBody json.RawMessage `json:"jsonBody,omitempty" protobuf:"bytes,8,opt,name=jsonBody,casttype=encoding/json.RawMessage"`
 }
 
 // WebMetricMethod is the available HTTP methods
