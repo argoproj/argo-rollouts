@@ -1,6 +1,7 @@
 package webmetric
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -23,7 +24,9 @@ import (
 
 const (
 	// ProviderType indicates the provider is a web metric
-	ProviderType = "Web"
+	ProviderType         = "Web"
+	ContentTypeKey       = "Content-Type"
+	ContentTypeJsonValue = "application/json"
 )
 
 // Provider contains all the required components to run a WebMetric query
@@ -59,14 +62,25 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	url := metric.Provider.Web.URL
 
+	stringBody := metric.Provider.Web.Body
+	jsonBody := metric.Provider.Web.JSONBody
+
 	var body io.Reader
 
-	if metric.Provider.Web.Body != "" {
-		if method == v1alpha1.WebMetricMethodGet {
-			return metricutil.MarkMeasurementError(measurement, fmt.Errorf("Body can only be used with POST or PUT WebMetric Method types"))
-		}
+	if stringBody != "" && jsonBody != nil {
+		return metricutil.MarkMeasurementError(measurement, fmt.Errorf("use either Body or JSONBody; both cannot exists for WebMetric payload"))
+	} else if (stringBody != "" || jsonBody != nil) && method == v1alpha1.WebMetricMethodGet {
+		return metricutil.MarkMeasurementError(measurement, fmt.Errorf("Body/JSONBody can only be used with POST or PUT WebMetric Method types"))
+	}
 
-		body = strings.NewReader(metric.Provider.Web.Body)
+	if stringBody != "" {
+		body = strings.NewReader(stringBody)
+	} else if jsonBody != nil {
+		bodyBytes, err := jsonBody.MarshalJSON()
+		if err != nil {
+			return metricutil.MarkMeasurementError(measurement, err)
+		}
+		body = bytes.NewBuffer(bodyBytes)
 	}
 
 	// Create request
@@ -79,6 +93,9 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	for _, header := range metric.Provider.Web.Headers {
 		request.Header.Set(header.Key, header.Value)
+	}
+	if jsonBody != nil {
+		request.Header.Set(ContentTypeKey, ContentTypeJsonValue)
 	}
 
 	// Send Request
