@@ -20,10 +20,10 @@ require (
 	github.com/influxdata/influxdb-client-go/v2 v2.11.0
 	github.com/juju/ansiterm v1.0.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/newrelic/newrelic-client-go v1.0.0
+	github.com/newrelic/newrelic-client-go v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.2-0.20220620141757-4ad265f1b4ee
-	github.com/prometheus/client_model v0.2.0
+	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/common v0.37.0
 	github.com/servicemeshinterface/smi-sdk-go v0.5.0
 	github.com/sirupsen/logrus v1.9.0
@@ -32,9 +32,9 @@ require (
 	github.com/spf13/cobra v1.6.0
 	github.com/stretchr/testify v1.8.0
 	github.com/tj/assert v0.0.3
-	github.com/valyala/fasttemplate v1.2.1
+	github.com/valyala/fasttemplate v1.2.2
 	google.golang.org/genproto v0.0.0-20220712132514-bdd2acd4974d
-	google.golang.org/grpc v1.50.0
+	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.24.2
