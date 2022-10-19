@@ -32,7 +32,7 @@ require (
 	github.com/spf13/cobra v1.6.0
 	github.com/stretchr/testify v1.8.0
 	github.com/tj/assert v0.0.3
-	github.com/valyala/fasttemplate v1.2.1
+	github.com/valyala/fasttemplate v1.2.2
 	google.golang.org/genproto v0.0.0-20220712132514-bdd2acd4974d
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
