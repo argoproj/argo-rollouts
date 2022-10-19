@@ -5012,7 +5012,7 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 					},
 					"body": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Body is the body of the we metric (must be POST/PUT)",
+							Description: "Body is the body of the web metric (must be POST/PUT)",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5036,6 +5036,13 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 							Description: "Insecure skips host TLS verification",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+					"jsonBody": {
+						SchemaProps: spec.SchemaProps{
+							Description: "JSONBody is the body of the web metric in a json format (method must be POST/PUT)",
+							Type:        []string{"string"},
+							Format:      "byte",
 						},
 					},
 				},

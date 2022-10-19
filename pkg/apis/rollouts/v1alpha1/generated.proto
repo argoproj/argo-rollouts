@@ -1701,7 +1701,7 @@ message WebMetric {
   // Headers are optional HTTP headers to use in the request
   repeated WebMetricHeader headers = 3;
 
-  // Body is the body of the we metric (must be POST/PUT)
+  // Body is the body of the web metric (must be POST/PUT)
   optional string body = 4;
 
   // TimeoutSeconds is the timeout for the request in seconds (default: 10)
@@ -1712,6 +1712,12 @@ message WebMetric {
 
   // Insecure skips host TLS verification
   optional bool insecure = 7;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // JSONBody is the body of the web metric in a json format (method must be POST/PUT)
+  optional bytes jsonBody = 8;
 }
 
 message WebMetricHeader {
