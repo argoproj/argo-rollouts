@@ -2168,7 +2168,7 @@ was greater than <code>0.90</code></p>
 to convert a result value to a numeric type so that mathematical comparison operators can be used
 (e.g. &gt;, &lt;, &gt;=, &lt;=).</p>
 <h3 id="optional-web-methods">Optional web methods<a class="headerlink" href="#optional-web-methods" title="Permanent link">&para;</a></h3>
-<p>It is possible to use a POST or PUT requests, by specifying the <code>method</code> and <code>body</code> fields</p>
+<p>It is possible to use a POST or PUT requests, by specifying the <code>method</code> and either <code>body</code> or <code>jsonBody</code> fields</p>
 <p><div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">metrics</span><span class="p">:</span><span class="w"></span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">webmetric</span><span class="w"></span>
 <span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result == true</span><span class="w"></span>
@@ -2182,12 +2182,33 @@ to convert a result value to a numeric type so that mathematical comparison oper
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span><span class="w"></span>
 <span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Content-Type</span><span class="w"> </span><span class="c1"># if body is a json, it is recommended to set the Content-Type</span><span class="w"></span>
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;application/json&quot;</span><span class="w"></span>
-<span class="w">        </span><span class="nt">body</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{\&quot;key\&quot;:</span><span class="nv"> </span><span class="s">\&quot;string</span><span class="nv"> </span><span class="s">value\&quot;}&quot;</span><span class="w"></span>
+<span class="w">        </span><span class="nt">body</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;string</span><span class="nv"> </span><span class="s">value&quot;</span><span class="w"></span>
 <span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data.ok}&quot;</span><span class="w"></span>
 </code></pre></div>
   !!! tip
-      In order to send in JSON, you have to encode it yourself, and send the correct Content-Type as well.
-      Setting a <code>body</code> field for a <code>GET</code> request will result in an error.</p>
+      In order to send in JSON, you can use jsonBody and Content-Type will be automatically set as json.
+      Setting a <code>body</code> or <code>jsonBody</code> field for a <code>GET</code> request will result in an error.
+      Set either <code>body</code> or <code>jsonBody</code> and setting both will result in an error.</p>
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">metrics</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">webmetric</span><span class="w"></span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result == true</span><span class="w"></span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="nt">web</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">POST</span><span class="w"> </span><span class="c1"># valid values are GET|POST|PUT, defaults to GET</span><span class="w"></span>
+<span class="w">        </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;http://my-server.com/api/v1/measurement?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span><span class="w"></span>
+<span class="w">        </span><span class="nt">timeoutSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w"> </span><span class="c1"># defaults to 10 seconds</span><span class="w"></span>
+<span class="w">        </span><span class="nt">headers</span><span class="p">:</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Authorization</span><span class="w"></span>
+<span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span><span class="w"></span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Content-Type</span><span class="w"> </span><span class="c1"># if body is a json, it is recommended to set the Content-Type</span><span class="w"></span>
+<span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;application/json&quot;</span><span class="w"></span>
+<span class="w">        </span><span class="nt">jsonBody</span><span class="p">:</span><span class="w"> </span><span class="c1"># If using jsonBody Content-Type header will be automatically set to json</span><span class="w"></span>
+<span class="w">          </span><span class="nt">key1</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">value_1</span><span class="w"></span>
+<span class="w">          </span><span class="nt">key2</span><span class="p">:</span><span class="w"></span>
+<span class="w">            </span><span class="nt">nestedObj</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nested value</span><span class="w"></span>
+<span class="w">            </span><span class="nt">key3</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span><span class="w"></span>
+<span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data.ok}&quot;</span><span class="w"></span>
+</code></pre></div>
 
 
   
