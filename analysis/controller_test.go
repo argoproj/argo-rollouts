@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -97,7 +98,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	}, true)
+	})
 
 	c := NewController(ControllerConfig{
 		KubeClientSet:        f.kubeclient,
@@ -144,7 +145,7 @@ func (f *fixture) run(analysisRunName string) {
 	f.runController(analysisRunName, true, false, c, i, k8sI)
 }
 
-func (f *fixture) runExpectError(analysisRunName string, startInformers bool) {
+func (f *fixture) runExpectError(analysisRunName string, startInformers bool) { //nolint:unused
 	c, i, k8sI := f.newController(noResyncPeriodFunc)
 	f.runController(analysisRunName, startInformers, true, c, i, k8sI)
 }
@@ -159,7 +160,7 @@ func (f *fixture) runController(analysisRunName string, startInformers bool, exp
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.analysisRunSynced))
 	}
 
-	err := c.syncHandler(analysisRunName)
+	err := c.syncHandler(context.Background(), analysisRunName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing experiment: %v", err)
 	} else if expectError && err == nil {
@@ -238,14 +239,14 @@ func filterInformerActions(actions []core.Action) []core.Action {
 	return ret
 }
 
-func (f *fixture) expectUpdateAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int {
+func (f *fixture) expectUpdateAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int { //nolint:unused
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "analysisrun"}, analysisRun.Namespace, analysisRun)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
 	return len
 }
 
-func (f *fixture) getUpdatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
+func (f *fixture) getUpdatedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nolint:unused
 	action := filterInformerActions(f.client.Actions())[index]
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
@@ -259,7 +260,7 @@ func (f *fixture) getUpdatedAnalysisRun(index int) *v1alpha1.AnalysisRun {
 	return ar
 }
 
-func (f *fixture) expectPatchAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int {
+func (f *fixture) expectPatchAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int { //nolint:unused
 	analysisRunSchema := schema.GroupVersionResource{
 		Resource: "analysisruns",
 		Version:  "v1alpha1",
@@ -269,7 +270,7 @@ func (f *fixture) expectPatchAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun
 	return len
 }
 
-func (f *fixture) getPatchedAnalysisRun(index int) v1alpha1.AnalysisRun {
+func (f *fixture) getPatchedAnalysisRun(index int) v1alpha1.AnalysisRun { //nolint:unused
 	action := filterInformerActions(f.client.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
@@ -313,4 +314,20 @@ func TestNoReconcileForAnalysisRunWithDeletionTimestamp(t *testing.T) {
 	f.objects = append(f.objects, ar)
 
 	f.run(getKey(ar, t))
+}
+
+func TestRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.analysisRunWorkQueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }

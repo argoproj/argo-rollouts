@@ -47,6 +47,8 @@ rules:
     verbs:
       - get
       - update
+      - list
+      - watch
   - apiGroups:
       - apps
     resources:

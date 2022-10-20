@@ -1,7 +1,11 @@
 package analysis
 
 import (
+	"context"
+	"sync"
 	"time"
+
+	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -117,26 +121,38 @@ func NewController(cfg ControllerConfig) *Controller {
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueAnalysis(new)
 		},
-		DeleteFunc: controller.enqueueAnalysis,
+		DeleteFunc: func(obj interface{}) {
+			controller.enqueueAnalysis(obj)
+			if ar := unstructuredutil.ObjectToAnalysisRun(obj); ar != nil {
+				logCtx := logutil.WithAnalysisRun(ar)
+				logCtx.Info("analysis run deleted")
+				controller.metricsServer.Remove(ar.Namespace, ar.Name, logutil.AnalysisRunKey)
+			}
+		},
 	})
 	return controller
 }
 
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	log.Info("Starting analysis workers")
+	wg := sync.WaitGroup{}
 	for i := 0; i < threadiness; i++ {
+		wg.Add(1)
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.analysisRunWorkQueue, logutil.AnalysisRunKey, c.syncHandler, c.metricsServer)
-		}, time.Second, stopCh)
+			controllerutil.RunWorker(ctx, c.analysisRunWorkQueue, logutil.AnalysisRunKey, c.syncHandler, c.metricsServer)
+			log.Debug("Analysis worker has stopped")
+			wg.Done()
+		}, time.Second, ctx.Done())
 	}
 	log.Infof("Started %d analysis workers", threadiness)
-	<-stopCh
-	log.Info("Shutting down analysis workers")
+	<-ctx.Done()
+	wg.Wait()
+	log.Info("All analysis workers have stopped")
 
 	return nil
 }
 
-func (c *Controller) syncHandler(key string) error {
+func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	startTime := timeutil.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {

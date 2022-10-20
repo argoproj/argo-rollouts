@@ -2,6 +2,7 @@ package webmetric
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +24,7 @@ func TestRunSuite(t *testing.T) {
 		expectedValue        string
 		expectedPhase        v1alpha1.AnalysisPhase
 		expectedErrorMessage string
+		expectedJsonBody     string
 	}{
 		// When_noJSONPathSpecified_And_MatchesConditions_Then_Succeed
 		{
@@ -574,6 +576,81 @@ func TestRunSuite(t *testing.T) {
 			expectedValue: "Body can only be used with POST or PUT WebMetric Method types",
 			expectedPhase: v1alpha1.AnalysisPhaseError,
 		},
+		// When_methodPOST_Then_server_gets_jsonBody_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Method: v1alpha1.WebMetricMethodPost,
+						// URL:      server.URL,
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						JSONBody: json.RawMessage(`{"key1": "value1", "key2": "value2"}`),
+					},
+				},
+			},
+			expectedMethod:   "POST",
+			expectedJsonBody: `{"key1": "value1", "key2": "value2"}`,
+			expectedValue:    `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:    v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_methodPUT_Then_server_gets_jsonBody_Then_Succeed
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"a": 1, "b": true, "c": [1, 2, 3, 4], "d": null}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						Method: v1alpha1.WebMetricMethodPut,
+						// URL:      server.URL,
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}, {Key: ContentTypeKey, Value: ContentTypeJsonValue}},
+						JSONBody: json.RawMessage(`{"key1": "value1", "key2": { "key3" : "value3"}}`),
+					},
+				},
+			},
+			expectedMethod:   "PUT",
+			expectedJsonBody: `{"key1": "value1", "key2": { "key3" : "value3"}}`,
+			expectedValue:    `{"a":1,"b":true,"c":[1,2,3,4],"d":null}`,
+			expectedPhase:    v1alpha1.AnalysisPhaseSuccessful,
+		},
+		// When_sendingJsonBodyWithGet_Then_Failure
+		{
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						JSONBody: json.RawMessage(`{"key1": "value1", "key2": { "key3" : "value3"}}`),
+					},
+				},
+			},
+			expectedValue: "Body/JSONBody can only be used with POST or PUT WebMetric Method types",
+			expectedPhase: v1alpha1.AnalysisPhaseError,
+		},
+		// When_sending_BothBodyAndJsonBodyWithGet_Then_Failure
+		{
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result.a > 0 && result.b && all(result.c, {# < 5}) && result.d == nil",
+				Provider: v1alpha1.MetricProvider{
+					Web: &v1alpha1.WebMetric{
+						// URL:      server.URL,
+						Headers:  []v1alpha1.WebMetricHeader{{Key: "key", Value: "value"}},
+						JSONBody: json.RawMessage(`{"key1": "value1", "key2": { "key3" : "value3"}}`),
+						Body:     "test body",
+					},
+				},
+			},
+			expectedValue: "use either Body or JSONBody; both cannot exists for WebMetric payload",
+			expectedPhase: v1alpha1.AnalysisPhaseError,
+		},
 	}
 
 	// Run
@@ -589,6 +666,12 @@ func TestRunSuite(t *testing.T) {
 				buf := new(bytes.Buffer)
 				buf.ReadFrom(req.Body)
 				assert.Equal(t, test.expectedBody, buf.String())
+			}
+
+			if test.expectedJsonBody != "" {
+				bodyBytes, _ := io.ReadAll(req.Body)
+				assert.Equal(t, test.expectedJsonBody, string(bodyBytes))
+				assert.Equal(t, ContentTypeJsonValue, req.Header.Get(ContentTypeKey))
 			}
 
 			if test.webServerStatus < 200 || test.webServerStatus >= 300 {

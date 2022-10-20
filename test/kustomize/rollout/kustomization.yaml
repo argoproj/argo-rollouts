@@ -43,7 +43,7 @@ images:
   newTag: v2
 
 openapi:
-  path: ../../../docs/features/kustomize/rollout_cr_schema.json
+  path: https://raw.githubusercontent.com/argoproj/argo-schema-generator/main/schema/argo_all_k8s_kustomize_schema.json
 
 patchesStrategicMerge:
 - |-

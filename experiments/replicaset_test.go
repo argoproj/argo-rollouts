@@ -129,7 +129,8 @@ func TestNameCollision(t *testing.T) {
 }
 
 // TestNameCollisionWithEquivalentPodTemplateAndControllerUID verifies we consider the annotations
-//  of the replicaset when encountering name collisions
+//
+//	of the replicaset when encountering name collisions
 func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")

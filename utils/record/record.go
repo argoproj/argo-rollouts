@@ -2,6 +2,8 @@ package record
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/json"
 	"regexp"
 	"strings"
@@ -266,26 +268,50 @@ func (e *EventRecorderAdapter) sendNotifications(object runtime.Object, opts Eve
 		return nil
 	}
 
-	// Creates config for notifications for built-in triggers
-	triggerActions, ok := cfg.Triggers[trigger]
-	if !ok {
-		logCtx.Debugf("No configured template for trigger: %s", trigger)
-		return nil
-	}
-
 	objMap, err := toObjectMap(object)
 	if err != nil {
 		return err
 	}
 
-	for _, dest := range destinations {
-		err = notificationsAPI.Send(objMap, triggerActions[0].Send, dest)
+	emptyCondition := hash("")
+
+	for _, destination := range destinations {
+		res, err := notificationsAPI.RunTrigger(trigger, objMap)
 		if err != nil {
-			log.Errorf("notification error: %s", err.Error())
+			log.Errorf("Failed to execute condition of trigger %s: %v", trigger, err)
 			return err
 		}
+		log.Infof("Trigger %s result: %v", trigger, res)
+
+		for _, c := range res {
+			log.Infof("Res When Condition hash: %s, Templates: %s", c.Key, c.Templates)
+			s := strings.Split(c.Key, ".")[1]
+			if s != emptyCondition && c.Triggered == true {
+				err = notificationsAPI.Send(objMap, c.Templates, destination)
+				if err != nil {
+					log.Errorf("notification error: %s", err.Error())
+					return err
+				}
+			} else if s == emptyCondition {
+				err = notificationsAPI.Send(objMap, c.Templates, destination)
+				if err != nil {
+					log.Errorf("notification error: %s", err.Error())
+					return err
+				}
+			}
+		}
 	}
+
 	return nil
+}
+
+// This function is copied over from notification engine to make sure we honour emptyCondition
+// emptyConditions today are not handled well in notification engine.
+// TODO: update notification engine to handle emptyConditions and remove this function and its usage
+func hash(input string) string {
+	h := sha1.New()
+	_, _ = h.Write([]byte(input))
+	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
 // toObjectMap converts an object to a map for the purposes of sending to the notification engine

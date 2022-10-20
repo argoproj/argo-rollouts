@@ -101,7 +101,9 @@ func albActionAnnotation(stable string) string {
 }
 
 func ingress(name, stableSvc, canarySvc, actionService string, port, weight int32, managedBy string, includeStickyConfig bool) *extensionsv1beta1.Ingress {
-	managedByValue := fmt.Sprintf("%s:%s", managedBy, albActionAnnotation(actionService))
+	managedByValue := ingressutil.ManagedALBAnnotations{
+		managedBy: ingressutil.ManagedALBAnnotation{albActionAnnotation(actionService)},
+	}
 	action := fmt.Sprintf(actionTemplate, canarySvc, port, weight, stableSvc, port, 100-weight)
 	if includeStickyConfig {
 		action = fmt.Sprintf(actionTemplateWithStickyConfig, canarySvc, port, weight, stableSvc, port, 100-weight)
@@ -117,8 +119,8 @@ func ingress(name, stableSvc, canarySvc, actionService string, port, weight int3
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
 			Annotations: map[string]string{
-				albActionAnnotation(actionService):   string(jsonutil.MustMarshal(a)),
-				ingressutil.ManagedActionsAnnotation: managedByValue,
+				albActionAnnotation(actionService): string(jsonutil.MustMarshal(a)),
+				ingressutil.ManagedAnnotations:     managedByValue.String(),
 			},
 		},
 		Spec: extensionsv1beta1.IngressSpec{
@@ -154,6 +156,13 @@ func TestType(t *testing.T) {
 	})
 	assert.Equal(t, Type, r.Type())
 	assert.NoError(t, err)
+}
+
+func TestAddManagedAnnotation(t *testing.T) {
+	annotations, _ := modifyManagedAnnotation(map[string]string{}, "argo-rollouts", true, "alb.ingress.kubernetes.io/actions.action1", "alb.ingress.kubernetes.io/conditions.action1")
+	assert.Equal(t, annotations[ingressutil.ManagedAnnotations], "{\"argo-rollouts\":[\"alb.ingress.kubernetes.io/actions.action1\",\"alb.ingress.kubernetes.io/conditions.action1\"]}")
+	_, err := modifyManagedAnnotation(map[string]string{ingressutil.ManagedAnnotations: "invalid, non-json value"}, "some-rollout", false)
+	assert.Error(t, err)
 }
 
 func TestIngressNotFound(t *testing.T) {
@@ -225,7 +234,7 @@ func TestNoChanges(t *testing.T) {
 func TestErrorOnInvalidManagedBy(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
-	i.Annotations[ingressutil.ManagedActionsAnnotation] = "test"
+	i.Annotations[ingressutil.ManagedAnnotations] = "test"
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
@@ -463,6 +472,10 @@ func (f *fakeAWSClient) getAlbStatus() *v1alpha1.ALBStatus {
 func TestVerifyWeight(t *testing.T) {
 	newFakeReconciler := func(status *v1alpha1.RolloutStatus) (*Reconciler, *fakeAWSClient) {
 		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+		ro.Status.StableRS = "a45fe23"
+		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetWeight: pointer.Int32Ptr(10),
+		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
 			Ingress: []corev1.LoadBalancerIngress{
@@ -501,6 +514,29 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
+	}
+
+	// VeryifyWeight not needed
+	{
+		var status v1alpha1.RolloutStatus
+		r, _ := newFakeReconciler(&status)
+		status.StableRS = ""
+		r.cfg.Rollout.Status.StableRS = ""
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.False(t, *weightVerified)
+	}
+
+	// VeryifyWeight that we do not need to verify weight and status.ALB is already set
+	{
+		var status v1alpha1.RolloutStatus
+		r, _ := newFakeReconciler(&status)
+		r.cfg.Rollout.Status.ALB = &v1alpha1.ALBStatus{}
+		r.cfg.Rollout.Status.CurrentStepIndex = nil
+		r.cfg.Rollout.Spec.Strategy.Canary.Steps = nil
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.Nil(t, weightVerified)
 	}
 
 	// LoadBalancer found, not at weight
@@ -642,6 +678,10 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 	}
 	newFakeReconciler := func(status *v1alpha1.RolloutStatus) (*Reconciler, *fakeAWSClient) {
 		ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+		ro.Status.StableRS = "a45fe23"
+		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetWeight: pointer.Int32Ptr(10),
+		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
 
@@ -828,4 +868,148 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		assert.True(t, *weightVerified)
 		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
+}
+
+func TestSetHeaderRoute(t *testing.T) {
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	client := fake.NewSimpleClientset(i)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+		Match: []v1alpha1.HeaderRoutingMatch{{
+			HeaderName: "Agent",
+			HeaderValue: &v1alpha1.StringMatch{
+				Prefix: "Chrome",
+			},
+		}},
+	})
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+
+	// no managed routes, no changes expected
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+}
+
+func TestRemoveManagedRoutes(t *testing.T) {
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	managedByValue := ingressutil.ManagedALBAnnotations{
+		ro.Name: ingressutil.ManagedALBAnnotation{
+			"alb.ingress.kubernetes.io/actions.action1",
+			"alb.ingress.kubernetes.io/actions.header-route",
+			"alb.ingress.kubernetes.io/conditions.header-route",
+		},
+	}
+	i.Annotations["alb.ingress.kubernetes.io/actions.header-route"] = "{}"
+	i.Annotations["alb.ingress.kubernetes.io/conditions.header-route"] = "{}"
+	i.Annotations[ingressutil.ManagedAnnotations] = managedByValue.String()
+	i.Spec.Rules = []extensionsv1beta1.IngressRule{
+		{
+			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+					Paths: []extensionsv1beta1.HTTPIngressPath{
+						{
+							Backend: extensionsv1beta1.IngressBackend{
+								ServiceName: "action1",
+								ServicePort: intstr.Parse("use-annotation"),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+					Paths: []extensionsv1beta1.HTTPIngressPath{
+						{
+							Backend: extensionsv1beta1.IngressBackend{
+								ServiceName: "header-route",
+								ServicePort: intstr.Parse("use-annotation"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := fake.NewSimpleClientset(i)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+	})
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 2)
+}
+
+func TestSetMirrorRoute(t *testing.T) {
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
+	client := fake.NewSimpleClientset()
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+	err = r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+		Name: "mirror-route",
+		Match: []v1alpha1.RouteMatch{{
+			Method: &v1alpha1.StringMatch{Exact: "GET"},
+		}},
+	})
+	assert.Nil(t, err)
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+
+	assert.Len(t, client.Actions(), 0)
 }

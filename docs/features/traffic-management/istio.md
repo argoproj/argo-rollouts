@@ -245,6 +245,61 @@ During the lifecycle of a Rollout using Istio DestinationRule, Argo Rollouts wil
 * modify the DestinationRule `spec.subsets[].labels` to contain the `rollouts-pod-template-hash`
   label of the canary and stable ReplicaSets
 
+## TCP Traffic Splitting
+
+!!! important
+
+    Available since v1.2.2
+
+Support for splitting TCP traffic was introduced and requires the Rollout to define the following fields:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-example
+spec:
+  ...
+  strategy:
+    canary:
+      canaryService: canary-svc  # required
+      stableService: stable-svc  # required
+      trafficRouting:
+        istio:
+          virtualService:
+            name: rollout-vsvc   # required
+            tcpRoutes:
+              # Below fields are optional but if defined, they should match exactly with at least one of the TCP route match rules in your VirtualService
+              - port: 3000 # Only required if you want to match any rule in your VirtualService which contains this port
+      steps:
+      - setWeight: 5
+      - pause:
+          duration: 10m
+```
+
+The VirtualService must contain a TCP route with a matching port referenced in the Rollout
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: rollout-vsvc
+spec:
+  gateways:
+    - istio-rollout-gateway
+  hosts:
+    - istio-rollout.dev.argoproj.io
+  tcp:
+    - match:
+        - port: 3000
+      route:
+        - destination:
+            host: stable-svc # referenced in canary.stableService
+          weight: 100
+        - destination:
+            host: canary-svc # referenced in canary.canaryService
+          weight: 0
+```
 
 ## Multicluster Setup
 If you have [Istio multicluster setup](https://istio.io/latest/docs/setup/install/multicluster/)
