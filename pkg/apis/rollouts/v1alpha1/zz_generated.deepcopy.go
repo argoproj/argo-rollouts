@@ -22,6 +22,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	json "encoding/json"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
@@ -2697,6 +2699,11 @@ func (in *WebMetric) DeepCopyInto(out *WebMetric) {
 	if in.Headers != nil {
 		in, out := &in.Headers, &out.Headers
 		*out = make([]WebMetricHeader, len(*in))
+		copy(*out, *in)
+	}
+	if in.JSONBody != nil {
+		in, out := &in.JSONBody, &out.JSONBody
+		*out = make(json.RawMessage, len(*in))
 		copy(*out, *in)
 	}
 	return

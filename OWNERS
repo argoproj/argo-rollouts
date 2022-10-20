@@ -8,6 +8,7 @@ approvers:
 - jessesuen
 - khhirani
 - leoluz
+- zachaller
 
 reviewers:
 - agrawroh
@@ -15,4 +16,3 @@ reviewers:
 - harikrongali
 - kostis-codefresh
 - perenesenko
-- zachaller
