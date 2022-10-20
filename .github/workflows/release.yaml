@@ -152,21 +152,24 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@main
         with:
-          cosign-release: 'v1.13.0'
+          cosign-release: 'v1.13.1'
 
-      - name: Sign Argo Rollouts controller-image
-        run: |
-          cosign sign --key env://COSIGN_PRIVATE_KEY ${TAGS}
-        env:
-          TAGS: ${{ steps.controller-meta.outputs.tags }}
-          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
-          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+      - name: Install crane to get digest of image
+        uses: imjasonh/setup-crane@v0.1
 
-      - name: Sign Argo Rollouts plugin-image
+      - name: Get digest of controller-image
         run: |
-          cosign sign --key env://COSIGN_PRIVATE_KEY ${TAGS}
+          echo "CONTROLLER_DIGEST=$(crane digest ${{ steps.controller-meta.outputs.tags }})" >> $GITHUB_ENV
+
+      - name: Get digest of plugin-image
+        run: |
+          echo "PLUGIN_DIGEST=$(crane digest ${{ steps.plugin-meta.outputs.tags }})" >> $GITHUB_ENV
+
+      - name: Sign Argo Rollouts Images
+        run: |
+          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argo-rollouts@${{ env.CONTROLLER_DIGEST }}
+          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/kubectl-argo-rollouts@${{ env.PLUGIN_DIGEST }}
         env:
-          TAGS: ${{ steps.plugin-meta.outputs.tags }}
           COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
           COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
 
