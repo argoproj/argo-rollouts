@@ -114,6 +114,7 @@ jobs:
           then
             echo "CONTROLLER_DIGEST=$(crane digest ${{ steps.controller-meta.outputs.tags }})" >> $GITHUB_ENV
           fi
+        if: github.event_name != 'pull_request'
 
       - name: Get digest of plugin-image
         run: |
@@ -125,6 +126,7 @@ jobs:
           then
             echo "PLUGIN_DIGEST=$(crane digest ${{ steps.plugin-meta.outputs.tags }})" >> $GITHUB_ENV
           fi
+        if: github.event_name != 'pull_request'
 
       - name: Sign Argo Rollouts Images
         run: |
