@@ -111,6 +111,7 @@ jobs:
             echo "CONTROLLER_DIGEST=$(crane digest quay.io/argoproj/argo-rollouts:latest)" >> $GITHUB_ENV
           fi
           if [[ "${{ github.ref != 'refs/heads/master' }}" ]]
+          then
             echo "CONTROLLER_DIGEST=$(crane digest ${{ steps.controller-meta.outputs.tags }})" >> $GITHUB_ENV
           fi
 
@@ -121,6 +122,7 @@ jobs:
             echo "PLUGIN_DIGEST=$(crane digest quay.io/argoproj/kubectl-argo-rollouts:latest)" >> $GITHUB_ENV
           fi
           if [[ "${{ github.ref != 'refs/heads/master' }}" ]]
+          then
             echo "PLUGIN_DIGEST=$(crane digest ${{ steps.plugin-meta.outputs.tags }})" >> $GITHUB_ENV
           fi
 
