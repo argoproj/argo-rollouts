@@ -3787,6 +3787,14 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 							Format:      "int32",
 						},
 					},
+					"serviceName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceName sets the name of the optionally generated service for the replicaset",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"name", "specRef"},
 			},
@@ -4685,6 +4693,15 @@ func schema_pkg_apis_rollouts_v1alpha1_TemplateService(ref common.ReferenceCallb
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
 			},
 		},
 	}

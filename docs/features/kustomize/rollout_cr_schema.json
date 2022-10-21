@@ -12974,9 +12974,6 @@
                                                 "type": "string"
                                             }
                                         },
-                                        "required": [
-                                            "name"
-                                        ],
                                         "type": "object"
                                     },
                                     "template": {

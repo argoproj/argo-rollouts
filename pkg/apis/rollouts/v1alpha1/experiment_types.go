@@ -90,7 +90,7 @@ type TemplateSpec struct {
 }
 
 type TemplateService struct {
-	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 }
 
 type TemplateStatusCode string

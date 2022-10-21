@@ -8560,8 +8560,6 @@ spec:
                       properties:
                         name:
                           type: string
-                      required:
-                      - name
                       type: object
                     template:
                       properties:
@@ -11585,7 +11583,6 @@ spec:
                                         type: integer
                                     required:
                                     - name
-                                    - serviceName
                                     - specRef
                                     type: object
                                   type: array
