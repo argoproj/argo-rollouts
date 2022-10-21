@@ -50,23 +50,10 @@ type ServerConfig struct {
 }
 
 // NewMetricsServer returns a new prometheus server which collects rollout metrics
-func NewMetricsServer(cfg ServerConfig, isPrimary bool) *MetricsServer {
+func NewMetricsServer(cfg ServerConfig) *MetricsServer {
 	mux := http.NewServeMux()
 
 	reg := prometheus.NewRegistry()
-
-	// secondary controller doesn't expose any metrics
-	if !isPrimary {
-		mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
-			reg,
-		}, promhttp.HandlerOpts{}))
-		return &MetricsServer{
-			Server: &http.Server{
-				Addr:    cfg.Addr,
-				Handler: mux,
-			},
-		}
-	}
 
 	reg.MustRegister(NewRolloutCollector(cfg.RolloutLister))
 	reg.MustRegister(NewAnalysisRunCollector(cfg.AnalysisRunLister, cfg.AnalysisTemplateLister, cfg.ClusterAnalysisTemplateLister))
