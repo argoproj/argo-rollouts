@@ -12969,6 +12969,14 @@
                                         "type": "object"
                                     },
                                     "service": {
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "name"
+                                        ],
                                         "type": "object"
                                     },
                                     "template": {
