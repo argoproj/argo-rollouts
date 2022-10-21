@@ -7,7 +7,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -52,7 +54,7 @@ func newFakeServerConfig(objs ...runtime.Object) ServerConfig {
 	}
 }
 
-func testHttpResponse(t *testing.T, handler http.Handler, expectedResponse string) {
+func testHttpResponse(t *testing.T, handler http.Handler, expectedResponse string, testFunc func(t assert.TestingT, s interface{}, contains interface{}, msgAndArgs ...interface{}) bool) {
 	t.Helper()
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
@@ -62,7 +64,7 @@ func testHttpResponse(t *testing.T, handler http.Handler, expectedResponse strin
 	body := rr.Body.String()
 	log.Println(body)
 	for _, line := range strings.Split(expectedResponse, "\n") {
-		assert.Contains(t, body, line)
+		testFunc(t, body, line)
 	}
 }
 
@@ -77,28 +79,45 @@ func TestIncError(t *testing.T) {
 analysis_run_reconcile_error{name="name",namespace="ns"} 1
 # HELP experiment_reconcile_error Error occurring during the experiment
 # TYPE experiment_reconcile_error counter
+experiment_reconcile_error{name="name",namespace="ns"} 1
 # HELP rollout_reconcile_error Error occurring during the rollout
 # TYPE rollout_reconcile_error counter
 rollout_reconcile_error{name="name",namespace="ns"} 1`
 
-	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 
 	metricsServ.IncError("ns", "name", logutil.AnalysisRunKey)
 	metricsServ.IncError("ns", "name", logutil.ExperimentKey)
 	metricsServ.IncError("ns", "name", logutil.RolloutKey)
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }
 
 func TestVersionInfo(t *testing.T) {
 	expectedResponse := `# HELP argo_rollouts_controller_info Running Argo-rollouts version
 # TYPE argo_rollouts_controller_info gauge`
-	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	metricsServ := NewMetricsServer(newFakeServerConfig())
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }
 
-func TestSecondaryMetricsServer(t *testing.T) {
-	expectedResponse := ``
+func TestRemove(t *testing.T) {
+	defaults.SetMetricCleanupDelaySeconds(1)
 
-	metricsServ := NewMetricsServer(newFakeServerConfig(), false)
-	testHttpResponse(t, metricsServ.Handler, expectedResponse)
+	expectedResponse := `analysis_run_reconcile_error{name="name1",namespace="ns"} 1
+experiment_reconcile_error{name="name1",namespace="ns"} 1
+rollout_reconcile_error{name="name1",namespace="ns"} 1`
+
+	metricsServ := NewMetricsServer(newFakeServerConfig())
+
+	metricsServ.IncError("ns", "name1", logutil.RolloutKey)
+	metricsServ.IncError("ns", "name1", logutil.AnalysisRunKey)
+	metricsServ.IncError("ns", "name1", logutil.ExperimentKey)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
+
+	metricsServ.Remove("ns", "name1", logutil.AnalysisRunKey)
+	metricsServ.Remove("ns", "name1", logutil.ExperimentKey)
+	metricsServ.Remove("ns", "name1", logutil.RolloutKey)
+
+	//Sleep for 2x the cleanup delay to allow metrics to be removed
+	time.Sleep(defaults.GetMetricCleanupDelaySeconds() * 2)
+	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.NotContains)
 }

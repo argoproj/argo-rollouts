@@ -2,6 +2,7 @@ package experiments
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -174,6 +175,11 @@ func NewController(cfg ControllerConfig) *Controller {
 				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
+			if ex := unstructuredutil.ObjectToExperiment(obj); ex != nil {
+				logCtx := logutil.WithExperiment(ex)
+				logCtx.Info("experiment deleted")
+				controller.metricsServer.Remove(ex.Namespace, ex.Name, logutil.ExperimentKey)
+			}
 		},
 	})
 
@@ -218,21 +224,26 @@ func NewController(cfg ControllerConfig) *Controller {
 }
 
 // Run starts the controller threads
-func (ec *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (ec *Controller) Run(ctx context.Context, threadiness int) error {
 	log.Info("Starting Experiment workers")
+	wg := sync.WaitGroup{}
 	for i := 0; i < threadiness; i++ {
+		wg.Add(1)
 		go wait.Until(func() {
-			controllerutil.RunWorker(ec.experimentWorkqueue, logutil.ExperimentKey, ec.syncHandler, ec.metricsServer)
-		}, time.Second, stopCh)
+			controllerutil.RunWorker(ctx, ec.experimentWorkqueue, logutil.ExperimentKey, ec.syncHandler, ec.metricsServer)
+			log.Debug("Experiment worker has stopped")
+			wg.Done()
+		}, time.Second, ctx.Done())
 	}
 	log.Info("Started Experiment workers")
-	<-stopCh
-	log.Info("Shutting down experiment workers")
+	<-ctx.Done()
+	wg.Wait()
+	log.Info("All experiment workers have stopped")
 
 	return nil
 }
 
-func (ec *Controller) syncHandler(key string) error {
+func (ec *Controller) syncHandler(ctx context.Context, key string) error {
 	startTime := timeutil.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {

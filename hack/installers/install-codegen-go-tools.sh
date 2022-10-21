@@ -54,4 +54,4 @@ go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0
 go install golang.org/x/tools/cmd/goimports@v0.1.8
 
 # mockery is used for generating mock
-go install github.com/vektra/mockery/v2@v2.6.0
+go install github.com/vektra/mockery/v2@v2.14.0

@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"time"
 
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
@@ -13,7 +14,7 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=clusteranalysistemplates,shortName=cat
+// +kubebuilder:resource:path=clusteranalysistemplates,shortName=cat,scope=Cluster
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
 type ClusterAnalysisTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -170,6 +171,8 @@ type MetricProvider struct {
 	CloudWatch *CloudWatchMetric `json:"cloudWatch,omitempty" protobuf:"bytes,8,opt,name=cloudWatch"`
 	// Graphite specifies the Graphite metric to query
 	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,9,opt,name=graphite"`
+	// Influxdb specifies the influxdb metric to query
+	Influxdb *InfluxdbMetric `json:"influxdb,omitempty" protobuf:"bytes,10,opt,name=influxdb"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -229,6 +232,14 @@ type GraphiteMetric struct {
 	// Address is the HTTP address and port of the Graphite server
 	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
 	// Query is a raw Graphite query to perform
+	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+}
+
+// InfluxdbMetric defines the InfluxDB Flux query to perform canary analysis
+type InfluxdbMetric struct {
+	// Profile is the name of the secret holding InfluxDB account configuration
+	Profile string `json:"profile,omitempty" protobuf:"bytes,1,opt,name=profile"`
+	// Query is a raw InfluxDB flux query to perform
 	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
 }
 
@@ -467,7 +478,7 @@ type WebMetric struct {
 	// +patchStrategy=merge
 	// Headers are optional HTTP headers to use in the request
 	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,3,rep,name=headers"`
-	// Body is the body of the we metric (must be POST/PUT)
+	// Body is the body of the web metric (must be POST/PUT)
 	Body string `json:"body,omitempty" protobuf:"bytes,4,opt,name=body"`
 	// TimeoutSeconds is the timeout for the request in seconds (default: 10)
 	TimeoutSeconds int64 `json:"timeoutSeconds,omitempty" protobuf:"varint,5,opt,name=timeoutSeconds"`
@@ -475,6 +486,11 @@ type WebMetric struct {
 	JSONPath string `json:"jsonPath,omitempty" protobuf:"bytes,6,opt,name=jsonPath"`
 	// Insecure skips host TLS verification
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,7,opt,name=insecure"`
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// JSONBody is the body of the web metric in a json format (method must be POST/PUT)
+	JSONBody json.RawMessage `json:"jsonBody,omitempty" protobuf:"bytes,8,opt,name=jsonBody,casttype=encoding/json.RawMessage"`
 }
 
 // WebMetricMethod is the available HTTP methods

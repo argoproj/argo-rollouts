@@ -3,6 +3,8 @@ package metrics
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/argoproj/pkg/kubeclientmetrics"
 )
 
@@ -12,7 +14,7 @@ controller_clientset_k8s_request_total{kind="replicasets",name="N/A",namespace="
 
 func TestIncKubernetesRequest(t *testing.T) {
 	config := newFakeServerConfig()
-	metricsServ := NewMetricsServer(config, true)
+	metricsServ := NewMetricsServer(config)
 	config.K8SRequestProvider.IncKubernetesRequest(kubeclientmetrics.ResourceInfo{
 		Kind:       "replicasets",
 		Namespace:  "default",
@@ -24,5 +26,5 @@ func TestIncKubernetesRequest(t *testing.T) {
 		Verb:       kubeclientmetrics.Unknown,
 		StatusCode: 200,
 	})
-	testHttpResponse(t, metricsServ.Handler, expectedKubernetesRequest)
+	testHttpResponse(t, metricsServ.Handler, expectedKubernetesRequest, assert.Contains)
 }

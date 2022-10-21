@@ -70,6 +70,27 @@ spec:
         host: canary
       weight: 0`
 
+const successCaseTcpVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  tcp:
+  - match:
+    - port: 443
+    route:
+    - destination:
+        host: stable
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
 const failCaseVsvc = `apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -121,6 +142,27 @@ spec:
         host: canary
       weight: 0`
 
+const failCaseTcpVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  tcp:
+  - match:
+    - port: 443
+    route:
+    - destination:
+        host: not-stable
+      weight: 100
+    - destination:
+        host: canary
+      weight: 0`
+
 const failCaseNoRoutesVsvc = `apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -131,6 +173,45 @@ spec:
   - istio-rollout-gateway
   hosts:
   - istio-rollout.dev.argoproj.io`
+
+const failCaseInvalidRoutesVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  http:
+    - invalid-structure`
+
+const failCaseInvalidTlsRoutesVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  tls:
+    - invalid-structure`
+
+const failCaseInvalidTcpRoutesVsvc = `apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-vsvc
+  namespace: default
+spec:
+  gateways:
+  - istio-rollout-gateway
+  hosts:
+  - istio-rollout.dev.argoproj.io
+  tcp:
+    - invalid-structure`
 
 func getAnalysisTemplatesWithType() AnalysisTemplatesWithType {
 	count := intstr.FromInt(1)
@@ -442,7 +523,7 @@ func TestValidateService(t *testing.T) {
 		svc.Service.Spec.Selector = map[string]string{"app": "unmatch-rollout-label"}
 		allErrs := ValidateService(svc, getRollout())
 		assert.Len(t, allErrs, 1)
-		expectedErr := field.Invalid(GetServiceWithTypeFieldPath(svc.Type), svc.Service.Name, "Service \"stable-service-name\" has unmatch lable \"app\" in rollout")
+		expectedErr := field.Invalid(GetServiceWithTypeFieldPath(svc.Type), svc.Service.Name, "Service \"stable-service-name\" has unmatch label \"app\" in rollout")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
 
@@ -477,6 +558,18 @@ func TestValidateVirtualService(t *testing.T) {
 		},
 	}
 
+	roWithoutIstio := &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService:  "stable",
+					CanaryService:  "canary",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{},
+				},
+			},
+		},
+	}
+
 	t.Run("validate virtualService HTTP routes - success", func(t *testing.T) {
 		vsvc := unstructured.StrToUnstructuredUnsafe(successCaseVsvc)
 		allErrs := ValidateVirtualService(ro, *vsvc)
@@ -505,11 +598,57 @@ func TestValidateVirtualService(t *testing.T) {
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
 
+	t.Run("validate virtualService TCP routes - success", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(successCaseTcpVsvc)
+		allErrs := ValidateVirtualService(ro, *vsvc)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("validate virtualService TCP routes - failure", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseTcpVsvc)
+		allErrs := ValidateVirtualService(ro, *vsvc)
+		assert.Len(t, allErrs, 1)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc", "Istio VirtualService has invalid TCP routes. Error: Stable Service 'stable' not found in route")
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+	})
+
 	t.Run("validate virtualService no routes - failure", func(t *testing.T) {
 		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseNoRoutesVsvc)
 		allErrs := ValidateVirtualService(ro, *vsvc)
 		assert.Len(t, allErrs, 1)
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc", "Unable to get HTTP and/or TLS routes for Istio VirtualService")
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc", "Unable to get any of the HTTP, TCP or TLS routes for the Istio VirtualService")
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+	})
+
+	t.Run("validate virtualService invalid http routes - failure", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseInvalidRoutesVsvc)
+		allErrs := ValidateVirtualService(ro, *vsvc)
+		assert.Len(t, allErrs, 1)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc", "Unable to get HTTP routes for Istio VirtualService")
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+	})
+
+	t.Run("validate virtualService invalid tls routes - failure", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseInvalidTlsRoutesVsvc)
+		allErrs := ValidateVirtualService(ro, *vsvc)
+		assert.Len(t, allErrs, 1)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc", "Unable to get TLS routes for Istio VirtualService")
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+	})
+
+	t.Run("validate virtualService invalid rollout missing istio", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(failCaseInvalidTcpRoutesVsvc)
+		allErrs := ValidateVirtualService(ro, *vsvc)
+		assert.Len(t, allErrs, 1)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualService", "name"), "istio-vsvc", "Unable to get TCP routes for Istio VirtualService")
+		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
+	})
+
+	t.Run("validate virtualService invalid tcp routes - failure", func(t *testing.T) {
+		vsvc := unstructured.StrToUnstructuredUnsafe(successCaseTcpVsvc)
+		allErrs := ValidateVirtualService(roWithoutIstio, *vsvc)
+		assert.Len(t, allErrs, 1)
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio"), roWithoutIstio.Name, "Rollout object is not configured with Istio traffic routing")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
 }
@@ -545,7 +684,6 @@ func TestValidateVirtualServices(t *testing.T) {
 		assert.Len(t, allErrs, 1)
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio", "virtualServices", "name"), "istio-vsvc", "Istio VirtualService has invalid HTTP routes. Error: Stable Service 'stable' not found in route")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
-
 	})
 }
 

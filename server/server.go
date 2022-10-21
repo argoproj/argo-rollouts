@@ -7,7 +7,8 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
-	"os"
+	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -61,6 +62,7 @@ type ServerOptions struct {
 	RolloutsClientset rolloutclientset.Interface
 	DynamicClientset  dynamic.Interface
 	Namespace         string
+	RootPath          string
 }
 
 const (
@@ -79,16 +81,11 @@ func NewServer(o ServerOptions) *ArgoRolloutsServer {
 	return &ArgoRolloutsServer{Options: o}
 }
 
-type spaFileSystem struct {
-	root http.FileSystem
-}
+var re = regexp.MustCompile(`<base href=".*".*/>`)
 
-func (fs *spaFileSystem) Open(name string) (http.File, error) {
-	f, err := fs.root.Open(name)
-	if os.IsNotExist(err) {
-		return fs.root.Open("index.html")
-	}
-	return f, err
+func withRootPath(fileContent []byte, rootpath string) []byte {
+	var temp = re.ReplaceAllString(string(fileContent), `<base href="`+path.Clean("/"+rootpath)+`/" />`)
+	return []byte(temp)
 }
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
@@ -122,16 +119,105 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 
 	var handler http.Handler = gwmux
 
-	ui, err := fs.Sub(static, "static")
-	if err != nil {
-		log.Error("Could not load UI static files")
-		panic(err)
-	}
-
 	mux.Handle("/api/", handler)
-	mux.Handle("/", http.FileServer(&spaFileSystem{http.FS(ui)}))
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		requestedURI := path.Clean(r.RequestURI)
+		rootPath := path.Clean("/" + s.Options.RootPath)
+
+		if requestedURI == "/" {
+			http.Redirect(w, r, rootPath+"/", http.StatusFound)
+			return
+		}
+
+		//If the rootPath is not in the prefix 404
+		if !strings.HasPrefix(requestedURI, rootPath) {
+			http.NotFound(w, r)
+			return
+		}
+		//If the rootPath is the requestedURI, serve index.html
+		if requestedURI == rootPath {
+			fileBytes, openErr := s.readIndexHtml()
+			if openErr != nil {
+				log.Errorf("Error opening file index.html: %v", openErr)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.Write(fileBytes)
+			return
+		}
+
+		embedPath := path.Join("static", strings.TrimPrefix(requestedURI, rootPath))
+		file, openErr := static.Open(embedPath)
+		if openErr != nil {
+			fErr := openErr.(*fs.PathError)
+			//If the file is not found, serve index.html
+			if fErr.Err == fs.ErrNotExist {
+				fileBytes, openErr := s.readIndexHtml()
+				if openErr != nil {
+					log.Errorf("Error opening file index.html: %v", openErr)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.Write(fileBytes)
+				return
+			} else {
+				log.Errorf("Error opening file %s: %v", embedPath, openErr)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+		}
+		defer file.Close()
+
+		stat, statErr := file.Stat()
+		if statErr != nil {
+			log.Errorf("Failed to stat file or dir %s: %v", embedPath, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		fileBytes := make([]byte, stat.Size())
+		_, err = file.Read(fileBytes)
+		if err != nil {
+			log.Errorf("Failed to read file %s: %v", embedPath, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Write(fileBytes)
+	})
 
 	return &httpS
+}
+
+func (s *ArgoRolloutsServer) readIndexHtml() ([]byte, error) {
+	file, err := static.Open("static/index.html")
+	if err != nil {
+		log.Errorf("Failed to open file %s: %v", "static/index.html", err)
+		return nil, err
+	}
+	defer func() {
+		if file != nil {
+			if err := file.Close(); err != nil {
+				log.Errorf("Error closing file: %v", err)
+			}
+		}
+	}()
+
+	stat, err := file.Stat()
+	if err != nil {
+		log.Errorf("Failed to stat file or dir %s: %v", "static/index.html", err)
+		return nil, err
+	}
+
+	fileBytes := make([]byte, stat.Size())
+	_, err = file.Read(fileBytes)
+	if err != nil {
+		log.Errorf("Failed to read file %s: %v", "static/index.html", err)
+		return nil, err
+	}
+
+	return withRootPath(fileBytes, s.Options.RootPath), nil
 }
 
 func (s *ArgoRolloutsServer) newGRPCServer() *grpc.Server {
@@ -173,7 +259,7 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 
 	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
 	if dashboard {
-		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at localhost %d", port)
+		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at http://localhost:%d/%s", port, s.Options.RootPath)
 	}
 
 	log.Info(startupMessage)

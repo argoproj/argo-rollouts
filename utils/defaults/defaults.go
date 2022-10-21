@@ -42,6 +42,9 @@ const (
 	DefaultBurst int = 80
 	// DefaultAwsLoadBalancerPageSize is the default page size used when calling aws to get load balancers by DNS name
 	DefaultAwsLoadBalancerPageSize = int32(300)
+	// DefaultMetricCleanupDelay is the default time to delay metrics removal upon object removal, gives time for metrics
+	// to be collected
+	DefaultMetricCleanupDelay = int32(65)
 )
 
 const (
@@ -65,6 +68,7 @@ var (
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
 	appmeshCRDVersion            = DefaultAppMeshCRDVersion
 	gatewayAPIGroupVersion       = DefaultGatewayAPIGroupVersion
+	defaultMetricCleanupDelay    = DefaultMetricCleanupDelay
 )
 
 const (
@@ -81,6 +85,14 @@ func init() {
 		if interval, err := strconv.ParseInt(rolloutVerifyInterval, 10, 32); err != nil {
 			rolloutVerifyRetryInterval = time.Duration(interval) * time.Second
 		}
+	}
+}
+
+func GetStringOrDefault(value, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	} else {
+		return value
 	}
 }
 
@@ -302,4 +314,14 @@ func GetTargetGroupBindingAPIVersion() string {
 
 func GetRolloutVerifyRetryInterval() time.Duration {
 	return rolloutVerifyRetryInterval
+}
+
+// GetMetricCleanupDelaySeconds returns the duration to delay the cleanup of metrics
+func GetMetricCleanupDelaySeconds() time.Duration {
+	return time.Duration(defaultMetricCleanupDelay) * time.Second
+}
+
+// SetMetricCleanupDelaySeconds sets the metric cleanup delay in seconds
+func SetMetricCleanupDelaySeconds(seconds int32) {
+	defaultMetricCleanupDelay = seconds
 }

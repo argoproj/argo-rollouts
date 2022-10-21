@@ -9,14 +9,29 @@ on:
       - "master"
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.17'
+  GOLANG_VERSION: '1.19'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
+  event_file:
+    name: "Event File"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: Event File
+          path: ${{ github.event_path }}
   lint-go:
+    permissions:
+      contents: read  # for actions/checkout to fetch code
+      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
     name: Lint Go code
     runs-on: ubuntu-latest
     steps:
@@ -25,11 +40,11 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.1.0
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.45.2
+          version: v1.49.0
           args: --timeout 5m
   build:
     name: Build
@@ -42,10 +57,10 @@ jobs:
         id: go
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3.1.0
 
       - name: Restore go build cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -58,7 +73,15 @@ jobs:
         run: make controller plugin
 
       - name: Test
-        run: go test -failfast -covermode=count -coverprofile=coverage.out ./...
+        run: make test-unit
+
+      - name: Upload Unit Test Results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: Unit Test Results
+          path: |
+            junit.xml
 
       - name: Generate code coverage artifacts
         uses: actions/upload-artifact@v2
@@ -78,9 +101,9 @@ jobs:
       GOPATH: /home/runner/go
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       # k8s codegen generates files into GOPATH location instead of the GitHub git checkout location
@@ -89,15 +112,15 @@ jobs:
         run: |
           mkdir -p ~/go/src/github.com/argoproj
           ln -s $(pwd) ~/go/src/github.com/argoproj/argo-rollouts
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: /home/runner/.cache/go-build
           key: GOCACHE-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: /home/runner/go/pkg/mod
           key: GOMODCACHE-${{ hashFiles('**/go.mod') }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: /home/runner/go/bin
           key: go-bin-v1-${{ hashFiles('**/go.mod') }}
