@@ -3790,7 +3790,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 					"serviceName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ServiceName sets the name of the optionally generated service for the replicaset",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -4674,8 +4673,9 @@ func schema_pkg_apis_rollouts_v1alpha1_TLSRoute(ref common.ReferenceCallback) co
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+									    Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
