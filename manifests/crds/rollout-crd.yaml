@@ -566,6 +566,8 @@ spec:
                                       weight:
                                         format: int32
                                         type: integer
+                                      serviceName:
+                                        type: string
                                     required:
                                     - name
                                     - specRef

@@ -297,8 +297,12 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 			ports = append(ports, servicePort)
 		}
 	}
-	if svc == nil || svc.Name != rs.Name {
-		newService, err := ec.CreateService(rs.Name, *template, rs.Labels, ports)
+	templateServiceName := template.Service.Name
+	if templateServiceName == "" {
+		templateServiceName = rs.Name
+	}
+	if svc == nil || svc.Name != templateServiceName {
+		newService, err := ec.CreateService(templateServiceName, *template, rs.Labels, ports)
 		if err != nil {
 			templateStatus.Status = v1alpha1.TemplateStatusError
 			templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)

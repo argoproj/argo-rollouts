@@ -60,7 +60,7 @@ func GetServiceForExperiment(experiment *v1alpha1.Experiment, svc *corev1.Servic
 
 func (ec *experimentContext) CreateService(serviceName string, template v1alpha1.TemplateSpec, selector map[string]string, ports []corev1.ServicePort) (*corev1.Service, error) {
 	ctx := context.TODO()
-	serviceAnnotations := newServiceSetAnnotations(ec.ex.Name, template.Name)
+	serviceAnnotations := newServiceAnnotations(ec.ex.Name, template.Name)
 	newService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -107,7 +107,7 @@ func (ec *experimentContext) deleteService(service corev1.Service) error {
 	return nil
 }
 
-func newServiceSetAnnotations(experimentName, templateName string) map[string]string {
+func newServiceAnnotations(experimentName, templateName string) map[string]string {
 	return map[string]string{
 		v1alpha1.ExperimentNameAnnotationKey:         experimentName,
 		v1alpha1.ExperimentTemplateNameAnnotationKey: templateName,
