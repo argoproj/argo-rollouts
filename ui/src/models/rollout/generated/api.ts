@@ -663,6 +663,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef {
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GatewayAPITrafficRouting
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GatewayAPITrafficRouting {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GatewayAPITrafficRouting
+     */
+    httpRoute?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch {
@@ -1502,6 +1515,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
     traefik?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GatewayAPITrafficRouting}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    gatewayAPI?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GatewayAPITrafficRouting;
     /**
      * A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream traffic router.
      * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes>}

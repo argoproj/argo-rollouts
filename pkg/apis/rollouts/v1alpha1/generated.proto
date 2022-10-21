@@ -1444,13 +1444,12 @@ message RolloutTrafficRouting {
   // Traefik holds specific configuration to use Traefik to route traffic
   optional TraefikTrafficRouting traefik = 7;
 
-<<<<<<< HEAD
   // Gateway API holds specific configuration to use Gateway API to route traffic
   optional GatewayAPITrafficRouting gatewayAPI = 8;
-=======
+
   // A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
   // traffic router.
-  repeated MangedRoutes managedRoutes = 8;
+  repeated MangedRoutes managedRoutes = 9;
 }
 
 message RouteMatch {
@@ -1465,7 +1464,6 @@ message RouteMatch {
   // Headers What request with matching headers should be mirrored
   // +optional
   map<string, StringMatch> headers = 3;
->>>>>>> master
 }
 
 // RunSummary contains the final results from the metric executions
