@@ -292,7 +292,7 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 			servicePort := corev1.ServicePort{
 				Protocol:   port.Protocol,
 				Port:       port.ContainerPort,
-				TargetPort: intstr.FromString(string(port.ContainerPort)),
+				TargetPort: intstr.FromInt(int(port.ContainerPort)),
 			}
 			ports = append(ports, servicePort)
 		}
