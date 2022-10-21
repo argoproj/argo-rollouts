@@ -4673,7 +4673,7 @@ func schema_pkg_apis_rollouts_v1alpha1_TLSRoute(ref common.ReferenceCallback) co
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-									    Default: "",
+										Default: "",
 										Type:    []string{"string"},
 										Format:  "",
 									},
