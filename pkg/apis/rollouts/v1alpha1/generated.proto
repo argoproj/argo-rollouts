@@ -1224,8 +1224,8 @@ message RolloutExperimentTemplate {
   // Weight sets the percentage of traffic the template's replicas should receive
   optional int32 weight = 6;
 
-  // ServiceName sets the name of the optionally generated service for the replicaset
-  optional string serviceName = 7;
+  // Service controls the optionally generated service
+  optional TemplateService service = 7;
 }
 
 // RolloutList is a list of Rollout resources

@@ -3787,11 +3787,10 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 							Format:      "int32",
 						},
 					},
-					"serviceName": {
+					"service": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ServiceName sets the name of the optionally generated service for the replicaset",
-							Type:        []string{"string"},
-							Format:      "",
+							Description: "Service controls the optionally generated service",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateService"),
 						},
 					},
 				},
@@ -3799,7 +3798,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutExperimentTemplate(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateService", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 

@@ -561,8 +561,11 @@ spec:
                                               type: string
                                             type: object
                                         type: object
-                                      serviceName:
-                                        type: string
+                                      service:
+                                        properties:
+                                          name:
+                                            type: string
+                                        type: object
                                       specRef:
                                         type: string
                                       weight:

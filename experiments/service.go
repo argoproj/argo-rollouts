@@ -58,7 +58,7 @@ func GetServiceForExperiment(experiment *v1alpha1.Experiment, svc *corev1.Servic
 	return nil
 }
 
-func (ec *experimentContext) CreateService(serviceName string, template v1alpha1.TemplateSpec, selector map[string]string, ports []corev1.ServicePort) (*corev1.Service, error) {
+func (ec *experimentContext) CreateService(serviceName string, template v1alpha1.TemplateSpec) (*corev1.Service, error) {
 	ctx := context.TODO()
 	serviceAnnotations := newServiceAnnotations(ec.ex.Name, template.Name)
 	newService := &corev1.Service{
@@ -72,8 +72,8 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 			Annotations: serviceAnnotations,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: selector,
-			Ports:    ports,
+			Selector: template.Service.Selector,
+			Ports:    template.Service.Ports,
 		},
 	}
 

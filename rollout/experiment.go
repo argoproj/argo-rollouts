@@ -64,8 +64,12 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 			Name:     templateStep.Name,
 			Replicas: templateStep.Replicas,
 		}
-		if templateStep.Weight != nil || templateStep.ServiceName != "" {
-			template.Service = &v1alpha1.TemplateService{Name: templateStep.ServiceName}
+		if templateStep.Weight != nil || (templateStep.Service != nil && templateStep.Service.Name != "") {
+		    if templateStep.Service != nil {
+		        template.Service = templateStep.Service.DeepCopy()
+		    } else {
+		        template.Service = &v1alpha1.TemplateService{}
+            }
 		}
 		templateRS := &appsv1.ReplicaSet{}
 		switch templateStep.SpecRef {
