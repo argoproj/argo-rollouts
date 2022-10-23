@@ -31,7 +31,6 @@ spec:
   templates:
   - name: baseline
     replicas: 1
-    service: {}
     selector:
       matchLabels:
         app: experiment-with-mr
