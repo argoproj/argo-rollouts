@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
@@ -291,6 +292,20 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 	}
 	if len(template.Service.Selector) == 0 {
 		template.Service.Selector = rs.Labels
+	}
+	if len(template.Service.Ports) == 0 {
+		var ports []corev1.ServicePort
+		for _, ctr := range rs.Spec.Template.Spec.Containers {
+			for _, port := range ctr.Ports {
+				servicePort := corev1.ServicePort{
+					Protocol:   port.Protocol,
+					Port:       port.ContainerPort,
+					TargetPort: intstr.FromInt(int(port.ContainerPort)),
+				}
+				ports = append(ports, servicePort)
+			}
+		}
+		template.Service.Ports = ports
 	}
 	if svc == nil || svc.Name != templateServiceName {
 		newService, err := ec.CreateService(templateServiceName, *template)
