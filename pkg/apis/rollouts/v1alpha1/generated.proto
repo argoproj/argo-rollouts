@@ -1582,6 +1582,8 @@ message TLSRoute {
 
 message TemplateService {
   optional string name = 1;
+
+  optional k8s.io.api.core.v1.ServiceSpec serviceSpec = 2;
 }
 
 message TemplateSpec {
