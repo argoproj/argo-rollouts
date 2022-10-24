@@ -496,3 +496,26 @@ func TestDeleteServiceIfServiceFieldNil(t *testing.T) {
 	assert.Equal(t, "", exStatus.TemplateStatuses[0].ServiceName)
 	assert.Nil(t, exCtx.templateServices["bar"])
 }
+
+func TestServiceInheritPortsFromRS(t *testing.T) {
+	templates := generateTemplates("bar")
+	templates[0].Service = &v1alpha1.TemplateService{Name: "foobar"}
+	templates[0].Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+		{
+			Name:          "testport",
+			ContainerPort: 80,
+			Protocol:      "TCP",
+		},
+	}
+	ex := newExperiment("foo", templates, "")
+
+	exCtx := newTestContext(ex)
+	rs := templateToRS(ex, templates[0], 0)
+	exCtx.templateRSs["bar"] = rs
+
+	exCtx.reconcile()
+
+	assert.NotNil(t, exCtx.templateServices["bar"])
+	assert.Equal(t, exCtx.templateServices["bar"].Name, "foobar")
+	assert.Equal(t, exCtx.templateServices["bar"].Spec.Ports[0].Port, int32(80))
+}
