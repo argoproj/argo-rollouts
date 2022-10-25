@@ -1,3 +1,4 @@
+# use separate workflow to support fork repositories and dependabot branches when publishing test results: see https://github.com/EnricoMi/publish-unit-test-result-action#support-fork-repositories-and-dependabot-branches
 name: Test Results
 
 on:
@@ -18,6 +19,7 @@ jobs:
       actions: read
     steps:
       - name: Download and Extract Artifacts
+        # TODO repace with native actions/download-artifact once it supports downloading from another workflow: https://github.com/actions/download-artifact/issues/3
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
