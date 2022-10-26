@@ -9,6 +9,7 @@ import (
 
 	"github.com/juju/ansiterm"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd/signals"
@@ -74,6 +75,28 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 				close(rolloutUpdates)
 			}
 			return nil
+		},
+		ValidArgsFunction: func(c *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) != 0 {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			// list rollouts names
+			ctx := c.Context()
+			opts := metav1.ListOptions{}
+			rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(o.Namespace())
+			rolloutList, err := rolloutIf.List(ctx, opts)
+			if err != nil {
+				return []string{}, cobra.ShellCompDirectiveError
+			}
+
+			var rolloutNames []string
+			for _, ro := range rolloutList.Items {
+				if strings.HasPrefix(ro.Name, toComplete) {
+					rolloutNames = append(rolloutNames, ro.Name)
+				}
+			}
+
+			return rolloutNames, cobra.ShellCompDirectiveNoFileComp
 		},
 	}
 	cmd.Flags().BoolVarP(&getOptions.Watch, "watch", "w", false, "Watch live updates to the rollout")
