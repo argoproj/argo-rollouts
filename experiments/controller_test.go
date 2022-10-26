@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -360,7 +361,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	}, true)
+	})
 
 	c := NewController(ControllerConfig{
 		KubeClientSet:                   f.kubeclient,
@@ -445,7 +446,7 @@ func (f *fixture) runController(experimentName string, startInformers bool, expe
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.clusterAnalysisTemplateSynced))
 	}
 
-	err := c.syncHandler(experimentName)
+	err := c.syncHandler(context.Background(), experimentName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing experiment: %v", err)
 	} else if expectError && err == nil {
@@ -892,4 +893,19 @@ func TestRemoveInvalidSpec(t *testing.T) {
 		}
 	}`, templateStatus, cond)
 	assert.Equal(t, expectedPatch, patch)
+}
+
+func TestRun(t *testing.T) {
+	f := newFixture(t, nil)
+	defer f.Close()
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.experimentWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }

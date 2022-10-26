@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -97,7 +98,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	}, true)
+	})
 
 	c := NewController(ControllerConfig{
 		KubeClientSet:        f.kubeclient,
@@ -159,7 +160,7 @@ func (f *fixture) runController(analysisRunName string, startInformers bool, exp
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.analysisRunSynced))
 	}
 
-	err := c.syncHandler(analysisRunName)
+	err := c.syncHandler(context.Background(), analysisRunName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing experiment: %v", err)
 	} else if expectError && err == nil {
@@ -313,4 +314,20 @@ func TestNoReconcileForAnalysisRunWithDeletionTimestamp(t *testing.T) {
 	f.objects = append(f.objects, ar)
 
 	f.run(getKey(ar, t))
+}
+
+func TestRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.analysisRunWorkQueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }
