@@ -35,3 +35,30 @@ func RolloutNameCompletionFunc(o *options.ArgoRolloutsOptions) func(*cobra.Comma
 		return rolloutNames, cobra.ShellCompDirectiveNoFileComp
 	}
 }
+
+// ExperimentNameCompletionFunc Returns a completion function that completes as a first argument
+// the Experiments names that match the toComplete prefix.
+func ExperimentNameCompletionFunc(o *options.ArgoRolloutsOptions) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(c *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		// list experiments names
+		ctx := c.Context()
+		opts := metav1.ListOptions{}
+		expIf := o.RolloutsClientset().ArgoprojV1alpha1().Experiments(o.Namespace())
+		expList, err := expIf.List(ctx, opts)
+		if err != nil {
+			return []string{}, cobra.ShellCompDirectiveError
+		}
+
+		var expNames []string
+		for _, exp := range expList.Items {
+			if strings.HasPrefix(exp.Name, toComplete) {
+				expNames = append(expNames, exp.Name)
+			}
+		}
+
+		return expNames, cobra.ShellCompDirectiveNoFileComp
+	}
+}

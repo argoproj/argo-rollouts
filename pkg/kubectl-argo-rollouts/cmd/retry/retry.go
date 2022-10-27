@@ -117,6 +117,7 @@ func NewCmdRetryExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			return nil
 		},
+		ValidArgsFunction: completionutil.ExperimentNameCompletionFunc(o),
 	}
 	return cmd
 }
