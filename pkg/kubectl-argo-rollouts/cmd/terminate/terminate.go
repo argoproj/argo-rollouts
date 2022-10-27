@@ -74,6 +74,7 @@ func NewCmdTerminateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			return nil
 		},
+		ValidArgsFunction: completionutil.AnalysisRunNameCompletionFunc(o),
 	}
 	return cmd
 }

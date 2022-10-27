@@ -16,7 +16,7 @@ func RolloutNameCompletionFunc(o *options.ArgoRolloutsOptions) func(*cobra.Comma
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		// list rollouts names
+		// list Rollouts names
 		ctx := c.Context()
 		opts := metav1.ListOptions{}
 		rolloutIf := o.RolloutsClientset().ArgoprojV1alpha1().Rollouts(o.Namespace())
@@ -43,7 +43,7 @@ func ExperimentNameCompletionFunc(o *options.ArgoRolloutsOptions) func(*cobra.Co
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		// list experiments names
+		// list Experiments names
 		ctx := c.Context()
 		opts := metav1.ListOptions{}
 		expIf := o.RolloutsClientset().ArgoprojV1alpha1().Experiments(o.Namespace())
@@ -60,5 +60,32 @@ func ExperimentNameCompletionFunc(o *options.ArgoRolloutsOptions) func(*cobra.Co
 		}
 
 		return expNames, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// AnalysisRunNameCompletionFunc Returns a completion function that completes as a first argument
+// the AnalysisRuns names that match the toComplete prefix.
+func AnalysisRunNameCompletionFunc(o *options.ArgoRolloutsOptions) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(c *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		// list AnalysisRuns names
+		ctx := c.Context()
+		opts := metav1.ListOptions{}
+		arIf := o.RolloutsClientset().ArgoprojV1alpha1().AnalysisRuns(o.Namespace())
+		arList, err := arIf.List(ctx, opts)
+		if err != nil {
+			return []string{}, cobra.ShellCompDirectiveError
+		}
+
+		var arNames []string
+		for _, ar := range arList.Items {
+			if strings.HasPrefix(ar.Name, toComplete) {
+				arNames = append(arNames, ar.Name)
+			}
+		}
+
+		return arNames, cobra.ShellCompDirectiveNoFileComp
 	}
 }
