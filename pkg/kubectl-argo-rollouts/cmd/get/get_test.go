@@ -3,12 +3,10 @@ package get
 import (
 	"bytes"
 	"fmt"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
@@ -562,49 +560,4 @@ NAME                                                     KIND         STATUS    
       └──□ rollout-background-analysis-7d84d44bb8-z5wps  Pod          ✔ Running     7d   ready:1/1
 `, "\n")
 	assertStdout(t, expectedOut, o.IOStreams)
-}
-
-func TestCompletionGetRollout(t *testing.T) {
-	rolloutObjs := testdata.NewCanaryRollout()
-
-	tf, o := options.NewFakeArgoRolloutsOptions(rolloutObjs.AllObjects()...)
-	o.RESTClientGetter = tf.WithNamespace(rolloutObjs.Rollouts[0].Namespace)
-	defer tf.Cleanup()
-	cmd := NewCmdGetRollout(o)
-	cmd.PersistentPreRunE = o.PersistentPreRunE
-
-	comps, directive := cmd.ValidArgsFunction(cmd, []string{}, "")
-	checkCompletion(t, comps, []string{"canary-demo", "canary-demo-pingpong", "canary-demo-weights", "canary-demo-weights-na", "canary-demo-workloadRef", "canary-demo-workloadRef-deploy"}, directive, cobra.ShellCompDirectiveNoFileComp)
-
-	comps, directive = cmd.ValidArgsFunction(cmd, []string{}, "cana")
-	checkCompletion(t, comps, []string{"canary-demo", "canary-demo-pingpong", "canary-demo-weights", "canary-demo-weights-na", "canary-demo-workloadRef", "canary-demo-workloadRef-deploy"}, directive, cobra.ShellCompDirectiveNoFileComp)
-
-	comps, directive = cmd.ValidArgsFunction(cmd, []string{}, "canary-demo")
-	checkCompletion(t, comps, []string{"canary-demo", "canary-demo-pingpong", "canary-demo-weights", "canary-demo-weights-na", "canary-demo-workloadRef", "canary-demo-workloadRef-deploy"}, directive, cobra.ShellCompDirectiveNoFileComp)
-
-	comps, directive = cmd.ValidArgsFunction(cmd, []string{}, "canary-demo-p")
-	checkCompletion(t, comps, []string{"canary-demo-pingpong"}, directive, cobra.ShellCompDirectiveNoFileComp)
-
-	comps, directive = cmd.ValidArgsFunction(cmd, []string{}, "seagull")
-	checkCompletion(t, comps, []string{}, directive, cobra.ShellCompDirectiveNoFileComp)
-}
-
-func checkCompletion(t *testing.T, comps, expectedComps []string, directive, expectedDirective cobra.ShellCompDirective) {
-	if e, d := expectedDirective, directive; e != d {
-		t.Errorf("expected directive\n%v\nbut got\n%v", e, d)
-	}
-
-	sort.Strings(comps)
-	sort.Strings(expectedComps)
-
-	if len(expectedComps) != len(comps) {
-		t.Fatalf("expected completions\n%v\nbut got\n%v", expectedComps, comps)
-	}
-
-	for i := range comps {
-		if expectedComps[i] != comps[i] {
-			t.Errorf("expected completions\n%v\nbut got\n%v", expectedComps, comps)
-			break
-		}
-	}
 }
