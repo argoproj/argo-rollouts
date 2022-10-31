@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v3.1.0
       - name: Setup k3s
         run: |
-          curl -sfL https://get.k3s.io | sh -
+          curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.24.7+k3s1 sh -
           sudo mkdir ~/.kube
           sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
           sudo chmod 755 ~/.kube/config
