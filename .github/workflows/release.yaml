@@ -149,6 +149,40 @@ jobs:
 
           cd /tmp && tar -zcf sbom.tar.gz *.spdx
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+        with:
+          cosign-release: 'v1.13.1'
+
+      - name: Install crane to get digest of image
+        uses: imjasonh/setup-crane@v0.1
+
+      - name: Get digest of controller-image
+        run: |
+          echo "CONTROLLER_DIGEST=$(crane digest ${{ steps.controller-meta.outputs.tags }})" >> $GITHUB_ENV
+
+      - name: Get digest of plugin-image
+        run: |
+          echo "PLUGIN_DIGEST=$(crane digest ${{ steps.plugin-meta.outputs.tags }})" >> $GITHUB_ENV
+
+      - name: Sign Argo Rollouts Images
+        run: |
+          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argo-rollouts@${{ env.CONTROLLER_DIGEST }}
+          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/kubectl-argo-rollouts@${{ env.PLUGIN_DIGEST }}
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+
+      - name: Sign checksums and create public key for release assets
+        run: |
+          cosign sign-blob --key env://COSIGN_PRIVATE_KEY dist/argo-rollouts-checksums.txt > dist/argo-rollouts-checksums.sig
+          cosign public-key --key env://COSIGN_PRIVATE_KEY > ./dist/argo-rollouts-cosign.pub
+          # Displays the public key to share.
+          cosign public-key --key env://COSIGN_PRIVATE_KEY
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+
       - name: Draft release
         uses: softprops/action-gh-release@v1
         with:
@@ -161,6 +195,8 @@ jobs:
             dist/kubectl-argo-rollouts-darwin-arm64
             dist/kubectl-argo-rollouts-windows-amd64
             dist/argo-rollouts-checksums.txt
+            dist/argo-rollouts-checksums.sig
+            dist/argo-rollouts-cosign.pub
             manifests/dashboard-install.yaml
             manifests/install.yaml
             manifests/namespace-install.yaml
