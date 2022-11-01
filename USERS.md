@@ -14,6 +14,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
 1. [Farfetch](https://www.farfetch.com/)
 1. [Flipkart](https://flipkart.com)
+1. [GetYourGuide](https://www.getyourguide.com)
 1. [Gllue](https://gllue.com)
 1. [Ibotta](https://home.ibotta.com/)
 1. [Intuit](https://www.intuit.com/)
