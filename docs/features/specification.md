@@ -326,8 +326,21 @@ spec:
           templates:
           - name: baseline
             specRef: stable
+            # optional, generate a Service pointing to this version
+            # by default, the service is named the same as the ReplicaSet
+            # but name can be explicitly set below
+            service:
+              name: experiment-baseline
+              # optional, control the service specification (selector, ports etc)
+              ports:
+                - name: http
+                  targetPort: 8080
+                  port: 80
+                  protocol: TCP
           - name: canary
             specRef: canary
+            # optional, set the weight of traffic routed to this version
+            weight: 10
           analyses:
           - name : mann-whitney
             templateName: mann-whitney

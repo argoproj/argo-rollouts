@@ -6,6 +6,10 @@ The Experiment CRD allows users to have ephemeral runs of one or more ReplicaSet
 running ephemeral ReplicaSets, the Experiment CRD can launch AnalysisRuns alongside the ReplicaSets.
 Generally, those AnalysisRun is used to confirm that new ReplicaSets are running as expected.
 
+A Service routing traffic to the Experiment ReplicaSet is generated if either:
+- the experiment template is weighted;
+- the experiment template explicitly defines the `service` property.
+
 ## Use cases of Experiments
 
 - A user wants to run two versions of an application for a specific duration to enable Kayenta-style
@@ -67,6 +71,18 @@ spec:
           - name: http
             containerPort: 8080
             protocol: TCP
+      # Generate a Service object pointing to this variation
+      service:
+        name: experiment-purple
+        # Control the service specification (selector, ports etc)
+        ports:
+          - name: http
+            targetPort: 8080
+            port: 80
+            protocol: TCP
+        selector:
+          app: canary-demo
+          color: purple
   - name: orange
     replicas: 1
     minReadySeconds: 10
@@ -243,5 +259,10 @@ to `experiment-baseline`, leaving the remaining 90% of traffic to the old stack.
 
 !!! note
     When a weighted experiment step with traffic routing is used, a
-    service is auto-created for each experiment template. The traffic routers use
+    Service is auto-created for each experiment template. The traffic routers use
     this service to send traffic to the experiment pods.
+
+By default, the generated Service has the name of the ReplicaSet and inherits
+ports and selector from the specRef definition. These properties can be overriden, 
+using the `experiment.templates[].service` specification 
+(see [Experiment Spec](#experiment-spec)).
