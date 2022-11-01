@@ -71,10 +71,7 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 			},
 			Annotations: serviceAnnotations,
 		},
-		Spec: corev1.ServiceSpec{
-			Selector: template.Service.Selector,
-			Ports:    template.Service.Ports,
-		},
+		Spec: template.Service.ServiceSpec,
 	}
 
 	service, err := ec.kubeclientset.CoreV1().Services(ec.ex.Namespace).Create(ctx, newService, metav1.CreateOptions{})
