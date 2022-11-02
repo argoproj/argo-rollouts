@@ -111,6 +111,8 @@ k8s-proto: go-mod-vendor $(TYPES)
 		--proto-import $(CURDIR)/vendor \
 		--proto-import=${DIST_DIR}/protoc-include
 	touch pkg/apis/rollouts/v1alpha1/generated.proto
+	cp -R ${GOPATH}/src/github.com/argoproj/argo-rollouts/pkg . | true
+
 
 # generates *.pb.go, *.pb.gw.go, swagger from .proto files
 .PHONY: api-proto
