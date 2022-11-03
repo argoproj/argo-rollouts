@@ -2137,7 +2137,11 @@ func (in *RolloutSpec) DeepCopyInto(out *RolloutSpec) {
 		*out = new(ObjectRef)
 		**out = **in
 	}
-	out.RollbackWindow = in.RollbackWindow
+	if in.RollbackWindow != nil {
+		in, out := &in.RollbackWindow, &out.RollbackWindow
+		*out = new(RollbackWindowSpec)
+		**out = **in
+	}
 	in.Strategy.DeepCopyInto(&out.Strategy)
 	if in.RevisionHistoryLimit != nil {
 		in, out := &in.RevisionHistoryLimit, &out.RevisionHistoryLimit

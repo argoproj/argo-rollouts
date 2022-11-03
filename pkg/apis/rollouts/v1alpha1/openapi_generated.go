@@ -3928,7 +3928,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutSpec(ref common.ReferenceCallback)
 					"rollbackWindow": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The window in which a rollback will be fast tracked (fully promoted)",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RollbackWindowSpec"),
 						},
 					},
