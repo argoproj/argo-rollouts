@@ -453,3 +453,61 @@ func TestSendStateChangeEvents(t *testing.T) {
 		assert.Equal(t, test.expectedEventReasons, recorder.Events)
 	}
 }
+
+// TestRollbackWindow verifies the rollback window conditions
+func TestRollbackWindow(t *testing.T) {
+	now := timeutil.MetaNow()
+	before := metav1.Time{Time: now.Add(-time.Minute)}
+
+	replicaSets := []*appsv1.ReplicaSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo",
+				CreationTimestamp: before,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-1",
+				CreationTimestamp: now,
+			},
+		},
+	}
+	// FIXME: parametrize this
+	ctx := &rolloutContext{
+		allRSs:   replicaSets,
+		newRS:    replicaSets[0],
+		stableRS: replicaSets[1],
+	}
+	ctx.rollout = &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			RollbackWindow: &v1alpha1.RollbackWindowSpec{
+				Revisions: 1,
+			},
+		},
+	}
+	assert.True(t, ctx.isRollbackWithinWindow())
+
+	ctx = &rolloutContext{
+		allRSs:   replicaSets,
+		newRS:    replicaSets[1],
+		stableRS: replicaSets[0],
+	}
+	ctx.rollout = &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			RollbackWindow: &v1alpha1.RollbackWindowSpec{
+				Revisions: 1,
+			},
+		},
+	}
+
+	assert.False(t, ctx.isRollbackWithinWindow())
+}
