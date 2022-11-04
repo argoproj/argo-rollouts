@@ -286,17 +286,17 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 	// Create service with has same name, podTemplateHash, and labels as RS
 	podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	svc := ec.templateServices[template.Name]
-    var ports []corev1.ServicePort
-    for _, ctr := range rs.Spec.Template.Spec.Containers {
-        for _, port := range ctr.Ports {
-            servicePort := corev1.ServicePort{
-                Protocol:   port.Protocol,
-                Port:       port.ContainerPort,
-                TargetPort: intstr.FromInt(int(port.ContainerPort)),
-            }
-            ports = append(ports, servicePort)
-        }
-    }
+	var ports []corev1.ServicePort
+	for _, ctr := range rs.Spec.Template.Spec.Containers {
+		for _, port := range ctr.Ports {
+			servicePort := corev1.ServicePort{
+				Protocol:   port.Protocol,
+				Port:       port.ContainerPort,
+				TargetPort: intstr.FromInt(int(port.ContainerPort)),
+			}
+			ports = append(ports, servicePort)
+		}
+	}
 	if svc == nil || svc.Name != rs.Name {
 		newService, err := ec.CreateService(rs.Name, *template, rs.Labels, ports)
 		if err != nil {

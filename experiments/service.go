@@ -72,8 +72,8 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 			Annotations: serviceAnnotations,
 		},
 		Spec: corev1.ServiceSpec{
-		    Selector: selector,
-		    Ports: ports,
+			Selector: selector,
+			Ports:    ports,
 		},
 	}
 
