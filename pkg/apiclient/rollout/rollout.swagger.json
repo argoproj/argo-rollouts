@@ -1329,6 +1329,10 @@
           "type": "integer",
           "format": "int32",
           "title": "Weight sets the percentage of traffic the template's replicas should receive"
+        },
+        "service": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TemplateService",
+          "title": "Service defines wether a service will be generated or not"
         }
       },
       "title": "RolloutExperimentTemplate defines the template used to create experiments for the Rollout's experiment canary step"
@@ -1724,6 +1728,9 @@
         }
       },
       "description": "TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TemplateService": {
+      "type": "object"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting": {
       "type": "object",

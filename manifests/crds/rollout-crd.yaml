@@ -561,6 +561,8 @@ spec:
                                               type: string
                                             type: object
                                         type: object
+                                      service:
+                                        type: object
                                       specRef:
                                         type: string
                                       weight:
@@ -568,6 +570,7 @@ spec:
                                         type: integer
                                     required:
                                     - name
+                                    - service
                                     - specRef
                                     type: object
                                   type: array

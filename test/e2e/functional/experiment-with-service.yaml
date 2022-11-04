@@ -9,11 +9,7 @@ spec:
   templates:
     - name: test
       replicas: 1
-      service:
-        ports:
-          - protocol: TCP
-            port: 80
-            targetPort: 8080
+      service: {}
       selector:
         matchLabels:
           app: experiment-with-service
@@ -29,3 +25,7 @@ spec:
                 requests:
                   memory: 16Mi
                   cpu: 1m
+              ports:
+                - protocol: TCP
+                  port: 80
+                  containerPort: 8080
