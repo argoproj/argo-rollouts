@@ -561,8 +561,6 @@ spec:
                                               type: string
                                             type: object
                                         type: object
-                                      service:
-                                        type: object
                                       specRef:
                                         type: string
                                       weight:

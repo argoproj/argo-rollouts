@@ -818,7 +818,7 @@ func TestRolloutCreateExperimentWithService(t *testing.T) {
 	assert.NotNil(t, ex.Spec.Templates[0].Service)
 
 	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Name)
-	assert.Nil(t, ex.Spec.Templates[1].Service)
+	assert.NotNil(t, ex.Spec.Templates[1].Service)
 }
 
 func TestRolloutCreateExperimentWithServicePorts(t *testing.T) {
@@ -859,5 +859,5 @@ func TestRolloutCreateExperimentWithServicePorts(t *testing.T) {
 	assert.NotNil(t, ex.Spec.Templates[0].Service)
 
 	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Name)
-	assert.Nil(t, ex.Spec.Templates[1].Service)
+	assert.NotNil(t, ex.Spec.Templates[1].Service)
 }

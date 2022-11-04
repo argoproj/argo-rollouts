@@ -1223,9 +1223,6 @@ message RolloutExperimentTemplate {
 
   // Weight sets the percentage of traffic the template's replicas should receive
   optional int32 weight = 6;
-
-  // Service defines wether a service will be generated or not
-  optional TemplateService service = 7;
 }
 
 // RolloutList is a list of Rollout resources
