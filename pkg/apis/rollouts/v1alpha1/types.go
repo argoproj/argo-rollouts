@@ -535,7 +535,7 @@ type RolloutExperimentTemplate struct {
 	// Weight sets the percentage of traffic the template's replicas should receive
 	Weight *int32 `json:"weight,omitempty" protobuf:"varint,6,opt,name=weight"`
 	// Service defines wether a service will be generated or not
-	Service *TemplateService `json:"service,omitemepty" protobuf:"bytes,7,opt,name=service"`
+	Service *TemplateService `json:"service,omitempty" protobuf:"bytes,7,opt,name=service"`
 }
 
 // PodTemplateMetadata extra labels to add to the template

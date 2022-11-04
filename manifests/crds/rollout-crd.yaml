@@ -570,7 +570,6 @@ spec:
                                         type: integer
                                     required:
                                     - name
-                                    - service
                                     - specRef
                                     type: object
                                   type: array
