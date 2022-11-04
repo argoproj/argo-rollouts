@@ -89,10 +89,7 @@ type TemplateSpec struct {
 	Service *TemplateService `json:"service,omitempty" protobuf:"bytes,6,opt,name=service"`
 }
 
-type TemplateService struct {
-	Name               string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	corev1.ServiceSpec `json:",inline" protobuf:"bytes,2,opt,name=serviceSpec"`
-}
+type TemplateService struct{}
 
 type TemplateStatusCode string
 

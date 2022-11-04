@@ -499,7 +499,7 @@ func TestDeleteServiceIfServiceFieldNil(t *testing.T) {
 
 func TestServiceInheritPortsFromRS(t *testing.T) {
 	templates := generateTemplates("bar")
-	templates[0].Service = &v1alpha1.TemplateService{Name: "foobar"}
+	templates[0].Service = &v1alpha1.TemplateService{}
 	templates[0].Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 		{
 			Name:          "testport",
@@ -516,6 +516,6 @@ func TestServiceInheritPortsFromRS(t *testing.T) {
 	exCtx.reconcile()
 
 	assert.NotNil(t, exCtx.templateServices["bar"])
-	assert.Equal(t, exCtx.templateServices["bar"].Name, "foobar")
+	assert.Equal(t, exCtx.templateServices["bar"].Name, "foo-bar")
 	assert.Equal(t, exCtx.templateServices["bar"].Spec.Ports[0].Port, int32(80))
 }

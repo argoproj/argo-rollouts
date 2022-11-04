@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -792,7 +791,7 @@ func TestRolloutCreateExperimentWithService(t *testing.T) {
 					Replicas: pointer.Int32Ptr(1),
 					Weight:   pointer.Int32Ptr(5),
 				},
-				// Service should NOT be created for "canary-template"
+				// Service should also be created for "canary-template"
 				{
 					Name:     "canary-template",
 					SpecRef:  v1alpha1.CanarySpecRef,
@@ -819,7 +818,7 @@ func TestRolloutCreateExperimentWithService(t *testing.T) {
 	assert.NotNil(t, ex.Spec.Templates[0].Service)
 
 	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Name)
-	assert.Nil(t, ex.Spec.Templates[1].Service)
+	assert.NotNil(t, ex.Spec.Templates[1].Service)
 }
 
 func TestRolloutCreateExperimentWithServicePorts(t *testing.T) {
@@ -832,26 +831,12 @@ func TestRolloutCreateExperimentWithServicePorts(t *testing.T) {
 					SpecRef:  v1alpha1.StableSpecRef,
 					Replicas: pointer.Int32Ptr(1),
 					Weight:   pointer.Int32Ptr(5),
-					Service: &v1alpha1.TemplateService{
-						ServiceSpec: corev1.ServiceSpec{
-							Ports: []corev1.ServicePort{{
-								Name:       "testport",
-								Port:       80,
-								TargetPort: intstr.FromInt(8080),
-								Protocol:   "TCP",
-							},
-							},
-						},
-					},
 				},
 				// Service should also be created for "canary-template"
 				{
 					Name:     "canary-template",
 					SpecRef:  v1alpha1.CanarySpecRef,
 					Replicas: pointer.Int32Ptr(1),
-					Service: &v1alpha1.TemplateService{
-						Name: "custom-name",
-					},
 				},
 			},
 		},
@@ -873,11 +858,6 @@ func TestRolloutCreateExperimentWithServicePorts(t *testing.T) {
 	assert.Equal(t, "stable-template", ex.Spec.Templates[0].Name)
 	assert.NotNil(t, ex.Spec.Templates[0].Service)
 
-	assert.Equal(t, int32(80), ex.Spec.Templates[0].Service.Ports[0].Port)
-
 	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Name)
 	assert.NotNil(t, ex.Spec.Templates[1].Service)
-
-	assert.Equal(t, 0, len(ex.Spec.Templates[1].Service.Ports))
-	assert.Equal(t, "custom-name", ex.Spec.Templates[1].Service.Name)
 }

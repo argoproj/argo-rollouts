@@ -1185,12 +1185,6 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExpe
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
      */
     weight?: number;
-    /**
-     * 
-     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
-     */
-    service?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService;
 }
 /**
  * 
@@ -1707,25 +1701,6 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute {
 /**
  * 
  * @export
- * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService
- */
-export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService {
-    /**
-     * 
-     * @type {string}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService
-     */
-    name?: string;
-    /**
-     * 
-     * @type {K8sIoApiCoreV1ServiceSpec}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService
-     */
-    serviceSpec?: K8sIoApiCoreV1ServiceSpec;
-}
-/**
- * 
- * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting {
@@ -2132,19 +2107,6 @@ export interface K8sIoApiCoreV1CinderVolumeSource {
      * @memberof K8sIoApiCoreV1CinderVolumeSource
      */
     secretRef?: K8sIoApiCoreV1LocalObjectReference;
-}
-/**
- * ClientIPConfig represents the configurations of Client IP based session affinity.
- * @export
- * @interface K8sIoApiCoreV1ClientIPConfig
- */
-export interface K8sIoApiCoreV1ClientIPConfig {
-    /**
-     * 
-     * @type {number}
-     * @memberof K8sIoApiCoreV1ClientIPConfig
-     */
-    timeoutSeconds?: number;
 }
 /**
  * ConfigMapEnvSource selects a ConfigMap to populate the environment variables with.  The contents of the target ConfigMap's Data field will represent the key-value pairs as environment variables.
@@ -4490,183 +4452,6 @@ export interface K8sIoApiCoreV1ServiceAccountTokenProjection {
      * @memberof K8sIoApiCoreV1ServiceAccountTokenProjection
      */
     path?: string;
-}
-/**
- * ServicePort contains information on service's port.
- * @export
- * @interface K8sIoApiCoreV1ServicePort
- */
-export interface K8sIoApiCoreV1ServicePort {
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServicePort
-     */
-    name?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServicePort
-     */
-    protocol?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServicePort
-     */
-    appProtocol?: string;
-    /**
-     * The port that will be exposed by this service.
-     * @type {number}
-     * @memberof K8sIoApiCoreV1ServicePort
-     */
-    port?: number;
-    /**
-     * 
-     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
-     * @memberof K8sIoApiCoreV1ServicePort
-     */
-    targetPort?: K8sIoApimachineryPkgUtilIntstrIntOrString;
-    /**
-     * 
-     * @type {number}
-     * @memberof K8sIoApiCoreV1ServicePort
-     */
-    nodePort?: number;
-}
-/**
- * ServiceSpec describes the attributes that a user creates on a service.
- * @export
- * @interface K8sIoApiCoreV1ServiceSpec
- */
-export interface K8sIoApiCoreV1ServiceSpec {
-    /**
-     * 
-     * @type {Array<K8sIoApiCoreV1ServicePort>}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    ports?: Array<K8sIoApiCoreV1ServicePort>;
-    /**
-     * 
-     * @type {{ [key: string]: string; }}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    selector?: { [key: string]: string; };
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    clusterIP?: string;
-    /**
-     * ClusterIPs is a list of IP addresses assigned to this service, and are usually assigned randomly.  If an address is specified manually, is in-range (as per system configuration), and is not in use, it will be allocated to the service; otherwise creation of the service will fail. This field may not be changed through updates unless the type field is also being changed to ExternalName (which requires this field to be empty) or the type field is being changed from ExternalName (in which case this field may optionally be specified, as describe above).  Valid values are \"None\", empty string (\"\"), or a valid IP address.  Setting this to \"None\" makes a \"headless service\" (no virtual IP), which is useful when direct endpoint connections are preferred and proxying is not required.  Only applies to types ClusterIP, NodePort, and LoadBalancer. If this field is specified when creating a Service of type ExternalName, creation will fail. This field will be wiped when updating a Service to type ExternalName.  If this field is not specified, it will be initialized from the clusterIP field.  If this field is specified, clients must ensure that clusterIPs[0] and clusterIP have the same value.  This field may hold a maximum of two entries (dual-stack IPs, in either order). These IPs must correspond to the values of the ipFamilies field. Both clusterIPs and ipFamilies are governed by the ipFamilyPolicy field. More info: https://kubernetes.io/docs/concepts/services-networking/service/#virtual-ips-and-service-proxies +listType=atomic +optional
-     * @type {Array<string>}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    clusterIPs?: Array<string>;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    type?: string;
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    externalIPs?: Array<string>;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    sessionAffinity?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    loadBalancerIP?: string;
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    loadBalancerSourceRanges?: Array<string>;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    externalName?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    externalTrafficPolicy?: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    healthCheckNodePort?: number;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    publishNotReadyAddresses?: boolean;
-    /**
-     * 
-     * @type {K8sIoApiCoreV1SessionAffinityConfig}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    sessionAffinityConfig?: K8sIoApiCoreV1SessionAffinityConfig;
-    /**
-     * IPFamilies is a list of IP families (e.g. IPv4, IPv6) assigned to this service. This field is usually assigned automatically based on cluster configuration and the ipFamilyPolicy field. If this field is specified manually, the requested family is available in the cluster, and ipFamilyPolicy allows it, it will be used; otherwise creation of the service will fail. This field is conditionally mutable: it allows for adding or removing a secondary IP family, but it does not allow changing the primary IP family of the Service. Valid values are \"IPv4\" and \"IPv6\".  This field only applies to Services of types ClusterIP, NodePort, and LoadBalancer, and does apply to \"headless\" services. This field will be wiped when updating a Service to type ExternalName.  This field may hold a maximum of two entries (dual-stack families, in either order).  These families must correspond to the values of the clusterIPs field, if specified. Both clusterIPs and ipFamilies are governed by the ipFamilyPolicy field. +listType=atomic +optional
-     * @type {Array<string>}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    ipFamilies?: Array<string>;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    ipFamilyPolicy?: string;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    allocateLoadBalancerNodePorts?: boolean;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    loadBalancerClass?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof K8sIoApiCoreV1ServiceSpec
-     */
-    internalTrafficPolicy?: string;
-}
-/**
- * SessionAffinityConfig represents the configurations of session affinity.
- * @export
- * @interface K8sIoApiCoreV1SessionAffinityConfig
- */
-export interface K8sIoApiCoreV1SessionAffinityConfig {
-    /**
-     * 
-     * @type {K8sIoApiCoreV1ClientIPConfig}
-     * @memberof K8sIoApiCoreV1SessionAffinityConfig
-     */
-    clientIP?: K8sIoApiCoreV1ClientIPConfig;
 }
 /**
  * Represents a StorageOS persistent volume resource.
