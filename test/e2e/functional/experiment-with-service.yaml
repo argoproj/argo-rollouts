@@ -27,5 +27,4 @@ spec:
                   cpu: 1m
               ports:
                 - protocol: TCP
-                  port: 80
                   containerPort: 8080
