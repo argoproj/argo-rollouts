@@ -65,6 +65,17 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 		func(obj interface{}, duration time.Duration) {},
 	)
 }
+
+func setExperimentService(template *v1alpha1.TemplateSpec) {
+	template.Service = &v1alpha1.TemplateService{}
+	template.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+		{
+			ContainerPort: 80,
+			Protocol:      "TCP",
+		},
+	}
+}
+
 func TestSetExperimentToPending(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
@@ -375,7 +386,7 @@ func TestFailReplicaSetCreation(t *testing.T) {
 
 func TestFailServiceCreation(t *testing.T) {
 	templates := generateTemplates("bad")
-	templates[0].Service = &v1alpha1.TemplateService{}
+	setExperimentService(&templates[0])
 	e := newExperiment("foo", templates, "")
 
 	exCtx := newTestContext(e)
@@ -444,7 +455,7 @@ func TestFailAddScaleDownDelayIsConflict(t *testing.T) {
 // TestDeleteOutdatedService verifies that outdated service for Template in templateServices map is deleted and new service is created
 func TestDeleteOutdatedService(t *testing.T) {
 	templates := generateTemplates("bar")
-	templates[0].Service = &v1alpha1.TemplateService{}
+	setExperimentService(&templates[0])
 	ex := newExperiment("foo", templates, "")
 
 	wrongService := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "wrong-service"}}
