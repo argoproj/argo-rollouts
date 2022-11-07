@@ -23,6 +23,7 @@ E2E_INSTANCE_ID ?= argo-rollouts-e2e
 E2E_TEST_OPTIONS ?= 
 E2E_PARALLEL ?= 1
 E2E_WAIT_TIMEOUT ?= 120
+GOPATH ?= $(shell go env GOPATH)
 
 override LDFLAGS += \
   -X ${PACKAGE}/utils/version.version=${VERSION} \
@@ -111,6 +112,8 @@ k8s-proto: go-mod-vendor $(TYPES)
 		--proto-import $(CURDIR)/vendor \
 		--proto-import=${DIST_DIR}/protoc-include
 	touch pkg/apis/rollouts/v1alpha1/generated.proto
+	cp -R ${GOPATH}/src/github.com/argoproj/argo-rollouts/pkg . | true
+
 
 # generates *.pb.go, *.pb.gw.go, swagger from .proto files
 .PHONY: api-proto

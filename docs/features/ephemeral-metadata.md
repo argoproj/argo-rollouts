@@ -53,6 +53,6 @@ and annotations under `stableMetadata`/`activeMetadata`. The Pods of the Replica
 updated _in place_ to use the stable metadata (without recreating the pods).
 
 !!! important
-In order for tooling to take advantage of this feature, they would need to recognize the change in
-labels and/or annotations that happen _after_ the Pod has already started. Not all tools may detect
-this.
+    In order for tooling to take advantage of this feature, they would need to recognize the change in
+    labels and/or annotations that happen _after_ the Pod has already started. Not all tools may detect
+    this.
