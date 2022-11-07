@@ -343,7 +343,7 @@ The Rollout status object holds the value of who is currently the stable ping or
 And this way allows the rollout to use pod readiness gate injection as the
 services are not changing their labels at the end of the rollout progress.
 
-!!!important
+!!! important
 
     Ping-Pong feature available since Argo Rollouts v1.2
 
