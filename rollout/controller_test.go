@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -545,9 +546,14 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Version:  "v1beta1",
 		Resource: "targetgroupbindings",
 	}
+	vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+	destGVR := istioutil.GetIstioDestinationRuleGVR()
 	listMapping := map[schema.GroupVersionResource]string{
-		tgbGVR: "TargetGroupBindingList",
+		tgbGVR:  "TargetGroupBindingList",
+		vsvcGVR: vsvcGVR.Resource + "List",
+		destGVR: destGVR.Resource + "List",
 	}
+
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, f.objects...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
@@ -560,7 +566,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	}, true)
+	})
 
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, f.kubeclient, k8sI)
 	if err != nil {
@@ -675,7 +681,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
 	}
 
-	err := c.syncHandler(rolloutName)
+	err := c.syncHandler(context.Background(), rolloutName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing rollout: %v", err)
 	} else if expectError && err == nil {
@@ -1939,9 +1945,27 @@ func TestWriteBackToInformer(t *testing.T) {
 	f.runController(roKey, true, false, c, i, k8sI)
 
 	// Verify the informer was updated with the new unstructured object after reconciliation
-	obj, _, _ := c.rolloutsIndexer.GetByKey(roKey)
-	un := obj.(*unstructured.Unstructured)
+	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
+	assert.NoError(t, err)
+	assert.True(t, exists)
+	un, ok := obj.(*unstructured.Unstructured)
+	assert.True(t, ok)
 	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
 	assert.NotEmpty(t, stableRS)
 	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
+}
+
+func TestRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.rolloutWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }

@@ -52,7 +52,7 @@ The Argo Rollouts controller publishes the following prometheus metrics about Ar
 | `rollout_info_replicas_unavailable` | The number of unavailable replicas per rollout. |
 | `rollout_info_replicas_desired`     | The number of desired replicas per rollout. |
 | `rollout_info_replicas_updated`     | The number of updated replicas per rollout. |
-| `rollout_phase`                     | Information on the state of the rollout. |
+| `rollout_phase`                     | [**DEPRECATED - use rollout_info**] Information on the state of the rollout. |
 | `rollout_reconcile`                 | Rollout reconciliation performance. |
 | `rollout_reconcile_error`           | Error occurring during the rollout. |
 | `experiment_info`                   | Information about Experiment. |
