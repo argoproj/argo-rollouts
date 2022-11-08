@@ -9,6 +9,7 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 )
 
 const (
@@ -73,6 +74,7 @@ func NewCmdTerminateAnalysisRun(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			return nil
 		},
+		ValidArgsFunction: completionutil.AnalysisRunNameCompletionFunc(o),
 	}
 	return cmd
 }
@@ -101,6 +103,7 @@ func NewCmdTerminateExperiment(o *options.ArgoRolloutsOptions) *cobra.Command {
 			}
 			return nil
 		},
+		ValidArgsFunction: completionutil.ExperimentNameCompletionFunc(o),
 	}
 	return cmd
 }
