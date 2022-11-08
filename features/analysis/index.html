@@ -3458,7 +3458,7 @@ to handle these cases accordingly.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span><span class="w"></span>
 <span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
-<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">successCondition</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">len(result) == 0 || result &gt;= 0.95</span><span class="w"></span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">successCondition</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">len(result) == 0 || result[0] &gt;= 0.95</span><span class="w"></span>
 <span class="nt">status</span><span class="p">:</span><span class="w"></span>
 <span class="w">  </span><span class="nt">metricResults</span><span class="p">:</span><span class="w"></span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
@@ -3476,7 +3476,7 @@ to handle these cases accordingly.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span><span class="w"></span>
 <span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
-<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">successCondition</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">len(result) &gt; 0 &amp;&amp; result &gt;= 0.95</span><span class="w"></span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">successCondition</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">len(result) &gt; 0 &amp;&amp; result[0] &gt;= 0.95</span><span class="w"></span>
 <span class="nt">status</span><span class="p">:</span><span class="w"></span>
 <span class="w">  </span><span class="nt">metricResults</span><span class="p">:</span><span class="w"></span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
