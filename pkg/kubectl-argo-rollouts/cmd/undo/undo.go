@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 	routils "github.com/argoproj/argo-rollouts/utils/unstructured"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -60,6 +61,7 @@ func NewCmdUndo(o *options.ArgoRolloutsOptions) *cobra.Command {
 			fmt.Fprintf(o.Out, result)
 			return nil
 		},
+		ValidArgsFunction: completionutil.RolloutNameCompletionFunc(o),
 	}
 	cmd.Flags().Int64Var(&toRevision, "to-revision", toRevision, "The revision to rollback to. Default to 0 (last revision).")
 	return cmd

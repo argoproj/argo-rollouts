@@ -328,6 +328,8 @@ spec:
             specRef: stable
           - name: canary
             specRef: canary
+            # optional, set the weight of traffic routed to this version
+            weight: 10
           analyses:
           - name : mann-whitney
             templateName: mann-whitney
