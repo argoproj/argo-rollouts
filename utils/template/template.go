@@ -17,6 +17,7 @@ const (
 	openBracket               = "{{"
 	closeBracket              = "}}"
 	experimentPodTemplateHash = "templates.%s.podTemplateHash"
+	experimentReplicasetName  = "templates.%s.replicaset.name"
 	experimentAvailableAt     = "experiment.availableAt"
 	experimentEndsAt          = "experiment.finishedAt"
 )
@@ -41,6 +42,7 @@ func ResolveExperimentArgsValue(argTemplate string, ex *v1alpha1.Experiment, tem
 	for _, template := range ex.Spec.Templates {
 		if rs, ok := templateRSs[template.Name]; ok {
 			argsMap[fmt.Sprintf(experimentPodTemplateHash, template.Name)] = rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+			argsMap[fmt.Sprintf(experimentReplicasetName, template.Name)] = rs.Name
 		}
 	}
 	return resolve(t, argsMap)

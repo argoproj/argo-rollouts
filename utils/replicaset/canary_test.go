@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aws/smithy-go/ptr"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1082,41 +1081,6 @@ func TestGetCurrentSetWeight(t *testing.T) {
 	setWeight = GetCurrentSetWeight(rollout)
 	assert.Equal(t, int32(0), setWeight)
 
-}
-
-func TestGetCurrentSetHeaderRouting(t *testing.T) {
-	rollout := newRollout(10, 10, intstr.FromInt(0), intstr.FromInt(1), "", "", nil, nil)
-	setHeaderRoutingStep := v1alpha1.SetHeaderRouting{
-		Match: []v1alpha1.HeaderRoutingMatch{
-			{
-				HeaderName: "agent",
-			},
-			{
-				HeaderName:  "agent2",
-				HeaderValue: v1alpha1.StringMatch{Exact: "value"},
-			},
-			{
-				HeaderName:  "agent3",
-				HeaderValue: v1alpha1.StringMatch{Regex: "regexValue(.*)"},
-			},
-		},
-	}
-	rollout.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
-		{SetWeight: ptr.Int32(20)},
-		{Pause: &v1alpha1.RolloutPause{}},
-		{SetHeaderRouting: &setHeaderRoutingStep},
-		{SetWeight: ptr.Int32(40)},
-		{Pause: &v1alpha1.RolloutPause{}},
-		{SetHeaderRouting: &v1alpha1.SetHeaderRouting{}},
-	}
-
-	assert.Nil(t, GetCurrentSetHeaderRouting(rollout, 0))
-	assert.Nil(t, GetCurrentSetHeaderRouting(rollout, 1))
-	assert.Equal(t, &setHeaderRoutingStep, GetCurrentSetHeaderRouting(rollout, 2))
-	assert.Equal(t, &setHeaderRoutingStep, GetCurrentSetHeaderRouting(rollout, 3))
-	assert.Equal(t, &setHeaderRoutingStep, GetCurrentSetHeaderRouting(rollout, 4))
-	assert.Nil(t, GetCurrentSetHeaderRouting(rollout, 5).Match)
-	assert.Nil(t, GetCurrentSetHeaderRouting(rollout, 6).Match)
 }
 
 func TestAtDesiredReplicaCountsForCanary(t *testing.T) {

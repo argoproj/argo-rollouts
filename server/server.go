@@ -2,12 +2,9 @@ package server
 
 import (
 	"context"
-	"embed"
 	"fmt"
-	"io/fs"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -46,9 +43,6 @@ import (
 	versionutils "github.com/argoproj/argo-rollouts/utils/version"
 )
 
-//go:embed static/*
-var static embed.FS //nolint
-
 var backoff = wait.Backoff{
 	Steps:    5,
 	Duration: 500 * time.Millisecond,
@@ -61,6 +55,7 @@ type ServerOptions struct {
 	RolloutsClientset rolloutclientset.Interface
 	DynamicClientset  dynamic.Interface
 	Namespace         string
+	RootPath          string
 }
 
 const (
@@ -77,18 +72,6 @@ type ArgoRolloutsServer struct {
 // NewServer creates an ArgoRolloutsServer
 func NewServer(o ServerOptions) *ArgoRolloutsServer {
 	return &ArgoRolloutsServer{Options: o}
-}
-
-type spaFileSystem struct {
-	root http.FileSystem
-}
-
-func (fs *spaFileSystem) Open(name string) (http.File, error) {
-	f, err := fs.root.Open(name)
-	if os.IsNotExist(err) {
-		return fs.root.Open("index.html")
-	}
-	return f, err
 }
 
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
@@ -120,16 +103,9 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 		panic(err)
 	}
 
-	var handler http.Handler = gwmux
-
-	ui, err := fs.Sub(static, "static")
-	if err != nil {
-		log.Error("Could not load UI static files")
-		panic(err)
-	}
-
-	mux.Handle("/api/", handler)
-	mux.Handle("/", http.FileServer(&spaFileSystem{http.FS(ui)}))
+	var apiHandler http.Handler = gwmux
+	mux.Handle("/api/", apiHandler)
+	mux.HandleFunc("/", s.staticFileHttpHandler)
 
 	return &httpS
 }
@@ -173,7 +149,7 @@ func (s *ArgoRolloutsServer) Run(ctx context.Context, port int, dashboard bool) 
 
 	startupMessage := fmt.Sprintf("Argo Rollouts api-server serving on port %d (namespace: %s)", port, s.Options.Namespace)
 	if dashboard {
-		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at localhost %d", port)
+		startupMessage = fmt.Sprintf("Argo Rollouts Dashboard is now available at http://localhost:%d/%s", port, s.Options.RootPath)
 	}
 
 	log.Info(startupMessage)

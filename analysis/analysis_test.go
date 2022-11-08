@@ -1279,7 +1279,7 @@ func TestSecretContentReferenceProviderError(t *testing.T) {
 	assert.True(t, strings.Contains(logMessage, "*****"))
 }
 
-//TestSecretContentReferenceAndMultipleArgResolutionSuccess verifies that both secret and non-secret arguments are resolved properly
+// TestSecretContentReferenceAndMultipleArgResolutionSuccess verifies that both secret and non-secret arguments are resolved properly
 func TestSecretContentReferenceAndMultipleArgResolutionSuccess(t *testing.T) {
 	f := newFixture(t)
 	secretName, secretKey, secretValue := "web-metric-secret", "apikey", "12345"
@@ -1611,6 +1611,115 @@ func StartAssessRunStatusWorstMessageInReconcileAnalysisRun(t *testing.T, isDryR
 	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseFailed), nil)
 
 	return c.reconcileAnalysisRun(run)
+}
+
+// TestAssessRunStatusWithOnlyDryRunMetrics verifies that if only dry-run metrics are getting evaluated then, the final
+// status of the analysis run is always successful.
+func TestAssessRunStatusWithOnlyDryRunMetrics(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-metric",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{{
+				MetricName: "success-metric",
+			}},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:       "success-metric",
+					Count:      1,
+					Successful: 1,
+					DryRun:     true,
+					Phase:      v1alpha1.AnalysisPhaseSuccessful,
+					Measurements: []v1alpha1.Measurement{{
+						Phase:      v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
+				},
+			},
+		},
+	}
+
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseFailed), nil)
+	f.provider.On("Resume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+
+	newRun := c.reconcileAnalysisRun(&run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+}
+
+// TestAssessRunStatusWithMixedMetrics verifies that the status of dry-run metrics doesn't impact the final state of the
+// analysis run.
+func TestAssessRunStatusWithMixedMetrics(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	run := v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "run-forever",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+				{
+					Name: "success-metric",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{{
+				MetricName: "success-metric",
+			}},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:         "run-forever",
+					Inconclusive: 1,
+					DryRun:       false,
+					Phase:        v1alpha1.AnalysisPhaseRunning,
+					Measurements: []v1alpha1.Measurement{{
+						Phase:     v1alpha1.AnalysisPhaseRunning,
+						StartedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
+				},
+				{
+					Name:   "success-metric",
+					Count:  1,
+					Failed: 1,
+					DryRun: true,
+					Phase:  v1alpha1.AnalysisPhaseSuccessful,
+					Measurements: []v1alpha1.Measurement{{
+						Phase:      v1alpha1.AnalysisPhaseFailed,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
+				},
+			},
+		},
+	}
+
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseFailed), nil)
+	f.provider.On("Resume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+
+	newRun := c.reconcileAnalysisRun(&run)
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, newRun.Status.Phase)
+	assert.Equal(t, "Metric \"run-forever\" assessed Inconclusive due to inconclusive (1) > inconclusiveLimit (0)", newRun.Status.Message)
 }
 
 // TestAssessRunStatusWorstMessageInReconcileAnalysisRun verifies that the worstMessage returned by assessRunStatus is set as the

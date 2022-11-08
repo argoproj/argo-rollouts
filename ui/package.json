@@ -5,7 +5,8 @@
     "dependencies": {
         "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
         "classnames": "2.2.6",
-        "moment": "^2.29.1",
+        "isomorphic-fetch": "^3.0.0",
+        "moment": "^2.29.4",
         "moment-timezone": "^0.5.33",
         "portable-fetch": "^3.0.0",
         "react": "^17.0.1",

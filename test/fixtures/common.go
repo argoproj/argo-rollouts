@@ -48,7 +48,6 @@ import (
 //nolint:structcheck
 type Common struct {
 	Context        context.Context
-	testInstanceID string
 	t              *testing.T
 	namespace      string
 	log            *log.Entry

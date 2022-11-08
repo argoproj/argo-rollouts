@@ -193,6 +193,13 @@ spec:
                             query:
                               type: string
                           type: object
+                        influxdb:
+                          properties:
+                            profile:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         job:
                           properties:
                             metadata:
@@ -2566,6 +2573,9 @@ spec:
                                               maxSkew:
                                                 format: int32
                                                 type: integer
+                                              minDomains:
+                                                format: int32
+                                                type: integer
                                               topologyKey:
                                                 type: string
                                               whenUnsatisfiable:
@@ -2723,6 +2733,9 @@ spec:
                               type: array
                             insecure:
                               type: boolean
+                            jsonBody:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             jsonPath:
                               type: string
                             method:
@@ -3057,6 +3070,13 @@ spec:
                             query:
                               type: string
                           type: object
+                        influxdb:
+                          properties:
+                            profile:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         job:
                           properties:
                             metadata:
@@ -5430,6 +5450,9 @@ spec:
                                               maxSkew:
                                                 format: int32
                                                 type: integer
+                                              minDomains:
+                                                format: int32
+                                                type: integer
                                               topologyKey:
                                                 type: string
                                               whenUnsatisfiable:
@@ -5587,6 +5610,9 @@ spec:
                               type: array
                             insecure:
                               type: boolean
+                            jsonBody:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             jsonPath:
                               type: string
                             method:
@@ -5807,6 +5833,13 @@ spec:
                             query:
                               type: string
                           type: object
+                        influxdb:
+                          properties:
+                            profile:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         job:
                           properties:
                             metadata:
@@ -8180,6 +8213,9 @@ spec:
                                               maxSkew:
                                                 format: int32
                                                 type: integer
+                                              minDomains:
+                                                format: int32
+                                                type: integer
                                               topologyKey:
                                                 type: string
                                               whenUnsatisfiable:
@@ -8337,6 +8373,9 @@ spec:
                               type: array
                             insecure:
                               type: boolean
+                            jsonBody:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             jsonPath:
                               type: string
                             method:
@@ -10836,6 +10875,9 @@ spec:
                                   maxSkew:
                                     format: int32
                                     type: integer
+                                  minDomains:
+                                    format: int32
+                                    type: integer
                                   topologyKey:
                                     type: string
                                   whenUnsatisfiable:
@@ -11564,7 +11606,7 @@ spec:
                                   format: int32
                                   type: integer
                               type: object
-                            setHeaderRouting:
+                            setHeaderRoute:
                               properties:
                                 match:
                                   items:
@@ -11585,6 +11627,52 @@ spec:
                                     - headerValue
                                     type: object
                                   type: array
+                                name:
+                                  type: string
+                              type: object
+                            setMirrorRoute:
+                              properties:
+                                match:
+                                  items:
+                                    properties:
+                                      headers:
+                                        additionalProperties:
+                                          properties:
+                                            exact:
+                                              type: string
+                                            prefix:
+                                              type: string
+                                            regex:
+                                              type: string
+                                          type: object
+                                        type: object
+                                      method:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                      path:
+                                        properties:
+                                          exact:
+                                            type: string
+                                          prefix:
+                                            type: string
+                                          regex:
+                                            type: string
+                                        type: object
+                                    type: object
+                                  type: array
+                                name:
+                                  type: string
+                                percentage:
+                                  format: int32
+                                  type: integer
+                              required:
+                              - name
                               type: object
                             setWeight:
                               format: int32
@@ -11685,6 +11773,14 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                  tcpRoutes:
+                                    items:
+                                      properties:
+                                        port:
+                                          format: int64
+                                          type: integer
+                                      type: object
+                                    type: array
                                   tlsRoutes:
                                     items:
                                       properties:
@@ -11709,6 +11805,14 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    tcpRoutes:
+                                      items:
+                                        properties:
+                                          port:
+                                            format: int64
+                                            type: integer
+                                        type: object
+                                      type: array
                                     tlsRoutes:
                                       items:
                                         properties:
@@ -11726,6 +11830,15 @@ spec:
                                   type: object
                                 type: array
                             type: object
+                          managedRoutes:
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
                           nginx:
                             properties:
                               additionalIngressAnnotations:
@@ -14071,6 +14184,9 @@ spec:
                                   type: object
                               type: object
                             maxSkew:
+                              format: int32
+                              type: integer
+                            minDomains:
                               format: int32
                               type: integer
                             topologyKey:

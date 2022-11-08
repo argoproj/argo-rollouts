@@ -19,14 +19,27 @@
 
 1. Update Brew formula:
 
+   * Fork the repo https://github.com/argoproj/homebrew-tap
+   * Run the following commands to update the brew formula:
     ```bash
-    git clone git@github.com:argoproj/homebrew-tap.git
     cd homebrew-tap
-    git pull
     ./update.sh kubectl-argo-rollouts $VERSION
-    git commit -am "Update kubectl-argo-rollouts to $VERSION"
-    git push
     ```
+   * If there is a new minor version we want to update the versioned formula as well:
+     * Run the following commands to update the versioned brew formula:
+          ```bash
+          ./update.sh kubectl-argo-rollouts $VERSION @<version_without_patch_and_v>
+          ```
+     * Example: If the new version is `v1.3.2`, we want to update the formula for `v1.3` as well.
+         ```bash
+         ./update.sh kubectl-argo-rollouts v1.3.2 @1.3
+         ```
+   * Commit and push the changes to your fork
+     ```bash
+     git commit -am "Update kubectl-argo-rollouts to $VERSION"
+     ```
+   * Create a PR with the modified files pointing to upstream/master
+   * Once the PR is approved by a maintainer, it can be merged.
 
 ### Verify
 

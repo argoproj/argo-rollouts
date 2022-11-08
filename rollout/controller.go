@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -245,6 +249,7 @@ func NewController(cfg ControllerConfig) *Controller {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				logCtx := logutil.WithRollout(ro)
 				logCtx.Info("rollout deleted")
+				controller.metricsServer.Remove(ro.Namespace, ro.Name, logutil.RolloutKey)
 				// Rollout is deleted, queue up the referenced Service and/or DestinationRules so
 				// that the rollouts-pod-template-hash can be cleared from each
 				for _, s := range serviceutil.GetRolloutServiceKeys(ro) {
@@ -253,6 +258,7 @@ func NewController(cfg ControllerConfig) *Controller {
 				for _, key := range istioutil.GetRolloutDesinationRuleKeys(ro) {
 					controller.IstioController.EnqueueDestinationRule(key)
 				}
+				controller.recorder.Eventf(ro, record.EventOptions{EventReason: conditions.RolloutDeletedReason}, conditions.RolloutDeletedMessage, ro.Name, ro.Namespace)
 			}
 		},
 	})
@@ -321,19 +327,28 @@ func removedKeys(name string, old, new *v1alpha1.Rollout, keyFunc func(ro *v1alp
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	log.Info("Starting Rollout workers")
+	wg := sync.WaitGroup{}
 	for i := 0; i < threadiness; i++ {
+		wg.Add(1)
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.rolloutWorkqueue, logutil.RolloutKey, c.syncHandler, c.metricsServer)
-		}, time.Second, stopCh)
+			controllerutil.RunWorker(ctx, c.rolloutWorkqueue, logutil.RolloutKey, c.syncHandler, c.metricsServer)
+			log.Debug("Rollout worker has stopped")
+			wg.Done()
+		}, time.Second, ctx.Done())
 	}
-	log.Info("Started Rollout workers")
+	log.Info("Started rollout workers")
 
-	go c.IstioController.Run(stopCh)
+	wg.Add(1)
+	go c.IstioController.Run(ctx)
 
-	<-stopCh
-	log.Info("Shutting down workers")
+	<-ctx.Done()
+	c.IstioController.ShutDownWithDrain()
+	wg.Done()
+
+	wg.Wait()
+	log.Info("All rollout workers have stopped")
 
 	return nil
 }
@@ -341,8 +356,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 // syncHandler compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Phase block of the Rollout resource
 // with the current status of the resource.
-func (c *Controller) syncHandler(key string) error {
-	ctx := context.TODO()
+func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	startTime := timeutil.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -419,6 +433,19 @@ func (c *Controller) writeBackToInformer(ro *v1alpha1.Rollout) {
 		return
 	}
 	un := unstructured.Unstructured{Object: obj}
+	// With code-gen tools the argoclientset is generated and the update method here is removing typemetafields
+	// which the notification controller expects when it converts rolloutobject to toUnstructured and if not present
+	// and that throws an error "Failed to process: Object 'Kind' is missing in ..."
+	// Fixing this here as the informer is shared by notification controller by updating typemetafileds.
+	// TODO: Need to revisit this in the future and maybe we should have a dedicated informer for notification
+	gvk := un.GetObjectKind().GroupVersionKind()
+	if len(gvk.Version) == 0 || len(gvk.Group) == 0 || len(gvk.Kind) == 0 {
+		un.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   v1alpha1.SchemeGroupVersion.Group,
+			Kind:    rollouts.RolloutKind,
+			Version: v1alpha1.SchemeGroupVersion.Version,
+		})
+	}
 	err = c.rolloutsInformer.GetStore().Update(&un)
 	if err != nil {
 		logCtx.Errorf("failed to update informer store: %v", err)

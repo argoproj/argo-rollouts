@@ -3,6 +3,7 @@ package ingress
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -10,11 +11,14 @@ import (
 	v1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
 	extensionsv1beta1 "k8s.io/client-go/informers/extensions/v1beta1"
 	networkingv1 "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
 // Ingress defines an Ingress resource abstraction used to allow Rollouts to
@@ -68,6 +72,29 @@ func NewIngressWithAnnotations(mode IngressMode, annotations map[string]string) 
 	}
 }
 
+func NewIngressWithSpecAndAnnotations(ingress *Ingress, annotations map[string]string) *Ingress {
+	switch ingress.mode {
+	case IngressModeNetworking:
+		i := &v1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: annotations,
+			},
+			Spec: *ingress.ingress.Spec.DeepCopy(),
+		}
+		return NewIngress(i)
+	case IngressModeExtensions:
+		i := &v1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: annotations,
+			},
+			Spec: *ingress.legacyIngress.Spec.DeepCopy(),
+		}
+		return NewLegacyIngress(i)
+	default:
+		return nil
+	}
+}
+
 func (i *Ingress) GetExtensionsIngress() (*v1beta1.Ingress, error) {
 	if i.legacyIngress == nil {
 		return nil, errors.New("extensions Ingress is nil in this wrapper")
@@ -93,6 +120,27 @@ func (i *Ingress) GetAnnotations() map[string]string {
 	default:
 		return make(map[string]string)
 	}
+}
+
+// GetClass returns the ingress class.
+// For backwards compatibility `kubernetes.io/ingress.class` annotation will be used if set,
+// otherwise `spec.ingressClassName` is used.
+func (i *Ingress) GetClass() string {
+	annotations := i.GetAnnotations()
+	class := annotations["kubernetes.io/ingress.class"]
+	if class == "" {
+		switch i.mode {
+		case IngressModeNetworking:
+			if c := i.ingress.Spec.IngressClassName; c != nil {
+				class = *c
+			}
+		case IngressModeExtensions:
+			if c := i.legacyIngress.Spec.IngressClassName; c != nil {
+				class = *c
+			}
+		}
+	}
+	return class
 }
 
 func (i *Ingress) GetLabels() map[string]string {
@@ -126,6 +174,117 @@ func (i *Ingress) SetAnnotations(annotations map[string]string) {
 	case IngressModeExtensions:
 		i.legacyIngress.SetAnnotations(annotations)
 	}
+}
+
+func (i *Ingress) CreateAnnotationBasedPath(actionName string) {
+	i.mux.Lock()
+	defer i.mux.Unlock()
+	if HasRuleWithService(i, actionName) {
+		return
+	}
+	switch i.mode {
+	case IngressModeNetworking:
+		t := v1.PathTypeImplementationSpecific
+		p := v1.HTTPIngressPath{
+			Path:     "/*",
+			PathType: &t,
+			Backend: v1.IngressBackend{
+				Service: &v1.IngressServiceBackend{
+					Name: actionName,
+					Port: v1.ServiceBackendPort{
+						Name: "use-annotation",
+					},
+				},
+			},
+		}
+		for _, rule := range i.ingress.Spec.Rules {
+			rule.HTTP.Paths = append(rule.HTTP.Paths[:1], rule.HTTP.Paths[0:]...)
+			rule.HTTP.Paths[0] = p
+		}
+	case IngressModeExtensions:
+		t := v1beta1.PathTypeImplementationSpecific
+		p := v1beta1.HTTPIngressPath{
+			Path:     "/*",
+			PathType: &t,
+			Backend: v1beta1.IngressBackend{
+				ServiceName: actionName,
+				ServicePort: intstr.FromString("use-annotation"),
+			},
+		}
+		for _, rule := range i.legacyIngress.Spec.Rules {
+			rule.HTTP.Paths = append(rule.HTTP.Paths[:1], rule.HTTP.Paths[0:]...)
+			rule.HTTP.Paths[0] = p
+		}
+	}
+}
+
+func (i *Ingress) RemovePathByServiceName(actionName string) {
+	i.mux.Lock()
+	defer i.mux.Unlock()
+	switch i.mode {
+	case IngressModeNetworking:
+		for _, rule := range i.ingress.Spec.Rules {
+			if j := indexPathByService(rule, actionName); j != -1 {
+				rule.HTTP.Paths = append(rule.HTTP.Paths[:j], rule.HTTP.Paths[j+1:]...)
+			}
+		}
+	case IngressModeExtensions:
+		for _, rule := range i.legacyIngress.Spec.Rules {
+			if j := indexLegacyPathByService(rule, actionName); j != -1 {
+				rule.HTTP.Paths = append(rule.HTTP.Paths[:j], rule.HTTP.Paths[j+1:]...)
+			}
+		}
+	}
+}
+
+func (i *Ingress) SortHttpPaths(routes []v1alpha1.MangedRoutes) {
+	var routeWeight = make(map[string]int) // map of route name for ordering
+	for j, route := range routes {
+		routeWeight[route.Name] = j
+	}
+
+	i.mux.Lock()
+	defer i.mux.Unlock()
+	switch i.mode {
+	case IngressModeNetworking:
+		for _, rule := range i.ingress.Spec.Rules {
+			sort.SliceStable(rule.HTTP.Paths, func(i, j int) bool {
+				return getKeyWeight(routeWeight, rule.HTTP.Paths[i].Backend.Service.Name) < getKeyWeight(routeWeight, rule.HTTP.Paths[j].Backend.Service.Name)
+			})
+		}
+	case IngressModeExtensions:
+		for _, rule := range i.legacyIngress.Spec.Rules {
+			sort.SliceStable(rule.HTTP.Paths, func(i, j int) bool {
+				return getKeyWeight(routeWeight, rule.HTTP.Paths[i].Backend.ServiceName) < getKeyWeight(routeWeight, rule.HTTP.Paths[j].Backend.ServiceName)
+			})
+		}
+	}
+}
+
+func getKeyWeight(weight map[string]int, key string) int {
+	if val, ok := weight[key]; ok {
+		return val
+	} else {
+		return len(weight)
+	}
+}
+
+func indexPathByService(rule v1.IngressRule, name string) int {
+	for i, path := range rule.HTTP.Paths {
+		if path.Backend.Service.Name == name {
+			return i
+		}
+	}
+	return -1
+}
+
+func indexLegacyPathByService(rule v1beta1.IngressRule, name string) int {
+	for i, path := range rule.HTTP.Paths {
+		if path.Backend.ServiceName == name {
+			return i
+		}
+	}
+	return -1
 }
 
 func (i *Ingress) DeepCopy() *Ingress {
