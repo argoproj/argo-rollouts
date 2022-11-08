@@ -183,6 +183,12 @@ jobs:
           COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
           COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
 
+      - name: update stable tag for docs
+        run: |
+          git tag -f -m "" stable ${{ github.event.inputs.tag }}
+          git push -f origin stable
+        
+
       - name: Draft release
         uses: softprops/action-gh-release@v1
         with:
