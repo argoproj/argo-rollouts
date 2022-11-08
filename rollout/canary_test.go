@@ -137,12 +137,11 @@ func TestCanaryRollout(t *testing.T) {
 		}
 
 		rollout.Status.CurrentStepHash = conditions.ComputeStepHash(rollout)
-		haveRoutedTraffic := false
 		trafficRouter := mocks.NewTrafficRoutingReconciler(t)
+		trafficRouter.On("Type").Return("mock")
+		trafficRouter.On("RemoveManagedRoutes").Return(nil)
+		trafficRouter.On("UpdateHash", newrsVal, "").Return(nil)
 		if tc.shouldRouteTraffic {
-			trafficRouter.On("Type").Return("mock")
-			trafficRouter.On("RemoveManagedRoutes").Return(nil)
-			trafficRouter.On("UpdateHash", newrsVal, "").Return(nil)
 			trafficRouter.On("SetWeight", int32(0)).Return(nil)
 			trafficRouter.On("VerifyWeight", int32(0)).Return(nil, nil)
 		}
@@ -156,7 +155,6 @@ func TestCanaryRollout(t *testing.T) {
 				recorder:          record.NewFakeEventRecorder(),
 
 				newTrafficRoutingReconciler: func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
-					haveRoutedTraffic = true
 					return []trafficrouting.TrafficRoutingReconciler{
 						trafficRouter,
 					}, nil
@@ -176,7 +174,9 @@ func TestCanaryRollout(t *testing.T) {
 		informers.WaitForCacheSync(stopchan)
 		err := rc.rolloutCanary()
 		assert.NoError(t, err)
-		assert.Equal(t, tc.shouldRouteTraffic, haveRoutedTraffic, " the traffic routing reconciler was called even though we are not ready to route traffic")
+		if !tc.shouldRouteTraffic {
+			trafficRouter.AssertNotCalled(t, "SetWeight", int32(0))
+		}
 	}
 }
 
