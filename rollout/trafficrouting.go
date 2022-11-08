@@ -220,6 +220,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			return err
 		}
 
+		if c.skippedSelectorSwap != nil && *c.skippedSelectorSwap {
+			continue
+		}
+
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
 		if err != nil {
 			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())

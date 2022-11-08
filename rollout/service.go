@@ -290,8 +290,10 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet,
 		if checkRsAvailability && !replicasetutil.IsReplicaSetAvailable(rs) {
 			logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
 			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
-			return DelayServiceSelectorSwapError
+			c.skippedSelectorSwap = pointer.BoolPtr(true)
+			return nil
 		}
+		c.skippedSelectorSwap = pointer.BoolPtr(false)
 		err = c.switchServiceSelector(svc, desiredSelector, c.rollout)
 		if err != nil {
 			return err

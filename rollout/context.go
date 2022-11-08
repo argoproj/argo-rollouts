@@ -49,6 +49,10 @@ type rolloutContext struct {
 	// (e.g. a setWeight step, after a blue-green active switch, after stable service switch),
 	// since we do not want to continually verify weight in case it could incur rate-limiting or other expenses.
 	targetsVerified *bool
+
+	// skippedSelectorSwap indicates that we have skipped swapping selectors
+	// and are not ready to perform any final actions of moving to 100%
+	skippedSelectorSwap *bool
 }
 
 func (c *rolloutContext) reconcile() error {
