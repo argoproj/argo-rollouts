@@ -2201,6 +2201,7 @@
 <p>The Experiment CRD allows users to have ephemeral runs of one or more ReplicaSets. In addition to
 running ephemeral ReplicaSets, the Experiment CRD can launch AnalysisRuns alongside the ReplicaSets.
 Generally, those AnalysisRun is used to confirm that new ReplicaSets are running as expected.</p>
+<p>A Service routing traffic to the Experiment ReplicaSet is also generated.</p>
 <h2 id="use-cases-of-experiments">Use cases of Experiments<a class="headerlink" href="#use-cases-of-experiments" title="Permanent link">&para;</a></h2>
 <ul>
 <li>
@@ -2430,9 +2431,12 @@ to <code>experiment-baseline</code>, leaving the remaining 90% of traffic to the
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>When a weighted experiment step with traffic routing is used, a
-service is auto-created for each experiment template. The traffic routers use
+Service is auto-created for each experiment template. The traffic routers use
 this service to send traffic to the experiment pods.</p>
 </div>
+<p>By default, the generated Service has the name of the ReplicaSet and inherits
+ports and selector from the specRef definition. It can be accessed in using the <code>{{templates.baseline.replicaset.name}}</code>
+or <code>{{templates.canary.replicaset.name}}</code> variables respectively.</p>
 
 
   
