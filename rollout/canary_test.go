@@ -63,6 +63,7 @@ func bumpVersion(rollout *v1alpha1.Rollout) *v1alpha1.Rollout {
 }
 
 func TestCanaryRollout(t *testing.T) {
+	newrsVal := "new-rs-xxx"
 	for _, tc := range []struct {
 		canaryReplicas      int32
 		canaryAvailReplicas int32
@@ -75,7 +76,7 @@ func TestCanaryRollout(t *testing.T) {
 		{2, 2, true},
 	} {
 		namespace := "namespace"
-		selectorNewRSVal := "new-rs-xxx"
+		selectorNewRSVal := newrsVal
 		stableService := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "stable",
@@ -141,7 +142,7 @@ func TestCanaryRollout(t *testing.T) {
 		if tc.shouldRouteTraffic {
 			trafficRouter.On("Type").Return("mock")
 			trafficRouter.On("RemoveManagedRoutes").Return(nil)
-			trafficRouter.On("UpdateHash", "new-rs-xxx", "").Return(nil)
+			trafficRouter.On("UpdateHash", newrsVal, "").Return(nil)
 			trafficRouter.On("SetWeight", int32(0)).Return(nil)
 			trafficRouter.On("VerifyWeight", int32(0)).Return(nil, nil)
 		}
