@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var experimentKind = v1alpha1.SchemeGroupVersion.WithKind("Experiment")
@@ -59,9 +58,9 @@ func GetServiceForExperiment(experiment *v1alpha1.Experiment, svc *corev1.Servic
 	return nil
 }
 
-func (ec *experimentContext) CreateService(serviceName string, template v1alpha1.TemplateSpec, selector map[string]string) (*corev1.Service, error) {
+func (ec *experimentContext) CreateService(serviceName string, template v1alpha1.TemplateSpec, selector map[string]string, ports []corev1.ServicePort) (*corev1.Service, error) {
 	ctx := context.TODO()
-	serviceAnnotations := newServiceSetAnnotations(ec.ex.Name, template.Name)
+	serviceAnnotations := newServiceAnnotations(ec.ex.Name, template.Name)
 	newService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -74,11 +73,7 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: selector,
-			Ports: []corev1.ServicePort{{
-				Protocol:   "TCP",
-				Port:       int32(80),
-				TargetPort: intstr.FromInt(8080),
-			}},
+			Ports:    ports,
 		},
 	}
 
@@ -112,7 +107,7 @@ func (ec *experimentContext) deleteService(service corev1.Service) error {
 	return nil
 }
 
-func newServiceSetAnnotations(experimentName, templateName string) map[string]string {
+func newServiceAnnotations(experimentName, templateName string) map[string]string {
 	return map[string]string{
 		v1alpha1.ExperimentNameAnnotationKey:         experimentName,
 		v1alpha1.ExperimentTemplateNameAnnotationKey: templateName,
