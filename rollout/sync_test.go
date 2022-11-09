@@ -457,57 +457,88 @@ func TestSendStateChangeEvents(t *testing.T) {
 // TestRollbackWindow verifies the rollback window conditions
 func TestRollbackWindow(t *testing.T) {
 	now := timeutil.MetaNow()
-	before := metav1.Time{Time: now.Add(-time.Minute)}
+	before1m := metav1.Time{Time: now.Add(-time.Minute)}
+	before2m := metav1.Time{Time: now.Add(-time.Minute * 2)}
+	before3m := metav1.Time{Time: now.Add(-time.Minute * 3)}
+	before4m := metav1.Time{Time: now.Add(-time.Minute * 4)}
 
 	replicaSets := []*appsv1.ReplicaSet{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:              "foo",
-				CreationTimestamp: before,
+				Name:              "foo-4",
+				CreationTimestamp: before4m,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-3",
+				CreationTimestamp: before3m,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-2",
+				CreationTimestamp: before2m,
 			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              "foo-1",
+				CreationTimestamp: before1m,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo",
 				CreationTimestamp: now,
 			},
 		},
 	}
-	// FIXME: parametrize this
-	ctx := &rolloutContext{
-		allRSs:   replicaSets,
-		newRS:    replicaSets[0],
-		stableRS: replicaSets[1],
-	}
-	ctx.rollout = &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
+	testRuns := []struct {
+		stableRS       *appsv1.ReplicaSet
+		newRS          *appsv1.ReplicaSet
+		revisionWindow int32
+		expectedWithin bool
+	}{
+		{
+			replicaSets[0], nil, 1, false,
 		},
-		Spec: v1alpha1.RolloutSpec{
-			RollbackWindow: &v1alpha1.RollbackWindowSpec{
-				Revisions: 1,
-			},
+		{
+			replicaSets[0], replicaSets[1], 1, false,
+		},
+		{
+			replicaSets[1], replicaSets[0], 1, true,
+		},
+		{
+			replicaSets[2], replicaSets[0], 2, true,
+		},
+		{
+			replicaSets[3], replicaSets[0], 2, false,
 		},
 	}
-	assert.True(t, ctx.isRollbackWithinWindow())
+	for _, test := range testRuns {
+		ctx := &rolloutContext{
+			allRSs:   replicaSets,
+			newRS:    test.newRS,
+			stableRS: test.stableRS,
+		}
 
-	ctx = &rolloutContext{
-		allRSs:   replicaSets,
-		newRS:    replicaSets[1],
-		stableRS: replicaSets[0],
-	}
-	ctx.rollout = &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-		},
-		Spec: v1alpha1.RolloutSpec{
-			RollbackWindow: &v1alpha1.RollbackWindowSpec{
-				Revisions: 1,
+		ctx.rollout = &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "default",
 			},
-		},
+			Spec: v1alpha1.RolloutSpec{
+				RollbackWindow: &v1alpha1.RollbackWindowSpec{
+					Revisions: test.revisionWindow,
+				},
+			},
+		}
+		ctx.log = logutil.WithRollout(ctx.rollout)
+		if test.expectedWithin {
+			assert.True(t, ctx.isRollbackWithinWindow())
+		} else {
+			assert.False(t, ctx.isRollbackWithinWindow())
+		}
 	}
-
-	assert.False(t, ctx.isRollbackWithinWindow())
 }

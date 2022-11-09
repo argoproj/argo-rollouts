@@ -868,14 +868,17 @@ func (c *rolloutContext) isRollbackWithinWindow() bool {
 			if c.rollout.Spec.RollbackWindow.Revisions > 0 {
 				var windowSize int32
 				for _, rs := range c.allRSs {
+					// is newRS < rs < stableRS ? then it's part of the window
 					if rs.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) &&
-						c.stableRS.CreationTimestamp.Before(&rs.CreationTimestamp) {
+						c.newRS.CreationTimestamp.Before(&rs.CreationTimestamp) {
 						windowSize = windowSize + 1
 					}
 				}
-				if windowSize <= c.rollout.Spec.RollbackWindow.Revisions {
+				if windowSize < c.rollout.Spec.RollbackWindow.Revisions {
+					c.log.Infof("Rollback within the window: %d (%v)", windowSize, c.rollout.Spec.RollbackWindow.Revisions)
 					return true
 				}
+				c.log.Infof("Rollback outside the window: %d (%v)", windowSize, c.rollout.Spec.RollbackWindow.Revisions)
 			}
 		}
 	}
