@@ -137,6 +137,17 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			canaryHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		}
 
+		//If we are in the middle of a rollout we need to check that we are available on the newRS aka the canary
+		//before we start routing any traffic to it
+		if canaryHash != stableHash && (c.newRS == nil || c.newRS.Status.AvailableReplicas == 0) {
+			if !replicasetutil.IsReplicaSetAvailable(c.newRS) {
+				// We are in the middle of a rollout, but the newRS is not available yet so let's bail on reconciling traffic
+				// routers but we want to continue reconciling the rollout so we return nil
+				fmt.Errorf("canary service %s is not ready to switch traffic from %s to %s, aborting traffic router reconcile", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash)
+				return nil
+			}
+		}
+
 		if rolloututil.IsFullyPromoted(c.rollout) {
 			// when we are fully promoted. desired canary weight should be 0
 			err := reconciler.RemoveManagedRoutes()
