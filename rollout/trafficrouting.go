@@ -143,7 +143,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			if !replicasetutil.IsReplicaSetAvailable(c.newRS) {
 				// We are in the middle of a rollout, but the newRS is not available yet so let's bail on reconciling traffic
 				// routers but we want to continue reconciling the rollout so we return nil
-				fmt.Errorf("canary service %s is not ready to switch traffic from %s to %s, aborting traffic router reconcile", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash)
+				fmt.Sprintf("canary service %s is not ready to switch traffic from %s to %s, aborting traffic router reconcile", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash)
 				return nil
 			}
 		}
