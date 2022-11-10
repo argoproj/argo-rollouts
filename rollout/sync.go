@@ -868,6 +868,10 @@ func (c *rolloutContext) isRollbackWithinWindow() bool {
 			if c.rollout.Spec.RollbackWindow.Revisions > 0 {
 				var windowSize int32
 				for _, rs := range c.allRSs {
+					if rs.Annotations != nil && rs.Annotations[v1alpha1.ExperimentNameAnnotationKey] != "" {
+						continue
+					}
+
 					// is newRS < rs < stableRS ? then it's part of the window
 					if rs.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) &&
 						c.newRS.CreationTimestamp.Before(&rs.CreationTimestamp) {

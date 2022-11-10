@@ -458,34 +458,39 @@ func TestSendStateChangeEvents(t *testing.T) {
 // TestRollbackWindow verifies the rollback window conditions
 func TestRollbackWindow(t *testing.T) {
 	now := timeutil.MetaNow()
-	before1m := metav1.Time{Time: now.Add(-time.Minute)}
-	before2m := metav1.Time{Time: now.Add(-time.Minute * 2)}
-	before3m := metav1.Time{Time: now.Add(-time.Minute * 3)}
-	before4m := metav1.Time{Time: now.Add(-time.Minute * 4)}
 
 	replicaSets := []*appsv1.ReplicaSet{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              "foo-4",
-				CreationTimestamp: before4m,
+				CreationTimestamp: metav1.Time{Time: now.Add(-time.Minute * 5)},
 			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              "foo-3",
-				CreationTimestamp: before3m,
+				CreationTimestamp: metav1.Time{Time: now.Add(-time.Minute * 4)},
 			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              "foo-2",
-				CreationTimestamp: before2m,
+				CreationTimestamp: metav1.Time{Time: now.Add(-time.Minute * 3)},
 			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              "foo-1",
-				CreationTimestamp: before1m,
+				CreationTimestamp: metav1.Time{Time: now.Add(-time.Minute * 2)},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-experiment",
+				CreationTimestamp: metav1.Time{Time: now.Add(-time.Minute)},
+				Annotations: map[string]string{
+					v1alpha1.ExperimentNameAnnotationKey: "my-experiment",
+				},
 			},
 		},
 		{
@@ -515,6 +520,10 @@ func TestRollbackWindow(t *testing.T) {
 		},
 		{
 			replicaSets[3], replicaSets[0], 2, false,
+		},
+		// from 5->3 the window is 1 because experiments are excluded
+		{
+			replicaSets[5], replicaSets[3], 1, true,
 		},
 	}
 	for _, test := range testRuns {
