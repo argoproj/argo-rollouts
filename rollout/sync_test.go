@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -541,4 +542,62 @@ func TestRollbackWindow(t *testing.T) {
 			assert.False(t, ctx.isRollbackWithinWindow())
 		}
 	}
+}
+
+func Test_shouldFullPromote(t *testing.T) {
+	now := timeutil.MetaNow()
+	before1m := metav1.Time{Time: now.Add(-time.Minute)}
+	replicaSets := []*appsv1.ReplicaSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo",
+				CreationTimestamp: now,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "bar",
+				CreationTimestamp: before1m,
+			},
+			Status: v1.ReplicaSetStatus{
+				AvailableReplicas: int32(1),
+			},
+		},
+	}
+	// test canary
+	ctx := &rolloutContext{
+		allRSs:   replicaSets,
+		stableRS: replicaSets[0],
+		newRS:    replicaSets[1],
+		rollout: &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "default",
+			},
+			Spec: v1alpha1.RolloutSpec{
+				RollbackWindow: &v1alpha1.RollbackWindowSpec{
+					Revisions: 1,
+				},
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{},
+				},
+			},
+		},
+	}
+	ctx.pauseContext = &pauseContext{rollout: ctx.rollout}
+	ctx.log = logutil.WithRollout(ctx.rollout)
+	newStatus := v1alpha1.RolloutStatus{}
+
+	result := ctx.shouldFullPromote(newStatus)
+	assert.Equal(t, result, "Rollback within window")
+
+	// test bluegreen
+	podHash := "xxx"
+	ctx.rollout.Spec.Strategy.Canary = nil
+	ctx.rollout.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
+	newStatus.BlueGreen = v1alpha1.BlueGreenStatus{ActiveSelector: podHash}
+	newStatus.CurrentPodHash = podHash
+
+	result = ctx.shouldFullPromote(newStatus)
+	assert.Equal(t, result, "Rollback within window")
 }
