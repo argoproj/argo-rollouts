@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
@@ -88,6 +90,14 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Traefik != nil {
 		dynamicClient := traefik.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
 		trafficReconcilers = append(trafficReconcilers, traefik.NewReconciler(&traefik.ReconcilerConfig{
+			Rollout:  rollout,
+			Client:   dynamicClient,
+			Recorder: c.recorder,
+		}))
+	}
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Apisix != nil {
+		dynamicClient := apisix.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
+		trafficReconcilers = append(trafficReconcilers, apisix.NewReconciler(&apisix.ReconcilerConfig{
 			Rollout:  rollout,
 			Client:   dynamicClient,
 			Recorder: c.recorder,

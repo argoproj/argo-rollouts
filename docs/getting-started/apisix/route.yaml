@@ -1,0 +1,19 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: rollouts-demo-route
+spec:
+  http:
+    - name: rollouts-demo
+      match:
+        paths:
+          - /*
+        methods:
+          - GET
+      backends:
+        - serviceName: rollouts-demo-stable
+          servicePort: 80
+          weight: 100
+        - serviceName: rollouts-demo-canary
+          servicePort: 80
+          weight: 0

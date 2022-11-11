@@ -43,6 +43,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateList":                            schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateList(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec":                            schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity":                                    schema_pkg_apis_rollouts_v1alpha1_AntiAffinity(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixTrafficRouting":                            schema_pkg_apis_rollouts_v1alpha1_ApisixTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting":                           schema_pkg_apis_rollouts_v1alpha1_AppMeshTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualNodeGroup":                         schema_pkg_apis_rollouts_v1alpha1_AppMeshVirtualNodeGroup(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualNodeReference":                     schema_pkg_apis_rollouts_v1alpha1_AppMeshVirtualNodeReference(ref),
@@ -787,6 +788,36 @@ func schema_pkg_apis_rollouts_v1alpha1_AntiAffinity(ref common.ReferenceCallback
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_ApisixTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApisixTrafficRouting defines the configuration required to use APISIX as traffic router",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"routeRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RouteRef refer to the name of the APISIX Route used to route traffic to the service",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ruleRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RuleRef refer to the name of the APISIX Route HTTP Rule used to route traffic to the service",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"routeRef", "ruleRef"},
+			},
+		},
 	}
 }
 
@@ -4250,11 +4281,17 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 							},
 						},
 					},
+					"apisix": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Apisix holds specific configuration to use Apisix to route traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixTrafficRouting"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MangedRoutes", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TraefikTrafficRouting"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MangedRoutes", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TraefikTrafficRouting"},
 	}
 }
 

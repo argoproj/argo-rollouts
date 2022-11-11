@@ -598,6 +598,20 @@
       },
       "title": "AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixTrafficRouting": {
+      "type": "object",
+      "properties": {
+        "routeRef": {
+          "type": "string",
+          "title": "RouteRef refer to the name of the APISIX Route used to route traffic to the service"
+        },
+        "ruleRef": {
+          "type": "string",
+          "title": "RuleRef refer to the name of the APISIX Route HTTP Rule used to route traffic to the service"
+        }
+      },
+      "title": "ApisixTrafficRouting defines the configuration required to use APISIX as traffic router"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshTrafficRouting": {
       "type": "object",
       "properties": {
@@ -1571,6 +1585,10 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MangedRoutes"
           },
           "description": "A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream\ntraffic router."
+        },
+        "apisix": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixTrafficRouting",
+          "title": "Apisix holds specific configuration to use Apisix to route traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"

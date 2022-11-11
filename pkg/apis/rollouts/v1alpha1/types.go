@@ -366,6 +366,8 @@ type RolloutTrafficRouting struct {
 	// A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
 	// traffic router.
 	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
+	// Apisix holds specific configuration to use Apisix to route traffic
+	Apisix *ApisixTrafficRouting `json:"apisix,omitempty" protobuf:"bytes,9,opt,name=apisix"`
 }
 
 type MangedRoutes struct {
@@ -378,6 +380,14 @@ type MangedRoutes struct {
 type TraefikTrafficRouting struct {
 	// TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
 	WeightedTraefikServiceName string `json:"weightedTraefikServiceName" protobuf:"bytes,1,name=weightedTraefikServiceName"`
+}
+
+// ApisixTrafficRouting defines the configuration required to use APISIX as traffic router
+type ApisixTrafficRouting struct {
+	// RouteRef refer to the name of the APISIX Route used to route traffic to the service
+	RouteRef string `json:"routeRef" protobuf:"bytes,1,name=routeRef"`
+	// RuleRef refer to the name of the APISIX Route HTTP Rule used to route traffic to the service
+	RuleRef string `json:"ruleRef" protobuf:"bytes,2,name=ruleRef"`
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
