@@ -95,3 +95,53 @@ jobs:
           platforms: ${{ steps.platform-matrix.outputs.platform-matrix }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.plugin-meta.outputs.tags }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+        with:
+          cosign-release: 'v1.13.1'
+
+      - name: Install crane to get digest of image
+        uses: imjasonh/setup-crane@v0.2
+
+      - name: Get digest of controller-image
+        run: |
+          if [[ "${{ github.ref == 'refs/heads/master' }}" ]]
+          then
+            echo "CONTROLLER_DIGEST=$(crane digest quay.io/argoproj/argo-rollouts:latest)" >> $GITHUB_ENV
+          fi
+          if [[ "${{ github.ref != 'refs/heads/master' }}" ]]
+          then
+            echo "CONTROLLER_DIGEST=$(crane digest ${{ steps.controller-meta.outputs.tags }})" >> $GITHUB_ENV
+          fi
+        if: github.event_name != 'pull_request'
+
+      - name: Get digest of plugin-image
+        run: |
+          if [[ "${{ github.ref == 'refs/heads/master' }}" ]]
+          then
+            echo "PLUGIN_DIGEST=$(crane digest quay.io/argoproj/kubectl-argo-rollouts:latest)" >> $GITHUB_ENV
+          fi
+          if [[ "${{ github.ref != 'refs/heads/master' }}" ]]
+          then
+            echo "PLUGIN_DIGEST=$(crane digest ${{ steps.plugin-meta.outputs.tags }})" >> $GITHUB_ENV
+          fi
+        if: github.event_name != 'pull_request'
+
+      - name: Sign Argo Rollouts Images
+        run: |
+          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argo-rollouts@${{ env.CONTROLLER_DIGEST }}
+          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/kubectl-argo-rollouts@${{ env.PLUGIN_DIGEST }}
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+        if: ${{ github.event_name == 'push' }}
+
+      - name: Display the public key to share.
+        run: |
+          # Displays the public key to share
+          cosign public-key --key env://COSIGN_PRIVATE_KEY
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+        if: ${{ github.event_name == 'push' }}
