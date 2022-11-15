@@ -321,6 +321,7 @@ func GetMetricCleanupDelaySeconds() time.Duration {
 func SetMetricCleanupDelaySeconds(seconds int32) {
 	defaultMetricCleanupDelay = seconds
 }
+
 // GetDefaultCanaryMinReplicas returns the minimum pods in a Replicaset for Canary traffic routing
 func GetDefaultCanaryMinReplicas() int32 {
 	return defaultCanaryMinReplicas
