@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -800,7 +800,7 @@ func TestCalculateReplicaCountsForCanaryTrafficRouting(t *testing.T) {
 }
 
 func TestCalculateReplicaCountsForCanaryWithMinPods(t *testing.T) {
-	minPods := defaults.GetDefaultCanaryMinReplicas()  // Save initial value
+	minPods := defaults.GetDefaultCanaryMinReplicas() // Save initial value
 	rollout := newRollout(10, 1, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
 
 	// first test Basic Canary without minPods
@@ -821,7 +821,7 @@ func TestCalculateReplicaCountsForCanaryWithMinPods(t *testing.T) {
 	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(rollout, rollout.Status.Canary.Weights)
 	assert.Equal(t, int32(2), newRSReplicaCount)
 	assert.Equal(t, int32(10), stableRSReplicaCount)
-	defaults.SetDefaultCanaryMinReplicas(minPods)  // Restore initial value
+	defaults.SetDefaultCanaryMinReplicas(minPods) // Restore initial value
 }
 
 func TestCalculateReplicaCountsForCanaryTrafficRoutingDynamicScale(t *testing.T) {
