@@ -285,7 +285,7 @@ func NewRSNewReplicas(rollout *v1alpha1.Rollout, allRSs []*appsv1.ReplicaSet, ne
 		} else {
 			newRSReplicaCount, _ = CalculateReplicaCountsForTrafficRoutedCanary(rollout, weights)
 		}
-		return newRSReplicaCount, nil
+		return max(newRSReplicaCount, defaults.GetDefaultCanaryMinReplicas()), nil
 	}
 	return 0, fmt.Errorf("no rollout strategy provided")
 }

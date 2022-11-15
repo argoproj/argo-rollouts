@@ -60,6 +60,7 @@ func newCommand() *cobra.Command {
 		analysisThreads      int
 		serviceThreads       int
 		ingressThreads       int
+		canaryMinReplicas    int
 		istioVersion         string
 		trafficSplitVersion  string
 		ambassadorVersion    string
@@ -95,6 +96,7 @@ func newCommand() *cobra.Command {
 			defaults.SetAmbassadorAPIVersion(ambassadorVersion)
 			defaults.SetSMIAPIVersion(trafficSplitVersion)
 			defaults.SetAppMeshCRDVersion(appmeshCRDVersion)
+			defaults.SetDefaultCanaryMinReplicas(canaryMinReplicas)
 
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
@@ -225,6 +227,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&analysisThreads, "analysis-threads", controller.DefaultAnalysisThreads, "Set the number of worker threads for the Experiment controller")
 	command.Flags().IntVar(&serviceThreads, "service-threads", controller.DefaultServiceThreads, "Set the number of worker threads for the Service controller")
 	command.Flags().IntVar(&ingressThreads, "ingress-threads", controller.DefaultIngressThreads, "Set the number of worker threads for the Ingress controller")
+	command.Flags().IntVar(&canaryMinReplicas, "canary-min-replicas", defaults.DefaultCanaryMinReplicas, "Set the minimum number of replicas for Canary ReplicaSets")
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
