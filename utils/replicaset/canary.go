@@ -25,6 +25,13 @@ func allDesiredAreCreated(rs *appsv1.ReplicaSet, desired int32) bool {
 	return rs != nil && desired == *rs.Spec.Replicas && desired == rs.Status.Replicas
 }
 
+func checkMinPods(replicas int32) int32 {
+	if replicas > 0 {
+		replicas = max(replicas, defaults.GetDefaultCanaryMinReplicas())
+	}
+	return replicas
+}
+
 func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, olderRSs []*appsv1.ReplicaSet, weights *v1alpha1.TrafficWeights) bool {
 	var desiredNewRSReplicaCount, desiredStableRSReplicaCount int32
 	if ro.Spec.Strategy.Canary.TrafficRouting == nil {
@@ -142,7 +149,7 @@ func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *apps
 	if GetReplicaCountForReplicaSets(oldRSs) > 0 {
 		// If any older ReplicaSets exist, we should scale those down first, before even considering
 		// scaling down the newRS or stableRS
-		return newRSReplicaCount, stableRSReplicaCount
+		return checkMinPods(newRSReplicaCount), checkMinPods(stableRSReplicaCount)
 	}
 
 	minAvailableReplicaCount := rolloutSpecReplica - MaxUnavailable(rollout)
@@ -154,7 +161,7 @@ func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *apps
 	replicasToScaleDown := GetReplicasForScaleDown(newRS, !isIncreasing) + GetReplicasForScaleDown(stableRS, isIncreasing)
 	if replicasToScaleDown <= minAvailableReplicaCount {
 		// Cannot scale down stableRS or newRS without going below min available replica count
-		return newRSReplicaCount, stableRSReplicaCount
+		return checkMinPods(newRSReplicaCount), checkMinPods(stableRSReplicaCount)
 	}
 
 	scaleDownCount := replicasToScaleDown - minAvailableReplicaCount
@@ -167,7 +174,7 @@ func CalculateReplicaCountsForBasicCanary(rollout *v1alpha1.Rollout, newRS *apps
 		stableRSReplicaCount = calculateScaleDownReplicaCount(stableRS, desiredStableRSReplicaCount, scaleDownCount, stableRSReplicaCount)
 		stableRSReplicaCount, newRSReplicaCount = adjustReplicaWithinLimits(stableRS, newRS, stableRSReplicaCount, newRSReplicaCount, maxReplicaCountAllowed, minAvailableReplicaCount)
 	}
-	return newRSReplicaCount, stableRSReplicaCount
+	return checkMinPods(newRSReplicaCount), checkMinPods(stableRSReplicaCount)
 }
 
 // approximateWeightedCanaryStableReplicaCounts approximates the desired canary weight and returns
@@ -329,7 +336,7 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 	if !rollout.Spec.Strategy.Canary.DynamicStableScale {
 		// Not using dynamic stable scaling. Stable should be left fully scaled (100%), and canary
 		// will be calculated from setWeight
-		return canaryCount, rolloutSpecReplica
+		return checkMinPods(canaryCount), rolloutSpecReplica
 	}
 
 	// When using dynamic stable scaling, the stable replica count is calculated from the higher of:
@@ -354,7 +361,7 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 			canaryCount = max(trafficWeightReplicaCount, canaryCount)
 		}
 	}
-	return canaryCount, stableCount
+	return checkMinPods(canaryCount), checkMinPods(stableCount)
 }
 
 // trafficWeightToReplicas returns the appropriate replicas given the full spec.replicas and a weight

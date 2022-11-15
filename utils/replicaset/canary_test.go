@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
@@ -796,6 +797,31 @@ func TestCalculateReplicaCountsForCanaryTrafficRouting(t *testing.T) {
 	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForTrafficRoutedCanary(rollout, rollout.Status.Canary.Weights)
 	assert.Equal(t, int32(1), newRSReplicaCount)
 	assert.Equal(t, int32(10), stableRSReplicaCount)
+}
+
+func TestCalculateReplicaCountsForCanaryWithMinPods(t *testing.T) {
+	minPods := defaults.GetDefaultCanaryMinReplicas()  // Save initial value
+	rollout := newRollout(10, 1, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
+
+	// first test Basic Canary without minPods
+	stableRS := newRS("stable", 10, 0)
+	newRS := newRS("canary", 10, 0)
+	newRSReplicaCount, stableRSReplicaCount := CalculateReplicaCountsForBasicCanary(rollout, newRS, stableRS, nil)
+	assert.Equal(t, int32(9), newRSReplicaCount)
+	assert.Equal(t, int32(1), stableRSReplicaCount)
+
+	// Now test Basic Canary with minPods
+	defaults.SetDefaultCanaryMinReplicas(int32(2))
+	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForBasicCanary(rollout, newRS, stableRS, nil)
+	assert.Equal(t, int32(9), newRSReplicaCount)
+	assert.Equal(t, int32(2), stableRSReplicaCount)
+
+	// Now test TrafficRouted Canary
+	rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(rollout, rollout.Status.Canary.Weights)
+	assert.Equal(t, int32(2), newRSReplicaCount)
+	assert.Equal(t, int32(10), stableRSReplicaCount)
+	defaults.SetDefaultCanaryMinReplicas(minPods)  // Restore initial value
 }
 
 func TestCalculateReplicaCountsForCanaryTrafficRoutingDynamicScale(t *testing.T) {
