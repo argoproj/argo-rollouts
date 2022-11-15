@@ -78,6 +78,12 @@ spec:
   # than or equal to this value.
   restartAt: "2020-03-30T21:19:35Z"
 
+  # The rollback window provides a way to fast track deployments to
+  # previously deployed versions.
+  # Optional, and by default is not set.
+  rollbackWindow:
+    revisions: 3
+
   strategy:
 
     # Blue-green update strategy

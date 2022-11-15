@@ -37,6 +37,7 @@ nav:
   - Ephemeral Metadata: features/ephemeral-metadata.md
   - Restarting Rollouts: features/restart.md
   - Scaledown Aborted Rollouts: features/scaledown-aborted-rs.md
+  - Rollback Window: features/rollback.md
   - Anti Affinity: features/anti-affinity/anti-affinity.md
   - Helm: features/helm.md
   - Kustomize: features/kustomize.md
