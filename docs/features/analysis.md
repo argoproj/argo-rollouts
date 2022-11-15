@@ -1061,7 +1061,7 @@ Here are two examples where a metric result of empty array is considered success
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisRun
   ...
-    successCondition: len(result) == 0 || result >= 0.95
+    successCondition: len(result) == 0 || result[0] >= 0.95
 status:
   metricResults:
   - count: 1
@@ -1081,7 +1081,7 @@ status:
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisRun
   ...
-    successCondition: len(result) > 0 && result >= 0.95
+    successCondition: len(result) > 0 && result[0] >= 0.95
 status:
   metricResults:
   - count: 1

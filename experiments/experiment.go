@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
@@ -285,8 +286,19 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 	// Create service with has same name, podTemplateHash, and labels as RS
 	podTemplateHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	svc := ec.templateServices[template.Name]
-	if svc == nil || svc.Name != rs.Name {
-		newService, err := ec.CreateService(rs.Name, *template, rs.Labels)
+	var ports []corev1.ServicePort
+	for _, ctr := range rs.Spec.Template.Spec.Containers {
+		for _, port := range ctr.Ports {
+			servicePort := corev1.ServicePort{
+				Protocol:   port.Protocol,
+				Port:       port.ContainerPort,
+				TargetPort: intstr.FromInt(int(port.ContainerPort)),
+			}
+			ports = append(ports, servicePort)
+		}
+	}
+	if (svc == nil || svc.Name != rs.Name) && len(ports) > 0 {
+		newService, err := ec.CreateService(rs.Name, *template, rs.Labels, ports)
 		if err != nil {
 			templateStatus.Status = v1alpha1.TemplateStatusError
 			templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)

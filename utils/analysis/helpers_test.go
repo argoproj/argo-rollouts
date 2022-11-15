@@ -67,6 +67,10 @@ func TestIsFastFailTerminating(t *testing.T) {
 					Phase:  v1alpha1.AnalysisPhaseRunning,
 					DryRun: true,
 				},
+				{
+					Name:  "yet-another-metric",
+					Phase: v1alpha1.AnalysisPhaseRunning,
+				},
 			},
 		},
 	}
@@ -78,6 +82,11 @@ func TestIsFastFailTerminating(t *testing.T) {
 	dryRunMetricResult.Phase = v1alpha1.AnalysisPhaseError
 	run.Status.MetricResults[2] = dryRunMetricResult
 	assert.False(t, IsTerminating(run))
+	// Verify that a wet run metric failure/error which is executed after a dry-run metric results in terminal decision.
+	yetAnotherMetric := run.Status.MetricResults[3]
+	yetAnotherMetric.Phase = v1alpha1.AnalysisPhaseError
+	run.Status.MetricResults[3] = yetAnotherMetric
+	assert.True(t, IsTerminating(run))
 	// Verify that a wet run metric failure/error results in terminal decision.
 	successRate.Phase = v1alpha1.AnalysisPhaseError
 	run.Status.MetricResults[1] = successRate
