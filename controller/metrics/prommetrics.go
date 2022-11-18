@@ -58,6 +58,13 @@ var (
 		nil,
 	)
 
+	MetricRolloutInfoReplicasUpdated = prometheus.NewDesc(
+		"rollout_info_replicas_updated",
+		"The number of updated replicas per rollout.",
+		namespaceNameLabels,
+		nil,
+	)
+
 	MetricRolloutEventsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "rollout_events_total",

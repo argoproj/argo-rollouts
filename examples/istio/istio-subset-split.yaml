@@ -1,0 +1,89 @@
+# This examples sets up istio-subset-split
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-subset-split
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: istio-subset-split
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istio-subset-split-vsvc
+spec:
+  hosts:
+  - istio-subset-split
+  http:
+  - name: primary
+    route:
+    - destination:
+        host: istio-subset-split
+        subset: stable
+      weight: 100
+    - destination:
+        host: istio-subset-split
+        subset: canary
+      weight: 0
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istio-subset-split-destrule
+spec:
+  host: istio-subset-split
+  subsets:
+  - name: stable
+    labels:
+      app: istio-subset-split
+  - name: canary
+    labels:
+      app: istio-subset-split
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: istio-subset-split
+spec:
+  strategy:
+    canary:
+      trafficRouting:
+        istio:
+          virtualService: 
+            name: istio-subset-split-vsvc
+            routes:
+            - primary
+          destinationRule:
+            name: istio-subset-split-destrule
+            canarySubsetName: canary
+            stableSubsetName: stable
+      steps:
+      - setWeight: 10
+      - pause: {}
+  selector:
+    matchLabels:
+      app: istio-subset-split
+  template:
+    metadata:
+      labels:
+        app: istio-subset-split
+    spec:
+      containers:
+      - name: istio-subset-split
+        image: nginx:1.19-alpine
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+          requests:
+            memory: 16Mi
+            cpu: 5m
