@@ -26,65 +26,127 @@ func (s *RollbackSuite) SetupSuite() {
 	s.ApplyManifests("@functional/rollout-rollback-window.yaml")
 }
 
-func (s *RollbackSuite) TestRollbackAnalysis() {
+func (s *RollbackSuite) TestRollbackAnalysisWithinWindow() {
 	s.Given().
 		HealthyRollout("@functional/rollout-rollback-window.yaml").
 		When().
 		UpdateSpec(`
+metadata:
+  labels:
+    rev: two
 spec:
   template:
     metadata:
-      annotations:
+      labels:
         rev: two`). // update to revision 2
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectAnalysisRunCount(1).
 		When().
 		UpdateSpec(`
+metadata:
+  labels:
+    rev: three
 spec:
   template:
     metadata:
-      annotations:
+      labels:
         rev: three`). // update to revision 3
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectAnalysisRunCount(2).
 		When().
 		UpdateSpec(`
+metadata:
+  labels:
+    rev: four
 spec:
   template:
     metadata:
-      annotations:
+      labels:
         rev: four`). // update to revision 4
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectAnalysisRunCount(3).
 		When().
 		UpdateSpec(`
+metadata:
+  labels:
+    rev: two
 spec:
   template:
     metadata:
-      annotations:
-        rev: three`). // rollback to revision 3 (update to revision 5)
+      labels:
+        rev: two`). // rollback to revision 2 (update to revision 5)
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectAnalysisRunCount(3). // fast rollback, no analysis run
+		ExpectAnalysisRunCount(3) // fast rollback, no analysis run
+}
+
+func (s *RollbackSuite) TestRollbackAnalysisOutsideWindow() {
+	s.Given().
+		HealthyRollout("@functional/rollout-rollback-window.yaml").
 		When().
 		UpdateSpec(`
+metadata:
+  labels:
+    rev: two
 spec:
   template:
     metadata:
-      annotations:
-        rev: six`). // update to revision 6
+      labels:
+        rev: two`). // update to revision 2
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(1).
+		When().
+		UpdateSpec(`
+metadata:
+  labels:
+    rev: three
+spec:
+  template:
+    metadata:
+      labels:
+        rev: three`). // update to revision 3
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(2).
+		When().
+		UpdateSpec(`
+metadata:
+  labels:
+    rev: four
+spec:
+  template:
+    metadata:
+      labels:
+        rev: four`). // update to revision 4
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectAnalysisRunCount(3).
+		When().
+		UpdateSpec(`
+metadata:
+  labels:
+    rev: five
+spec:
+  template:
+    metadata:
+      labels:
+        rev: five`). // update to revision 5
 		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectAnalysisRunCount(4).
 		When().
 		UpdateSpec(`
+metadata:
+  labels:
+    rev: two
 spec:
   template:
     metadata:
-      annotations:
+      labels:
         rev: two`). // rollback to revision 2 (update to revision 7)
 		WaitForRolloutStatus("Healthy").
 		Then().

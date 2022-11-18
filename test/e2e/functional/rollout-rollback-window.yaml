@@ -3,6 +3,7 @@ kind: Rollout
 metadata:
   name: window
 spec:
+  replicas: 2
   rollbackWindow:
     revisions: 2
   strategy:
@@ -12,6 +13,11 @@ spec:
       - analysis:
           templates:
           - templateName: sleep-job
+          args:
+          - name: rev
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.labels['rev']
   selector:
     matchLabels:
       app: window
@@ -19,6 +25,7 @@ spec:
     metadata:
       labels:
         app: window
+        rev: initial
     spec:
       containers:
       - name: basic
