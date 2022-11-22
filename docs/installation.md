@@ -95,3 +95,18 @@ For example if the latest minor version of Argo Rollouts is 1.2.1 and supported 
 * Argo Rollouts 1.2.1 on Kubernetes 1.24
 * Argo Rollouts 1.2.1 on Kubernetes 1.23
 
+## Upgrading Argo Rollouts
+
+Argo Rollouts is a Kubernetes controller that doesn't hold any external state. It is active
+only when deployments are actually happening.
+
+To upgrade Argo Rollouts:
+
+1. Try to find a time period when no deployments are happening
+2. Delete the previous version of the controller and apply/install the new one
+3. When a new Rollout takes place the new controller will be activated.
+
+If deployments are happening while you upgrade the controller, then you shouldn't 
+have any downtime. Current Rollouts will be paused and as soon as the new controller becomes
+active it will resume all in-flight deployments.
+
