@@ -350,6 +350,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#upgrading-argo-rollouts" class="md-nav__link">
+    Upgrading Argo Rollouts
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2202,6 +2209,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#upgrading-argo-rollouts" class="md-nav__link">
+    Upgrading Argo Rollouts
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2291,6 +2305,18 @@ command line.</p>
 <li>Argo Rollouts 1.2.1 on Kubernetes 1.24</li>
 <li>Argo Rollouts 1.2.1 on Kubernetes 1.23</li>
 </ul>
+<h2 id="upgrading-argo-rollouts">Upgrading Argo Rollouts<a class="headerlink" href="#upgrading-argo-rollouts" title="Permanent link">&para;</a></h2>
+<p>Argo Rollouts is a Kubernetes controller that doesn't hold any external state. It is active
+only when deployments are actually happening.</p>
+<p>To upgrade Argo Rollouts:</p>
+<ol>
+<li>Try to find a time period when no deployments are happening</li>
+<li>Delete the previous version of the controller and apply/install the new one</li>
+<li>When a new Rollout takes place the new controller will be activated.</li>
+</ol>
+<p>If deployments are happening while you upgrade the controller, then you shouldn't 
+have any downtime. Current Rollouts will be paused and as soon as the new controller becomes
+active it will resume all in-flight deployments.</p>
 
 
   
