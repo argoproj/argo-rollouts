@@ -166,8 +166,8 @@ github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.19 h1:oRHDrwCTVT8ZXi4sr9
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.19/go.mod h1:6Q0546uHDp421okhmmGfbxzq2hBqbXFNpi4k+Q1JnQA=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.3.26 h1:Mza+vlnZr+fPKFKRq/lKGVvM6B/8ZZmNdEopOwSQLms=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.3.26/go.mod h1:Y2OJ+P+MC1u1VKnavT+PshiEuGPyh/7DqxoDNij4/bg=
-github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.21.10 h1:P4IjsoKGRL2iqqFrcHMXDW31nlzN+k8CMwpyGFtiLy8=
-github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.21.10/go.mod h1:b2EPXU2jyxD7StcbEemizK7A5wYYDKhdp6zpSUKUjJ0=
+github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.21.11 h1:DjQB6Lw3Awtdc1xAig+0tu3NBMszVk/NrkSaKiA5NGE=
+github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.21.11/go.mod h1:b2EPXU2jyxD7StcbEemizK7A5wYYDKhdp6zpSUKUjJ0=
 github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.18.26 h1:gAy84CkCnK2vgh7Rj5tRzpqeATCPShVCIjJZ0g7iKNg=
 github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.18.26/go.mod h1:uIsRP+M5F/Ch+21isqTg6u16FXl2yzupCX0Dli4eQEM=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.19 h1:GE25AWCdNUPh9AOJzI9KIJnja7IwUc1WyUqz/JTyJ/I=
