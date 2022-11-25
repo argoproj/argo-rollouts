@@ -857,6 +857,38 @@ func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
 	newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
 }
 
+func (c *rolloutContext) isRollbackWithinWindow() bool {
+	if c.newRS == nil || c.stableRS == nil {
+		return false
+	}
+	// first check if this is a rollback
+	if c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) {
+		// then check if we are within window
+		if c.rollout.Spec.RollbackWindow != nil {
+			if c.rollout.Spec.RollbackWindow.Revisions > 0 {
+				var windowSize int32
+				for _, rs := range c.allRSs {
+					if rs.Annotations != nil && rs.Annotations[v1alpha1.ExperimentNameAnnotationKey] != "" {
+						continue
+					}
+
+					// is newRS < rs < stableRS ? then it's part of the window
+					if rs.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) &&
+						c.newRS.CreationTimestamp.Before(&rs.CreationTimestamp) {
+						windowSize = windowSize + 1
+					}
+				}
+				if windowSize < c.rollout.Spec.RollbackWindow.Revisions {
+					c.log.Infof("Rollback within the window: %d (%v)", windowSize, c.rollout.Spec.RollbackWindow.Revisions)
+					return true
+				}
+				c.log.Infof("Rollback outside the window: %d (%v)", windowSize, c.rollout.Spec.RollbackWindow.Revisions)
+			}
+		}
+	}
+	return false
+}
+
 // shouldFullPromote returns a reason string explaining why a rollout should fully promote, marking
 // the desired ReplicaSet as stable. Returns empty string if the rollout is in middle of update
 func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) string {
@@ -872,6 +904,9 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		}
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
+		}
+		if c.isRollbackWithinWindow() {
+			return "Rollback within window"
 		}
 		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 		stepCount := len(c.rollout.Spec.Strategy.Canary.Steps)
@@ -896,6 +931,9 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		}
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
+		}
+		if c.isRollbackWithinWindow() {
+			return "Rollback within window"
 		}
 		if c.pauseContext.IsAborted() {
 			return ""
