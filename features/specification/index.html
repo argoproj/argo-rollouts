@@ -654,6 +654,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../rollback.md" class="md-nav__link">
+        Rollback Window
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../anti-affinity/anti-affinity/" class="md-nav__link">
         Anti Affinity
       </a>
@@ -2204,6 +2218,12 @@
 <span class="w">  </span><span class="c1"># The controller will ensure all pods have a creationTimestamp greater</span><span class="w"></span>
 <span class="w">  </span><span class="c1"># than or equal to this value.</span><span class="w"></span>
 <span class="w">  </span><span class="nt">restartAt</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2020-03-30T21:19:35Z&quot;</span><span class="w"></span>
+
+<span class="w">  </span><span class="c1"># The rollback window provides a way to fast track deployments to</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># previously deployed versions.</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># Optional, and by default is not set.</span><span class="w"></span>
+<span class="w">  </span><span class="nt">rollbackWindow</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">revisions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w"></span>
 
 <span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
 
