@@ -221,7 +221,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		}
 
 		if c.skippedSelectorSwap != nil && *c.skippedSelectorSwap {
-			continue
+			c.log.Infof("Skipping selector swap (%v)", c.skippedSelectorSwap)
+			return nil
 		}
 
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)

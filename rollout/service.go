@@ -45,14 +45,6 @@ const (
 }`
 )
 
-type delayServiceSelectorSwapError struct{}
-
-func (e delayServiceSelectorSwapError) Error() string {
-	return "Selectors cannot be swapped yet because not all pods are ready"
-}
-
-var DelayServiceSelectorSwapError = delayServiceSelectorSwapError{}
-
 func generatePatch(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) string {
 	if _, ok := service.Annotations[v1alpha1.ManagedByRolloutsKey]; !ok {
 		return fmt.Sprintf(switchSelectorAndAddManagedByPatch, r.Name, newRolloutUniqueLabelValue)
