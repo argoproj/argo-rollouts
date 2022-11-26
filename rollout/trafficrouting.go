@@ -220,8 +220,11 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			return err
 		}
 
-		if c.skippedSelectorSwap != nil && *c.skippedSelectorSwap {
-			c.log.Infof("Skipping selector swap (%v)", c.skippedSelectorSwap)
+		// if we haven't swapped selectors and dynamic stable scale is set then
+		// we might switch weights to a set of pods that are not ready (importantly this is the case
+		// where canary: 100, stable: 0 -> canary: 0, stable: 100).
+		if c.skippedSelectorSwap != nil && *c.skippedSelectorSwap && c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+			c.log.Infof("Skipping weight changes since replica set is not ready and dynamicStableScale is set")
 			return nil
 		}
 

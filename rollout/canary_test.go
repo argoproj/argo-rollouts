@@ -1391,13 +1391,7 @@ func TestCanarySVCSelectors(t *testing.T) {
 		informers.Start(stopchan)
 		informers.WaitForCacheSync(stopchan)
 		err := rc.reconcileStableAndCanaryService()
-		// There is an error returned here because we could not reconcile
-		// unhealthy services.
-		if tc.shouldTargetNewRS {
-			assert.NoError(t, err, "unable to reconcileStableAndCanaryService")
-		} else {
-			assert.Error(t, err, "able to reconcileStableAndCanaryService for unhealthy replicas")
-		}
+		assert.NoError(t, err, "unable to reconcileStableAndCanaryService")
 		updatedCanarySVC, err := servicesLister.Services(rc.rollout.Namespace).Get(canaryService.Name)
 		assert.NoError(t, err, "unable to get updated canary service")
 		if tc.shouldTargetNewRS {
