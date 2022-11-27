@@ -79,6 +79,12 @@ spec:
               revisionHistoryLimit:
                 format: int32
                 type: integer
+              rollbackWindow:
+                properties:
+                  revisions:
+                    format: int32
+                    type: integer
+                type: object
               selector:
                 properties:
                   matchExpressions:

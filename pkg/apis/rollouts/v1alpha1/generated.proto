@@ -1092,6 +1092,10 @@ message PrometheusMetric {
 message RequiredDuringSchedulingIgnoredDuringExecution {
 }
 
+message RollbackWindowSpec {
+  optional int32 revisions = 1;
+}
+
 // Rollout is a specification for a Rollout resource
 message Rollout {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
@@ -1274,6 +1278,10 @@ message RolloutSpec {
   // Defaults to 0 (pod will be considered available as soon as it is ready)
   // +optional
   optional int32 minReadySeconds = 4;
+
+  // The window in which a rollback will be fast tracked (fully promoted)
+  // +optional
+  optional RollbackWindowSpec rollbackWindow = 13;
 
   // The deployment strategy to use to replace existing pods with new ones.
   // +optional

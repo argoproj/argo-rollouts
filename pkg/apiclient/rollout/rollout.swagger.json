@@ -1143,6 +1143,15 @@
       "type": "object",
       "title": "RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RollbackWindowSpec": {
+      "type": "object",
+      "properties": {
+        "revisions": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout": {
       "type": "object",
       "properties": {
@@ -1381,6 +1390,10 @@
           "type": "integer",
           "format": "int32",
           "title": "Minimum number of seconds for which a newly created pod should be ready\nwithout any of its container crashing, for it to be considered available.\nDefaults to 0 (pod will be considered available as soon as it is ready)\n+optional"
+        },
+        "rollbackWindow": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RollbackWindowSpec",
+          "title": "The window in which a rollback will be fast tracked (fully promoted)\n+optional"
         },
         "strategy": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutStrategy",

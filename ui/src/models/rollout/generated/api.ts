@@ -941,6 +941,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RequiredDur
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RollbackWindowSpec
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RollbackWindowSpec {
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RollbackWindowSpec
+     */
+    revisions?: number;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout {
@@ -1254,6 +1267,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutSpec
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutSpec
      */
     minReadySeconds?: number;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RollbackWindowSpec}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutSpec
+     */
+    rollbackWindow?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RollbackWindowSpec;
     /**
      * 
      * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStrategy}
