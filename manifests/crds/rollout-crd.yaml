@@ -709,6 +709,15 @@ spec:
                             required:
                             - mappings
                             type: object
+                          apisix:
+                            properties:
+                              routeRef:
+                                type: string
+                              ruleRef:
+                                type: string
+                            required:
+                            - routeRef
+                            type: object
                           appMesh:
                             properties:
                               virtualNodeGroup:

@@ -218,6 +218,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AntiAffinit
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting
+     */
+    routeRef?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting
+     */
+    ruleRef?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshTrafficRouting
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshTrafficRouting {
@@ -1527,6 +1546,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
     managedRoutes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    apisix?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting;
 }
 /**
  * 
