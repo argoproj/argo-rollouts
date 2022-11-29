@@ -821,6 +821,14 @@ func TestCalculateReplicaCountsForCanaryWithMinPods(t *testing.T) {
 	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(rollout, rollout.Status.Canary.Weights)
 	assert.Equal(t, int32(2), newRSReplicaCount)
 	assert.Equal(t, int32(10), stableRSReplicaCount)
+
+	// Test that we don't use minPods when desired replicas < minPods
+	rollout = newRollout(1, 1, intstr.FromInt(0), intstr.FromInt(1), "canary", "stable", nil, nil)
+	rollout.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(rollout, rollout.Status.Canary.Weights)
+	assert.Equal(t, int32(1), newRSReplicaCount)
+	assert.Equal(t, int32(1), stableRSReplicaCount)
+
 	defaults.SetDefaultCanaryMinReplicas(minPods) // Restore initial value
 }
 
