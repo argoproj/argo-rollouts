@@ -102,6 +102,8 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	return nil, nil
 }
 
+//var count int = 0
+
 func (c *rolloutContext) reconcileTrafficRouting() error {
 	reconcilers, err := c.newTrafficRoutingReconciler(c)
 	// a return here does ensure that all trafficReconcilers are healthy
@@ -181,6 +183,11 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, nil)
 			if !atDesiredReplicaCount && !c.rollout.Status.PromoteFull {
 				// Use the previous weight since the new RS is not ready for a new weight
+
+				//canaryPodsReady := replicasetutil.GetAvailableReplicaCountForReplicaSets(c.newRS)
+				//
+				// This logic seems flawed when we have a step that sets it to 100% and then pauses but when we go into
+				// the pause state, the canary becomes not ready for any reason. We should not be setting the weight to 100%
 				for i := *index - 1; i >= 0; i-- {
 					step := c.rollout.Spec.Strategy.Canary.Steps[i]
 					if step.SetWeight != nil {
@@ -218,6 +225,25 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
 		if err != nil {
 			return err
+		}
+
+		//REMOVE: this is test code to simulate a failure within the canary
+		//if *index == 8 && count < 10 {
+		//	c.kubeclientset.CoreV1().Pods("smi").DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+		//		LabelSelector: "role=c",
+		//	})
+		//	count++
+		//}
+
+		//If we are in the middle of a rollout we need to check that we are available on the newRS aka the canary
+		//before we start routing any traffic to it
+		if canaryHash != stableHash {
+			if !replicasetutil.IsReplicaSetAvailable(c.newRS) {
+				// We are in the middle of a rollout, but the newRS is not available yet so let's calculate a traffic router
+				// weight instead of using user supplied weight to avoid downtime
+				c.log.Infof("canary service %s is not ready to switch traffic from %s to %s, setting desiredWeight to %d", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash, desiredWeight)
+				desiredWeight = (100 * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+			}
 		}
 
 		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
