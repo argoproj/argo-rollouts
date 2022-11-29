@@ -236,7 +236,8 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		//}
 
 		//If we are in the middle of a rollout we need to check that we are available on the newRS aka the canary
-		//before we start routing any traffic to it
+		//before we start routing any traffic to it, this is not perfect becuase there is still time delay within each
+		//traffic router where something can go wrong like nodes being killed etc.
 		if canaryHash != stableHash {
 			if !replicasetutil.IsReplicaSetAvailable(c.newRS) {
 				// We are in the middle of a rollout, but the newRS is not available yet so let's calculate a traffic router

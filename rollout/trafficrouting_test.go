@@ -446,7 +446,7 @@ func TestRolloutUseDynamicWeightOnPromoteFull(t *testing.T) {
 		f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 		f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-			assert.Equal(t, int32(5), desiredWeight)
+			assert.Equal(t, int32(50), desiredWeight) //This is 50% here because only 50% of the pods in the canary are available
 			return nil
 		})
 		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
