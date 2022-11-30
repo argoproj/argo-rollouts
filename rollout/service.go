@@ -3,7 +3,6 @@ package rollout
 import (
 	"context"
 	"fmt"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -250,20 +249,20 @@ func (c *rolloutContext) reconcilePingAndPongService() error {
 	return nil
 }
 
-var countS1 int = 0
+//var countS1 int = 0
 
 func (c *rolloutContext) reconcileStableAndCanaryService() error {
 	if c.rollout.Spec.Strategy.Canary == nil {
 		return nil
 	}
 
-	if countS1 < 15 && *c.rollout.Status.CurrentStepIndex >= int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
-		//c.kubeclientset.CoreV1().Pods("smi").DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
-		//	LabelSelector: "role=c",
-		//})
-		//time.Sleep(1 * time.Second)
-		countS1++
-	}
+	//if countS1 < 15 && *c.rollout.Status.CurrentStepIndex >= int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
+	//	c.kubeclientset.CoreV1().Pods("smi").DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+	//		LabelSelector: "role=c",
+	//	})
+	//	time.Sleep(1 * time.Second)
+	//	countS1++
+	//}
 
 	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS, true)
 	if err != nil {
