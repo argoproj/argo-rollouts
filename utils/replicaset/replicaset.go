@@ -646,3 +646,8 @@ func IsReplicaSetAvailable(rs *appsv1.ReplicaSet) bool {
 	availableReplicas := rs.Status.AvailableReplicas
 	return replicas != nil && *replicas != 0 && availableReplicas != 0 && *replicas <= availableReplicas
 }
+
+// IsReplicaSetPartiallyAvailable returns if a ReplicaSet is scaled up and has at least 1 pod available
+func IsReplicaSetPartiallyAvailable(rs *appsv1.ReplicaSet) bool {
+	return rs.Status.AvailableReplicas > 0
+}

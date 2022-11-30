@@ -183,11 +183,6 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			atDesiredReplicaCount := replicasetutil.AtDesiredReplicaCountsForCanary(c.rollout, c.newRS, c.stableRS, c.otherRSs, nil)
 			if !atDesiredReplicaCount && !c.rollout.Status.PromoteFull {
 				// Use the previous weight since the new RS is not ready for a new weight
-
-				//canaryPodsReady := replicasetutil.GetAvailableReplicaCountForReplicaSets(c.newRS)
-				//
-				// This logic seems flawed when we have a step that sets it to 100% and then pauses but when we go into
-				// the pause state, the canary becomes not ready for any reason. We should not be setting the weight to 100%
 				for i := *index - 1; i >= 0; i-- {
 					step := c.rollout.Spec.Strategy.Canary.Steps[i]
 					if step.SetWeight != nil {
@@ -227,35 +222,10 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			return err
 		}
 
-		//REMOVE: this is test code to simulate a failure within the canary
-		//if *index == 6 && count < 15 {
-		//	c.kubeclientset.CoreV1().Pods("smi").DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
-		//		LabelSelector: "role=c",
-		//	})
-		//	count++
-		//}
-
-		//If we are in the middle of a rollout we need to check that we are available on the newRS aka the canary
-		//before we start routing any traffic to it, this is not perfect because there is still time delay within each
-		//traffic router where something can go wrong like nodes being killed etc.
-		if !replicasetutil.IsReplicaSetAvailable(c.newRS) && len(weightDestinations) == 0 {
-			c.log.Infof("canary service %s is not ready to switch traffic from %s to %s, delay setting traficrouter desiredWeight to %d", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash, desiredWeight)
-			//if len(weightDestinations) > 0 {
-			//	fmt.Printf("WE SET WEIGHT TO EXPERIMENTS: %d\n", desiredWeight)
-			//	c.log.Infof("rollout has expirments and the canary replicaset is not ready, calculating canary weight as %d", desiredWeight)
-			//	err = reconciler.SetWeight(desiredWeight, weightDestinations...)
-			//	if err != nil {
-			//		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
-			//		return err
-			//	}
-			//}
-		} else {
-			fmt.Printf("WE SET WEIGHT TO HAPPY PATH: %d\n", desiredWeight)
-			err = reconciler.SetWeight(desiredWeight, weightDestinations...)
-			if err != nil {
-				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
-				return err
-			}
+		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
+		if err != nil {
+			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
+			return err
 		}
 
 		if modified, newWeights := calculateWeightStatus(c.rollout, canaryHash, stableHash, desiredWeight, weightDestinations...); modified {
