@@ -238,21 +238,25 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		//If we are in the middle of a rollout we need to check that we are available on the newRS aka the canary
 		//before we start routing any traffic to it, this is not perfect because there is still time delay within each
 		//traffic router where something can go wrong like nodes being killed etc.
-		if canaryHash != stableHash {
-			if !replicasetutil.IsReplicaSetAvailable(c.newRS) {
-				// We are in the middle of a rollout, but the newRS is not available yet so let's calculate a traffic router
-				// weight instead of using user supplied weight to avoid downtime
-				//c.log.Infof("canary service %s is not ready to switch traffic from %s to %s, setting desiredWeight to %d", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash, desiredWeight)
-				//desiredWeight = (100 * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
-				c.log.Infof("canary service %s is not ready to switch traffic from %s to %s, delay setting desiredWeight to %d", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash, desiredWeight)
-				return nil
+		if !replicasetutil.IsReplicaSetAvailable(c.newRS) {
+			c.log.Infof("canary service %s is not ready to switch traffic from %s to %s, delay setting traficrouter desiredWeight to %d", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash, desiredWeight)
+			if len(weightDestinations) > 0 {
+				fmt.Printf("WE SET WEIGHT TO EXPERIMENTS: %d\n", desiredWeight)
+				desiredWeight = (100 * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+				c.log.Infof("rollout has expirments and the canary replicaset is not ready, calculating canary weight as %d", desiredWeight)
+				err = reconciler.SetWeight(desiredWeight, weightDestinations...)
+				if err != nil {
+					c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
+					return err
+				}
 			}
-		}
-
-		err = reconciler.SetWeight(desiredWeight, weightDestinations...)
-		if err != nil {
-			c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
-			return err
+		} else {
+			fmt.Printf("WE SET WEIGHT TO HAPPY PATH: %d\n", desiredWeight)
+			err = reconciler.SetWeight(desiredWeight, weightDestinations...)
+			if err != nil {
+				c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: "TrafficRoutingError"}, err.Error())
+				return err
+			}
 		}
 
 		if modified, newWeights := calculateWeightStatus(c.rollout, canaryHash, stableHash, desiredWeight, weightDestinations...); modified {

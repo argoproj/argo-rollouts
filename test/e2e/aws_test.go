@@ -167,7 +167,7 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 		When().
 		PromoteRollout().
 		WaitForRolloutStatus("Healthy").
-		Sleep(1 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Sleep(2 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
 		Then().
 		Assert(assertWeights(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100))
 }
