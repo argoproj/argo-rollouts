@@ -228,7 +228,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		}
 
 		//REMOVE: this is test code to simulate a failure within the canary
-		//if *index == 8 && count < 10 {
+		//if *index == 6 && count < 15 {
 		//	c.kubeclientset.CoreV1().Pods("smi").DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		//		LabelSelector: "role=c",
 		//	})
@@ -236,14 +236,16 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		//}
 
 		//If we are in the middle of a rollout we need to check that we are available on the newRS aka the canary
-		//before we start routing any traffic to it, this is not perfect becuase there is still time delay within each
+		//before we start routing any traffic to it, this is not perfect because there is still time delay within each
 		//traffic router where something can go wrong like nodes being killed etc.
 		if canaryHash != stableHash {
 			if !replicasetutil.IsReplicaSetAvailable(c.newRS) {
 				// We are in the middle of a rollout, but the newRS is not available yet so let's calculate a traffic router
 				// weight instead of using user supplied weight to avoid downtime
-				c.log.Infof("canary service %s is not ready to switch traffic from %s to %s, setting desiredWeight to %d", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash, desiredWeight)
-				desiredWeight = (100 * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+				//c.log.Infof("canary service %s is not ready to switch traffic from %s to %s, setting desiredWeight to %d", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash, desiredWeight)
+				//desiredWeight = (100 * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+				c.log.Infof("canary service %s is not ready to switch traffic from %s to %s, delay setting desiredWeight to %d", c.rollout.Spec.Strategy.Canary.CanaryService, stableHash, canaryHash, desiredWeight)
+				return nil
 			}
 		}
 
