@@ -4,12 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -21,6 +15,11 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututils "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -68,6 +67,7 @@ func (c rolloutContext) switchServiceSelector(service *corev1.Service, newRollou
 	if err != nil {
 		return err
 	}
+	fmt.Println("WE HAVE SWITCHED SERVICE SELECTORS")
 	msg := fmt.Sprintf("Switched selector for service '%s' from '%s' to '%s'", service.Name, oldPodHash, newRolloutUniqueLabelValue)
 	c.recorder.Eventf(r, record.EventOptions{EventReason: "SwitchService"}, msg)
 	service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey] = newRolloutUniqueLabelValue
@@ -250,10 +250,21 @@ func (c *rolloutContext) reconcilePingAndPongService() error {
 	return nil
 }
 
+var countS1 int = 0
+
 func (c *rolloutContext) reconcileStableAndCanaryService() error {
 	if c.rollout.Spec.Strategy.Canary == nil {
 		return nil
 	}
+
+	if countS1 < 15 && *c.rollout.Status.CurrentStepIndex >= int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
+		//c.kubeclientset.CoreV1().Pods("smi").DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+		//	LabelSelector: "role=c",
+		//})
+		//time.Sleep(1 * time.Second)
+		countS1++
+	}
+
 	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS, true)
 	if err != nil {
 		return err
