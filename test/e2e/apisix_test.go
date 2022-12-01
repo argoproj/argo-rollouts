@@ -13,6 +13,12 @@ import (
 	"time"
 )
 
+const (
+	apisixRouteName     = "rollouts-apisix"
+	apisixCanaryService = "rollout-apisix-canary-canary"
+	apisixStableService = "rollout-apisix-canary-stable"
+)
+
 type APISIXSuite struct {
 	fixtures.E2ESuite
 }
@@ -29,11 +35,7 @@ func (a *APISIXSuite) SetupSuite() {
 }
 
 func (s *APISIXSuite) TestAPISIXCanaryStep() {
-	const (
-		apisixRouteName = "rollouts-apisix"
-		canaryService   = "rollout-apisix-canary-canary"
-		stableService   = "rollout-apisix-canary-stable"
-	)
+
 	s.Given().
 		RolloutObjects("@apisix/rollout-apisix-canary.yaml").
 		When().
@@ -41,37 +43,7 @@ func (s *APISIXSuite) TestAPISIXCanaryStep() {
 		WaitForRolloutStatus("Healthy").
 		Then().
 		Assert(func(t *fixtures.Then) {
-			ar := t.GetApisixRoute()
-			assert.NotEmpty(s.T(), ar)
-			apisixHttpRoutesObj, isFound, err := unstructured.NestedSlice(ar.Object, "spec", "http")
-			assert.NoError(s.T(), err)
-			assert.Equal(s.T(), isFound, true)
-			apisixHttpRouteObj, err := a6.GetHttpRoute(apisixHttpRoutesObj, apisixRouteName)
-			assert.NoError(s.T(), err)
-			backends, err := a6.GetBackends(apisixHttpRouteObj)
-			assert.NoError(s.T(), err)
-
-			for _, backend := range backends {
-				typedBackend, ok := backend.(map[string]interface{})
-				assert.Equal(s.T(), ok, true)
-				nameOfCurrentBackend, isFound, err := unstructured.NestedString(typedBackend, "serviceName")
-				assert.NoError(s.T(), err)
-				assert.Equal(s.T(), isFound, true)
-				if nameOfCurrentBackend == stableService {
-					rawWeight, ok := typedBackend["weight"]
-					assert.Equal(s.T(), ok, true)
-					weight, ok := rawWeight.(int64)
-					assert.Equal(s.T(), ok, true)
-					assert.Equal(s.T(), weight, int64(100))
-				}
-				if nameOfCurrentBackend == canaryService {
-					rawWeight, ok := typedBackend["weight"]
-					assert.Equal(s.T(), ok, true)
-					weight, ok := rawWeight.(int64)
-					assert.Equal(s.T(), ok, true)
-					assert.Equal(s.T(), weight, int64(0))
-				}
-			}
+			s.check(t, 100, 0)
 		}).
 		ExpectExperimentCount(0).
 		When().
@@ -80,37 +52,7 @@ func (s *APISIXSuite) TestAPISIXCanaryStep() {
 		Sleep(5*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
-			ar := t.GetApisixRoute()
-			assert.NotEmpty(s.T(), ar)
-			apisixHttpRoutesObj, isFound, err := unstructured.NestedSlice(ar.Object, "spec", "http")
-			assert.NoError(s.T(), err)
-			assert.Equal(s.T(), isFound, true)
-			apisixHttpRouteObj, err := a6.GetHttpRoute(apisixHttpRoutesObj, apisixRouteName)
-			assert.NoError(s.T(), err)
-			backends, err := a6.GetBackends(apisixHttpRouteObj)
-			assert.NoError(s.T(), err)
-
-			for _, backend := range backends {
-				typedBackend, ok := backend.(map[string]interface{})
-				assert.Equal(s.T(), ok, true)
-				nameOfCurrentBackend, isFound, err := unstructured.NestedString(typedBackend, "serviceName")
-				assert.NoError(s.T(), err)
-				assert.Equal(s.T(), isFound, true)
-				if nameOfCurrentBackend == stableService {
-					rawWeight, ok := typedBackend["weight"]
-					assert.Equal(s.T(), ok, true)
-					weight, ok := rawWeight.(int64)
-					assert.Equal(s.T(), ok, true)
-					assert.Equal(s.T(), weight, int64(95))
-				}
-				if nameOfCurrentBackend == canaryService {
-					rawWeight, ok := typedBackend["weight"]
-					assert.Equal(s.T(), ok, true)
-					weight, ok := rawWeight.(int64)
-					assert.Equal(s.T(), ok, true)
-					assert.Equal(s.T(), weight, int64(5))
-				}
-			}
+			s.check(t, 95, 5)
 		}).
 		ExpectExperimentCount(0).
 		When().
@@ -118,37 +60,7 @@ func (s *APISIXSuite) TestAPISIXCanaryStep() {
 		Sleep(3*time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
-			ar := t.GetApisixRoute()
-			assert.NotEmpty(s.T(), ar)
-			apisixHttpRoutesObj, isFound, err := unstructured.NestedSlice(ar.Object, "spec", "http")
-			assert.NoError(s.T(), err)
-			assert.Equal(s.T(), isFound, true)
-			apisixHttpRouteObj, err := a6.GetHttpRoute(apisixHttpRoutesObj, apisixRouteName)
-			assert.NoError(s.T(), err)
-			backends, err := a6.GetBackends(apisixHttpRouteObj)
-			assert.NoError(s.T(), err)
-
-			for _, backend := range backends {
-				typedBackend, ok := backend.(map[string]interface{})
-				assert.Equal(s.T(), ok, true)
-				nameOfCurrentBackend, isFound, err := unstructured.NestedString(typedBackend, "serviceName")
-				assert.NoError(s.T(), err)
-				assert.Equal(s.T(), isFound, true)
-				if nameOfCurrentBackend == stableService {
-					rawWeight, ok := typedBackend["weight"]
-					assert.Equal(s.T(), ok, true)
-					weight, ok := rawWeight.(int64)
-					assert.Equal(s.T(), ok, true)
-					assert.Equal(s.T(), weight, int64(50))
-				}
-				if nameOfCurrentBackend == canaryService {
-					rawWeight, ok := typedBackend["weight"]
-					assert.Equal(s.T(), ok, true)
-					weight, ok := rawWeight.(int64)
-					assert.Equal(s.T(), ok, true)
-					assert.Equal(s.T(), weight, int64(50))
-				}
-			}
+			s.check(t, 50, 50)
 		}).
 		When().
 		PromoteRollout().
@@ -156,37 +68,41 @@ func (s *APISIXSuite) TestAPISIXCanaryStep() {
 		Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
 		Then().
 		Assert(func(t *fixtures.Then) {
-			ar := t.GetApisixRoute()
-			assert.NotEmpty(s.T(), ar)
-			apisixHttpRoutesObj, isFound, err := unstructured.NestedSlice(ar.Object, "spec", "http")
-			assert.NoError(s.T(), err)
-			assert.Equal(s.T(), isFound, true)
-			apisixHttpRouteObj, err := a6.GetHttpRoute(apisixHttpRoutesObj, apisixRouteName)
-			assert.NoError(s.T(), err)
-			backends, err := a6.GetBackends(apisixHttpRouteObj)
-			assert.NoError(s.T(), err)
-
-			for _, backend := range backends {
-				typedBackend, ok := backend.(map[string]interface{})
-				assert.Equal(s.T(), ok, true)
-				nameOfCurrentBackend, isFound, err := unstructured.NestedString(typedBackend, "serviceName")
-				assert.NoError(s.T(), err)
-				assert.Equal(s.T(), isFound, true)
-				if nameOfCurrentBackend == stableService {
-					rawWeight, ok := typedBackend["weight"]
-					assert.Equal(s.T(), ok, true)
-					weight, ok := rawWeight.(int64)
-					assert.Equal(s.T(), ok, true)
-					assert.Equal(s.T(), weight, int64(100))
-				}
-				if nameOfCurrentBackend == canaryService {
-					rawWeight, ok := typedBackend["weight"]
-					assert.Equal(s.T(), ok, true)
-					weight, ok := rawWeight.(int64)
-					assert.Equal(s.T(), ok, true)
-					assert.Equal(s.T(), weight, int64(0))
-				}
-			}
+			s.check(t, 100, 0)
 		}).
 		ExpectRevisionPodCount("1", 1) // don't scale down old replicaset since it will be within scaleDownDelay
+}
+
+func (s *APISIXSuite) check(t *fixtures.Then, stableWeight int64, canaryWeight int64) {
+	ar := t.GetApisixRoute()
+	assert.NotEmpty(s.T(), ar)
+	apisixHttpRoutesObj, isFound, err := unstructured.NestedSlice(ar.Object, "spec", "http")
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), isFound, true)
+	apisixHttpRouteObj, err := a6.GetHttpRoute(apisixHttpRoutesObj, apisixRouteName)
+	assert.NoError(s.T(), err)
+	backends, err := a6.GetBackends(apisixHttpRouteObj)
+	assert.NoError(s.T(), err)
+
+	for _, backend := range backends {
+		typedBackend, ok := backend.(map[string]interface{})
+		assert.Equal(s.T(), ok, true)
+		nameOfCurrentBackend, isFound, err := unstructured.NestedString(typedBackend, "serviceName")
+		assert.NoError(s.T(), err)
+		assert.Equal(s.T(), isFound, true)
+		if nameOfCurrentBackend == apisixStableService {
+			rawWeight, ok := typedBackend["weight"]
+			assert.Equal(s.T(), ok, true)
+			weight, ok := rawWeight.(int64)
+			assert.Equal(s.T(), ok, true)
+			assert.Equal(s.T(), weight, stableWeight)
+		}
+		if nameOfCurrentBackend == apisixCanaryService {
+			rawWeight, ok := typedBackend["weight"]
+			assert.Equal(s.T(), ok, true)
+			weight, ok := rawWeight.(int64)
+			assert.Equal(s.T(), ok, true)
+			assert.Equal(s.T(), weight, canaryWeight)
+		}
+	}
 }
