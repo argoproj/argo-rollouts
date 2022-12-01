@@ -265,10 +265,10 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 }
 
 // ensureSVCTargets updates the service with the given name to point to the given ReplicaSet,
-// but only if that ReplicaSet has full availability. There is still an edge case with this function if
-// in the small window of time between a rollout being completed and we try to update the service selector, we lose 100%
-// of the pods availability. We will still go and reconcile the traffic router, setting the stable weight to zero. This mainly
-// affects dynamic stable scale.
+// but only if that ReplicaSet has proper availability. There is still an edge case with this function if
+// in the small window of time between a rollout being completed, and we try to update the service selector, we lose 100%
+// of the pods availability. We will not switch service selector but still go and reconcile the traffic router, setting the
+// stable weight to zero. This really only affects dynamic stable scale.
 func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet, checkRsAvailability bool) error {
 	if rs == nil || svcName == "" {
 		return nil
