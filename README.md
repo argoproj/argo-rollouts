@@ -45,7 +45,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 ## Supported Traffic Shaping Integrations
 | Traffic Shaping Integration  | Supported By | SetWeight              | SetMirror          | SetHeader          |
 |------------------------------|--------------|------------------------|--------------------|--------------------|
-| ALB Ingress Controller       | ArgoProj     | :white_check_mark:     | :white_check_mark: | :x:                |
+| ALB Ingress Controller       | ArgoProj     | :white_check_mark:     | :x:                | :white_check_mark: |
 | Ambassador                   | Community    | :white_check_mark:     | :x:                | :x:                |
 | Istio                        | ArgoProj     | :white_check_mark:     | :white_check_mark: | :white_check_mark: |
 | Nginx Ingress Controller     | Community    | :white_check_mark:     | :x:                | :x:                |
