@@ -43,14 +43,14 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, InfluxDB
 
 ## Supported Traffic Shaping Integrations
-| Traffic Shaping Integration  | Supported By | SetWeight              | SetMirror           | SetHeader          |
-|------------------------------|--------------|------------------------|---------------------|--------------------|
-| ALB Ingress Controller       | ArgoProj     | :white_check_mark:     | :heavy_check_mark:  | :white_check_mark: |
-| Ambassador                   | Community    | :white_check_mark:     | :heavy_check_mark:  | :heavy_check_mark: |
-| Istio                        | ArgoProj     | :white_check_mark:     | :white_check_mark:  | :white_check_mark: |
-| Nginx Ingress Controller     | Community    | :white_check_mark:     | :heavy_check_mark:  | :heavy_check_mark: |
-| SMI                          | Community    | :white_check_mark:     | :heavy_check_mark:  | :heavy_check_mark: |
-| Traefik                      | Community    | :white_check_mark:     | :heavy_check_mark:  | :heavy_check_mark: |
+| Traffic Shaping Integration  | Supported By | SetWeight              | SetMirror          | SetHeader          |
+|------------------------------|--------------|------------------------|--------------------|--------------------|
+| ALB Ingress Controller       | ArgoProj     | :white_check_mark:     | :white_check_mark: | :x:                |
+| Ambassador                   | Community    | :white_check_mark:     | :x:                | :x:                |
+| Istio                        | ArgoProj     | :white_check_mark:     | :white_check_mark: | :white_check_mark: |
+| Nginx Ingress Controller     | Community    | :white_check_mark:     | :x:                | :x:                |
+| SMI                          | Community    | :white_check_mark:     | :x:                | :x:                |
+| Traefik                      | Community    | :white_check_mark:     | :x:                | :x:                |
 
 ## Documentation
 To learn more about Argo Rollouts go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
