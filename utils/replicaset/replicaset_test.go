@@ -1338,7 +1338,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 }
 
 func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
-	{
+	t.Run("No Availability", func(t *testing.T) {
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
 				Replicas: pointer.Int32Ptr(2),
@@ -1349,8 +1349,8 @@ func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
 			},
 		}
 		assert.False(t, IsReplicaSetPartiallyAvailable(&rs))
-	}
-	{
+	})
+	t.Run("Partial Availability", func(t *testing.T) {
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
 				Replicas: pointer.Int32Ptr(2),
@@ -1361,8 +1361,8 @@ func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
 			},
 		}
 		assert.True(t, IsReplicaSetPartiallyAvailable(&rs))
-	}
-	{
+	})
+	t.Run("Full Availability", func(t *testing.T) {
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
 				Replicas: pointer.Int32Ptr(2),
@@ -1373,5 +1373,5 @@ func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
 			},
 		}
 		assert.True(t, IsReplicaSetPartiallyAvailable(&rs))
-	}
+	})
 }

@@ -838,7 +838,7 @@ func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
 	f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc)
 	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
 
-	{
+	t.Run("AdoptedService No Availability", func(t *testing.T) {
 		// first ensure we don't update service because new/stable are both not available
 		ctrl, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := ctrl.newRolloutContext(ro1)
@@ -855,9 +855,9 @@ func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
 		stableHash2, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 		assert.False(t, stableInjected)
 		fmt.Println(stableHash2)
-	}
-	{
-		// first ensure we don't update service because new/stable are both not available
+	})
+	t.Run("AdoptedService Partial Availability", func(t *testing.T) {
+		// ensure we do change selector on partially available replica sets
 		ctrl, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := ctrl.newRolloutContext(ro1)
 		assert.NoError(t, err)
@@ -873,6 +873,6 @@ func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
 		stableHash2, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 		assert.True(t, stableInjected)
 		fmt.Println(stableHash2)
-	}
+	})
 
 }
