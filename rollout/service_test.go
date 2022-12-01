@@ -788,6 +788,22 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 		assert.False(t, stableInjected)
 	}
 	{
+		// ensure we don't update service because new/stable are both partially available on an adoption of service reconcile
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 1)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 1)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		_, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, canaryInjected)
+		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, stableInjected)
+	}
+	{
 		// next ensure we do update service because new/stable are now available
 		ctrl, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := ctrl.newRolloutContext(ro1)
@@ -802,6 +818,61 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 		assert.True(t, canaryInjected)
 		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 		assert.True(t, stableInjected)
+	}
+
+}
+
+// TestDelayCanaryStableServiceDelayOnAdoptedService verifies allow partial readiness of pods when switching labels
+// on an adopted services, but that if there is zero readiness we will not switch
+func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
+	ro1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	ro1.Spec.Strategy.Canary.CanaryService = "canary"
+	ro1.Spec.Strategy.Canary.StableService = "stable"
+	//Setup services that are already adopted by rollouts
+	stableSvc := newService("stable", 80, ro1.Spec.Selector.MatchLabels, ro1)
+	ro2 := bumpVersion(ro1)
+	canarySvc := newService("canary", 80, ro1.Spec.Selector.MatchLabels, ro2)
+
+	f := newFixture(t)
+	defer f.Close()
+	f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	{
+		// first ensure we don't update service because new/stable are both not available
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 0)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 0)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		canaryHash2, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, canaryInjected)
+		fmt.Println(canaryHash2)
+		stableHash2, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, stableInjected)
+		fmt.Println(stableHash2)
+	}
+	{
+		// first ensure we don't update service because new/stable are both not available
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 1)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 2)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		canaryHash2, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, canaryInjected)
+		fmt.Println(canaryHash2)
+		stableHash2, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, stableInjected)
+		fmt.Println(stableHash2)
 	}
 
 }

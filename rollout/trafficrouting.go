@@ -102,8 +102,6 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	return nil, nil
 }
 
-//var count int = 0
-
 func (c *rolloutContext) reconcileTrafficRouting() error {
 	reconcilers, err := c.newTrafficRoutingReconciler(c)
 	// a return here does ensure that all trafficReconcilers are healthy
