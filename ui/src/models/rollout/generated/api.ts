@@ -633,6 +633,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
      */
     pingPong?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PingPongSpec;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrategy
+     */
+    minPodsPerRS?: number;
 }
 /**
  * DryRun defines the settings for running the analysis in Dry-Run mode.

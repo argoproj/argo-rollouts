@@ -798,6 +798,11 @@ func (in *CanaryStrategy) DeepCopyInto(out *CanaryStrategy) {
 		*out = new(PingPongSpec)
 		**out = **in
 	}
+	if in.MinPodsPerRS != nil {
+		in, out := &in.MinPodsPerRS, &out.MinPodsPerRS
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
