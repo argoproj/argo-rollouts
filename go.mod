@@ -17,7 +17,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/influxdata/influxdb-client-go/v2 v2.12.0
+	github.com/influxdata/influxdb-client-go/v2 v2.12.1
 	github.com/juju/ansiterm v1.0.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/newrelic/newrelic-client-go v1.1.0
