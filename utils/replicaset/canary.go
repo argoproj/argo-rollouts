@@ -314,14 +314,14 @@ func maxValue(countA int32, countB int32) int32 {
 
 // CheckMinPodsPerRS ensures that if the desired number of pods in a stable or canary ReplicaSet is not zero,
 // then it is at least MinPodsPerRS for High Availability. Only applicable if using TrafficRouting
-func CheckMinPodsPerRS (rollout *v1alpha1.Rollout, count int32) (int32) {
-    if count == 0 {
-	    return count
-    }
-    if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.MinPodsPerRS == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil {
-	    return count
-    }
-    return max (count, *rollout.Spec.Strategy.Canary.MinPodsPerRS)
+func CheckMinPodsPerRS(rollout *v1alpha1.Rollout, count int32) int32 {
+	if count == 0 {
+		return count
+	}
+	if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.MinPodsPerRS == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		return count
+	}
+	return max(count, *rollout.Spec.Strategy.Canary.MinPodsPerRS)
 }
 
 // CalculateReplicaCountsForTrafficRoutedCanary calculates the canary and stable replica counts

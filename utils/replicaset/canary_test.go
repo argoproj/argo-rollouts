@@ -97,7 +97,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 
 		abortScaleDownDelaySeconds *int32
 		statusAbort                bool
-		minPodsPerRS *int32
+		minPodsPerRS               *int32
 	}{
 		{
 			name:                "Do not add extra RSs in scaleDownCount when .Spec.Replica < AvailableReplicas",
@@ -686,8 +686,8 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
-			trafficRouting:         &v1alpha1.RolloutTrafficRouting{},
-			minPodsPerRS:           intPnt(2),
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{},
+			minPodsPerRS:   intPnt(2),
 
 			expectedStableReplicaCount: 10,
 			expectedCanaryReplicaCount: 2,
@@ -702,6 +702,9 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			stableRS := newRS("stable", test.stableSpecReplica, test.stableAvailableReplica)
 			canaryRS := newRS("canary", test.canarySpecReplica, test.canaryAvailableReplica)
 			rollout.Spec.Strategy.Canary.AbortScaleDownDelaySeconds = test.abortScaleDownDelaySeconds
+			if test.minPodsPerRS != nil {
+				rollout.Spec.Strategy.Canary.MinPodsPerRS = test.minPodsPerRS
+			}
 			var newRSReplicaCount, stableRSReplicaCount int32
 			if test.trafficRouting != nil {
 				newRSReplicaCount, stableRSReplicaCount = CalculateReplicaCountsForTrafficRoutedCanary(rollout, nil)
