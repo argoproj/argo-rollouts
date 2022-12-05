@@ -283,7 +283,7 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet,
 
 	if currSelector != desiredSelector {
 		if _, ok := svc.Annotations[v1alpha1.ManagedByRolloutsKey]; !ok {
-			// This if block will be entered only when adopting a service that already exists, because the current annotation
+			// This block will be entered only when adopting a service that already exists, because the current annotation
 			// will be empty at that point. When we are adopting a service, we want to make sure that the replicaset is fully
 			// available before we start routing traffic to it, so we do not overload it.
 			// See PR: https://github.com/argoproj/argo-rollouts/pull/1777
@@ -295,7 +295,7 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet,
 			}
 			logCtx.Infof("adopting service %s", svc.Name)
 		} else {
-			// This if block will be called only at the beginning and end of a rollout that is adopted, when we are at the end of a rollout
+			// This block will be entered only at the beginning and end of a rollout that is adopted, when we are at the end of a rollout
 			// we generally will have enough capacity to handle the traffic, so we do not need to check the full availability of the
 			// ReplicaSet. We do still want to make sure we have at least one pod available, so we do not point the service to nothing, but
 			// losing a pod or two should be tolerable to still switch service selectors.
