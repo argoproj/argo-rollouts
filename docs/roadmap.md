@@ -8,7 +8,7 @@ The Argo Rollouts roadmap is maintained in Github Milestones on the project.
 
 These are the upcoming releases date estimates:
 
-| Release | Release Planning Meeting | Release Candidate 1   | General Availability     |                                                |
+| Release | Release Planning Meeting | Release Candidate 1   | General Availability     |
 |---------|--------------------------|-----------------------|--------------------------|
 | v2.6    | TBD                      | Monday, Dec. 19, 2022 | Tuesday, Jan. 9, 2023    |
 | v2.7    | Monday, Mar. 6, 2023     | Monday, Mar. 20, 2023 | Monday, Apr. 10, 2023    |
