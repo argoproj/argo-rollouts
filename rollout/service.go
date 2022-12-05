@@ -281,32 +281,31 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet,
 	desiredSelector := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
 
-	if _, ok := svc.Annotations[v1alpha1.ManagedByRolloutsKey]; !ok && currSelector != desiredSelector {
-		// This if block will be entered only when adopting a service that already exists, because the current annotation
-		// will be empty at that point. When we are adopting a service, we want to make sure that the replicaset is fully
-		// available before we start routing traffic to it, so we do not overload it.
-		// See PR: https://github.com/argoproj/argo-rollouts/pull/1777
+	if currSelector != desiredSelector {
+		if _, ok := svc.Annotations[v1alpha1.ManagedByRolloutsKey]; !ok {
+			// This if block will be entered only when adopting a service that already exists, because the current annotation
+			// will be empty at that point. When we are adopting a service, we want to make sure that the replicaset is fully
+			// available before we start routing traffic to it, so we do not overload it.
+			// See PR: https://github.com/argoproj/argo-rollouts/pull/1777
 
-		// ensure ReplicaSet is fully available, otherwise we will point the service to nothing or an underprovisioned ReplicaSet
-		if checkRsAvailability && !replicasetutil.IsReplicaSetAvailable(rs) {
-			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
-			return nil
-		}
-		logCtx.Infof("adopting service %s", svc.Name)
-		err = c.switchServiceSelector(svc, desiredSelector, c.rollout)
-		if err != nil {
-			return err
-		}
-	} else if currSelector != desiredSelector {
-		// This if block will be called only at the beginning and end of a rollout that is adopted, when we are at the end of a rollout
-		// we generally will have enough capacity to handle the traffic, so we do not need to check the full availability of the
-		// ReplicaSet. We do still want to make sure we have at least one pod available, so we do not point the service to nothing, but
-		// losing a pod or two should be tolerable to still switch service selectors.
+			// ensure ReplicaSet is fully available, otherwise we will point the service to nothing or an underprovisioned ReplicaSet
+			if checkRsAvailability && !replicasetutil.IsReplicaSetAvailable(rs) {
+				logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
+				return nil
+			}
+			logCtx.Infof("adopting service %s", svc.Name)
+		} else {
+			// This if block will be called only at the beginning and end of a rollout that is adopted, when we are at the end of a rollout
+			// we generally will have enough capacity to handle the traffic, so we do not need to check the full availability of the
+			// ReplicaSet. We do still want to make sure we have at least one pod available, so we do not point the service to nothing, but
+			// losing a pod or two should be tolerable to still switch service selectors.
 
-		if checkRsAvailability && !replicasetutil.IsReplicaSetPartiallyAvailable(rs) {
-			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet has zero availability", currSelector, desiredSelector)
-			return nil
+			if checkRsAvailability && !replicasetutil.IsReplicaSetPartiallyAvailable(rs) {
+				logCtx.Infof("delaying service switch from %s to %s: ReplicaSet has zero availability", currSelector, desiredSelector)
+				return nil
+			}
 		}
+
 		err = c.switchServiceSelector(svc, desiredSelector, c.rollout)
 		if err != nil {
 			return err
