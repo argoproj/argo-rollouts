@@ -8,7 +8,7 @@ require (
 	github.com/argoproj/pkg v0.13.6
 	github.com/aws/aws-sdk-go-v2 v1.17.2
 	github.com/aws/aws-sdk-go-v2/config v1.18.4
-	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.22.0
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.22.1
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.18.27
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/evanphx/json-patch/v5 v5.6.0
