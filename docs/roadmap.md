@@ -10,10 +10,10 @@ These are the upcoming releases date estimates:
 
 | Release | Release Planning Meeting | Release Candidate 1   | General Availability     |
 |---------|--------------------------|-----------------------|--------------------------|
-| v2.6    | TBD                      | Monday, Dec. 19, 2022 | Tuesday, Jan. 9, 2023    |
-| v2.7    | Monday, Mar. 6, 2023     | Monday, Mar. 20, 2023 | Monday, Apr. 10, 2023    |
-| v2.8    | Monday, Jun. 5, 2023     | Monday, Jun. 19, 2023 | Wednesday, Jul. 12, 2023 |
-| v2.9    | Monday, Sep. 4, 2023     | Monday, Sep. 18, 2023 | Monday, Oct. 9, 2023     |
+| v1.4    | TBD                      | Monday, Dec. 19, 2022 | Tuesday, Jan. 9, 2023    |
+| v1.5    | Monday, Mar. 6, 2023     | Monday, Mar. 20, 2023 | Monday, Apr. 10, 2023    |
+| v1.6    | Monday, Jun. 5, 2023     | Monday, Jun. 19, 2023 | Wednesday, Jul. 12, 2023 |
+| v1.7    | Monday, Sep. 4, 2023     | Monday, Sep. 18, 2023 | Monday, Oct. 9, 2023     |
 
 ### Release Process
 
