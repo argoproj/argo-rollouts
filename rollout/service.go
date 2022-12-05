@@ -294,16 +294,14 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet,
 				return nil
 			}
 			logCtx.Infof("adopting service %s", svc.Name)
-		} else {
-			// This block will be entered only at the beginning and end of a rollout that is adopted, when we are at the end of a rollout
-			// we generally will have enough capacity to handle the traffic, so we do not need to check the full availability of the
-			// ReplicaSet. We do still want to make sure we have at least one pod available, so we do not point the service to nothing, but
-			// losing a pod or two should be tolerable to still switch service selectors.
+		}
 
-			if checkRsAvailability && !replicasetutil.IsReplicaSetPartiallyAvailable(rs) {
-				logCtx.Infof("delaying service switch from %s to %s: ReplicaSet has zero availability", currSelector, desiredSelector)
-				return nil
-			}
+		// When we are at the end of a rollout we generally will have enough capacity to handle the traffic, so we do not
+		// need to check the full availability of the ReplicaSet. We do still want to make sure we have at least one pod
+		// available, so we do not point the service to nothing, but losing a pod or two should be tolerable to still switch service selectors.
+		if checkRsAvailability && !replicasetutil.IsReplicaSetPartiallyAvailable(rs) {
+			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet has zero availability", currSelector, desiredSelector)
+			return nil
 		}
 
 		err = c.switchServiceSelector(svc, desiredSelector, c.rollout)
