@@ -1699,6 +1699,51 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 	})
 }
 
+func TestGetReferencedIngressesALBMultiIngress(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		ALB: &v1alpha1.ALBTrafficRouting{
+			Ingress:             "alb-ingress-name",
+			AdditionalIngresses: []string{"multi-ingress-name"},
+		},
+	}
+	r.Namespace = metav1.NamespaceDefault
+
+	t.Run("get referenced ALB ingress - fail", func(t *testing.T) {
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		_, err = roCtx.getReferencedIngresses()
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "AdditionalIngresses"), "multi-ingress-name", "ingress.extensions \"multi-ingress-name\" not found")
+		assert.Equal(t, expectedErr.Error(), err.Error())
+	})
+
+	t.Run("get referenced ALB ingress - success", func(t *testing.T) {
+		ingress := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "alb-ingress-name",
+				Namespace: metav1.NamespaceDefault,
+			},
+		}
+		multiIngress := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "multi-ingress-name",
+				Namespace: metav1.NamespaceDefault,
+			},
+		}
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(multiIngress))
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		i, err := roCtx.getReferencedIngresses()
+		assert.NoError(t, err)
+		assert.NotNil(t, i)
+	})
+}
+
 func TestGetReferencedIngressesNginx(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
