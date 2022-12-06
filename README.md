@@ -43,14 +43,14 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, InfluxDB
 
 ## Supported Traffic Shaping Integrations
-| Traffic Shaping Integration  | Supported By | SetWeight              | SetMirror          | SetHeader          |
-|------------------------------|--------------|------------------------|--------------------|--------------------|
-| ALB Ingress Controller       | Intuit       | :white_check_mark:     | :x:                | :white_check_mark: |
-| Ambassador                   | Community    | :white_check_mark:     | :x:                | :x:                |
-| Istio                        | Intuit       | :white_check_mark:     | :white_check_mark: | :white_check_mark: |
-| Nginx Ingress Controller     | Community    | :white_check_mark:     | :x:                | :x:                |
-| SMI                          | Community    | :white_check_mark:     | :x:                | :x:                |
-| Traefik                      | Community    | :white_check_mark:     | :x:                | :x:                |
+| Traffic Shaping Integration  | SetWeight              | SetMirror          | SetHeader          |
+|------------------------------|------------------------|--------------------|--------------------|
+| ALB Ingress Controller       | :white_check_mark:     | :x:                | :white_check_mark: |
+| Ambassador                   | :white_check_mark:     | :x:                | :x:                |
+| Istio                        | :white_check_mark:     | :white_check_mark: | :white_check_mark: |
+| Nginx Ingress Controller     | :white_check_mark:     | :x:                | :x:                |
+| SMI                          | :white_check_mark:     | :x:                | :x:                |
+| Traefik                      | :white_check_mark:     | :x:                | :x:                |
 
 ## Documentation
 To learn more about Argo Rollouts go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
