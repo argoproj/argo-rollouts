@@ -794,7 +794,7 @@ func (c *rolloutContext) getReferencedIngresses() (*[]ingressutil.Ingress, error
 				for _, ing := range canary.TrafficRouting.ALB.AdditionalIngresses {
 					ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, ing)
 					if k8serrors.IsNotFound(err) {
-						return nil, field.Invalid(fldPath.Child("alb", "AdditionalIngresses"), canary.TrafficRouting.ALB.Ingress, err.Error())
+						return nil, field.Invalid(fldPath.Child("alb", "AdditionalIngresses"), ing, err.Error())
 					}
 					if err != nil {
 						return nil, err
