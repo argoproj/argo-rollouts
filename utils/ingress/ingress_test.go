@@ -61,6 +61,33 @@ func TestGetRolloutIngressKeysForCanaryWithTrafficRouting(t *testing.T) {
 	assert.ElementsMatch(t, keys, []string{"default/stable-ingress", "default/myrollout-stable-ingress-canary", "default/alb-ingress"})
 }
 
+func TestGetRolloutIngressKeysForCanaryWithTrafficRoutingMultiIngress(t *testing.T) {
+	keys := GetRolloutIngressKeys(&v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "myrollout",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					CanaryService: "canary-service",
+					StableService: "stable-service",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Nginx: &v1alpha1.NginxTrafficRouting{
+							StableIngress: "stable-ingress",
+						},
+						ALB: &v1alpha1.ALBTrafficRouting{
+							Ingress:             "alb-ingress",
+							AdditionalIngresses: []string{"multi-ingress"},
+						},
+					},
+				},
+			},
+		},
+	})
+	assert.ElementsMatch(t, keys, []string{"default/stable-ingress", "default/myrollout-stable-ingress-canary", "default/alb-ingress", "default/multi-ingress"})
+}
+
 func TestGetCanaryIngressName(t *testing.T) {
 	rollout := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
@@ -95,6 +122,46 @@ func TestGetCanaryIngressName(t *testing.T) {
 	})
 	t.Run("NoStableIngress", func(t *testing.T) {
 		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx = nil
+		canaryIngress := GetCanaryIngressName(rollout)
+		assert.Equal(t, "", canaryIngress, "canary ingress is empty")
+	})
+}
+
+func TestGetCanaryIngressNameMultiIngress(t *testing.T) {
+	rollout := &v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "myrollout",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					CanaryService: "canary-service",
+					StableService: "stable-service",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						ALB: &v1alpha1.ALBTrafficRouting{
+							Ingress:             "alb-ingress",
+							AdditionalIngresses: []string{"multi-ingress"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("NoTrim", func(t *testing.T) {
+		rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress = "alb-ingress"
+		canaryIngress := GetCanaryIngressName(rollout)
+		assert.Equal(t, "myrollout-alb-ingress-canary", canaryIngress)
+	})
+	t.Run("Trim", func(t *testing.T) {
+		rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress = fmt.Sprintf("alb-ingress%s", strings.Repeat("a", 260))
+		canaryIngress := GetCanaryIngressName(rollout)
+		assert.Equal(t, 253, len(canaryIngress), "canary ingress truncated to 253")
+		assert.Equal(t, true, strings.HasSuffix(canaryIngress, "-canary"), "canary ingress has -canary suffix")
+	})
+	t.Run("NoStableIngress", func(t *testing.T) {
+		rollout.Spec.Strategy.Canary.TrafficRouting.ALB = nil
 		canaryIngress := GetCanaryIngressName(rollout)
 		assert.Equal(t, "", canaryIngress, "canary ingress is empty")
 	})
