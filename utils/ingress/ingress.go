@@ -111,6 +111,18 @@ func GetCanaryIngressName(rollout *v1alpha1.Rollout) string {
 		}
 		return fmt.Sprintf("%s%s", prefix, CanaryIngressSuffix)
 	}
+	if rollout.Spec.Strategy.Canary != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress != "" {
+
+		prefix := fmt.Sprintf("%s-%s", rollout.GetName(), rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress)
+		if len(prefix) > 253-len(CanaryIngressSuffix) {
+			// trim prefix
+			prefix = prefix[0 : 253-len(CanaryIngressSuffix)]
+		}
+		return fmt.Sprintf("%s%s", prefix, CanaryIngressSuffix)
+	}
 	return ""
 }
 
