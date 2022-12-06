@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -452,4 +453,160 @@ func TestSendStateChangeEvents(t *testing.T) {
 		roCtx.sendStateChangeEvents(&test.prevStatus, &test.newStatus)
 		assert.Equal(t, test.expectedEventReasons, recorder.Events)
 	}
+}
+
+// TestRollbackWindow verifies the rollback window conditions
+func TestRollbackWindow(t *testing.T) {
+	now := timeutil.MetaNow()
+
+	replicaSets := []*appsv1.ReplicaSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-4",
+				CreationTimestamp: metav1.Time{Time: now.Add(-time.Minute * 5)},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-3",
+				CreationTimestamp: metav1.Time{Time: now.Add(-time.Minute * 4)},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-2",
+				CreationTimestamp: metav1.Time{Time: now.Add(-time.Minute * 3)},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-1",
+				CreationTimestamp: metav1.Time{Time: now.Add(-time.Minute * 2)},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo-experiment",
+				CreationTimestamp: metav1.Time{Time: now.Add(-time.Minute)},
+				Annotations: map[string]string{
+					v1alpha1.ExperimentNameAnnotationKey: "my-experiment",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo",
+				CreationTimestamp: now,
+			},
+		},
+	}
+	testRuns := []struct {
+		stableRS       *appsv1.ReplicaSet
+		newRS          *appsv1.ReplicaSet
+		revisionWindow int32
+		expectedWithin bool
+	}{
+		{
+			replicaSets[0], nil, 1, false,
+		},
+		{
+			replicaSets[0], replicaSets[1], 1, false,
+		},
+		{
+			replicaSets[1], replicaSets[0], 1, true,
+		},
+		{
+			replicaSets[2], replicaSets[0], 2, true,
+		},
+		{
+			replicaSets[3], replicaSets[0], 2, false,
+		},
+		// from 5->3 the window is 1 because experiments are excluded
+		{
+			replicaSets[5], replicaSets[3], 1, true,
+		},
+	}
+	for _, test := range testRuns {
+		ctx := &rolloutContext{
+			allRSs:   replicaSets,
+			newRS:    test.newRS,
+			stableRS: test.stableRS,
+		}
+
+		ctx.rollout = &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "default",
+			},
+			Spec: v1alpha1.RolloutSpec{
+				RollbackWindow: &v1alpha1.RollbackWindowSpec{
+					Revisions: test.revisionWindow,
+				},
+			},
+		}
+		ctx.log = logutil.WithRollout(ctx.rollout)
+		if test.expectedWithin {
+			assert.True(t, ctx.isRollbackWithinWindow())
+		} else {
+			assert.False(t, ctx.isRollbackWithinWindow())
+		}
+	}
+}
+
+func Test_shouldFullPromote(t *testing.T) {
+	now := timeutil.MetaNow()
+	before1m := metav1.Time{Time: now.Add(-time.Minute)}
+	replicaSets := []*appsv1.ReplicaSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "foo",
+				CreationTimestamp: now,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "bar",
+				CreationTimestamp: before1m,
+			},
+			Status: v1.ReplicaSetStatus{
+				AvailableReplicas: int32(1),
+			},
+		},
+	}
+	// test canary
+	ctx := &rolloutContext{
+		allRSs:   replicaSets,
+		stableRS: replicaSets[0],
+		newRS:    replicaSets[1],
+		rollout: &v1alpha1.Rollout{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "default",
+			},
+			Spec: v1alpha1.RolloutSpec{
+				RollbackWindow: &v1alpha1.RollbackWindowSpec{
+					Revisions: 1,
+				},
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{},
+				},
+			},
+		},
+	}
+	ctx.pauseContext = &pauseContext{rollout: ctx.rollout}
+	ctx.log = logutil.WithRollout(ctx.rollout)
+	newStatus := v1alpha1.RolloutStatus{}
+
+	result := ctx.shouldFullPromote(newStatus)
+	assert.Equal(t, result, "Rollback within window")
+
+	// test bluegreen
+	podHash := "xxx"
+	ctx.rollout.Spec.Strategy.Canary = nil
+	ctx.rollout.Spec.Strategy.BlueGreen = &v1alpha1.BlueGreenStrategy{}
+	newStatus.BlueGreen = v1alpha1.BlueGreenStatus{ActiveSelector: podHash}
+	newStatus.CurrentPodHash = podHash
+
+	result = ctx.shouldFullPromote(newStatus)
+	assert.Equal(t, result, "Rollback within window")
 }

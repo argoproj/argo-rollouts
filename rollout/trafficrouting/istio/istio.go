@@ -24,6 +24,7 @@ import (
 
 const Http = "http"
 const Tls = "tls"
+const Tcp = "tcp"
 const Type = "Istio"
 
 const SpecHttpNotFound = "spec.http not found"
@@ -73,7 +74,7 @@ const (
 	invalidCasting = "Invalid casting: field '%s' is not of type '%s'"
 )
 
-func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{}, tlsRoutes []interface{}) error {
+func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{}, tlsRoutes []interface{}, tcpRoutes []interface{}) error {
 	for _, patch := range patches {
 		var route map[string]interface{}
 		err := false
@@ -81,6 +82,8 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 			route, err = httpRoutes[patch.routeIndex].(map[string]interface{})
 		} else if patch.routeType == Tls {
 			route, err = tlsRoutes[patch.routeIndex].(map[string]interface{})
+		} else if patch.routeType == Tcp {
+			route, err = tcpRoutes[patch.routeIndex].(map[string]interface{})
 		}
 		if !err {
 			return fmt.Errorf(invalidCasting, patch.routeType+"[]", "map[string]interface")
@@ -112,12 +115,14 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 			httpRoutes[patch.routeIndex] = route
 		} else if patch.routeType == Tls {
 			tlsRoutes[patch.routeIndex] = route
+		} else if patch.routeType == Tcp {
+			tcpRoutes[patch.routeIndex] = route
 		}
 	}
 	return nil
 }
 
-func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []string, httpRoutes []VirtualServiceHTTPRoute, rolloutVsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute, desiredWeight int64, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
+func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []string, httpRoutes []VirtualServiceHTTPRoute, rolloutVsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute, rolloutVsvcTCPRoutes []v1alpha1.TCPRoute, tcpRoutes []VirtualServiceTCPRoute, desiredWeight int64, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	stableSvc := r.rollout.Spec.Strategy.Canary.StableService
 	canarySubset := ""
@@ -145,6 +150,7 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 	// err can be ignored because we already called ValidateHTTPRoutes earlier
 	httpRouteIndexesToPatch, _ := getHttpRouteIndexesToPatch(rolloutVsvcRouteNames, httpRoutes)
 	tlsRouteIndexesToPatch, _ := getTlsRouteIndexesToPatch(rolloutVsvcTLSRoutes, tlsRoutes)
+	tcpRouteIndexesToPatch, _ := getTcpRouteIndexesToPatch(rolloutVsvcTCPRoutes, tcpRoutes)
 
 	patches := virtualServicePatches{}
 	svcSubsets := svcSubsets{
@@ -166,6 +172,13 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 			break
 		}
 		patches = processRoutes(Tls, routeIdx, tlsRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches, additionalDestinations...)
+	}
+	// Process TCP Routes
+	for _, routeIdx := range tcpRouteIndexesToPatch {
+		if len(tcpRoutes) <= routeIdx {
+			break
+		}
+		patches = processRoutes(Tcp, routeIdx, tcpRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches, additionalDestinations...)
 	}
 	return patches
 }
@@ -228,19 +241,18 @@ func appendPatch(routeIdx int, routeType string, weight int64, desiredWeight int
 	return patches
 }
 
-func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsvcRouteNames []string, vsvcTLSRoutes []v1alpha1.TLSRoute, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*unstructured.Unstructured, bool, error) {
+func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsvcRouteNames []string, vsvcTLSRoutes []v1alpha1.TLSRoute, vsvcTCPRoutes []v1alpha1.TCPRoute, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*unstructured.Unstructured, bool, error) {
 	newObj := obj.DeepCopy()
 
 	// HTTP Routes
 	var httpRoutes []VirtualServiceHTTPRoute
 	httpRoutesI, err := GetHttpRoutesI(newObj)
 	if err == nil {
-		routes, err := GetHttpRoutes(httpRoutesI)
-		httpRoutes = routes
+		httpRoutes, err = GetHttpRoutes(httpRoutesI)
 		if err != nil {
 			return nil, false, err
 		}
-		if err := ValidateHTTPRoutes(r.rollout, vsvcRouteNames, httpRoutes); err != nil {
+		if err = ValidateHTTPRoutes(r.rollout, vsvcRouteNames, httpRoutes); err != nil {
 			return nil, false, err
 		}
 	}
@@ -249,19 +261,31 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 	var tlsRoutes []VirtualServiceTLSRoute
 	tlsRoutesI, err := GetTlsRoutesI(newObj)
 	if err == nil {
-		routes, err := GetTlsRoutes(newObj, tlsRoutesI)
-		tlsRoutes = routes
+		tlsRoutes, err = GetTlsRoutes(newObj, tlsRoutesI)
 		if err != nil {
 			return nil, false, err
 		}
-		if err := ValidateTlsRoutes(r.rollout, vsvcTLSRoutes, tlsRoutes); err != nil {
+		if err = ValidateTlsRoutes(r.rollout, vsvcTLSRoutes, tlsRoutes); err != nil {
+			return nil, false, err
+		}
+	}
+
+	// TCP Routes
+	var tcpRoutes []VirtualServiceTCPRoute
+	tcpRoutesI, err := GetTcpRoutesI(newObj)
+	if err == nil {
+		tcpRoutes, err = GetTcpRoutes(newObj, tcpRoutesI)
+		if err != nil {
+			return nil, false, err
+		}
+		if err = ValidateTcpRoutes(r.rollout, vsvcTCPRoutes, tcpRoutes); err != nil {
 			return nil, false, err
 		}
 	}
 
 	// Generate Patches
-	patches := r.generateVirtualServicePatches(vsvcRouteNames, httpRoutes, vsvcTLSRoutes, tlsRoutes, int64(desiredWeight), additionalDestinations...)
-	err = patches.patchVirtualService(httpRoutesI, tlsRoutesI)
+	patches := r.generateVirtualServicePatches(vsvcRouteNames, httpRoutes, vsvcTLSRoutes, tlsRoutes, vsvcTCPRoutes, tcpRoutes, int64(desiredWeight), additionalDestinations...)
+	err = patches.patchVirtualService(httpRoutesI, tlsRoutesI, tcpRoutesI)
 	if err != nil {
 		return nil, false, err
 	}
@@ -274,9 +298,18 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 	}
 
 	// Set TLS Route Slice
-	if tlsRoutesI != nil {
+	if len(tlsRoutes) > 0 {
 		err = unstructured.SetNestedSlice(newObj.Object, tlsRoutesI, "spec", Tls)
+		if err != nil {
+			return newObj, len(patches) > 0, err
+		}
 	}
+
+	// Set TCP Route Slice
+	if len(tcpRoutes) > 0 {
+		err = unstructured.SetNestedSlice(newObj.Object, tcpRoutesI, "spec", Tcp)
+	}
+
 	return newObj, len(patches) > 0, err
 }
 
@@ -554,6 +587,17 @@ func GetTlsRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
 	return tlsRoutesI, nil
 }
 
+func GetTcpRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
+	tcpRoutesI, notFound, err := unstructured.NestedSlice(obj.Object, "spec", Tcp)
+	if !notFound {
+		return nil, fmt.Errorf(".spec.tcp is not defined")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return tcpRoutesI, nil
+}
+
 func GetHttpRoutes(httpRoutesI []interface{}) ([]VirtualServiceHTTPRoute, error) {
 	routeBytes, err := json.Marshal(httpRoutesI)
 	if err != nil {
@@ -584,6 +628,21 @@ func GetTlsRoutes(obj *unstructured.Unstructured, tlsRoutesI []interface{}) ([]V
 	return tlsRoutes, nil
 }
 
+func GetTcpRoutes(obj *unstructured.Unstructured, tcpRoutesI []interface{}) ([]VirtualServiceTCPRoute, error) {
+	routeBytes, err := json.Marshal(tcpRoutesI)
+	if err != nil {
+		return nil, err
+	}
+
+	var tcpRoutes []VirtualServiceTCPRoute
+	err = json.Unmarshal(routeBytes, &tcpRoutes)
+	if err != nil {
+		return nil, err
+	}
+
+	return tcpRoutes, nil
+}
+
 // Type indicates this reconciler is an Istio reconciler
 func (r *Reconciler) Type() string {
 	return Type
@@ -605,7 +664,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 		if err != nil {
 			return err
 		}
-		modifiedVirtualService, modified, err := r.reconcileVirtualService(vsvc, virtualService.Routes, virtualService.TLSRoutes, desiredWeight, additionalDestinations...)
+		modifiedVirtualService, modified, err := r.reconcileVirtualService(vsvc, virtualService.Routes, virtualService.TLSRoutes, virtualService.TCPRoutes, desiredWeight, additionalDestinations...)
 		if err != nil {
 			return err
 		}
@@ -652,7 +711,7 @@ func (r *Reconciler) getVirtualService(namespace string, vsvcName string, client
 	return vsvc, err
 }
 
-func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(obj *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute) error {
+func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(virtualService v1alpha1.IstioVirtualService, obj *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute) error {
 	// HTTP Routes
 	httpRoutesI, err := GetHttpRoutesI(obj)
 	if err != nil {
@@ -687,7 +746,7 @@ func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(obj *unstructured.Unstr
 		return fmt.Errorf("[reconcileVirtualServiceHeaderRoutes] failed to remove http route from virtual service: %w", err)
 	}
 
-	httpRoutesI = append(httpRoutesI, createHeaderRoute(headerRouting, canarySvc, canarySubset))
+	httpRoutesI = append(httpRoutesI, createHeaderRoute(virtualService, obj, headerRouting, canarySvc, canarySubset))
 
 	err = unstructured.SetNestedSlice(obj.Object, httpRoutesI, "spec", Http)
 	if err != nil {
@@ -712,7 +771,7 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 			return fmt.Errorf("[SetHeaderRoute] failed to get istio virtual service: %w", err)
 		}
 
-		err = r.reconcileVirtualServiceHeaderRoutes(vsvc, headerRouting)
+		err = r.reconcileVirtualServiceHeaderRoutes(virtualService, vsvc, headerRouting)
 		if err != nil {
 			return fmt.Errorf("[SetHeaderRoute] failed to reconcile header routes: %w", err)
 		}
@@ -765,12 +824,19 @@ func (r *Reconciler) getDestinationRule(dRuleSpec *v1alpha1.IstioDestinationRule
 	return origBytes, dRule, dRuleNew, nil
 }
 
-func createHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute, host string, subset string) map[string]interface{} {
+func createHeaderRoute(virtualService v1alpha1.IstioVirtualService, unVsvc *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute, host string, subset string) map[string]interface{} {
 	var routeMatches []interface{}
 	for _, hrm := range headerRouting.Match {
 		routeMatches = append(routeMatches, createHeaderRouteMatch(hrm))
 	}
-	canaryDestination := routeDestination(host, subset, 100)
+
+	port, err := getVirtualServiceCanaryPort(unVsvc, virtualService)
+	if err != nil {
+		port = Port{Number: 0}
+	}
+
+	canaryDestination := routeDestination(host, port.Number, subset, 100)
+
 	return map[string]interface{}{
 		"name":  headerRouting.Name,
 		"match": routeMatches,
@@ -795,9 +861,12 @@ func setMapValueIfNotEmpty(m map[string]interface{}, key string, value string) {
 	}
 }
 
-func routeDestination(host, subset string, weight int64) map[string]interface{} {
+func routeDestination(host string, port uint32, subset string, weight int64) map[string]interface{} {
 	dest := map[string]interface{}{
 		"host": host,
+	}
+	if port > 0 {
+		dest["port"] = map[string]interface{}{"number": int64(port)}
 	}
 	if subset != "" {
 		dest["subset"] = subset
@@ -903,6 +972,53 @@ func searchTlsRoute(tlsRoute v1alpha1.TLSRoute, istioTlsRoutes []VirtualServiceT
 	return routeIndices
 }
 
+// getTcpRouteIndexesToPatch returns array indices of the tcpRoutes which need to be patched when updating weights
+func getTcpRouteIndexesToPatch(tcpRoutes []v1alpha1.TCPRoute, istioTcpRoutes []VirtualServiceTCPRoute) ([]int, error) {
+	if len(tcpRoutes) == 0 {
+		return []int{0}, nil
+	}
+
+	var routeIndexesToPatch []int
+	for _, tcpRoute := range tcpRoutes {
+		routeIndices := searchTcpRoute(tcpRoute, istioTcpRoutes)
+		if len(routeIndices) > 0 {
+			for _, routeIndex := range routeIndices {
+				routeIndexesToPatch = append(routeIndexesToPatch, routeIndex)
+			}
+		} else {
+			return nil, fmt.Errorf("No matching TCP routes found in the defined Virtual Service.")
+		}
+	}
+	return routeIndexesToPatch, nil
+}
+
+func searchTcpRoute(tcpRoute v1alpha1.TCPRoute, istioTcpRoutes []VirtualServiceTCPRoute) []int {
+	routeIndices := []int{}
+	for i, route := range istioTcpRoutes {
+		portsMap := make(map[int64]bool)
+		for _, routeMatch := range route.Match {
+			portsMap[routeMatch.Port] = true
+		}
+		// If there are multiple ports defined then this rules is never gonna match.
+		if len(portsMap) > 1 {
+			continue
+		}
+		// Extract the first port number from the `portsMap` if it has more than
+		// zero ports in it.
+		var port int64 = 0
+		for portNumber := range portsMap {
+			port = portNumber
+		}
+		// To find a match for TCP Routes in Istio VS, we'll have to verify that:
+		// 1. There is exactly one port present in the `ports`;
+		// 2. The single port in `ports` matches with the `tcpRoute.Port`;
+		if port == tcpRoute.Port {
+			routeIndices = append(routeIndices, i)
+		}
+	}
+	return routeIndices
+}
+
 // ValidateHTTPRoutes ensures that all the routes in the rollout exist
 func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []VirtualServiceHTTPRoute) error {
 	stableSvc := r.Spec.Strategy.Canary.StableService
@@ -959,6 +1075,28 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, vsvcTLSRoutes []v1alpha1.TLSRoute, t
 	}
 	if len(vsvcTLSRoutes) == 0 && len(tlsRoutes) > 1 {
 		return fmt.Errorf("spec.tls[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.tlsRoutes")
+	}
+	return nil
+}
+
+// ValidateTcpRoutes ensures that all the routes in the rollout exist and they only have two destinations
+func ValidateTcpRoutes(r *v1alpha1.Rollout, vsvcTCPRoutes []v1alpha1.TCPRoute, tcpRoutes []VirtualServiceTCPRoute) error {
+	stableSvc := r.Spec.Strategy.Canary.StableService
+	canarySvc := r.Spec.Strategy.Canary.CanaryService
+
+	routeIndexesToPatch, err := getTcpRouteIndexesToPatch(vsvcTCPRoutes, tcpRoutes)
+	if err != nil {
+		return err
+	}
+	for _, routeIndex := range routeIndexesToPatch {
+		route := tcpRoutes[routeIndex]
+		err := validateVirtualServiceRouteDestinations(route.Route, stableSvc, canarySvc, r.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule)
+		if err != nil {
+			return err
+		}
+	}
+	if len(vsvcTCPRoutes) == 0 && len(tcpRoutes) > 1 {
+		return fmt.Errorf("spec.tcp[] should be set in VirtualService and it must have exactly one route when omitting spec.strategy.canary.trafficRouting.istio.virtualService.tcpRoutes")
 	}
 	return nil
 }
@@ -1141,14 +1279,20 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 		})
 	}
 
+	mirrorDestinations := VirtualServiceDestination{
+		Host:   canarySvc,
+		Subset: subset,
+	}
+	if len(route) >= 0 && route[0].Destination.Port != nil {
+		// We try to pull the port from any of the routes destinations that are supposed to be updated via SetWeight
+		mirrorDestinations.Port = &Port{Number: route[0].Destination.Port.Number}
+	}
+
 	mirrorRoute := map[string]interface{}{
-		"name":  mirrorRouting.Name,
-		"match": istioMatch,
-		"route": route,
-		"mirror": VirtualServiceDestination{
-			Host:   canarySvc,
-			Subset: subset,
-		},
+		"name":             mirrorRouting.Name,
+		"match":            istioMatch,
+		"route":            route,
+		"mirror":           mirrorDestinations,
 		"mirrorPercentage": map[string]interface{}{"value": float64(percent)},
 	}
 
@@ -1232,7 +1376,7 @@ func (r *Reconciler) orderRoutes(istioVirtualService *unstructured.Unstructured)
 		return fmt.Errorf("[orderRoutes] could not split routes between managed and non managed: %w", err)
 	}
 
-	finalRoutes, err := getOrderedVirtualServiceRoutes(managedRoutes, httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes)
+	finalRoutes, err := getOrderedVirtualServiceRoutes(httpRouteI, managedRoutes, httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes)
 	if err != nil {
 		return fmt.Errorf("[orderRoutes] could not get ordered virtual service routes: %w", err)
 	}
@@ -1279,7 +1423,7 @@ func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes
 // getOrderedVirtualServiceRoutes This returns an []interface{} of istio virtual routes where the routes are ordered based
 // on the rollouts managedRoutes field. We take the routes from the rollouts managedRoutes field order them and place them on top
 // of routes that are manually defined within the virtual service (aka. routes that users have defined manually)
-func getOrderedVirtualServiceRoutes(managedRoutes []v1alpha1.MangedRoutes, httpRoutesWithinManagedRoutes []VirtualServiceHTTPRoute, httpRoutesNotWithinManagedRoutes []VirtualServiceHTTPRoute) ([]interface{}, error) {
+func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1alpha1.MangedRoutes, httpRoutesWithinManagedRoutes []VirtualServiceHTTPRoute, httpRoutesNotWithinManagedRoutes []VirtualServiceHTTPRoute) ([]interface{}, error) {
 	var orderedManagedRoutes []VirtualServiceHTTPRoute
 	for _, route := range managedRoutes {
 		for _, managedRoute := range httpRoutesWithinManagedRoutes {
@@ -1289,18 +1433,45 @@ func getOrderedVirtualServiceRoutes(managedRoutes []v1alpha1.MangedRoutes, httpR
 		}
 	}
 
-	allIstioRoutes := append(orderedManagedRoutes, httpRoutesNotWithinManagedRoutes...)
+	orderedVirtualServiceHTTPRoutes := append(orderedManagedRoutes, httpRoutesNotWithinManagedRoutes...)
 
-	jsonAllIstioRoutes, err := json.Marshal(allIstioRoutes)
+	var orderedInterfaceVSVCHTTPRoutes []interface{}
+	for _, routeTyped := range orderedVirtualServiceHTTPRoutes {
+		for _, route := range httpRouteI {
+			r := route.(map[string]interface{})
+
+			// No need to check if exist because the empty string returned on cast failure is good for this check
+			name, _ := r["name"].(string)
+			if name == routeTyped.Name {
+				orderedInterfaceVSVCHTTPRoutes = append(orderedInterfaceVSVCHTTPRoutes, route)
+			}
+		}
+	}
+
+	return orderedInterfaceVSVCHTTPRoutes, nil
+}
+
+// getVirtualServiceCanaryPort This function returns the port that the canary service is running on. It does this by looking at the
+// istio Virtual Service and finding any port from a destination that is suppose to be update via SetWeight.
+func getVirtualServiceCanaryPort(unVsvc *unstructured.Unstructured, virtualService v1alpha1.IstioVirtualService) (Port, error) {
+	httpRoutes, _, err := getVirtualServiceHttpRoutes(unVsvc)
 	if err != nil {
-		return nil, fmt.Errorf("[getOrderedVirtualServiceRoutes] failed to marsharl istio routes: %w", err)
-	}
-	var orderedRoutes []interface{}
-	if err := json.Unmarshal(jsonAllIstioRoutes, &orderedRoutes); err != nil {
-		return nil, fmt.Errorf("[getOrderedVirtualServiceRoutes] failed to unmarsharl istio routes: %w", err)
+		return Port{}, fmt.Errorf("[getVirtualServiceCanaryPort] failed to get virtual service http routes: %w", err)
 	}
 
-	return orderedRoutes, nil
+	route, err := getVirtualServiceSetWeightRoute(virtualService.Routes, httpRoutes)
+	if err != nil {
+		return Port{}, fmt.Errorf("[getVirtualServiceCanaryPort] failed to get virtual service set weight route: %w", err)
+	}
+
+	var port uint32 = 0
+	if len(route) > 0 && route[0].Destination.Port != nil {
+		port = route[0].Destination.Port.Number
+	}
+
+	return Port{
+		Number: port,
+	}, nil
 }
 
 // RemoveManagedRoutes this removes all the routes in all the istio virtual services rollouts is managing by getting two slices

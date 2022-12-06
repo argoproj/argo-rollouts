@@ -107,7 +107,9 @@ func albActionAnnotation(stable string) string {
 }
 
 func ingress(name, stableSvc, canarySvc, actionService string, port, weight int32, managedBy string, includeStickyConfig bool) *extensionsv1beta1.Ingress {
-	managedByValue := fmt.Sprintf("%s:%s", managedBy, albActionAnnotation(actionService))
+	managedByValue := ingressutil.ManagedALBAnnotations{
+		managedBy: ingressutil.ManagedALBAnnotation{albActionAnnotation(actionService)},
+	}
 	action := fmt.Sprintf(actionTemplate, canarySvc, port, weight, stableSvc, port, 100-weight)
 	if includeStickyConfig {
 		action = fmt.Sprintf(actionTemplateWithStickyConfig, canarySvc, port, weight, stableSvc, port, 100-weight)
@@ -123,8 +125,8 @@ func ingress(name, stableSvc, canarySvc, actionService string, port, weight int3
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
 			Annotations: map[string]string{
-				albActionAnnotation(actionService):   string(jsonutil.MustMarshal(a)),
-				ingressutil.ManagedActionsAnnotation: managedByValue,
+				albActionAnnotation(actionService): string(jsonutil.MustMarshal(a)),
+				ingressutil.ManagedAnnotations:     managedByValue.String(),
 			},
 		},
 		Spec: extensionsv1beta1.IngressSpec{
@@ -173,6 +175,13 @@ func TestTypeMultiIngress(t *testing.T) {
 	})
 	assert.Equal(t, Type, r.Type())
 	assert.NoError(t, err)
+}
+
+func TestAddManagedAnnotation(t *testing.T) {
+	annotations, _ := modifyManagedAnnotation(map[string]string{}, "argo-rollouts", true, "alb.ingress.kubernetes.io/actions.action1", "alb.ingress.kubernetes.io/conditions.action1")
+	assert.Equal(t, annotations[ingressutil.ManagedAnnotations], "{\"argo-rollouts\":[\"alb.ingress.kubernetes.io/actions.action1\",\"alb.ingress.kubernetes.io/conditions.action1\"]}")
+	_, err := modifyManagedAnnotation(map[string]string{ingressutil.ManagedAnnotations: "invalid, non-json value"}, "some-rollout", false)
+	assert.Error(t, err)
 }
 
 func TestIngressNotFound(t *testing.T) {
@@ -314,7 +323,7 @@ func TestNoChangesMultiIngress(t *testing.T) {
 func TestErrorOnInvalidManagedBy(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
-	i.Annotations[ingressutil.ManagedActionsAnnotation] = "test"
+	i.Annotations[ingressutil.ManagedAnnotations] = "test"
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
@@ -1614,8 +1623,11 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 
 func TestSetHeaderRoute(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
-	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
-	client := fake.NewSimpleClientset()
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
@@ -1631,20 +1643,95 @@ func TestSetHeaderRoute(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-		Name: "set-header",
+		Name: "header-route",
 		Match: []v1alpha1.HeaderRoutingMatch{{
-			HeaderName: "header-name",
+			HeaderName: "Agent",
 			HeaderValue: &v1alpha1.StringMatch{
-				Exact: "value",
+				Prefix: "Chrome",
 			},
 		}},
 	})
 	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+
+	// no managed routes, no changes expected
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+}
+
+func TestRemoveManagedRoutes(t *testing.T) {
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	managedByValue := ingressutil.ManagedALBAnnotations{
+		ro.Name: ingressutil.ManagedALBAnnotation{
+			"alb.ingress.kubernetes.io/actions.action1",
+			"alb.ingress.kubernetes.io/actions.header-route",
+			"alb.ingress.kubernetes.io/conditions.header-route",
+		},
+	}
+	i.Annotations["alb.ingress.kubernetes.io/actions.header-route"] = "{}"
+	i.Annotations["alb.ingress.kubernetes.io/conditions.header-route"] = "{}"
+	i.Annotations[ingressutil.ManagedAnnotations] = managedByValue.String()
+	i.Spec.Rules = []extensionsv1beta1.IngressRule{
+		{
+			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+					Paths: []extensionsv1beta1.HTTPIngressPath{
+						{
+							Backend: extensionsv1beta1.IngressBackend{
+								ServiceName: "action1",
+								ServicePort: intstr.Parse("use-annotation"),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+					Paths: []extensionsv1beta1.HTTPIngressPath{
+						{
+							Backend: extensionsv1beta1.IngressBackend{
+								ServiceName: "header-route",
+								ServicePort: intstr.Parse("use-annotation"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := fake.NewSimpleClientset(i)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+	})
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
 
 	err = r.RemoveManagedRoutes()
 	assert.Nil(t, err)
-
-	assert.Len(t, client.Actions(), 0)
+	assert.Len(t, client.Actions(), 2)
 }
 
 func TestSetHeaderRouteMultiIngress(t *testing.T) {

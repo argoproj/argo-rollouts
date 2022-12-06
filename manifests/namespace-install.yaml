@@ -2733,6 +2733,9 @@ spec:
                               type: array
                             insecure:
                               type: boolean
+                            jsonBody:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             jsonPath:
                               type: string
                             method:
@@ -5607,6 +5610,9 @@ spec:
                               type: array
                             insecure:
                               type: boolean
+                            jsonBody:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             jsonPath:
                               type: string
                             method:
@@ -8367,6 +8373,9 @@ spec:
                               type: array
                             insecure:
                               type: boolean
+                            jsonBody:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             jsonPath:
                               type: string
                             method:
@@ -11080,6 +11089,12 @@ spec:
               revisionHistoryLimit:
                 format: int32
                 type: integer
+              rollbackWindow:
+                properties:
+                  revisions:
+                    format: int32
+                    type: integer
+                type: object
               selector:
                 properties:
                   matchExpressions:
@@ -11765,6 +11780,14 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                  tcpRoutes:
+                                    items:
+                                      properties:
+                                        port:
+                                          format: int64
+                                          type: integer
+                                      type: object
+                                    type: array
                                   tlsRoutes:
                                     items:
                                       properties:
@@ -11788,6 +11811,14 @@ spec:
                                     routes:
                                       items:
                                         type: string
+                                      type: array
+                                    tcpRoutes:
+                                      items:
+                                        properties:
+                                          port:
+                                            format: int64
+                                            type: integer
+                                        type: object
                                       type: array
                                     tlsRoutes:
                                       items:

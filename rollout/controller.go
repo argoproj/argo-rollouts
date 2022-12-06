@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -326,19 +327,28 @@ func removedKeys(name string, old, new *v1alpha1.Rollout, keyFunc func(ro *v1alp
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	log.Info("Starting Rollout workers")
+	wg := sync.WaitGroup{}
 	for i := 0; i < threadiness; i++ {
+		wg.Add(1)
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.rolloutWorkqueue, logutil.RolloutKey, c.syncHandler, c.metricsServer)
-		}, time.Second, stopCh)
+			controllerutil.RunWorker(ctx, c.rolloutWorkqueue, logutil.RolloutKey, c.syncHandler, c.metricsServer)
+			log.Debug("Rollout worker has stopped")
+			wg.Done()
+		}, time.Second, ctx.Done())
 	}
-	log.Info("Started Rollout workers")
+	log.Info("Started rollout workers")
 
-	go c.IstioController.Run(stopCh)
+	wg.Add(1)
+	go c.IstioController.Run(ctx)
 
-	<-stopCh
-	log.Info("Shutting down workers")
+	<-ctx.Done()
+	c.IstioController.ShutDownWithDrain()
+	wg.Done()
+
+	wg.Wait()
+	log.Info("All rollout workers have stopped")
 
 	return nil
 }
@@ -346,8 +356,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 // syncHandler compares the actual state with the desired, and attempts to
 // converge the two. It then updates the Phase block of the Rollout resource
 // with the current status of the resource.
-func (c *Controller) syncHandler(key string) error {
-	ctx := context.TODO()
+func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	startTime := timeutil.Now()
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {

@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -360,7 +361,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	}, true)
+	})
 
 	c := NewController(ControllerConfig{
 		KubeClientSet:                   f.kubeclient,
@@ -445,7 +446,7 @@ func (f *fixture) runController(experimentName string, startInformers bool, expe
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.clusterAnalysisTemplateSynced))
 	}
 
-	err := c.syncHandler(experimentName)
+	err := c.syncHandler(context.Background(), experimentName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing experiment: %v", err)
 	} else if expectError && err == nil {
@@ -535,7 +536,7 @@ func filterInformerActions(actions []core.Action) []core.Action {
 	return ret
 }
 
-func (f *fixture) expectCreateServiceAction(service *corev1.Service) int {
+func (f *fixture) expectCreateServiceAction(service *corev1.Service) int { //nolint:unused
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewCreateAction(schema.GroupVersionResource{Resource: "services"}, service.Namespace, service))
 	return len
@@ -559,13 +560,13 @@ func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) expectGetExperimentAction(experiment *v1alpha1.Experiment) int {
+func (f *fixture) expectGetExperimentAction(experiment *v1alpha1.Experiment) int { //nolint:unused
 	len := len(f.actions)
 	f.actions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "experiments"}, experiment.Namespace, experiment.Name))
 	return len
 }
 
-func (f *fixture) expectUpdateExperimentAction(experiment *v1alpha1.Experiment) int {
+func (f *fixture) expectUpdateExperimentAction(experiment *v1alpha1.Experiment) int { //nolint:unused
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "experiments"}, experiment.Namespace, experiment)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
@@ -675,7 +676,7 @@ func (f *fixture) getUpdatedReplicaSet(index int) *appsv1.ReplicaSet {
 	return rs
 }
 
-func (f *fixture) getUpdatedExperiment(index int) *v1alpha1.Experiment {
+func (f *fixture) getUpdatedExperiment(index int) *v1alpha1.Experiment { //nolint:unused
 	action := filterInformerActions(f.client.Actions())[index]
 	updateAction, ok := action.(core.UpdateAction)
 	if !ok {
@@ -892,4 +893,19 @@ func TestRemoveInvalidSpec(t *testing.T) {
 		}
 	}`, templateStatus, cond)
 	assert.Equal(t, expectedPatch, patch)
+}
+
+func TestRun(t *testing.T) {
+	f := newFixture(t, nil)
+	defer f.Close()
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.experimentWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }

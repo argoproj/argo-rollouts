@@ -78,6 +78,12 @@ spec:
   # than or equal to this value.
   restartAt: "2020-03-30T21:19:35Z"
 
+  # The rollback window provides a way to fast track deployments to
+  # previously deployed versions.
+  # Optional, and by default is not set.
+  rollbackWindow:
+    revisions: 3
+
   strategy:
 
     # Blue-green update strategy
@@ -307,8 +313,8 @@ spec:
                 prefix: "POST"
               path: # What HTTP url paths to match.
                 exact: "/test"
-                regex: ""/test/.*"
-                prefix: ""/"
+                regex: "/test/.*"
+                prefix: "/"
               headers:
                 agent-1b: # What HTTP header name to use in the match.
                   exact: "firefox"
@@ -328,6 +334,8 @@ spec:
             specRef: stable
           - name: canary
             specRef: canary
+            # optional, set the weight of traffic routed to this version
+            weight: 10
           analyses:
           - name : mann-whitney
             templateName: mann-whitney

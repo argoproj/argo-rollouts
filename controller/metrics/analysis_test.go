@@ -178,7 +178,7 @@ analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="1"} 1
 analysis_run_reconcile_bucket{name="ar-test",namespace="ar-namespace",le="+Inf"} 1
 analysis_run_reconcile_sum{name="ar-test",namespace="ar-namespace"} 0.001
 analysis_run_reconcile_count{name="ar-test",namespace="ar-namespace"} 1`
-	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 	ar := &v1alpha1.AnalysisRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ar-test",

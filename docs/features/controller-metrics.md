@@ -14,11 +14,13 @@ for Kubernetes, but you need to [configure it first](https://prometheus.io/docs/
 For example, if you used the Helm chart of Prometheus you need to annotate your Argo Rollouts Controller with the following:
 
 ```yaml
-metadata:
-  annotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/path: /metrics
-    prometheus.io/port: "8090"
+spec:
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8090"
 ```
 
 You can always see if the controller is reached successfully in the Prometheus "Targets" screen:
@@ -44,11 +46,13 @@ You can import this Dashboard in your Grafana installation [as a JSON file](http
 The Argo Rollouts controller publishes the following prometheus metrics about Argo Rollout objects.
 
 | Name                                | Description |
-| ----------------------------------- | ----------- |
+|-------------------------------------| ----------- |
 | `rollout_info`                      | Information about rollout. |
 | `rollout_info_replicas_available`   | The number of available replicas per rollout. |
 | `rollout_info_replicas_unavailable` | The number of unavailable replicas per rollout. |
-| `rollout_phase`                     | Information on the state of the rollout. |
+| `rollout_info_replicas_desired`     | The number of desired replicas per rollout. |
+| `rollout_info_replicas_updated`     | The number of updated replicas per rollout. |
+| `rollout_phase`                     | [**DEPRECATED - use rollout_info**] Information on the state of the rollout. |
 | `rollout_reconcile`                 | Rollout reconciliation performance. |
 | `rollout_reconcile_error`           | Error occurring during the rollout. |
 | `experiment_info`                   | Information about Experiment. |

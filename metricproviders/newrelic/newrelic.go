@@ -39,7 +39,7 @@ type NewRelicClient struct {
 	AccountID int
 }
 
-//Query executes a NRQL query against the given New Relic account
+// Query executes a NRQL query against the given New Relic account
 func (n *NewRelicClient) Query(query string) ([]nrdb.NRDBResult, error) {
 	results, err := n.Nrdb.Query(n.AccountID, nrdb.NRQL(query))
 	if err != nil {
@@ -136,7 +136,7 @@ func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	return nil
 }
 
-//NewNewRelicProvider creates a new NewRelic provider
+// NewNewRelicProvider creates a new NewRelic provider
 func NewNewRelicProvider(api NewRelicClientAPI, logCtx log.Entry) *Provider {
 	return &Provider{
 		logCtx: logCtx,
@@ -144,7 +144,7 @@ func NewNewRelicProvider(api NewRelicClientAPI, logCtx log.Entry) *Provider {
 	}
 }
 
-//NewNewRelicAPIClient creates a new NewRelic API client from metric configuration
+// NewNewRelicAPIClient creates a new NewRelic API client from metric configuration
 func NewNewRelicAPIClient(metric v1alpha1.Metric, kubeclientset kubernetes.Interface) (NewRelicClientAPI, error) {
 	ns := defaults.Namespace()
 	profileSecret := DefaultNewRelicProfileSecretName

@@ -999,6 +999,13 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute"
           },
           "description": "A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
+        },
+        "tcpRoutes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TCPRoute"
+          },
+          "description": "A list of TCP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type."
         }
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
@@ -1125,6 +1132,15 @@
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution": {
       "type": "object",
       "title": "RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RollbackWindowSpec": {
+      "type": "object",
+      "properties": {
+        "revisions": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Rollout": {
       "type": "object",
@@ -1364,6 +1380,10 @@
           "type": "integer",
           "format": "int32",
           "title": "Minimum number of seconds for which a newly created pod should be ready\nwithout any of its container crashing, for it to be considered available.\nDefaults to 0 (pod will be considered available as soon as it is ready)\n+optional"
+        },
+        "rollbackWindow": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RollbackWindowSpec",
+          "title": "The window in which a rollback will be fast tracked (fully promoted)\n+optional"
         },
         "strategy": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutStrategy",
@@ -1692,6 +1712,17 @@
         }
       },
       "title": "StringMatch Used to define what type of matching we will use exact, prefix, or regular expression"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TCPRoute": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "string",
+          "format": "int64",
+          "description": "Port number of the TCP Route desired to be matched in the given Istio VirtualService."
+        }
+      },
+      "description": "TCPRoute holds the information on the virtual service's TCP routes that are desired to be matched for changing weights."
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TLSRoute": {
       "type": "object",

@@ -56,6 +56,9 @@ type RolloutSpec struct {
 	// Defaults to 0 (pod will be considered available as soon as it is ready)
 	// +optional
 	MinReadySeconds int32 `json:"minReadySeconds,omitempty" protobuf:"varint,4,opt,name=minReadySeconds"`
+	// The window in which a rollback will be fast tracked (fully promoted)
+	// +optional
+	RollbackWindow *RollbackWindowSpec `json:"rollbackWindow,omtempty" protobuf:"bytes,13,opt,name=rollbackWindow"`
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
 	Strategy RolloutStrategy `json:"strategy" protobuf:"bytes,5,opt,name=strategy"`
@@ -430,6 +433,8 @@ type IstioVirtualService struct {
 	Routes []string `json:"routes,omitempty" protobuf:"bytes,2,rep,name=routes"`
 	// A list of TLS/HTTPS routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
 	TLSRoutes []TLSRoute `json:"tlsRoutes,omitempty" protobuf:"bytes,3,rep,name=tlsRoutes"`
+	// A list of TCP routes within VirtualService to edit. If omitted, VirtualService must have a single route of this type.
+	TCPRoutes []TCPRoute `json:"tcpRoutes,omitempty" protobuf:"bytes,4,rep,name=tcpRoutes"`
 }
 
 // TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights.
@@ -438,6 +443,12 @@ type TLSRoute struct {
 	Port int64 `json:"port,omitempty" protobuf:"bytes,1,opt,name=port"`
 	// A list of all the SNI Hosts of the TLS Route desired to be matched in the given Istio VirtualService.
 	SNIHosts []string `json:"sniHosts,omitempty" protobuf:"bytes,2,rep,name=sniHosts"`
+}
+
+// TCPRoute holds the information on the virtual service's TCP routes that are desired to be matched for changing weights.
+type TCPRoute struct {
+	// Port number of the TCP Route desired to be matched in the given Istio VirtualService.
+	Port int64 `json:"port,omitempty" protobuf:"bytes,1,opt,name=port"`
 }
 
 // IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic
@@ -1015,4 +1026,8 @@ type RolloutList struct {
 	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 
 	Items []Rollout `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+type RollbackWindowSpec struct {
+	Revisions int32 `json:"revisions,omitempty" protobuf:"varint,1,opt,name=revisions"`
 }

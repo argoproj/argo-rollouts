@@ -33,12 +33,12 @@ import (
 
 // getAllReplicaSetsAndSyncRevision returns all the replica sets for the provided rollout (new and all old), with new RS's and rollout's revision updated.
 //
-// 1. Get all old RSes this rollout targets, and calculate the max revision number among them (maxOldV).
-// 2. Get new RS this rollout targets (whose pod template matches rollout's), and update new RS's revision number to (maxOldV + 1),
-//    only if its revision number is smaller than (maxOldV + 1). If this step failed, we'll update it in the next rollout sync loop.
-// 3. Copy new RS's revision number to rollout (update rollout's revision). If this step failed, we'll update it in the next rollout sync loop.
-// 4. If there's no existing new RS and createIfNotExisted is true, create one with appropriate revision number (maxOldRevision + 1) and replicas.
-//    Note that the pod-template-hash will be added to adopted RSes and pods.
+//  1. Get all old RSes this rollout targets, and calculate the max revision number among them (maxOldV).
+//  2. Get new RS this rollout targets (whose pod template matches rollout's), and update new RS's revision number to (maxOldV + 1),
+//     only if its revision number is smaller than (maxOldV + 1). If this step failed, we'll update it in the next rollout sync loop.
+//  3. Copy new RS's revision number to rollout (update rollout's revision). If this step failed, we'll update it in the next rollout sync loop.
+//  4. If there's no existing new RS and createIfNotExisted is true, create one with appropriate revision number (maxOldRevision + 1) and replicas.
+//     Note that the pod-template-hash will be added to adopted RSes and pods.
 //
 // Note that currently the rollout controller is using caches to avoid querying the server for reads.
 // This may lead to stale reads of replica sets, thus incorrect  v status.
@@ -857,6 +857,38 @@ func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
 	newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
 }
 
+func (c *rolloutContext) isRollbackWithinWindow() bool {
+	if c.newRS == nil || c.stableRS == nil {
+		return false
+	}
+	// first check if this is a rollback
+	if c.newRS.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) {
+		// then check if we are within window
+		if c.rollout.Spec.RollbackWindow != nil {
+			if c.rollout.Spec.RollbackWindow.Revisions > 0 {
+				var windowSize int32
+				for _, rs := range c.allRSs {
+					if rs.Annotations != nil && rs.Annotations[v1alpha1.ExperimentNameAnnotationKey] != "" {
+						continue
+					}
+
+					// is newRS < rs < stableRS ? then it's part of the window
+					if rs.CreationTimestamp.Before(&c.stableRS.CreationTimestamp) &&
+						c.newRS.CreationTimestamp.Before(&rs.CreationTimestamp) {
+						windowSize = windowSize + 1
+					}
+				}
+				if windowSize < c.rollout.Spec.RollbackWindow.Revisions {
+					c.log.Infof("Rollback within the window: %d (%v)", windowSize, c.rollout.Spec.RollbackWindow.Revisions)
+					return true
+				}
+				c.log.Infof("Rollback outside the window: %d (%v)", windowSize, c.rollout.Spec.RollbackWindow.Revisions)
+			}
+		}
+	}
+	return false
+}
+
 // shouldFullPromote returns a reason string explaining why a rollout should fully promote, marking
 // the desired ReplicaSet as stable. Returns empty string if the rollout is in middle of update
 func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) string {
@@ -872,6 +904,9 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		}
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
+		}
+		if c.isRollbackWithinWindow() {
+			return "Rollback within window"
 		}
 		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 		stepCount := len(c.rollout.Spec.Strategy.Canary.Steps)
@@ -896,6 +931,9 @@ func (c *rolloutContext) shouldFullPromote(newStatus v1alpha1.RolloutStatus) str
 		}
 		if c.rollout.Status.PromoteFull {
 			return "Full promotion requested"
+		}
+		if c.isRollbackWithinWindow() {
+			return "Rollback within window"
 		}
 		if c.pauseContext.IsAborted() {
 			return ""
