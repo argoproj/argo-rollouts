@@ -104,7 +104,7 @@ func TestCollectRollouts(t *testing.T) {
 			`
 # HELP rollout_info Information about rollout.
 # TYPE rollout_info gauge
-rollout_info{name="guestbook-bluegreen",namespace="default",phase="Progressing",strategy="blueGreen",traffic_router=""} 1
+rollout_info{current_pod_hash="",name="guestbook-bluegreen",namespace="default",phase="Progressing",strategy="blueGreen",traffic_router=""} 1
 # HELP rollout_info_replicas_available The number of available replicas per rollout.
 # TYPE rollout_info_replicas_available gauge
 rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 1
@@ -128,7 +128,7 @@ rollout_info_replicas_updated{name="guestbook-bluegreen",namespace="default"} 0`
 			`
 # HELP rollout_info Information about rollout.
 # TYPE rollout_info gauge
-rollout_info{name="guestbook-bluegreen",namespace="default",phase="Error",strategy="blueGreen",traffic_router=""} 1
+rollout_info{current_pod_hash="",name="guestbook-bluegreen",namespace="default",phase="Error",strategy="blueGreen",traffic_router=""} 1
 # HELP rollout_info_replicas_available The number of available replicas per rollout.
 # TYPE rollout_info_replicas_available gauge
 rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 1
@@ -151,7 +151,7 @@ rollout_info_replicas_updated{name="guestbook-bluegreen",namespace="default"} 0`
 			`
 # HELP rollout_info Information about rollout.
 # TYPE rollout_info gauge
-rollout_info{name="guestbook-canary",namespace="default",phase="Progressing",strategy="canary",traffic_router="SMI"} 1
+rollout_info{current_pod_hash="",name="guestbook-canary",namespace="default",phase="Progressing",strategy="canary",traffic_router="SMI"} 1
 # HELP rollout_info_replicas_available The number of available replicas per rollout.
 # TYPE rollout_info_replicas_available gauge
 rollout_info_replicas_available{name="guestbook-canary",namespace="default"} 1

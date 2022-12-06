@@ -33,7 +33,7 @@ var (
 	MetricRolloutInfo = prometheus.NewDesc(
 		"rollout_info",
 		"Information about rollout.",
-		append(namespaceNameLabels, "strategy", "traffic_router", "phase"),
+		append(namespaceNameLabels, "strategy", "traffic_router", "phase", "current_pod_hash"),
 		nil,
 	)
 
