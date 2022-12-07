@@ -215,13 +215,19 @@ message AntiAffinity {
   optional RequiredDuringSchedulingIgnoredDuringExecution requiredDuringSchedulingIgnoredDuringExecution = 2;
 }
 
+// ApisixRoute holds information on the APISIX Route the rollout needs to modify
+message ApisixRoute {
+  // Name refer to the name of the APISIX Route used to route traffic to the service
+  optional string name = 1;
+
+  // RuleRef a list of the APISIX Route HTTP Rules used to route traffic to the service
+  repeated string rules = 2;
+}
+
 // ApisixTrafficRouting defines the configuration required to use APISIX as traffic router
 message ApisixTrafficRouting {
-  // RouteRef refer to the name of the APISIX Route used to route traffic to the service
-  optional string routeRef = 1;
-
-  // RuleRef refer to the name of the APISIX Route HTTP Rule used to route traffic to the service
-  optional string ruleRef = 2;
+  // Route references an Apisix Route to modify to shape traffic
+  optional ApisixRoute route = 1;
 }
 
 // AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration

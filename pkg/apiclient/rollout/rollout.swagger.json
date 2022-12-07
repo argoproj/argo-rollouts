@@ -598,16 +598,29 @@
       },
       "title": "AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixRoute": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name refer to the name of the APISIX Route used to route traffic to the service"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "RuleRef a list of the APISIX Route HTTP Rules used to route traffic to the service"
+        }
+      },
+      "title": "ApisixRoute holds information on the APISIX Route the rollout needs to modify"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixTrafficRouting": {
       "type": "object",
       "properties": {
-        "routeRef": {
-          "type": "string",
-          "title": "RouteRef refer to the name of the APISIX Route used to route traffic to the service"
-        },
-        "ruleRef": {
-          "type": "string",
-          "title": "RuleRef refer to the name of the APISIX Route HTTP Rule used to route traffic to the service"
+        "route": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixRoute",
+          "title": "Route references an Apisix Route to modify to shape traffic"
         }
       },
       "title": "ApisixTrafficRouting defines the configuration required to use APISIX as traffic router"

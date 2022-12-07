@@ -387,10 +387,16 @@ type TraefikTrafficRouting struct {
 
 // ApisixTrafficRouting defines the configuration required to use APISIX as traffic router
 type ApisixTrafficRouting struct {
-	// RouteRef refer to the name of the APISIX Route used to route traffic to the service
-	RouteRef string `json:"routeRef" protobuf:"bytes,1,name=routeRef"`
-	// RuleRef refer to the name of the APISIX Route HTTP Rule used to route traffic to the service
-	RuleRef string `json:"ruleRef,omitempty" protobuf:"bytes,2,name=ruleRef"`
+	// Route references an Apisix Route to modify to shape traffic
+	Route *ApisixRoute `json:"route,omitempty" protobuf:"bytes,1,opt,name=route"`
+}
+
+// ApisixRoute holds information on the APISIX Route the rollout needs to modify
+type ApisixRoute struct {
+	// Name refer to the name of the APISIX Route used to route traffic to the service
+	Name string `json:"name" protobuf:"bytes,1,name=name"`
+	// RuleRef a list of the APISIX Route HTTP Rules used to route traffic to the service
+	Rules []string `json:"rules,omitempty" protobuf:"bytes,2,rep,name=rules"`
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic

@@ -66,8 +66,10 @@ spec:
       stableService: rollout-apisix-canary-stable
       trafficRouting:
         apisix:
-          routeRef: rollouts-apisix-route
-          ruleRef: rollouts-apisix
+          route:
+            name: rollouts-apisix-route
+            rules:
+              - rollouts-apisix
       steps:
       - setWeight: 5
       - pause:

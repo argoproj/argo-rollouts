@@ -11721,12 +11721,17 @@ spec:
                             type: object
                           apisix:
                             properties:
-                              routeRef:
-                                type: string
-                              ruleRef:
-                                type: string
-                            required:
-                            - routeRef
+                              route:
+                                properties:
+                                  name:
+                                    type: string
+                                  rules:
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
                             type: object
                           appMesh:
                             properties:

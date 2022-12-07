@@ -58,7 +58,7 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
 	ctx := context.TODO()
 	rollout := r.Rollout
-	apisixRouteName := rollout.Spec.Strategy.Canary.TrafficRouting.Apisix.RouteRef
+	apisixRouteName := rollout.Spec.Strategy.Canary.TrafficRouting.Apisix.Route.Name
 	apisixRoute, err := r.Client.Get(ctx, apisixRouteName, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -71,30 +71,32 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	if !isFound {
 		return errors.New("spec.http was not found in Apisix Route manifest")
 	}
-	ruleRef := rollout.Spec.Strategy.Canary.TrafficRouting.Apisix.RuleRef
-	if ruleRef == "" {
-		ruleRef = apisixRouteName
+	rules := rollout.Spec.Strategy.Canary.TrafficRouting.Apisix.Route.Rules
+	if rules == nil {
+		rules = append(rules, apisixRouteName)
 	}
-	httpRoute, err := GetHttpRoute(httpRoutes, ruleRef)
-	if err != nil {
-		return err
-	}
+	for _, ruleName := range rules {
+		httpRoute, err := GetHttpRoute(httpRoutes, ruleName)
+		if err != nil {
+			return err
+		}
 
-	backends, err := GetBackends(httpRoute)
-	if err != nil {
-		return err
-	}
+		backends, err := GetBackends(httpRoute)
+		if err != nil {
+			return err
+		}
 
-	canaryBackendName := rollout.Spec.Strategy.Canary.CanaryService
-	err = setBackendWeight(canaryBackendName, backends, int64(desiredWeight))
-	if err != nil {
-		return err
-	}
+		canaryBackendName := rollout.Spec.Strategy.Canary.CanaryService
+		err = setBackendWeight(canaryBackendName, backends, int64(desiredWeight))
+		if err != nil {
+			return err
+		}
 
-	stableBackendName := rollout.Spec.Strategy.Canary.StableService
-	err = setBackendWeight(stableBackendName, backends, int64(100-desiredWeight))
-	if err != nil {
-		return err
+		stableBackendName := rollout.Spec.Strategy.Canary.StableService
+		err = setBackendWeight(stableBackendName, backends, int64(100-desiredWeight))
+		if err != nil {
+			return err
+		}
 	}
 
 	err = unstructured.SetNestedSlice(apisixRoute.Object, httpRoutes, "spec", "http")

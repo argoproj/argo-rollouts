@@ -43,6 +43,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateList":                            schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateList(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisTemplateSpec":                            schema_pkg_apis_rollouts_v1alpha1_AnalysisTemplateSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AntiAffinity":                                    schema_pkg_apis_rollouts_v1alpha1_AntiAffinity(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixRoute":                                     schema_pkg_apis_rollouts_v1alpha1_ApisixRoute(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixTrafficRouting":                            schema_pkg_apis_rollouts_v1alpha1_ApisixTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting":                           schema_pkg_apis_rollouts_v1alpha1_AppMeshTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualNodeGroup":                         schema_pkg_apis_rollouts_v1alpha1_AppMeshVirtualNodeGroup(ref),
@@ -792,6 +793,43 @@ func schema_pkg_apis_rollouts_v1alpha1_AntiAffinity(ref common.ReferenceCallback
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_ApisixRoute(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApisixRoute holds information on the APISIX Route the rollout needs to modify",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name refer to the name of the APISIX Route used to route traffic to the service",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"rules": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RuleRef a list of the APISIX Route HTTP Rules used to route traffic to the service",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_ApisixTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -799,25 +837,17 @@ func schema_pkg_apis_rollouts_v1alpha1_ApisixTrafficRouting(ref common.Reference
 				Description: "ApisixTrafficRouting defines the configuration required to use APISIX as traffic router",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"routeRef": {
+					"route": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RouteRef refer to the name of the APISIX Route used to route traffic to the service",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"ruleRef": {
-						SchemaProps: spec.SchemaProps{
-							Description: "RuleRef refer to the name of the APISIX Route HTTP Rule used to route traffic to the service",
-							Type:        []string{"string"},
-							Format:      "",
+							Description: "Route references an Apisix Route to modify to shape traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixRoute"),
 						},
 					},
 				},
-				Required: []string{"routeRef"},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixRoute"},
 	}
 }
 

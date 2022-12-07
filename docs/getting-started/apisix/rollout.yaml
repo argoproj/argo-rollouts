@@ -10,8 +10,10 @@ spec:
       stableService: rollouts-demo-stable
       trafficRouting:
         apisix:
-          routeRef: rollouts-demo-route
-          ruleRef: rollouts-demo
+          route:
+            name: rollouts-demo-route
+            rules:
+              - rollouts-demo
       steps:
         - setWeight: 5
         - pause: {}

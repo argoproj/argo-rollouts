@@ -577,7 +577,7 @@ func (c *Common) GetApisixRoute() *unstructured.Unstructured {
 	ro := c.Rollout()
 	ctx := context.TODO()
 	dyClient := a6util.NewDynamicClient(c.dynamicClient, c.namespace)
-	name := ro.Spec.Strategy.Canary.TrafficRouting.Apisix.RouteRef
+	name := ro.Spec.Strategy.Canary.TrafficRouting.Apisix.Route.Name
 	a6Route, err := dyClient.Get(ctx, name, metav1.GetOptions{})
 	c.CheckError(err)
 	return a6Route

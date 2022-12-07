@@ -318,7 +318,9 @@ func newRollout(stableSvc, canarySvc, apisixRouteRef string) *v1alpha1.Rollout {
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Apisix: &v1alpha1.ApisixTrafficRouting{
-							RouteRef: apisixRouteRef,
+							Route: &v1alpha1.ApisixRoute{
+								Name: apisixRouteRef,
+							},
 						},
 					},
 				},
