@@ -53,6 +53,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 | Traefik                      | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        |
 
 :white_check_mark: = Supported
+
 :x: = Not Supported
 
 ## Documentation
