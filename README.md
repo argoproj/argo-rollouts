@@ -52,6 +52,9 @@ For these reasons, in large scale high-volume production environments, a rolling
 | SMI                          | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :x:                        |
 | Traefik                      | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        |
 
+:white_check_mark: = Supported
+:x: = Not Supported
+
 ## Documentation
 To learn more about Argo Rollouts go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
 
