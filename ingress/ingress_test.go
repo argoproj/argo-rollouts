@@ -193,7 +193,7 @@ func TestSyncIngressNotReferencedByRolloutMultiIngress(t *testing.T) {
 
 	ctrl, kubeclient, _ := newFakeIngressControllerMultiIngress(t, ings, nil)
 
-	err := ctrl.syncIngress("default/test-stable-ingress")
+	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)
@@ -260,7 +260,7 @@ func TestSyncIngressReferencedByRolloutMultiIngress(t *testing.T) {
 
 	ctrl, kubeclient, enqueuedObjects := newFakeIngressControllerMultiIngress(t, ings, rollout)
 
-	err := ctrl.syncIngress("default/test-stable-ingress")
+	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)
@@ -299,11 +299,12 @@ func TestSkipIngressWithNoClass(t *testing.T) {
 	assert.Len(t, enqueuedObjects, 0)
 }
 
-func TestSkipIngressWithNoAnnotationsMultiIngress(t *testing.T) {
+func TestSkipIngressWithNoClassMultiIngress(t *testing.T) {
 	ings := []*extensionsv1beta1.Ingress{
-		newNginxIngress("test-stable-ingress", 80, "stable-service"),
-		newNginxIngress("test-stable-ingress-additional", 80, "stable-service"),
+		newNginxIngressWithAnnotation("test-stable-ingress", 80, "stable-service"),
+		newNginxIngressWithAnnotation("test-stable-ingress-additional", 80, "canary-service"),
 	}
+
 	for _, i := range ings {
 		i.Annotations = nil
 	}
@@ -331,7 +332,7 @@ func TestSkipIngressWithNoAnnotationsMultiIngress(t *testing.T) {
 
 	ctrl, kubeclient, enqueuedObjects := newFakeIngressControllerMultiIngress(t, ings, rollout)
 
-	err := ctrl.syncIngress("default/test-stable-ingress")
+	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
 	assert.NoError(t, err)
 	actions := kubeclient.Actions()
 	assert.Len(t, actions, 0)
