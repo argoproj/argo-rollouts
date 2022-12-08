@@ -1042,6 +1042,10 @@ message NginxTrafficRouting {
 
   // +optional
   map<string, string> additionalIngressAnnotations = 3;
+
+  // AdditionalStableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario
+  // +optional
+  repeated string additionalStableIngresses = 4;
 }
 
 // ObjectRef holds a references to the Kubernetes object
