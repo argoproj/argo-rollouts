@@ -42,6 +42,20 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Service Mesh integration: Istio, Linkerd, SMI
 * Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, InfluxDB
 
+## Supported Traffic Shaping Integrations
+| Traffic Shaping Integration  | SetWeight                    | SetWeightExperiments        | SetMirror                  | SetHeader                  |
+|------------------------------|------------------------------|-----------------------------|----------------------------|----------------------------|
+| ALB Ingress Controller       | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :white_check_mark: (alpha) |
+| Ambassador                   | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |
+| Istio                        | :white_check_mark: (stable)  | :white_check_mark: (stable) | :white_check_mark: (alpha) | :white_check_mark: (alpha) |
+| Nginx Ingress Controller     | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |
+| SMI                          | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :x:                        |
+| Traefik                      | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        |
+
+:white_check_mark: = Supported
+
+:x: = Not Supported
+
 ## Documentation
 To learn more about Argo Rollouts go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
 
