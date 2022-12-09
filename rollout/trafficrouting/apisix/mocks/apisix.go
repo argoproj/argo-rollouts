@@ -16,12 +16,15 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-type FakeDynamicClient struct{}
+type FakeDynamicClient struct {
+	IsListError bool
+}
 
 type FakeClient struct {
 	IsGetError         bool
 	IsGetErrorManifest bool
 	UpdateError        bool
+	IsListError        bool
 }
 
 type FakeRecorder struct{}
@@ -75,6 +78,9 @@ func (f *FakeClient) DeleteCollection(ctx context.Context, options metav1.Delete
 }
 
 func (f *FakeClient) List(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	if f.IsListError {
+		return nil, errors.New("Apisix list error")
+	}
 	return nil, nil
 }
 
@@ -91,5 +97,5 @@ func (f *FakeClient) Namespace(string) dynamic.ResourceInterface {
 }
 
 func (f *FakeDynamicClient) Resource(schema.GroupVersionResource) dynamic.NamespaceableResourceInterface {
-	return &FakeClient{}
+	return &FakeClient{IsListError: f.IsListError}
 }

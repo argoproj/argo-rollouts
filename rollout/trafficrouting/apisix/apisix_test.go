@@ -200,6 +200,103 @@ func TestSetWeight(t *testing.T) {
 	})
 }
 
+func TestGetHttpRouteError(t *testing.T) {
+	type testcase struct {
+		routes []interface{}
+		ref    string
+	}
+	testcases := []testcase{
+		{
+			routes: nil,
+			ref:    "nil",
+		},
+		{
+			routes: []interface{}{""},
+			ref:    "Failed type",
+		},
+		{
+			routes: []interface{}{
+				map[string]interface{}{
+					"x": nil,
+				},
+			},
+			ref: "noname",
+		},
+		{
+			routes: []interface{}{
+				map[string]interface{}{
+					"name": 123,
+				},
+			},
+			ref: "name type error",
+		},
+		{
+			routes: []interface{}{
+				map[string]interface{}{
+					"name": "123",
+				},
+			},
+			ref: "name not found",
+		},
+	}
+
+	for _, tc := range testcases {
+		_, err := GetHttpRoute(tc.routes, tc.ref)
+		assert.Error(t, err)
+	}
+}
+
+func TestGetBackendsError(t *testing.T) {
+	testcases := []interface{}{
+		nil,
+		123,
+		map[string]interface{}{},
+		map[string]interface{}{
+			"backends": "123",
+		},
+	}
+
+	for _, tc := range testcases {
+		_, err := GetBackends(tc)
+		assert.Error(t, err)
+	}
+}
+
+func TestSetBackendWeightError(t *testing.T) {
+	type testcase struct {
+		backendName string
+		backends    []interface{}
+		weight      int64
+	}
+	testcases := []testcase{
+		{},
+		{
+			backends: []interface{}{
+				"",
+			},
+		},
+		{
+			backends: []interface{}{
+				map[string]interface{}{
+					"abc": 123,
+				},
+			},
+		},
+		{
+			backends: []interface{}{
+				map[string]interface{}{
+					"serviceName": 123,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		err := setBackendWeight(tc.backendName, tc.backends, tc.weight)
+		assert.Error(t, err)
+	}
+}
+
 func TestSetHeaderRoute(t *testing.T) {
 	t.Run("SetHeaderRoute", func(t *testing.T) {
 		// Given
