@@ -313,8 +313,8 @@ spec:
                 prefix: "POST"
               path: # What HTTP url paths to match.
                 exact: "/test"
-                regex: ""/test/.*"
-                prefix: ""/"
+                regex: "/test/.*"
+                prefix: "/"
               headers:
                 agent-1b: # What HTTP header name to use in the match.
                   exact: "firefox"

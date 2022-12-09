@@ -48,7 +48,6 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, InfluxDB
 
 ## Supported Traffic Shaping Integrations
-
 | Traffic Shaping Integration       | SetWeight                    | SetWeightExperiments        | SetMirror                  | SetHeader                  |
 |-----------------------------------|------------------------------|-----------------------------|----------------------------|----------------------------|
 | ALB Ingress Controller            | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :white_check_mark: (alpha) |
