@@ -686,8 +686,8 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			canarySpecReplica:      0,
 			canaryAvailableReplica: 0,
 
-			trafficRouting: &v1alpha1.RolloutTrafficRouting{},
-			minPodsPerReplicaSet:   intPnt(2),
+			trafficRouting:       &v1alpha1.RolloutTrafficRouting{},
+			minPodsPerReplicaSet: intPnt(2),
 
 			expectedStableReplicaCount: 10,
 			expectedCanaryReplicaCount: 2,
