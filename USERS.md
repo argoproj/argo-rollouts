@@ -38,3 +38,4 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [Ubie](https://ubie.life/)
 1. [VISITS Technologies](https://visits.world/en)
+1. [Yotpo](https://www.yotpo.com/)
