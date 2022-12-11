@@ -1370,9 +1370,9 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStrategy(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PingPongSpec"),
 						},
 					},
-					"minPodsPerRS": {
+					"minPodsPerReplicaSet": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least MinPodsPerRS for High Availability. Only applicable for TrafficRoutedCanary",
+							Description: "Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

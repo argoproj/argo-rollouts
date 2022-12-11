@@ -499,8 +499,8 @@ message CanaryStrategy {
   optional PingPongSpec pingPong = 15;
 
   // Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
-  // MinPodsPerRS for High Availability. Only applicable for TrafficRoutedCanary
-  optional int32 minPodsPerRS = 16;
+  // MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
+  optional int32 minPodsPerReplicaSet = 16;
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
