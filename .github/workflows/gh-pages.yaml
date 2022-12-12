@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - master
-  workflow_run:
-    workflows: [ "Release" ]
-    types:
-      - completed
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
