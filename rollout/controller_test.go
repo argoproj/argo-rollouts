@@ -1801,9 +1801,6 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
-		if err == nil {
-			fmt.Println("ERROR IS NIL")
-		}
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "AdditionalStableIngresses"), "nginx-ingress-name", "ingress.extensions \"nginx-ingress-additional\" not found")
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
@@ -1828,8 +1825,9 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
-		_, err = roCtx.getReferencedIngresses()
+		ingresses, err := roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
+		assert.Len(t, *ingresses, 2, "Should find the main ingress and the additional ingress")
 	})
 }
 

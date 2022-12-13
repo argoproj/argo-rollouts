@@ -8,6 +8,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/strings/slices"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
@@ -219,24 +220,25 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
 	canary := rollout.Spec.Strategy.Canary
+	additionalIngress := canary.TrafficRouting.Nginx.AdditionalStableIngresses
 	var ingressName string
 	var serviceName string
+
 	if canary.TrafficRouting.Nginx != nil {
-		// If there are additional stable ingresses
-		if len(canary.TrafficRouting.Nginx.AdditionalStableIngresses) > 0 {
-			// validate each ingress as valid
+		// If there are additional stable Nginx ingresses, and one of them is being validated,
+		// use that ingress name.
+		if len(additionalIngress) > 0 && slices.Contains(additionalIngress, ingress.GetName()) {
 			fldPath = fldPath.Child("nginx").Child("additionalStableIngresses")
 			serviceName = canary.StableService
-			for _, ing := range canary.TrafficRouting.Nginx.AdditionalStableIngresses {
-				ingressName = ing
-				allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
-			}
+			ingressName = ingress.GetName()
+			allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
+		} else {
+			fldPath = fldPath.Child("nginx").Child("stableIngress")
+			serviceName = canary.StableService
+			ingressName = canary.TrafficRouting.Nginx.StableIngress
+			allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
 		}
-		fldPath = fldPath.Child("nginx").Child("stableIngress")
-		serviceName = canary.StableService
-		ingressName = canary.TrafficRouting.Nginx.StableIngress
 
-		allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
 	} else if canary.TrafficRouting.ALB != nil {
 		fldPath = fldPath.Child("alb").Child("ingress")
 		ingressName = canary.TrafficRouting.ALB.Ingress

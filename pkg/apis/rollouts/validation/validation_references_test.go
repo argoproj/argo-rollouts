@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
@@ -262,6 +263,25 @@ func getRollout() *v1alpha1.Rollout {
 	}
 }
 
+func getRolloutMultiIngress() *v1alpha1.Rollout {
+	return &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService: "stable-service",
+					CanaryService: "canary-service-name",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						Nginx: &v1alpha1.NginxTrafficRouting{
+							StableIngress:             "stable-ingress",
+							AdditionalStableIngresses: []string{"additional-stable-ingress-1", "additional-stable-ingress-2"},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func getIngress() *v1beta1.Ingress {
 	return &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -286,6 +306,35 @@ func getIngress() *v1beta1.Ingress {
 	}
 }
 
+func extensionsIngress(name string, port int, serviceName string) *extensionsv1beta1.Ingress {
+	return &extensionsv1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: extensionsv1beta1.IngressSpec{
+			Rules: []extensionsv1beta1.IngressRule{
+				{
+					Host: "fakehost.example.com",
+					IngressRuleValue: extensionsv1beta1.IngressRuleValue{
+						HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
+							Paths: []extensionsv1beta1.HTTPIngressPath{
+								{
+									Path: "/foo",
+									Backend: extensionsv1beta1.IngressBackend{
+										ServiceName: serviceName,
+										ServicePort: intstr.FromInt(port),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func getServiceWithType() ServiceWithType {
 	return ServiceWithType{
 		Service: &corev1.Service{
@@ -306,6 +355,94 @@ func TestValidateRolloutReferencedResources(t *testing.T) {
 	}
 	allErrs := ValidateRolloutReferencedResources(getRollout(), refResources)
 	assert.Empty(t, allErrs)
+}
+
+func TestValidateRolloutReferencedResourcesMultiNginxIngress(t *testing.T) {
+	t.Run("Validate multiple Nginx Ingresses successfully", func(t *testing.T) {
+		t.Parallel()
+		stable := extensionsIngress("stable-ingress", 80, "stable-service")
+		stableIngress := ingressutil.NewLegacyIngress(stable)
+		additionalStable := extensionsIngress("additional-stable-ingress", 80, "stable-service")
+		additionalStableIngress := ingressutil.NewLegacyIngress(additionalStable)
+		refResources := ReferencedResources{
+			AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplatesWithType()},
+			Ingresses:                 []ingressutil.Ingress{*stableIngress, *additionalStableIngress},
+			ServiceWithType:           []ServiceWithType{getServiceWithType()},
+			VirtualServices:           nil,
+		}
+		allErrs := ValidateRolloutReferencedResources(getRolloutMultiIngress(), refResources)
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("Validate multiple Nginx Ingresses -- primary fails", func(t *testing.T) {
+		t.Parallel()
+		stable := extensionsIngress("stable-ingress", 80, "wrong-service")
+		stableIngress := ingressutil.NewLegacyIngress(stable)
+		additionalStable1 := extensionsIngress("additional-stable-ingress-1", 80, "stable-service")
+		additionalStableIngress1 := ingressutil.NewLegacyIngress(additionalStable1)
+		additionalStable2 := extensionsIngress("additional-stable-ingress-2", 80, "stable-service")
+		additionalStableIngress2 := ingressutil.NewLegacyIngress(additionalStable2)
+		fmt.Println(additionalStable2.GetName())
+		refResources := ReferencedResources{
+			AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplatesWithType()},
+			Ingresses:                 []ingressutil.Ingress{*stableIngress, *additionalStableIngress1, *additionalStableIngress2},
+			ServiceWithType:           []ServiceWithType{getServiceWithType()},
+			VirtualServices:           nil,
+		}
+		allErrs := ValidateRolloutReferencedResources(getRolloutMultiIngress(), refResources)
+		assert.Len(t, allErrs, 1, "Main stable ingress should fail")
+		assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[0].Type, "Should be bad service name for ingress")
+		assert.Equal(t, "spec.strategy.canary.trafficRouting.nginx.stableIngress", allErrs[0].Field, "Bad service name for ingress")
+		assert.Equal(t, "stable-ingress", allErrs[0].BadValue, "Bad service name for ingress")
+	})
+
+	t.Run("Validate multiple Nginx Ingresses -- additional ingress fails", func(t *testing.T) {
+		t.Parallel()
+		stable := extensionsIngress("stable-ingress", 80, "stable-service")
+		stableIngress := ingressutil.NewLegacyIngress(stable)
+		additionalStable1 := extensionsIngress("additional-stable-ingress-1", 80, "wrong-stable-service")
+		additionalStableIngress1 := ingressutil.NewLegacyIngress(additionalStable1)
+		additionalStable2 := extensionsIngress("additional-stable-ingress-2", 80, "stable-service")
+		additionalStableIngress2 := ingressutil.NewLegacyIngress(additionalStable2)
+		refResources := ReferencedResources{
+			AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplatesWithType()},
+			Ingresses:                 []ingressutil.Ingress{*stableIngress, *additionalStableIngress1, *additionalStableIngress2},
+			ServiceWithType:           []ServiceWithType{getServiceWithType()},
+			VirtualServices:           nil,
+		}
+		allErrs := ValidateRolloutReferencedResources(getRolloutMultiIngress(), refResources)
+		assert.Len(t, allErrs, 1, "Main stable ingress should fail")
+		assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[0].Type, "Should be bad service name for ingress")
+		assert.Equal(t, "spec.strategy.canary.trafficRouting.nginx.additionalStableIngresses", allErrs[0].Field, "Bad service name for ingress")
+		assert.Equal(t, "additional-stable-ingress-1", allErrs[0].BadValue, "Bad service name for ingress")
+	})
+
+	t.Run("Validate multiple Nginx Ingresses -- all ingresses fail fails", func(t *testing.T) {
+		t.Parallel()
+		stable := extensionsIngress("stable-ingress", 80, "wrong-stable-service")
+		stableIngress := ingressutil.NewLegacyIngress(stable)
+		additionalStable1 := extensionsIngress("additional-stable-ingress-1", 80, "wrong-stable-service")
+		additionalStableIngress1 := ingressutil.NewLegacyIngress(additionalStable1)
+		additionalStable2 := extensionsIngress("additional-stable-ingress-2", 80, "wrong-stable-service")
+		additionalStableIngress2 := ingressutil.NewLegacyIngress(additionalStable2)
+		refResources := ReferencedResources{
+			AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplatesWithType()},
+			Ingresses:                 []ingressutil.Ingress{*stableIngress, *additionalStableIngress1, *additionalStableIngress2},
+			ServiceWithType:           []ServiceWithType{getServiceWithType()},
+			VirtualServices:           nil,
+		}
+		allErrs := ValidateRolloutReferencedResources(getRolloutMultiIngress(), refResources)
+		assert.Len(t, allErrs, 3, "Main stable ingress should fail")
+		assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[0].Type, "Should be bad service name for ingress")
+		assert.Equal(t, "spec.strategy.canary.trafficRouting.nginx.stableIngress", allErrs[0].Field, "Bad service name for ingress")
+		assert.Equal(t, "stable-ingress", allErrs[0].BadValue, "Bad service name for ingress")
+		assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[1].Type, "Should be bad service name for ingress")
+		assert.Equal(t, "spec.strategy.canary.trafficRouting.nginx.additionalStableIngresses", allErrs[1].Field, "Bad service name for ingress")
+		assert.Equal(t, "additional-stable-ingress-1", allErrs[1].BadValue, "Bad service name for ingress")
+		assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[2].Type, "Should be bad service name for ingress")
+		assert.Equal(t, "spec.strategy.canary.trafficRouting.nginx.additionalStableIngresses", allErrs[2].Field, "Bad service name for ingress")
+		assert.Equal(t, "additional-stable-ingress-2", allErrs[2].BadValue, "Bad service name for ingress")
+	})
 }
 
 func TestValidateAnalysisTemplatesWithType(t *testing.T) {
