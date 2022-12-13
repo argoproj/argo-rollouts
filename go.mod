@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/antonmedv/expr v1.9.0
-	github.com/argoproj/notifications-engine v0.3.1-0.20220129012210-32519f8f68ec
+	github.com/argoproj/notifications-engine v0.3.1-0.20221206124514-c419c904e2c0
 	github.com/argoproj/pkg v0.13.6
 	github.com/aws/aws-sdk-go-v2 v1.17.2
 	github.com/aws/aws-sdk-go-v2/config v1.18.4
@@ -66,6 +66,7 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
+	github.com/PagerDuty/go-pagerduty v1.6.0 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20220708192748-b73dcb041214 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.4 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.20 // indirect
