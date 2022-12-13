@@ -1233,6 +1233,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../newrelic/" class="md-nav__link">
+        NewRelic
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../opsgenie/" class="md-nav__link">
         Opsgenie
       </a>
@@ -1249,6 +1263,20 @@
     <li class="md-nav__item">
       <a href="../overview/" class="md-nav__link">
         Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pagerduty/" class="md-nav__link">
+        Pagerduty
       </a>
     </li>
   
@@ -1319,6 +1347,20 @@
     <li class="md-nav__item">
       <a href="../telegram/" class="md-nav__link">
         Telegram
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../webex/" class="md-nav__link">
+        Webex Teams
       </a>
     </li>
   
@@ -2223,16 +2265,20 @@ in <code>argocd-notifications-cm</code> ConfigMap</li>
 </code></pre></div>
 <h2 id="templates">Templates<a class="headerlink" href="#templates" title="Permanent link">&para;</a></h2>
 <p><img alt="" src="https://user-images.githubusercontent.com/18019529/108520497-168ce180-730e-11eb-93cb-b0b91f99bdc5.png" /></p>
-<p>If the message is set to 140 characters or more, it will be truncate.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">template.app-deployed</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
 <span class="w">  </span><span class="no">message: |</span><span class="w"></span>
 <span class="w">    </span><span class="no">Application {{.app.metadata.name}} is now running new version of deployments manifests.</span><span class="w"></span>
 <span class="w">  </span><span class="no">github:</span><span class="w"></span>
+<span class="w">    </span><span class="no">repoURLPath: &quot;{{.app.spec.source.repoURL}}&quot;</span><span class="w"></span>
+<span class="w">    </span><span class="no">revisionPath: &quot;{{.app.status.operationState.syncResult.revision}}&quot;</span><span class="w"></span>
 <span class="w">    </span><span class="no">status:</span><span class="w"></span>
 <span class="w">      </span><span class="no">state: success</span><span class="w"></span>
 <span class="w">      </span><span class="no">label: &quot;continuous-delivery/{{.app.metadata.name}}&quot;</span><span class="w"></span>
 <span class="w">      </span><span class="no">targetURL: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true&quot;</span><span class="w"></span>
 </code></pre></div>
+<p><strong>Notes</strong>:
+- If the message is set to 140 characters or more, it will be truncated.
+- If <code>github.repoURLPath</code> and <code>github.revisionPath</code> are same as above, they can be omitted.</p>
 
 
   

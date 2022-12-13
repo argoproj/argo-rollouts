@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#configuration" class="md-skip">
+        <a href="#webhook" class="md-skip">
           Skip to content
         </a>
       
@@ -1178,6 +1178,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../newrelic/" class="md-nav__link">
+        NewRelic
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../opsgenie/" class="md-nav__link">
         Opsgenie
       </a>
@@ -1194,6 +1208,20 @@
     <li class="md-nav__item">
       <a href="../overview/" class="md-nav__link">
         Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pagerduty/" class="md-nav__link">
+        Pagerduty
       </a>
     </li>
   
@@ -1274,6 +1302,20 @@
               
   
   
+  
+    <li class="md-nav__item">
+      <a href="../webex/" class="md-nav__link">
+        Webex Teams
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
     
   
   
@@ -1281,6 +1323,8 @@
       
       <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
       
+      
+        
       
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
@@ -1298,12 +1342,21 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    Parameters
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#configuration" class="md-nav__link">
@@ -2145,12 +2198,21 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    Parameters
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#configuration" class="md-nav__link">
@@ -2220,11 +2282,18 @@
   </a>
 
 
-  <h1>Webhook</h1>
-
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<h1 id="webhook">Webhook<a class="headerlink" href="#webhook" title="Permanent link">&para;</a></h1>
 <p>The webhook notification service allows sending a generic HTTP request using the templatized request body and URL.
 Using Webhook you might trigger a Jenkins job, update Github commit status.</p>
+<h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
+<p>The Webhook notification service configuration includes following settings:</p>
+<ul>
+<li><code>url</code> - the url to send the webhook to</li>
+<li><code>headers</code> - optional, the headers to pass along with the webhook</li>
+<li><code>basicAuth</code> - optional, the basic authentication to pass along with the webook</li>
+<li><code>insecureSkipVerify</code> - optional bool, true or false</li>
+</ul>
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <p>Use the following steps to configure webhook:</p>
 <p>1 Register webhook in <code>argocd-notifications-cm</code> ConfigMap:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
@@ -2240,6 +2309,7 @@ Using Webhook you might trigger a Jenkins job, update Github commit status.</p>
 <span class="w">    </span><span class="no">basicAuth: #optional username password</span><span class="w"></span>
 <span class="w">      </span><span class="no">username: &lt;username&gt;</span><span class="w"></span>
 <span class="w">      </span><span class="no">password: &lt;api-key&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="no">insecureSkipVerify: true #optional bool</span><span class="w"></span>
 </code></pre></div>
 <p>2 Define template that customizes webhook request method, path and body:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
@@ -2394,7 +2464,7 @@ Using Webhook you might trigger a Jenkins job, update Github commit status.</p>
     <nav class="md-footer__inner md-grid" aria-label="Footer" >
       
         
-        <a href="../telegram/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Telegram" rel="prev">
+        <a href="../webex/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Webex Teams" rel="prev">
           <div class="md-footer__button md-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
           </div>
@@ -2403,7 +2473,7 @@ Using Webhook you might trigger a Jenkins job, update Github commit status.</p>
               <span class="md-footer__direction">
                 Previous
               </span>
-              Telegram
+              Webex Teams
             </div>
           </div>
         </a>
