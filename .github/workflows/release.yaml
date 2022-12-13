@@ -185,7 +185,7 @@ jobs:
 
       - name: update stable tag for docs
         run: |
-          git tag -f -m "" stable ${{ github.event.inputs.tag }}
+          git tag -f stable ${{ github.event.inputs.tag }}
           git push -f origin stable  
 
       - name: Draft release
