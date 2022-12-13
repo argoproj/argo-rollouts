@@ -11719,6 +11719,20 @@ spec:
                             required:
                             - mappings
                             type: object
+                          apisix:
+                            properties:
+                              route:
+                                properties:
+                                  name:
+                                    type: string
+                                  rules:
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
+                            type: object
                           appMesh:
                             properties:
                               virtualNodeGroup:
@@ -14689,6 +14703,14 @@ rules:
   - traefik.containo.us
   resources:
   - traefikservices
+  verbs:
+  - watch
+  - get
+  - update
+- apiGroups:
+  - apisix.apache.org
+  resources:
+  - apisixroutes
   verbs:
   - watch
   - get
