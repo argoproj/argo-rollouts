@@ -1765,7 +1765,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "AdditionalStableIngresses"), "nginx-ingress-name", "ingress.extensions \"nginx-ingress-additional\" not found")
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "AdditionalStableIngresses"), []string{"nginx-ingress-additional"}, "ingress.extensions \"nginx-ingress-additional\" not found")
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
 
@@ -1801,7 +1801,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "AdditionalStableIngresses"), "nginx-ingress-name", "ingress.extensions \"nginx-ingress-additional\" not found")
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "AdditionalStableIngresses"), []string{"nginx-ingress-additional"}, "ingress.extensions \"nginx-ingress-additional\" not found")
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
 
