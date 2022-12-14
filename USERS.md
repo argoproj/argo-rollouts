@@ -23,6 +23,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Nozzle](https://nozzle.io)
 1. [Opensurvey Inc.](https://opensurvey.co.kr)
 1. [OpsVerse](https://opsverse.io)
+1. [Optum](https://www.optum.com)
 1. [PagerDuty](https://www.pagerduty.com/)
 1. [PayPal](https://www.paypal.com/)
 1. [PayPay](https://paypay.ne.jp/)
@@ -39,4 +40,3 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Ubie](https://ubie.life/)
 1. [VISITS Technologies](https://visits.world/en)
 1. [Yotpo](https://www.yotpo.com/)
-1. [Optum](https://www.optum.com)
