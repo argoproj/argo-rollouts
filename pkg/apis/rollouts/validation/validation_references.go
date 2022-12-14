@@ -220,11 +220,11 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
 	canary := rollout.Spec.Strategy.Canary
-	additionalIngress := canary.TrafficRouting.Nginx.AdditionalStableIngresses
 	var ingressName string
 	var serviceName string
 
 	if canary.TrafficRouting.Nginx != nil {
+		additionalIngress := canary.TrafficRouting.Nginx.AdditionalStableIngresses
 		// If there are additional stable Nginx ingresses, and one of them is being validated,
 		// use that ingress name.
 		if len(additionalIngress) > 0 && slices.Contains(additionalIngress, ingress.GetName()) {
