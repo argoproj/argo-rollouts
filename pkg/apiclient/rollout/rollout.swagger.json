@@ -598,6 +598,33 @@
       },
       "title": "AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixRoute": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name refer to the name of the APISIX Route used to route traffic to the service"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "RuleRef a list of the APISIX Route HTTP Rules used to route traffic to the service"
+        }
+      },
+      "title": "ApisixRoute holds information on the APISIX Route the rollout needs to modify"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixTrafficRouting": {
+      "type": "object",
+      "properties": {
+        "route": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixRoute",
+          "title": "Route references an Apisix Route to modify to shape traffic"
+        }
+      },
+      "title": "ApisixTrafficRouting defines the configuration required to use APISIX as traffic router"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AppMeshTrafficRouting": {
       "type": "object",
       "properties": {
@@ -1589,6 +1616,10 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MangedRoutes"
           },
           "description": "A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream\ntraffic router."
+        },
+        "apisix": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixTrafficRouting",
+          "title": "Apisix holds specific configuration to use Apisix to route traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"

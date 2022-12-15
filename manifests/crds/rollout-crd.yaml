@@ -712,6 +712,20 @@ spec:
                             required:
                             - mappings
                             type: object
+                          apisix:
+                            properties:
+                              route:
+                                properties:
+                                  name:
+                                    type: string
+                                  rules:
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
+                            type: object
                           appMesh:
                             properties:
                               virtualNodeGroup:

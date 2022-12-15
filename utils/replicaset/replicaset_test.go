@@ -1336,3 +1336,42 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 		assert.False(t, IsReplicaSetAvailable(&rs))
 	}
 }
+
+func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
+	t.Run("No Availability", func(t *testing.T) {
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(2),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas:     0,
+				AvailableReplicas: 0,
+			},
+		}
+		assert.False(t, IsReplicaSetPartiallyAvailable(&rs))
+	})
+	t.Run("Partial Availability", func(t *testing.T) {
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(2),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas:     2,
+				AvailableReplicas: 1,
+			},
+		}
+		assert.True(t, IsReplicaSetPartiallyAvailable(&rs))
+	})
+	t.Run("Full Availability", func(t *testing.T) {
+		rs := appsv1.ReplicaSet{
+			Spec: appsv1.ReplicaSetSpec{
+				Replicas: pointer.Int32Ptr(2),
+			},
+			Status: appsv1.ReplicaSetStatus{
+				ReadyReplicas:     2,
+				AvailableReplicas: 2,
+			},
+		}
+		assert.True(t, IsReplicaSetPartiallyAvailable(&rs))
+	})
+}
