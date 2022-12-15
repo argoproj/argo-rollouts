@@ -271,3 +271,7 @@ release: release-precheck precheckin image plugin-image release-plugins
 trivy:
 	@trivy fs --clear-cache
 	@trivy fs .
+
+.PHONY: checksums
+checksums:
+	shasum -a 256 ./dist/kubectl-argo-rollouts-* | awk -F './dist/' '{print $$1 $$2}' > ./dist/argo-rollouts-checksums.txt
