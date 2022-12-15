@@ -7,7 +7,7 @@ on:
         description: Git tag to build release from
         required: true
       update_stable_tag:
-        description: 'Update stable tag for docs'
+        description: 'Update stable tag'
         required: true
         type: boolean
         default: 'false'
