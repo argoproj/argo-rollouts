@@ -149,6 +149,14 @@ jobs:
 
           cd /tmp && tar -zcf sbom.tar.gz *.spdx
 
+      - name: Login to Quay.io
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v2
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+
       - name: Install cosign
         uses: sigstore/cosign-installer@main
         with:
