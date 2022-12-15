@@ -64,7 +64,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 
 ## Documentation
 
-To learn more about Argo Rollouts go to the [complete documentation](https://argoproj.github.io/argo-rollouts/).
+To learn more about Argo Rollouts go to the [complete documentation](https://argo-rollouts.readthedocs.io/en/stable/).
 
 ## Community
 
