@@ -2207,6 +2207,9 @@
 <p>Visit the <a href="https://github.com/argoproj/argo-rollouts/actions/workflows/release.yaml">Release GitHub Action</a>
    and enter the tag.</p>
 </li>
+<li>
+<p>To automatically update the stable tag, select <code>Update stable tag</code>. (false by default)</p>
+</li>
 </ol>
 <p><a href="../release-action.png"><img alt="GitHub Release Action" src="../release-action.png" /></a></p>
 <ol>
@@ -2214,11 +2217,6 @@
 <li>Getting started (copy from previous release and new version)</li>
 <li>
 <p>Changelog</p>
-</li>
-<li>
-<p>Update <code>stable</code> tag:</p>
-<div class="highlight"><pre><span></span><code>git tag stable --force <span class="o">&amp;&amp;</span> git push <span class="nv">$REPO</span> stable --force
-</code></pre></div>
 </li>
 <li>
 <p>Update Brew formula:</p>
