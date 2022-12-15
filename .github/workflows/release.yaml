@@ -6,6 +6,11 @@ on:
       tag:
         description: Git tag to build release from
         required: true
+      update_stable_tag:
+        description: 'Update stable tag'
+        required: true
+        type: boolean
+        default: 'false'
 permissions:
   contents: read
 
@@ -196,7 +201,8 @@ jobs:
       - name: update stable tag for docs
         run: |
           git tag -f stable ${{ github.event.inputs.tag }}
-          git push -f origin stable  
+          git push -f origin stable
+        if:  ${{ inputs.update_stable_tag }}
 
       - name: Draft release
         uses: softprops/action-gh-release@v1
