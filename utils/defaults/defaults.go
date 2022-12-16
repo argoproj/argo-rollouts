@@ -56,6 +56,8 @@ const (
 	DefaultAppMeshCRDVersion            = "v1beta2"
 	DefaultTraefikAPIGroup              = "traefik.containo.us"
 	DefaultTraefikVersion               = "traefik.containo.us/v1alpha1"
+	DefaultApisixAPIGroup               = "apisix.apache.org"
+	DefaultApisixVersion                = "apisix.apache.org/v2"
 )
 
 var (
@@ -82,6 +84,14 @@ func init() {
 		if interval, err := strconv.ParseInt(rolloutVerifyInterval, 10, 32); err != nil {
 			rolloutVerifyRetryInterval = time.Duration(interval) * time.Second
 		}
+	}
+}
+
+func GetStringOrDefault(value, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	} else {
+		return value
 	}
 }
 

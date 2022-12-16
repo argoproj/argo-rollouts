@@ -13,6 +13,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	a6util "github.com/argoproj/argo-rollouts/utils/apisix"
+
 	"github.com/ghodss/yaml"
 	smiv1alpha1 "github.com/servicemeshinterface/smi-sdk-go/pkg/apis/split/v1alpha1"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
@@ -48,7 +50,6 @@ import (
 //nolint:structcheck
 type Common struct {
 	Context        context.Context
-	testInstanceID string
 	t              *testing.T
 	namespace      string
 	log            *log.Entry
@@ -570,6 +571,16 @@ func (c *Common) GetVirtualService() *istio.VirtualService {
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(vsvcUn.Object, &vsvc)
 	c.CheckError(err)
 	return &vsvc
+}
+
+func (c *Common) GetApisixRoute() *unstructured.Unstructured {
+	ro := c.Rollout()
+	ctx := context.TODO()
+	dyClient := a6util.NewDynamicClient(c.dynamicClient, c.namespace)
+	name := ro.Spec.Strategy.Canary.TrafficRouting.Apisix.Route.Name
+	a6Route, err := dyClient.Get(ctx, name, metav1.GetOptions{})
+	c.CheckError(err)
+	return a6Route
 }
 
 func (c *Common) GetAppMeshVirtualRouter() *unstructured.Unstructured {

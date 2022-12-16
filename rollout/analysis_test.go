@@ -153,6 +153,8 @@ func TestCreateBackgroundAnalysisRun(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completeCond, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completeCond)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -212,6 +214,8 @@ func TestCreateBackgroundAnalysisRunWithTemplates(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completeCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completeCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -272,6 +276,8 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplates(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, cat)
@@ -381,6 +387,8 @@ func TestCreateBackgroundAnalysisRunWithClusterTemplatesAndTemplate(t *testing.T
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.clusterAnalysisTemplateLister = append(f.clusterAnalysisTemplateLister, cat)
@@ -446,6 +454,8 @@ func TestCreateAnalysisRunWithCollision(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	ar.Status.Phase = v1alpha1.AnalysisPhaseFailed
 
@@ -514,6 +524,8 @@ func TestCreateAnalysisRunWithCollisionAndSemanticEquality(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisRunLister = append(f.analysisRunLister, ar)
@@ -573,6 +585,8 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
@@ -768,6 +782,8 @@ func TestDoNothingWithAnalysisRunsWhileBackgroundAnalysisRunRunning(t *testing.T
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	r2.Status.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
@@ -816,6 +832,8 @@ func TestDoNothingWhileStepBasedAnalysisRunRunning(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
@@ -866,6 +884,8 @@ func TestCancelOlderAnalysisRuns(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: "",
@@ -933,6 +953,8 @@ func TestDeleteAnalysisRunsWithNoMatchingRS(t *testing.T) {
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name: ar.Name,
 	}
@@ -1059,7 +1081,7 @@ func TestIncrementStepAfterSuccessfulAnalysisRun(t *testing.T) {
 			"conditions": %s
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "")
+	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", false)
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition)), patch)
 }
@@ -1128,7 +1150,7 @@ func TestPausedOnInconclusiveBackgroundAnalysisRun(t *testing.T) {
 			"message": "%s"
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
 }
@@ -1192,7 +1214,7 @@ func TestPausedStepAfterInconclusiveAnalysisRun(t *testing.T) {
 			"message": "%s"
 		}
 	}`
-	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "")
+	condition := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, v1alpha1.PauseReasonInconclusiveAnalysis, now, v1alpha1.PauseReasonInconclusiveAnalysis)), patch)
 }
 
@@ -1258,7 +1280,7 @@ func TestErrorConditionAfterErrorAnalysisRunStep(t *testing.T) {
 	}`
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2) + ": " + ar.Status.Message
-	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, errmsg)
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, errmsg, false)
 	expectedPatch = fmt.Sprintf(expectedPatch, condition, now, errmsg)
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
@@ -1333,7 +1355,7 @@ func TestErrorConditionAfterErrorAnalysisRunBackground(t *testing.T) {
 		}
 	}`
 	errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
-	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
+	condition := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
 
 	now := timeutil.Now().UTC().Format(time.RFC3339)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, condition, now, errmsg)), patch)
@@ -1386,7 +1408,7 @@ func TestCancelAnalysisRunsWhenAborted(t *testing.T) {
 	assert.True(t, f.verifyPatchedAnalysisRun(cancelOldAr, olderAr))
 	assert.True(t, f.verifyPatchedAnalysisRun(cancelCurrentAr, ar))
 	patch := f.getPatchedRollout(patchIndex)
-	newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "")
+	newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
 	expectedPatch := `{
 		"status": {
 			"conditions": %s,
@@ -1488,6 +1510,9 @@ func TestDoNotCreateBackgroundAnalysisRunAfterInconclusiveRun(t *testing.T) {
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, r2, at)
@@ -1586,12 +1611,15 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	previewSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	previewSvc := newService("preview", 80, previewSelector, r2)
@@ -1622,8 +1650,8 @@ func TestCreatePrePromotionAnalysisRun(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
-//TestDoNotCreatePrePromotionAnalysisProgressedRollout ensures a pre-promotion analysis is not created after a Rollout
-//points the active service at the new ReplicaSet
+// TestDoNotCreatePrePromotionAnalysisProgressedRollout ensures a pre-promotion analysis is not created after a Rollout
+// points the active service at the new ReplicaSet
 func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1650,7 +1678,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
 	f.objects = append(f.objects, at)
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs2PodHash, 1, 1, 1, 1, false, true, true)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -1661,7 +1689,7 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 
 	f.run(getKey(r2, t))
 
-	newConditions := generateConditionsPatchWithComplete(true, conditions.NewRSAvailableReason, rs2, true, "", true)
+	newConditions := generateConditionsPatchWithHealthy(true, conditions.NewRSAvailableReason, rs2, true, "", true, true)
 	expectedPatch := fmt.Sprintf(`{
 		"status":{
 			"conditions":%s
@@ -1672,8 +1700,8 @@ func TestDoNotCreatePrePromotionAnalysisAfterPromotionRollout(t *testing.T) {
 
 }
 
-//TestDoNotCreatePrePromotionAnalysisRunOnNewRollout ensures that a pre-promotion analysis is not created
-//if the Rollout does not have a stable ReplicaSet
+// TestDoNotCreatePrePromotionAnalysisRunOnNewRollout ensures that a pre-promotion analysis is not created
+// if the Rollout does not have a stable ReplicaSet
 func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1703,8 +1731,8 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNewRollout(t *testing.T) {
 	f.run(getKey(r, t))
 }
 
-//TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
-//the new ReplicaSet is saturated
+// TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet ensures that a pre-promotion analysis is not created until
+// the new ReplicaSet is saturated
 func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -1723,7 +1751,7 @@ func TestDoNotCreatePrePromotionAnalysisRunOnNotReadyReplicaSet(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 2, 2, 4, 2, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, rs2PodHash, rs1PodHash, rs1PodHash, 2, 2, 4, 2, false, true, false)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)
@@ -1766,7 +1794,7 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
 	r2.Status.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
@@ -1776,6 +1804,9 @@ func TestRolloutPrePromotionAnalysisBecomesInconclusive(t *testing.T) {
 
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)
@@ -1834,7 +1865,7 @@ func TestRolloutPrePromotionAnalysisSwitchServiceAfterSuccess(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
 	r2.Status.BlueGreen.PrePromotionAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
 		Name:   ar.Name,
 		Status: v1alpha1.AnalysisPhaseRunning,
@@ -1903,7 +1934,7 @@ func TestRolloutPrePromotionAnalysisHonorAutoPromotionSeconds(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
 	now := metav1.NewTime(timeutil.MetaNow().Add(-10 * time.Second))
 	r2.Status.PauseConditions[0].StartTime = now
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
@@ -1966,7 +1997,7 @@ func TestRolloutPrePromotionAnalysisDoNothingOnInconclusiveAnalysis(t *testing.T
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
 	inconclusivePauseCondition := v1alpha1.PauseCondition{
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 		StartTime: timeutil.MetaNow(),
@@ -2021,12 +2052,15 @@ func TestAbortRolloutOnErrorPrePromotionAnalysis(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs1PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
@@ -2083,7 +2117,7 @@ func TestCreatePostPromotionAnalysisRun(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)
@@ -2136,10 +2170,13 @@ func TestRolloutPostPromotionAnalysisSuccess(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 1, 1, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 1, 1, false, true, false)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)
+
+	cond, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, cond)
 
 	f.objects = append(f.objects, r2, at, ar)
 	f.kubeobjects = append(f.kubeobjects, activeSvc, rs1, rs2)
@@ -2190,7 +2227,7 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, false, true, false)
 	r2.Status.PauseConditions = []v1alpha1.PauseCondition{{
 		Reason:    v1alpha1.PauseReasonInconclusiveAnalysis,
 		StartTime: timeutil.MetaNow(),
@@ -2200,6 +2237,9 @@ func TestPostPromotionAnalysisRunHandleInconclusive(t *testing.T) {
 
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)
@@ -2251,12 +2291,15 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, true, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 1, 1, 2, 1, true, true, false)
 	progressingCondition, _ := newProgressingCondition(conditions.RolloutPausedReason, r2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
 
 	pausedCondition, _ := newPausedCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, pausedCondition)
+
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
 	activeSvc := newService("active", 80, activeSelector, r2)

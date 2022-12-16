@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +19,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
+	apisixMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
@@ -665,6 +668,31 @@ func TestNewTrafficRoutingReconciler(t *testing.T) {
 		}
 	}
 	{
+		tsController := Controller{
+			reconcilerBase: reconcilerBase{
+				dynamicclientset: &apisixMocks.FakeDynamicClient{},
+			},
+		}
+		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Apisix: &v1alpha1.ApisixTrafficRouting{
+				Route: &v1alpha1.ApisixRoute{
+					Name: "apisix-route",
+				},
+			},
+		}
+		roCtx := &rolloutContext{
+			rollout: r,
+			log:     logutil.WithRollout(r),
+		}
+		networkReconcilerList, err := tsController.NewTrafficRoutingReconciler(roCtx)
+		for _, networkReconciler := range networkReconcilerList {
+			assert.Nil(t, err)
+			assert.NotNil(t, networkReconciler)
+			assert.Equal(t, apisix.Type, networkReconciler.Type())
+		}
+	}
+	{
 		// (2) Multiple Reconcilers (Nginx + SMI)
 		tsController := Controller{}
 		r := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
@@ -739,6 +767,8 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	selector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}

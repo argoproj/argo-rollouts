@@ -18,7 +18,7 @@ import (
 func (c *Controller) syncALBIngress(ingress *ingressutil.Ingress, rollouts []*v1alpha1.Rollout) error {
 	ctx := context.TODO()
 	annotations := ingress.GetAnnotations()
-	managedActions, err := ingressutil.NewManagedALBActions(annotations[ingressutil.ManagedActionsAnnotation])
+	managedActions, err := ingressutil.NewManagedALBAnnotations(annotations[ingressutil.ManagedAnnotations])
 	if err != nil {
 		return nil
 	}
@@ -35,31 +35,38 @@ func (c *Controller) syncALBIngress(ingress *ingressutil.Ingress, rollouts []*v1
 	for roName := range managedActions {
 		if _, ok := actionHasExistingRollout[roName]; !ok {
 			modified = true
-			actionKey := managedActions[roName]
+			actionKeys := managedActions[roName]
 			delete(managedActions, roName)
-			resetALBAction, err := getResetALBActionStr(ingress, actionKey)
-			if err != nil {
-				log.WithField(logutil.RolloutKey, roName).
-					WithField(logutil.IngressKey, ingress.GetName()).
-					WithField(logutil.NamespaceKey, ingress.GetNamespace()).
-					Error(err)
-				return nil
+			for _, actionKey := range actionKeys {
+				if !strings.Contains(actionKey, ingressutil.ALBActionPrefix) {
+					continue
+				}
+				resetALBAction, err := getResetALBActionStr(ingress, actionKey)
+				if err != nil {
+					log.WithField(logutil.RolloutKey, roName).
+						WithField(logutil.IngressKey, ingress.GetName()).
+						WithField(logutil.NamespaceKey, ingress.GetNamespace()).
+						Error(err)
+					return nil
+				}
+				annotations := newIngress.GetAnnotations()
+				annotations[actionKey] = resetALBAction
+				newIngress.SetAnnotations(annotations)
 			}
-			annotations := newIngress.GetAnnotations()
-			annotations[actionKey] = resetALBAction
-			newIngress.SetAnnotations(annotations)
 		}
 	}
 	if !modified {
 		return nil
 	}
-	newManagedStr := managedActions.String()
 	newAnnotations := newIngress.GetAnnotations()
-	newAnnotations[ingressutil.ManagedActionsAnnotation] = newManagedStr
-	newIngress.SetAnnotations(newAnnotations)
-	if newManagedStr == "" {
-		delete(newIngress.GetAnnotations(), ingressutil.ManagedActionsAnnotation)
+	if len(managedActions) == 0 {
+		delete(newAnnotations, ingressutil.ManagedAnnotations)
+	} else {
+		newAnnotations[ingressutil.ManagedAnnotations] = managedActions.String()
 	}
+	// delete leftovers from old implementation ManagedActionsAnnotation
+	delete(newAnnotations, ingressutil.ManagedActionsAnnotation)
+	newIngress.SetAnnotations(newAnnotations)
 	_, err = c.ingressWrapper.Update(ctx, ingress.GetNamespace(), newIngress)
 	return err
 }

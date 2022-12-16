@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -102,23 +103,28 @@ func NewController(cfg ControllerConfig) *Controller {
 }
 
 // Run starts the controller threads
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	log.Info("Starting Ingress workers")
+	wg := sync.WaitGroup{}
 	for i := 0; i < threadiness; i++ {
+		wg.Add(1)
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.ingressWorkqueue, logutil.IngressKey, c.syncIngress, c.metricServer)
-		}, time.Second, stopCh)
+			controllerutil.RunWorker(ctx, c.ingressWorkqueue, logutil.IngressKey, c.syncIngress, c.metricServer)
+			wg.Done()
+			log.Debug("Ingress worker has stopped")
+		}, time.Second, ctx.Done())
 	}
 
 	log.Info("Started Ingress workers")
-	<-stopCh
-	log.Info("Shutting down Ingress workers")
+	<-ctx.Done()
+	wg.Wait()
+	log.Info("All ingress workers have stopped")
 
 	return nil
 }
 
 // syncIngress queues all rollouts referencing the Ingress for reconciliation
-func (c *Controller) syncIngress(key string) error {
+func (c *Controller) syncIngress(ctx context.Context, key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -140,12 +146,7 @@ func (c *Controller) syncIngress(key string) error {
 	if err != nil {
 		return nil
 	}
-	// An ingress without annotations cannot be a alb or nginx ingress
-	if ingress.GetAnnotations() == nil {
-		return nil
-	}
-	annotations := ingress.GetAnnotations()
-	class := annotations["kubernetes.io/ingress.class"]
+	class := ingress.GetClass()
 	switch {
 	case hasClass(c.albClasses, class):
 		return c.syncALBIngress(ingress, rollouts)

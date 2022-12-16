@@ -2733,6 +2733,9 @@ spec:
                               type: array
                             insecure:
                               type: boolean
+                            jsonBody:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             jsonPath:
                               type: string
                             method:
@@ -5607,6 +5610,9 @@ spec:
                               type: array
                             insecure:
                               type: boolean
+                            jsonBody:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             jsonPath:
                               type: string
                             method:
@@ -8367,6 +8373,9 @@ spec:
                               type: array
                             insecure:
                               type: boolean
+                            jsonBody:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             jsonPath:
                               type: string
                             method:
@@ -11080,6 +11089,12 @@ spec:
               revisionHistoryLimit:
                 format: int32
                 type: integer
+              rollbackWindow:
+                properties:
+                  revisions:
+                    format: int32
+                    type: integer
+                type: object
               selector:
                 properties:
                   matchExpressions:
@@ -11703,6 +11718,20 @@ spec:
                                 type: array
                             required:
                             - mappings
+                            type: object
+                          apisix:
+                            properties:
+                              route:
+                                properties:
+                                  name:
+                                    type: string
+                                  rules:
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - name
+                                type: object
                             type: object
                           appMesh:
                             properties:
@@ -14674,6 +14703,14 @@ rules:
   - traefik.containo.us
   resources:
   - traefikservices
+  verbs:
+  - watch
+  - get
+  - update
+- apiGroups:
+  - apisix.apache.org
+  resources:
+  - apisixroutes
   verbs:
   - watch
   - get

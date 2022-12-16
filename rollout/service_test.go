@@ -302,13 +302,15 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	svc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true, false)
 	r2.Status.Message = ""
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
-	completedCondition, _ := newCompletedCondition(true)
-	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	completedHealthyCondition, _ := newHealthyCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedHealthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
@@ -385,13 +387,15 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	svc := newService("active", 80, map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}, r2)
-	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true)
+	r2 = updateBlueGreenRolloutStatus(r2, "", rs2PodHash, rs1PodHash, 3, 3, 6, 3, false, true, false)
 	r2.Status.Message = "waiting for post-promotion verification to complete"
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
-	completedCondition, _ := newCompletedCondition(true)
+	completedCondition, _ := newHealthyCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCond := conditions.NewRolloutCondition(v1alpha1.RolloutCompleted, corev1.ConditionTrue, conditions.RolloutCompletedReason, conditions.RolloutCompletedReason)
+	conditions.SetRolloutCondition(&r2.Status, *completedCond)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2, tgb)
@@ -489,10 +493,12 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	r2.Status.StableRS = rs2PodHash
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	completedCondition, _ := newCompletedCondition(false)
-	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	healthyCondition, _ := newHealthyCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -585,10 +591,12 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	r2.Status.StableRS = rs2PodHash
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	completedCondition, _ := newCompletedCondition(false)
-	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	healthyCondition, _ := newHealthyCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -646,10 +654,12 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	r2.Status.StableRS = rs2PodHash
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	completedCondition, _ := newCompletedCondition(false)
-	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	healthyCondition, _ := newHealthyCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, healthyCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.NewRSAvailableReason, rs2, "")
 	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	_, r2.Status.Canary.Weights = calculateWeightStatus(r2, rs2PodHash, rs2PodHash, 0)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
@@ -778,6 +788,22 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 		assert.False(t, stableInjected)
 	}
 	{
+		// ensure we don't update service because new/stable are both partially available on an adoption of service reconcile
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 1)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 1)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		_, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, canaryInjected)
+		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, stableInjected)
+	}
+	{
 		// next ensure we do update service because new/stable are now available
 		ctrl, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := ctrl.newRolloutContext(ro1)
@@ -793,5 +819,60 @@ func TestDelayCanaryStableServiceLabelInjection(t *testing.T) {
 		_, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 		assert.True(t, stableInjected)
 	}
+
+}
+
+// TestDelayCanaryStableServiceDelayOnAdoptedService verifies allow partial readiness of pods when switching labels
+// on an adopted services, but that if there is zero readiness we will not switch
+func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
+	ro1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+	ro1.Spec.Strategy.Canary.CanaryService = "canary"
+	ro1.Spec.Strategy.Canary.StableService = "stable"
+	//Setup services that are already adopted by rollouts
+	stableSvc := newService("stable", 80, ro1.Spec.Selector.MatchLabels, ro1)
+	ro2 := bumpVersion(ro1)
+	canarySvc := newService("canary", 80, ro1.Spec.Selector.MatchLabels, ro2)
+
+	f := newFixture(t)
+	defer f.Close()
+	f.kubeobjects = append(f.kubeobjects, canarySvc, stableSvc)
+	f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+
+	t.Run("AdoptedService No Availability", func(t *testing.T) {
+		// first ensure we don't update service because new/stable are both not available
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 0)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 0)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		canaryHash2, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, canaryInjected)
+		fmt.Println(canaryHash2)
+		stableHash2, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.False(t, stableInjected)
+		fmt.Println(stableHash2)
+	})
+	t.Run("AdoptedService Partial Availability", func(t *testing.T) {
+		// ensure we do change selector on partially available replica sets
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro1)
+		assert.NoError(t, err)
+
+		roCtx.newRS = newReplicaSetWithStatus(ro1, 3, 1)
+		roCtx.stableRS = newReplicaSetWithStatus(ro2, 3, 2)
+
+		err = roCtx.reconcileStableAndCanaryService()
+		assert.NoError(t, err)
+		canaryHash2, canaryInjected := canarySvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, canaryInjected)
+		fmt.Println(canaryHash2)
+		stableHash2, stableInjected := stableSvc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+		assert.True(t, stableInjected)
+		fmt.Println(stableHash2)
+	})
 
 }

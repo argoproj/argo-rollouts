@@ -503,9 +503,9 @@ func ResetCurrentStepIndex(rollout *v1alpha1.Rollout) *int32 {
 
 // PodTemplateEqualIgnoreHash returns true if two given podTemplateSpec are equal, ignoring the diff in value of Labels[pod-template-hash]
 // We ignore pod-template-hash because:
-// 1. The hash result would be different upon podTemplateSpec API changes
-//    (e.g. the addition of a new field will cause the hash code to change)
-// 2. The deployment template won't have hash labels
+//  1. The hash result would be different upon podTemplateSpec API changes
+//     (e.g. the addition of a new field will cause the hash code to change)
+//  2. The deployment template won't have hash labels
 //
 // NOTE: This is a modified version of deploymentutil.EqualIgnoreHash, but modified to perform
 // defaulting on the desired spec. This is so that defaulted fields by the replicaset controller
@@ -645,4 +645,9 @@ func IsReplicaSetAvailable(rs *appsv1.ReplicaSet) bool {
 	replicas := rs.Spec.Replicas
 	availableReplicas := rs.Status.AvailableReplicas
 	return replicas != nil && *replicas != 0 && availableReplicas != 0 && *replicas <= availableReplicas
+}
+
+// IsReplicaSetPartiallyAvailable returns if a ReplicaSet is scaled up and has at least 1 pod available
+func IsReplicaSetPartiallyAvailable(rs *appsv1.ReplicaSet) bool {
+	return rs.Status.AvailableReplicas > 0
 }

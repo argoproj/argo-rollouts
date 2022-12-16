@@ -3,15 +3,13 @@ package controller
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
 	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
 	smifake "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned/fake"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -21,11 +19,8 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
-	"k8s.io/client-go/tools/leaderelection"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/analysis"
@@ -72,34 +67,34 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
 
 	cm := &Manager{
-
-		kubeClientSet: f.kubeclient,
-
-		ingressWorkqueue:     ingressWorkqueue,
-		serviceWorkqueue:     serviceWorkqueue,
-		rolloutWorkqueue:     rolloutWorkqueue,
-		experimentWorkqueue:  experimentWorkqueue,
-		analysisRunWorkqueue: analysisRunWorkqueue,
-
+		wg:                            &sync.WaitGroup{},
+		healthzServer:                 NewHealthzServer(fmt.Sprintf(listenAddr, 8080)),
 		rolloutSynced:                 alwaysReady,
-		serviceSynced:                 alwaysReady,
-		ingressSynced:                 alwaysReady,
-		jobSynced:                     alwaysReady,
 		experimentSynced:              alwaysReady,
 		analysisRunSynced:             alwaysReady,
 		analysisTemplateSynced:        alwaysReady,
+		clusterAnalysisTemplateSynced: alwaysReady,
+		serviceSynced:                 alwaysReady,
+		ingressSynced:                 alwaysReady,
+		jobSynced:                     alwaysReady,
 		replicasSetSynced:             alwaysReady,
 		configMapSynced:               alwaysReady,
 		secretSynced:                  alwaysReady,
-		clusterAnalysisTemplateSynced: alwaysReady,
-
-		healthzServer: NewHealthzServer(fmt.Sprintf(listenAddr, 8080)),
+		rolloutWorkqueue:              rolloutWorkqueue,
+		serviceWorkqueue:              serviceWorkqueue,
+		ingressWorkqueue:              ingressWorkqueue,
+		experimentWorkqueue:           experimentWorkqueue,
+		analysisRunWorkqueue:          analysisRunWorkqueue,
+		kubeClientSet:                 f.kubeclient,
+		namespace:                     "",
+		namespaced:                    false,
 	}
 
 	metricsAddr := fmt.Sprintf(listenAddr, 8090)
 	cm.metricsServer = metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr: metricsAddr,
-	}, false)
+		Addr:               metricsAddr,
+		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
+	})
 
 	i := informers.NewSharedInformerFactory(f.client, noResyncPeriodFunc())
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, noResyncPeriodFunc())
@@ -109,15 +104,26 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 		Resource: "targetgroupbindings",
 	}
 	vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+	destGVR := istioutil.GetIstioDestinationRuleGVR()
 	scheme := runtime.NewScheme()
 	listMapping := map[schema.GroupVersionResource]string{
 		tgbGVR:  "TargetGroupBindingList",
 		vsvcGVR: vsvcGVR.Resource + "List",
+		destGVR: destGVR.Resource + "List",
 	}
+
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
 	istioDestinationRuleInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer()
+
+	cm.dynamicInformerFactory = dynamicInformerFactory
+	cm.clusterDynamicInformerFactory = dynamicInformerFactory
+	cm.kubeInformerFactory = k8sI
+	cm.controllerNamespaceInformerFactory = k8sI
+	cm.jobInformerFactory = k8sI
+	cm.istioPrimaryDynamicClient = dynamicClient
+	cm.istioDynamicInformerFactory = dynamicInformerFactory
 
 	mode, err := ingressutil.DetermineIngressMode("extensions/v1beta1", &discoveryfake.FakeDiscovery{})
 	assert.NoError(t, err)
@@ -209,35 +215,6 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 	return cm
 }
 
-func newElectorConfig(kubeclientset kubernetes.Interface, id string, electOpts LeaderElectionOptions) *leaderelection.LeaderElectionConfig {
-	lec := leaderelection.LeaderElectionConfig{
-		Lock: &resourcelock.LeaseLock{
-			LeaseMeta: metav1.ObjectMeta{Name: defaultLeaderElectionLeaseLockName, Namespace: electOpts.LeaderElectionNamespace}, Client: kubeclientset.CoordinationV1(),
-			LockConfig: resourcelock.ResourceLockConfig{Identity: id},
-		},
-		ReleaseOnCancel: true,
-		LeaseDuration:   electOpts.LeaderElectionLeaseDuration,
-		RenewDeadline:   electOpts.LeaderElectionRenewDeadline,
-		RetryPeriod:     electOpts.LeaderElectionRetryPeriod,
-		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(ctx context.Context) {
-				log.Info("Starting leading")
-			},
-			OnStoppedLeading: func() {
-				log.Infof("Stopped leading controller: %s", id)
-				return
-			},
-			OnNewLeader: func(identity string) {
-				if identity == id {
-					return
-				}
-				log.Infof("New leader elected: %s", identity)
-			},
-		},
-	}
-	return &lec
-}
-
 func TestNewManager(t *testing.T) {
 	f := newFixture(t)
 
@@ -285,6 +262,13 @@ func TestNewManager(t *testing.T) {
 		k8sRequestProvider,
 		nil,
 		nil,
+		dynamicInformerFactory,
+		nil,
+		nil,
+		false,
+		nil,
+		nil,
+		nil,
 	)
 
 	assert.NotNil(t, cm)
@@ -293,97 +277,26 @@ func TestNewManager(t *testing.T) {
 func TestPrimaryController(t *testing.T) {
 	f := newFixture(t)
 
-	stopCh := make(chan struct{})
-
 	cm := f.newManager(t)
 	electOpts := NewLeaderElectionOptions()
-	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(2 * time.Second)
-	close(stopCh)
-
-	// Test primary controller shutdown secondary metrics server
-	cm.secondaryMetricsServer = metrics.NewMetricsServer(metrics.ServerConfig{}, false)
-	time.Sleep(2 * time.Second)
-	stopCh = make(chan struct{})
-	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(2 * time.Second)
-	close(stopCh)
-}
-
-func TestTwoControllers(t *testing.T) {
-	f := newFixture(t)
-
-	stopCh := make(chan struct{})
-	primary := f.newManager(t)
-	electOpts := NewLeaderElectionOptions()
-	go primary.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(1 * time.Second)
-
-	secondary := f.newManager(t)
-	secondary.healthzServer = NewHealthzServer(fmt.Sprintf(listenAddr, 8081))
-	secondary.metricsServer.Addr = (fmt.Sprintf(listenAddr, 8091))
-	go secondary.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(1 * time.Second)
-
-	var verifyEndpoints func(url string)
-	verifyEndpoints = func(url string) {
-		_, err := http.Get(url)
-		assert.NoErrorf(t, err, "error connecting to %s", url)
-		rr := httptest.NewRecorder()
-		assert.Equal(t, rr.Code, http.StatusOK)
-	}
-
-	verifyEndpoints("http://localhost:8080/healthz")
-	verifyEndpoints("http://localhost:8090/metrics")
-	verifyEndpoints("http://localhost:8081/healthz")
-	verifyEndpoints("http://localhost:8091/metrics")
-
-	// stop all controllers
-	time.Sleep(1 * time.Second)
-	close(stopCh)
-}
-
-func TestSecondaryController(t *testing.T) {
-	f := newFixture(t)
-
-	stopCh := make(chan struct{})
-
-	cm := f.newManager(t)
-
-	electOpts := NewLeaderElectionOptions()
-	lec := newElectorConfig(f.kubeclient, "holder-123-456", *electOpts)
-	le, err := leaderelection.NewLeaderElector(*lec)
-	assert.NoError(t, err)
-
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go le.Run(ctx)
-	time.Sleep(1 * time.Second)
-	assert.True(t, le.IsLeader())
+	go func() {
+		time.Sleep(5 * time.Second)
+		cancel()
+	}()
+	cm.Run(ctx, 1, 1, 1, 1, 1, electOpts)
+}
 
-	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(2 * time.Second)
-	assert.True(t, le.IsLeader())
-	close(stopCh)
-	time.Sleep(1 * time.Second)
+func TestPrimaryControllerSingleInstanceWithShutdown(t *testing.T) {
+	f := newFixture(t)
 
-	// Test secondary metrics server has been started
-	stopCh = make(chan struct{})
-	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(2 * time.Second)
-	assert.True(t, le.IsLeader())
-	close(stopCh)
-	time.Sleep(1 * time.Second)
-
-	// Test secondary metrics server listen port is taken
-	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
-		Addr: fmt.Sprintf(listenAddr, DefaultMetricsPort),
-	}, false)
-	go metricsServer.ListenAndServe()
-	time.Sleep(1 * time.Second)
-	cm.secondaryMetricsServer = nil
-	stopCh = make(chan struct{})
-	go cm.Run(1, 1, 1, 1, 1, electOpts, stopCh)
-	time.Sleep(2 * time.Second)
-	close(stopCh)
+	cm := f.newManager(t)
+	electOpts := NewLeaderElectionOptions()
+	electOpts.LeaderElect = false
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(5 * time.Second)
+		cancel()
+	}()
+	cm.Run(ctx, 1, 1, 1, 1, 1, electOpts)
 }

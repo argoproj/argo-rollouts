@@ -8,6 +8,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,AnalysisTemplateSpec,DryRun
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,AnalysisTemplateSpec,MeasurementRetention
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,AnalysisTemplateSpec,Metrics
+API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,ApisixRoute,Rules
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,AppMeshVirtualService,Routes
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,CanaryStrategy,Steps
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,CloudWatchMetric,MetricDataQueries

@@ -1,3 +1,7 @@
+extra:
+  analytics:
+    property: G-5Z1VTPDL73
+    provider: google
 extra_css:
 - assets/versions.css
 extra_javascript:
@@ -33,6 +37,7 @@ nav:
   - Ephemeral Metadata: features/ephemeral-metadata.md
   - Restarting Rollouts: features/restart.md
   - Scaledown Aborted Rollouts: features/scaledown-aborted-rs.md
+  - Rollback Window: features/rollback.md
   - Anti Affinity: features/anti-affinity/anti-affinity.md
   - Helm: features/helm.md
   - Kustomize: features/kustomize.md
@@ -40,6 +45,7 @@ nav:
 - Traffic Management:
   - Overview: features/traffic-management/index.md
   - Ambassador: features/traffic-management/ambassador.md
+  - APISIX: features/traffic-management/apisix.md
   - AWS ALB: features/traffic-management/alb.md
   - Istio: features/traffic-management/istio.md
   - NGINX: features/traffic-management/nginx.md
@@ -67,13 +73,16 @@ nav:
     - generated/notification-services/googlechat.md
     - generated/notification-services/grafana.md
     - generated/notification-services/mattermost.md
+    - generated/notification-services/newrelic.md
     - generated/notification-services/opsgenie.md
     - generated/notification-services/overview.md
+    - generated/notification-services/pagerduty.md
     - generated/notification-services/pushover.md
     - generated/notification-services/rocketchat.md
     - generated/notification-services/slack.md
     - generated/notification-services/teams.md
     - generated/notification-services/telegram.md
+    - generated/notification-services/webex.md
     - generated/notification-services/webhook.md
 - Kubectl Plugin:
   - Overview: features/kubectl-plugin.md

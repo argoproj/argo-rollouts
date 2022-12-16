@@ -138,7 +138,7 @@ spec:
 By default, a rollout will inject the `alb.ingress.kubernetes.io/actions.<SERVICE-NAME>` annotation
 using the service/action name specified under `spec.strategy.canary.stableService`. However, it may
 be desirable to specify an explicit service/action name different from the `stableService`. For
-example, [one pattern](/best-practices/#ingress-desiredstable-host-routes) is to use a single
+example, [one pattern](/argo-rollouts/best-practices/#ingress-desiredstable-host-routes) is to use a single
 Ingress containing three different rules to reach the canary, stable, and root service separately
 (e.g. for testing purposes). In this case, you may want to specify a "root" service as the
 service/action name instead of stable. To do so, reference a service under `rootService` under the
@@ -212,7 +212,7 @@ controller to verify that TargetGroups are accurate before marking newly created
 preventing premature scale down of the older ReplicaSet.
 
 Pod readiness gate injection uses a mutating webhook which decides to inject readiness gates when a
-pod is created based on the following conditions:  
+pod is created based on the following conditions:
 
 * There exists a service matching the pod labels in the same namespace
 * There exists at least one target group binding that refers to the matching service
@@ -343,8 +343,8 @@ The Rollout status object holds the value of who is currently the stable ping or
 And this way allows the rollout to use pod readiness gate injection as the
 services are not changing their labels at the end of the rollout progress.
 
-!!!important 
-     
+!!! important
+
     Ping-Pong feature available since Argo Rollouts v1.2
 
 ## Example
@@ -368,7 +368,7 @@ spec:
         ports:
         - containerPort: 80
   strategy:
-    canary: 
+    canary:
       pingPong: #Indicates that the ping-pong services enabled
         pingService: ping-service
         pongService: pong-service
@@ -401,7 +401,7 @@ spec:
           annotationPrefix: custom.alb.ingress.kubernetes.io
 ```
 
-### Custom kubernetes.io/ingress.class
+### Custom Ingress Class
 
 By default, Argo Rollout will operate on Ingresses with the annotation:
 
@@ -413,14 +413,22 @@ metadata:
     kubernetes.io/ingress.class: alb
 ```
 
-To configure the controller to operate on Ingresses with different `kubernetes.io/ingress.class`
-values, the controller can specify a different value through the `--alb-ingress-classes` flag in
+Or with the `ingressClassName`:
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+spec:
+  ingressClassName: alb
+```
+
+To configure the controller to operate on Ingresses with a different class name,
+you can specify a different value through the `--alb-ingress-classes` flag in
 the controller command line arguments.
 
 
 Note that the `--alb-ingress-classes` flag can be specified multiple times if the Argo Rollouts
 controller should operate on multiple values. This may be desired when a cluster has multiple
-Ingress controllers that operate on different `kubernetes.io/ingress.class` values.
+Ingress controllers that operate on different `kubernetes.io/ingress.class` or `spec.ingressClassName` values.
 
 If the controller needs to operate on any Ingress without the `kubernetes.io/ingress.class`
-annotation, the flag can be specified with an empty string (e.g. `--alb-ingress-classes ''`).
+annotation or `spec.ingressClassName`, the flag can be specified with an empty string (e.g. `--alb-ingress-classes ''`).

@@ -261,6 +261,11 @@ func setIngressManagedAnnotation(rollouts []v1alpha1.Rollout, refResource valida
 	for _, rollout := range rollouts {
 		for i := range refResource.Ingresses {
 			var serviceName string
+
+			// Basic Canary so ingress is only pointing a single service and so no linting is needed for this case.
+			if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+				return
+			}
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil {
 				serviceName = rollout.Spec.Strategy.Canary.StableService
 			} else if rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
@@ -289,6 +294,9 @@ func setIngressManagedAnnotation(rollouts []v1alpha1.Rollout, refResource valida
 func setVirtualServiceManagedAnnotation(ro []v1alpha1.Rollout, refResource validation.ReferencedResources) {
 	for _, rollout := range ro {
 		for i := range refResource.VirtualServices {
+			if rollout.Spec.Strategy.Canary == nil || rollout.Spec.Strategy.Canary.TrafficRouting == nil || rollout.Spec.Strategy.Canary.TrafficRouting.Istio == nil {
+				return
+			}
 			if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService != nil && rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == refResource.VirtualServices[i].GetName() {
 				annotations := refResource.VirtualServices[i].GetAnnotations()
 				if annotations == nil {

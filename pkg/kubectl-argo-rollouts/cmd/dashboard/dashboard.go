@@ -10,6 +10,7 @@ import (
 
 func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 	var rootPath string
+	var port int
 	var cmd = &cobra.Command{
 		Use:   "dashboard",
 		Short: "Start UI dashboard",
@@ -30,12 +31,13 @@ func NewCmdDashboard(o *options.ArgoRolloutsOptions) *cobra.Command {
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
 				argorollouts := server.NewServer(opts)
-				argorollouts.Run(ctx, 3100, true)
+				argorollouts.Run(ctx, port, true)
 				cancel()
 			}
 		},
 	}
-	cmd.Flags().StringVar(&rootPath, "rootPath", "rollouts", "renders the ui url with rootPath prefixed")
+	cmd.Flags().StringVar(&rootPath, "root-path", "rollouts", "changes the root path of the dashboard")
+	cmd.Flags().IntVarP(&port, "port", "p", 3100, "port to listen on")
 
 	return cmd
 }

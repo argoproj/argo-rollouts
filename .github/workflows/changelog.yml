@@ -1,0 +1,32 @@
+name: Update Changelog
+on:
+  release:
+    types: [published]
+permissions:
+  contents: read
+
+jobs:
+  updateChangelog:
+    permissions:
+      contents: write  # for peter-evans/create-pull-request to create branch
+      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Update Changelog
+        run: |
+          curl -o git-chglog.tar.gz -L https://github.com/git-chglog/git-chglog/releases/download/v0.15.1/git-chglog_0.15.1_darwin_amd64.tar.gz
+          tar -zxvf git-chglog.tar.gz
+          chmod u+x git-chglog
+          ./git-chglog --sort semver -o CHANGELOG-AUTO.md v1.3.1..
+          rm git-chglog
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          commit-message: update changelog
+          title: "docs: Update Changelog"
+          body: Update changelog to reflect release changes
+          branch: update-changelog
+          base: master

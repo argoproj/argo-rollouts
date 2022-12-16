@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -193,6 +194,28 @@ func newPausedCondition(isPaused bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
+func newHealthyCondition(isHealthy bool) (v1alpha1.RolloutCondition, string) {
+	status := corev1.ConditionTrue
+	msg := conditions.RolloutHealthyMessage
+	if !isHealthy {
+		status = corev1.ConditionFalse
+		msg = conditions.RolloutNotHealthyMessage
+	}
+	condition := v1alpha1.RolloutCondition{
+		LastTransitionTime: timeutil.MetaNow(),
+		LastUpdateTime:     timeutil.MetaNow(),
+		Message:            msg,
+		Reason:             conditions.RolloutHealthyReason,
+		Status:             status,
+		Type:               v1alpha1.RolloutHealthy,
+	}
+	conditionBytes, err := json.Marshal(condition)
+	if err != nil {
+		panic(err)
+	}
+	return condition, string(conditionBytes)
+}
+
 func newCompletedCondition(isCompleted bool) (v1alpha1.RolloutCondition, string) {
 	status := corev1.ConditionTrue
 	if !isCompleted {
@@ -315,33 +338,57 @@ func newAvailableCondition(available bool) (v1alpha1.RolloutCondition, string) {
 	return condition, string(conditionBytes)
 }
 
-func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string) string {
+func generateConditionsPatch(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, completedCondition := newCompletedCondition(isCompleted)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s]", availableCondition, progressingCondition)
+		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, completedCondition)
 	}
-	return fmt.Sprintf("[%s, %s]", progressingCondition, availableCondition)
+	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, availableCondition, completedCondition)
 }
 
-func generateConditionsPatchWithPause(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isPaused bool) string {
+func generateConditionsPatchWithPause(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isPaused bool, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	_, pauseCondition := newPausedCondition(isPaused)
+	_, completedCondition := newCompletedCondition(isCompleted)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, pauseCondition)
+		return fmt.Sprintf("[%s, %s, %s, %s]", availableCondition, completedCondition, progressingCondition, pauseCondition)
 	}
-	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, pauseCondition, availableCondition)
+	return fmt.Sprintf("[%s, %s, %s, %s]", progressingCondition, pauseCondition, availableCondition, completedCondition)
 }
 
-func generateConditionsPatchWithComplete(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
+func generateConditionsPatchWithHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool, isCompleted bool) string {
+	_, availableCondition := newAvailableCondition(available)
+	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, healthyCondition := newHealthyCondition(isHealthy)
+	_, completedCondition := newCompletedCondition(isCompleted)
+	if availableConditionFirst {
+		return fmt.Sprintf("[%s, %s, %s, %s]", availableCondition, completedCondition, healthyCondition, progressingCondition)
+	}
+	return fmt.Sprintf("[%s, %s, %s, %s]", completedCondition, healthyCondition, progressingCondition, availableCondition)
+}
+
+func generateConditionsPatchWithCompleted(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isCompleted bool) string {
 	_, availableCondition := newAvailableCondition(available)
 	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
 	_, completeCondition := newCompletedCondition(isCompleted)
 	if availableConditionFirst {
-		return fmt.Sprintf("[%s, %s, %s]", availableCondition, completeCondition, progressingCondition)
+		return fmt.Sprintf("[%s, %s, %s]", availableCondition, progressingCondition, completeCondition)
 	}
-	return fmt.Sprintf("[%s, %s, %s]", completeCondition, progressingCondition, availableCondition)
+	return fmt.Sprintf("[%s, %s, %s]", progressingCondition, availableCondition, completeCondition)
+}
+
+func generateConditionsPatchWithCompletedHealthy(available bool, progressingReason string, progressingResource runtime.Object, availableConditionFirst bool, progressingMessage string, isHealthy bool, isCompleted bool) string {
+	_, completedCondition := newCompletedCondition(isCompleted)
+	_, availableCondition := newAvailableCondition(available)
+	_, progressingCondition := newProgressingCondition(progressingReason, progressingResource, progressingMessage)
+	_, healthyCondition := newHealthyCondition(isHealthy)
+	if availableConditionFirst {
+		return fmt.Sprintf("[%s, %s, %s, %s]", availableCondition, healthyCondition, completedCondition, progressingCondition)
+	}
+	return fmt.Sprintf("[%s, %s, %s, %s]", healthyCondition, completedCondition, progressingCondition, availableCondition)
 }
 
 func updateConditionsPatch(r v1alpha1.Rollout, newCondition v1alpha1.RolloutCondition) string {
@@ -351,7 +398,7 @@ func updateConditionsPatch(r v1alpha1.Rollout, newCondition v1alpha1.RolloutCond
 }
 
 // func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active string, availableReplicas, updatedReplicas, hpaReplicas int32, pause bool, available bool, progressingStatus string) *v1alpha1.Rollout {
-func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool) *v1alpha1.Rollout {
+func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable string, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas int32, pause bool, available bool, isCompleted bool) *v1alpha1.Rollout {
 	newRollout := updateBaseRolloutStatus(r, availableReplicas, updatedReplicas, totalReplicas, hpaReplicas)
 	selector := newRollout.Spec.Selector.DeepCopy()
 	if active != "" {
@@ -363,6 +410,8 @@ func updateBlueGreenRolloutStatus(r *v1alpha1.Rollout, preview, active, stable s
 	newRollout.Status.StableRS = stable
 	cond, _ := newAvailableCondition(available)
 	newRollout.Status.Conditions = append(newRollout.Status.Conditions, cond)
+	completeCond, _ := newCompletedCondition(isCompleted)
+	newRollout.Status.Conditions = append(newRollout.Status.Conditions, completeCond)
 	if pause {
 		now := timeutil.MetaNow()
 		cond := v1alpha1.PauseCondition{
@@ -497,9 +546,14 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Version:  "v1beta1",
 		Resource: "targetgroupbindings",
 	}
+	vsvcGVR := istioutil.GetIstioVirtualServiceGVR()
+	destGVR := istioutil.GetIstioDestinationRuleGVR()
 	listMapping := map[schema.GroupVersionResource]string{
-		tgbGVR: "TargetGroupBindingList",
+		tgbGVR:  "TargetGroupBindingList",
+		vsvcGVR: vsvcGVR.Resource + "List",
+		destGVR: destGVR.Resource + "List",
 	}
+
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping, f.objects...)
 	dynamicInformerFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 0)
 	istioVirtualServiceInformer := dynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer()
@@ -512,7 +566,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
 		Addr:               "localhost:8080",
 		K8SRequestProvider: &metrics.K8sRequestsCountProvider{},
-	}, true)
+	})
 
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, f.kubeclient, k8sI)
 	if err != nil {
@@ -627,7 +681,7 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		assert.True(f.t, cache.WaitForCacheSync(stopCh, c.replicaSetSynced, c.rolloutsSynced))
 	}
 
-	err := c.syncHandler(rolloutName)
+	err := c.syncHandler(context.Background(), rolloutName)
 	if !expectError && err != nil {
 		f.t.Errorf("error syncing rollout: %v", err)
 	} else if expectError && err == nil {
@@ -762,7 +816,7 @@ func (f *fixture) expectListPodAction(namespace string) int {
 	return len
 }
 
-func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int {
+func (f *fixture) expectGetRolloutAction(rollout *v1alpha1.Rollout) int { //nolint:unused
 	len := len(f.actions)
 	f.kubeactions = append(f.actions, core.NewGetAction(schema.GroupVersionResource{Resource: "rollouts"}, rollout.Namespace, rollout.Name))
 	return len
@@ -775,7 +829,7 @@ func (f *fixture) expectCreateExperimentAction(ex *v1alpha1.Experiment) int {
 	return len
 }
 
-func (f *fixture) expectUpdateExperimentAction(ex *v1alpha1.Experiment) int {
+func (f *fixture) expectUpdateExperimentAction(ex *v1alpha1.Experiment) int { //nolint:unused
 	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "experiments"}, ex.Namespace, ex)
 	len := len(f.actions)
 	f.actions = append(f.actions, action)
@@ -952,7 +1006,7 @@ func (f *fixture) getUpdatedRollout(index int) *v1alpha1.Rollout {
 	return rollout
 }
 
-func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun {
+func (f *fixture) getPatchedAnalysisRun(index int) *v1alpha1.AnalysisRun { //nolint:unused
 	action := filterInformerActions(f.client.Actions())[index]
 	patchAction, ok := action.(core.PatchAction)
 	if !ok {
@@ -1072,7 +1126,7 @@ func (f *fixture) expectDeleteReplicaSetAction(rs *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) getDeletedReplicaSet(index int) string {
+func (f *fixture) getDeletedReplicaSet(index int) string { //nolint:unused
 	action := filterInformerActions(f.kubeclient.Actions())[index]
 	deleteAction, ok := action.(core.DeleteAction)
 	if !ok {
@@ -1390,6 +1444,8 @@ func TestComputeHashChangeTolerationBlueGreen(t *testing.T) {
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&r.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r.Status, completedCondition)
 	r.Status.Phase, r.Status.Message = rolloututil.CalculateRolloutPhase(r.Spec, r.Status)
 
 	podTemplate := corev1.PodTemplate{
@@ -1434,6 +1490,8 @@ func TestComputeHashChangeTolerationCanary(t *testing.T) {
 	conditions.SetRolloutCondition(&r.Status, availableCondition)
 	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs, "")
 	conditions.SetRolloutCondition(&r.Status, progressingCondition)
+	completedCondition, _ := newCompletedCondition(true)
+	conditions.SetRolloutCondition(&r.Status, completedCondition)
 
 	podTemplate := corev1.PodTemplate{
 		Template: rs.Spec.Template,
@@ -1461,7 +1519,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	activeSvc := newService("active", 80, nil, r)
 	rs := newReplicaSetWithStatus(r, 1, 1)
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true)
+	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true, false)
 	// StableRS is set to avoid running the migration code. When .status.canary.stableRS is removed, the line below can be deleted
 	//r.Status.Canary.StableRS = rsPodHash
 	r.Spec.Strategy.BlueGreen = nil
@@ -1479,7 +1537,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	f.run(getKey(r, t))
 	patch := f.getPatchedRollout(i)
 
-	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "")
+	addedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs, true, "", true)
 	expectedPatch := fmt.Sprintf(`{
 			"status": {
 				"blueGreen": {
@@ -1887,9 +1945,27 @@ func TestWriteBackToInformer(t *testing.T) {
 	f.runController(roKey, true, false, c, i, k8sI)
 
 	// Verify the informer was updated with the new unstructured object after reconciliation
-	obj, _, _ := c.rolloutsIndexer.GetByKey(roKey)
-	un := obj.(*unstructured.Unstructured)
+	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
+	assert.NoError(t, err)
+	assert.True(t, exists)
+	un, ok := obj.(*unstructured.Unstructured)
+	assert.True(t, ok)
 	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
 	assert.NotEmpty(t, stableRS)
 	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
+}
+
+func TestRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	// make sure we can start and top the controller
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go func() {
+		time.Sleep(1000 * time.Millisecond)
+		c.rolloutWorkqueue.ShutDownWithDrain()
+		cancel()
+	}()
+	c.Run(ctx, 1)
 }
