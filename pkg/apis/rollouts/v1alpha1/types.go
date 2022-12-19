@@ -310,6 +310,9 @@ type CanaryStrategy struct {
 	DynamicStableScale bool `json:"dynamicStableScale,omitempty" protobuf:"varint,14,opt,name=dynamicStableScale"`
 	// PingPongSpec holds the ping and pong services
 	PingPong *PingPongSpec `json:"pingPong,omitempty" protobuf:"varint,15,opt,name=pingPong"`
+	// Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
+	// MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
+	MinPodsPerReplicaSet *int32 `json:"minPodsPerReplicaSet,omitempty" protobuf:"varint,16,opt,name=minPodsPerReplicaSet"`
 }
 
 // PingPongSpec holds the ping and pong service name.

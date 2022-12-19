@@ -393,6 +393,9 @@ spec:
                         - type: integer
                         - type: string
                         x-kubernetes-int-or-string: true
+                      minPodsPerReplicaSet:
+                        format: int32
+                        type: integer
                       pingPong:
                         properties:
                           pingService:
