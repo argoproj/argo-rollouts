@@ -2409,6 +2409,11 @@
 <span class="w">      </span><span class="c1"># traffic routing.</span><span class="w"></span>
 <span class="w">      </span><span class="nt">scaleDownDelaySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w"></span>
 
+<span class="w">      </span><span class="c1"># The minimum number of pods that will be requested for each ReplicaSet</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># when using traffic routed canary. This is to ensure high availability</span><span class="w"></span>
+<span class="w">      </span><span class="c1"># of each ReplicaSet. Defaults to 1. +optional</span><span class="w"></span>
+<span class="w">      </span><span class="nt">minPodsPerReplicaSet</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w"></span>
+
 <span class="w">      </span><span class="c1"># Limits the number of old RS that can run at one time before getting</span><span class="w"></span>
 <span class="w">      </span><span class="c1"># scaled down. Defaults to nil</span><span class="w"></span>
 <span class="w">      </span><span class="nt">scaleDownDelayRevisionLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w"></span>
