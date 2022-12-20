@@ -1,3 +1,11 @@
+extra:
+  analytics:
+    property: G-5Z1VTPDL73
+    provider: google
+extra_css:
+- assets/versions.css
+extra_javascript:
+- assets/versions.js
 markdown_extensions:
 - codehilite
 - admonition
@@ -25,8 +33,11 @@ nav:
     - Canary: features/canary.md
   - Rollout Spec: features/specification.md
   - HPA: features/hpa-support.md
+  - VPA: features/vpa-support.md
   - Ephemeral Metadata: features/ephemeral-metadata.md
   - Restarting Rollouts: features/restart.md
+  - Scaledown Aborted Rollouts: features/scaledown-aborted-rs.md
+  - Rollback Window: features/rollback.md
   - Anti Affinity: features/anti-affinity/anti-affinity.md
   - Helm: features/helm.md
   - Kustomize: features/kustomize.md
@@ -34,10 +45,12 @@ nav:
 - Traffic Management:
   - Overview: features/traffic-management/index.md
   - Ambassador: features/traffic-management/ambassador.md
+  - APISIX: features/traffic-management/apisix.md
   - AWS ALB: features/traffic-management/alb.md
   - Istio: features/traffic-management/istio.md
   - NGINX: features/traffic-management/nginx.md
   - SMI: features/traffic-management/smi.md
+  - Traefik: features/traffic-management/traefik.md
 - Analysis:
   - Overview: features/analysis.md
   - Prometheus: analysis/prometheus.md
@@ -47,26 +60,37 @@ nav:
   - Job: analysis/job.md
   - Web: analysis/web.md
   - Kayenta: analysis/kayenta.md
+  - CloudWatch: analysis/cloudwatch.md
+  - Graphite: analysis/graphite.md
+  - InfluxDB: analysis/influxdb.md
+  - Apache SkyWalking: analysis/skywalking.md
 - Experiments: features/experiment.md
 - Notifications:
   - Overview: features/notifications.md
   - Services:
+    - generated/notification-services/alertmanager.md
     - generated/notification-services/email.md
     - generated/notification-services/github.md
+    - generated/notification-services/googlechat.md
     - generated/notification-services/grafana.md
     - generated/notification-services/mattermost.md
+    - generated/notification-services/newrelic.md
     - generated/notification-services/opsgenie.md
     - generated/notification-services/overview.md
+    - generated/notification-services/pagerduty.md
+    - generated/notification-services/pushover.md
     - generated/notification-services/rocketchat.md
     - generated/notification-services/slack.md
     - generated/notification-services/teams.md
     - generated/notification-services/telegram.md
+    - generated/notification-services/webex.md
     - generated/notification-services/webhook.md
 - Kubectl Plugin:
   - Overview: features/kubectl-plugin.md
   - Commands:
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort.md
+    - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun.md
     - generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard.md
@@ -119,4 +143,12 @@ theme:
   logo: assets/logo.png
   name: material
   palette:
-    primary: teal
+  - primary: teal
+    scheme: default
+    toggle:
+      icon: material/toggle-switch-off-outline
+      name: Switch to dark mode
+  - scheme: slate
+    toggle:
+      icon: material/toggle-switch
+      name: Switch to light mode

@@ -3,11 +3,15 @@ package metricproviders
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
+	"github.com/argoproj/argo-rollouts/metricproviders/skywalking"
+
+	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
+	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
+	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
+	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
 	"github.com/argoproj/argo-rollouts/metricproviders/newrelic"
 	"github.com/argoproj/argo-rollouts/metricproviders/wavefront"
-
-	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
-	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
 	"github.com/argoproj/argo-rollouts/metricproviders/webmetric"
 
 	log "github.com/sirupsen/logrus"
@@ -33,6 +37,9 @@ type Provider interface {
 	GarbageCollect(*v1alpha1.AnalysisRun, v1alpha1.Metric, int) error
 	// Type gets the provider type
 	Type() string
+	// GetMetadata returns any additional metadata which providers need to store/display as part
+	// of the metric result. For example, Prometheus uses is to store the final resolved queries.
+	GetMetadata(metric v1alpha1.Metric) map[string]string
 }
 
 type ProviderFactory struct {
@@ -77,6 +84,30 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 			return nil, err
 		}
 		return newrelic.NewNewRelicProvider(client, logCtx), nil
+	case graphite.ProviderType:
+		client, err := graphite.NewAPIClient(metric, logCtx)
+		if err != nil {
+			return nil, err
+		}
+		return graphite.NewGraphiteProvider(client, logCtx), nil
+	case cloudwatch.ProviderType:
+		client, err := cloudwatch.NewCloudWatchAPIClient(metric)
+		if err != nil {
+			return nil, err
+		}
+		return cloudwatch.NewCloudWatchProvider(client, logCtx), nil
+	case influxdb.ProviderType:
+		client, err := influxdb.NewInfluxdbAPI(metric, f.KubeClient)
+		if err != nil {
+			return nil, err
+		}
+		return influxdb.NewInfluxdbProvider(client, logCtx), nil
+	case skywalking.ProviderType:
+		client, err := skywalking.NewSkyWalkingClient(metric, f.KubeClient)
+		if err != nil {
+			return nil, err
+		}
+		return skywalking.NewSkyWalkingProvider(client, logCtx), nil
 	default:
 		return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
 	}
@@ -97,6 +128,15 @@ func Type(metric v1alpha1.Metric) string {
 		return wavefront.ProviderType
 	} else if metric.Provider.NewRelic != nil {
 		return newrelic.ProviderType
+	} else if metric.Provider.CloudWatch != nil {
+		return cloudwatch.ProviderType
+	} else if metric.Provider.Graphite != nil {
+		return graphite.ProviderType
+	} else if metric.Provider.Influxdb != nil {
+		return influxdb.ProviderType
+	} else if metric.Provider.SkyWalking != nil {
+		return skywalking.ProviderType
 	}
+
 	return "Unknown Provider"
 }

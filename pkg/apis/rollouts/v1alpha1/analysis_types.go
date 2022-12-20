@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"time"
 
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
@@ -13,7 +14,8 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=clusteranalysistemplates,shortName=cat
+// +kubebuilder:resource:path=clusteranalysistemplates,shortName=cat,scope=Cluster
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
 type ClusterAnalysisTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -33,6 +35,7 @@ type ClusterAnalysisTemplateList struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=analysistemplates,shortName=at
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
 type AnalysisTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -59,6 +62,16 @@ type AnalysisTemplateSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	Args []Argument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,2,rep,name=args"`
+	// DryRun object contains the settings for running the analysis in Dry-Run mode
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,3,rep,name=dryRun"`
+	// MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
 }
 
 // DurationString is a string representing a duration (e.g. 30s, 5m, 1h)
@@ -106,6 +119,21 @@ type Metric struct {
 	Provider MetricProvider `json:"provider" protobuf:"bytes,10,opt,name=provider"`
 }
 
+// DryRun defines the settings for running the analysis in Dry-Run mode.
+type DryRun struct {
+	// Name of the metric which needs to be evaluated in the Dry-Run mode. Wildcard '*' is supported and denotes all
+	// the available metrics.
+	MetricName string `json:"metricName" protobuf:"bytes,1,opt,name=metricName"`
+}
+
+// MeasurementRetention defines the settings for retaining the number of measurements during the analysis.
+type MeasurementRetention struct {
+	// MetricName is the name of the metric on which this retention policy should be applied.
+	MetricName string `json:"metricName" protobuf:"bytes,1,opt,name=metricName"`
+	// Limit is the maximum number of measurements to be retained for this given metric.
+	Limit int32 `json:"limit" protobuf:"varint,2,opt,name=limit"`
+}
+
 // EffectiveCount is the effective count based on whether or not count/interval is specified
 // If neither count or interval is specified, the effective count is 1
 // If only interval is specified, metric runs indefinitely and there is no effective count (nil)
@@ -139,6 +167,14 @@ type MetricProvider struct {
 	NewRelic *NewRelicMetric `json:"newRelic,omitempty" protobuf:"bytes,6,opt,name=newRelic"`
 	// Job specifies the job metric run
 	Job *JobMetric `json:"job,omitempty" protobuf:"bytes,7,opt,name=job"`
+	// CloudWatch specifies the cloudWatch metric to query
+	CloudWatch *CloudWatchMetric `json:"cloudWatch,omitempty" protobuf:"bytes,8,opt,name=cloudWatch"`
+	// Graphite specifies the Graphite metric to query
+	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,9,opt,name=graphite"`
+	// Influxdb specifies the influxdb metric to query
+	Influxdb *InfluxdbMetric `json:"influxdb,omitempty" protobuf:"bytes,10,opt,name=influxdb"`
+	// SkyWalking specifies the skywalking metric to query
+	SkyWalking *SkyWalkingMetric `json:"skywalking,omitempty" protobuf:"bytes,11,opt,name=skywalking"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -193,11 +229,62 @@ type JobMetric struct {
 	Spec     batchv1.JobSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
+// GraphiteMetric defines the Graphite query to perform canary analysis
+type GraphiteMetric struct {
+	// Address is the HTTP address and port of the Graphite server
+	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
+	// Query is a raw Graphite query to perform
+	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+}
+
+// InfluxdbMetric defines the InfluxDB Flux query to perform canary analysis
+type InfluxdbMetric struct {
+	// Profile is the name of the secret holding InfluxDB account configuration
+	Profile string `json:"profile,omitempty" protobuf:"bytes,1,opt,name=profile"`
+	// Query is a raw InfluxDB flux query to perform
+	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+}
+
+// CloudWatchMetric defines the cloudwatch query to perform canary analysis
+type CloudWatchMetric struct {
+	Interval          DurationString              `json:"interval,omitempty" protobuf:"bytes,1,opt,name=interval,casttype=DurationString"`
+	MetricDataQueries []CloudWatchMetricDataQuery `json:"metricDataQueries" protobuf:"bytes,2,rep,name=metricDataQueries"`
+}
+
+// CloudWatchMetricDataQuery defines the cloudwatch query
+type CloudWatchMetricDataQuery struct {
+	Id         string                  `json:"id,omitempty" protobuf:"bytes,1,opt,name=id"`
+	Expression *string                 `json:"expression,omitempty" protobuf:"bytes,2,opt,name=expression"`
+	Label      *string                 `json:"label,omitempty" protobuf:"bytes,3,opt,name=label"`
+	MetricStat *CloudWatchMetricStat   `json:"metricStat,omitempty" protobuf:"bytes,4,opt,name=metricStat"`
+	Period     *intstrutil.IntOrString `json:"period,omitempty" protobuf:"varint,5,opt,name=period"`
+	ReturnData *bool                   `json:"returnData,omitempty" protobuf:"bytes,6,opt,name=returnData"`
+}
+
+type CloudWatchMetricStat struct {
+	Metric CloudWatchMetricStatMetric `json:"metric,omitempty" protobuf:"bytes,1,opt,name=metric"`
+	Period intstrutil.IntOrString     `json:"period,omitempty" protobuf:"varint,2,opt,name=period"`
+	Stat   string                     `json:"stat,omitempty" protobuf:"bytes,3,opt,name=stat"`
+	Unit   string                     `json:"unit,omitempty" protobuf:"bytes,4,opt,name=unit"`
+}
+
+type CloudWatchMetricStatMetric struct {
+	Dimensions []CloudWatchMetricStatMetricDimension `json:"dimensions,omitempty" protobuf:"bytes,1,rep,name=dimensions"`
+	MetricName string                                `json:"metricName,omitempty" protobuf:"bytes,2,opt,name=metricName"`
+	Namespace  *string                               `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+}
+
+type CloudWatchMetricStatMetricDimension struct {
+	Name  string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+}
+
 // AnalysisRun is an instantiation of an AnalysisTemplate
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=analysisruns, shortName=ar
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="AnalysisRun status"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="Time since resource was created"
 type AnalysisRun struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -213,6 +300,12 @@ type AnalysisRunList struct {
 	Items           []AnalysisRun `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+type SkyWalkingMetric struct {
+	Address  string         `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
+	Query    string         `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+	Interval DurationString `json:"interval,omitempty" protobuf:"bytes,3,opt,name=interval,casttype=DurationString"`
+}
+
 // AnalysisRunSpec is the spec for a AnalysisRun resource
 type AnalysisRunSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
@@ -226,6 +319,16 @@ type AnalysisRunSpec struct {
 	Args []Argument `json:"args,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,2,rep,name=args"`
 	// Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)
 	Terminate bool `json:"terminate,omitempty" protobuf:"varint,3,opt,name=terminate"`
+	// DryRun object contains the settings for running the analysis in Dry-Run mode
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=dryRun"`
+	// MeasurementRetention object contains the settings for retaining the number of measurements during the analysis
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,5,rep,name=measurementRetention"`
 }
 
 // Argument is an argument to an AnalysisRun
@@ -267,6 +370,24 @@ type AnalysisRunStatus struct {
 	MetricResults []MetricResult `json:"metricResults,omitempty" protobuf:"bytes,3,rep,name=metricResults"`
 	// StartedAt indicates when the analysisRun first started
 	StartedAt *metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,4,opt,name=startedAt"`
+	// RunSummary contains the final results from the metric executions
+	RunSummary RunSummary `json:"runSummary,omitempty" protobuf:"bytes,5,opt,name=runSummary"`
+	// DryRunSummary contains the final results from the metric executions in the dry-run mode
+	DryRunSummary *RunSummary `json:"dryRunSummary,omitempty" protobuf:"bytes,6,opt,name=dryRunSummary"`
+}
+
+// RunSummary contains the final results from the metric executions
+type RunSummary struct {
+	// This is equal to the sum of Successful, Failed, Inconclusive
+	Count int32 `json:"count,omitempty" protobuf:"varint,1,opt,name=count"`
+	// Successful is the number of times the metric was measured Successful
+	Successful int32 `json:"successful,omitempty" protobuf:"varint,2,opt,name=successful"`
+	// Failed is the number of times the metric was measured Failed
+	Failed int32 `json:"failed,omitempty" protobuf:"varint,3,opt,name=failed"`
+	// Inconclusive is the number of times the metric was measured Inconclusive
+	Inconclusive int32 `json:"inconclusive,omitempty" protobuf:"varint,4,opt,name=inconclusive"`
+	// Error is the number of times an error was encountered during measurement
+	Error int32 `json:"error,omitempty" protobuf:"varint,5,opt,name=error"`
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with
@@ -294,6 +415,12 @@ type MetricResult struct {
 	// ConsecutiveError is the number of times an error was encountered during measurement in succession
 	// Resets to zero when non-errors are encountered
 	ConsecutiveError int32 `json:"consecutiveError,omitempty" protobuf:"varint,10,opt,name=consecutiveError"`
+	// DryRun indicates whether this metric is running in a dry-run mode or not
+	DryRun bool `json:"dryRun,omitempty" protobuf:"varint,11,opt,name=dryRun"`
+	// Metadata stores additional metadata about this metric. It is used by different providers to store
+	// the final state which gets used while taking measurements. For example, Prometheus uses this field
+	// to store the final resolved query after substituting the template arguments.
+	Metadata map[string]string `json:"metadata,omitempty" protobuf:"bytes,12,rep,name=metadata"`
 }
 
 // Measurement is a point in time result value of a single metric, and the time it was measured
@@ -351,19 +478,38 @@ type ScopeDetail struct {
 }
 
 type WebMetric struct {
+	// Method is the method of the web metric (empty defaults to GET)
+	Method WebMetricMethod `json:"method,omitempty" protobuf:"bytes,1,opt,name=method"`
 	// URL is the address of the web metric
-	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
+	URL string `json:"url" protobuf:"bytes,2,opt,name=url"`
 	// +patchMergeKey=key
 	// +patchStrategy=merge
 	// Headers are optional HTTP headers to use in the request
-	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,2,rep,name=headers"`
+	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,3,rep,name=headers"`
+	// Body is the body of the web metric (must be POST/PUT)
+	Body string `json:"body,omitempty" protobuf:"bytes,4,opt,name=body"`
 	// TimeoutSeconds is the timeout for the request in seconds (default: 10)
-	TimeoutSeconds int64 `json:"timeoutSeconds,omitempty" protobuf:"varint,3,opt,name=timeoutSeconds"`
+	TimeoutSeconds int64 `json:"timeoutSeconds,omitempty" protobuf:"varint,5,opt,name=timeoutSeconds"`
 	// JSONPath is a JSON Path to use as the result variable (default: "{$}")
-	JSONPath string `json:"jsonPath,omitempty" protobuf:"bytes,4,opt,name=jsonPath"`
+	JSONPath string `json:"jsonPath,omitempty" protobuf:"bytes,6,opt,name=jsonPath"`
 	// Insecure skips host TLS verification
-	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,7,opt,name=insecure"`
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// JSONBody is the body of the web metric in a json format (method must be POST/PUT)
+	JSONBody json.RawMessage `json:"jsonBody,omitempty" protobuf:"bytes,8,opt,name=jsonBody,casttype=encoding/json.RawMessage"`
 }
+
+// WebMetricMethod is the available HTTP methods
+type WebMetricMethod string
+
+// Possible HTTP method values
+const (
+	WebMetricMethodGet  WebMetricMethod = "GET"
+	WebMetricMethodPost WebMetricMethod = "POST"
+	WebMetricMethodPut  WebMetricMethod = "PUT"
+)
 
 type WebMetricHeader struct {
 	Key   string `json:"key" protobuf:"bytes,1,opt,name=key"`
