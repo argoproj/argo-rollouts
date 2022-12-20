@@ -1,542 +1,542 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/CONTRIBUTING/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/CONTRIBUTING/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/FAQ/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/FAQ/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/architecture/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/architecture/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/best-practices/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/best-practices/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/concepts/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/concepts/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/dashboard/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/dashboard/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/getting-started/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/getting-started/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/installation/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/installation/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/migrating/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/migrating/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/releasing/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/releasing/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/roadmap/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/roadmap/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/security/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/security/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/analysis/cloudwatch/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/cloudwatch/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/analysis/datadog/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/datadog/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/analysis/graphite/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/graphite/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/analysis/influxdb/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/influxdb/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/analysis/job/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/job/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/analysis/kayenta/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/kayenta/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/analysis/newrelic/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/newrelic/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/analysis/prometheus/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/prometheus/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/analysis/wavefront/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/wavefront/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/analysis/web/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/web/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/analysis/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/analysis/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/bluegreen/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/bluegreen/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/canary/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/canary/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/controller-metrics/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/controller-metrics/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/ephemeral-metadata/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/ephemeral-metadata/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/experiment/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/experiment/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/helm/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/helm/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/hpa-support/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/hpa-support/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/kubectl-plugin/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/kubectl-plugin/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/kustomize/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/kustomize/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/notifications/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/notifications/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/restart/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/restart/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/rollback/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/rollback/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/scaledown-aborted-rs/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/scaledown-aborted-rs/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/specification/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/specification/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/vpa-support/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/vpa-support/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/anti-affinity/anti-affinity/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/anti-affinity/anti-affinity/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/traffic-management/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/traffic-management/alb/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/alb/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/traffic-management/ambassador/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/ambassador/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/traffic-management/apisix/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/apisix/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/traffic-management/istio/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/istio/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/traffic-management/mixed/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/mixed/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/traffic-management/nginx/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/nginx/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/traffic-management/smi/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/smi/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/features/traffic-management/traefik/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/traefik/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/alertmanager/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/alertmanager/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/email/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/email/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/github/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/github/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/googlechat/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/googlechat/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/grafana/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/grafana/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/mattermost/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/mattermost/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/newrelic/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/newrelic/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/opsgenie/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/opsgenie/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/overview/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/overview/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/pagerduty/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/pagerduty/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/pushover/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/pushover/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/rocketchat/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/rocketchat/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/slack/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/slack/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/teams/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/teams/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/telegram/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/telegram/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/webex/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/webex/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/generated/notification-services/webhook/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/webhook/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/getting-started/alb/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/getting-started/alb/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/getting-started/ambassador/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/getting-started/ambassador/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/getting-started/appmesh/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/getting-started/appmesh/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/getting-started/istio/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/getting-started/istio/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/getting-started/mixed/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/getting-started/mixed/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/getting-started/nginx/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/getting-started/nginx/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/getting-started/setup/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/getting-started/setup/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://argoproj.github.io/argo-rollouts/getting-started/smi/</loc>
+         <loc>https://argo-rollouts.readthedocs.io/getting-started/smi/</loc>
          <lastmod>2022-12-20</lastmod>
          <changefreq>daily</changefreq>
     </url>

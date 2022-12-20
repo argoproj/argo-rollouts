@@ -8,7 +8,7 @@
       
       
       
-        <link rel="canonical" href="https://argoproj.github.io/argo-rollouts/FAQ/">
+        <link rel="canonical" href="https://argo-rollouts.readthedocs.io/FAQ/">
       
       <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
@@ -2640,7 +2640,7 @@ solution that does not follow the GitOps approach.</p>
 on top of Argo Rollouts. In most cases, you would need one Rollout resource for each application that you
 are deploying. Ideally you should also make your services backwards and forwards compatible (i.e. frontend should be able to work with both backend-preview and backend-active).</p>
 <h3 id="how-can-i-run-my-own-custom-tests-eg-smoke-tests-to-decide-if-a-rollback-should-take-place-or-not">How can I run my own custom tests (e.g. smoke tests) to decide if a Rollback should take place or not?<a class="headerlink" href="#how-can-i-run-my-own-custom-tests-eg-smoke-tests-to-decide-if-a-rollback-should-take-place-or-not" title="Permanent link">&para;</a></h3>
-<p>Use a custom <a href="https://argoproj.github.io/argo-rollouts/analysis/job/">Job</a> or <a href="https://argoproj.github.io/argo-rollouts/analysis/web/">Web</a> Analysis. You can pack all your smoke tests in a single container and run them as a Job analysis. Argo Rollouts will use the results of the analysis to automatically rollback if the tests fail.</p>
+<p>Use a custom <a href="https://argo-rollouts.readthedocs.io/en/stable/analysis/job/">Job</a> or <a href="https://argo-rollouts.readthedocs.io/en/stable/analysis/web/">Web</a> Analysis. You can pack all your smoke tests in a single container and run them as a Job analysis. Argo Rollouts will use the results of the analysis to automatically rollback if the tests fail.</p>
 <h2 id="experiments">Experiments<a class="headerlink" href="#experiments" title="Permanent link">&para;</a></h2>
 <h3 id="why-doesnt-my-experiment-end">Why doesn't my Experiment end?<a class="headerlink" href="#why-doesnt-my-experiment-end" title="Permanent link">&para;</a></h3>
 <p>An Experiment’s duration is controlled by the <code>.spec.duration</code> field and the analyses created for the Experiment. The <code>.spec.duration</code> indicates how long the ReplicaSets created by the Experiment should run. Once the duration passes, the experiment scales down the ReplicaSets it created and marks the AnalysisRuns successful unless the <code>requiredForCompletion</code> field is used in the Experiment. If enabled, the ReplicaSets are still scaled-down, but the Experiment does not finish until the Analysis Run finishes.</p>
