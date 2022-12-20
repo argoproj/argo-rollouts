@@ -1,6 +1,6 @@
 # Roadmap
 
-The Argo Rollouts roadmap is maintained in Github Milestones on the project.
+The Argo Rollouts roadmap is maintained in Github Milestones on the Github repository.
 
 ## Release Cycle
 
@@ -37,17 +37,6 @@ Dates may be shifted slightly to accommodate holidays. Those shifts should be mi
 Argo Rollouts patch releases occur on an as-needed basis. Only the three most recent minor versions are eligible for patch
 releases. Versions older than the three most recent minor versions are considered EOL and will not receive bug fixes or
 security updates.
-
-#### Minor Release Planning Meeting
-
-Two weeks before the RC date, there will be a meeting to discuss which features are planned for the RC. This meeting is
-for contributors to advocate for certain features. Features which have at least one approver (besides the contributor)
-who can assure they will review/merge by the RC date will be included in the release milestone. All other features will
-be dropped from the milestone (and potentially shifted to the next one).
-
-Since not everyone will be able to attend the meeting, there will be a meeting doc. Contributors can add their feature
-to a table, and Approvers can add their name to the table. Features with a corresponding approver will remain in the
-release milestone.
 
 ### Feature Acceptance Criteria
 
