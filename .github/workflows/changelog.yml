@@ -17,7 +17,7 @@ jobs:
           fetch-depth: 0
       - name: Update Changelog
         run: |
-          curl -o git-chglog.tar.gz -L https://github.com/git-chglog/git-chglog/releases/download/v0.15.1/git-chglog_0.15.1_darwin_amd64.tar.gz
+          curl -o git-chglog.tar.gz -L https://github.com/git-chglog/git-chglog/releases/download/v0.15.1/git-chglog_0.15.1_linux_amd64.tar.gz
           tar -zxvf git-chglog.tar.gz
           chmod u+x git-chglog
           ./git-chglog --sort semver -o CHANGELOG-AUTO.md v1.3.1..
