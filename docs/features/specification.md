@@ -84,7 +84,7 @@ spec:
   rollbackWindow:
     revisions: 3
 
-    strategy:
+  strategy:
 
     # Blue-green update strategy
     blueGreen:
