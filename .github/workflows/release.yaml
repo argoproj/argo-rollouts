@@ -6,6 +6,11 @@ on:
       tag:
         description: Git tag to build release from
         required: true
+      update_stable_tag:
+        description: 'Update stable tag'
+        required: true
+        type: boolean
+        default: 'false'
 permissions:
   contents: read
 
@@ -116,6 +121,7 @@ jobs:
       - name: Generate release artifacts
         run: |
           make release-plugins
+          make checksums
           make manifests IMAGE_TAG=${{ github.event.inputs.tag }}
 
       - name: Generate SBOM (spdx)
@@ -149,6 +155,14 @@ jobs:
 
           cd /tmp && tar -zcf sbom.tar.gz *.spdx
 
+      - name: Login to Quay.io
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v2
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+
       - name: Install cosign
         uses: sigstore/cosign-installer@main
         with:
@@ -159,11 +173,11 @@ jobs:
 
       - name: Get digest of controller-image
         run: |
-          echo "CONTROLLER_DIGEST=$(crane digest ${{ steps.controller-meta.outputs.tags }})" >> $GITHUB_ENV
+          echo "CONTROLLER_DIGEST=$(crane digest quay.io/argoproj/argo-rollouts:${{ github.event.inputs.tag }})" >> $GITHUB_ENV
 
       - name: Get digest of plugin-image
         run: |
-          echo "PLUGIN_DIGEST=$(crane digest ${{ steps.plugin-meta.outputs.tags }})" >> $GITHUB_ENV
+          echo "PLUGIN_DIGEST=$(crane digest quay.io/argoproj/kubectl-argo-rollouts:${{ github.event.inputs.tag }})" >> $GITHUB_ENV
 
       - name: Sign Argo Rollouts Images
         run: |
@@ -175,13 +189,20 @@ jobs:
 
       - name: Sign checksums and create public key for release assets
         run: |
-          cosign sign-blob --key env://COSIGN_PRIVATE_KEY dist/argo-rollouts-checksums.txt > dist/argo-rollouts-checksums.sig
+          cosign sign-blob --key env://COSIGN_PRIVATE_KEY ./dist/argo-rollouts-checksums.txt > ./dist/argo-rollouts-checksums.sig
           cosign public-key --key env://COSIGN_PRIVATE_KEY > ./dist/argo-rollouts-cosign.pub
+          cosign sign-blob --key env://COSIGN_PRIVATE_KEY /tmp/sbom.tar.gz > /tmp/sbom.tar.gz.sig
           # Displays the public key to share.
           cosign public-key --key env://COSIGN_PRIVATE_KEY
         env:
           COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
           COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+
+      - name: update stable tag for docs
+        run: |
+          git tag -f stable ${{ github.event.inputs.tag }}
+          git push -f origin stable
+        if:  ${{ inputs.update_stable_tag }}
 
       - name: Draft release
         uses: softprops/action-gh-release@v1
@@ -203,5 +224,6 @@ jobs:
             manifests/notifications-install.yaml
             docs/features/kustomize/rollout_cr_schema.json
             /tmp/sbom.tar.gz
+            /tmp/sbom.tar.gz.sig
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

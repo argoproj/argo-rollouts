@@ -4,12 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	patchtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -21,6 +15,11 @@ import (
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututils "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	patchtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -266,7 +265,10 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 }
 
 // ensureSVCTargets updates the service with the given name to point to the given ReplicaSet,
-// but only if that ReplicaSet has full availability.
+// but only if that ReplicaSet has proper availability. There is still an edge case with this function if
+// in the small window of time between a rollout being completed, and we try to update the service selector, we lose 100%
+// of the pods availability. We will not switch service selector but still go and reconcile the traffic router, setting the
+// stable weight to zero. This really only affects dynamic stable scale.
 func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet, checkRsAvailability bool) error {
 	if rs == nil || svcName == "" {
 		return nil
@@ -277,13 +279,31 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet,
 	}
 	currSelector := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 	desiredSelector := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
+
 	if currSelector != desiredSelector {
-		// ensure ReplicaSet is fully available, otherwise we will point the service to nothing or an underprovisioned ReplicaSet
-		if checkRsAvailability && !replicasetutil.IsReplicaSetAvailable(rs) {
-			logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
-			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
+		if _, ok := svc.Annotations[v1alpha1.ManagedByRolloutsKey]; !ok {
+			// This block will be entered only when adopting a service that already exists, because the current annotation
+			// will be empty at that point. When we are adopting a service, we want to make sure that the replicaset is fully
+			// available before we start routing traffic to it, so we do not overload it.
+			// See PR: https://github.com/argoproj/argo-rollouts/pull/1777
+
+			// ensure ReplicaSet is fully available, otherwise we will point the service to nothing or an underprovisioned ReplicaSet
+			if checkRsAvailability && !replicasetutil.IsReplicaSetAvailable(rs) {
+				logCtx.Infof("delaying service switch from %s to %s: ReplicaSet not fully available", currSelector, desiredSelector)
+				return nil
+			}
+			logCtx.Infof("adopting service %s", svc.Name)
+		}
+
+		// When we are at the end of a rollout we generally will have enough capacity to handle the traffic, so we do not
+		// need to check the full availability of the ReplicaSet. We do still want to make sure we have at least one pod
+		// available, so we do not point the service to nothing, but losing a pod or two should be tolerable to still switch service selectors.
+		if checkRsAvailability && !replicasetutil.IsReplicaSetPartiallyAvailable(rs) {
+			logCtx.Infof("delaying service switch from %s to %s: ReplicaSet has zero availability", currSelector, desiredSelector)
 			return nil
 		}
+
 		err = c.switchServiceSelector(svc, desiredSelector, c.rollout)
 		if err != nil {
 			return err

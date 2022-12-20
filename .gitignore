@@ -9,6 +9,8 @@ cmd/**/debug
 debug.test
 coverage.out
 coverage.html
+junit.xml
+rerunreport.txt
 site/
 vendor/
 # generated
