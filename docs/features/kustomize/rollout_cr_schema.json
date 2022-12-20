@@ -4176,6 +4176,20 @@
                                                 },
                                                 "type": "object"
                                             },
+                                            "skywalking": {
+                                                "properties": {
+                                                    "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "interval": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
                                             "wavefront": {
                                                 "properties": {
                                                     "address": {
@@ -8444,6 +8458,20 @@
                                                 },
                                                 "type": "object"
                                             },
+                                            "skywalking": {
+                                                "properties": {
+                                                    "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "interval": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
                                             "wavefront": {
                                                 "properties": {
                                                     "address": {
@@ -12704,6 +12732,20 @@
                                             "prometheus": {
                                                 "properties": {
                                                     "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "skywalking": {
+                                                "properties": {
+                                                    "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "interval": {
                                                         "type": "string"
                                                     },
                                                     "query": {

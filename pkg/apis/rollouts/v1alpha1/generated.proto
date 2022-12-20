@@ -976,6 +976,9 @@ message MetricProvider {
 
   // Influxdb specifies the influxdb metric to query
   optional InfluxdbMetric influxdb = 10;
+
+  // SkyWalking specifies the skywalking metric to query
+  optional SkyWalkingMetric skywalking = 11;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with
@@ -1572,6 +1575,14 @@ message SetMirrorRoute {
   // Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
   // Percentage What percent of the traffic that matched the rules should be mirrored
   optional int32 percentage = 4;
+}
+
+message SkyWalkingMetric {
+  optional string address = 1;
+
+  optional string query = 2;
+
+  optional string interval = 3;
 }
 
 message StickinessConfig {
