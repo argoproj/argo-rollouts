@@ -135,7 +135,7 @@ nav:
 - Blog ⧉: https://blog.argoproj.io/
 repo_url: https://github.com/argoproj/argo-rollouts
 site_name: Argo Rollouts - Kubernetes Progressive Delivery Controller
-site_url: https://argoproj.github.io/argo-rollouts
+site_url: https://argo-rollouts.readthedocs.io/
 theme:
   font:
     text: Work Sans
