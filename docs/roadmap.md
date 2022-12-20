@@ -20,8 +20,7 @@ These are the upcoming releases date estimates:
 #### Minor Releases (e.g. 1.x.0)
 
 A minor Argo Rollouts release occurs four times a year, once every three months. Each General Availability (GA) release is
-preceded by several Release Candidates (RCs). The first RC is released three weeks before the scheduled GA date. This
-effectively means that there is a three-week feature freeze.
+preceded by several Release Candidates (RCs). The first RC is released three weeks before the scheduled GA date.
 
 These are the approximate release dates:
 
