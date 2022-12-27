@@ -1499,7 +1499,9 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 			return fmt.Errorf("[RemoveManagedRoutes] failed to get http routes from virtual service: %w", err)
 		}
 		if !found {
-			return fmt.Errorf("[RemoveManagedRoutes] %s: %w", SpecHttpNotFound, err)
+			// Nothing to do here so return early this can be hit when only tls routes are defined
+			log.Debugf("[RemoveManagedRoutes] %s: not removing any routes\n", SpecHttpNotFound)
+			return nil
 		}
 
 		managedRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes
