@@ -139,7 +139,7 @@ func (s *IstioSuite) TestIstioHostSplitOnlyTls() {
 				rs1 := t.GetReplicaSetByRevision("1")
 				assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
 				assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
-d t			}).
+			}).
 			When().
 			UpdateSpec().
 			WaitForRolloutStatus("Paused").
