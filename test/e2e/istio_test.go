@@ -115,11 +115,9 @@ func (s *IstioSuite) TestIstioHostSplitOnlyTls() {
 
 	tests := []struct {
 		filename string
-		hasTls   bool
 	}{
 		{
 			"@istio/istio-host-only-tls-split.yaml",
-			true,
 		},
 	}
 
