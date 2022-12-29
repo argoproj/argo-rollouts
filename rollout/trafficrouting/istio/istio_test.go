@@ -2469,7 +2469,6 @@ func TestSingleTlsRouteReconcile(t *testing.T) {
 		SNIHosts: nil,
 	}})
 
-	//ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
 	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteTlsVsvc)
 	client := testutil.NewFakeDynamicClient(obj)
 	vsvcLister, druleLister := getIstioListers(client)
