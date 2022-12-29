@@ -1499,7 +1499,8 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 			return fmt.Errorf("[RemoveManagedRoutes] failed to get http routes from virtual service: %w", err)
 		}
 		if !found {
-			// Nothing to do here so return early this can be hit when only tls routes are defined
+			// This could happen when only TLS routes are defined. We don't need to do anything else and hence we return early
+			// because tls routes do not support header and mirroring which are features that require the use of managed routes.
 			log.Debugf("[RemoveManagedRoutes] %s: not removing any routes\n", SpecHttpNotFound)
 			return nil
 		}
