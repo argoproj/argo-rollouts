@@ -10,8 +10,14 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/analysis/influxdb/">
       
+      
+        <link rel="prev" href="../graphite/">
+      
+      
+        <link rel="next" href="../../features/experiment/">
+      
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +25,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +129,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +136,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2146,45 +2147,44 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/analysis/influxdb.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="influxdb-metrics">InfluxDB Metrics<a class="headerlink" href="#influxdb-metrics" title="Permanent link">&para;</a></h1>
 <p>An <a href="https://www.influxdata.com/">InfluxDB</a> query using <a href="https://docs.influxdata.com/influxdb/cloud/query-data/get-started/query-influxdb/">Flux</a> can be used to obtain measurements for analysis.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error-rate</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">args</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">application-name</span><span class="w"></span>
-<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error-rate</span><span class="w"></span>
-<span class="w">    </span><span class="c1"># NOTE: To be consistent with the prometheus metrics provider InfluxDB query results are returned as an array.</span><span class="w"></span>
-<span class="w">    </span><span class="c1"># In the example we&#39;re looking at index 0 of the returned array to obtain the value we&#39;re using for the success condition</span><span class="w"></span>
-<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result[0] &lt;= 0.01</span><span class="w"></span>
-<span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">influxdb</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-influxdb-secret</span><span class="w">  </span><span class="c1"># optional, defaults to &#39;influxdb&#39;</span><span class="w"></span>
-<span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w"></span>
-<span class="w">          </span><span class="no">from(bucket: &quot;app_istio&quot;)</span><span class="w"></span>
-<span class="w">            </span><span class="no">|&gt; range(start: -15m)</span><span class="w"></span>
-<span class="w">            </span><span class="no">|&gt; filter(fn: (r) =&gt; r[&quot;destination_workload&quot;] == &quot;{{ args.application-name }}&quot;)</span><span class="w"></span>
-<span class="w">            </span><span class="no">|&gt; filter(fn: (r) =&gt; r[&quot;_measurement&quot;] == &quot;istio:istio_requests_errors_percentage:rate1m:5xx&quot;)</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">application-name</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+<span class="w">    </span><span class="c1"># NOTE: To be consistent with the prometheus metrics provider InfluxDB query results are returned as an array.</span>
+<span class="w">    </span><span class="c1"># In the example we&#39;re looking at index 0 of the returned array to obtain the value we&#39;re using for the success condition</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result[0] &lt;= 0.01</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">influxdb</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-influxdb-secret</span><span class="w">  </span><span class="c1"># optional, defaults to &#39;influxdb&#39;</span>
+<span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">from(bucket: &quot;app_istio&quot;)</span>
+<span class="w">            </span><span class="no">|&gt; range(start: -15m)</span>
+<span class="w">            </span><span class="no">|&gt; filter(fn: (r) =&gt; r[&quot;destination_workload&quot;] == &quot;{{ args.application-name }}&quot;)</span>
+<span class="w">            </span><span class="no">|&gt; filter(fn: (r) =&gt; r[&quot;_measurement&quot;] == &quot;istio:istio_requests_errors_percentage:rate1m:5xx&quot;)</span>
 </code></pre></div>
 <p>An InfluxDB access profile can be configured using a Kubernetes secret in the <code>argo-rollouts</code> namespace. Alternate accounts can be used by creating more secrets of the same format and specifying which secret to use in the metric provider configuration using the <code>profile</code> field.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">influxdb</span><span class="w"></span>
-<span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Opaque</span><span class="w"></span>
-<span class="nt">data</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;infuxdb-url&gt;</span><span class="w"></span>
-<span class="w">  </span><span class="nt">authToken</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;influxdb-auth-token&gt;</span><span class="w"></span>
-<span class="w">  </span><span class="nt">org</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;influxdb-org&gt;</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">influxdb</span>
+<span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;infuxdb-url&gt;</span>
+<span class="w">  </span><span class="nt">authToken</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;influxdb-auth-token&gt;</span>
+<span class="w">  </span><span class="nt">org</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;influxdb-org&gt;</span>
 </code></pre></div>
 
 
@@ -2203,42 +2203,6 @@
       </main>
       
         <footer class="md-footer">
-  
-    
-    <nav class="md-footer__inner md-grid" aria-label="Footer" >
-      
-        
-        <a href="../graphite/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Graphite" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              Graphite
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../../features/experiment/" class="md-footer__link md-footer__link--next" aria-label="Next: Experiments" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              Experiments
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -2261,14 +2225,13 @@
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
-    
     
   </body>
 </html>

@@ -10,8 +10,14 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/analysis/cloudwatch/">
       
+      
+        <link rel="prev" href="../kayenta/">
+      
+      
+        <link rel="next" href="../graphite/">
+      
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +25,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +129,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +136,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2260,10 +2261,9 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/analysis/cloudwatch.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="cloudwatch-metrics">CloudWatch Metrics<a class="headerlink" href="#cloudwatch-metrics" title="Permanent link">&para;</a></h1>
@@ -2279,116 +2279,116 @@
 If you have already cluster on EKS, you can attach <a href="https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html">IAM roles for service accounts</a>.</p>
 <h3 id="not-eks">not EKS<a class="headerlink" href="#not-eks" title="Permanent link">&para;</a></h3>
 <p>You need to define access key and secret key.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudwatch-secret</span><span class="w"></span>
-<span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Opaque</span><span class="w"></span>
-<span class="nt">stringData</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">AWS_ACCESS_KEY_ID</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;aws-access-key-id&gt;</span><span class="w"></span>
-<span class="w">  </span><span class="nt">AWS_SECRET_ACCESS_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;aws-secret-access-key&gt;</span><span class="w"></span>
-<span class="w">  </span><span class="nt">AWS_REGION</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;aws-region&gt;</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudwatch-secret</span>
+<span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<span class="nt">stringData</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">AWS_ACCESS_KEY_ID</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;aws-access-key-id&gt;</span>
+<span class="w">  </span><span class="nt">AWS_SECRET_ACCESS_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;aws-secret-access-key&gt;</span>
+<span class="w">  </span><span class="nt">AWS_REGION</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;aws-region&gt;</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/v1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deployment</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts</span><span class="w"></span>
-<span class="w">        </span><span class="nt">env</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_ACCESS_KEY_ID</span><span class="w"></span>
-<span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w"></span>
-<span class="w">            </span><span class="nt">secretKeyRef</span><span class="p">:</span><span class="w"></span>
-<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudwatch-secret</span><span class="w"></span>
-<span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_ACCESS_KEY_ID</span><span class="w"></span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_SECRET_ACCESS_KEY</span><span class="w"></span>
-<span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w"></span>
-<span class="w">            </span><span class="nt">secretKeyRef</span><span class="p">:</span><span class="w"></span>
-<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudwatch-secret</span><span class="w"></span>
-<span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_SECRET_ACCESS_KEY</span><span class="w"></span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_REGION</span><span class="w"></span>
-<span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w"></span>
-<span class="w">            </span><span class="nt">secretKeyRef</span><span class="p">:</span><span class="w"></span>
-<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudwatch-secret</span><span class="w"></span>
-<span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_REGION</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">template</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">containers</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts</span>
+<span class="w">        </span><span class="nt">env</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_ACCESS_KEY_ID</span>
+<span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">secretKeyRef</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudwatch-secret</span>
+<span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_ACCESS_KEY_ID</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_SECRET_ACCESS_KEY</span>
+<span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">secretKeyRef</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudwatch-secret</span>
+<span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_SECRET_ACCESS_KEY</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_REGION</span>
+<span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">secretKeyRef</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudwatch-secret</span>
+<span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWS_REGION</span>
 </code></pre></div>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>metricDataQueries</code> - GetMetricData query: <a href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_MetricDataQuery.html">MetricDataQuery</a></li>
 <li><code>interval</code> - optional interval, e.g. 30m, default: 5m</li>
 </ul>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span><span class="w"></span>
-<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1m</span><span class="w"></span>
-<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;len(result[0].Values)</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">5</span><span class="nv"> </span><span class="s">and</span><span class="nv"> </span><span class="s">all(result[0].Values,</span><span class="nv"> </span><span class="s">{#</span><span class="nv"> </span><span class="s">&lt;=</span><span class="nv"> </span><span class="s">0.01})&quot;</span><span class="w"></span>
-<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w"></span>
-<span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">cloudWatch</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30m</span><span class="w"></span>
-<span class="w">        </span><span class="nt">metricDataQueries</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="w"></span>
-<span class="w">            </span><span class="s">&quot;id&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;rate&quot;</span><span class="p p-Indicator">,</span><span class="w"></span>
-<span class="w">            </span><span class="s">&quot;expression&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;errors</span><span class="nv"> </span><span class="s">/</span><span class="nv"> </span><span class="s">requests&quot;</span><span class="w"></span>
-<span class="w">          </span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="w"></span>
-<span class="w">            </span><span class="s">&quot;id&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;errors&quot;</span><span class="p p-Indicator">,</span><span class="w"></span>
-<span class="w">            </span><span class="s">&quot;metricStat&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="w"></span>
-<span class="w">              </span><span class="s">&quot;metric&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="w"></span>
-<span class="w">                </span><span class="s">&quot;namespace&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;app&quot;</span><span class="p p-Indicator">,</span><span class="w"></span>
-<span class="w">                </span><span class="s">&quot;metricName&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;errors&quot;</span><span class="w"></span>
-<span class="w">              </span><span class="p p-Indicator">},</span><span class="w"></span>
-<span class="w">              </span><span class="s">&quot;period&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">300</span><span class="p p-Indicator">,</span><span class="w"></span>
-<span class="w">              </span><span class="s">&quot;stat&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;Sum&quot;</span><span class="p p-Indicator">,</span><span class="w"></span>
-<span class="w">              </span><span class="s">&quot;unit&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;Count&quot;</span><span class="w"></span>
-<span class="w">            </span><span class="p p-Indicator">},</span><span class="w"></span>
-<span class="w">            </span><span class="s">&quot;returnData&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">false</span><span class="w"></span>
-<span class="w">          </span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="w"></span>
-<span class="w">            </span><span class="s">&quot;id&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;requests&quot;</span><span class="p p-Indicator">,</span><span class="w"></span>
-<span class="w">            </span><span class="s">&quot;metricStat&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="w"></span>
-<span class="w">              </span><span class="s">&quot;metric&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="w"></span>
-<span class="w">                </span><span class="s">&quot;namespace&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;app&quot;</span><span class="p p-Indicator">,</span><span class="w"></span>
-<span class="w">                </span><span class="s">&quot;metricName&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;requests&quot;</span><span class="w"></span>
-<span class="w">              </span><span class="p p-Indicator">},</span><span class="w"></span>
-<span class="w">              </span><span class="s">&quot;period&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">300</span><span class="p p-Indicator">,</span><span class="w"></span>
-<span class="w">              </span><span class="s">&quot;stat&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;Sum&quot;</span><span class="p p-Indicator">,</span><span class="w"></span>
-<span class="w">              </span><span class="s">&quot;unit&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;Count&quot;</span><span class="w"></span>
-<span class="w">            </span><span class="p p-Indicator">},</span><span class="w"></span>
-<span class="w">            </span><span class="s">&quot;returnData&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">false</span><span class="w"></span>
-<span class="w">          </span><span class="p p-Indicator">}</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1m</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;len(result[0].Values)</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">5</span><span class="nv"> </span><span class="s">and</span><span class="nv"> </span><span class="s">all(result[0].Values,</span><span class="nv"> </span><span class="s">{#</span><span class="nv"> </span><span class="s">&lt;=</span><span class="nv"> </span><span class="s">0.01})&quot;</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">cloudWatch</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30m</span>
+<span class="w">        </span><span class="nt">metricDataQueries</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span>
+<span class="w">            </span><span class="s">&quot;id&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;rate&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&quot;expression&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;errors</span><span class="nv"> </span><span class="s">/</span><span class="nv"> </span><span class="s">requests&quot;</span>
+<span class="w">          </span><span class="p p-Indicator">}</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span>
+<span class="w">            </span><span class="s">&quot;id&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;errors&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&quot;metricStat&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span>
+<span class="w">              </span><span class="s">&quot;metric&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span>
+<span class="w">                </span><span class="s">&quot;namespace&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;app&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">                </span><span class="s">&quot;metricName&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;errors&quot;</span>
+<span class="w">              </span><span class="p p-Indicator">},</span>
+<span class="w">              </span><span class="s">&quot;period&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">300</span><span class="p p-Indicator">,</span>
+<span class="w">              </span><span class="s">&quot;stat&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;Sum&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">              </span><span class="s">&quot;unit&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;Count&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">},</span>
+<span class="w">            </span><span class="s">&quot;returnData&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">false</span>
+<span class="w">          </span><span class="p p-Indicator">}</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span>
+<span class="w">            </span><span class="s">&quot;id&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;requests&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&quot;metricStat&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span>
+<span class="w">              </span><span class="s">&quot;metric&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">{</span>
+<span class="w">                </span><span class="s">&quot;namespace&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;app&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">                </span><span class="s">&quot;metricName&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;requests&quot;</span>
+<span class="w">              </span><span class="p p-Indicator">},</span>
+<span class="w">              </span><span class="s">&quot;period&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">300</span><span class="p p-Indicator">,</span>
+<span class="w">              </span><span class="s">&quot;stat&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;Sum&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">              </span><span class="s">&quot;unit&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;Count&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">},</span>
+<span class="w">            </span><span class="s">&quot;returnData&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">false</span>
+<span class="w">          </span><span class="p p-Indicator">}</span>
 </code></pre></div>
 <h2 id="debug">debug<a class="headerlink" href="#debug" title="Permanent link">&para;</a></h2>
 <p>You can confirm the results value in <code>AnalysisRun</code>.</p>
-<div class="highlight"><pre><span></span><code>$ kubectl get analysisrun/rollouts-name-xxxxxxxxxx-xx -o yaml
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>kubectl<span class="w"> </span>get<span class="w"> </span>analysisrun/rollouts-name-xxxxxxxxxx-xx<span class="w"> </span>-o<span class="w"> </span>yaml
 <span class="o">(</span>snip<span class="o">)</span>
 status:
-  metricResults:
-  - count: <span class="m">2</span>
-    failed: <span class="m">1</span>
-    measurements:
-    - finishedAt: <span class="s2">&quot;2021-09-08T17:29:14Z&quot;</span>
-      phase: Failed
-      startedAt: <span class="s2">&quot;2021-09-08T17:29:13Z&quot;</span>
-      value: <span class="s1">&#39;[[0.0029476787030213707 0.006100422336931018 0.01020408163265306 0.007932573128408527</span>
+<span class="w">  </span>metricResults:
+<span class="w">  </span>-<span class="w"> </span>count:<span class="w"> </span><span class="m">2</span>
+<span class="w">    </span>failed:<span class="w"> </span><span class="m">1</span>
+<span class="w">    </span>measurements:
+<span class="w">    </span>-<span class="w"> </span>finishedAt:<span class="w"> </span><span class="s2">&quot;2021-09-08T17:29:14Z&quot;</span>
+<span class="w">      </span>phase:<span class="w"> </span>Failed
+<span class="w">      </span>startedAt:<span class="w"> </span><span class="s2">&quot;2021-09-08T17:29:13Z&quot;</span>
+<span class="w">      </span>value:<span class="w"> </span><span class="s1">&#39;[[0.0029476787030213707 0.006100422336931018 0.01020408163265306 0.007932573128408527</span>
 <span class="s1">        0.00589622641509434 0.006339144215530904]]&#39;</span>
-    - finishedAt: <span class="s2">&quot;2021-09-08T17:30:14Z&quot;</span>
-      phase: Successful
-      startedAt: <span class="s2">&quot;2021-09-08T17:30:14Z&quot;</span>
-      value: <span class="s1">&#39;[[0.004484304932735426 0.0058374494836102376 0.006736068585425597 0.008444444444444444</span>
+<span class="w">    </span>-<span class="w"> </span>finishedAt:<span class="w"> </span><span class="s2">&quot;2021-09-08T17:30:14Z&quot;</span>
+<span class="w">      </span>phase:<span class="w"> </span>Successful
+<span class="w">      </span>startedAt:<span class="w"> </span><span class="s2">&quot;2021-09-08T17:30:14Z&quot;</span>
+<span class="w">      </span>value:<span class="w"> </span><span class="s1">&#39;[[0.004484304932735426 0.0058374494836102376 0.006736068585425597 0.008444444444444444</span>
 <span class="s1">        0.006859756097560976 0.0045385779122541605]]&#39;</span>
-    name: success-rate
-    phase: Running
-    successful: <span class="m">1</span>
-  phase: Running
-  startedAt: <span class="s2">&quot;2021-09-08T17:29:14Z&quot;</span>
+<span class="w">    </span>name:<span class="w"> </span>success-rate
+<span class="w">    </span>phase:<span class="w"> </span>Running
+<span class="w">    </span>successful:<span class="w"> </span><span class="m">1</span>
+<span class="w">  </span>phase:<span class="w"> </span>Running
+<span class="w">  </span>startedAt:<span class="w"> </span><span class="s2">&quot;2021-09-08T17:29:14Z&quot;</span>
 </code></pre></div>
 
 
@@ -2407,42 +2407,6 @@ status:
       </main>
       
         <footer class="md-footer">
-  
-    
-    <nav class="md-footer__inner md-grid" aria-label="Footer" >
-      
-        
-        <a href="../kayenta/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Kayenta" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              Kayenta
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../graphite/" class="md-footer__link md-footer__link--next" aria-label="Next: Graphite" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              Graphite
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -2465,14 +2429,13 @@ status:
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
-    
     
   </body>
 </html>

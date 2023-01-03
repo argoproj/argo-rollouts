@@ -10,8 +10,10 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/getting-started/mixed/">
       
+      
+      
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +21,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +125,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +132,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2163,10 +2160,9 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/getting-started/mixed/index.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="getting-started-multiple-providers-service-mesh-interface-and-nginx-ingress">Getting Started - Multiple Providers (Service Mesh Interface and NGiNX Ingress)<a class="headerlink" href="#getting-started-multiple-providers-service-mesh-interface-and-nginx-ingress" title="Permanent link">&para;</a></h1>
@@ -2193,78 +2189,78 @@ on how to setup a local minikube environment with linkerd and nginx.</p>
 <h2 id="1-deploy-the-rollout-services-and-ingress">1. Deploy the Rollout, Services, and Ingress<a class="headerlink" href="#1-deploy-the-rollout-services-and-ingress" title="Permanent link">&para;</a></h2>
 <p>When SMI is used as one the traffic routers, the Rollout canary strategy must define
 the following mandatory fields:</p>
-<p><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the canary ReplicaSet</span><span class="w"></span>
-<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the stable ReplicaSet</span><span class="w"></span>
-<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">smi</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
+<p><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the canary ReplicaSet</span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
+<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the stable ReplicaSet</span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">smi</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
 </code></pre></div>
 When NGINX Ingress is used as the traffic router, the Rollout canary strategy must define
 the following mandatory fields:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the canary ReplicaSet</span><span class="w"></span>
-<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the stable ReplicaSet</span><span class="w"></span>
-<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">nginx</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="c1"># Reference to an Ingress which has a rule pointing to the stable service (e.g. rollouts-demo-stable)</span><span class="w"></span>
-<span class="w">          </span><span class="c1"># This ingress will be cloned with a new name, in order to achieve NGINX traffic splitting.</span><span class="w"></span>
-<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="nn">...</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the canary ReplicaSet</span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
+<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the stable ReplicaSet</span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">nginx</span><span class="p">:</span>
+<span class="w">          </span><span class="c1"># Reference to an Ingress which has a rule pointing to the stable service (e.g. rollouts-demo-stable)</span>
+<span class="w">          </span><span class="c1"># This ingress will be cloned with a new name, in order to achieve NGINX traffic splitting.</span>
+<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="nn">...</span>
 </code></pre></div>
 <p>A combination of both should have comply with each TrafficRouting requirements, in this case:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the canary ReplicaSet</span><span class="w"></span>
-<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the stable ReplicaSet</span><span class="w"></span>
-<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">nginx</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="c1"># Reference to an Ingress which has a rule pointing to the stable service (e.g. rollouts-demo-stable)</span><span class="w"></span>
-<span class="w">          </span><span class="c1"># This ingress will be cloned with a new name, in order to achieve NGINX traffic splitting.</span><span class="w"></span>
-<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">        </span><span class="nt">smi</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the canary ReplicaSet</span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
+<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the stable ReplicaSet</span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">nginx</span><span class="p">:</span>
+<span class="w">          </span><span class="c1"># Reference to an Ingress which has a rule pointing to the stable service (e.g. rollouts-demo-stable)</span>
+<span class="w">          </span><span class="c1"># This ingress will be cloned with a new name, in order to achieve NGINX traffic splitting.</span>
+<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">        </span><span class="nt">smi</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
 </code></pre></div>
 <p>The Ingress referenced in <code>canary.trafficRouting.nginx.stableIngress</code> is required to have a host
 rule which has a backend targeting the Service referenced under <code>canary.stableService</code>.
 In our example, that stable Service is named: <code>rollouts-demo-stable</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">rules</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo.local</span><span class="w"></span>
-<span class="w">    </span><span class="nt">http</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">paths</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span><span class="w"></span>
-<span class="w">        </span><span class="nt">backend</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="c1"># Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field</span><span class="w"></span>
-<span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">rules</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo.local</span>
+<span class="w">    </span><span class="nt">http</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">paths</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span>
+<span class="w">        </span><span class="nt">backend</span><span class="p">:</span>
+<span class="w">          </span><span class="c1"># Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field</span>
+<span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
 </code></pre></div>
 <p>Run the following commands to deploy:</p>
 <ul>
@@ -2272,24 +2268,24 @@ In our example, that stable Service is named: <code>rollouts-demo-stable</code>:
 <li>Two Services (stable and canary)</li>
 <li>An Ingress</li>
 </ul>
-<div class="highlight"><pre><span></span><code>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/mixed/rollout.yaml
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/mixed/services.yaml
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/mixed/ingress.yaml
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/mixed/rollout.yaml
+kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/mixed/services.yaml
+kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/mixed/ingress.yaml
 </code></pre></div>
 <p>After applying the manifests you should see the following rollout, services, and ingress resources
 in the cluster:</p>
-<div class="highlight"><pre><span></span><code>$ kubectl get ro
-NAME            DESIRED   CURRENT   UP-TO-DATE   AVAILABLE
-rollouts-demo   <span class="m">1</span>         <span class="m">2</span>         <span class="m">1</span>            <span class="m">2</span>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>kubectl<span class="w"> </span>get<span class="w"> </span>ro
+NAME<span class="w">            </span>DESIRED<span class="w">   </span>CURRENT<span class="w">   </span>UP-TO-DATE<span class="w">   </span>AVAILABLE
+rollouts-demo<span class="w">   </span><span class="m">1</span><span class="w">         </span><span class="m">2</span><span class="w">         </span><span class="m">1</span><span class="w">            </span><span class="m">2</span>
 
-$ kubectl get svc
-NAME                   TYPE        CLUSTER-IP       EXTERNAL-IP   PORT<span class="o">(</span>S<span class="o">)</span>   AGE
-rollouts-demo-canary   ClusterIP   <span class="m">10</span>.111.69.188    &lt;none&gt;        <span class="m">80</span>/TCP    23m
-rollouts-demo-stable   ClusterIP   <span class="m">10</span>.109.175.248   &lt;none&gt;        <span class="m">80</span>/TCP    23m
+$<span class="w"> </span>kubectl<span class="w"> </span>get<span class="w"> </span>svc
+NAME<span class="w">                   </span>TYPE<span class="w">        </span>CLUSTER-IP<span class="w">       </span>EXTERNAL-IP<span class="w">   </span>PORT<span class="o">(</span>S<span class="o">)</span><span class="w">   </span>AGE
+rollouts-demo-canary<span class="w">   </span>ClusterIP<span class="w">   </span><span class="m">10</span>.111.69.188<span class="w">    </span>&lt;none&gt;<span class="w">        </span><span class="m">80</span>/TCP<span class="w">    </span>23m
+rollouts-demo-stable<span class="w">   </span>ClusterIP<span class="w">   </span><span class="m">10</span>.109.175.248<span class="w">   </span>&lt;none&gt;<span class="w">        </span><span class="m">80</span>/TCP<span class="w">    </span>23m
 
-$ kubectl get ing
-NAME                   CLASS    HOSTS                 ADDRESS        PORTS   AGE
-rollouts-demo-stable   &lt;none&gt;   rollouts-demo.local   <span class="m">192</span>.168.64.2   <span class="m">80</span>      23m
+$<span class="w"> </span>kubectl<span class="w"> </span>get<span class="w"> </span>ing
+NAME<span class="w">                   </span>CLASS<span class="w">    </span>HOSTS<span class="w">                 </span>ADDRESS<span class="w">        </span>PORTS<span class="w">   </span>AGE
+rollouts-demo-stable<span class="w">   </span>&lt;none&gt;<span class="w">   </span>rollouts-demo.local<span class="w">   </span><span class="m">192</span>.168.64.2<span class="w">   </span><span class="m">80</span><span class="w">      </span>23m
 </code></pre></div>
 <p>You should also see a TrafficSplit resource which is created automatically and owned by the rollout:</p>
 <div class="highlight"><pre><span></span><code>$ kubectl get trafficsplit
@@ -2299,18 +2295,18 @@ rollouts-demo   rollouts-demo-stable
 <p>When inspecting the generated TrafficSplit resource, the weights are automatically configured to
 send 100% traffic to the <code>rollouts-demo-stable</code> service, and 0% traffic to the <code>rollouts-demo-canary</code>.
 These values will be updated during an update.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">split.smi-spec.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TrafficSplit</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">backends</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
-<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0&quot;</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;100&quot;</span><span class="w"></span>
-<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">split.smi-spec.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TrafficSplit</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">backends</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
+<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0&quot;</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;100&quot;</span>
+<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
 </code></pre></div>
 <p>You should also notice a second ingress created by the rollouts controller,
 <code>rollouts-demo-rollouts-demo-stable-canary</code>. This ingress is the "canary ingress", which is a
@@ -2320,26 +2316,26 @@ formulated using <code>&lt;ROLLOUT-NAME&gt;-&lt;INGRESS-NAME&gt;-canary</code>. 
 discussed in the following section.</p>
 <h2 id="2-perform-an-update">2. Perform an update<a class="headerlink" href="#2-perform-an-update" title="Permanent link">&para;</a></h2>
 <p>Now perform an update the rollout by changing the image, and wait for it to reached the paused state.</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts <span class="nb">set</span> image rollouts-demo rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
-kubectl argo rollouts get rollout rollouts-demo
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span><span class="nb">set</span><span class="w"> </span>image<span class="w"> </span>rollouts-demo<span class="w"> </span>rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
+kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>get<span class="w"> </span>rollout<span class="w"> </span>rollouts-demo
 </code></pre></div>
 <p><img alt="Rollout Paused" src="../nginx/paused-rollout-nginx.png" /></p>
 <p>At this point, both the canary and stable version of the Rollout are running, with 5% of the
 traffic directed to the canary and 95% to the stable. When inspecting the TrafficSplit generated by 
 the controller, we see that the weight has been updated to reflect the current <code>setWeight: 5</code> step of 
 the canary deploy.</p>
-<p><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">split.smi-spec.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TrafficSplit</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">backends</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
-<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5&quot;</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;95&quot;</span><span class="w"></span>
-<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
+<p><div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">split.smi-spec.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TrafficSplit</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">backends</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
+<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5&quot;</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;95&quot;</span>
+<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
 </code></pre></div>
 When inspecting the rollout controller generated Ingress copy, we see that it has the following
 changes over the original ingress:</p>
@@ -2349,22 +2345,22 @@ changes over the original ingress:</p>
 are added to the annotations.</li>
 <li>The Ingress rules will have an rule which points the backend to the <em>canary</em> service.</li>
 </ol>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-rollouts-demo-stable-canary</span><span class="w"></span>
-<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span><span class="w"></span>
-<span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/canary</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span><span class="w"></span>
-<span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/canary-weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5&quot;</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">rules</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo.local</span><span class="w"></span>
-<span class="w">    </span><span class="nt">http</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">paths</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">backend</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
-<span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-rollouts-demo-stable-canary</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span>
+<span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/canary</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span>
+<span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/canary-weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5&quot;</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">rules</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo.local</span>
+<span class="w">    </span><span class="nt">http</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">paths</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">backend</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
+<span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
 </code></pre></div>
 <p>As the Rollout progresses through steps, the weights in the TrafficSplit and Ingress resource will be adjusted
 to match the current setWeight of the steps.</p>
@@ -2407,14 +2403,13 @@ to match the current setWeight of the steps.</p>
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
-    
     
   </body>
 </html>

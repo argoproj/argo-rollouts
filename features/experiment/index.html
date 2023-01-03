@@ -10,8 +10,14 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/features/experiment/">
       
+      
+        <link rel="prev" href="../../analysis/influxdb/">
+      
+      
+        <link rel="next" href="../notifications/">
+      
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +25,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +129,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +136,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2260,10 +2261,9 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/features/experiment.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="experiment-crd">Experiment CRD<a class="headerlink" href="#experiment-crd" title="Permanent link">&para;</a></h1>
@@ -2297,85 +2297,85 @@ the Rollout.</p>
 <p>Below is an example of an experiment that creates two ReplicaSets with 1 replica each and runs them
 for 20 minutes once they both become available. Additionally, several AnalysisRuns are run to
 perform analysis against the pods of the Experiment </p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Experiment</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example-experiment</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="c1"># Duration of the experiment, beginning from when all ReplicaSets became healthy (optional)</span><span class="w"></span>
-<span class="w">  </span><span class="c1"># If omitted, will run indefinitely until terminated, or until all analyses which were marked</span><span class="w"></span>
-<span class="w">  </span><span class="c1"># `requiredForCompletion` have completed.</span><span class="w"></span>
-<span class="w">  </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20m</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Experiment</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example-experiment</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># Duration of the experiment, beginning from when all ReplicaSets became healthy (optional)</span>
+<span class="w">  </span><span class="c1"># If omitted, will run indefinitely until terminated, or until all analyses which were marked</span>
+<span class="w">  </span><span class="c1"># `requiredForCompletion` have completed.</span>
+<span class="w">  </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20m</span>
 
-<span class="w">  </span><span class="c1"># Deadline in seconds in which a ReplicaSet should make progress towards becoming available.</span><span class="w"></span>
-<span class="w">  </span><span class="c1"># If exceeded, the Experiment will fail.</span><span class="w"></span>
-<span class="w">  </span><span class="nt">progressDeadlineSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># Deadline in seconds in which a ReplicaSet should make progress towards becoming available.</span>
+<span class="w">  </span><span class="c1"># If exceeded, the Experiment will fail.</span>
+<span class="w">  </span><span class="nt">progressDeadlineSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
 
-<span class="w">  </span><span class="c1"># List of pod template specs to run in the experiment as ReplicaSets</span><span class="w"></span>
-<span class="w">  </span><span class="nt">templates</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span><span class="w"></span>
-<span class="w">    </span><span class="c1"># Number of replicas to run (optional). If omitted, will run a single replica</span><span class="w"></span>
-<span class="w">    </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
-<span class="w">    </span><span class="nt">selector</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span><span class="w"></span>
-<span class="w">        </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span><span class="w"></span>
-<span class="w">    </span><span class="nt">template</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span><span class="w"></span>
-<span class="w">          </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span><span class="w"></span>
-<span class="w">      </span><span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">containers</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="w">          </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:purple</span><span class="w"></span>
-<span class="w">          </span><span class="nt">imagePullPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Always</span><span class="w"></span>
-<span class="w">          </span><span class="nt">ports</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http</span><span class="w"></span>
-<span class="w">            </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8080</span><span class="w"></span>
-<span class="w">            </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TCP</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange</span><span class="w"></span>
-<span class="w">    </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
-<span class="w">    </span><span class="nt">minReadySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w"></span>
-<span class="w">    </span><span class="nt">selector</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span><span class="w"></span>
-<span class="w">        </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange</span><span class="w"></span>
-<span class="w">    </span><span class="nt">template</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span><span class="w"></span>
-<span class="w">          </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange</span><span class="w"></span>
-<span class="w">      </span><span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">containers</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="w">          </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:orange</span><span class="w"></span>
-<span class="w">          </span><span class="nt">imagePullPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Always</span><span class="w"></span>
-<span class="w">          </span><span class="nt">ports</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http</span><span class="w"></span>
-<span class="w">            </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8080</span><span class="w"></span>
-<span class="w">            </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TCP</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># List of pod template specs to run in the experiment as ReplicaSets</span>
+<span class="w">  </span><span class="nt">templates</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span>
+<span class="w">    </span><span class="c1"># Number of replicas to run (optional). If omitted, will run a single replica</span>
+<span class="w">    </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">selector</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">matchLabels</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
+<span class="w">        </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span>
+<span class="w">    </span><span class="nt">template</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">metadata</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">labels</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
+<span class="w">          </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span>
+<span class="w">      </span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">containers</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="w">          </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:purple</span>
+<span class="w">          </span><span class="nt">imagePullPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Always</span>
+<span class="w">          </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http</span>
+<span class="w">            </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8080</span>
+<span class="w">            </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TCP</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange</span>
+<span class="w">    </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">minReadySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<span class="w">    </span><span class="nt">selector</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">matchLabels</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
+<span class="w">        </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange</span>
+<span class="w">    </span><span class="nt">template</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">metadata</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">labels</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
+<span class="w">          </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange</span>
+<span class="w">      </span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">containers</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="w">          </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj/rollouts-demo:orange</span>
+<span class="w">          </span><span class="nt">imagePullPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Always</span>
+<span class="w">          </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http</span>
+<span class="w">            </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8080</span>
+<span class="w">            </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TCP</span>
 
-<span class="w">  </span><span class="c1"># List of AnalysisTemplate references to perform during the experiment</span><span class="w"></span>
-<span class="w">  </span><span class="nt">analyses</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span><span class="w"></span>
-<span class="w">    </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http-benchmark</span><span class="w"></span>
-<span class="w">    </span><span class="nt">args</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">host</span><span class="w"></span>
-<span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange</span><span class="w"></span>
-<span class="w">    </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http-benchmark</span><span class="w"></span>
-<span class="w">    </span><span class="nt">args</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">host</span><span class="w"></span>
-<span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">compare-results</span><span class="w"></span>
-<span class="w">    </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">compare</span><span class="w"></span>
-<span class="w">    </span><span class="c1"># If requiredForCompletion is true for an analysis reference, the Experiment will not complete</span><span class="w"></span>
-<span class="w">    </span><span class="c1"># until this analysis has completed.</span><span class="w"></span>
-<span class="w">    </span><span class="nt">requiredForCompletion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w"></span>
-<span class="w">    </span><span class="nt">args</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">host</span><span class="w"></span>
-<span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># List of AnalysisTemplate references to perform during the experiment</span>
+<span class="w">  </span><span class="nt">analyses</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span>
+<span class="w">    </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http-benchmark</span>
+<span class="w">    </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">host</span>
+<span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange</span>
+<span class="w">    </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http-benchmark</span>
+<span class="w">    </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">host</span>
+<span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">orange</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">compare-results</span>
+<span class="w">    </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">compare</span>
+<span class="w">    </span><span class="c1"># If requiredForCompletion is true for an analysis reference, the Experiment will not complete</span>
+<span class="w">    </span><span class="c1"># until this analysis has completed.</span>
+<span class="w">    </span><span class="nt">requiredForCompletion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">host</span>
+<span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span>
 </code></pre></div>
 <h2 id="experiment-lifecycle">Experiment Lifecycle<a class="headerlink" href="#experiment-lifecycle" title="Permanent link">&para;</a></h2>
 <p>An Experiment is intended to temporarily run one or more templates. The lifecycle of an Experiment
@@ -2413,32 +2413,32 @@ step of the Rollout. If the Experiment fails or errors, the Rollout will abort.<
 <p>Experiment names are generated by combining the Rollout's name, the PodHash of
 the new ReplicaSet, the current revision of the Rollout, and the current step-index.</p>
 </div>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span><span class="w"></span>
-<span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="nn">...</span><span class="w"></span>
-<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="w">  </span><span class="nt">labels</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"> </span>
-<span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">experiment</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span><span class="w"></span>
-<span class="w">          </span><span class="nt">templates</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">baseline</span><span class="w"></span>
-<span class="w">            </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span><span class="w"></span>
-<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span><span class="w"></span>
-<span class="w">            </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span><span class="w"></span>
-<span class="w">          </span><span class="nt">analyses</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mann-whitney</span><span class="w"></span>
-<span class="w">            </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mann-whitney</span><span class="w"></span>
-<span class="w">            </span><span class="nt">args</span><span class="p">:</span><span class="w"></span>
-<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">baseline-hash</span><span class="w"></span>
-<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{templates.baseline.podTemplateHash}}&quot;</span><span class="w"></span>
-<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-hash</span><span class="w"></span>
-<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{templates.canary.podTemplateHash}}&quot;</span><span class="w"></span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">experiment</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span>
+<span class="w">          </span><span class="nt">templates</span><span class="p">:</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">baseline</span>
+<span class="w">            </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span>
+<span class="w">            </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span>
+<span class="w">          </span><span class="nt">analyses</span><span class="p">:</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
+<span class="w">            </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mann-whitney</span>
+<span class="w">            </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">baseline-hash</span>
+<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{templates.baseline.podTemplateHash}}&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-hash</span>
+<span class="w">              </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{templates.canary.podTemplateHash}}&quot;</span>
 </code></pre></div>
 <p>In the example above, during an update of a Rollout, the Rollout will launch an Experiment. The
 Experiment will create two ReplicaSets: <code>baseline</code> and <code>canary</code>, with one replica each, and will run
@@ -2469,30 +2469,30 @@ traffic to be shifted to experiment pods.</p>
 <p class="admonition-title">Note</p>
 <p>This feature is currently available only for the SMI, ALB, and Istio Traffic Routers.</p>
 </div>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span><span class="w"></span>
-<span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="nn">...</span><span class="w"></span>
-<span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">alb</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">ingress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
-<span class="w">    </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">experiment</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span><span class="w"></span>
-<span class="w">          </span><span class="nt">templates</span><span class="p">:</span><span class="w"></span>
-<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experiment-baseline</span><span class="w"></span>
-<span class="w">              </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span><span class="w"></span>
-<span class="w">              </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
-<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experiment-canary</span><span class="w"></span>
-<span class="w">              </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span><span class="w"></span>
-<span class="w">              </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="w">  </span><span class="nt">labels</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
+<span class="nt">strategy</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">alb</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">ingress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress</span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">experiment</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span>
+<span class="w">          </span><span class="nt">templates</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experiment-baseline</span>
+<span class="w">              </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span>
+<span class="w">              </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experiment-canary</span>
+<span class="w">              </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span>
+<span class="w">              </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
 </code></pre></div>
 <p>In the above example, during an update, the first step would start
 a baseline vs. canary experiment. When pods are ready (Experiment enters
@@ -2525,42 +2525,6 @@ or <code>{{templates.canary.replicaset.name}}</code> variables respectively.</p>
       
         <footer class="md-footer">
   
-    
-    <nav class="md-footer__inner md-grid" aria-label="Footer" >
-      
-        
-        <a href="../../analysis/influxdb/" class="md-footer__link md-footer__link--prev" aria-label="Previous: InfluxDB" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              InfluxDB
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../notifications/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              Overview
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
-  
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
       <div class="md-copyright">
@@ -2582,14 +2546,13 @@ or <code>{{templates.canary.replicaset.name}}</code> variables respectively.</p>
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
-    
     
   </body>
 </html>

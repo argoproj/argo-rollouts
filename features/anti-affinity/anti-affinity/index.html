@@ -10,8 +10,14 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/features/anti-affinity/anti-affinity/">
       
+      
+        <link rel="prev" href="../../rollback/">
+      
+      
+        <link rel="next" href="../../helm/">
+      
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +25,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +129,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +136,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2206,10 +2207,9 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/features/anti-affinity/anti-affinity.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="anti-affinity">Anti Affinity<a class="headerlink" href="#anti-affinity" title="Permanent link">&para;</a></h1>
@@ -2240,18 +2240,18 @@ This feature will not modify any of the ReplicaSet's pre-existing affinity rules
 <p>Users have a choice between these scheduling rules: <code>RequiredDuringSchedulingIgnoredDuringExecution</code> and <code>PreferredDuringSchedulingIgnoredDuringExecution</code>.</p>
 <p><code>RequiredDuringSchedulingIgnoredDuringExecution</code> requires a new version's pods to be on a separate node than the previous versions. If this
 is not possible, the the new version's pods will not be scheduled.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">bluegreen</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">antiAffinity</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">bluegreen</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">antiAffinity</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
 </code></pre></div>
 <p>Unlike the Required strategy, <code>PreferredDuringSchedulingIgnoredDuringExecution</code> does not force a new version's pods to be on a separate node than the previous versions.
 The scheduler attempts to place the new version's pods on separate node(s). If that's not possible, the new version's pods will still be scheduled. The <code>Weight</code> is used to create a priority order for preferred anti-affinity rules. </p>
-<div class="highlight"><pre><span></span><code><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">antiAffinity</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">preferredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span><span class="w"></span>
-<span class="w">            </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"> </span><span class="c1"># Between 1 - 100</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">antiAffinity</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">preferredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"> </span><span class="c1"># Between 1 - 100</span>
 </code></pre></div>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
@@ -2276,42 +2276,6 @@ since new nodes are more likely to be created to honor anti-affinity rules.</p>
       
         <footer class="md-footer">
   
-    
-    <nav class="md-footer__inner md-grid" aria-label="Footer" >
-      
-        
-        <a href="../../rollback/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Rollback Window" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              Rollback Window
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../../helm/" class="md-footer__link md-footer__link--next" aria-label="Next: Helm" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              Helm
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
-  
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
       <div class="md-copyright">
@@ -2333,14 +2297,13 @@ since new nodes are more likely to be created to honor anti-affinity rules.</p>
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../../../assets/versions.js"></script>
       
-    
     
   </body>
 </html>

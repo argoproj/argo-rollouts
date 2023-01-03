@@ -10,8 +10,10 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/getting-started/appmesh/">
       
+      
+      
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +21,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +125,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +132,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2170,10 +2167,9 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/getting-started/appmesh/index.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="getting-started-app-mesh">Getting Started - App Mesh<a class="headerlink" href="#getting-started-app-mesh" title="Permanent link">&para;</a></h1>
@@ -2188,41 +2184,41 @@
 </div>
 <h2 id="1-deploy-the-rollout-services-app-mesh-crd">1. Deploy the Rollout, Services, App Mesh CRD<a class="headerlink" href="#1-deploy-the-rollout-services-app-mesh-crd" title="Permanent link">&para;</a></h2>
 <p>When App Mesh is used as the traffic router, the Rollout canary strategy must define the following mandatory fields:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-rollout</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># canaryService and stableService are references to Services which the Rollout will modify</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># to target the canary ReplicaSet and stable ReplicaSet respectively (required).</span><span class="w"></span>
-<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-svc-canary</span><span class="w"></span>
-<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-svc-stable</span><span class="w"></span>
-<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">appMesh</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="c1"># The referenced virtual-service will be used to determine the virtual-router that is</span><span class="w"></span>
-<span class="w">          </span><span class="c1"># manipulated to update canary weights.</span><span class="w"></span>
-<span class="w">          </span><span class="nt">virtualService</span><span class="p">:</span><span class="w"></span>
-<span class="w">            </span><span class="c1"># name of the virtual-service App Mesh CR</span><span class="w"></span>
-<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-svc</span><span class="w"></span>
-<span class="w">            </span><span class="c1"># Optional set of routes to update. If empty, all routes associated with the virtual-service are updated.</span><span class="w"></span>
-<span class="w">            </span><span class="nt">routes</span><span class="p">:</span><span class="w"></span>
-<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http-primary</span><span class="w"></span>
-<span class="w">          </span><span class="c1"># virtualNodeGroup is a structure to refer App Mesh virtual-node CR corresponding to Canary and Stable versions</span><span class="w"></span>
-<span class="w">          </span><span class="nt">virtualNodeGroup</span><span class="p">:</span><span class="w"></span>
-<span class="w">            </span><span class="c1"># canaryVirtualNodeRef refers to virtual-node corresponding to canary version. Rollouts controller will</span><span class="w"></span>
-<span class="w">            </span><span class="c1"># update the podSelector of this virtual-node to latest canary pod-hash generated by controller.</span><span class="w"></span>
-<span class="w">            </span><span class="nt">canaryVirtualNodeRef</span><span class="p">:</span><span class="w"></span>
-<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-vn-canary</span><span class="w"></span>
-<span class="w">            </span><span class="c1"># stableVirtualNodeRef refers to virtual-node corresponding to stable version. Rollouts controller will</span><span class="w"></span>
-<span class="w">            </span><span class="c1"># update the podSelector of this virtual-node to latest stable pod-hash generated by controller.</span><span class="w"></span>
-<span class="w">            </span><span class="nt">stableVirtualNodeRef</span><span class="p">:</span><span class="w"></span>
-<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-vn-stable</span><span class="w"></span>
-<span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
-<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-rollout</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># canaryService and stableService are references to Services which the Rollout will modify</span>
+<span class="w">      </span><span class="c1"># to target the canary ReplicaSet and stable ReplicaSet respectively (required).</span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-svc-canary</span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-svc-stable</span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">appMesh</span><span class="p">:</span>
+<span class="w">          </span><span class="c1"># The referenced virtual-service will be used to determine the virtual-router that is</span>
+<span class="w">          </span><span class="c1"># manipulated to update canary weights.</span>
+<span class="w">          </span><span class="nt">virtualService</span><span class="p">:</span>
+<span class="w">            </span><span class="c1"># name of the virtual-service App Mesh CR</span>
+<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-svc</span>
+<span class="w">            </span><span class="c1"># Optional set of routes to update. If empty, all routes associated with the virtual-service are updated.</span>
+<span class="w">            </span><span class="nt">routes</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http-primary</span>
+<span class="w">          </span><span class="c1"># virtualNodeGroup is a structure to refer App Mesh virtual-node CR corresponding to Canary and Stable versions</span>
+<span class="w">          </span><span class="nt">virtualNodeGroup</span><span class="p">:</span>
+<span class="w">            </span><span class="c1"># canaryVirtualNodeRef refers to virtual-node corresponding to canary version. Rollouts controller will</span>
+<span class="w">            </span><span class="c1"># update the podSelector of this virtual-node to latest canary pod-hash generated by controller.</span>
+<span class="w">            </span><span class="nt">canaryVirtualNodeRef</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-vn-canary</span>
+<span class="w">            </span><span class="c1"># stableVirtualNodeRef refers to virtual-node corresponding to stable version. Rollouts controller will</span>
+<span class="w">            </span><span class="c1"># update the podSelector of this virtual-node to latest stable pod-hash generated by controller.</span>
+<span class="w">            </span><span class="nt">stableVirtualNodeRef</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-vn-stable</span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">...</span>
 </code></pre></div>
 <p>In this guide, the two services are: <code>my-svc-canary</code> and <code>my-svc-stable</code> respectively. There are two
 virtual-node CRs corresponding to these services named <code>my-vn-canary</code> and <code>my-vn-stable</code>
@@ -2240,41 +2236,41 @@ During rollout, controller will modify the weights on route(s) based on the conf
 <li>One App Mesh virtual-service corresponding to VIP service</li>
 <li>A rollout</li>
 </ul>
-<div class="highlight"><pre><span></span><code>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/appmesh/canary-service.yaml
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/appmesh/canary-rollout.yaml
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/appmesh/canary-service.yaml
+kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/appmesh/canary-rollout.yaml
 </code></pre></div>
 <h2 id="2-verify-service">2. Verify service<a class="headerlink" href="#2-verify-service" title="Permanent link">&para;</a></h2>
 <p>First make sure that rollout is stable.</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts get rollout my-rollout -n argo-examples -w
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>get<span class="w"> </span>rollout<span class="w"> </span>my-rollout<span class="w"> </span>-n<span class="w"> </span>argo-examples<span class="w"> </span>-w
 </code></pre></div>
 <p>Then make sure the service is functional.</p>
-<div class="highlight"><pre><span></span><code>kubectl -n argo-examples port-forward svc/my-svc <span class="m">8181</span>:80
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>-n<span class="w"> </span>argo-examples<span class="w"> </span>port-forward<span class="w"> </span>svc/my-svc<span class="w"> </span><span class="m">8181</span>:80
 </code></pre></div>
 <h2 id="3-rollout-new-version">3. Rollout new version<a class="headerlink" href="#3-rollout-new-version" title="Permanent link">&para;</a></h2>
 <p>Now its time to deploy new version. Update the rollout with new image.</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts <span class="nb">set</span> image my-rollout <span class="nv">demo</span><span class="o">=</span>argoproj/rollouts-demo:green -n argo-examples
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span><span class="nb">set</span><span class="w"> </span>image<span class="w"> </span>my-rollout<span class="w"> </span><span class="nv">demo</span><span class="o">=</span>argoproj/rollouts-demo:green<span class="w"> </span>-n<span class="w"> </span>argo-examples
 </code></pre></div>
 <p>Rollout should deploy a new canary revision and update the weights under virtual-router.</p>
-<div class="highlight"><pre><span></span><code>kubectl get -n argo-examples virtualrouter my-vrouter -o json <span class="p">|</span> jq <span class="s2">&quot;.spec.routes[0].httpRoute.action.weightedTargets&quot;</span>
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>-n<span class="w"> </span>argo-examples<span class="w"> </span>virtualrouter<span class="w"> </span>my-vrouter<span class="w"> </span>-o<span class="w"> </span>json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s2">&quot;.spec.routes[0].httpRoute.action.weightedTargets&quot;</span>
 <span class="o">[</span>
-  <span class="o">{</span>
-    <span class="s2">&quot;virtualNodeRef&quot;</span>: <span class="o">{</span>
-      <span class="s2">&quot;name&quot;</span>: <span class="s2">&quot;my-vn-canary&quot;</span>
-    <span class="o">}</span>,
-    <span class="s2">&quot;weight&quot;</span>: <span class="m">25</span>
-  <span class="o">}</span>,
-  <span class="o">{</span>
-    <span class="s2">&quot;virtualNodeRef&quot;</span>: <span class="o">{</span>
-      <span class="s2">&quot;name&quot;</span>: <span class="s2">&quot;my-vn-stable&quot;</span>
-    <span class="o">}</span>,
-    <span class="s2">&quot;weight&quot;</span>: <span class="m">75</span>
-  <span class="o">}</span>
+<span class="w">  </span><span class="o">{</span>
+<span class="w">    </span><span class="s2">&quot;virtualNodeRef&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">      </span><span class="s2">&quot;name&quot;</span>:<span class="w"> </span><span class="s2">&quot;my-vn-canary&quot;</span>
+<span class="w">    </span><span class="o">}</span>,
+<span class="w">    </span><span class="s2">&quot;weight&quot;</span>:<span class="w"> </span><span class="m">25</span>
+<span class="w">  </span><span class="o">}</span>,
+<span class="w">  </span><span class="o">{</span>
+<span class="w">    </span><span class="s2">&quot;virtualNodeRef&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">      </span><span class="s2">&quot;name&quot;</span>:<span class="w"> </span><span class="s2">&quot;my-vn-stable&quot;</span>
+<span class="w">    </span><span class="o">}</span>,
+<span class="w">    </span><span class="s2">&quot;weight&quot;</span>:<span class="w"> </span><span class="m">75</span>
+<span class="w">  </span><span class="o">}</span>
 <span class="o">]</span>
 </code></pre></div>
 <p>Now manually approve the rollout that is paused indefinitely, and continue watching the routes get updated</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts promote my-rollout -n argo-examples
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>promote<span class="w"> </span>my-rollout<span class="w"> </span>-n<span class="w"> </span>argo-examples
 
-watch -d <span class="s1">&#39;kubectl get -n argo-examples virtualrouter my-vrouter -o json | jq &quot;.spec.routes[0].httpRoute.action.weightedTargets&quot;&#39;</span>
+watch<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;kubectl get -n argo-examples virtualrouter my-vrouter -o json | jq &quot;.spec.routes[0].httpRoute.action.weightedTargets&quot;&#39;</span>
 </code></pre></div>
 
 
@@ -2315,14 +2311,13 @@ watch -d <span class="s1">&#39;kubectl get -n argo-examples virtualrouter my-vro
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
-    
     
   </body>
 </html>

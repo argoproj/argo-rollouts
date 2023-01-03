@@ -10,8 +10,14 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/CONTRIBUTING/">
       
+      
+        <link rel="prev" href="../roadmap/">
+      
+      
+        <link rel="next" href="../getting-started/setup/">
+      
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +25,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +129,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +136,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2344,10 +2345,9 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/CONTRIBUTING.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="contributing">Contributing<a class="headerlink" href="#contributing" title="Permanent link">&para;</a></h1>
@@ -2372,21 +2372,21 @@ locally if you wish to make code contributions to Argo Rollouts.</p>
 </ul>
 <p>Run the following commands to install them:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># macOS</span>
-brew install golangci-lint
+brew<span class="w"> </span>install<span class="w"> </span>golangci-lint
 
 <span class="c1"># linux</span>
-go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+go<span class="w"> </span>get<span class="w"> </span>-u<span class="w"> </span>github.com/golangci/golangci-lint/cmd/golangci-lint
 </code></pre></div>
 <p>Brew users can quickly install the lot:</p>
-<div class="highlight"><pre><span></span><code>brew install go kubectl kustomize golangci-lint protobuf swagger-codegen
+<div class="highlight"><pre><span></span><code>brew<span class="w"> </span>install<span class="w"> </span>go<span class="w"> </span>kubectl<span class="w"> </span>kustomize<span class="w"> </span>golangci-lint<span class="w"> </span>protobuf<span class="w"> </span>swagger-codegen
 </code></pre></div>
 <p>Set up environment variables (e.g. is <code>~/.bashrc</code>):</p>
-<div class="highlight"><pre><span></span><code><span class="nb">export</span> <span class="nv">GOPATH</span><span class="o">=</span>~/go
-<span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:<span class="nv">$GOPATH</span>/bin
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">GOPATH</span><span class="o">=</span>~/go
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:<span class="nv">$GOPATH</span>/bin
 </code></pre></div>
 <p>Checkout the code:</p>
-<div class="highlight"><pre><span></span><code>go get -u github.com/argoproj/argo-rollouts
-<span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>get<span class="w"> </span>-u<span class="w"> </span>github.com/argoproj/argo-rollouts
+<span class="nb">cd</span><span class="w"> </span>~/go/src/github.com/argoproj/argo-rollouts
 </code></pre></div>
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
 <p><code>go.mod</code> is used, so the <code>go build/test</code> commands automatically install the needed dependencies</p>
@@ -2401,12 +2401,12 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 </ul>
 <h2 id="running-controller-locally">Running Controller Locally<a class="headerlink" href="#running-controller-locally" title="Permanent link">&para;</a></h2>
 <p>It is much easier to run and debug if you run Argo Rollout in your local machine than in the Kubernetes cluster.</p>
-<div class="highlight"><pre><span></span><code><span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-rollouts
-go run ./cmd/rollouts-controller/main.go
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>~/go/src/github.com/argoproj/argo-rollouts
+go<span class="w"> </span>run<span class="w"> </span>./cmd/rollouts-controller/main.go
 </code></pre></div>
 <h2 id="running-unit-tests">Running Unit Tests<a class="headerlink" href="#running-unit-tests" title="Permanent link">&para;</a></h2>
 <p>To run unit tests:</p>
-<div class="highlight"><pre><span></span><code>make <span class="nb">test</span>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span><span class="nb">test</span>
 </code></pre></div>
 <h2 id="running-e2e-tests">Running E2E tests<a class="headerlink" href="#running-e2e-tests" title="Permanent link">&para;</a></h2>
 <p>The end-to-end tests need to run against a kubernetes cluster with the Argo Rollouts controller
@@ -2432,14 +2432,14 @@ that handle a specific aspect of Progressive Delivery.</p>
 <ol>
 <li>You can run the tests using a different kubeconfig by setting the <code>KUBECONFIG</code> environment variable:</li>
 </ol>
-<div class="highlight"><pre><span></span><code><span class="nv">KUBECONFIG</span><span class="o">=</span>~/.kube/minikube make start-e2e
-<span class="nv">KUBECONFIG</span><span class="o">=</span>~/.kube/minikube make test-e2e
+<div class="highlight"><pre><span></span><code><span class="nv">KUBECONFIG</span><span class="o">=</span>~/.kube/minikube<span class="w"> </span>make<span class="w"> </span>start-e2e
+<span class="nv">KUBECONFIG</span><span class="o">=</span>~/.kube/minikube<span class="w"> </span>make<span class="w"> </span>test-e2e
 </code></pre></div>
 <ol>
 <li>To run a specific e2e test, set the <code>E2E_TEST_OPTIONS</code> environment variable to specify the test
 (or test regex):</li>
 </ol>
-<div class="highlight"><pre><span></span><code>make test-e2e <span class="nv">E2E_TEST_OPTIONS</span><span class="o">=</span><span class="s2">&quot;-testify.m ^TestRolloutRestart</span>$<span class="s2">&quot;</span>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>test-e2e<span class="w"> </span><span class="nv">E2E_TEST_OPTIONS</span><span class="o">=</span><span class="s2">&quot;-testify.m ^TestRolloutRestart</span>$<span class="s2">&quot;</span>
 </code></pre></div>
 <ol>
 <li>The e2e tests are designed to run as quickly as possible, eliminating readiness and termination
@@ -2448,14 +2448,14 @@ as well as to understand what the test is doing. To delay startup and terminatio
 <code>E2E_POD_DELAY</code> to an integer value in seconds. This environment variable is often coupled with
 <code>E2E_TEST_OPTIONS</code> to debug and slow down a specific test.</li>
 </ol>
-<div class="highlight"><pre><span></span><code>make test-e2e <span class="nv">E2E_POD_DELAY</span><span class="o">=</span><span class="m">10</span>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>test-e2e<span class="w"> </span><span class="nv">E2E_POD_DELAY</span><span class="o">=</span><span class="m">10</span>
 </code></pre></div>
 <ol>
 <li>Increasing the timeout. The E2E tests time out waiting on conditions to be met within 60 seconds.
 If debugging the rollout controller, it may be useful to increase this timeout while say sitting
 at a debugger breakpoint:</li>
 </ol>
-<div class="highlight"><pre><span></span><code>make test-e2e <span class="nv">E2E_WAIT_TIMEOUT</span><span class="o">=</span><span class="m">999999</span>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>test-e2e<span class="w"> </span><span class="nv">E2E_WAIT_TIMEOUT</span><span class="o">=</span><span class="m">999999</span>
 </code></pre></div>
 <ol>
 <li>The e2e tests leverage a feature of the controller allowing the controller to be sharded with
@@ -2464,28 +2464,28 @@ specified label, and prevents any other controllers (including the system rollou
 from also operating on the same set of rollouts. This value can be changed (from the default of
 <code>argo-rollouts-e2e</code>), using the <code>E2E_INSTANCE_ID</code> environment variable:</li>
 </ol>
-<div class="highlight"><pre><span></span><code>make start-e2e <span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span>foo
-make test-e2e <span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span>foo
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>start-e2e<span class="w"> </span><span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span>foo
+make<span class="w"> </span>test-e2e<span class="w"> </span><span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span>foo
 </code></pre></div>
 <p>Alternatively, the e2e tests can be run against the system controller (i.e. without an instance id):</p>
-<div class="highlight"><pre><span></span><code>make start-e2e <span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>start-e2e<span class="w"> </span><span class="nv">E2E_INSTANCE_ID</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
 </code></pre></div>
 <h2 id="running-local-containers">Running Local Containers<a class="headerlink" href="#running-local-containers" title="Permanent link">&para;</a></h2>
 <p>You may need to run containers locally, so here's how:</p>
 <p>Create login to Docker Hub, then login.</p>
-<div class="highlight"><pre><span></span><code>docker login
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>login
 </code></pre></div>
 <p>Add your username as the environment variable, e.g. to your <code>~/.bash_profile</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="nb">export</span> <span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">IMAGE_NAMESPACE</span><span class="o">=</span>argoproj
 </code></pre></div>
 <p>Build the images:</p>
-<div class="highlight"><pre><span></span><code><span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span> make image
+<div class="highlight"><pre><span></span><code><span class="nv">DOCKER_PUSH</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>make<span class="w"> </span>image
 </code></pre></div>
 <p>Update the manifests:</p>
-<div class="highlight"><pre><span></span><code>make manifests
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>manifests
 </code></pre></div>
 <p>Install the manifests:</p>
-<div class="highlight"><pre><span></span><code>kubectl -n argo-rollouts apply -f manifests/install.yaml
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>-n<span class="w"> </span>argo-rollouts<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>manifests/install.yaml
 </code></pre></div>
 <h2 id="upgrading-kubernetes-libraries">Upgrading Kubernetes Libraries<a class="headerlink" href="#upgrading-kubernetes-libraries" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts has a dependency on the kubernetes/kubernetes repo for some of the functionality that has not been
@@ -2495,10 +2495,10 @@ associated repos have to pinned to the correct version specified by the kubernet
 <h2 id="documentation-changes">Documentation Changes<a class="headerlink" href="#documentation-changes" title="Permanent link">&para;</a></h2>
 <p>Modify contents in <code>docs/</code> directory.</p>
 <p>Preview changes in your browser by visiting http://localhost:8000 after running:</p>
-<div class="highlight"><pre><span></span><code>make serve-docs
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>serve-docs
 </code></pre></div>
 <p>To publish changes, run:</p>
-<div class="highlight"><pre><span></span><code>make release-docs
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>release-docs
 </code></pre></div>
 
 
@@ -2517,42 +2517,6 @@ associated repos have to pinned to the correct version specified by the kubernet
       </main>
       
         <footer class="md-footer">
-  
-    
-    <nav class="md-footer__inner md-grid" aria-label="Footer" >
-      
-        
-        <a href="../roadmap/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Roadmap/Release Schedule" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              Roadmap/Release Schedule
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../getting-started/setup/" class="md-footer__link md-footer__link--next" aria-label="Next: Environment Setup" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              Environment Setup
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -2575,14 +2539,13 @@ associated repos have to pinned to the correct version specified by the kubernet
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../assets/versions.js"></script>
       
-    
     
   </body>
 </html>

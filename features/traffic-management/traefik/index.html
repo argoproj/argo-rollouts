@@ -10,8 +10,14 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/features/traffic-management/traefik/">
       
+      
+        <link rel="prev" href="../smi/">
+      
+      
+        <link rel="next" href="../../analysis/">
+      
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +25,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +129,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +136,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2206,10 +2207,9 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/features/traffic-management/traefik.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="traefik">Traefik<a class="headerlink" href="#traefik" title="Permanent link">&para;</a></h1>
@@ -2217,85 +2217,85 @@
 <p>The <a href="https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#kind-traefikservice">TraefikService</a> is the object that supports the ability for <a href="https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#weighted-round-robin">weighted round robin load balancing</a> and <a href="https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/#mirroring">traffic mirroring</a> when using Traefik as ingress.</p>
 <h2 id="how-to-integrate-traefikservice-with-argo-rollouts-using-it-as-weighted-round-robin-load-balancer">How to integrate TraefikService with Argo Rollouts using it as weighted round robin load balancer<a class="headerlink" href="#how-to-integrate-traefikservice-with-argo-rollouts-using-it-as-weighted-round-robin-load-balancer" title="Permanent link">&para;</a></h2>
 <p>First, we need to create the TraefikService object using its ability for weighted round robin load balancing.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik.containo.us/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TraefikService</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-service</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">weighted</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">services</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-rollout</span><span class="w"> </span><span class="c1"># k8s service name that you need to create for stable application version</span><span class="w"></span>
-<span class="w">        </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-rollout</span><span class="w"> </span><span class="c1"># k8s service name that you need to create for new application version</span><span class="w"></span>
-<span class="w">        </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik.containo.us/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TraefikService</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-service</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">weighted</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">services</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-rollout</span><span class="w"> </span><span class="c1"># k8s service name that you need to create for stable application version</span>
+<span class="w">        </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-rollout</span><span class="w"> </span><span class="c1"># k8s service name that you need to create for new application version</span>
+<span class="w">        </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
 </code></pre></div>
 <p>Notice, we don't specify the <code>weight</code> field. It is necessary to be synced with ArgoCD. If we specify this field and Argo Rollouts controller changes it, then the ArgoCD controller will notice it and will show that this resource is out of sync (if you are using Argo CD to manage your Rollout).</p>
 <p>Secondly, we need to create the Argo Rollouts object.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
-<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-rollout</span><span class="w"></span>
-<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-rollout</span><span class="w"></span>
-<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">traefik</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">weightedTraefikServiceName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-service</span><span class="w"> </span><span class="c1"># specify traefikService resource name that we have created before</span><span class="w"></span>
-<span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-rollout</span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-rollout</span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">traefik</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">weightedTraefikServiceName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-service</span><span class="w"> </span><span class="c1"># specify traefikService resource name that we have created before</span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span>
 </code></pre></div>
 <h2 id="how-to-integrate-traefikservice-with-argo-rollouts-using-it-as-traffic-mirror">How to integrate TraefikService with Argo Rollouts using it as traffic mirror<a class="headerlink" href="#how-to-integrate-traefikservice-with-argo-rollouts-using-it-as-traffic-mirror" title="Permanent link">&para;</a></h2>
 <p>First, we also need to create the TraefikService object but using its ability for traffic mirroring.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik.containo.us/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TraefikService</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-service</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">mirroring</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">some-service</span><span class="w"></span>
-<span class="w">    </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
-<span class="w">    </span><span class="nt">mirrors</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-rollout</span><span class="w"> </span><span class="c1"># k8s service name that you need to create for stable application version</span><span class="w"></span>
-<span class="w">        </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-rollout</span><span class="w"> </span><span class="c1"># k8s service name that you need to create for new application version</span><span class="w"></span>
-<span class="w">        </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik.containo.us/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TraefikService</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-service</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">mirroring</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">some-service</span>
+<span class="w">    </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+<span class="w">    </span><span class="nt">mirrors</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-rollout</span><span class="w"> </span><span class="c1"># k8s service name that you need to create for stable application version</span>
+<span class="w">        </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-rollout</span><span class="w"> </span><span class="c1"># k8s service name that you need to create for new application version</span>
+<span class="w">        </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
 </code></pre></div>
 <p>Notice, we don't specify the <code>percent</code> field. It is necessary to be synced with ArgoCD. If we specify this field and Argo Rollouts controller changes it, then the ArgoCD controller will notice it and will show that this resource is out of sync (if you are using Argo CD to manage your Rollout).</p>
 <p>Secondly, we need to create the Argo Rollouts object.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
-<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-rollout</span><span class="w"></span>
-<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-rollout</span><span class="w"></span>
-<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">traefik</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">mirrorTraefikServiceName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-service</span><span class="w"> </span><span class="c1"># specify traefikService resource name that we have created before</span><span class="w"></span>
-<span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-rollout</span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-rollout</span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">traefik</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">mirrorTraefikServiceName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">traefik-service</span><span class="w"> </span><span class="c1"># specify traefikService resource name that we have created before</span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span>
 </code></pre></div>
 
 
@@ -2314,42 +2314,6 @@
       </main>
       
         <footer class="md-footer">
-  
-    
-    <nav class="md-footer__inner md-grid" aria-label="Footer" >
-      
-        
-        <a href="../smi/" class="md-footer__link md-footer__link--prev" aria-label="Previous: SMI" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              SMI
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../../analysis/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              Overview
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -2372,14 +2336,13 @@
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../../../assets/versions.js"></script>
       
-    
     
   </body>
 </html>

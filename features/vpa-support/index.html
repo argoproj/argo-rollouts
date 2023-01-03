@@ -10,8 +10,14 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/features/vpa-support/">
       
+      
+        <link rel="prev" href="../hpa-support/">
+      
+      
+        <link rel="next" href="../ephemeral-metadata/">
+      
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +25,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +129,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +136,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2220,10 +2221,9 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/features/vpa-support.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="vertical-pod-autoscaling">Vertical Pod Autoscaling<a class="headerlink" href="#vertical-pod-autoscaling" title="Permanent link">&para;</a></h1>
@@ -2249,45 +2249,45 @@ NOTE: This feature of VPA is experimental and may cause downtime for your applic
 <h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
 <p>Below is an example of a Vertical Pod Autoscaler with Argo-Rollouts.</p>
 <p>Rollout sample app:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
-<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w"></span>
-<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">steps</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span><span class="w"></span>
-<span class="w">  </span><span class="nt">revisionHistoryLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w"></span>
-<span class="w">  </span><span class="nt">selector</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
-<span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">labels</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
-<span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
-<span class="w">        </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ravihari/nginx:v1</span><span class="w"></span>
-<span class="w">        </span><span class="nt">ports</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w"></span>
-<span class="w">        </span><span class="nt">resources</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">requests</span><span class="p">:</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">10</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">revisionHistoryLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<span class="w">  </span><span class="nt">selector</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span>
+<span class="w">  </span><span class="nt">template</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">metadata</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">labels</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span>
+<span class="w">    </span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">containers</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span>
+<span class="w">        </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ravihari/nginx:v1</span>
+<span class="w">        </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+<span class="w">        </span><span class="nt">resources</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">requests</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5m&quot;</span><span class="w">       </span>
 <span class="w">            </span><span class="nt">memory</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5Mi&quot;</span><span class="w"> </span>
 </code></pre></div>
 <p>VPA configuration for Rollout sample app:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;autoscaling.k8s.io/v1beta2&quot;</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;autoscaling.k8s.io/v1beta2&quot;</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">VerticalPodAutoscaler</span><span class="w">  </span>
 <span class="nt">metadata</span><span class="p">:</span><span class="w">  </span>
 <span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-rollout-example</span><span class="w">  </span>
@@ -2311,250 +2311,250 @@ NOTE: This feature of VPA is experimental and may cause downtime for your applic
 <span class="w">    </span><span class="nt">controlledResources</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;cpu&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;memory&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span>
 </code></pre></div>
 <p>Describe VPA when initially deployed we donot see recommendations as it will take few mins.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">kubengix-vpa</span><span class="w"></span>
-<span class="nt">Namespace</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span><span class="w"></span>
-<span class="nt">Labels</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
-<span class="nt">Annotations</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
-<span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1</span><span class="w"></span>
-<span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">VerticalPodAutoscaler</span><span class="w"></span>
-<span class="nt">Metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Creation Timestamp</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Generation</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Managed Fields</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1beta2</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Fields Type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">FieldsV1</span><span class="w"></span>
-<span class="w">    </span><span class="nt">fieldsV1</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">f:metadata</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:annotations</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:kubectl.kubernetes.io/last-applied-configuration</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">f:spec</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:resourcePolicy</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:containerPolicies</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:targetRef</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:apiVersion</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:kind</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:name</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:updatePolicy</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:updateMode</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Manager</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">kubectl-client-side-apply</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Operation</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">Update</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Time</span><span class="p">:</span><span class="w">            </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Resource Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">3886</span><span class="w"></span>
-<span class="w">  </span><span class="nt">UID</span><span class="p">:</span><span class="w">               </span><span class="l l-Scalar l-Scalar-Plain">4ac64e4c-c84b-478e-92e4-5f072f985971</span><span class="w"></span>
-<span class="nt">Spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Resource Policy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Container Policies</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Container Name</span><span class="p">:</span><span class="w">  </span><span class="err">*</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Controlled Resources</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">cpu</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">memory</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Max Allowed</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Min Allowed</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">5m</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">5Mi</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Target Ref</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Update Policy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Update Mode</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Auto</span><span class="w"></span>
-<span class="nt">Events</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">kubengix-vpa</span>
+<span class="nt">Namespace</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span>
+<span class="nt">Labels</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span>
+<span class="nt">Annotations</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span>
+<span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1</span>
+<span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">VerticalPodAutoscaler</span>
+<span class="nt">Metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Creation Timestamp</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span>
+<span class="w">  </span><span class="nt">Generation</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">Managed Fields</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1beta2</span>
+<span class="w">    </span><span class="nt">Fields Type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">FieldsV1</span>
+<span class="w">    </span><span class="nt">fieldsV1</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">f:metadata</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">f:annotations</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:kubectl.kubernetes.io/last-applied-configuration</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">f:spec</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">f:resourcePolicy</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:containerPolicies</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">f:targetRef</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:apiVersion</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:kind</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:name</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">f:updatePolicy</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:updateMode</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Manager</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">kubectl-client-side-apply</span>
+<span class="w">    </span><span class="nt">Operation</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">Update</span>
+<span class="w">    </span><span class="nt">Time</span><span class="p">:</span><span class="w">            </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span>
+<span class="w">  </span><span class="nt">Resource Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">3886</span>
+<span class="w">  </span><span class="nt">UID</span><span class="p">:</span><span class="w">               </span><span class="l l-Scalar l-Scalar-Plain">4ac64e4c-c84b-478e-92e4-5f072f985971</span>
+<span class="nt">Spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Resource Policy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Container Policies</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">Container Name</span><span class="p">:</span><span class="w">  </span><span class="err">*</span>
+<span class="w">      </span><span class="nt">Controlled Resources</span><span class="p">:</span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">cpu</span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">memory</span>
+<span class="w">      </span><span class="nt">Max Allowed</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span>
+<span class="w">      </span><span class="nt">Min Allowed</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">5Mi</span>
+<span class="w">  </span><span class="nt">Target Ref</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="w">    </span><span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="w">    </span><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span>
+<span class="w">  </span><span class="nt">Update Policy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Update Mode</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Auto</span>
+<span class="nt">Events</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span>
 </code></pre></div>
 <p>After few minutes when VPA starts to process and provide recommendation:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">kubengix-vpa</span><span class="w"></span>
-<span class="nt">Namespace</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span><span class="w"></span>
-<span class="nt">Labels</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
-<span class="nt">Annotations</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
-<span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1</span><span class="w"></span>
-<span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">VerticalPodAutoscaler</span><span class="w"></span>
-<span class="nt">Metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Creation Timestamp</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Generation</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Managed Fields</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1beta2</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Fields Type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">FieldsV1</span><span class="w"></span>
-<span class="w">    </span><span class="nt">fieldsV1</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">f:metadata</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:annotations</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:kubectl.kubernetes.io/last-applied-configuration</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">f:spec</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:resourcePolicy</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:containerPolicies</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:targetRef</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:apiVersion</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:kind</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:name</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:updatePolicy</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:updateMode</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Manager</span><span class="p">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">kubectl-client-side-apply</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Operation</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">Update</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Time</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span><span class="w"></span>
-<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Fields Type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">FieldsV1</span><span class="w"></span>
-<span class="w">    </span><span class="nt">fieldsV1</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">f:status</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:conditions</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">f:recommendation</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">.</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">f:containerRecommendations</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Manager</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">recommender</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Operation</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">Update</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Time</span><span class="p">:</span><span class="w">            </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:52Z</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Resource Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">3950</span><span class="w"></span>
-<span class="w">  </span><span class="nt">UID</span><span class="p">:</span><span class="w">               </span><span class="l l-Scalar l-Scalar-Plain">4ac64e4c-c84b-478e-92e4-5f072f985971</span><span class="w"></span>
-<span class="nt">Spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Resource Policy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Container Policies</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Container Name</span><span class="p">:</span><span class="w">  </span><span class="err">*</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Controlled Resources</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">cpu</span><span class="w"></span>
-<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">memory</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Max Allowed</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Min Allowed</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">5m</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">5Mi</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Target Ref</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Update Policy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Update Mode</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Auto</span><span class="w"></span>
-<span class="nt">Status</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Conditions</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Last Transition Time</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:52Z</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Status</span><span class="p">:</span><span class="w">                </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Type</span><span class="p">:</span><span class="w">                  </span><span class="l l-Scalar l-Scalar-Plain">RecommendationProvided</span><span class="w"></span>
-<span class="w">  </span><span class="nt">Recommendation</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Container Recommendations</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Container Name</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Lower Bound</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">25m</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">262144k</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Target</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">25m</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">262144k</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Uncapped Target</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">25m</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">262144k</span><span class="w"></span>
-<span class="w">      </span><span class="nt">Upper Bound</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"></span>
-<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span><span class="w"></span>
-<span class="nt">Events</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">kubengix-vpa</span>
+<span class="nt">Namespace</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span>
+<span class="nt">Labels</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span>
+<span class="nt">Annotations</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span>
+<span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1</span>
+<span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">VerticalPodAutoscaler</span>
+<span class="nt">Metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Creation Timestamp</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span>
+<span class="w">  </span><span class="nt">Generation</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">  </span><span class="nt">Managed Fields</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1beta2</span>
+<span class="w">    </span><span class="nt">Fields Type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">FieldsV1</span>
+<span class="w">    </span><span class="nt">fieldsV1</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">f:metadata</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">f:annotations</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:kubectl.kubernetes.io/last-applied-configuration</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">f:spec</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">f:resourcePolicy</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:containerPolicies</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">f:targetRef</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:apiVersion</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:kind</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:name</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">f:updatePolicy</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:updateMode</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Manager</span><span class="p">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">kubectl-client-side-apply</span>
+<span class="w">    </span><span class="nt">Operation</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">Update</span>
+<span class="w">    </span><span class="nt">Time</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:06Z</span>
+<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">autoscaling.k8s.io/v1</span>
+<span class="w">    </span><span class="nt">Fields Type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">FieldsV1</span>
+<span class="w">    </span><span class="nt">fieldsV1</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">f:status</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">f:conditions</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">f:recommendation</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">.</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">f:containerRecommendations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Manager</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">recommender</span>
+<span class="w">    </span><span class="nt">Operation</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">Update</span>
+<span class="w">    </span><span class="nt">Time</span><span class="p">:</span><span class="w">            </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:52Z</span>
+<span class="w">  </span><span class="nt">Resource Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">3950</span>
+<span class="w">  </span><span class="nt">UID</span><span class="p">:</span><span class="w">               </span><span class="l l-Scalar l-Scalar-Plain">4ac64e4c-c84b-478e-92e4-5f072f985971</span>
+<span class="nt">Spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Resource Policy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Container Policies</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">Container Name</span><span class="p">:</span><span class="w">  </span><span class="err">*</span>
+<span class="w">      </span><span class="nt">Controlled Resources</span><span class="p">:</span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">cpu</span>
+<span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">memory</span>
+<span class="w">      </span><span class="nt">Max Allowed</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span>
+<span class="w">      </span><span class="nt">Min Allowed</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">5Mi</span>
+<span class="w">  </span><span class="nt">Target Ref</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">API Version</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="w">    </span><span class="nt">Kind</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="w">    </span><span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span>
+<span class="w">  </span><span class="nt">Update Policy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Update Mode</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Auto</span>
+<span class="nt">Status</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Conditions</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Last Transition Time</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">2022-03-14T12:54:52Z</span>
+<span class="w">    </span><span class="nt">Status</span><span class="p">:</span><span class="w">                </span><span class="l l-Scalar l-Scalar-Plain">True</span>
+<span class="w">    </span><span class="nt">Type</span><span class="p">:</span><span class="w">                  </span><span class="l l-Scalar l-Scalar-Plain">RecommendationProvided</span>
+<span class="w">  </span><span class="nt">Recommendation</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Container Recommendations</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">Container Name</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span>
+<span class="w">      </span><span class="nt">Lower Bound</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">25m</span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">262144k</span>
+<span class="w">      </span><span class="nt">Target</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">25m</span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">262144k</span>
+<span class="w">      </span><span class="nt">Uncapped Target</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">25m</span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">262144k</span>
+<span class="w">      </span><span class="nt">Upper Bound</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Cpu</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">        </span><span class="nt">Memory</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">500Mi</span>
+<span class="nt">Events</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span>
 </code></pre></div>
 <p>Here we see the recommendation for cpu, memory with lowerbound, upper bound, Target etc., are provided. If we check the status of the pods.. the older pods with initial configuration would get terminated and newer pods get created.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># kubectl get po -n test-vpa -w   </span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">NAME                               READY   STATUS    RESTARTS   AGE</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-65f26   1/1     Running   0          17m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-d55cx   1/1     Running   0          17m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-fdpn2   1/1     Running   0          17m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   1/1     Running   0          17m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   1/1     Running   0          17m</span><span class="w"></span>
-<span class="nn">...</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="c1"># kubectl get po -n test-vpa -w   </span>
+<span class="l l-Scalar l-Scalar-Plain">NAME                               READY   STATUS    RESTARTS   AGE</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-65f26   1/1     Running   0          17m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-d55cx   1/1     Running   0          17m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-fdpn2   1/1     Running   0          17m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   1/1     Running   0          17m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   1/1     Running   0          17m</span>
+<span class="nn">...</span>
 
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   1/1     Terminating   0          17m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   1/1     Terminating   0          17m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   0/1     Terminating   0          18m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   0/1     Terminating   0          18m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   0/1     Pending       0          0s</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   0/1     Pending       0          0s</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   0/1     ContainerCreating   0          0s</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   0/1     Pending             0          0s</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   0/1     Pending             0          1s</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   0/1     Terminating         0          18m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   0/1     Terminating         0          18m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   0/1     ContainerCreating   0          1s</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   1/1     Running             0          6s</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   1/1     Running             0          7s</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   0/1     Terminating         0          18m</span><span class="w"></span>
-<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   0/1     Terminating         0          18m</span><span class="w"></span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   1/1     Terminating   0          17m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   1/1     Terminating   0          17m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   0/1     Terminating   0          18m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   0/1     Terminating   0          18m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   0/1     Pending       0          0s</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   0/1     Pending       0          0s</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   0/1     ContainerCreating   0          0s</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   0/1     Pending             0          0s</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   0/1     Pending             0          1s</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   0/1     Terminating         0          18m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-jg2pw   0/1     Terminating         0          18m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   0/1     ContainerCreating   0          1s</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-w7tx4   1/1     Running             0          6s</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq   1/1     Running             0          7s</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   0/1     Terminating         0          18m</span>
+<span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vlx5x   0/1     Terminating         0          18m</span>
 </code></pre></div>
 <p>If we check the new pod cpu and memory they would be updated as per VPA recommendation:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># kubectl describe po vpa-demo-rollout-f5df6d577-vdlqq -n test-vpa</span><span class="w"></span>
-<span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq</span><span class="w"></span>
-<span class="nt">Namespace</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span><span class="w"></span>
-<span class="nt">Priority</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
-<span class="nt">Node</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts-control-plane/172.18.0.2</span><span class="w"></span>
-<span class="nt">Start Time</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">Mon, 14 Mar 2022 12:55:06 +0000</span><span class="w"></span>
-<span class="nt">Labels</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">app=vpa-demo-rollout</span><span class="w"></span>
-<span class="w">              </span><span class="l l-Scalar l-Scalar-Plain">rollouts-pod-template-hash=f5df6d577</span><span class="w"></span>
-<span class="nt">Annotations</span><span class="p">:</span><span class="w">  </span><span class="nt">vpaObservedContainers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span><span class="w"></span>
-<span class="w">              </span><span class="l l-Scalar l-Scalar-Plain">vpaUpdates</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nt">Pod resources updated by kubengix-vpa</span><span class="p">:</span><span class="w"> </span><span class="nt">container 0</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cpu request, memory request</span><span class="w"></span>
-<span class="nt">Status</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">Running</span><span class="w"></span>
-<span class="nt">IP</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">10.244.0.17</span><span class="w"></span>
-<span class="nt">IPs</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">IP</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">10.244.0.17</span><span class="w"></span>
-<span class="nt">Controlled By</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">ReplicaSet/vpa-demo-rollout-f5df6d577</span><span class="w"></span>
-<span class="nt">Containers</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">vpa-demo-rollout</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Container ID</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">containerd://b79bd88851fe0622d33bc90a1560ca54ef2c27405a3bc9a4fc3a333eef5f9733</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Image</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">ravihari/nginx:v1</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Image ID</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">docker.io/ravihari/nginx@sha256:205961b09a80476af4c2379841bf6abec0022101a7e6c5585a88316f7115d17a</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Port</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">80/TCP</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Host Port</span><span class="p">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">0/TCP</span><span class="w"></span>
-<span class="w">    </span><span class="nt">State</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">Running</span><span class="w"></span>
-<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">Started</span><span class="p p-Indicator">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">Mon, 14 Mar 2022 12:55:11 +0000</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Ready</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Restart Count</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Requests</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">cpu</span><span class="p">:</span><span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">25m</span><span class="w"></span>
-<span class="w">      </span><span class="nt">memory</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">262144k</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Environment</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Mounts</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">/var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-mk4fz (ro)</span><span class="w"></span>
-<span class="nt">Conditions</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Type              Status</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="c1"># kubectl describe po vpa-demo-rollout-f5df6d577-vdlqq -n test-vpa</span>
+<span class="nt">Name</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout-f5df6d577-vdlqq</span>
+<span class="nt">Namespace</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">test-vpa</span>
+<span class="nt">Priority</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="nt">Node</span><span class="p">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts-control-plane/172.18.0.2</span>
+<span class="nt">Start Time</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">Mon, 14 Mar 2022 12:55:06 +0000</span>
+<span class="nt">Labels</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">app=vpa-demo-rollout</span>
+<span class="w">              </span><span class="l l-Scalar l-Scalar-Plain">rollouts-pod-template-hash=f5df6d577</span>
+<span class="nt">Annotations:  vpaObservedContainers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vpa-demo-rollout</span>
+<span class="w">              </span><span class="l l-Scalar l-Scalar-Plain">vpaUpdates</span><span class="nt">: Pod resources updated by kubengix-vpa: container 0</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cpu request, memory request</span>
+<span class="nt">Status</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">Running</span>
+<span class="nt">IP</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">10.244.0.17</span>
+<span class="nt">IPs</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">IP</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">10.244.0.17</span>
+<span class="nt">Controlled By</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">ReplicaSet/vpa-demo-rollout-f5df6d577</span>
+<span class="nt">Containers</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">vpa-demo-rollout</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Container ID</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">containerd://b79bd88851fe0622d33bc90a1560ca54ef2c27405a3bc9a4fc3a333eef5f9733</span>
+<span class="w">    </span><span class="nt">Image</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">ravihari/nginx:v1</span>
+<span class="w">    </span><span class="nt">Image ID</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">docker.io/ravihari/nginx@sha256:205961b09a80476af4c2379841bf6abec0022101a7e6c5585a88316f7115d17a</span>
+<span class="w">    </span><span class="nt">Port</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">80/TCP</span>
+<span class="w">    </span><span class="nt">Host Port</span><span class="p">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">0/TCP</span>
+<span class="w">    </span><span class="nt">State</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">Running</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">Started</span><span class="p p-Indicator">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">Mon, 14 Mar 2022 12:55:11 +0000</span>
+<span class="w">    </span><span class="nt">Ready</span><span class="p">:</span><span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">True</span>
+<span class="w">    </span><span class="nt">Restart Count</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">    </span><span class="nt">Requests</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">cpu</span><span class="p">:</span><span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">25m</span>
+<span class="w">      </span><span class="nt">memory</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">262144k</span>
+<span class="w">    </span><span class="nt">Environment</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span>
+<span class="w">    </span><span class="nt">Mounts</span><span class="p">:</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">/var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-mk4fz (ro)</span>
+<span class="nt">Conditions</span><span class="p">:</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Type              Status</span>
 <span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Initialized       True</span><span class="w"> </span>
 <span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Ready             True</span><span class="w"> </span>
 <span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">ContainersReady   True</span><span class="w"> </span>
 <span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">PodScheduled      True</span><span class="w"> </span>
-<span class="nt">Volumes</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">kube-api-access-mk4fz</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">Type</span><span class="p">:</span><span class="w">                    </span><span class="l l-Scalar l-Scalar-Plain">Projected (a volume that contains injected data from multiple sources)</span><span class="w"></span>
-<span class="w">    </span><span class="nt">TokenExpirationSeconds</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">3607</span><span class="w"></span>
-<span class="w">    </span><span class="nt">ConfigMapName</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">kube-root-ca.crt</span><span class="w"></span>
-<span class="w">    </span><span class="nt">ConfigMapOptional</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">&lt;nil&gt;</span><span class="w"></span>
-<span class="w">    </span><span class="nt">DownwardAPI</span><span class="p">:</span><span class="w">             </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w"></span>
-<span class="nt">QoS Class</span><span class="p">:</span><span class="w">                   </span><span class="l l-Scalar l-Scalar-Plain">Burstable</span><span class="w"></span>
-<span class="nt">Node-Selectors</span><span class="p">:</span><span class="w">              </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span><span class="w"></span>
-<span class="nt">Tolerations</span><span class="p">:</span><span class="w">                 </span><span class="l l-Scalar l-Scalar-Plain">node.kubernetes.io/not-ready:NoExecute op=Exists for 300s</span><span class="w"></span>
-<span class="w">                             </span><span class="l l-Scalar l-Scalar-Plain">node.kubernetes.io/unreachable:NoExecute op=Exists for 300s</span><span class="w"></span>
-<span class="nt">Events</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Type    Reason     Age   From               Message</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">----    ------     ----  ----               -------</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Scheduled  38s   default-scheduler  Successfully assigned test-vpa/vpa-demo-rollout-f5df6d577-vdlqq to argo-rollouts-control-plane</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Pulled     35s   kubelet            Container image &quot;ravihari/nginx:v1&quot; already present on machine</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Created    35s   kubelet            Created container vpa-demo-rollout</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Started    33s   kubelet            Started container vpa-demo-rollout</span><span class="w"></span>
+<span class="nt">Volumes</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">kube-api-access-mk4fz</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">Type</span><span class="p">:</span><span class="w">                    </span><span class="l l-Scalar l-Scalar-Plain">Projected (a volume that contains injected data from multiple sources)</span>
+<span class="w">    </span><span class="nt">TokenExpirationSeconds</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">3607</span>
+<span class="w">    </span><span class="nt">ConfigMapName</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">kube-root-ca.crt</span>
+<span class="w">    </span><span class="nt">ConfigMapOptional</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">&lt;nil&gt;</span>
+<span class="w">    </span><span class="nt">DownwardAPI</span><span class="p">:</span><span class="w">             </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">QoS Class</span><span class="p">:</span><span class="w">                   </span><span class="l l-Scalar l-Scalar-Plain">Burstable</span>
+<span class="nt">Node-Selectors</span><span class="p">:</span><span class="w">              </span><span class="l l-Scalar l-Scalar-Plain">&lt;none&gt;</span>
+<span class="nt">Tolerations</span><span class="p">:</span><span class="w">                 </span><span class="l l-Scalar l-Scalar-Plain">node.kubernetes.io/not-ready:NoExecute op=Exists for 300s</span>
+<span class="w">                             </span><span class="l l-Scalar l-Scalar-Plain">node.kubernetes.io/unreachable:NoExecute op=Exists for 300s</span>
+<span class="nt">Events</span><span class="p">:</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Type    Reason     Age   From               Message</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">----    ------     ----  ----               -------</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Scheduled  38s   default-scheduler  Successfully assigned test-vpa/vpa-demo-rollout-f5df6d577-vdlqq to argo-rollouts-control-plane</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Pulled     35s   kubelet            Container image &quot;ravihari/nginx:v1&quot; already present on machine</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Created    35s   kubelet            Created container vpa-demo-rollout</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Normal  Started    33s   kubelet            Started container vpa-demo-rollout</span>
 </code></pre></div>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <p>In order for the VPA to manipulate the rollout, the Kubernetes cluster hosting the rollout CRD needs the subresources support for CRDs.  This feature was introduced as alpha in Kubernetes version 1.10 and transitioned to beta in Kubernetes version 1.11.  If a user wants to use VPA on v1.10, the Kubernetes Cluster operator will need to add a custom feature flag to the API server.  After 1.10, the flag is turned on by default.  Check out the following <a href="https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/">link</a> for more information on setting the custom feature flag.</p>
 <p>When installing VPA you may need to add the following in RBAC configurations for <code>system:vpa-target-reader</code> cluster role as by default VPA maynot support rollouts in all the versions.</p>
-<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">apiGroups</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io</span><span class="w"></span>
-<span class="w">    </span><span class="nt">resources</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts/scale</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts/status</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">replicasets</span><span class="w"></span>
-<span class="w">    </span><span class="nt">verbs</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">get</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">list</span><span class="w"></span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">watch</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">apiGroups</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io</span>
+<span class="w">    </span><span class="nt">resources</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts/scale</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts/status</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">replicasets</span>
+<span class="w">    </span><span class="nt">verbs</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">get</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">list</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">watch</span>
 </code></pre></div>
 <p>Makes sure Metrics-Server is installed in the cluster and openssl is upto date for VPA latest version to apply recommendations to the pods properly. </p>
 
@@ -2574,42 +2574,6 @@ NOTE: This feature of VPA is experimental and may cause downtime for your applic
       </main>
       
         <footer class="md-footer">
-  
-    
-    <nav class="md-footer__inner md-grid" aria-label="Footer" >
-      
-        
-        <a href="../hpa-support/" class="md-footer__link md-footer__link--prev" aria-label="Previous: HPA" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              HPA
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../ephemeral-metadata/" class="md-footer__link md-footer__link--next" aria-label="Next: Ephemeral Metadata" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              Ephemeral Metadata
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -2632,14 +2596,13 @@ NOTE: This feature of VPA is experimental and may cause downtime for your applic
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
-    
     
   </body>
 </html>

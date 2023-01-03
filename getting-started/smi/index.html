@@ -10,8 +10,14 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/getting-started/smi/">
       
+      
+        <link rel="prev" href="../nginx/">
+      
+      
+        <link rel="next" href="../../dashboard/">
+      
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +25,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +129,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +136,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2220,10 +2221,9 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/getting-started/smi/index.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="getting-started-smi-service-mesh-interface">Getting Started - SMI (Service Mesh Interface)<a class="headerlink" href="#getting-started-smi-service-mesh-interface" title="Permanent link">&para;</a></h1>
@@ -2252,19 +2252,19 @@ on how to setup a local minikube environment with linkerd and nginx.</p>
 <h2 id="1-deploy-the-rollout-services-and-ingress">1. Deploy the Rollout, Services, and Ingress<a class="headerlink" href="#1-deploy-the-rollout-services-and-ingress" title="Permanent link">&para;</a></h2>
 <p>When SMI is used as the traffic router, the Rollout canary strategy must define
 the following mandatory fields:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the canary ReplicaSet</span><span class="w"></span>
-<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
-<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the stable ReplicaSet</span><span class="w"></span>
-<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">smi</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the canary ReplicaSet</span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
+<span class="w">      </span><span class="c1"># Reference to a Service which the controller will update to point to the stable ReplicaSet</span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">smi</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
 </code></pre></div>
 <p>Run the following commands to deploy:</p>
 <ul>
@@ -2272,24 +2272,24 @@ the following mandatory fields:</p>
 <li>Two Services (stable and canary)</li>
 <li>An Ingress</li>
 </ul>
-<div class="highlight"><pre><span></span><code>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/smi/rollout.yaml
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/smi/services.yaml
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/smi/ingress.yaml
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/smi/rollout.yaml
+kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/smi/services.yaml
+kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/smi/ingress.yaml
 </code></pre></div>
 <p>After applying the manifests you should see the following rollout, services, and ingress resources
 in the cluster:</p>
-<div class="highlight"><pre><span></span><code>$ kubectl get ro
-NAME            DESIRED   CURRENT   UP-TO-DATE   AVAILABLE
-rollouts-demo   <span class="m">1</span>         <span class="m">2</span>         <span class="m">1</span>            <span class="m">2</span>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>kubectl<span class="w"> </span>get<span class="w"> </span>ro
+NAME<span class="w">            </span>DESIRED<span class="w">   </span>CURRENT<span class="w">   </span>UP-TO-DATE<span class="w">   </span>AVAILABLE
+rollouts-demo<span class="w">   </span><span class="m">1</span><span class="w">         </span><span class="m">2</span><span class="w">         </span><span class="m">1</span><span class="w">            </span><span class="m">2</span>
 
-$ kubectl get svc
-NAME                   TYPE        CLUSTER-IP       EXTERNAL-IP   PORT<span class="o">(</span>S<span class="o">)</span>   AGE
-rollouts-demo-canary   ClusterIP   <span class="m">10</span>.111.69.188    &lt;none&gt;        <span class="m">80</span>/TCP    23m
-rollouts-demo-stable   ClusterIP   <span class="m">10</span>.109.175.248   &lt;none&gt;        <span class="m">80</span>/TCP    23m
+$<span class="w"> </span>kubectl<span class="w"> </span>get<span class="w"> </span>svc
+NAME<span class="w">                   </span>TYPE<span class="w">        </span>CLUSTER-IP<span class="w">       </span>EXTERNAL-IP<span class="w">   </span>PORT<span class="o">(</span>S<span class="o">)</span><span class="w">   </span>AGE
+rollouts-demo-canary<span class="w">   </span>ClusterIP<span class="w">   </span><span class="m">10</span>.111.69.188<span class="w">    </span>&lt;none&gt;<span class="w">        </span><span class="m">80</span>/TCP<span class="w">    </span>23m
+rollouts-demo-stable<span class="w">   </span>ClusterIP<span class="w">   </span><span class="m">10</span>.109.175.248<span class="w">   </span>&lt;none&gt;<span class="w">        </span><span class="m">80</span>/TCP<span class="w">    </span>23m
 
-$ kubectl get ing
-NAME                   CLASS    HOSTS                 ADDRESS        PORTS   AGE
-rollouts-demo-stable   &lt;none&gt;   rollouts-demo.local   <span class="m">192</span>.168.64.2   <span class="m">80</span>      23m
+$<span class="w"> </span>kubectl<span class="w"> </span>get<span class="w"> </span>ing
+NAME<span class="w">                   </span>CLASS<span class="w">    </span>HOSTS<span class="w">                 </span>ADDRESS<span class="w">        </span>PORTS<span class="w">   </span>AGE
+rollouts-demo-stable<span class="w">   </span>&lt;none&gt;<span class="w">   </span>rollouts-demo.local<span class="w">   </span><span class="m">192</span>.168.64.2<span class="w">   </span><span class="m">80</span><span class="w">      </span>23m
 </code></pre></div>
 <p>You should also see a TrafficSplit resource which is created automatically and owned by the rollout:</p>
 <div class="highlight"><pre><span></span><code>$ kubectl get trafficsplit
@@ -2299,40 +2299,40 @@ rollouts-demo   rollouts-demo-stable
 <p>When inspecting the generated TrafficSplit resource, the weights are automatically configured to
 send 100% traffic to the <code>rollouts-demo-stable</code> service, and 0% traffic to the <code>rollouts-demo-canary</code>.
 These values will be updated during an update.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">split.smi-spec.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TrafficSplit</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">backends</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
-<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0&quot;</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;100&quot;</span><span class="w"></span>
-<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">split.smi-spec.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TrafficSplit</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">backends</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
+<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0&quot;</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;100&quot;</span>
+<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
 </code></pre></div>
 <h2 id="2-perform-an-update">2. Perform an update<a class="headerlink" href="#2-perform-an-update" title="Permanent link">&para;</a></h2>
 <p>Now perform an update the rollout by changing the image, and wait for it to reached the paused state.</p>
-<div class="highlight"><pre><span></span><code>kubectl argo rollouts <span class="nb">set</span> image rollouts-demo rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
-kubectl argo rollouts get rollout rollouts-demo
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span><span class="nb">set</span><span class="w"> </span>image<span class="w"> </span>rollouts-demo<span class="w"> </span>rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
+kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>get<span class="w"> </span>rollout<span class="w"> </span>rollouts-demo
 </code></pre></div>
 <p><img alt="Rollout Paused" src="../nginx/paused-rollout-nginx.png" /></p>
 <p>At this point, both the canary and stable version of the Rollout are running, with 5% of the
 traffic directed to the canary. When inspecting the TrafficSplit generated by the controller, we see
 that the weight has been updated to reflect the current <code>setWeight: 5</code> step of the canary deploy.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">split.smi-spec.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TrafficSplit</span><span class="w"></span>
-<span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span><span class="w"></span>
-<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">backends</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span><span class="w"></span>
-<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5&quot;</span><span class="w"></span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
-<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;95&quot;</span><span class="w"></span>
-<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">split.smi-spec.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TrafficSplit</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">backends</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-canary</span>
+<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;5&quot;</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
+<span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;95&quot;</span>
+<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-stable</span>
 </code></pre></div>
 <p>As the Rollout progresses through steps, the weights in the TrafficSplit resource will be adjusted
 to match the current setWeight of the steps.</p>
@@ -2353,42 +2353,6 @@ to match the current setWeight of the steps.</p>
       </main>
       
         <footer class="md-footer">
-  
-    
-    <nav class="md-footer__inner md-grid" aria-label="Footer" >
-      
-        
-        <a href="../nginx/" class="md-footer__link md-footer__link--prev" aria-label="Previous: NGINX" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              NGINX
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../../dashboard/" class="md-footer__link md-footer__link--next" aria-label="Next: Dashboard" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              Dashboard
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -2411,14 +2375,13 @@ to match the current setWeight of the steps.</p>
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
-    
     
   </body>
 </html>

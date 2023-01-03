@@ -10,8 +10,14 @@
       
         <link rel="canonical" href="https://argo-rollouts.readthedocs.io/features/traffic-management/nginx/">
       
+      
+        <link rel="prev" href="../istio/">
+      
+      
+        <link rel="next" href="../smi/">
+      
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.1">
     
     
       
@@ -19,11 +25,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.3bd4f189.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -124,8 +129,6 @@
       <form class="md-header__option" data-md-component="palette">
         
           
-          
-          
           <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
           
             <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
@@ -133,8 +136,6 @@
             </label>
           
         
-          
-          
           
           <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
           
@@ -2206,10 +2207,9 @@
                 
                   
 
-  <a href="https://github.com/argoproj/argo-rollouts/edit/master/docs/features/traffic-management/nginx.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="nginx">Nginx<a class="headerlink" href="#nginx" title="Permanent link">&para;</a></h1>
@@ -2222,21 +2222,21 @@
 <p>You can provide additional annotations to add to the canary Ingress via the <code>additionalIngressAnnotations</code> field to enable features like routing by header or cookie.</p>
 <h2 id="integration-with-argo-rollouts">Integration with Argo Rollouts<a class="headerlink" href="#integration-with-argo-rollouts" title="Permanent link">&para;</a></h2>
 <p>There are a couple of required fields in a Rollout to send split traffic between versions using Nginx. Below is an example of a Rollout with those fields:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w"></span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span><span class="w"></span>
-<span class="nt">spec</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span><span class="w"></span>
-<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">strategy</span><span class="p p-Indicator">:</span><span class="w"></span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span><span class="w"></span>
-<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-service</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
-<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-service</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
-<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span><span class="w"></span>
-<span class="w">        </span><span class="nt">nginx</span><span class="p">:</span><span class="w"></span>
-<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary-ingress</span><span class="w">  </span><span class="c1"># required</span><span class="w"></span>
-<span class="w">          </span><span class="nt">annotationPrefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">customingress.nginx.ingress.kubernetes.io</span><span class="w"> </span><span class="c1"># optional</span><span class="w"></span>
-<span class="w">          </span><span class="nt">additionalIngressAnnotations</span><span class="p">:</span><span class="w">   </span><span class="c1"># optional</span><span class="w"></span>
-<span class="w">            </span><span class="nt">canary-by-header</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">X-Canary</span><span class="w"></span>
-<span class="w">            </span><span class="nt">canary-by-header-value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">iwantsit</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">strategy</span><span class="p p-Indicator">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-service</span><span class="w">  </span><span class="c1"># required</span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-service</span><span class="w">  </span><span class="c1"># required</span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">nginx</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary-ingress</span><span class="w">  </span><span class="c1"># required</span>
+<span class="w">          </span><span class="nt">annotationPrefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">customingress.nginx.ingress.kubernetes.io</span><span class="w"> </span><span class="c1"># optional</span>
+<span class="w">          </span><span class="nt">additionalIngressAnnotations</span><span class="p">:</span><span class="w">   </span><span class="c1"># optional</span>
+<span class="w">            </span><span class="nt">canary-by-header</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">X-Canary</span>
+<span class="w">            </span><span class="nt">canary-by-header-value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">iwantsit</span>
 </code></pre></div>
 <p>The stable Ingress field is a reference to an Ingress in the same namespace of the Rollout. The Rollout requires the primary Ingress routes traffic to the stable Service. The Rollout checks that condition by confirming the Ingress has a backend that matches the Rollout's stableService.</p>
 <p>The controller routes traffic to the canary Service by creating a second Ingress with the canary annotations. As the Rollout progresses through the Canary steps, the controller updates the canary Ingress's canary annotations to reflect the desired state of the Rollout enabling traffic splitting between two different versions.</p>
@@ -2262,42 +2262,6 @@
       
         <footer class="md-footer">
   
-    
-    <nav class="md-footer__inner md-grid" aria-label="Footer" >
-      
-        
-        <a href="../istio/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Istio" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              Istio
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../smi/" class="md-footer__link md-footer__link--next" aria-label="Next: SMI" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              SMI
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
-  
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
       <div class="md-copyright">
@@ -2319,14 +2283,13 @@
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
         <script src="../../../assets/versions.js"></script>
       
-    
     
   </body>
 </html>
