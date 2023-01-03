@@ -2463,6 +2463,34 @@ func TestHttpReconcileMirrorRoute(t *testing.T) {
 
 }
 
+func TestSingleTlsRouteReconcile(t *testing.T) {
+	ro := rolloutWithTlsRoutes("stable", "canary", "vsvc", []v1alpha1.TLSRoute{{
+		Port:     3000,
+		SNIHosts: nil,
+	}})
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteTlsVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	err := r.SetWeight(30, v1alpha1.WeightDestination{})
+	assert.Nil(t, err)
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	tlsRoutes := extractTlsRoutes(t, iVirtualService)
+	assert.Equal(t, len(tlsRoutes), 1)
+	assert.Equal(t, tlsRoutes[0].Route[0].Weight, int64(70))
+	assert.Equal(t, tlsRoutes[0].Route[1].Weight, int64(30))
+
+	err = r.RemoveManagedRoutes()
+	assert.NoError(t, err)
+
+	_, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+}
+
 func TestHttpReconcileMirrorRouteWithExtraFields(t *testing.T) {
 	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvcWithExtra)
