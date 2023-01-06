@@ -927,6 +927,11 @@
         "pingPong": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PingPongSpec",
           "title": "PingPongSpec holds the ping and pong services"
+        },
+        "minPodsPerReplicaSet": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least\nMinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary"
         }
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"

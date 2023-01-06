@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Kubernetes sample-controller Authors.
+Copyright 2023 The Kubernetes sample-controller Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -512,6 +512,10 @@ message CanaryStrategy {
 
   // PingPongSpec holds the ping and pong services
   optional PingPongSpec pingPong = 15;
+
+  // Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
+  // MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
+  optional int32 minPodsPerReplicaSet = 16;
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
