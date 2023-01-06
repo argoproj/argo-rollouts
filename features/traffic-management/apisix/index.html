@@ -2356,7 +2356,7 @@ helm<span class="w"> </span>upgrade<span class="w"> </span>-i<span class="w"> </
 <h2 id="updating-a-rollout">Updating a Rollout<a class="headerlink" href="#updating-a-rollout" title="Permanent link">&para;</a></h2>
 <p>Next it is time to perform an update. Just as with Deployments, any change to the Pod template field (<code>spec.template</code>) results in a new version (i.e. ReplicaSet) to be deployed. Updating a Rollout involves modifying the rollout spec, typically changing the container image field with a new version, and then running  <code>kubectl apply</code> against the new manifest. As a convenience, the rollouts plugin provides a <code>set image</code> command, which performs these steps against the live rollout object in-place. Run the following command to update the <code>rollout-apisix-canary</code> Rollout with the "yellow" version of the container:</p>
 <div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span><span class="nb">set</span><span class="w"> </span>image<span class="w"> </span>rollout-apisix-canary<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>rollout-apisix-canary<span class="o">=</span>argoproj/rollouts-demo:yellow
+<span class="w">  </span>rollouts-demo<span class="o">=</span>argoproj/rollouts-demo:yellow
 </code></pre></div>
 <p>During a rollout update, the controller will progress through the steps defined in the Rollout's update strategy. The example rollout sets a 20% traffic weight to the canary, and pauses the rollout indefinitely until user action is taken to unpause/promote the rollout.</p>
 <p>You can check ApisixRoute's backend weights by the following command
