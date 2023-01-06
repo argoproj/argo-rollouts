@@ -161,7 +161,7 @@ Next it is time to perform an update. Just as with Deployments, any change to th
 
 ```shell
 kubectl argo rollouts set image rollout-apisix-canary \
-  rollout-apisix-canary=argoproj/rollouts-demo:yellow
+  rollouts-demo=argoproj/rollouts-demo:yellow
 ```
 
 During a rollout update, the controller will progress through the steps defined in the Rollout's update strategy. The example rollout sets a 20% traffic weight to the canary, and pauses the rollout indefinitely until user action is taken to unpause/promote the rollout.
