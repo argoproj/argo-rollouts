@@ -43,7 +43,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Automated rollbacks and promotions
 * Manual judgement
 * Customizable metric queries and analysis of business KPIs
-* Ingress controller integration: NGINX, ALB
+* Ingress controller integration: NGINX, ALB, Apache APISIX
 * Service Mesh integration: Istio, Linkerd, SMI
 * Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, InfluxDB
 
