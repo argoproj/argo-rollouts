@@ -20,7 +20,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
-//Openshift reconciler type
+// Openshift reconciler type
 const Type = "Openshift"
 
 // ReconcilerConfig describes static configuration data
@@ -100,9 +100,9 @@ func (r *Reconciler) getRoute(ctx context.Context, routeName string) (*routev1.R
 	return r.Cfg.Client.RouteV1().Routes(r.Cfg.Rollout.GetNamespace()).Get(ctx, routeName, metav1.GetOptions{})
 }
 
-//Update default backend weight,
-//remove alternateBackends if weight is 0,
-//otherwise update alternateBackends
+// Update default backend weight,
+// remove alternateBackends if weight is 0,
+// otherwise update alternateBackends
 func (r *Reconciler) updateRoute(ctx context.Context, routeName string, desiredWeight int32) error {
 	// get the route
 	route, err := r.getRoute(ctx, routeName)
