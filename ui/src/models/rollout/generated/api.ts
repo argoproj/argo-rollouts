@@ -883,6 +883,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef {
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OpenshiftTrafficRouting
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OpenshiftTrafficRouting {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OpenshiftTrafficRouting
+     */
+    routes?: Array<string>;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PauseCondition
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PauseCondition {
@@ -1571,6 +1584,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
     apisix?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OpenshiftTrafficRouting}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    openshift?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OpenshiftTrafficRouting;
 }
 /**
  * 

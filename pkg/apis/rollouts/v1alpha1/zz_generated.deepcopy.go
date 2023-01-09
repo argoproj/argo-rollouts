@@ -2367,14 +2367,14 @@ func (in *RolloutTrafficRouting) DeepCopyInto(out *RolloutTrafficRouting) {
 		*out = make([]MangedRoutes, len(*in))
 		copy(*out, *in)
 	}
-	if in.Openshift != nil {
-		in, out := &in.Openshift, &out.Openshift
-		*out = new(OpenshiftTrafficRouting)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.Apisix != nil {
 		in, out := &in.Apisix, &out.Apisix
 		*out = new(ApisixTrafficRouting)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Openshift != nil {
+		in, out := &in.Openshift, &out.Openshift
+		*out = new(OpenshiftTrafficRouting)
 		(*in).DeepCopyInto(*out)
 	}
 	return

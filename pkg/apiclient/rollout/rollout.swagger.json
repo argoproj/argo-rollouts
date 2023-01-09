@@ -4,8 +4,12 @@
     "title": "pkg/apiclient/rollout/rollout.proto",
     "version": "version not set"
   },
-  "consumes": ["application/json"],
-  "produces": ["application/json"],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
   "paths": {
     "/api/v1/namespace": {
       "get": {
@@ -24,7 +28,9 @@
             }
           }
         },
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/info": {
@@ -52,7 +58,9 @@
             "type": "string"
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/info/watch": {
@@ -89,7 +97,9 @@
             "type": "string"
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/abort": {
@@ -131,7 +141,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/info": {
@@ -165,7 +177,9 @@
             "type": "string"
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/info/watch": {
@@ -208,7 +222,9 @@
             "type": "string"
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/promote": {
@@ -250,7 +266,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/restart": {
@@ -292,7 +310,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{name}/retry": {
@@ -334,7 +354,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{rollout}/set/{container}/{image}/{tag}": {
@@ -394,7 +416,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/rollouts/{namespace}/{rollout}/undo/{revision}": {
@@ -443,7 +467,9 @@
             }
           }
         ],
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     },
     "/api/v1/version": {
@@ -463,7 +489,9 @@
             }
           }
         },
-        "tags": ["RolloutService"]
+        "tags": [
+          "RolloutService"
+        ]
       }
     }
   },
@@ -1602,13 +1630,13 @@
           },
           "description": "A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream\ntraffic router."
         },
-        "openshift": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.OpenshiftTrafficRouting",
-          "title": "Openshift holds specific configuration to use routes for traffic"
-        },
         "apisix": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixTrafficRouting",
           "title": "Apisix holds specific configuration to use Apisix to route traffic"
+        },
+        "openshift": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.OpenshiftTrafficRouting",
+          "title": "Openshift holds specific configuration to use routes for traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"
