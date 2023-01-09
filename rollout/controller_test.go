@@ -1881,7 +1881,7 @@ func TestGetOpenshiftRoutes(t *testing.T) {
 	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Openshift: &v1alpha1.OpenshiftTrafficRouting{
-			Routes: []string{"some-route"},
+			Routes: []string{},
 		},
 	}
 
@@ -1903,6 +1903,12 @@ func TestGetOpenshiftRoutes(t *testing.T) {
 	})
 	t.Run("will succeed on trying to get some-route", func(t *testing.T) {
 		// given
+
+		r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			Openshift: &v1alpha1.OpenshiftTrafficRouting{
+				Routes: []string{"some-route"},
+			},
+		}
 
 		route := &routev1.Route{
 			ObjectMeta: metav1.ObjectMeta{
