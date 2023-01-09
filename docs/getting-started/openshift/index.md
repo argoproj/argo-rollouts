@@ -164,6 +164,6 @@ oc get route main-route
 ```
 Access the URL to see the live changes to the rollout.
 !!! tip
-    Your browser may not be showing the traffic shift between different versions once the rollout is promoted. To solve this, disable and clear all cookies for the route URL through your browser settings.
+    Your browser may not be showing the traffic shift between different versions once the rollout is promoted. This is because OpenShift have stickyness enabled by default. To solve this, either disable and clear all cookies for the route URL through your browser settings, or see the [OpenShift documentation](https://docs.openshift.com/container-platform/4.11/networking/routes/route-configuration.html#nw-using-cookies-keep-route-statefulness_route-configuration) on how to disable stickyness.
 
 The rollout can then be promoted through the CLI or web interface, and the resulting changes should be observable through the route URL.
