@@ -1076,19 +1076,22 @@ func TestValidateOpenshiftRoute(t *testing.T) {
 	t.Run("will return error when default backend is not stable service", func(t *testing.T) {
 		//given
 		t.Parallel()
-		route := routev1.Route{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "main-route",
-				Namespace: "default",
-			},
-			Spec: routev1.RouteSpec{
-				To: routev1.RouteTargetReference{
-					Name: "bogus",
+		refResources := ReferencedResources{
+			OpenshiftRoutes: []routev1.Route{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "main-route",
+					Namespace: "default",
 				},
+				Spec: routev1.RouteSpec{
+					To: routev1.RouteTargetReference{
+						Name: "bogus",
+					},
+				}},
 			},
 		}
+
 		// when
-		errList := ValidateOpenshiftRoute(rollout, route)
+		errList := ValidateRolloutReferencedResources(rollout, refResources)
 
 		// then
 		assert.NotNil(t, errList)
@@ -1097,19 +1100,22 @@ func TestValidateOpenshiftRoute(t *testing.T) {
 	t.Run("will succeed no matter what initial weight is ", func(t *testing.T) {
 		// given
 		t.Parallel()
-		route := routev1.Route{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "main-route",
-				Namespace: "default",
-			},
-			Spec: routev1.RouteSpec{
-				To: routev1.RouteTargetReference{
-					Name: "stable",
+		refResources := ReferencedResources{
+			OpenshiftRoutes: []routev1.Route{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "main-route",
+					Namespace: "default",
 				},
+				Spec: routev1.RouteSpec{
+					To: routev1.RouteTargetReference{
+						Name: "stable",
+					},
+				}},
 			},
 		}
+
 		// when
-		errList := ValidateOpenshiftRoute(rollout, route)
+		errList := ValidateRolloutReferencedResources(rollout, refResources)
 
 		// then
 		assert.NotNil(t, errList)
