@@ -2,6 +2,12 @@
 
 ## Controller Installation
 
+### Using Helm Chart
+
+checkout [here](https://github.com/argoproj/argo-helm)
+
+### Using K8s manifests
+
 ```bash
 kubectl create namespace argo-rollouts
 kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
