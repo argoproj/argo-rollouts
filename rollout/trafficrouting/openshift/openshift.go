@@ -116,7 +116,7 @@ func (r *Reconciler) updateRoute(ctx context.Context, routeName string, desiredW
 
 	// update default backend weight if weight is different
 	altWeight := 100 - desiredWeight
-	if route.Spec.To.Weight == &altWeight {
+	if *route.Spec.To.Weight == altWeight {
 		r.Cfg.Recorder.Eventf(r.Cfg.Rollout, record.EventOptions{EventReason: "UpdatedRoute"}, "Route `%s` already set to desiredWeight '%d'", routeName, desiredWeight)
 		return nil
 	}

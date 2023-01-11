@@ -51,6 +51,12 @@ func TestReconcilerSetWeight(t *testing.T) {
 			expectedRoutes: routesWithCanary(60),
 		},
 		{
+			title:          "Succeed: Already at desired weight",
+			clientset:      fake.NewSimpleClientset(runtimeObj(routesWithCanary(50))...),
+			weight:         50,
+			expectedRoutes: routesWithCanary(50),
+		},
+		{
 			title:          "Succeed: Delete Alternate Backends",
 			clientset:      fake.NewSimpleClientset(runtimeObj(routesWithCanary(80))...),
 			weight:         0,
@@ -78,8 +84,99 @@ func TestReconcilerSetWeight(t *testing.T) {
 				assert.Error(t, err)
 			}
 		})
-
 	}
+
+	t.Run("VerifyWeight", func(t *testing.T) {
+		t.Run("verify weight will always return nil", func(t *testing.T) {
+			// given
+			t.Parallel()
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:  rollout,
+				Client:   fake.NewSimpleClientset(),
+				Recorder: rec,
+			})
+
+			// when
+			verified, err := r.VerifyWeight(0)
+
+			// then
+			assert.Nil(t, err)
+			assert.Nil(t, verified)
+		})
+	})
+
+	t.Run("UpdateHash", func(t *testing.T) {
+		t.Run("will always return nil", func(t *testing.T) {
+			// given
+			t.Parallel()
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:  rollout,
+				Client:   fake.NewSimpleClientset(),
+				Recorder: rec,
+			})
+	
+			// when
+			err := r.UpdateHash("", "")
+	
+			// then
+			assert.Nil(t, err)
+		})
+	})
+
+	t.Run("SetMirrorRoute", func(t *testing.T) {
+		t.Run("will always return nil", func(t *testing.T) {
+			// given
+			t.Parallel()
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:  rollout,
+				Client:   fake.NewSimpleClientset(),
+				Recorder: rec,
+			})
+
+			// when
+			err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+				Name: "mirror-route",
+				Match: []v1alpha1.RouteMatch{{
+					Method: &v1alpha1.StringMatch{Exact: "GET"},
+				}},
+			})
+
+			// then
+			assert.Nil(t, err)
+
+			err = r.RemoveManagedRoutes()
+			assert.Nil(t, err)
+		})
+	})
+
+	t.Run("SetHeaderRoute", func(t *testing.T) {
+		t.Run("will always return nil", func(t *testing.T) {
+			// given
+			t.Parallel()
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:  rollout,
+				Client:   fake.NewSimpleClientset(),
+				Recorder: rec,
+			})
+
+			// when
+			err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+				Name: "set-header",
+				Match: []v1alpha1.HeaderRoutingMatch{{
+					HeaderName: "header-name",
+					HeaderValue: &v1alpha1.StringMatch{
+						Exact: "value",
+					},
+				}},
+			})
+
+			// then
+			assert.Nil(t, err)
+
+			err = r.RemoveManagedRoutes()
+			assert.Nil(t, err)
+		})
+	})
 }
 
 func newRollout() *v1alpha1.Rollout {
