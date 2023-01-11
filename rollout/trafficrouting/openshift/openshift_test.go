@@ -114,10 +114,10 @@ func TestReconcilerSetWeight(t *testing.T) {
 				Client:   fake.NewSimpleClientset(),
 				Recorder: rec,
 			})
-	
+
 			// when
 			err := r.UpdateHash("", "")
-	
+
 			// then
 			assert.Nil(t, err)
 		})
