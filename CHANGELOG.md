@@ -1,4 +1,16 @@
 
+<a name="v1.4.0"></a>
+## [v1.4.0](https://github.com/argoproj/argo-rollouts/compare/v1.4.0-rc1...v1.4.0) (2023-01-03)
+
+### Docs
+
+* fix rendering by upgrading deps ([#2495](https://github.com/argoproj/argo-rollouts/issues/2495))
+
+### Fix
+
+* support only tls in virtual services ([#2502](https://github.com/argoproj/argo-rollouts/issues/2502))
+
+
 <a name="v1.4.0-rc1"></a>
 ## [v1.4.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.3.2...v1.4.0-rc1) (2022-12-20)
 
