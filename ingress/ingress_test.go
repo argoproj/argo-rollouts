@@ -199,20 +199,6 @@ func TestSyncIngressNotReferencedByRolloutMultiIngress(t *testing.T) {
 	assert.Len(t, actions, 0)
 }
 
-func TestSyncIngressNotReferencedByRolloutMultiIngress(t *testing.T) {
-	ings := []*extensionsv1beta1.Ingress{
-		newNginxIngress("test-stable-ingress", 80, "stable-service"),
-		newNginxIngress("test-stable-ingress-additional", 80, "stable-service"),
-	}
-
-	ctrl, kubeclient, _ := newFakeIngressControllerMultiIngress(t, ings, nil)
-
-	err := ctrl.syncIngress("default/test-stable-ingress")
-	assert.NoError(t, err)
-	actions := kubeclient.Actions()
-	assert.Len(t, actions, 0)
-}
-
 func TestSyncIngressReferencedByRollout(t *testing.T) {
 	ing := newNginxIngress("test-stable-ingress", 80, "stable-service")
 

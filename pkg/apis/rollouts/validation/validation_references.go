@@ -238,10 +238,6 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 			ingressName = canary.TrafficRouting.Nginx.StableIngress
 			allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
 		}
-		fldPath = fldPath.Child("nginx").Child("stableIngress")
-		serviceName = canary.StableService
-		ingressName = canary.TrafficRouting.Nginx.StableIngress
-
 	} else if canary.TrafficRouting.ALB != nil {
 		fldPath = fldPath.Child("alb").Child("ingress")
 		ingressName = canary.TrafficRouting.ALB.Ingress
