@@ -78,6 +78,12 @@ spec:
   # than or equal to this value.
   restartAt: "2020-03-30T21:19:35Z"
 
+  # The rollback window provides a way to fast track deployments to
+  # previously deployed versions.
+  # Optional, and by default is not set.
+  rollbackWindow:
+    revisions: 3
+
   strategy:
 
     # Blue-green update strategy
@@ -206,6 +212,11 @@ spec:
       # traffic routing.
       scaleDownDelaySeconds: 30
 
+      # The minimum number of pods that will be requested for each ReplicaSet
+      # when using traffic routed canary. This is to ensure high availability
+      # of each ReplicaSet. Defaults to 1. +optional
+      minPodsPerReplicaSet: 2
+
       # Limits the number of old RS that can run at one time before getting
       # scaled down. Defaults to nil
       scaleDownDelayRevisionLimit: 2
@@ -307,8 +318,8 @@ spec:
                 prefix: "POST"
               path: # What HTTP url paths to match.
                 exact: "/test"
-                regex: ""/test/.*"
-                prefix: ""/"
+                regex: "/test/.*"
+                prefix: "/"
               headers:
                 agent-1b: # What HTTP header name to use in the match.
                   exact: "firefox"

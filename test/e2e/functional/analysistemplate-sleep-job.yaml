@@ -11,6 +11,8 @@ spec:
     value: "0"
   - name: count
     value: "1"
+  - name: rev
+    value: "notset"
   metrics:
   - name: sleep-job
     count: "{{args.count}}"
@@ -18,6 +20,9 @@ spec:
       job:
         spec:
           template:
+            metadata:
+              labels:
+                rev: "{{ args.rev }}"
             spec:
               containers:
               - name: sleep-job

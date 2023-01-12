@@ -16,7 +16,7 @@ VERSION=$(shell if [ ! -z "${GIT_TAG}" ] ; then echo "${GIT_TAG}" | sed -e "s/^v
 DOCKER_PUSH=false
 IMAGE_TAG=latest
 # build development images
-DEV_IMAGE=false
+DEV_IMAGE ?= false
 
 # E2E variables
 E2E_INSTANCE_ID ?= argo-rollouts-e2e
@@ -275,3 +275,7 @@ release: release-precheck precheckin image plugin-image release-plugins
 trivy:
 	@trivy fs --clear-cache
 	@trivy fs .
+
+.PHONY: checksums
+checksums:
+	shasum -a 256 ./dist/kubectl-argo-rollouts-* | awk -F './dist/' '{print $$1 $$2}' > ./dist/argo-rollouts-checksums.txt

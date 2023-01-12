@@ -42,7 +42,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                     </Tooltip>
                 )}
                 <Tooltip content='Documentation' inverted={true}>
-                    <a href='https://argoproj.github.io/argo-rollouts/' target='_blank' rel='noreferrer'>
+                    <a href='https://argo-rollouts.readthedocs.io/' target='_blank' rel='noreferrer'>
                         <ActionButton icon='fa-book' dark={true} />
                     </a>
                 </Tooltip>
