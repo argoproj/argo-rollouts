@@ -1,6 +1,6 @@
 # Openshift Routes
 
-[Openshift Routes](https://docs.openshift.com/container-platform/4.7/networking/routes/route-configuration.html) allow services to be exposed through externally-reachable hostnames. Openshift routes have additional functionality with traffic splitting between different services, allowing Argo Rollouts to shift traffic between different versions during a Canary deployment.
+[Openshift Routes](https://docs.openshift.com/container-platform/4.11/networking/routes/route-configuration.html) allow services to be exposed through externally-reachable hostnames. Openshift routes have additional functionality with traffic splitting between different services, allowing Argo Rollouts to shift traffic between different versions during a Canary deployment.
 
 ## How it works
 

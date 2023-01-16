@@ -1,6 +1,6 @@
 # Getting Started - OpenShift Routing
 
-This guide covers how Argo Rollouts integrates with [OpenShift Routing](https://docs.openshift.com/container-platform/4.7/networking/routes/route-configuration.html) for traffic management. This guide builds upon the [getting started guide](../../getting-started.md).
+This guide covers how Argo Rollouts integrates with [OpenShift Routing](https://docs.openshift.com/container-platform/4.11/networking/routes/route-configuration.html) for traffic management. This guide builds upon the [getting started guide](../../getting-started.md).
 
 ## Requirements
 - OpenShift cluster with support for routes installed
