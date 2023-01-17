@@ -25,6 +25,11 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 )
 
+const StableIngress string = "stable-ingress"
+const AdditionalStableIngresses string = "additional-stable-ingress"
+const CanaryIngress string = "canary-ingress"
+const AdditionalCanaryIngresses string = "additional-canary-ingress"
+
 func networkingIngress(name string, port int, serviceName string) *networkingv1.Ingress {
 	ingressClassName := "ingress-name"
 	return &networkingv1.Ingress{
@@ -115,7 +120,7 @@ func setIngressOwnerRef(ing *extensionsv1beta1.Ingress, rollout *v1alpha1.Rollou
 	ing.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(rollout, schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Rollout"})})
 }
 
-func fakeRollout(stableSvc, canarySvc, stableIng string) *v1alpha1.Rollout {
+func fakeRollout(stableSvc, canarySvc, stableIng string, addStableIngs []string) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rollout",
@@ -128,19 +133,14 @@ func fakeRollout(stableSvc, canarySvc, stableIng string) *v1alpha1.Rollout {
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress: stableIng,
+							StableIngress:             stableIng,
+							AdditionalStableIngresses: addStableIngs,
 						},
 					},
 				},
 			},
 		},
 	}
-}
-
-func fakeRolloutWithMultiIngress(stableSvc, canarySvc, stableIng, addStableIng string) *v1alpha1.Rollout {
-	rollout := fakeRollout(stableSvc, canarySvc, stableIng)
-	rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses = []string{addStableIng}
-	return rollout
 }
 
 func checkBackendService(t *testing.T, ing *ingressutil.Ingress, serviceName string) {
@@ -185,225 +185,163 @@ func checkBackendServiceLegacy(t *testing.T, ing *extensionsv1beta1.Ingress, ser
 }
 
 func TestCanaryIngressCreate(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+	tests := []struct {
+		name                string
+		ingresses           []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{AdditionalStableIngresses},
 		},
 	}
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
-	i := ingressutil.NewLegacyIngress(stableIngress)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			r := Reconciler{
+				cfg: ReconcilerConfig{
+					Rollout: fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses),
+				},
+			}
+			for _, ing := range test.ingresses {
 
-	desiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 10)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
+				stableIngress := extensionsIngress(ing, 80, "stable-service")
+				stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
+				i := ingressutil.NewLegacyIngress(stableIngress)
 
-	checkBackendService(t, desiredCanaryIngress, "canary-service")
-	desired, err := desiredCanaryIngress.GetExtensionsIngress()
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
+				desiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 10)
+				assert.Nil(t, err, "No error returned when calling canaryIngress")
+
+				checkBackendService(t, desiredCanaryIngress, "canary-service")
+				desired, err := desiredCanaryIngress.GetExtensionsIngress()
+				if err != nil {
+					t.Error(err)
+					t.FailNow()
+				}
+
+				assert.Equal(t, "true", desired.Annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
+				assert.Equal(t, "10", desired.Annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
+				assert.NotNil(t, desired.Spec.IngressClassName)
+				assert.Equal(t, "nginx-ext", *desired.Spec.IngressClassName)
+			}
+
+		})
 	}
-	assert.Equal(t, "true", desired.Annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-	assert.Equal(t, "10", desired.Annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-	assert.NotNil(t, desired.Spec.IngressClassName)
-	assert.Equal(t, "nginx-ext", *desired.Spec.IngressClassName)
-}
-
-func TestCanaryIngressCreateMultiIngress(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress"),
-		},
-	}
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
-	i := ingressutil.NewLegacyIngress(stableIngress)
-
-	desiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 10)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkBackendService(t, desiredCanaryIngress, "canary-service")
-	desired, err := desiredCanaryIngress.GetExtensionsIngress()
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-	assert.Equal(t, "true", desired.Annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-	assert.Equal(t, "10", desired.Annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-	assert.NotNil(t, desired.Spec.IngressClassName)
-	assert.Equal(t, "nginx-ext", *desired.Spec.IngressClassName)
-
-	additionalDesiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses[0]), 10)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkBackendService(t, additionalDesiredCanaryIngress, "canary-service")
-	desired, err = additionalDesiredCanaryIngress.GetExtensionsIngress()
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-	assert.Equal(t, "true", desired.Annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-	assert.Equal(t, "10", desired.Annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-	assert.NotNil(t, desired.Spec.IngressClassName)
-	assert.Equal(t, "nginx-ext", *desired.Spec.IngressClassName)
 }
 
 func TestCanaryIngressPatchWeight(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+	tests := []struct {
+		name                string
+		ingresses           []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{AdditionalStableIngresses},
 		},
 	}
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
-	canary := extensionsIngress("canary-ingress", 80, "canary-service")
-	canary.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "10",
-	})
-	stableIngress := ingressutil.NewLegacyIngress(stable)
-	canaryIngress := ingressutil.NewLegacyIngress(canary)
 
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			r := Reconciler{
+				cfg: ReconcilerConfig{
+					Rollout: fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses),
+				},
+			}
+			for _, ing := range test.ingresses {
+				stable := extensionsIngress(ing, 80, "stable-service")
+				canary := extensionsIngress("canary-ingress", 80, "canary-service")
+				canary.SetAnnotations(map[string]string{
+					"nginx.ingress.kubernetes.io/canary":        "true",
+					"nginx.ingress.kubernetes.io/canary-weight": "10",
+				})
+				stableIngress := ingressutil.NewLegacyIngress(stable)
+				canaryIngress := ingressutil.NewLegacyIngress(canary)
 
-	checkBackendService(t, desiredCanaryIngress, "canary-service")
+				desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 15)
+				assert.Nil(t, err, "No error returned when calling canaryIngress")
 
-	patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress, desiredCanaryIngress,
-		ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
-	assert.Nil(t, err, "compareCanaryIngresses returns no error")
-	assert.True(t, modified, "compareCanaryIngresses returns modified=true")
-	assert.Equal(t, "{\"metadata\":{\"annotations\":{\"nginx.ingress.kubernetes.io/canary-weight\":\"15\"}}}", string(patch), "compareCanaryIngresses returns expected patch")
+				checkBackendService(t, desiredCanaryIngress, "canary-service")
+
+				patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress, desiredCanaryIngress,
+					ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
+				assert.Nil(t, err, "compareCanaryIngresses returns no error")
+				assert.True(t, modified, "compareCanaryIngresses returns modified=true")
+				assert.Equal(t, "{\"metadata\":{\"annotations\":{\"nginx.ingress.kubernetes.io/canary-weight\":\"15\"}}}", string(patch), "compareCanaryIngresses returns expected patch")
+			}
+		})
+	}
 }
 
-func TestCanaryIngressPatchWeightMultiIngress(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress"),
+func TestCanaryIngressUpdateRoute(t *testing.T) {
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{CanaryIngress},
+			[]string{},
 		},
-	}
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
-	canary := extensionsIngress("canary-ingress", 80, "canary-service")
-	canary.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "10",
-	})
-	stableIngress := ingressutil.NewLegacyIngress(stable)
-	canaryIngress := ingressutil.NewLegacyIngress(canary)
-
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkBackendService(t, desiredCanaryIngress, "canary-service")
-
-	patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress, desiredCanaryIngress,
-		ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
-	assert.Nil(t, err, "compareCanaryIngresses returns no error")
-	assert.True(t, modified, "compareCanaryIngresses returns modified=true")
-	assert.Equal(t, "{\"metadata\":{\"annotations\":{\"nginx.ingress.kubernetes.io/canary-weight\":\"15\"}}}", string(patch), "compareCanaryIngresses returns expected patch")
-
-	addStable := extensionsIngress("additional-stable-ingress", 80, "stable-service")
-	addCanary := extensionsIngress("additional-canary-ingress", 80, "canary-service")
-	addCanary.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "10",
-	})
-	addStableIngress := ingressutil.NewLegacyIngress(addStable)
-	addCanaryIngress := ingressutil.NewLegacyIngress(addCanary)
-
-	addDesiredCanaryIngress, err := r.canaryIngress(addStableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses[0]), 15)
-	assert.Nil(t, err, "No error returned when calling addCanaryIngress")
-
-	checkBackendService(t, addDesiredCanaryIngress, "canary-service")
-
-	patch, modified, err = ingressutil.BuildIngressPatch(addCanaryIngress.Mode(), addCanaryIngress, addDesiredCanaryIngress,
-		ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
-	assert.Nil(t, err, "compareCanaryIngresses returns no error")
-	assert.True(t, modified, "compareCanaryIngresses returns modified=true")
-	assert.Equal(t, "{\"metadata\":{\"annotations\":{\"nginx.ingress.kubernetes.io/canary-weight\":\"15\"}}}", string(patch), "compareCanaryIngresses returns expected patch")
-}
-
-func TestCanaryIngressUpdatedRoute(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
-		},
-	}
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
-	stable.Spec.Rules[0].HTTP.Paths[0].Path = "/bar"
-	canary := extensionsIngress("canary-ingress", 80, "canary-service")
-	canary.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	stableIngress := ingressutil.NewLegacyIngress(stable)
-	canaryIngress := ingressutil.NewLegacyIngress(canary)
-
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkBackendService(t, desiredCanaryIngress, "canary-service")
-
-	patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress, desiredCanaryIngress,
-		ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
-	assert.Nil(t, err, "compareCanaryIngresses returns no error")
-	assert.True(t, modified, "compareCanaryIngresses returns modified=true")
-	assert.Equal(t, "{\"spec\":{\"rules\":[{\"host\":\"fakehost.example.com\",\"http\":{\"paths\":[{\"backend\":{\"serviceName\":\"canary-service\",\"servicePort\":80},\"path\":\"/bar\"}]}}]}}", string(patch), "compareCanaryIngresses returns expected patch")
-}
-
-func TestCanaryIngressUpdatedRouteMultiIngress(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress"),
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{CanaryIngress, AdditionalCanaryIngresses},
+			[]string{AdditionalStableIngresses},
 		},
 	}
 
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
-	stable.Spec.Rules[0].HTTP.Paths[0].Path = "/bar"
-	canary := extensionsIngress("canary-ingress", 80, "canary-service")
-	canary.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	stableIngress := ingressutil.NewLegacyIngress(stable)
-	canaryIngress := ingressutil.NewLegacyIngress(canary)
+	for _, test := range tests {
 
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
+		r := Reconciler{
+			cfg: ReconcilerConfig{
+				Rollout: fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses),
+			},
+		}
 
-	checkBackendService(t, desiredCanaryIngress, "canary-service")
+		for i, ing := range test.ingresses {
+			stable := extensionsIngress(ing, 80, "stable-service")
+			stable.Spec.Rules[0].HTTP.Paths[0].Path = "/bar"
+			canary := extensionsIngress(test.canaryIngresses[i], 80, "canary-service")
+			canary.SetAnnotations(map[string]string{
+				"nginx.ingress.kubernetes.io/canary":        "true",
+				"nginx.ingress.kubernetes.io/canary-weight": "15",
+			})
+			stableIngress := ingressutil.NewLegacyIngress(stable)
+			canaryIngress := ingressutil.NewLegacyIngress(canary)
 
-	patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress, desiredCanaryIngress,
-		ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
-	assert.Nil(t, err, "compareCanaryIngresses returns no error")
-	assert.True(t, modified, "compareCanaryIngresses returns modified=true")
-	assert.Equal(t, "{\"spec\":{\"rules\":[{\"host\":\"fakehost.example.com\",\"http\":{\"paths\":[{\"backend\":{\"serviceName\":\"canary-service\",\"servicePort\":80},\"path\":\"/bar\"}]}}]}}", string(patch), "compareCanaryIngresses returns expected patch")
+			desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 15)
+			assert.Nil(t, err, "No error returned when calling canaryIngress")
 
-	addStable := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStable.Spec.Rules[0].HTTP.Paths[0].Path = "/bar"
-	addCanary := extensionsIngress("canary-ingress", 80, "canary-service")
-	addCanary.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	addStableIngress := ingressutil.NewLegacyIngress(addStable)
-	addCanaryIngress := ingressutil.NewLegacyIngress(addCanary)
+			checkBackendService(t, desiredCanaryIngress, "canary-service")
 
-	addDesiredCanaryIngress, err := r.canaryIngress(addStableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses[0]), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkBackendService(t, addDesiredCanaryIngress, "canary-service")
-
-	patch, modified, err = ingressutil.BuildIngressPatch(addCanaryIngress.Mode(), addCanaryIngress, addDesiredCanaryIngress,
-		ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
-	assert.Nil(t, err, "compareCanaryIngresses returns no error")
-	assert.True(t, modified, "compareCanaryIngresses returns modified=true")
-	assert.Equal(t, "{\"spec\":{\"rules\":[{\"host\":\"fakehost.example.com\",\"http\":{\"paths\":[{\"backend\":{\"serviceName\":\"canary-service\",\"servicePort\":80},\"path\":\"/bar\"}]}}]}}", string(patch), "compareCanaryIngresses returns expected patch")
+			patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress, desiredCanaryIngress,
+				ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
+			assert.Nil(t, err, "compareCanaryIngresses returns no error")
+			assert.True(t, modified, "compareCanaryIngresses returns modified=true")
+			assert.Equal(t, "{\"spec\":{\"rules\":[{\"host\":\"fakehost.example.com\",\"http\":{\"paths\":[{\"backend\":{\"serviceName\":\"canary-service\",\"servicePort\":80},\"path\":\"/bar\"}]}}]}}", string(patch), "compareCanaryIngresses returns expected patch")
+		}
+	}
 }
 
 func TestCanaryIngressRetainIngressClass(t *testing.T) {
 	r := Reconciler{
 		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{}),
 		},
 	}
 	stable := extensionsIngress("stable-ingress", 80, "stable-service")
@@ -426,7 +364,7 @@ func TestCanaryIngressRetainIngressClass(t *testing.T) {
 func TestCanaryIngressRetainIngressClassMultiIngress(t *testing.T) {
 	r := Reconciler{
 		cfg: ReconcilerConfig{
-			Rollout: fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress"),
+			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses}),
 		},
 	}
 	stable := extensionsIngress("stable-ingress", 80, "stable-service")
@@ -465,7 +403,7 @@ func TestCanaryIngressRetainIngressClassMultiIngress(t *testing.T) {
 func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
 	r := Reconciler{
 		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{}),
 		},
 	}
 	r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations = map[string]string{
@@ -490,7 +428,7 @@ func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
 func TestCanaryIngressAdditionalAnnotationsMultiIngress(t *testing.T) {
 	r := Reconciler{
 		cfg: ReconcilerConfig{
-			Rollout: fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress"),
+			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses}),
 		},
 	}
 	r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations = map[string]string{
@@ -512,7 +450,7 @@ func TestCanaryIngressAdditionalAnnotationsMultiIngress(t *testing.T) {
 	assert.Equal(t, "X-Foo", annotations["nginx.ingress.kubernetes.io/canary-by-header"], "canary-by-header annotation set")
 	assert.Equal(t, "DoCanary", annotations["nginx.ingress.kubernetes.io/canary-by-header-value"], "canary-by-header-value annotation set")
 
-	addStable := extensionsIngress("additional-stable-ingress", 80, "stable-service")
+	addStable := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
 	addStableIngress := ingressutil.NewLegacyIngress(addStable)
 
 	addDesiredCanaryIngress, err := r.canaryIngress(addStableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses[0]), 15)
@@ -533,7 +471,7 @@ func TestReconciler_canaryIngress(t *testing.T) {
 		t.Parallel()
 		r := Reconciler{
 			cfg: ReconcilerConfig{
-				Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+				Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{}),
 			},
 		}
 		stableIngress := networkingIngress("stable-ingress", 80, "stable-service")
@@ -563,7 +501,7 @@ func TestReconciler_canaryIngressWithMultiIngress(t *testing.T) {
 		t.Parallel()
 		r := Reconciler{
 			cfg: ReconcilerConfig{
-				Rollout: fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress"),
+				Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses}),
 			},
 		}
 
@@ -586,7 +524,7 @@ func TestReconciler_canaryIngressWithMultiIngress(t *testing.T) {
 		assert.NotNil(t, desired.Spec.IngressClassName)
 		assert.Equal(t, "nginx-ext", *desired.Spec.IngressClassName)
 
-		addStableIngress := networkingIngress("additional-stable-ingress", 80, "stable-service")
+		addStableIngress := networkingIngress(AdditionalStableIngresses, 80, "stable-service")
 		addStableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
 		i = ingressutil.NewIngress(addStableIngress)
 
@@ -609,7 +547,7 @@ func TestReconciler_canaryIngressWithMultiIngress(t *testing.T) {
 
 func TestType(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -620,7 +558,7 @@ func TestType(t *testing.T) {
 }
 
 func TestReconcileStableIngressNotFound(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
@@ -640,7 +578,7 @@ func TestReconcileStableIngressNotFound(t *testing.T) {
 }
 
 func TestReconcileStableIngressFound(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
 
 	client := fake.NewSimpleClientset()
@@ -670,9 +608,9 @@ func TestReconcileStableIngressFound(t *testing.T) {
 }
 
 func TestReconcileStableIngressFoundMultiIngress(t *testing.T) {
-	rollout := fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := extensionsIngress("additional-stable-ingress", 80, "stable-service")
+	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
 
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -705,7 +643,7 @@ func TestReconcileStableIngressFoundMultiIngress(t *testing.T) {
 }
 
 func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	stableIngress := extensionsIngress("stable-ingress", 80, "other-service")
 
 	client := fake.NewSimpleClientset()
@@ -729,11 +667,11 @@ func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
 }
 
 func TestReconcileStableIngressFoundWrongBackendMultiIngress(t *testing.T) {
-	rollout := fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
 	// this one will work
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
 	// This is the one that should error out
-	addStableIngress := extensionsIngress("additional-stable-ingress", 80, "other-service")
+	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "other-service")
 
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -757,7 +695,7 @@ func TestReconcileStableIngressFoundWrongBackendMultiIngress(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
 	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
 
@@ -782,9 +720,9 @@ func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
-	otherRollout := fakeRollout("stable-service2", "canary-service2", "stable-ingress2")
+	otherRollout := fakeRollout("stable-service2", "canary-service2", "stable-ingress2", []string{})
 	otherRollout.SetUID("4b712b69-5de9-11ea-a10a-0a9ba5899dd2")
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
 	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
 	setIngressOwnerRef(canaryIngress, otherRollout)
@@ -810,7 +748,7 @@ func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
 	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
 	canaryIngress.SetAnnotations(map[string]string{
@@ -846,9 +784,9 @@ func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundPatchMultiIngress(t *testing.T) {
-	rollout := fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := extensionsIngress("additional-stable-ingress", 80, "stable-service")
+	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
 	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
 	canaryIngress.SetAnnotations(map[string]string{
 		"nginx.ingress.kubernetes.io/canary":        "true",
@@ -895,7 +833,7 @@ func TestReconcileStableAndCanaryIngressFoundPatchMultiIngress(t *testing.T) {
 
 func TestReconcileWillInvokeNetworkingIngress(t *testing.T) {
 	// given
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	stableIngress := networkingIngress("stable-ingress", 80, "stable-service")
 	canaryIngress := networkingIngress("rollout-stable-ingress-canary", 80, "canary-service")
 	canaryIngress.SetAnnotations(map[string]string{
@@ -935,9 +873,9 @@ func TestReconcileWillInvokeNetworkingIngress(t *testing.T) {
 
 func TestReconcileWillInvokeNetworkingIngressMultiIngress(t *testing.T) {
 	// given
-	rollout := fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
 	stableIngress := networkingIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := networkingIngress("additional-stable-ingress", 80, "stable-service")
+	addStableIngress := networkingIngress(AdditionalStableIngresses, 80, "stable-service")
 	canaryIngress := networkingIngress("rollout-stable-ingress-canary", 80, "canary-service")
 	canaryIngress.SetAnnotations(map[string]string{
 		"nginx.ingress.kubernetes.io/canary":        "true",
@@ -985,7 +923,7 @@ func TestReconcileWillInvokeNetworkingIngressMultiIngress(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
 	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
 	setIngressOwnerRef(canaryIngress, rollout)
@@ -1016,9 +954,9 @@ func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundNoChangeMultiIngress(t *testing.T) {
-	rollout := fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := extensionsIngress("additional-stable-ingress", 80, "stable-service")
+	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
 	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
 	addCanaryIngress := extensionsIngress("rollout-additional-stable-ingress-canary", 80, "canary-service")
 	setIngressOwnerRef(canaryIngress, rollout)
@@ -1056,7 +994,7 @@ func TestReconcileStableAndCanaryIngressFoundNoChangeMultiIngress(t *testing.T) 
 }
 
 func TestReconcileCanaryCreateError(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
 
 	client := fake.NewSimpleClientset()
@@ -1096,9 +1034,9 @@ func TestReconcileCanaryCreateError(t *testing.T) {
 }
 
 func TestReconcileCanaryCreateErrorMultiIngress(t *testing.T) {
-	rollout := fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := extensionsIngress("additional-stable-ingress", 80, "stable-service")
+	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
 
 	client := fake.NewSimpleClientset()
 	client.ReactionChain = nil
@@ -1138,7 +1076,7 @@ func TestReconcileCanaryCreateErrorMultiIngress(t *testing.T) {
 }
 
 func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
 	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
 	canaryIngress.SetAnnotations(map[string]string{
@@ -1195,9 +1133,9 @@ func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
 }
 
 func TestReconcileCanaryCreateErrorAlreadyExistsPatchMultiIngress(t *testing.T) {
-	rollout := fakeRolloutWithMultiIngress("stable-service", "canary-service", "stable-ingress", "additional-stable-ingress")
+	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
 	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := extensionsIngress("additional-stable-ingress", 80, "stable-service")
+	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
 	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
 	addCanaryIngress := extensionsIngress("rollout-additional-stable-ingress-canary", 80, "canary-service")
 	canaryIngress.SetAnnotations(map[string]string{

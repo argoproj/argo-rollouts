@@ -2,6 +2,7 @@ package ingress
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -24,6 +25,10 @@ import (
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	"k8s.io/client-go/tools/cache"
 )
+
+const StableService = "stable-service"
+const AdditionalIngress = "test-stable-ingress-additional"
+const stableIngress = "test-stable-ingress"
 
 func newNginxIngress(name string, port int, serviceName string) *extensionsv1beta1.Ingress {
 	class := "nginx"
@@ -175,168 +180,183 @@ func TestSyncMissingIngress(t *testing.T) {
 }
 
 func TestSyncIngressNotReferencedByRollout(t *testing.T) {
-	ing := newNginxIngress("test-stable-ingress", 80, "test-stable-service")
 
-	ctrl, kubeclient, _ := newFakeIngressController(t, ing, nil)
-
-	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
-	assert.NoError(t, err)
-	actions := kubeclient.Actions()
-	assert.Len(t, actions, 0)
-}
-
-func TestSyncIngressNotReferencedByRolloutMultiIngress(t *testing.T) {
-	ings := []*extensionsv1beta1.Ingress{
-		newNginxIngress("test-stable-ingress", 80, "stable-service"),
-		newNginxIngress("test-stable-ingress-additional", 80, "stable-service"),
+	tests := []struct {
+		ings []*extensionsv1beta1.Ingress
+		name string
+		keys []string
+	}{
+		{
+			[]*extensionsv1beta1.Ingress{
+				newNginxIngress(stableIngress, 80, "test-stable-service"),
+			},
+			"Single Ingress",
+			[]string{
+				"default/test-stable-ingress",
+			},
+		},
+		{
+			[]*extensionsv1beta1.Ingress{
+				newNginxIngress(stableIngress, 80, "test-stable-service"),
+				newNginxIngress(AdditionalIngress, 80, StableService),
+			},
+			"Multi Ingress",
+			[]string{
+				"default/test-stable-ingress",
+				fmt.Sprintf("default/%s", AdditionalIngress),
+			},
+		},
 	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 
-	ctrl, kubeclient, _ := newFakeIngressControllerMultiIngress(t, ings, nil)
-
-	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
-	assert.NoError(t, err)
-	actions := kubeclient.Actions()
-	assert.Len(t, actions, 0)
+			ctrl, kubeclient, _ := newFakeIngressControllerMultiIngress(t, test.ings, nil)
+			for _, key := range test.keys {
+				err := ctrl.syncIngress(context.Background(), key)
+				assert.NoError(t, err)
+				actions := kubeclient.Actions()
+				assert.Len(t, actions, 0)
+			}
+		})
+	}
 }
 
 func TestSyncIngressReferencedByRollout(t *testing.T) {
-	ing := newNginxIngress("test-stable-ingress", 80, "stable-service")
-
-	rollout := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rollout",
-			Namespace: metav1.NamespaceDefault,
+	tests := []struct {
+		ings                   []*extensionsv1beta1.Ingress
+		name                   string
+		keys                   []string
+		additionalIngressNames []string
+	}{
+		{
+			[]*extensionsv1beta1.Ingress{
+				newNginxIngress(stableIngress, 80, "test-stable-service"),
+			},
+			"Single Ingress",
+			[]string{
+				fmt.Sprintf("default/%s", stableIngress),
+			},
+			[]string{},
 		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{
-					StableService: "stable-service",
-					CanaryService: "canary-service",
-					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
-						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress: "test-stable-ingress",
+		{
+			[]*extensionsv1beta1.Ingress{
+				newNginxIngress(stableIngress, 80, "test-stable-service"),
+				newNginxIngress(AdditionalIngress, 80, StableService),
+			},
+			"Multi Ingress",
+			[]string{
+				"default/test-stable-ingress",
+				fmt.Sprintf("default/%s", AdditionalIngress),
+			},
+			[]string{AdditionalIngress},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+
+			rollout := &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "rollout",
+					Namespace: metav1.NamespaceDefault,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							StableService: StableService,
+							CanaryService: "canary-service",
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Nginx: &v1alpha1.NginxTrafficRouting{
+									StableIngress:             "test-stable-ingress",
+									AdditionalStableIngresses: test.additionalIngressNames,
+								},
+							},
 						},
 					},
 				},
-			},
-		},
+			}
+
+			ctrl, kubeclient, enqueuedObjects := newFakeIngressControllerMultiIngress(t, test.ings, rollout)
+
+			for i, key := range test.keys {
+				err := ctrl.syncIngress(context.Background(), key)
+				assert.NoError(t, err)
+				actions := kubeclient.Actions()
+				assert.Len(t, actions, 0)
+				assert.Equal(t, i+1, enqueuedObjects["default/rollout"])
+			}
+		})
 	}
-
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, rollout)
-
-	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
-	assert.NoError(t, err)
-	actions := kubeclient.Actions()
-	assert.Len(t, actions, 0)
-	assert.Equal(t, 1, enqueuedObjects["default/rollout"])
-}
-
-func TestSyncIngressReferencedByRolloutMultiIngress(t *testing.T) {
-	ings := []*extensionsv1beta1.Ingress{
-		newNginxIngress("test-stable-ingress", 80, "stable-service"),
-		newNginxIngress("test-stable-ingress-additional", 80, "stable-service"),
-	}
-
-	rollout := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rollout",
-			Namespace: metav1.NamespaceDefault,
-		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{
-					StableService: "stable-service",
-					CanaryService: "canary-service",
-					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
-						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress:             "test-stable-ingress",
-							AdditionalStableIngresses: []string{"test-stable-ingress-additional"},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressControllerMultiIngress(t, ings, rollout)
-
-	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
-	assert.NoError(t, err)
-	actions := kubeclient.Actions()
-	assert.Len(t, actions, 0)
-	assert.Equal(t, 1, enqueuedObjects["default/rollout"])
 }
 
 func TestSkipIngressWithNoClass(t *testing.T) {
-	ing := newNginxIngressWithAnnotation("test-stable-ingress", 80, "stable-service")
-	ing.Annotations = nil
-	rollout := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rollout",
-			Namespace: metav1.NamespaceDefault,
+	tests := []struct {
+		ings                   []*extensionsv1beta1.Ingress
+		name                   string
+		keys                   []string
+		additionalIngressNames []string
+	}{
+		{
+			[]*extensionsv1beta1.Ingress{
+				newNginxIngressWithAnnotation(stableIngress, 80, StableService),
+			},
+			"Single Ingress",
+			[]string{
+				"default/test-stable-ingress",
+			},
+			[]string{},
 		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{
-					StableService: "stable-service",
-					CanaryService: "canary-service",
-					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
-						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress: "test-stable-ingress",
+		{
+			[]*extensionsv1beta1.Ingress{
+				newNginxIngressWithAnnotation(stableIngress, 80, StableService),
+				newNginxIngressWithAnnotation(AdditionalIngress, 80, StableService),
+			},
+			"Multi Ingress",
+			[]string{
+				"default/test-stable-ingress",
+				fmt.Sprintf("default/%s", AdditionalIngress),
+			},
+			[]string{stableIngress},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for _, i := range test.ings {
+				i.Annotations = nil
+			}
+
+			rollout := &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "rollout",
+					Namespace: metav1.NamespaceDefault,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							StableService: StableService,
+							CanaryService: "canary-service",
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Nginx: &v1alpha1.NginxTrafficRouting{
+									StableIngress:             "test-stable-ingress",
+									AdditionalStableIngresses: test.additionalIngressNames,
+								},
+							},
 						},
 					},
 				},
-			},
-		},
+			}
+
+			ctrl, kubeclient, enqueuedObjects := newFakeIngressControllerMultiIngress(t, test.ings, rollout)
+
+			for _, key := range test.keys {
+				err := ctrl.syncIngress(context.Background(), key)
+				assert.NoError(t, err)
+				actions := kubeclient.Actions()
+				assert.Len(t, actions, 0)
+				assert.Len(t, enqueuedObjects, 0)
+			}
+		})
 	}
-
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressController(t, ing, rollout)
-
-	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
-	assert.NoError(t, err)
-	actions := kubeclient.Actions()
-	assert.Len(t, actions, 0)
-	assert.Len(t, enqueuedObjects, 0)
-}
-
-func TestSkipIngressWithNoClassMultiIngress(t *testing.T) {
-	ings := []*extensionsv1beta1.Ingress{
-		newNginxIngressWithAnnotation("test-stable-ingress", 80, "stable-service"),
-		newNginxIngressWithAnnotation("test-stable-ingress-additional", 80, "canary-service"),
-	}
-
-	for _, i := range ings {
-		i.Annotations = nil
-	}
-
-	rollout := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "rollout",
-			Namespace: metav1.NamespaceDefault,
-		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{
-					StableService: "stable-service",
-					CanaryService: "canary-service",
-					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
-						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress:             "test-stable-ingress",
-							AdditionalStableIngresses: []string{"test-stable-ingress-additional"},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	ctrl, kubeclient, enqueuedObjects := newFakeIngressControllerMultiIngress(t, ings, rollout)
-
-	err := ctrl.syncIngress(context.Background(), "default/test-stable-ingress")
-	assert.NoError(t, err)
-	actions := kubeclient.Actions()
-	assert.Len(t, actions, 0)
-	assert.Len(t, enqueuedObjects, 0)
 }
 
 func TestRun(t *testing.T) {
