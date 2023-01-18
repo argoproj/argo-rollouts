@@ -2696,6 +2696,11 @@ spec:
                           required:
                           - query
                           type: object
+                        plugin:
+                          properties:
+                            config:
+                              x-kubernetes-preserve-unknown-fields: true
+                          type: object
                         prometheus:
                           properties:
                             address:

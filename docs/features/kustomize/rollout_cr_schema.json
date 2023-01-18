@@ -4165,6 +4165,14 @@
                                                 ],
                                                 "type": "object"
                                             },
+                                            "plugin": {
+                                                "properties": {
+                                                    "config": {
+                                                        "x-kubernetes-preserve-unknown-fields": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
                                             "prometheus": {
                                                 "properties": {
                                                     "address": {
@@ -8433,6 +8441,14 @@
                                                 ],
                                                 "type": "object"
                                             },
+                                            "plugin": {
+                                                "properties": {
+                                                    "config": {
+                                                        "x-kubernetes-preserve-unknown-fields": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
                                             "prometheus": {
                                                 "properties": {
                                                     "address": {
@@ -12699,6 +12715,14 @@
                                                 "required": [
                                                     "query"
                                                 ],
+                                                "type": "object"
+                                            },
+                                            "plugin": {
+                                                "properties": {
+                                                    "config": {
+                                                        "x-kubernetes-preserve-unknown-fields": true
+                                                    }
+                                                },
                                                 "type": "object"
                                             },
                                             "prometheus": {

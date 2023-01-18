@@ -2,8 +2,13 @@ package metricproviders
 
 import (
 	"fmt"
+	"os/exec"
 
+	"github.com/argoproj/argo-rollouts/metric"
 	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
+	"github.com/argoproj/argo-rollouts/metricproviders/plugin"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+	goPlugin "github.com/hashicorp/go-plugin"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
@@ -23,27 +28,16 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-// Provider methods to query a external systems and generate a measurement
+// Provider this is here just for backwards compatibility the interface is now in the metric package
 type Provider interface {
-	// Run start a new external system call for a measurement
-	// Should be idempotent and do nothing if a call has already been started
-	Run(*v1alpha1.AnalysisRun, v1alpha1.Metric) v1alpha1.Measurement
-	// Checks if the external system call is finished and returns the current measurement
-	Resume(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
-	// Terminate will terminate an in-progress measurement
-	Terminate(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
-	// GarbageCollect is used to garbage collect completed measurements to the specified limit
-	GarbageCollect(*v1alpha1.AnalysisRun, v1alpha1.Metric, int) error
-	// Type gets the provider type
-	Type() string
-	// GetMetadata returns any additional metadata which providers need to store/display as part
-	// of the metric result. For example, Prometheus uses is to store the final resolved queries.
-	GetMetadata(metric v1alpha1.Metric) map[string]string
+	metric.Provider
 }
 
 type ProviderFactory struct {
-	KubeClient kubernetes.Interface
-	JobLister  batchlisters.JobLister
+	KubeClient   kubernetes.Interface
+	JobLister    batchlisters.JobLister
+	pluginClient *goPlugin.Client
+	plugin       plugin.MetricsPlugin
 }
 
 type ProviderFactoryFunc func(logCtx log.Entry, metric v1alpha1.Metric) (Provider, error)
@@ -101,6 +95,9 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 			return nil, err
 		}
 		return influxdb.NewInfluxdbProvider(client, logCtx), nil
+	case plugin.ProviderType:
+		_, plugin, err := f.startPluginSystem(metric)
+		return plugin, err
 	default:
 		return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
 	}
@@ -127,7 +124,56 @@ func Type(metric v1alpha1.Metric) string {
 		return graphite.ProviderType
 	} else if metric.Provider.Influxdb != nil {
 		return influxdb.ProviderType
+	} else if metric.Provider.Plugin != nil {
+		return plugin.ProviderType
 	}
 
 	return "Unknown Provider"
+}
+
+func (f *ProviderFactory) startPluginSystem(metric v1alpha1.Metric) (*goPlugin.Client, plugin.MetricsPlugin, error) {
+	if defaults.GetMetricPluginLocation() == "" {
+		return nil, nil, fmt.Errorf("no plugin location specified")
+	}
+
+	var handshakeConfig = goPlugin.HandshakeConfig{
+		ProtocolVersion:  1,
+		MagicCookieKey:   "ARGO_ROLLOUTS_RPC_PLUGIN",
+		MagicCookieValue: "metrics",
+	}
+
+	// pluginMap is the map of plugins we can dispense.
+	var pluginMap = map[string]goPlugin.Plugin{
+		"RpcMetricsPlugin": &plugin.RpcMetricsPlugin{},
+	}
+
+	if f.pluginClient == nil || f.pluginClient.Exited() {
+		f.pluginClient = goPlugin.NewClient(&goPlugin.ClientConfig{
+			HandshakeConfig:  handshakeConfig,
+			Plugins:          pluginMap,
+			VersionedPlugins: nil,
+			Cmd:              exec.Command(defaults.GetMetricPluginLocation()),
+			Managed:          true,
+		})
+
+		rpcClient, err := f.pluginClient.Client()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Request the plugin
+		raw, err := rpcClient.Dispense("RpcMetricsPlugin")
+		if err != nil {
+			return nil, nil, err
+		}
+
+		f.plugin = raw.(plugin.MetricsPlugin)
+
+		err = f.plugin.NewMetricsPlugin(metric)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return f.pluginClient, f.plugin, nil
 }
