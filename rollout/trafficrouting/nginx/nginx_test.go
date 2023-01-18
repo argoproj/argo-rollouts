@@ -26,9 +26,31 @@ import (
 )
 
 const StableIngress string = "stable-ingress"
+const CanaryIngress string = "rollout-stable-ingress-canary"
 const AdditionalStableIngresses string = "additional-stable-ingress"
-const CanaryIngress string = "canary-ingress"
-const AdditionalCanaryIngresses string = "additional-canary-ingress"
+
+type multiIngressTestData struct {
+	name                string
+	ingresses           []string
+	canaryIngresses     []string
+	additionalIngresses []string
+}
+
+func generateMultiIngressTestData() []multiIngressTestData {
+
+	return []multiIngressTestData{{
+		"singleIngress",
+		[]string{StableIngress},
+		[]string{CanaryIngress},
+		[]string{},
+	},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{CanaryIngress, "rollout-additional-stable-ingress-canary"},
+			[]string{AdditionalStableIngresses},
+		}}
+}
 
 func networkingIngress(name string, port int, serviceName string) *networkingv1.Ingress {
 	ingressClassName := "ingress-name"
@@ -185,22 +207,7 @@ func checkBackendServiceLegacy(t *testing.T, ing *extensionsv1beta1.Ingress, ser
 }
 
 func TestCanaryIngressCreate(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{AdditionalStableIngresses},
-		},
-	}
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			r := Reconciler{
@@ -235,23 +242,7 @@ func TestCanaryIngressCreate(t *testing.T) {
 }
 
 func TestCanaryIngressPatchWeight(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			r := Reconciler{
@@ -285,26 +276,7 @@ func TestCanaryIngressPatchWeight(t *testing.T) {
 }
 
 func TestCanaryIngressUpdateRoute(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{CanaryIngress},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{CanaryIngress, AdditionalCanaryIngresses},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			r := Reconciler{
@@ -340,26 +312,7 @@ func TestCanaryIngressUpdateRoute(t *testing.T) {
 }
 
 func TestCanaryIngressRetainIngressClass(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{CanaryIngress},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{CanaryIngress, AdditionalCanaryIngresses},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			r := Reconciler{
@@ -389,32 +342,13 @@ func TestCanaryIngressRetainIngressClass(t *testing.T) {
 }
 
 func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{CanaryIngress},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{CanaryIngress, AdditionalCanaryIngresses},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			for _, ing := range test.ingresses {
 				r := Reconciler{
 					cfg: ReconcilerConfig{
-						Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", test.additionalIngresses),
+						Rollout: fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses),
 					},
 				}
 				r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations = map[string]string{
@@ -440,26 +374,7 @@ func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
 }
 
 func TestReconciler_canaryIngress(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{CanaryIngress},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{CanaryIngress, AdditionalCanaryIngresses},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// given
@@ -526,26 +441,7 @@ func TestReconcileStableIngressNotFound(t *testing.T) {
 }
 
 func TestReconcileStableIngressFound(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{CanaryIngress},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{CanaryIngress, AdditionalCanaryIngresses},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			rollout := fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses)
@@ -581,26 +477,7 @@ func TestReconcileStableIngressFound(t *testing.T) {
 }
 
 func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{CanaryIngress},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{CanaryIngress, AdditionalCanaryIngresses},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
@@ -631,9 +508,9 @@ func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
+	rollout := fakeRollout("stable-service", "canary-service", StableIngress, []string{})
+	stableIngress := extensionsIngress(StableIngress, 80, "stable-service")
+	canaryIngress := extensionsIngress(CanaryIngress, 80, "canary-service")
 
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -658,9 +535,9 @@ func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
 func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
 	otherRollout := fakeRollout("stable-service2", "canary-service2", "stable-ingress2", []string{})
 	otherRollout.SetUID("4b712b69-5de9-11ea-a10a-0a9ba5899dd2")
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
+	rollout := fakeRollout("stable-service", "canary-service", StableIngress, []string{})
+	stableIngress := extensionsIngress(StableIngress, 80, "stable-service")
+	canaryIngress := extensionsIngress(CanaryIngress, 80, "canary-service")
 	setIngressOwnerRef(canaryIngress, otherRollout)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -684,26 +561,7 @@ func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{"rollout-stable-ingress-canary"},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{"rollout-stable-ingress-canary", "rollout-additional-stable-ingress-canary"},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			rollout := fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses)
@@ -760,26 +618,7 @@ func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
 }
 
 func TestReconcileWillInvokeNetworkingIngress(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{"rollout-stable-ingress-canary"},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{"rollout-stable-ingress-canary", "rollout-additional-stable-ingress-canary"},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// given
@@ -840,26 +679,7 @@ func TestReconcileWillInvokeNetworkingIngress(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{"rollout-stable-ingress-canary"},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{"rollout-stable-ingress-canary", "rollout-additional-stable-ingress-canary"},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// given
@@ -904,26 +724,7 @@ func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
 }
 
 func TestReconcileCanaryCreateError(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{"rollout-stable-ingress-canary"},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{"rollout-stable-ingress-canary", "rollout-additional-stable-ingress-canary"},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// given
@@ -969,26 +770,7 @@ func TestReconcileCanaryCreateError(t *testing.T) {
 }
 
 func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
-	tests := []struct {
-		name                string
-		ingresses           []string
-		canaryIngresses     []string
-		additionalIngresses []string
-	}{
-		{
-			"singleIngress",
-			[]string{StableIngress},
-			[]string{"rollout-stable-ingress-canary"},
-			[]string{},
-		},
-		{
-			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
-			[]string{"rollout-stable-ingress-canary", "rollout-additional-stable-ingress-canary"},
-			[]string{AdditionalStableIngresses},
-		},
-	}
-
+	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// given
