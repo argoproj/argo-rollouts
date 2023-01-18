@@ -306,248 +306,196 @@ func TestCanaryIngressUpdateRoute(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			r := Reconciler{
+				cfg: ReconcilerConfig{
+					Rollout: fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses),
+				},
+			}
 
-		r := Reconciler{
-			cfg: ReconcilerConfig{
-				Rollout: fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses),
-			},
-		}
+			for i, ing := range test.ingresses {
+				stable := extensionsIngress(ing, 80, "stable-service")
+				stable.Spec.Rules[0].HTTP.Paths[0].Path = "/bar"
+				canary := extensionsIngress(test.canaryIngresses[i], 80, "canary-service")
+				canary.SetAnnotations(map[string]string{
+					"nginx.ingress.kubernetes.io/canary":        "true",
+					"nginx.ingress.kubernetes.io/canary-weight": "15",
+				})
+				stableIngress := ingressutil.NewLegacyIngress(stable)
+				canaryIngress := ingressutil.NewLegacyIngress(canary)
 
-		for i, ing := range test.ingresses {
-			stable := extensionsIngress(ing, 80, "stable-service")
-			stable.Spec.Rules[0].HTTP.Paths[0].Path = "/bar"
-			canary := extensionsIngress(test.canaryIngresses[i], 80, "canary-service")
-			canary.SetAnnotations(map[string]string{
-				"nginx.ingress.kubernetes.io/canary":        "true",
-				"nginx.ingress.kubernetes.io/canary-weight": "15",
-			})
-			stableIngress := ingressutil.NewLegacyIngress(stable)
-			canaryIngress := ingressutil.NewLegacyIngress(canary)
+				desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 15)
+				assert.Nil(t, err, "No error returned when calling canaryIngress")
 
-			desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 15)
-			assert.Nil(t, err, "No error returned when calling canaryIngress")
+				checkBackendService(t, desiredCanaryIngress, "canary-service")
 
-			checkBackendService(t, desiredCanaryIngress, "canary-service")
-
-			patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress, desiredCanaryIngress,
-				ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
-			assert.Nil(t, err, "compareCanaryIngresses returns no error")
-			assert.True(t, modified, "compareCanaryIngresses returns modified=true")
-			assert.Equal(t, "{\"spec\":{\"rules\":[{\"host\":\"fakehost.example.com\",\"http\":{\"paths\":[{\"backend\":{\"serviceName\":\"canary-service\",\"servicePort\":80},\"path\":\"/bar\"}]}}]}}", string(patch), "compareCanaryIngresses returns expected patch")
-		}
+				patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress, desiredCanaryIngress,
+					ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
+				assert.Nil(t, err, "compareCanaryIngresses returns no error")
+				assert.True(t, modified, "compareCanaryIngresses returns modified=true")
+				assert.Equal(t, "{\"spec\":{\"rules\":[{\"host\":\"fakehost.example.com\",\"http\":{\"paths\":[{\"backend\":{\"serviceName\":\"canary-service\",\"servicePort\":80},\"path\":\"/bar\"}]}}]}}", string(patch), "compareCanaryIngresses returns expected patch")
+			}
+		})
 	}
 }
 
 func TestCanaryIngressRetainIngressClass(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{}),
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{CanaryIngress},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{CanaryIngress, AdditionalCanaryIngresses},
+			[]string{AdditionalStableIngresses},
 		},
 	}
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
-	stable.SetAnnotations(map[string]string{
-		"kubernetes.io/ingress.class": "nginx-foo",
-	})
-	stableIngress := ingressutil.NewLegacyIngress(stable)
 
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			r := Reconciler{
+				cfg: ReconcilerConfig{
+					Rollout: fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses),
+				},
+			}
+			for _, ing := range test.ingresses {
+				stable := extensionsIngress(ing, 80, "stable-service")
+				stable.SetAnnotations(map[string]string{
+					"kubernetes.io/ingress.class": "nginx-foo",
+				})
+				stableIngress := ingressutil.NewLegacyIngress(stable)
 
-	checkBackendService(t, desiredCanaryIngress, "canary-service")
+				desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 15)
+				assert.Nil(t, err, "No error returned when calling canaryIngress")
 
-	annotations := desiredCanaryIngress.GetAnnotations()
-	assert.Equal(t, "true", annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-	assert.Equal(t, "15", annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-	assert.Equal(t, "nginx-foo", annotations["kubernetes.io/ingress.class"], "ingress-class annotation retained")
-}
+				checkBackendService(t, desiredCanaryIngress, "canary-service")
 
-func TestCanaryIngressRetainIngressClassMultiIngress(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses}),
-		},
+				annotations := desiredCanaryIngress.GetAnnotations()
+				assert.Equal(t, "true", annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
+				assert.Equal(t, "15", annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
+				assert.Equal(t, "nginx-foo", annotations["kubernetes.io/ingress.class"], "ingress-class annotation retained")
+			}
+		})
 	}
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
-	stable.SetAnnotations(map[string]string{
-		"kubernetes.io/ingress.class": "nginx-foo",
-	})
-	stableIngress := ingressutil.NewLegacyIngress(stable)
-
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkBackendService(t, desiredCanaryIngress, "canary-service")
-
-	annotations := desiredCanaryIngress.GetAnnotations()
-	assert.Equal(t, "true", annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-	assert.Equal(t, "15", annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-	assert.Equal(t, "nginx-foo", annotations["kubernetes.io/ingress.class"], "ingress-class annotation retained")
-
-	addStable := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStable.SetAnnotations(map[string]string{
-		"kubernetes.io/ingress.class": "nginx-foo",
-	})
-	addStableIngress := ingressutil.NewLegacyIngress(addStable)
-
-	addDesiredCanaryIngress, err := r.canaryIngress(addStableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses[0]), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkBackendService(t, addDesiredCanaryIngress, "canary-service")
-
-	annotations = addDesiredCanaryIngress.GetAnnotations()
-	assert.Equal(t, "true", annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-	assert.Equal(t, "15", annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-	assert.Equal(t, "nginx-foo", annotations["kubernetes.io/ingress.class"], "ingress-class annotation retained")
 }
 
 func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{}),
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{CanaryIngress},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{CanaryIngress, AdditionalCanaryIngresses},
+			[]string{AdditionalStableIngresses},
 		},
 	}
-	r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations = map[string]string{
-		"canary-by-header":       "X-Foo",
-		"canary-by-header-value": "DoCanary",
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for _, ing := range test.ingresses {
+				r := Reconciler{
+					cfg: ReconcilerConfig{
+						Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", test.additionalIngresses),
+					},
+				}
+				r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations = map[string]string{
+					"canary-by-header":       "X-Foo",
+					"canary-by-header-value": "DoCanary",
+				}
+				stable := extensionsIngress(ing, 80, "stable-service")
+				stableIngress := ingressutil.NewLegacyIngress(stable)
+
+				desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 15)
+				assert.Nil(t, err, "No error returned when calling canaryIngress")
+
+				checkBackendService(t, desiredCanaryIngress, "canary-service")
+
+				annotations := desiredCanaryIngress.GetAnnotations()
+				assert.Equal(t, "true", annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
+				assert.Equal(t, "15", annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
+				assert.Equal(t, "X-Foo", annotations["nginx.ingress.kubernetes.io/canary-by-header"], "canary-by-header annotation set")
+				assert.Equal(t, "DoCanary", annotations["nginx.ingress.kubernetes.io/canary-by-header-value"], "canary-by-header-value annotation set")
+			}
+		})
 	}
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
-	stableIngress := ingressutil.NewLegacyIngress(stable)
-
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkBackendService(t, desiredCanaryIngress, "canary-service")
-
-	annotations := desiredCanaryIngress.GetAnnotations()
-	assert.Equal(t, "true", annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-	assert.Equal(t, "15", annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-	assert.Equal(t, "X-Foo", annotations["nginx.ingress.kubernetes.io/canary-by-header"], "canary-by-header annotation set")
-	assert.Equal(t, "DoCanary", annotations["nginx.ingress.kubernetes.io/canary-by-header-value"], "canary-by-header-value annotation set")
-}
-
-func TestCanaryIngressAdditionalAnnotationsMultiIngress(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses}),
-		},
-	}
-	r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations = map[string]string{
-		"canary-by-header":       "X-Foo",
-		"canary-by-header-value": "DoCanary",
-	}
-
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
-	stableIngress := ingressutil.NewLegacyIngress(stable)
-
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkBackendService(t, desiredCanaryIngress, "canary-service")
-
-	annotations := desiredCanaryIngress.GetAnnotations()
-	assert.Equal(t, "true", annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-	assert.Equal(t, "15", annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-	assert.Equal(t, "X-Foo", annotations["nginx.ingress.kubernetes.io/canary-by-header"], "canary-by-header annotation set")
-	assert.Equal(t, "DoCanary", annotations["nginx.ingress.kubernetes.io/canary-by-header-value"], "canary-by-header-value annotation set")
-
-	addStable := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
-	addStableIngress := ingressutil.NewLegacyIngress(addStable)
-
-	addDesiredCanaryIngress, err := r.canaryIngress(addStableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses[0]), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkBackendService(t, addDesiredCanaryIngress, "canary-service")
-
-	annotations = addDesiredCanaryIngress.GetAnnotations()
-	assert.Equal(t, "true", annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-	assert.Equal(t, "15", annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-	assert.Equal(t, "X-Foo", annotations["nginx.ingress.kubernetes.io/canary-by-header"], "canary-by-header annotation set")
-	assert.Equal(t, "DoCanary", annotations["nginx.ingress.kubernetes.io/canary-by-header-value"], "canary-by-header-value annotation set")
 }
 
 func TestReconciler_canaryIngress(t *testing.T) {
-	t.Run("will build desired networking ingress successfully", func(t *testing.T) {
-		// given
-		t.Parallel()
-		r := Reconciler{
-			cfg: ReconcilerConfig{
-				Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{}),
-			},
-		}
-		stableIngress := networkingIngress("stable-ingress", 80, "stable-service")
-		stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
-		i := ingressutil.NewIngress(stableIngress)
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{CanaryIngress},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{CanaryIngress, AdditionalCanaryIngresses},
+			[]string{AdditionalStableIngresses},
+		},
+	}
 
-		// when
-		desiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 10)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// given
+			t.Parallel()
+			r := Reconciler{
+				cfg: ReconcilerConfig{
+					Rollout: fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses),
+				},
+			}
+			for _, ing := range test.ingresses {
+				stableIngress := networkingIngress(ing, 80, "stable-service")
+				stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
+				i := ingressutil.NewIngress(stableIngress)
 
-		// then
-		assert.Nil(t, err, "No error returned when calling canaryIngress")
-		checkBackendService(t, desiredCanaryIngress, "canary-service")
-		desired, err := desiredCanaryIngress.GetNetworkingIngress()
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, "true", desired.Annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-		assert.Equal(t, "10", desired.Annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-		assert.NotNil(t, desired.Spec.IngressClassName)
-		assert.Equal(t, "nginx-ext", *desired.Spec.IngressClassName)
-	})
-}
+				// when
+				desiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 10)
 
-func TestReconciler_canaryIngressWithMultiIngress(t *testing.T) {
-	t.Run("will build desired networking ingress successfully", func(t *testing.T) {
-		// given
-		t.Parallel()
-		r := Reconciler{
-			cfg: ReconcilerConfig{
-				Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses}),
-			},
-		}
-
-		stableIngress := networkingIngress("stable-ingress", 80, "stable-service")
-		stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
-		i := ingressutil.NewIngress(stableIngress)
-
-		// when
-		desiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress), 10)
-
-		// then
-		assert.Nil(t, err, "No error returned when calling canaryIngress")
-		checkBackendService(t, desiredCanaryIngress, "canary-service")
-		desired, err := desiredCanaryIngress.GetNetworkingIngress()
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, "true", desired.Annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-		assert.Equal(t, "10", desired.Annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-		assert.NotNil(t, desired.Spec.IngressClassName)
-		assert.Equal(t, "nginx-ext", *desired.Spec.IngressClassName)
-
-		addStableIngress := networkingIngress(AdditionalStableIngresses, 80, "stable-service")
-		addStableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
-		i = ingressutil.NewIngress(addStableIngress)
-
-		// when
-		addDesiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses[0]), 10)
-
-		// then
-		assert.Nil(t, err, "No error returned when calling canaryIngress")
-		checkBackendService(t, desiredCanaryIngress, "canary-service")
-		desired, err = addDesiredCanaryIngress.GetNetworkingIngress()
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, "true", desired.Annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
-		assert.Equal(t, "10", desired.Annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
-		assert.NotNil(t, desired.Spec.IngressClassName)
-		assert.Equal(t, "nginx-ext", *desired.Spec.IngressClassName)
-	})
+				// then
+				assert.Nil(t, err, "No error returned when calling canaryIngress")
+				checkBackendService(t, desiredCanaryIngress, "canary-service")
+				desired, err := desiredCanaryIngress.GetNetworkingIngress()
+				if err != nil {
+					t.Fatal(err)
+				}
+				assert.Equal(t, "true", desired.Annotations["nginx.ingress.kubernetes.io/canary"], "canary annotation set to true")
+				assert.Equal(t, "10", desired.Annotations["nginx.ingress.kubernetes.io/canary-weight"], "canary-weight annotation set to expected value")
+				assert.NotNil(t, desired.Spec.IngressClassName)
+				assert.Equal(t, "nginx-ext", *desired.Spec.IngressClassName)
+			}
+		})
+	}
 }
 
 func TestType(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
+	rollout := fakeRollout("stable-service", "canary-service", StableIngress, []string{})
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -558,7 +506,7 @@ func TestType(t *testing.T) {
 }
 
 func TestReconcileStableIngressNotFound(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
+	rollout := fakeRollout("stable-service", "canary-service", StableIngress, []string{})
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
@@ -578,120 +526,108 @@ func TestReconcileStableIngressNotFound(t *testing.T) {
 }
 
 func TestReconcileStableIngressFound(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-
-	client := fake.NewSimpleClientset()
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{CanaryIngress},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{CanaryIngress, AdditionalCanaryIngresses},
+			[]string{AdditionalStableIngresses},
+		},
 	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
 
-	err = r.SetWeight(10)
-	assert.Nil(t, err, "Reconcile returns no error")
-	actions := client.Actions()
-	assert.Len(t, actions, 1)
-	if !t.Failed() {
-		// Avoid "index out of range" errors
-		assert.Equal(t, "create", actions[0].GetVerb(), "action: create canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: create canary ingress")
-	}
-}
-
-func TestReconcileStableIngressFoundMultiIngress(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
-
-	client := fake.NewSimpleClientset()
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(addStableIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
-
-	err = r.SetWeight(10)
-	assert.Nil(t, err, "Reconcile returns no error")
-	actions := client.Actions()
-	assert.Len(t, actions, 2)
-	if !t.Failed() {
-		// Avoid "index out of range" errors
-		assert.Equal(t, "create", actions[0].GetVerb(), "action: create canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: create canary ingress")
-
-		assert.Equal(t, "create", actions[1].GetVerb(), "action: create canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[1].GetResource(), "action: create canary ingress")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rollout := fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses)
+			client := fake.NewSimpleClientset()
+			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+			for _, ing := range test.ingresses {
+				k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(extensionsIngress(ing, 80, "stable-service"))
+			}
+			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:        rollout,
+				Client:         client,
+				Recorder:       record.NewFakeEventRecorder(),
+				ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+				IngressWrapper: ingressWrapper,
+			})
+			err = r.SetWeight(10)
+			assert.Nil(t, err, "Reconcile returns no error")
+			actions := client.Actions()
+			assert.Len(t, actions, len(test.ingresses))
+			if !t.Failed() {
+				// Avoid "index out of range" errors
+				for i := range test.ingresses {
+					assert.Equal(t, "create", actions[i].GetVerb(), "action: create canary ingress")
+					assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[i].GetResource(), "action: create canary ingress")
+				}
+			}
+		})
 	}
 }
 
 func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
-	stableIngress := extensionsIngress("stable-ingress", 80, "other-service")
-
-	client := fake.NewSimpleClientset()
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{CanaryIngress},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{CanaryIngress, AdditionalCanaryIngresses},
+			[]string{AdditionalStableIngresses},
+		},
 	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
 
-	err = r.SetWeight(10)
-	assert.NotNil(t, err, "Reconcile returns error")
-	assert.Contains(t, err.Error(), "has no rules using service", "correct error is returned")
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 
-func TestReconcileStableIngressFoundWrongBackendMultiIngress(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
-	// this one will work
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	// This is the one that should error out
-	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "other-service")
+			rollout := fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses)
+			client := fake.NewSimpleClientset()
+			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+			for _, ing := range test.ingresses {
+				k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(extensionsIngress(ing, 80, "other-service"))
+			}
 
-	client := fake.NewSimpleClientset()
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(addStableIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:        rollout,
+				Client:         client,
+				Recorder:       record.NewFakeEventRecorder(),
+				ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+				IngressWrapper: ingressWrapper,
+			})
+
+			err = r.SetWeight(10)
+			assert.NotNil(t, err, "Reconcile returns error")
+			assert.Contains(t, err.Error(), "has no rules using service", "correct error is returned")
+		})
 	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
-
-	err = r.SetWeight(10)
-	assert.NotNil(t, err, "Reconcile returns error")
-	assert.Contains(t, err.Error(), "has no rules using service", "correct error is returned")
 }
 
 func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
@@ -748,459 +684,374 @@ func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
-	canaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	setIngressOwnerRef(canaryIngress, rollout)
-	client := fake.NewSimpleClientset(canaryIngress)
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{"rollout-stable-ingress-canary"},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{"rollout-stable-ingress-canary", "rollout-additional-stable-ingress-canary"},
+			[]string{AdditionalStableIngresses},
+		},
 	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
 
-	err = r.SetWeight(10)
-	assert.Nil(t, err, "Reconcile returns no error")
-	actions := client.Actions()
-	assert.Len(t, actions, 1)
-	if !t.Failed() {
-		// Avoid "index out of range" errors
-		assert.Equal(t, "patch", actions[0].GetVerb(), "action: patch canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: patch canary ingress")
-	}
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rollout := fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses)
+			var canaryIngresses []*extensionsv1beta1.Ingress
+			var ingresses []*extensionsv1beta1.Ingress
+			for i, ing := range test.ingresses {
+				stableIngress := extensionsIngress(ing, 80, "stable-service")
+				canaryIngress := extensionsIngress(test.canaryIngresses[i], 80, "canary-service")
+				canaryIngress.SetAnnotations(map[string]string{
+					"nginx.ingress.kubernetes.io/canary":        "true",
+					"nginx.ingress.kubernetes.io/canary-weight": "15",
+				})
+				setIngressOwnerRef(canaryIngress, rollout)
+				canaryIngresses = append(canaryIngresses, canaryIngress)
+				ingresses = append(ingresses, stableIngress)
+				ingresses = append(ingresses, canaryIngress)
+			}
+			//
+			var client *fake.Clientset
+			if len(canaryIngresses) == 1 {
+				client = fake.NewSimpleClientset(canaryIngresses[0])
+			} else {
+				client = fake.NewSimpleClientset(canaryIngresses[0], canaryIngresses[1])
+			}
+			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+			for _, ing := range ingresses {
+				k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(ing)
+			}
+			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:        rollout,
+				Client:         client,
+				Recorder:       record.NewFakeEventRecorder(),
+				ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+				IngressWrapper: ingressWrapper,
+			})
 
-func TestReconcileStableAndCanaryIngressFoundPatchMultiIngress(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
-	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
-	canaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	addCanaryIngress := extensionsIngress("rollout-additional-stable-ingress-canary", 80, "canary-service")
-	addCanaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	setIngressOwnerRef(canaryIngress, rollout)
-	setIngressOwnerRef(addCanaryIngress, rollout)
-	client := fake.NewSimpleClientset(canaryIngress, addCanaryIngress)
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(addStableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(addCanaryIngress)
-
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
-
-	err = r.SetWeight(10)
-	assert.Nil(t, err, "Reconcile returns no error")
-	actions := client.Actions()
-	assert.Len(t, actions, 2)
-	if !t.Failed() {
-		// Avoid "index out of range" errors
-		assert.Equal(t, "patch", actions[0].GetVerb(), "action: patch canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: patch canary ingress")
-		assert.Equal(t, "patch", actions[1].GetVerb(), "action: patch canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[1].GetResource(), "action: patch canary ingress")
+			err = r.SetWeight(10)
+			assert.Nil(t, err, "Reconcile returns no error")
+			actions := client.Actions()
+			assert.Len(t, actions, len(test.ingresses))
+			if !t.Failed() {
+				// Avoid "index out of range" errors
+				for i := range test.ingresses {
+					assert.Equal(t, "patch", actions[i].GetVerb(), "action: patch canary ingress")
+					assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[i].GetResource(), "action: patch canary ingress")
+				}
+			}
+		})
 	}
 }
 
 func TestReconcileWillInvokeNetworkingIngress(t *testing.T) {
-	// given
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
-	stableIngress := networkingIngress("stable-ingress", 80, "stable-service")
-	canaryIngress := networkingIngress("rollout-stable-ingress-canary", 80, "canary-service")
-	canaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	canaryIngress.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(rollout, schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Rollout"})})
-	client := fake.NewSimpleClientset(stableIngress, canaryIngress)
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{"rollout-stable-ingress-canary"},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{"rollout-stable-ingress-canary", "rollout-additional-stable-ingress-canary"},
+			[]string{AdditionalStableIngresses},
+		},
 	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
 
-	// when
-	err = r.SetWeight(10)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// given
+			rollout := fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses)
+			var ingresses []*networkingv1.Ingress
+			for i, ing := range test.ingresses {
+				stableIngress := networkingIngress(ing, 80, "stable-service")
+				canaryIngress := networkingIngress(test.canaryIngresses[i], 80, "canary-service")
+				canaryIngress.SetAnnotations(map[string]string{
+					"nginx.ingress.kubernetes.io/canary":        "true",
+					"nginx.ingress.kubernetes.io/canary-weight": "15",
+				})
+				canaryIngress.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(rollout, schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Rollout"})})
+				ingresses = append(ingresses, stableIngress)
+				ingresses = append(ingresses, canaryIngress)
+			}
 
-	// then
-	assert.Nil(t, err, "Reconcile returns no error")
-	actions := client.Actions()
-	assert.Len(t, actions, 1)
-	if !t.Failed() {
-		// Avoid "index out of range" errors
-		assert.Equal(t, "patch", actions[0].GetVerb(), "action: patch canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"}, actions[0].GetResource(), "action: patch canary ingress")
-	}
-}
+			var client *fake.Clientset
+			if len(ingresses) == 2 {
+				client = fake.NewSimpleClientset(ingresses[0], ingresses[1])
+			} else {
+				client = fake.NewSimpleClientset(ingresses[0], ingresses[1], ingresses[2], ingresses[3])
+			}
 
-func TestReconcileWillInvokeNetworkingIngressMultiIngress(t *testing.T) {
-	// given
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
-	stableIngress := networkingIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := networkingIngress(AdditionalStableIngresses, 80, "stable-service")
-	canaryIngress := networkingIngress("rollout-stable-ingress-canary", 80, "canary-service")
-	canaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	addCanaryIngress := networkingIngress("rollout-additional-stable-ingress-canary", 80, "canary-service")
-	addCanaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	canaryIngress.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(rollout, schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Rollout"})})
-	addCanaryIngress.SetOwnerReferences([]metav1.OwnerReference{*metav1.NewControllerRef(rollout, schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Rollout"})})
-	client := fake.NewSimpleClientset(stableIngress, canaryIngress, addStableIngress, addCanaryIngress)
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(addStableIngress)
-	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(addCanaryIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
+			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+			for _, ing := range ingresses {
+				k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(ing)
+			}
+			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// when
-	err = r.SetWeight(10)
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:        rollout,
+				Client:         client,
+				Recorder:       record.NewFakeEventRecorder(),
+				ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+				IngressWrapper: ingressWrapper,
+			})
 
-	// then
-	assert.Nil(t, err, "Reconcile returns no error")
-	actions := client.Actions()
-	assert.Len(t, actions, 2)
-	if !t.Failed() {
-		// Avoid "index out of range" errors
-		assert.Equal(t, "patch", actions[0].GetVerb(), "action: patch canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"}, actions[0].GetResource(), "action: patch canary ingress")
-		assert.Equal(t, "patch", actions[1].GetVerb(), "action: patch canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"}, actions[1].GetResource(), "action: patch canary ingress")
+			// when
+			err = r.SetWeight(10)
+
+			// then
+			assert.Nil(t, err, "Reconcile returns no error")
+			actions := client.Actions()
+			assert.Len(t, actions, len(test.canaryIngresses))
+			if !t.Failed() {
+				// Avoid "index out of range" errors
+				for i := range test.canaryIngresses {
+					assert.Equal(t, "patch", actions[i].GetVerb(), "action: patch canary ingress")
+					assert.Equal(t, schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"}, actions[i].GetResource(), "action: patch canary ingress")
+				}
+			}
+		})
 	}
 }
 
 func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
-	setIngressOwnerRef(canaryIngress, rollout)
-	canaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "10",
-	})
-	client := fake.NewSimpleClientset()
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{"rollout-stable-ingress-canary"},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{"rollout-stable-ingress-canary", "rollout-additional-stable-ingress-canary"},
+			[]string{AdditionalStableIngresses},
+		},
 	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
 
-	err = r.SetWeight(10)
-	assert.Nil(t, err, "Reconcile returns no error")
-	actions := client.Actions()
-	assert.Len(t, actions, 0)
-}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// given
+			rollout := fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses)
+			client := fake.NewSimpleClientset()
+			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 
-func TestReconcileStableAndCanaryIngressFoundNoChangeMultiIngress(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
-	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
-	addCanaryIngress := extensionsIngress("rollout-additional-stable-ingress-canary", 80, "canary-service")
-	setIngressOwnerRef(canaryIngress, rollout)
-	setIngressOwnerRef(addCanaryIngress, rollout)
-	canaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "10",
-	})
-	addCanaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "10",
-	})
-	client := fake.NewSimpleClientset()
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(addStableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(addCanaryIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+			for i, ing := range test.ingresses {
+				stableIngress := extensionsIngress(ing, 80, "stable-service")
+				canaryIngress := extensionsIngress(test.canaryIngresses[i], 80, "canary-service")
+				setIngressOwnerRef(canaryIngress, rollout)
+				canaryIngress.SetAnnotations(map[string]string{
+					"nginx.ingress.kubernetes.io/canary":        "true",
+					"nginx.ingress.kubernetes.io/canary-weight": "10",
+				})
+				k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
+				k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
+			}
+
+			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:        rollout,
+				Client:         client,
+				Recorder:       record.NewFakeEventRecorder(),
+				ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+				IngressWrapper: ingressWrapper,
+			})
+
+			// when
+			err = r.SetWeight(10)
+
+			// then
+			assert.Nil(t, err, "Reconcile returns no error")
+			actions := client.Actions()
+			assert.Len(t, actions, 0)
+		})
 	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
-
-	err = r.SetWeight(10)
-	assert.Nil(t, err, "Reconcile returns no error")
-	actions := client.Actions()
-	assert.Len(t, actions, 0)
 }
 
 func TestReconcileCanaryCreateError(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-
-	client := fake.NewSimpleClientset()
-	client.ReactionChain = nil
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-
-	// stableIngress exists
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{"rollout-stable-ingress-canary"},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{"rollout-stable-ingress-canary", "rollout-additional-stable-ingress-canary"},
+			[]string{AdditionalStableIngresses},
+		},
 	}
 
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// given
+			rollout := fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses)
+			client := fake.NewSimpleClientset()
+			client.ReactionChain = nil
+			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+			for _, ing := range test.ingresses {
+				k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(extensionsIngress(ing, 80, "stable-service"))
+			}
+			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:        rollout,
+				Client:         client,
+				Recorder:       record.NewFakeEventRecorder(),
+				ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+				IngressWrapper: ingressWrapper,
+			})
 
-	// Return with AlreadyExists error to create for canary
-	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("create", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, errors.New("fake error")
-	})
+			// Return with AlreadyExists error to create for canary
+			r.cfg.Client.(*fake.Clientset).Fake.AddReactor("create", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, nil, errors.New("fake error")
+			})
 
-	err = r.SetWeight(10)
-	assert.NotNil(t, err, "Reconcile returns error")
-	assert.Equal(t, "error creating canary ingress `rollout-stable-ingress-canary`: fake error", err.Error())
-	actions := client.Actions()
-	assert.Len(t, actions, 1)
-	if !t.Failed() {
-		// Avoid "index out of range" errors
-		assert.Equal(t, "create", actions[0].GetVerb(), "action: create canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: create canary ingress")
-	}
-}
+			// when
+			err = r.SetWeight(10)
 
-func TestReconcileCanaryCreateErrorMultiIngress(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
-
-	client := fake.NewSimpleClientset()
-	client.ReactionChain = nil
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-
-	// stableIngress exists
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(addStableIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
-
-	// Return with AlreadyExists error to create for canary
-	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("create", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, errors.New("fake error")
-	})
-
-	err = r.SetWeight(10)
-	assert.NotNil(t, err, "Reconcile returns error")
-	assert.Equal(t, "error creating canary ingress `rollout-additional-stable-ingress-canary`: fake error", err.Error())
-	actions := client.Actions()
-	assert.Len(t, actions, 1)
-	if !t.Failed() {
-		// Avoid "index out of range" errors
-		assert.Equal(t, "create", actions[0].GetVerb(), "action: create canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: create canary ingress")
+			// then
+			assert.NotNil(t, err, "Reconcile returns error")
+			assert.Equal(t, fmt.Sprintf("error creating canary ingress `%s`: fake error", test.canaryIngresses[len(test.canaryIngresses)-1]), err.Error())
+			actions := client.Actions()
+			assert.Len(t, actions, 1)
+			if !t.Failed() {
+				// Avoid "index out of range" errors
+				assert.Equal(t, "create", actions[0].GetVerb(), "action: create canary ingress")
+				assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: create canary ingress")
+			}
+		})
 	}
 }
 
 func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
-	canaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	setIngressOwnerRef(canaryIngress, rollout)
-
-	client := fake.NewSimpleClientset()
-	client.ReactionChain = nil
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-
-	// stableIngress exists
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name                string
+		ingresses           []string
+		canaryIngresses     []string
+		additionalIngresses []string
+	}{
+		{
+			"singleIngress",
+			[]string{StableIngress},
+			[]string{"rollout-stable-ingress-canary"},
+			[]string{},
+		},
+		{
+			"multiIngress",
+			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{"rollout-stable-ingress-canary", "rollout-additional-stable-ingress-canary"},
+			[]string{AdditionalStableIngresses},
+		},
 	}
 
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// given
+			rollout := fakeRollout("stable-service", "canary-service", StableIngress, test.additionalIngresses)
+			client := fake.NewSimpleClientset()
+			client.ReactionChain = nil
+			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+			var canaryIngresses []*extensionsv1beta1.Ingress
+			for i, ing := range test.ingresses {
+				stableIngress := extensionsIngress(ing, 80, "stable-service")
+				canaryIngress := extensionsIngress(test.canaryIngresses[i], 80, "canary-service")
+				canaryIngress.SetAnnotations(map[string]string{
+					"nginx.ingress.kubernetes.io/canary":        "true",
+					"nginx.ingress.kubernetes.io/canary-weight": "15",
+				})
+				setIngressOwnerRef(canaryIngress, rollout)
+				canaryIngresses = append(canaryIngresses, canaryIngress)
+				k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
+			}
+			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// Return with AlreadyExists error to create for canary
-	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("create", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, k8serrors.NewAlreadyExists(schema.GroupResource{
-			Group:    "extensions",
-			Resource: "ingresses",
-		}, "rollout-stable-ingress-canary")
-	})
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:        rollout,
+				Client:         client,
+				Recorder:       record.NewFakeEventRecorder(),
+				ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+				IngressWrapper: ingressWrapper,
+			})
 
-	// Respond with canaryIngress on GET
-	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("get", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, canaryIngress, nil
-	})
+			// Return with AlreadyExists error to create for canary
+			r.cfg.Client.(*fake.Clientset).Fake.AddReactor("create", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, nil, k8serrors.NewAlreadyExists(schema.GroupResource{
+					Group:    "extensions",
+					Resource: "ingresses",
+				}, test.canaryIngresses[0])
+			})
 
-	err = r.SetWeight(10)
-	assert.Nil(t, err, "Reconcile returns no error")
-	actions := client.Actions()
-	assert.Len(t, actions, 3)
-	if !t.Failed() {
-		// Avoid "index out of range" errors
-		assert.Equal(t, "create", actions[0].GetVerb(), "action: create canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: create canary ingress")
-		assert.Equal(t, "get", actions[1].GetVerb(), "action: get canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[1].GetResource(), "action: get canary ingress")
-		assert.Equal(t, "patch", actions[2].GetVerb(), "action: patch canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[2].GetResource(), "action: patch canary ingress")
-	}
-}
+			// Respond with canaryIngress on GET
+			r.cfg.Client.(*fake.Clientset).Fake.AddReactor("get", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, canaryIngresses[0], nil
+			})
 
-func TestReconcileCanaryCreateErrorAlreadyExistsPatchMultiIngress(t *testing.T) {
-	rollout := fakeRollout("stable-service", "canary-service", "stable-ingress", []string{AdditionalStableIngresses})
-	stableIngress := extensionsIngress("stable-ingress", 80, "stable-service")
-	addStableIngress := extensionsIngress(AdditionalStableIngresses, 80, "stable-service")
-	canaryIngress := extensionsIngress("rollout-stable-ingress-canary", 80, "canary-service")
-	addCanaryIngress := extensionsIngress("rollout-additional-stable-ingress-canary", 80, "canary-service")
-	canaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	addCanaryIngress.SetAnnotations(map[string]string{
-		"nginx.ingress.kubernetes.io/canary":        "true",
-		"nginx.ingress.kubernetes.io/canary-weight": "15",
-	})
-	setIngressOwnerRef(canaryIngress, rollout)
-	setIngressOwnerRef(addCanaryIngress, rollout)
+			// when
+			err = r.SetWeight(10)
 
-	client := fake.NewSimpleClientset()
-	client.ReactionChain = nil
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-
-	// stableIngress exists
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(addStableIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
-
-	// Return with AlreadyExists error to create for canary
-	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("create", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, k8serrors.NewAlreadyExists(schema.GroupResource{
-			Group:    "extensions",
-			Resource: "ingresses",
-		}, "rollout-stable-ingress-canary")
-	})
-
-	// Respond with canaryIngress on GET
-	r.cfg.Client.(*fake.Clientset).Fake.AddReactor("get", "ingresses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, canaryIngress, nil
-	})
-
-	err = r.SetWeight(10)
-	assert.Nil(t, err, "Reconcile returns no error")
-	actions := client.Actions()
-	assert.Len(t, actions, 6)
-	if !t.Failed() {
-		// Avoid "index out of range" errors
-		// primary ingress
-		assert.Equal(t, "create", actions[0].GetVerb(), "action: create canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: create canary ingress")
-		assert.Equal(t, "get", actions[1].GetVerb(), "action: get canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[1].GetResource(), "action: get canary ingress")
-		assert.Equal(t, "patch", actions[2].GetVerb(), "action: patch canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[2].GetResource(), "action: patch canary ingress")
-		// additional ingress
-		assert.Equal(t, "create", actions[3].GetVerb(), "action: create canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: create canary ingress")
-		assert.Equal(t, "get", actions[4].GetVerb(), "action: get canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[1].GetResource(), "action: get canary ingress")
-		assert.Equal(t, "patch", actions[5].GetVerb(), "action: patch canary ingress")
-		assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[2].GetResource(), "action: patch canary ingress")
+			// then
+			assert.Nil(t, err, "Reconcile returns no error")
+			actions := client.Actions()
+			assert.Len(t, actions, len(test.ingresses)*3)
+			if !t.Failed() {
+				// Avoid "index out of range" errors
+				for i := range test.ingresses {
+					assert.Equal(t, "create", actions[3*i+0].GetVerb(), "action: create canary ingress")
+					assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[0].GetResource(), "action: create canary ingress")
+					assert.Equal(t, "get", actions[3*i+1].GetVerb(), "action: get canary ingress")
+					assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[1].GetResource(), "action: get canary ingress")
+					assert.Equal(t, "patch", actions[3*i+2].GetVerb(), "action: patch canary ingress")
+					assert.Equal(t, schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}, actions[2].GetResource(), "action: patch canary ingress")
+				}
+			}
+		})
 	}
 }
