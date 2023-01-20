@@ -3,7 +3,7 @@ module github.com/argoproj/argo-rollouts
 go 1.19
 
 require (
-	github.com/antonmedv/expr v1.9.0
+	github.com/antonmedv/expr v1.10.0
 	github.com/argoproj/notifications-engine v0.3.1-0.20221206124514-c419c904e2c0
 	github.com/argoproj/pkg v0.13.6
 	github.com/aws/aws-sdk-go-v2 v1.17.3
