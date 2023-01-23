@@ -2,10 +2,6 @@ extra:
   analytics:
     property: G-5Z1VTPDL73
     provider: google
-extra_css:
-- assets/versions.css
-extra_javascript:
-- assets/versions.js
 markdown_extensions:
 - codehilite
 - admonition
