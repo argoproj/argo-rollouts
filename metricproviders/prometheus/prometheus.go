@@ -169,24 +169,31 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	//Check if using Amazon Managed Prometheus if true build sigv4 client
 	promUrl := metric.Provider.Prometheus.Address
 	amznUrlSubstring := "aps-workspaces"
-
 	if strings.Contains(promUrl, amznUrlSubstring) {
-		client, err := createSigV4Client(promUrl)
+		var cfg *sigv4.SigV4Config
+		var next http.RoundTripper
+		sigv4RoundTripper, err := sigv4.NewSigV4RoundTripper(cfg, next)
 		if err != nil {
-			log.Errorf("Error in getting prometheus client: %v", err)
-			return nil, err
+			log.Errorf("Error creating SigV4 RoundTripper: %v", err)
 		}
-		return v1.NewAPI(client), nil
-	} else {
 		client, err := api.NewClient(api.Config{
-			Address: metric.Provider.Prometheus.Address,
+			Address:      metric.Provider.Prometheus.Address,
+			RoundTripper: sigv4RoundTripper,
 		})
 		if err != nil {
 			log.Errorf("Error in getting prometheus client: %v", err)
-			return nil, err
 		}
 		return v1.NewAPI(client), nil
 	}
+
+	client, err := api.NewClient(api.Config{
+		Address: metric.Provider.Prometheus.Address,
+	})
+	if err != nil {
+		log.Errorf("Error in getting prometheus client: %v", err)
+		return nil, err
+	}
+	return v1.NewAPI(client), nil
 }
 
 func IsUrl(str string) bool {
@@ -196,19 +203,4 @@ func IsUrl(str string) bool {
 	}
 	log.Debugf("Parsed url: %v", u)
 	return err == nil && u.Scheme != "" && u.Host != ""
-}
-
-// Create a new sigv4Client that uses GO default provider chain
-func createSigV4Client(address string) (api.Client, error) {
-	var cfg *sigv4.SigV4Config
-	var next http.RoundTripper
-	sigv4RoundTripper, err := sigv4.NewSigV4RoundTripper(cfg, next)
-	if err != nil {
-		log.Errorf("Error creating SigV4RoundTripper: %v", err)
-	}
-	client, err := api.NewClient(api.Config{
-		Address:      address,
-		RoundTripper: sigv4RoundTripper,
-	})
-	return client, err
 }
