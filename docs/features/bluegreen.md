@@ -93,7 +93,7 @@ The AutoPromotionEnabled will make the rollout automatically promote the new Rep
 Defaults to true
 
 ### autoPromotionSeconds
-The AutoPromotionSeconds will make the rollout automatically promote the new ReplicaSet to active Service after the AutoPromotionSeconds time has passed since the rollout has entered a paused state. If the `AutoPromotionEnabled` field is set to true, this field will be ignored
+The AutoPromotionSeconds will make the rollout automatically promote the new ReplicaSet to active Service after the AutoPromotionSeconds time has passed since the rollout has entered a paused state. If the `AutoPromotionEnabled` field is set to false, this field will be ignored
 
 Defaults to nil
 
