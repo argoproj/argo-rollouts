@@ -4,13 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/sigv4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -162,14 +165,28 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	} else {
 		return nil, errors.New("prometheus address is not configured")
 	}
-	client, err := api.NewClient(api.Config{
-		Address: metric.Provider.Prometheus.Address,
-	})
-	if err != nil {
-		log.Errorf("Error in getting prometheus client: %v", err)
-		return nil, err
+
+	//Check if using Amazon Managed Prometheus if true build sigv4 client
+	promUrl := metric.Provider.Prometheus.Address
+	amznUrlSubstring := "aps-workspaces"
+
+	if strings.Contains(promUrl, amznUrlSubstring) {
+		client, err := createSigV4Client(promUrl)
+		if err != nil {
+			log.Errorf("Error in getting prometheus client: %v", err)
+			return nil, err
+		}
+		return v1.NewAPI(client), nil
+	} else {
+		client, err := api.NewClient(api.Config{
+			Address: metric.Provider.Prometheus.Address,
+		})
+		if err != nil {
+			log.Errorf("Error in getting prometheus client: %v", err)
+			return nil, err
+		}
+		return v1.NewAPI(client), nil
 	}
-	return v1.NewAPI(client), nil
 }
 
 func IsUrl(str string) bool {
@@ -179,4 +196,19 @@ func IsUrl(str string) bool {
 	}
 	log.Debugf("Parsed url: %v", u)
 	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+// Create a new sigv4Client that uses GO default provider chain
+func createSigV4Client(address string) (api.Client, error) {
+	var cfg *sigv4.SigV4Config
+	var next http.RoundTripper
+	sigv4RoundTripper, err := sigv4.NewSigV4RoundTripper(cfg, next)
+	if err != nil {
+		log.Errorf("Error creating SigV4RoundTripper: %v", err)
+	}
+	client, err := api.NewClient(api.Config{
+		Address:      address,
+		RoundTripper: sigv4RoundTripper,
+	})
+	return client, err
 }
