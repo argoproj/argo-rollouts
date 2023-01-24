@@ -1198,11 +1198,12 @@ func TestCanarySVCSelectors(t *testing.T) {
 		canaryAvailReplicas int32
 
 		shouldTargetNewRS bool
+		isAbortedRun      bool
 	}{
-		{0, 0, false},
-		{2, 0, false},
-		{2, 1, false},
-		{2, 2, true},
+		{0, 0, false, false},
+		{2, 0, false, false},
+		{2, 1, false, true},
+		{2, 2, true, true},
 	} {
 		namespace := "namespace"
 		selectorNewRSVal := "new-rs-xxx"
@@ -1268,10 +1269,16 @@ func TestCanarySVCSelectors(t *testing.T) {
 						v1alpha1.DefaultRolloutUniqueLabelKey: selectorOldRSVal,
 					},
 				},
+				Spec: v1.ReplicaSetSpec{
+					Replicas: pointer.Int32Ptr(tc.canaryReplicas),
+				},
+				Status: v1.ReplicaSetStatus{
+					AvailableReplicas: tc.canaryAvailReplicas,
+				},
 			},
 			pauseContext: &pauseContext{
-				removeAbort: true,
-				addAbort:    false,
+				removeAbort: !tc.isAbortedRun,
+				addAbort:    tc.isAbortedRun,
 			},
 		}
 		stopchan := make(chan struct{})
@@ -1282,8 +1289,12 @@ func TestCanarySVCSelectors(t *testing.T) {
 		assert.NoError(t, err, "unable to reconcileStableAndCanaryService")
 		updatedCanarySVC, err := servicesLister.Services(rc.rollout.Namespace).Get(canaryService.Name)
 		assert.NoError(t, err, "unable to get updated canary service")
+		expectedRSVal := selectorNewRSVal
+		if tc.isAbortedRun {
+			expectedRSVal = selectorOldRSVal
+		}
 		if tc.shouldTargetNewRS {
-			assert.Equal(t, selectorNewRSVal, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
+			assert.Equal(t, expectedRSVal, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
 				"canary SVC should have newRS selector label when newRS has %d replicas and %d AvailableReplicas",
 				tc.canaryReplicas, tc.canaryAvailReplicas)
 		} else {
@@ -1292,91 +1303,6 @@ func TestCanarySVCSelectors(t *testing.T) {
 				tc.canaryReplicas, tc.canaryAvailReplicas)
 		}
 	}
-}
-
-func TestCanarySVCSelectorsAbortedRun(t *testing.T) {
-	namespace := "namespace"
-	selectorNewRSVal := "new-rs-xxx"
-	selectorOldRSVal := "old-rs-xxx"
-	stableService := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "stable",
-			Namespace: namespace,
-		},
-	}
-	canaryService := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "canary",
-			Namespace: namespace,
-		},
-	}
-	kubeclient := k8sfake.NewSimpleClientset(stableService, canaryService)
-	informers := k8sinformers.NewSharedInformerFactory(kubeclient, 0)
-	servicesLister := informers.Core().V1().Services().Lister()
-
-	rollout := &v1alpha1.Rollout{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "selector-labels-test",
-			Namespace: namespace,
-		},
-		Spec: v1alpha1.RolloutSpec{
-			Strategy: v1alpha1.RolloutStrategy{
-				Canary: &v1alpha1.CanaryStrategy{
-					StableService: stableService.Name,
-					CanaryService: canaryService.Name,
-				},
-			},
-		},
-	}
-	rc := rolloutContext{
-		log: logutil.WithRollout(rollout),
-		reconcilerBase: reconcilerBase{
-			servicesLister: servicesLister,
-			kubeclientset:  kubeclient,
-			recorder:       record.NewFakeEventRecorder(),
-		},
-		rollout: rollout,
-		newRS: &v1.ReplicaSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "canary",
-				Namespace: namespace,
-				Labels: map[string]string{
-					v1alpha1.DefaultRolloutUniqueLabelKey: selectorNewRSVal,
-				},
-			},
-			Spec: v1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(2),
-			},
-			Status: v1.ReplicaSetStatus{
-				AvailableReplicas: 2,
-			},
-		},
-		stableRS: &v1.ReplicaSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "stable",
-				Namespace: namespace,
-				Labels: map[string]string{
-					v1alpha1.DefaultRolloutUniqueLabelKey: selectorOldRSVal,
-				},
-			},
-		},
-		pauseContext: &pauseContext{
-			removeAbort: false,
-			addAbort:    true,
-		},
-	}
-	replicaSpecs := int32(2)
-	rc.stableRS.Spec.Replicas = &replicaSpecs
-	rc.stableRS.Status.AvailableReplicas = 2
-	stopchan := make(chan struct{})
-	defer close(stopchan)
-	informers.Start(stopchan)
-	informers.WaitForCacheSync(stopchan)
-	err := rc.reconcileStableAndCanaryService()
-	assert.NoError(t, err, "unable to reconcileStableAndCanaryService")
-	updatedCanarySVC, err := servicesLister.Services(rc.rollout.Namespace).Get(canaryService.Name)
-	assert.NoError(t, err, "unable to get updated canary service")
-	assert.Equal(t, "old-rs-xxx", updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
 }
 
 func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {

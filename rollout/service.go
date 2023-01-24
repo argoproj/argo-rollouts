@@ -54,12 +54,10 @@ func generatePatch(service *corev1.Service, newRolloutUniqueLabelValue string, r
 
 // switchSelector switch the selector on an existing service to a new value
 func (c rolloutContext) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
-	print("here in init")
 	ctx := context.TODO()
 	if service.Spec.Selector == nil {
 		service.Spec.Selector = make(map[string]string)
 	}
-	print("here in init")
 	_, hasManagedRollout := serviceutil.HasManagedByAnnotation(service)
 	print("hasManagedRollout " + strconv.FormatBool(hasManagedRollout))
 	oldPodHash, ok := service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]

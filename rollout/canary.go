@@ -403,7 +403,6 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 			}
 		}
 		newStatus = c.calculateRolloutConditions(newStatus)
-		println("Here in aborted")
 		return c.persistRolloutStatus(&newStatus)
 	}
 
