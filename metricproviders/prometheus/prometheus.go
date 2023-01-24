@@ -170,9 +170,7 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		Address: metric.Provider.Prometheus.Address,
 	}
 	//Check if using Amazon Managed Prometheus if true build sigv4 client
-	promUrl := metric.Provider.Prometheus.Address
-	amznUrlSubstring := "aps-workspaces"
-	if strings.Contains(promUrl, amznUrlSubstring) {
+	if strings.Contains(metric.Provider.Prometheus.Address, "aps-workspaces") {
 		var cfg *sigv4.SigV4Config
 		var next http.RoundTripper
 		sigv4RoundTripper, err := sigv4.NewSigV4RoundTripper(cfg, next)
