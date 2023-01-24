@@ -166,6 +166,9 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		return nil, errors.New("prometheus address is not configured")
 	}
 
+	prometheusApiConfig := api.Config{
+		Address: metric.Provider.Prometheus.Address,
+	}
 	//Check if using Amazon Managed Prometheus if true build sigv4 client
 	promUrl := metric.Provider.Prometheus.Address
 	amznUrlSubstring := "aps-workspaces"
@@ -176,19 +179,10 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		if err != nil {
 			log.Errorf("Error creating SigV4 RoundTripper: %v", err)
 		}
-		client, err := api.NewClient(api.Config{
-			Address:      metric.Provider.Prometheus.Address,
-			RoundTripper: sigv4RoundTripper,
-		})
-		if err != nil {
-			log.Errorf("Error in getting prometheus client: %v", err)
-		}
-		return v1.NewAPI(client), nil
+		prometheusApiConfig.RoundTripper = sigv4RoundTripper
 	}
 
-	client, err := api.NewClient(api.Config{
-		Address: metric.Provider.Prometheus.Address,
-	})
+	client, err := api.NewClient(prometheusApiConfig)
 	if err != nil {
 		log.Errorf("Error in getting prometheus client: %v", err)
 		return nil, err
