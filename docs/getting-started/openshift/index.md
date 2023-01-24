@@ -60,6 +60,9 @@ Alternatively, create and apply a route of your own:
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
+  annotations:
+    haproxy.router.openshift.io/balance: roundrobin
+    haproxy.router.openshift.io/disable_cookies: "true"
   labels:
     app: rollouts-demo
   name: main-route
