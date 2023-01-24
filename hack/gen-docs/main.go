@@ -42,7 +42,7 @@ func generateNotificationsDocs() {
 func generatePluginsDocs() {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 
-	//Set static config dir so that gen docs dose not change depending on what machine it is ran on
+	//Set static config dir so that gen docs does not change depending on what machine it is ran on
 	configDir := "$HOME/.kube/cache"
 	o.ConfigFlags.CacheDir = &configDir
 
