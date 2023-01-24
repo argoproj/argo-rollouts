@@ -40,7 +40,7 @@ kubectl argo rollouts notifications [flags]
 ## Options inherited from parent commands
 
 ```
-      --cache-dir string   Default cache directory (default "/Users/zaller/.kube/cache")
+      --cache-dir string   Default cache directory (default "$HOME/.kube/cache")
   -v, --kloglevel int      Log level for kubernetes client library
       --loglevel string    Log level for kubectl argo rollouts (default "info")
 ```
