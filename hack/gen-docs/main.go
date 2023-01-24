@@ -21,7 +21,6 @@ import (
 )
 
 func main() {
-	os.Setenv("KUBECACHEDIR", "/home/user")
 	generateNotificationsDocs()
 	generatePluginsDocs()
 }
