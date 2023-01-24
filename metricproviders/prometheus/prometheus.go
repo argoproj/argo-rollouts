@@ -176,6 +176,7 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		sigv4RoundTripper, err := sigv4.NewSigV4RoundTripper(cfg, next)
 		if err != nil {
 			log.Errorf("Error creating SigV4 RoundTripper: %v", err)
+			return nil, err
 		}
 		prometheusApiConfig.RoundTripper = sigv4RoundTripper
 	}
