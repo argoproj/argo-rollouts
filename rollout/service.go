@@ -3,6 +3,7 @@ package rollout
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
@@ -53,12 +54,16 @@ func generatePatch(service *corev1.Service, newRolloutUniqueLabelValue string, r
 
 // switchSelector switch the selector on an existing service to a new value
 func (c rolloutContext) switchServiceSelector(service *corev1.Service, newRolloutUniqueLabelValue string, r *v1alpha1.Rollout) error {
+	print("here in init")
 	ctx := context.TODO()
 	if service.Spec.Selector == nil {
 		service.Spec.Selector = make(map[string]string)
 	}
+	print("here in init")
 	_, hasManagedRollout := serviceutil.HasManagedByAnnotation(service)
+	print("hasManagedRollout " + strconv.FormatBool(hasManagedRollout))
 	oldPodHash, ok := service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
+	print("old " + oldPodHash)
 	if ok && oldPodHash == newRolloutUniqueLabelValue && hasManagedRollout {
 		return nil
 	}
@@ -253,15 +258,25 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 	if c.rollout.Spec.Strategy.Canary == nil {
 		return nil
 	}
-	err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS, true)
-	if err != nil {
-		return err
-	}
-	err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS, true)
-	if err != nil {
-		return err
+	if c.pauseContext.IsAborted() {
+		err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS, true)
+		if err != nil {
+			return err
+		} else {
+			err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS, true)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
 	}
 	return nil
+
 }
 
 // ensureSVCTargets updates the service with the given name to point to the given ReplicaSet,
@@ -280,7 +295,6 @@ func (c *rolloutContext) ensureSVCTargets(svcName string, rs *appsv1.ReplicaSet,
 	currSelector := svc.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
 	desiredSelector := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	logCtx := c.log.WithField(logutil.ServiceKey, svc.Name)
-
 	if currSelector != desiredSelector {
 		if _, ok := svc.Annotations[v1alpha1.ManagedByRolloutsKey]; !ok {
 			// This block will be entered only when adopting a service that already exists, because the current annotation

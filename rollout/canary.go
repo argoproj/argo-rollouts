@@ -71,6 +71,13 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
+	//Reset the Canary service to have stableRS pod selector in event of failed analysis run or failed experiment
+	//to expose network endpoints to route traffic without any interruption.
+	err = c.reconcileStableAndCanaryService()
+	if err != nil {
+		return err
+	}
+
 	noScalingOccurred, err := c.reconcileCanaryReplicaSets()
 	if err != nil {
 		return err
@@ -396,6 +403,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 			}
 		}
 		newStatus = c.calculateRolloutConditions(newStatus)
+		println("Here in aborted")
 		return c.persistRolloutStatus(&newStatus)
 	}
 
