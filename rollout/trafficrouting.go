@@ -171,6 +171,13 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				return err
 			}
 
+			// If we are aborting, we want to set the desired weight to 0, but we also want to set the canary service
+			// to point to the stable service.
+			err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+			if err != nil {
+				return err
+			}
+
 		} else if c.newRS == nil || c.newRS.Status.AvailableReplicas == 0 {
 			// when newRS is not available or replicas num is 0. never weight to canary
 			weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
