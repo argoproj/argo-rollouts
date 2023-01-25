@@ -3,8 +3,6 @@ package rollout
 import (
 	"context"
 	"fmt"
-	"strconv"
-
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/utils/annotations"
@@ -59,9 +57,7 @@ func (c rolloutContext) switchServiceSelector(service *corev1.Service, newRollou
 		service.Spec.Selector = make(map[string]string)
 	}
 	_, hasManagedRollout := serviceutil.HasManagedByAnnotation(service)
-	print("hasManagedRollout " + strconv.FormatBool(hasManagedRollout))
 	oldPodHash, ok := service.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey]
-	print("old " + oldPodHash)
 	if ok && oldPodHash == newRolloutUniqueLabelValue && hasManagedRollout {
 		return nil
 	}
@@ -265,16 +261,13 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		err := c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.StableService, c.stableRS, true)
 		if err != nil {
 			return err
-		} else {
-			err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS, true)
-			if err != nil {
-				return err
-			}
-			return nil
+		}
+		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS, true)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
-
 }
 
 // ensureSVCTargets updates the service with the given name to point to the given ReplicaSet,
