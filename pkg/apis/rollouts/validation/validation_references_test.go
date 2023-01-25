@@ -214,6 +214,10 @@ spec:
   tcp:
     - invalid-structure`
 
+const StableIngress string = "stable-ingress"
+const AddStableIngress1 string = "additional-stable-ingress-1"
+const AddStableIngress2 string = "additional-stable-ingress-2"
+
 func getAnalysisTemplatesWithType() AnalysisTemplatesWithType {
 	count := intstr.FromInt(1)
 	return AnalysisTemplatesWithType{
@@ -272,8 +276,8 @@ func getRolloutMultiIngress() *v1alpha1.Rollout {
 					CanaryService: "canary-service-name",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress:             "stable-ingress",
-							AdditionalStableIngresses: []string{"additional-stable-ingress-1", "additional-stable-ingress-2"},
+							StableIngress:             StableIngress,
+							AdditionalStableIngresses: []string{AddStableIngress1, AddStableIngress2},
 						},
 					},
 				},
@@ -357,9 +361,11 @@ func TestValidateRolloutReferencedResources(t *testing.T) {
 	assert.Empty(t, allErrs)
 }
 
-func TestValidateRolloutReferencedResourcesMultiNginxIngressV2(t *testing.T) {
+func TestValidateRolloutReferencedResourcesMultiNginxIngress(t *testing.T) {
 	stableService := "stable-service"
 	wrongService := "wrong-stable-service"
+	stableIngressKey := "spec.strategy.canary.trafficRouting.nginx.stableIngress"
+	addStableIngresKey := "spec.strategy.canary.trafficRouting.nginx.additionalStableIngresses"
 	tests := []struct {
 		name           string
 		service1       string
@@ -379,14 +385,14 @@ func TestValidateRolloutReferencedResourcesMultiNginxIngressV2(t *testing.T) {
 			wrongService,
 			stableService,
 			stableService,
-			[][]string{{"spec.strategy.canary.trafficRouting.nginx.stableIngress", "stable-ingress"}},
+			[][]string{{stableIngressKey, StableIngress}},
 		},
 		{
 			"Validate multiple Nginx Ingresses -- additional ingress fails",
 			stableService,
 			wrongService,
 			stableService,
-			[][]string{{"spec.strategy.canary.trafficRouting.nginx.additionalStableIngresses", "additional-stable-ingress-1"}},
+			[][]string{{addStableIngresKey, AddStableIngress1}},
 		},
 		{
 			"Validate multiple Nginx Ingresses -- all ingresses fail fails",
@@ -394,9 +400,9 @@ func TestValidateRolloutReferencedResourcesMultiNginxIngressV2(t *testing.T) {
 			wrongService,
 			wrongService,
 			[][]string{
-				{"spec.strategy.canary.trafficRouting.nginx.stableIngress", "stable-ingress"},
-				{"spec.strategy.canary.trafficRouting.nginx.additionalStableIngresses", "additional-stable-ingress-1"},
-				{"spec.strategy.canary.trafficRouting.nginx.additionalStableIngresses", "additional-stable-ingress-2"},
+				{stableIngressKey, StableIngress},
+				{addStableIngresKey, AddStableIngress1},
+				{addStableIngresKey, AddStableIngress2},
 			},
 		},
 	}
@@ -404,11 +410,11 @@ func TestValidateRolloutReferencedResourcesMultiNginxIngressV2(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			stable := extensionsIngress("stable-ingress", 80, test.service1)
+			stable := extensionsIngress(StableIngress, 80, test.service1)
 			stableIngress := ingressutil.NewLegacyIngress(stable)
-			additionalStable1 := extensionsIngress("additional-stable-ingress-1", 80, test.service2)
+			additionalStable1 := extensionsIngress(AddStableIngress1, 80, test.service2)
 			additionalStableIngress1 := ingressutil.NewLegacyIngress(additionalStable1)
-			additionalStable2 := extensionsIngress("additional-stable-ingress-2", 80, test.service3)
+			additionalStable2 := extensionsIngress(AddStableIngress2, 80, test.service3)
 			additionalStableIngress2 := ingressutil.NewLegacyIngress(additionalStable2)
 			refResources := ReferencedResources{
 				AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplatesWithType()},
