@@ -41,8 +41,14 @@ func generateNotificationsDocs() {
 
 func generatePluginsDocs() {
 	tf, o := options.NewFakeArgoRolloutsOptions()
+
+	//Set static config dir so that gen docs does not change depending on what machine it is ran on
+	configDir := "$HOME/.kube/cache"
+	o.ConfigFlags.CacheDir = &configDir
+
 	defer tf.Cleanup()
 	cmd := cmd.NewCmdArgoRollouts(o)
+
 	os.RemoveAll("./docs/generated/kubectl-argo-rollouts")
 	os.MkdirAll("./docs/generated/kubectl-argo-rollouts/", 0755)
 	files, err := GenMarkdownTree(cmd, "./docs/generated/kubectl-argo-rollouts")
