@@ -53,6 +53,7 @@ nav:
   - Traefik: features/traffic-management/traefik.md
 - Analysis:
   - Overview: features/analysis.md
+  - Plugins: analysis/plugins.md
   - Prometheus: analysis/prometheus.md
   - DataDog: analysis/datadog.md
   - NewRelic: analysis/newrelic.md

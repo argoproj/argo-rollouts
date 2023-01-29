@@ -3,13 +3,14 @@ package metricproviders
 import (
 	"fmt"
 
-	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
-
+	"github.com/argoproj/argo-rollouts/metric"
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
 	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
+	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
 	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
 	"github.com/argoproj/argo-rollouts/metricproviders/newrelic"
+	"github.com/argoproj/argo-rollouts/metricproviders/plugin"
 	"github.com/argoproj/argo-rollouts/metricproviders/wavefront"
 	"github.com/argoproj/argo-rollouts/metricproviders/webmetric"
 
@@ -23,22 +24,9 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-// Provider methods to query a external systems and generate a measurement
+// Provider this is here just for backwards compatibility the interface is now in the metric package
 type Provider interface {
-	// Run start a new external system call for a measurement
-	// Should be idempotent and do nothing if a call has already been started
-	Run(*v1alpha1.AnalysisRun, v1alpha1.Metric) v1alpha1.Measurement
-	// Checks if the external system call is finished and returns the current measurement
-	Resume(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
-	// Terminate will terminate an in-progress measurement
-	Terminate(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
-	// GarbageCollect is used to garbage collect completed measurements to the specified limit
-	GarbageCollect(*v1alpha1.AnalysisRun, v1alpha1.Metric, int) error
-	// Type gets the provider type
-	Type() string
-	// GetMetadata returns any additional metadata which providers need to store/display as part
-	// of the metric result. For example, Prometheus uses is to store the final resolved queries.
-	GetMetadata(metric v1alpha1.Metric) map[string]string
+	metric.Provider
 }
 
 type ProviderFactory struct {
@@ -101,6 +89,9 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 			return nil, err
 		}
 		return influxdb.NewInfluxdbProvider(client, logCtx), nil
+	case plugin.ProviderType:
+		plugin, err := plugin.NewRpcPlugin(metric)
+		return plugin, err
 	default:
 		return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
 	}
@@ -127,6 +118,8 @@ func Type(metric v1alpha1.Metric) string {
 		return graphite.ProviderType
 	} else if metric.Provider.Influxdb != nil {
 		return influxdb.ProviderType
+	} else if metric.Provider.Plugin != nil {
+		return plugin.ProviderType
 	}
 
 	return "Unknown Provider"
