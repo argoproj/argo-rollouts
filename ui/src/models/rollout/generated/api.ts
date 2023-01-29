@@ -921,6 +921,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PingPongSpe
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginTraffic
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginTraffic {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginTraffic
+     */
+    config?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PodTemplateMetadata
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PodTemplateMetadata {
@@ -1571,6 +1584,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
     apisix?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginTraffic}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    plugin?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginTraffic;
 }
 /**
  * 

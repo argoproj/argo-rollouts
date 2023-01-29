@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	goPlugin "github.com/hashicorp/go-plugin"
+
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
@@ -423,6 +425,7 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 		})
 	}
 	log.Info("Shutting down workers")
+	goPlugin.CleanupClients()
 
 	c.serviceWorkqueue.ShutDownWithDrain()
 	c.ingressWorkqueue.ShutDownWithDrain()

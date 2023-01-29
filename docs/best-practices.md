@@ -52,3 +52,12 @@ spec:
 
 The above technique has the a benefit in that it would not incur additional cost of allocating
 additional load balancers.
+
+## Reducing operator memory usage
+
+On clusters with thousands of rollouts memory usage for the argo-rollouts
+operator can be reduced significantly by changing RevisionHistoryLimit from the
+default of 10 to a lower number. One user of Argo Rollouts saw a 27% reduction
+in memory usage for a cluster with 1290 rollouts by changing
+RevisionHistoryLimit from 10 to 0.
+

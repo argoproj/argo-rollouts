@@ -374,12 +374,20 @@ type RolloutTrafficRouting struct {
 	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
 	// Apisix holds specific configuration to use Apisix to route traffic
 	Apisix *ApisixTrafficRouting `json:"apisix,omitempty" protobuf:"bytes,9,opt,name=apisix"`
+	// Plugin holds specific configuration to use Apisix to route traffic
+	Plugin *PluginTraffic `json:"plugin,omitempty" protobuf:"bytes,10,opt,name=plugin"`
 }
 
 type MangedRoutes struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	//Possibly name for future use
 	//canaryRoute bool
+}
+
+type PluginTraffic struct {
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
+	Config json.RawMessage `json:"config,omitempty" protobuf:"bytes,1,rep,name=config"`
 }
 
 // TraefikTrafficRouting defines the configuration required to use Traefik as traffic router

@@ -2701,6 +2701,11 @@ spec:
                           required:
                           - query
                           type: object
+                        plugin:
+                          properties:
+                            config:
+                              x-kubernetes-preserve-unknown-fields: true
+                          type: object
                         prometheus:
                           properties:
                             address:
@@ -5578,6 +5583,11 @@ spec:
                           required:
                           - query
                           type: object
+                        plugin:
+                          properties:
+                            config:
+                              x-kubernetes-preserve-unknown-fields: true
+                          type: object
                         prometheus:
                           properties:
                             address:
@@ -8340,6 +8350,11 @@ spec:
                               type: string
                           required:
                           - query
+                          type: object
+                        plugin:
+                          properties:
+                            config:
+                              x-kubernetes-preserve-unknown-fields: true
                           type: object
                         prometheus:
                           properties:
@@ -11871,6 +11886,11 @@ spec:
                                 type: string
                             required:
                             - stableIngress
+                            type: object
+                          plugin:
+                            properties:
+                              config:
+                                x-kubernetes-preserve-unknown-fields: true
                             type: object
                           smi:
                             properties:

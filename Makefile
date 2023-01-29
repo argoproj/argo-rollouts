@@ -209,7 +209,7 @@ lint: go-mod-vendor
 
 .PHONY: test
 test: test-kustomize
-	go test -covermode=count -coverprofile=coverage.out ${TEST_TARGET}
+	@make test-unit
 
 .PHONY: test-kustomize
 test-kustomize:
@@ -225,7 +225,7 @@ test-e2e: install-devtools-local
 
 .PHONY: test-unit
  test-unit: install-devtools-local
-	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname --packages="./..." -- -covermode=count -coverprofile=coverage.out ./...
+	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v ./cmd/sample-metrics-plugin | grep -v ./cmd/sample-trafficrouter-plugin`
 
 
 .PHONY: coverage
@@ -279,3 +279,10 @@ trivy:
 .PHONY: checksums
 checksums:
 	shasum -a 256 ./dist/kubectl-argo-rollouts-* | awk -F './dist/' '{print $$1 $$2}' > ./dist/argo-rollouts-checksums.txt
+
+# Build sample plugin with debug info
+# https://www.jetbrains.com/help/go/attach-to-running-go-processes-with-debugger.html
+.PHONY: build-sample-metric-plugin-debug
+build-sample-metric-plugin-debug:
+	go build -gcflags="all=-N -l" -o metric-plugin cmd/sample-metrics-plugin/main.go
+

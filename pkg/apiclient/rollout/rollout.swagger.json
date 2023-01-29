@@ -1126,6 +1126,16 @@
       },
       "description": "PingPongSpec holds the ping and pong service name."
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PluginTraffic": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "type": "string",
+          "format": "byte",
+          "title": "+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Schemaless"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodTemplateMetadata": {
       "type": "object",
       "properties": {
@@ -1620,6 +1630,10 @@
         "apisix": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixTrafficRouting",
           "title": "Apisix holds specific configuration to use Apisix to route traffic"
+        },
+        "plugin": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PluginTraffic",
+          "title": "Plugin holds specific configuration to use Apisix to route traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"

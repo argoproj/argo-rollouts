@@ -976,6 +976,9 @@ message MetricProvider {
 
   // Influxdb specifies the influxdb metric to query
   optional InfluxdbMetric influxdb = 10;
+
+  // Plugin specifies the hashicorp go-plugin metric to query
+  optional PluginMetric plugin = 11;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with
@@ -1070,6 +1073,18 @@ message PingPongSpec {
 
   // name of the pong service
   optional string pongService = 2;
+}
+
+message PluginMetric {
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Schemaless
+  optional bytes config = 1;
+}
+
+message PluginTraffic {
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Schemaless
+  optional bytes config = 1;
 }
 
 // PodTemplateMetadata extra labels to add to the template
@@ -1470,6 +1485,9 @@ message RolloutTrafficRouting {
 
   // Apisix holds specific configuration to use Apisix to route traffic
   optional ApisixTrafficRouting apisix = 9;
+
+  // Plugin holds specific configuration to use Apisix to route traffic
+  optional PluginTraffic plugin = 10;
 }
 
 message RouteMatch {
