@@ -225,7 +225,7 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 	if metric.Provider.Influxdb != nil {
 		numProviders++
 	}
-	if metric.Provider.Plugin != nil {
+	if metric.Provider.Plugin != nil && len(metric.Provider.Plugin) > 0 {
 		numProviders++
 	}
 	if numProviders == 0 {
