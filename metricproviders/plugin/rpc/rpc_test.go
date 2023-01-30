@@ -109,7 +109,7 @@ func TestPlugin(t *testing.T) {
 	assert.Equal(t, "TestCompletedTerminate", string(terminateMeasurement.Phase))
 
 	gcError := plugin.GarbageCollect(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, 0)
-	assert.Equal(t, "", gcError.Error())
+	assert.Equal(t, "not-implemented", gcError.Error())
 
 	typeTest := plugin.Type()
 	assert.Equal(t, "TestRPCPlugin", typeTest)
