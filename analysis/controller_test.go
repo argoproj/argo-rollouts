@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"encoding/json"
+	"github.com/argoproj/argo-rollouts/metric"
 	"reflect"
 	"testing"
 	"time"
@@ -25,7 +26,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/controller/metrics"
-	"github.com/argoproj/argo-rollouts/metricproviders"
 	"github.com/argoproj/argo-rollouts/metricproviders/mocks"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/fake"
@@ -129,7 +129,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		c.enqueueAnalysis(obj)
 	}
 	f.provider = &mocks.Provider{}
-	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metricproviders.Provider, error) {
+	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
 		return f.provider, nil
 	}
 
