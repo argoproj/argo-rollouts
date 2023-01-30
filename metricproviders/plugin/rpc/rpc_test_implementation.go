@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/json"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
@@ -14,7 +15,17 @@ import (
 
 type testRpcPlugin struct{}
 
+type config struct {
+	Address string `json:"address"`
+	Query   string `json:"query"`
+}
+
 func (g *testRpcPlugin) NewMetricsPlugin(metric v1alpha1.Metric) types.RpcError {
+	var c config
+	err := json.Unmarshal(metric.Provider.Plugin["prometheus"], &c)
+	if err != nil {
+		return types.RpcError{ErrorString: err.Error()}
+	}
 	return types.RpcError{}
 }
 

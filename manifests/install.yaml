@@ -2702,10 +2702,8 @@ spec:
                           - query
                           type: object
                         plugin:
-                          properties:
-                            config:
-                              x-kubernetes-preserve-unknown-fields: true
                           type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         prometheus:
                           properties:
                             address:
@@ -5584,10 +5582,8 @@ spec:
                           - query
                           type: object
                         plugin:
-                          properties:
-                            config:
-                              x-kubernetes-preserve-unknown-fields: true
                           type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         prometheus:
                           properties:
                             address:
@@ -8352,10 +8348,8 @@ spec:
                           - query
                           type: object
                         plugin:
-                          properties:
-                            config:
-                              x-kubernetes-preserve-unknown-fields: true
                           type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         prometheus:
                           properties:
                             address:
