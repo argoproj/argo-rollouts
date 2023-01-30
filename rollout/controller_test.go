@@ -1944,9 +1944,6 @@ func TestWriteBackToInformer(t *testing.T) {
 	roKey := getKey(r1, t)
 	f.runController(roKey, true, false, c, i, k8sI)
 
-	// Give controller a little time to process the rollout
-	time.Sleep(250 * time.Millisecond)
-
 	// Verify the informer was updated with the new unstructured object after reconciliation
 	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
 	assert.NoError(t, err)
