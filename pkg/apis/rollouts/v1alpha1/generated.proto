@@ -1078,7 +1078,8 @@ message PingPongSpec {
 message PluginMetric {
   // +kubebuilder:pruning:PreserveUnknownFields
   // +kubebuilder:validation:Schemaless
-  optional bytes config = 1;
+  // PluginName string          `json:"name" protobuf:"bytes,1,opt,name=pluginName"`
+  optional bytes config = 2;
 }
 
 // PodTemplateMetadata extra labels to add to the template

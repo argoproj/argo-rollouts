@@ -284,5 +284,5 @@ checksums:
 # https://www.jetbrains.com/help/go/attach-to-running-go-processes-with-debugger.html
 .PHONY: build-sample-metric-plugin-debug
 build-sample-metric-plugin-debug:
-	go build -gcflags="all=-N -l" -o metric-plugin cmd/sample-metrics-plugin/main.go
+	go build -gcflags="all=-N -l" -o metric-plugin test/cmd/sample-metrics-plugin/main.go
 

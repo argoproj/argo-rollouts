@@ -2929,6 +2929,7 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 					"plugin": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Plugin specifies the hashicorp go-plugin metric to query",
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PluginMetric"),
 						},
 					},
@@ -3232,8 +3233,9 @@ func schema_pkg_apis_rollouts_v1alpha1_PluginMetric(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"config": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "byte",
+							Description: "PluginName string          `json:\"name\" protobuf:\"bytes,1,opt,name=pluginName\"`",
+							Type:        []string{"string"},
+							Format:      "byte",
 						},
 					},
 				},

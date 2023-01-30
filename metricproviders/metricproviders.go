@@ -2,8 +2,8 @@ package metricproviders
 
 import (
 	"fmt"
-
 	"github.com/argoproj/argo-rollouts/metric"
+
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
 	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
@@ -24,20 +24,15 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-// Provider this is here just for backwards compatibility the interface is now in the metric package
-type Provider interface {
-	metric.Provider
-}
-
 type ProviderFactory struct {
 	KubeClient kubernetes.Interface
 	JobLister  batchlisters.JobLister
 }
 
-type ProviderFactoryFunc func(logCtx log.Entry, metric v1alpha1.Metric) (Provider, error)
+type ProviderFactoryFunc func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error)
 
 // NewProvider creates the correct provider based on the provider type of the Metric
-func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) (Provider, error) {
+func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
 	switch provider := Type(metric); provider {
 	case prometheus.ProviderType:
 		api, err := prometheus.NewPrometheusAPI(metric)

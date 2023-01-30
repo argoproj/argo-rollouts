@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/argoproj/argo-rollouts/cmd/sample-metrics-plugin/internal/plugin"
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
+	"github.com/argoproj/argo-rollouts/test/cmd/sample-metrics-plugin/internal/plugin"
 	goPlugin "github.com/hashicorp/go-plugin"
 	log "github.com/sirupsen/logrus"
 )

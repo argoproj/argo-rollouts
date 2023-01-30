@@ -47,11 +47,10 @@ func startPluginSystem(metric v1alpha1.Metric) error {
 
 	if pluginClient == nil || pluginClient.Exited() {
 		pluginClient = goPlugin.NewClient(&goPlugin.ClientConfig{
-			HandshakeConfig:  handshakeConfig,
-			Plugins:          pluginMap,
-			VersionedPlugins: nil,
-			Cmd:              exec.Command(defaults.GetMetricPluginLocation()),
-			Managed:          true,
+			HandshakeConfig: handshakeConfig,
+			Plugins:         pluginMap,
+			Cmd:             exec.Command(defaults.GetMetricPluginLocation()),
+			Managed:         true,
 		})
 
 		rpcClient, err := pluginClient.Client()
