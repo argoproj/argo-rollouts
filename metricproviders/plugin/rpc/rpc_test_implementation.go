@@ -45,7 +45,7 @@ func (g *testRpcPlugin) Terminate(analysisRun *v1alpha1.AnalysisRun, metric v1al
 }
 
 func (g *testRpcPlugin) GarbageCollect(*v1alpha1.AnalysisRun, v1alpha1.Metric, int) types.RpcError {
-	return types.RpcError{}
+	return types.RpcError{ErrorString: "not-implemented"}
 }
 
 func (g *testRpcPlugin) Type() string {
