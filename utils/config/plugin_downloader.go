@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/defaults"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -87,9 +89,15 @@ func initMetricsPlugins(fd FileDownloader) error {
 	if err != nil {
 		return err
 	}
+
+	err = os.MkdirAll(defaults.DefaultRolloutPluginFolder, 0700)
+	if err != nil {
+		return err
+	}
+
 	for _, plugin := range config.GetMetricPluginsConfig() {
 		urlObj, err := url.ParseRequestURI(plugin.PluginLocation)
-		finalFileLocation := filepath.Join("/tmp", plugin.Name)
+		finalFileLocation := filepath.Join(defaults.DefaultRolloutPluginFolder, plugin.Name)
 		if err != nil {
 			return err
 		}
@@ -141,26 +149,27 @@ func initMetricsPlugins(fd FileDownloader) error {
 // CopyFile copies a file from src to dst. If src and dst files exist, and are
 // the same, then return success. Otherise, attempt to create a hard link
 // between the two files. If that fail, copy the file contents from src to dst.
-func copyFile(src, dst string) (err error) {
-	sfi, err := os.Stat(src)
+func copyFile(src, dst string) error {
+	sourceFileStat, err := os.Stat(src)
 	if err != nil {
-		return
+		return err
 	}
-	dfi, err := os.Stat(dst)
+
+	if !sourceFileStat.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file", src)
+	}
+
+	source, err := os.Open(src)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return
-		}
-	} else {
-		if !(dfi.Mode().IsRegular()) {
-			return fmt.Errorf("CopyFile: non-regular destination file %s (%q)", dfi.Name(), dfi.Mode().String())
-		}
-		if os.SameFile(sfi, dfi) {
-			return
-		}
+		return err
 	}
-	if err = os.Link(src, dst); err == nil {
-		return
+	defer source.Close()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
 	}
-	return
+	defer destination.Close()
+	_, err = io.Copy(destination, source)
+	return err
 }

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -54,7 +55,13 @@ func TestInitPlugin(t *testing.T) {
 	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config", fd)
 	assert.NoError(t, err)
 
-	os.Remove("/tmp/http")
+	filepath.Join(defaults.DefaultRolloutPluginFolder, "http")
+	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, "http"))
+	assert.NoError(t, err)
+	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, "http-sha"))
+	assert.NoError(t, err)
+	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+	assert.NoError(t, err)
 }
 
 func TestInitPluginBadSha(t *testing.T) {
@@ -78,7 +85,10 @@ func TestInitPluginBadSha(t *testing.T) {
 	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, fd)
 	assert.Error(t, err)
 
-	os.Remove("/tmp/http-badsha")
+	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, "http-badsha"))
+	assert.NoError(t, err)
+	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+	assert.NoError(t, err)
 }
 
 func TestInitPluginConfigNotFound(t *testing.T) {
@@ -115,7 +125,9 @@ func TestFileMove(t *testing.T) {
 	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, fd)
 	assert.NoError(t, err)
 
-	err = os.Remove("/tmp/file-plugin")
+	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, "file-plugin"))
+	assert.NoError(t, err)
+	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
 	assert.NoError(t, err)
 }
 
@@ -143,7 +155,9 @@ func TestDoubleInit(t *testing.T) {
 	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, fd)
 	assert.NoError(t, err)
 
-	err = os.Remove("/tmp/file-plugin")
+	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, "file-plugin"))
+	assert.NoError(t, err)
+	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
 	assert.NoError(t, err)
 }
 
@@ -173,6 +187,4 @@ func TestBadConfigMap(t *testing.T) {
 
 	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config", fd)
 	assert.Error(t, err)
-
-	os.Remove("/tmp/http")
 }
