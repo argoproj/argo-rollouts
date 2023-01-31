@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"path/filepath"
 
 	"github.com/argoproj/argo-rollouts/utils/config"
@@ -15,8 +16,12 @@ func GetPluginLocation(pluginName string) (string, error) {
 
 	for _, item := range configMap.GetMetricPluginsConfig() {
 		if pluginName == item.Name {
-			return filepath.Join("/tmp", item.Name), nil
+			asbFilePath, err := filepath.Abs(filepath.Join(defaults.DefaultRolloutPluginFolder, item.Name))
+			if err != nil {
+				return "", fmt.Errorf("failed to get absolute path of plugin folder: %w", err)
+			}
+			return asbFilePath, nil
 		}
 	}
-	return "", fmt.Errorf("plugin %s not configured", pluginName)
+	return "", fmt.Errorf("plugin %s not configured in configmap", pluginName)
 }

@@ -90,7 +90,12 @@ func initMetricsPlugins(fd FileDownloader) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	err = os.MkdirAll(defaults.DefaultRolloutPluginFolder, 0700)
+	absoluteFilepath, err := filepath.Abs(defaults.DefaultRolloutPluginFolder)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path of plugin folder: %w", err)
+	}
+
+	err = os.MkdirAll(absoluteFilepath, 0700)
 	if err != nil {
 		return fmt.Errorf("failed to create plugin folder: %w", err)
 	}
@@ -101,7 +106,7 @@ func initMetricsPlugins(fd FileDownloader) error {
 			return fmt.Errorf("failed to parse plugin location: %w", err)
 		}
 
-		finalFileLocation := filepath.Join(defaults.DefaultRolloutPluginFolder, plugin.Name)
+		finalFileLocation := filepath.Join(absoluteFilepath, plugin.Name)
 
 		switch urlObj.Scheme {
 		case "http", "https":
@@ -124,7 +129,7 @@ func initMetricsPlugins(fd FileDownloader) error {
 				}
 			}
 			if checkPluginExists(finalFileLocation) != nil {
-				return fmt.Errorf("failed to find plugin at location: %s", plugin.PluginLocation)
+				return fmt.Errorf("failed to find downloaded plugin at location: %s", plugin.PluginLocation)
 			}
 
 		case "file":
@@ -133,11 +138,11 @@ func initMetricsPlugins(fd FileDownloader) error {
 				return fmt.Errorf("failed to get absolute path of plugin: %w", err)
 			}
 
-			if err = copyFile(pluginPath, finalFileLocation); err != nil {
+			if err := copyFile(pluginPath, finalFileLocation); err != nil {
 				return fmt.Errorf("failed to copy plugin from %s to %s: %w", pluginPath, finalFileLocation, err)
 			}
 			if checkPluginExists(finalFileLocation) != nil {
-				return fmt.Errorf("failed to find plugin at location: %s", plugin.PluginLocation)
+				return fmt.Errorf("failed to find filebased plugin at location: %s", plugin.PluginLocation)
 			}
 		default:
 			return fmt.Errorf("plugin location must be of http(s) or file scheme")
@@ -170,5 +175,8 @@ func copyFile(src, dst string) error {
 	}
 	defer destination.Close()
 	_, err = io.Copy(destination, source)
-	return fmt.Errorf("failed to copy file from %s to %s: %w", src, dst, err)
+	if err != nil {
+		return fmt.Errorf("failed to copy file from %s to %s: %w", src, dst, err)
+	}
+	return nil
 }
