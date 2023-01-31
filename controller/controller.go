@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 
 	goPlugin "github.com/hashicorp/go-plugin"
 

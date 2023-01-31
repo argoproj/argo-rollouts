@@ -2,8 +2,9 @@ package plugin
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/config"
 	"path/filepath"
+
+	"github.com/argoproj/argo-rollouts/utils/config"
 )
 
 func GetPluginLocation(pluginName string) (string, error) {

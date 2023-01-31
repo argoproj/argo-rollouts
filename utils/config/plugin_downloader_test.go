@@ -2,16 +2,17 @@ package config
 
 import (
 	"bytes"
+	"io"
+	"net/http"
+	"os"
+	"testing"
+
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/tj/assert"
-	"io"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
-	"net/http"
-	"os"
-	"testing"
 )
 
 type MockFileDownloader struct {

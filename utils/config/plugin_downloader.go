@@ -3,13 +3,14 @@ package config
 import (
 	"crypto/sha256"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type FileDownloader interface {

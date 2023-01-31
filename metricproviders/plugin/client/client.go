@@ -2,12 +2,11 @@ package client
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/plugin"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/plugin"
 	goPlugin "github.com/hashicorp/go-plugin"
 )
 
@@ -24,7 +23,6 @@ func GetMetricPlugin(metric v1alpha1.Metric) (rpc.MetricsPlugin, error) {
 			pluginClient: make(map[string]*goPlugin.Client),
 			plugin:       make(map[string]rpc.MetricsPlugin),
 		}
-
 	}
 	plugin, err := singletonPluginClient.startPluginSystem(metric)
 	if err != nil {
@@ -34,10 +32,6 @@ func GetMetricPlugin(metric v1alpha1.Metric) (rpc.MetricsPlugin, error) {
 }
 
 func (m *singletonMetricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlugin, error) {
-	//if defaults.GetMetricPluginLocation() == "" {
-	//	return nil, fmt.Errorf("no plugin location specified")
-	//}
-
 	var handshakeConfig = goPlugin.HandshakeConfig{
 		ProtocolVersion:  1,
 		MagicCookieKey:   "ARGO_ROLLOUTS_RPC_PLUGIN",
@@ -51,13 +45,16 @@ func (m *singletonMetricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.M
 
 	//There should only ever be one plugin defined in metric.Provider.Plugin
 	for pluginName := range metric.Provider.Plugin {
-		plugin.GetPluginLocation(pluginName)
+		pluginPath, err := plugin.GetPluginLocation(pluginName)
+		if err != nil {
+			return nil, err
+		}
 
 		if m.pluginClient[pluginName] == nil || m.pluginClient[pluginName].Exited() {
 			m.pluginClient[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
 				HandshakeConfig: handshakeConfig,
 				Plugins:         pluginMap,
-				Cmd:             exec.Command(filepath.Join("/tmp", pluginName)),
+				Cmd:             exec.Command(pluginPath),
 				Managed:         true,
 			})
 

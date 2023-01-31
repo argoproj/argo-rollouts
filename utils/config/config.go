@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	"github.com/ghodss/yaml"
