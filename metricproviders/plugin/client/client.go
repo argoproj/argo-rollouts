@@ -2,11 +2,12 @@ package client
 
 import (
 	"fmt"
+	"os/exec"
+
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	goPlugin "github.com/hashicorp/go-plugin"
-	"os/exec"
 )
 
 type singletonMetricPlugin struct {
@@ -48,7 +49,7 @@ func (m *singletonMetricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.M
 	}
 
 	//There should only ever be one plugin defined in metric.Provider.Plugin
-	for pluginName, _ := range metric.Provider.Plugin {
+	for pluginName := range metric.Provider.Plugin {
 		if m.pluginClient[pluginName] == nil || m.pluginClient[pluginName].Exited() {
 			m.pluginClient[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
 				HandshakeConfig: handshakeConfig,
@@ -72,7 +73,6 @@ func (m *singletonMetricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.M
 			if !ok {
 				return nil, fmt.Errorf("unexpected type from plugin")
 			}
-
 			m.plugin[pluginName] = pluginType
 
 			err = m.plugin[pluginName].NewMetricsPlugin(metric)

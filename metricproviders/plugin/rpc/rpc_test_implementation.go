@@ -2,8 +2,9 @@ package rpc
 
 import (
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/json"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/json"
 
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 

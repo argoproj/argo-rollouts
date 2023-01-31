@@ -2,9 +2,10 @@ package analysis
 
 import (
 	"context"
-	"github.com/argoproj/argo-rollouts/metric"
 	"sync"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/metric"
 
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 

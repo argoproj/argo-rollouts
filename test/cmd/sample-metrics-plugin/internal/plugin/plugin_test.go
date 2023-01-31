@@ -95,7 +95,7 @@ func TestRunSuccessfully(t *testing.T) {
 
 	err = plugin.NewMetricsPlugin(v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
-			Plugin: &v1alpha1.PluginMetric{Config: json.RawMessage(`{"address":"http://prometheus.local", "query":"machine_cpu_cores"}`)},
+			Plugin: map[string]json.RawMessage{"prometheus": json.RawMessage(`{"address":"http://prometheus.local", "query":"machine_cpu_cores"}`)},
 		},
 	})
 	if err != nil {

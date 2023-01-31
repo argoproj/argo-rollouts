@@ -2,6 +2,7 @@ package metricproviders
 
 import (
 	"fmt"
+
 	"github.com/argoproj/argo-rollouts/metric"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"

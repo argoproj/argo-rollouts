@@ -3,10 +3,11 @@ package analysis
 import (
 	"context"
 	"encoding/json"
-	"github.com/argoproj/argo-rollouts/metric"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/metric"
 
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
