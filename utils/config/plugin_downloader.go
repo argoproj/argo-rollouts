@@ -33,7 +33,7 @@ func checkPluginExists(pluginLocation string) error {
 		//Check for plugin executable existence
 		_, err := os.Stat(pluginLocation)
 		if err != nil {
-			return err
+			return fmt.Errorf("plugin stat file at %s", pluginLocation)
 		}
 	}
 	return nil
