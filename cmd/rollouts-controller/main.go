@@ -198,16 +198,6 @@ func newCommand() *cobra.Command {
 				controllerNamespaceInformerFactory,
 				jobInformerFactory)
 
-			//err = rolloutsConfig.InitConfig(configMapInformer, "argo-rollouts-config")
-			//if err != nil {
-			//	log.Fatalf("Failed to init config: %v", err)
-			//}
-			//
-			//err = plugin.InitMetricsPlugins(ctx, kubeClient, "argo-rollouts-config", plugin.FileDownloaderImpl{})
-			//if err != nil {
-			//	log.Fatalf("Failed to init metric plugin: %v", err)
-			//}
-
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
 			}
