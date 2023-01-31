@@ -144,6 +144,11 @@ func initMetricsPlugins(fd FileDownloader) error {
 			if checkPluginExists(finalFileLocation) != nil {
 				return fmt.Errorf("failed to find filebased plugin at location: %s", plugin.PluginLocation)
 			}
+			// Set the file permissions, to allow execution
+			err = os.Chmod(finalFileLocation, 0700)
+			if err != nil {
+				return fmt.Errorf("failed to set file permissions of plugin (%s): %w", finalFileLocation, err)
+			}
 		default:
 			return fmt.Errorf("plugin location must be of http(s) or file scheme")
 		}
