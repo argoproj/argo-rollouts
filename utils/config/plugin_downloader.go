@@ -87,7 +87,7 @@ func downloadFile(filepath string, url string, downloader FileDownloader) error 
 func initMetricsPlugins(fd FileDownloader) error {
 	config, err := GetConfig()
 	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err
+		return fmt.Errorf("failed to get config: %w", err)
 	}
 
 	err = os.MkdirAll(defaults.DefaultRolloutPluginFolder, 0700)
@@ -151,7 +151,7 @@ func initMetricsPlugins(fd FileDownloader) error {
 func copyFile(src, dst string) error {
 	sourceFileStat, err := os.Stat(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get file stat of %s: %w", src, err)
 	}
 
 	if !sourceFileStat.Mode().IsRegular() {
@@ -160,15 +160,15 @@ func copyFile(src, dst string) error {
 
 	source, err := os.Open(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open source file %s: %w", src, err)
 	}
 	defer source.Close()
 
 	destination, err := os.Create(dst)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create destination file %s: %w", dst, err)
 	}
 	defer destination.Close()
 	_, err = io.Copy(destination, source)
-	return err
+	return fmt.Errorf("failed to copy file from %s to %s: %w", src, dst, err)
 }

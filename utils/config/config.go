@@ -32,7 +32,7 @@ func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapNa
 
 	plugins := types.Plugin{}
 	if err = yaml.Unmarshal([]byte(configMapCluster.Data["plugins"]), &plugins); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal plugins while initalizing: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal plugins while initializing: %w", err)
 	}
 
 	configMemoryCache = &Config{
