@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"net/http"
 	"os"
 	"sync"
@@ -13,7 +15,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 
@@ -459,11 +460,6 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	c.controllerNamespaceInformerFactory.Start(ctx.Done())
 	c.jobInformerFactory.Start(ctx.Done())
 
-	// Check if Istio installed on cluster before starting dynamicInformerFactory
-	if istioutil.DoesIstioExist(c.istioPrimaryDynamicClient, c.namespace) {
-		c.istioDynamicInformerFactory.Start(ctx.Done())
-	}
-
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
 	if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
@@ -474,6 +470,16 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 		if ok := cache.WaitForCacheSync(ctx.Done(), c.clusterAnalysisTemplateSynced); !ok {
 			log.Fatalf("failed to wait for cluster-scoped caches to sync, exiting")
 		}
+	}
+
+	_, err := rolloutsConfig.InitializeConfig(c.controllerNamespaceInformerFactory.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, rolloutsConfig.FileDownloaderImpl{})
+	if err != nil {
+		log.Fatalf("Failed to init config: %v", err)
+	}
+
+	// Check if Istio installed on cluster before starting dynamicInformerFactory
+	if istioutil.DoesIstioExist(c.istioPrimaryDynamicClient, c.namespace) {
+		c.istioDynamicInformerFactory.Start(ctx.Done())
 	}
 
 	go wait.Until(func() { c.wg.Add(1); c.rolloutController.Run(ctx, rolloutThreadiness); c.wg.Done() }, time.Second, ctx.Done())

@@ -26,3 +26,13 @@ type RpcMetricProvider interface {
 	// of the metric result. For example, Prometheus uses is to store the final resolved queries.
 	GetMetadata(metric v1alpha1.Metric) map[string]string
 }
+
+type Plugin struct {
+	Metrics []PluginItem `json:"metrics" yaml:"metrics"`
+}
+
+type PluginItem struct {
+	Name           string `json:"name" yaml:"name"`
+	PluginLocation string `json:"pluginLocation" yaml:"pluginLocation"`
+	PluginSha256   string `json:"pluginSha256" yaml:"pluginSha256"`
+}
