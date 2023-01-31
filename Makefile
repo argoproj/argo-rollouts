@@ -225,7 +225,7 @@ test-e2e: install-devtools-local
 
 .PHONY: test-unit
  test-unit: install-devtools-local
-	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v ./cmd/sample-metrics-plugin`
+	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v ./test/cmd/sample-metrics-plugin`
 
 
 .PHONY: coverage

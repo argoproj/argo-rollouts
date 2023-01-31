@@ -188,3 +188,25 @@ func TestBadConfigMap(t *testing.T) {
 	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config", fd)
 	assert.Error(t, err)
 }
+
+func TestBadLocation(t *testing.T) {
+	fd := &MockFileDownloader{}
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argo-rollouts-config",
+			Namespace: "argo-rollouts",
+		},
+		Data: map[string]string{"plugins": "metrics:\n  - name: http\n    pluginLocation: agwegasdlkjf2324"},
+	}
+	client := fake.NewSimpleClientset(cm)
+	i := informers.NewSharedInformerFactory(client, 0)
+	i.Start(make(chan struct{}))
+	cmi := i.Core().V1().ConfigMaps()
+	go cmi.Informer().Run(make(chan struct{}))
+
+	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
+	assert.NoError(t, err)
+
+	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config", fd)
+	assert.Error(t, err)
+}

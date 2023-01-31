@@ -27,7 +27,7 @@ func (fd FileDownloaderImpl) Get(url string) (resp *http.Response, err error) {
 	return http.Get(url)
 }
 
-// CheckPluginExists this function checks if the plugin exists in the configured path if not we panic
+// checkPluginExists this function checks if the plugin exists in the configured path if not we panic
 func checkPluginExists(pluginLocation string) error {
 	if pluginLocation != "" {
 		//Check for plugin executable existence
@@ -97,10 +97,11 @@ func initMetricsPlugins(fd FileDownloader) error {
 
 	for _, plugin := range config.GetMetricPluginsConfig() {
 		urlObj, err := url.ParseRequestURI(plugin.PluginLocation)
-		finalFileLocation := filepath.Join(defaults.DefaultRolloutPluginFolder, plugin.Name)
 		if err != nil {
 			return err
 		}
+
+		finalFileLocation := filepath.Join(defaults.DefaultRolloutPluginFolder, plugin.Name)
 
 		switch urlObj.Scheme {
 		case "http", "https":
@@ -146,9 +147,7 @@ func initMetricsPlugins(fd FileDownloader) error {
 	return nil
 }
 
-// CopyFile copies a file from src to dst. If src and dst files exist, and are
-// the same, then return success. Otherise, attempt to create a hard link
-// between the two files. If that fail, copy the file contents from src to dst.
+// CopyFile copies a file from src to dst.
 func copyFile(src, dst string) error {
 	sourceFileStat, err := os.Stat(src)
 	if err != nil {
