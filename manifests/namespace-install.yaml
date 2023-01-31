@@ -332,6 +332,22 @@ subjects:
   name: argo-rollouts
 ---
 apiVersion: v1
+data:
+  plugins: |-
+    metrics:
+    - name: "prometheus"
+      pluginLocation: "file:///Users/zaller/Development/argo-rollouts/metric-plugin"
+    - name: "prometheus-remote"
+      pluginLocation: "https://github.com/argoproj-labs/sample-rollouts-metric-plugin/releases/download/v0.0.2/metric-plugin-darwin-arm64"
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: argo-rollouts
+  name: argo-rollouts-config
+---
+apiVersion: v1
 kind: Secret
 metadata:
   name: argo-rollouts-notification-secret
