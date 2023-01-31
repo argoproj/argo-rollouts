@@ -10,7 +10,7 @@ import (
 func GetPluginLocation(pluginName string) (string, error) {
 	configMap, err := config.GetConfig()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get config: %w", err)
 	}
 
 	for _, item := range configMap.GetMetricPluginsConfig() {

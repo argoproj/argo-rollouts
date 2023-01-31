@@ -26,7 +26,7 @@ func GetMetricPlugin(metric v1alpha1.Metric) (rpc.MetricsPlugin, error) {
 	}
 	plugin, err := singletonPluginClient.startPluginSystem(metric)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to start plugin system: %w", err)
 	}
 	return plugin, nil
 }
@@ -47,7 +47,7 @@ func (m *singletonMetricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.M
 	for pluginName := range metric.Provider.Plugin {
 		pluginPath, err := plugin.GetPluginLocation(pluginName)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to find plugin %s: %w", pluginName, err)
 		}
 
 		if m.pluginClient[pluginName] == nil || m.pluginClient[pluginName].Exited() {
@@ -60,13 +60,13 @@ func (m *singletonMetricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.M
 
 			rpcClient, err := m.pluginClient[pluginName].Client()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("unable to start plugin %s: %w", pluginName, err)
 			}
 
 			// Request the plugin
 			raw, err := rpcClient.Dispense("RpcMetricsPlugin")
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("unable to dispense plugin %s: %w", pluginName, err)
 			}
 
 			pluginType, ok := raw.(rpc.MetricsPlugin)
@@ -77,7 +77,7 @@ func (m *singletonMetricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.M
 
 			err = m.plugin[pluginName].NewMetricsPlugin(metric)
 			if err.Error() != "" {
-				return nil, err
+				return nil, fmt.Errorf("unable to initialize plugin via rpc %s: %w", pluginName, err)
 			}
 		}
 

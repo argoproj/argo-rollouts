@@ -27,12 +27,12 @@ func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapNa
 			// If the configmap is not found, we return
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get configmap %s/%s: %w", defaults.Namespace(), configMapName, err)
 	}
 
 	plugins := types.Plugin{}
 	if err = yaml.Unmarshal([]byte(configMapCluster.Data["plugins"]), &plugins); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal plugins while initalizing: %w", err)
 	}
 
 	configMemoryCache = &Config{
@@ -49,7 +49,7 @@ func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapNa
 // GetConfig returns the initialized in memory config object if it exists otherwise errors if InitializeConfig has not been called.
 func GetConfig() (*Config, error) {
 	if configMemoryCache == nil {
-		return nil, fmt.Errorf("config not initialized")
+		return nil, fmt.Errorf("config not initialized, please initialize before use")
 	}
 	return configMemoryCache, nil
 }

@@ -87,37 +87,37 @@ func downloadFile(filepath string, url string, downloader FileDownloader) error 
 func initMetricsPlugins(fd FileDownloader) error {
 	config, err := GetConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get config: %w", err
 	}
 
 	err = os.MkdirAll(defaults.DefaultRolloutPluginFolder, 0700)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create plugin folder: %w", err)
 	}
 
 	for _, plugin := range config.GetMetricPluginsConfig() {
 		urlObj, err := url.ParseRequestURI(plugin.PluginLocation)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to parse plugin location: %w", err)
 		}
 
 		finalFileLocation := filepath.Join(defaults.DefaultRolloutPluginFolder, plugin.Name)
 
 		switch urlObj.Scheme {
 		case "http", "https":
-			log.Printf("Downloading plugin from: %s", plugin.PluginLocation)
+			log.Infof("Downloading plugin from: %s", plugin.PluginLocation)
 			startTime := time.Now()
 			err = downloadFile(finalFileLocation, urlObj.String(), fd)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to download plugin from %s: %w", plugin.PluginLocation, err)
 			}
 			timeTakenToDownload := time.Now().Sub(startTime)
-			log.Printf("Download complete, it took %s", timeTakenToDownload)
+			log.Infof("Download complete, it took %s", timeTakenToDownload)
 
 			if plugin.PluginSha256 != "" {
 				sha256Matched, err := checkShaOfPlugin(finalFileLocation, plugin.PluginSha256)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to check sha256 of downloaded plugin: %w", err)
 				}
 				if !sha256Matched {
 					return fmt.Errorf("sha256 hash of downloaded plugin (%s) does not match expected hash", plugin.PluginLocation)
@@ -130,11 +130,11 @@ func initMetricsPlugins(fd FileDownloader) error {
 		case "file":
 			pluginPath, err := filepath.Abs(urlObj.Host + urlObj.Path)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get absolute path of plugin: %w", err)
 			}
 
 			if err = copyFile(pluginPath, finalFileLocation); err != nil {
-				return err
+				return fmt.Errorf("failed to copy plugin from %s to %s: %w", pluginPath, finalFileLocation, err)
 			}
 			if checkPluginExists(finalFileLocation) != nil {
 				return fmt.Errorf("failed to find plugin at location: %s", plugin.PluginLocation)
