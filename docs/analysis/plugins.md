@@ -3,7 +3,7 @@
 !!! important Available since v1.5
 
 Argo Rollouts supports getting analysis metrics via 3rd party plugin system. This allows users to extend the capabilities of Rollouts 
-to support metric providers that are not natively supported. Rollouts uses a plugin library called
+to support metric providers that are not natively supported. Rollout's uses a plugin library called
 [go-plugin](https://github.com/hashicorp/go-plugin) to do this. You can find a sample plugin 
 here: [sample-rollouts-metric-plugin](https://github.com/argoproj-labs/sample-rollouts-metric-plugin)
 
@@ -24,7 +24,7 @@ particular infrastructure. Here are a few methods:
 * Using a Kubernetes volume mount with a shared volume such as NFS, EBS, etc.
 * Building the plugin into the rollouts controller container
 
-Then you can use setup the configmap to point to the plugin executable. Example:
+Then you can use the configmap to point to the plugin executable. Example:
 
 ```yaml
 apiVersion: v1
@@ -34,14 +34,14 @@ metadata:
 data:
   plugins: |-
     metrics:
-    - name: "prometheus" # name of the plugin uses the name to find this configuration, it must match the name required by the plugin
+    - name: "prometheus" # name the plugin uses to find this configuration, it must match the name required by the plugin
       pluginLocation: "file://./my-custom-plugin" # supports http(s):// urls and file://
 ```
 
 ### Using a HTTP(S) server to host the plugin executable
 
 Argo Rollouts supports downloading the plugin executable from a HTTP(S) server. To use this method, you will need to 
-configure the controller via the `argo-rollouts-config` configmaps `pluginLocation` to an http(s) url. Example:
+configure the controller via the `argo-rollouts-config` configmap and set `pluginLocation` to a http(s) url. Example:
 
 ```yaml
 apiVersion: v1
@@ -51,7 +51,7 @@ metadata:
 data:
   plugins: |-
     metrics:
-    - name: "prometheus" # name of the plugin uses the name to find this configuration, it must match the name required by the plugin
+    - name: "prometheus" # name the plugin uses to find this configuration, it must match the name required by the plugin
       pluginLocation: "https://github.com/argoproj-labs/sample-rollouts-metric-plugin/releases/download/v0.0.3/metric-plugin-linux-amd64" # supports http(s):// urls and file://
       pluginSha256: "08f588b1c799a37bbe8d0fc74cc1b1492dd70b2c" #optional sha256 checksum of the plugin executable
 ```
