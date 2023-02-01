@@ -461,6 +461,11 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	c.controllerNamespaceInformerFactory.Start(ctx.Done())
 	c.jobInformerFactory.Start(ctx.Done())
 
+	// Check if Istio installed on cluster before starting dynamicInformerFactory
+	if istioutil.DoesIstioExist(c.istioPrimaryDynamicClient, c.namespace) {
+		c.istioDynamicInformerFactory.Start(ctx.Done())
+	}
+
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for controller's informer caches to sync")
 	if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
