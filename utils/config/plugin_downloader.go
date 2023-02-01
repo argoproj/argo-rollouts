@@ -15,10 +15,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// FileDownloader is an interface that allows us to mock the http.Get function
 type FileDownloader interface {
 	Get(url string) (resp *http.Response, err error)
 }
 
+// FileDownloaderImpl is the default/real implementation of the FileDownloader interface
 type FileDownloaderImpl struct {
 	FileDownloader
 }

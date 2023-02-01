@@ -11,6 +11,7 @@ import (
 	informers "k8s.io/client-go/informers/core/v1"
 )
 
+// Config is the in memory representation of the configmap with some additional fields/functions for ease of use.
 type Config struct {
 	configMap *v1.ConfigMap
 	plugins   types.Plugin
@@ -54,6 +55,7 @@ func GetConfig() (*Config, error) {
 	return configMemoryCache, nil
 }
 
+// GetMetricPluginsConfig returns the metric plugins configured in the configmap
 func (c *Config) GetMetricPluginsConfig() []types.PluginItem {
 	return configMemoryCache.plugins.Metrics
 }

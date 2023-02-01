@@ -9,6 +9,8 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/config"
 )
 
+// GetPluginLocation returns the location of the plugin on the filesystem via plugin name. If the plugin is not
+// configured in the configmap, an error is returned.
 func GetPluginLocation(pluginName string) (string, error) {
 	configMap, err := config.GetConfig()
 	if err != nil {

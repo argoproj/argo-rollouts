@@ -17,6 +17,8 @@ type singletonMetricPlugin struct {
 
 var singletonPluginClient *singletonMetricPlugin
 
+// GetMetricPlugin returns a singleton plugin client for the given metric plugin. Calling this multi
+// returns the same plugin client for the same plugin name.
 func GetMetricPlugin(metric v1alpha1.Metric) (rpc.MetricsPlugin, error) {
 	if singletonPluginClient == nil {
 		singletonPluginClient = &singletonMetricPlugin{
