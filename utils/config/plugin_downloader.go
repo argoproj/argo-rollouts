@@ -44,7 +44,7 @@ func checkShaOfPlugin(pluginLocation string, expectedSha256 string) (bool, error
 	hasher := sha256.New()
 	fileBytes, err := os.ReadFile(pluginLocation)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to read file %s: %w", pluginLocation, err)
 	}
 	fileSha256 := fmt.Sprintf("%x", hasher.Sum(fileBytes))
 	match := fileSha256 == expectedSha256
@@ -58,27 +58,27 @@ func downloadFile(filepath string, url string, downloader FileDownloader) error 
 	// Get the data
 	resp, err := downloader.Get(url)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to download file from %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
 	// Create the file
 	out, err := os.Create(filepath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create file %s: %w", filepath, err)
 	}
 	defer out.Close()
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write to file %s: %w", filepath, err)
 	}
 
 	// Set the file permissions, to allow execution
 	err = os.Chmod(filepath, 0700)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set file permissions on %s: %w", filepath, err)
 	}
 
 	return err
@@ -111,7 +111,7 @@ func initMetricsPlugins(fd FileDownloader) error {
 
 		switch urlObj.Scheme {
 		case "http", "https":
-			log.Infof("Downloading plugin from: %s", plugin.PluginLocation)
+			log.Infof("Downloading plugin %s from: %s", plugin.Name, plugin.PluginLocation)
 			startTime := time.Now()
 			err = downloadFile(finalFileLocation, urlObj.String(), fd)
 			if err != nil {
