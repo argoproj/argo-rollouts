@@ -977,8 +977,11 @@ message MetricProvider {
   // Influxdb specifies the influxdb metric to query
   optional InfluxdbMetric influxdb = 10;
 
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
   // Plugin specifies the hashicorp go-plugin metric to query
-  optional PluginMetric plugin = 11;
+  map<string, bytes> plugin = 11;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with
@@ -1073,12 +1076,6 @@ message PingPongSpec {
 
   // name of the pong service
   optional string pongService = 2;
-}
-
-message PluginMetric {
-  // +kubebuilder:pruning:PreserveUnknownFields
-  // +kubebuilder:validation:Schemaless
-  optional bytes config = 1;
 }
 
 message PluginTraffic {

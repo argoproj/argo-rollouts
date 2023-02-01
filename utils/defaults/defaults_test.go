@@ -411,19 +411,4 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, DefaultMetricCleanupDelay, int32(GetMetricCleanupDelaySeconds().Seconds()))
 	SetMetricCleanupDelaySeconds(24)
 	assert.Equal(t, time.Duration(24)*time.Second, GetMetricCleanupDelaySeconds())
-
-	assert.Equal(t, DefaultMetricsPluginLocation, "")
-	err := SetMetricPluginLocation("file:///tmp/metric-plugin")
-	assert.NoError(t, err)
-	assert.Equal(t, "/tmp/metric-plugin", GetMetricPluginLocation())
-
-	assert.Equal(t, DefaultMetricsPluginLocation, "")
-	err = SetMetricPluginLocation("http://localhost:8080/metric-plugin")
-	assert.NoError(t, err)
-	assert.Equal(t, DefaultPluginHttpFileLocation, GetMetricPluginLocation())
-
-	err = SetMetricPluginLocation("foo://localhost:8080/metric-plugin")
-	assert.NoError(t, err)
-	urlStr := GetMetricPluginLocation()
-	assert.Equal(t, "", urlStr)
 }

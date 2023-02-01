@@ -52,3 +52,13 @@ type RpcTrafficRoutingReconciler interface {
 	// Type returns the type of the traffic routing reconciler
 	Type() string
 }
+
+type Plugin struct {
+	Metrics []PluginItem `json:"metrics" yaml:"metrics"`
+}
+
+type PluginItem struct {
+	Name           string `json:"name" yaml:"name"`
+	PluginLocation string `json:"pluginLocation" yaml:"pluginLocation"`
+	PluginSha256   string `json:"pluginSha256" yaml:"pluginSha256"`
+}

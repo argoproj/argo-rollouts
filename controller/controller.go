@@ -9,11 +9,13 @@ import (
 	"sync"
 	"time"
 
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+
+	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 	goPlugin "github.com/hashicorp/go-plugin"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 
@@ -474,6 +476,11 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 		if ok := cache.WaitForCacheSync(ctx.Done(), c.clusterAnalysisTemplateSynced); !ok {
 			log.Fatalf("failed to wait for cluster-scoped caches to sync, exiting")
 		}
+	}
+
+	_, err := rolloutsConfig.InitializeConfig(c.controllerNamespaceInformerFactory.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, rolloutsConfig.FileDownloaderImpl{})
+	if err != nil {
+		log.Fatalf("Failed to init config: %v", err)
 	}
 
 	go wait.Until(func() { c.wg.Add(1); c.rolloutController.Run(ctx, rolloutThreadiness); c.wg.Done() }, time.Second, ctx.Done())

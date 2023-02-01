@@ -3,13 +3,13 @@
 !!! important Available since v1.5
 
 Argo Rollouts supports getting analysis metrics via 3rd party plugin system. This allows users to extend the capabilities of Rollouts 
-to support metrics that are not natively supported by Rollouts. Rollouts uses a plugin library called
+to support metric providers that are not natively supported. Rollouts uses a plugin library called
 [go-plugin](https://github.com/hashicorp/go-plugin) to do this. You can find a sample plugin 
 here: [sample-rollouts-metric-plugin](https://github.com/argoproj-labs/sample-rollouts-metric-plugin)
 
 ## Using a Metric Plugin
 
-There are two methods to installing and using an argo rollouts plugin. The first method is to mount up the plugin executable
+There are two methods of installing and using an argo rollouts plugin. The first method is to mount up the plugin executable
 into the rollouts controller container. The second method is to use a HTTP(S) server to host the plugin executable.
 
 ### Mounting the plugin executable into the rollouts controller container
@@ -24,20 +24,36 @@ particular infrastructure. Here are a few methods:
 * Using a Kubernetes volume mount with a shared volume such as NFS, EBS, etc.
 * Building the plugin into the rollouts controller container
 
-### Using a HTTP(S) server to host the plugin executable
+Then you can use setup the configmap to point to the plugin executable. Example:
 
-Argo Rollouts supports downloading the plugin executable from a HTTP(S) server. To use this method, you will need to specify the
-`--metric-plugin-location` flag to point to the HTTP(S) server that hosts the plugin executable. Example:
-
-```bash
-./rollouts-controller --metric-plugin-location=https://example.com/metric-plugin
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-config
+data:
+  plugins: |-
+    metrics:
+    - name: "prometheus" # name of the plugin uses the name to find this configuration, it must match the name required by the plugin
+      pluginLocation: "file://./my-custom-plugin" # supports http(s):// urls and file://
 ```
 
-You can also specify a sha256 checksum of the plugin executable. This is useful for ensuring the plugin executable has not been tampered with.
-To use this feature, you will need to specify the `--metric-plugin-sha256` flag. Example:
+### Using a HTTP(S) server to host the plugin executable
 
-```bash
-./rollouts-controller --metric-plugin-location=https://example.com/metric-plugin --metric-plugin-sha256=1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+Argo Rollouts supports downloading the plugin executable from a HTTP(S) server. To use this method, you will need to 
+configure the controller via the `argo-rollouts-config` configmaps `pluginLocation` to an http(s) url. Example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-config
+data:
+  plugins: |-
+    metrics:
+    - name: "prometheus" # name of the plugin uses the name to find this configuration, it must match the name required by the plugin
+      pluginLocation: "https://github.com/argoproj-labs/sample-rollouts-metric-plugin/releases/download/v0.0.3/metric-plugin-linux-amd64" # supports http(s):// urls and file://
+      pluginSha256: "08f588b1c799a37bbe8d0fc74cc1b1492dd70b2c" #optional sha256 checksum of the plugin executable
 ```
 
 ## Some words of caution

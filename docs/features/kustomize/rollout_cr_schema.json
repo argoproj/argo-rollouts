@@ -4166,12 +4166,8 @@
                                                 "type": "object"
                                             },
                                             "plugin": {
-                                                "properties": {
-                                                    "config": {
-                                                        "x-kubernetes-preserve-unknown-fields": true
-                                                    }
-                                                },
-                                                "type": "object"
+                                                "type": "object",
+                                                "x-kubernetes-preserve-unknown-fields": true
                                             },
                                             "prometheus": {
                                                 "properties": {
@@ -8442,12 +8438,8 @@
                                                 "type": "object"
                                             },
                                             "plugin": {
-                                                "properties": {
-                                                    "config": {
-                                                        "x-kubernetes-preserve-unknown-fields": true
-                                                    }
-                                                },
-                                                "type": "object"
+                                                "type": "object",
+                                                "x-kubernetes-preserve-unknown-fields": true
                                             },
                                             "prometheus": {
                                                 "properties": {
@@ -12718,12 +12710,8 @@
                                                 "type": "object"
                                             },
                                             "plugin": {
-                                                "properties": {
-                                                    "config": {
-                                                        "x-kubernetes-preserve-unknown-fields": true
-                                                    }
-                                                },
-                                                "type": "object"
+                                                "type": "object",
+                                                "x-kubernetes-preserve-unknown-fields": true
                                             },
                                             "prometheus": {
                                                 "properties": {

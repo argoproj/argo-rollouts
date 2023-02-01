@@ -2,7 +2,6 @@ package defaults
 
 import (
 	"io/ioutil"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -46,10 +45,10 @@ const (
 	// DefaultMetricCleanupDelay is the default time to delay metrics removal upon object removal, gives time for metrics
 	// to be collected
 	DefaultMetricCleanupDelay = int32(65)
-	// DefaultMetricsPluginLocation is the default path to the metrics plugin binary
-	DefaultMetricsPluginLocation = ""
-	// DefaultPluginHttpFileLocation is the default path to the metrics plugin when downloaded via http(s)
-	DefaultPluginHttpFileLocation = "/tmp/metric-plugin"
+	// DefaultRolloutsConfigMapName is the default name of the ConfigMap that contains the Rollouts controller configuration
+	DefaultRolloutsConfigMapName = "argo-rollouts-config"
+	// DefaultRolloutPluginFolder is the default location where plugins will be downloaded and/or moved to.
+	DefaultRolloutPluginFolder = "plugin-bin"
 )
 
 const (
@@ -73,7 +72,6 @@ var (
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
 	appmeshCRDVersion            = DefaultAppMeshCRDVersion
 	defaultMetricCleanupDelay    = DefaultMetricCleanupDelay
-	metricPluginLocation         = &url.URL{Path: DefaultMetricsPluginLocation}
 )
 
 const (
@@ -325,26 +323,4 @@ func GetMetricCleanupDelaySeconds() time.Duration {
 // SetMetricCleanupDelaySeconds sets the metric cleanup delay in seconds
 func SetMetricCleanupDelaySeconds(seconds int32) {
 	defaultMetricCleanupDelay = seconds
-}
-
-// GetMetricPluginLocation returns the location of the metric plugin binary
-func GetMetricPluginLocation() string {
-	switch metricPluginLocation.Scheme {
-	case "http", "https":
-		return DefaultPluginHttpFileLocation // return relative path to the plugin
-	case "file":
-		return metricPluginLocation.Path
-	default:
-		return ""
-	}
-}
-
-// SetMetricPluginLocation sets the location of the metric plugin binary
-func SetMetricPluginLocation(pluginLocation string) error {
-	urlObj, err := url.ParseRequestURI(pluginLocation)
-	if err != nil {
-		return err
-	}
-	metricPluginLocation = urlObj
-	return nil
 }

@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/plugin"
-
 	"github.com/argoproj/pkg/kubeclientmetrics"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -71,8 +69,6 @@ func newCommand() *cobra.Command {
 		awsVerifyTargetGroup bool
 		namespaced           bool
 		printVersion         bool
-		metricPluginLocation string
-		metricPluginSha256   string
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -202,12 +198,6 @@ func newCommand() *cobra.Command {
 				controllerNamespaceInformerFactory,
 				jobInformerFactory)
 
-			defaults.SetMetricPluginLocation(metricPluginLocation)
-			err = plugin.InitMetricsPlugin(metricPluginLocation, plugin.FileDownloaderImpl{}, metricPluginSha256)
-			if err != nil {
-				log.Fatalf("Failed to init metric plugin: %v", err)
-			}
-
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
 			}
@@ -249,8 +239,6 @@ func newCommand() *cobra.Command {
 	command.Flags().DurationVar(&electOpts.LeaderElectionLeaseDuration, "leader-election-lease-duration", controller.DefaultLeaderElectionLeaseDuration, "The duration that non-leader candidates will wait after observing a leadership renewal until attempting to acquire leadership of a led but unrenewed leader slot. This is effectively the maximum duration that a leader can be stopped before it is replaced by another candidate. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRenewDeadline, "leader-election-renew-deadline", controller.DefaultLeaderElectionRenewDeadline, "The interval between attempts by the acting master to renew a leadership slot before it stops leading. This must be less than or equal to the lease duration. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
-	command.Flags().StringVar(&metricPluginLocation, "metric-plugin-location", defaults.DefaultMetricsPluginLocation, "The file path to the location of the metric plugin binary")
-	command.Flags().StringVar(&metricPluginSha256, "metric-plugin-sha256", "", "The expected sha256 of the metric plugin binary")
 	return &command
 }
 

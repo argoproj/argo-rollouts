@@ -2702,10 +2702,8 @@ spec:
                           - query
                           type: object
                         plugin:
-                          properties:
-                            config:
-                              x-kubernetes-preserve-unknown-fields: true
                           type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         prometheus:
                           properties:
                             address:
@@ -5584,10 +5582,8 @@ spec:
                           - query
                           type: object
                         plugin:
-                          properties:
-                            config:
-                              x-kubernetes-preserve-unknown-fields: true
                           type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         prometheus:
                           properties:
                             address:
@@ -8352,10 +8348,8 @@ spec:
                           - query
                           type: object
                         plugin:
-                          properties:
-                            config:
-                              x-kubernetes-preserve-unknown-fields: true
                           type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         prometheus:
                           properties:
                             address:
@@ -14839,6 +14833,15 @@ subjects:
 - kind: ServiceAccount
   name: argo-rollouts
   namespace: argo-rollouts
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: argo-rollouts
+  name: argo-rollouts-config
 ---
 apiVersion: v1
 kind: Secret
