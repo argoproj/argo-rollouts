@@ -22,7 +22,6 @@ type FileDownloader interface {
 
 // FileDownloaderImpl is the default/real implementation of the FileDownloader interface
 type FileDownloaderImpl struct {
-	FileDownloader
 }
 
 func (fd FileDownloaderImpl) Get(url string) (resp *http.Response, err error) {
