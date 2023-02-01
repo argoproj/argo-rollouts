@@ -1078,12 +1078,6 @@ message PingPongSpec {
   optional string pongService = 2;
 }
 
-message PluginTraffic {
-  // +kubebuilder:pruning:PreserveUnknownFields
-  // +kubebuilder:validation:Schemaless
-  optional bytes config = 1;
-}
-
 // PodTemplateMetadata extra labels to add to the template
 message PodTemplateMetadata {
   // Labels Additional labels to add to the experiment
@@ -1483,8 +1477,11 @@ message RolloutTrafficRouting {
   // Apisix holds specific configuration to use Apisix to route traffic
   optional ApisixTrafficRouting apisix = 9;
 
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
   // Plugin holds specific configuration to use Apisix to route traffic
-  optional PluginTraffic plugin = 10;
+  map<string, bytes> plugin = 10;
 }
 
 message RouteMatch {

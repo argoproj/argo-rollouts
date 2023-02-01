@@ -55,7 +55,17 @@ func GetConfig() (*Config, error) {
 	return configMemoryCache, nil
 }
 
-// GetMetricPluginsConfig returns the metric plugins configured in the configmap
+// GetMetricPluginsConfig returns the metric plugins configured in the configmap for metric providers
 func (c *Config) GetMetricPluginsConfig() []types.PluginItem {
 	return configMemoryCache.plugins.Metrics
+}
+
+// GetTrafficPluginsConfig returns the metric plugins configured in the configmap for traffic routers
+func (c *Config) GetTrafficPluginsConfig() []types.PluginItem {
+	return configMemoryCache.plugins.Trafficrouters
+}
+
+// GetAllPlugins returns a flattened list of plugin items. This is useful for iterating over all plugins.
+func (c *Config) GetAllPlugins() []types.PluginItem {
+	return append(configMemoryCache.plugins.Metrics, configMemoryCache.plugins.Trafficrouters...)
 }

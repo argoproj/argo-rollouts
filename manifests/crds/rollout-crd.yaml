@@ -863,10 +863,8 @@ spec:
                             - stableIngress
                             type: object
                           plugin:
-                            properties:
-                              config:
-                                x-kubernetes-preserve-unknown-fields: true
                             type: object
+                            x-kubernetes-preserve-unknown-fields: true
                           smi:
                             properties:
                               rootService:

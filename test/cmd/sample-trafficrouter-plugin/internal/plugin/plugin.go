@@ -29,33 +29,34 @@ var _ rpc.TrafficRouterPlugin = &RpcPlugin{}
 
 // Here is a real implementation of TrafficRouterPlugin
 type RpcPlugin struct {
-	LogCtx *logrus.Entry
+	LogCtx         *logrus.Entry
+	ingressWrapper *ingressutil.IngressWrap
 }
 
 func (p *RpcPlugin) NewTrafficRouterPlugin() pluginTypes.RpcError {
 	p.LogCtx.Info("NewTrafficRouterPlugin")
 
-	//loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	//// if you want to change the loading rules (which files in which order), you can do so here
-	//configOverrides := &clientcmd.ConfigOverrides{}
-	//// if you want to change override values or bind them to flags, there are methods to help you
-	//kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-	//config, err := kubeConfig.ClientConfig()
-	//if err != nil {
-	//	return trafficrouting.RpcError{ErrorString: err.Error()}
-	//}
-	//kubeClient, _ := kubernetes.NewForConfig(config)
-	//
-	//kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-	//	kubeClient,
-	//	5*time.Minute,
-	//	kubeinformers.WithNamespace(metav1.NamespaceAll))
-	//
-	//mode, _ := ingressutil.DetermineIngressMode("", kubeClient.DiscoveryClient)
-	//ingressWrapper, _ := ingressutil.NewIngressWrapper(mode, kubeClient, kubeInformerFactory)
-	//p.ingressWrapper = ingressWrapper
-	//go p.ingressWrapper.Informer().Run(context.Background().Done())
-	//cache.WaitForCacheSync(context.Background().Done(), p.ingressWrapper.Informer().HasSynced)
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	// if you want to change the loading rules (which files in which order), you can do so here
+	configOverrides := &clientcmd.ConfigOverrides{}
+	// if you want to change override values or bind them to flags, there are methods to help you
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+	config, err := kubeConfig.ClientConfig()
+	if err != nil {
+		return pluginTypes.RpcError{ErrorString: err.Error()}
+	}
+	kubeClient, _ := kubernetes.NewForConfig(config)
+
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+		kubeClient,
+		5*time.Minute,
+		kubeinformers.WithNamespace(metav1.NamespaceAll))
+
+	mode, _ := ingressutil.DetermineIngressMode("", kubeClient.DiscoveryClient)
+	ingressWrapper, _ := ingressutil.NewIngressWrapper(mode, kubeClient, kubeInformerFactory)
+	p.ingressWrapper = ingressWrapper
+	go p.ingressWrapper.Informer().Run(context.Background().Done())
+	cache.WaitForCacheSync(context.Background().Done(), p.ingressWrapper.Informer().HasSynced)
 	return pluginTypes.RpcError{}
 }
 

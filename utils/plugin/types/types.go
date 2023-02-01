@@ -54,7 +54,8 @@ type RpcTrafficRoutingReconciler interface {
 }
 
 type Plugin struct {
-	Metrics []PluginItem `json:"metrics" yaml:"metrics"`
+	Metrics        []PluginItem `json:"metrics" yaml:"metrics"`
+	Trafficrouters []PluginItem `json:"trafficrouters" yaml:"trafficrouters"`
 }
 
 type PluginItem struct {

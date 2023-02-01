@@ -101,7 +101,7 @@ func initMetricsPlugins(fd FileDownloader) error {
 		return fmt.Errorf("failed to create plugin folder: %w", err)
 	}
 
-	for _, plugin := range config.GetMetricPluginsConfig() {
+	for _, plugin := range config.GetAllPlugins() {
 		urlObj, err := url.ParseRequestURI(plugin.PluginLocation)
 		if err != nil {
 			return fmt.Errorf("failed to parse plugin location: %w", err)
@@ -142,6 +142,7 @@ func initMetricsPlugins(fd FileDownloader) error {
 			if err := copyFile(pluginPath, finalFileLocation); err != nil {
 				return fmt.Errorf("failed to copy plugin from %s to %s: %w", pluginPath, finalFileLocation, err)
 			}
+			log.Infof("Copied plugin from %s to %s", pluginPath, finalFileLocation)
 			if checkPluginExists(finalFileLocation) != nil {
 				return fmt.Errorf("failed to find filebased plugin at location: %s", plugin.PluginLocation)
 			}
