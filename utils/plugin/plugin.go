@@ -2,8 +2,9 @@ package plugin
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"path/filepath"
+
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 
 	"github.com/argoproj/argo-rollouts/utils/config"
 )
