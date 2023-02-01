@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 
+	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 	goPlugin "github.com/hashicorp/go-plugin"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -481,11 +481,6 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	_, err := rolloutsConfig.InitializeConfig(c.controllerNamespaceInformerFactory.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, rolloutsConfig.FileDownloaderImpl{})
 	if err != nil {
 		log.Fatalf("Failed to init config: %v", err)
-	}
-
-	// Check if Istio installed on cluster before starting dynamicInformerFactory
-	if istioutil.DoesIstioExist(c.istioPrimaryDynamicClient, c.namespace) {
-		c.istioDynamicInformerFactory.Start(ctx.Done())
 	}
 
 	go wait.Until(func() { c.wg.Add(1); c.rolloutController.Run(ctx, rolloutThreadiness); c.wg.Done() }, time.Second, ctx.Done())
