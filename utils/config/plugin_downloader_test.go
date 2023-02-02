@@ -101,7 +101,7 @@ func TestInitPluginConfigNotFound(t *testing.T) {
 
 	cm, err := InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, fd)
 	assert.NoError(t, err)
-	assert.Nil(t, cm)
+	assert.Equal(t, cm, &Config{})
 }
 
 func TestFileMove(t *testing.T) {
