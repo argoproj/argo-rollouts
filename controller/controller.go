@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/plugin"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/utils/plugin"
 
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 

@@ -2,13 +2,14 @@ package config
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	informers "k8s.io/client-go/informers/core/v1"
-	"sync"
 )
 
 // Config is the in memory representation of the configmap with some additional fields/functions for ease of use.
@@ -21,7 +22,7 @@ var configMemoryCache *Config
 var mutex sync.RWMutex
 
 // InitializeConfig initializes the in memory config and downloads the plugins to the filesystem. Subsequent calls to this
-//function will update the configmap in memory.
+// function will update the configmap in memory.
 func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapName string) (*Config, error) {
 	configMapCluster, err := configMapInformer.Lister().ConfigMaps(defaults.Namespace()).Get(configMapName)
 	if err != nil {

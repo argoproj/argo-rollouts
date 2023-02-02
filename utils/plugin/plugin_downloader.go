@@ -3,13 +3,14 @@ package plugin
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/config"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/utils/config"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 
