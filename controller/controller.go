@@ -358,6 +358,16 @@ func NewManager(
 		istioPrimaryDynamicClient:          istioPrimaryDynamicClient,
 	}
 
+	_, err := rolloutsConfig.InitializeConfig(kubeclientset, defaults.DefaultRolloutsConfigMapName)
+	if err != nil {
+		log.Fatalf("Failed to init config: %v", err)
+	}
+
+	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
+	if err != nil {
+		log.Fatalf("Failed to download plugins: %v", err)
+	}
+
 	return cm
 }
 
@@ -478,16 +488,6 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 		if ok := cache.WaitForCacheSync(ctx.Done(), c.clusterAnalysisTemplateSynced); !ok {
 			log.Fatalf("failed to wait for cluster-scoped caches to sync, exiting")
 		}
-	}
-
-	_, err := rolloutsConfig.InitializeConfig(c.controllerNamespaceInformerFactory.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
-	if err != nil {
-		log.Fatalf("Failed to init config: %v", err)
-	}
-
-	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
-	if err != nil {
-		log.Fatalf("Failed to download plugins: %v", err)
 	}
 
 	go wait.Until(func() { c.wg.Add(1); c.rolloutController.Run(ctx, rolloutThreadiness); c.wg.Done() }, time.Second, ctx.Done())
