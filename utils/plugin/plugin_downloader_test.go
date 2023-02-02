@@ -1,7 +1,8 @@
-package config
+package plugin
 
 import (
 	"bytes"
+	"github.com/argoproj/argo-rollouts/utils/config"
 	"io"
 	"net/http"
 	"os"
@@ -34,8 +35,13 @@ func (m MockFileDownloader) Get(url string) (*http.Response, error) {
 	}, nil
 }
 
+func TestNotInitialized(t *testing.T) {
+	//configMemoryCache = nil
+	_, err := config.GetConfig()
+	assert.Error(t, err)
+}
+
 func TestInitPlugin(t *testing.T) {
-	fd := &MockFileDownloader{}
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argo-rollouts-config",
@@ -52,7 +58,10 @@ func TestInitPlugin(t *testing.T) {
 	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
 	assert.NoError(t, err)
 
-	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config", fd)
+	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config")
+	assert.NoError(t, err)
+
+	err = DownloadPlugins(MockFileDownloader{})
 	assert.NoError(t, err)
 
 	filepath.Join(defaults.DefaultRolloutPluginFolder, "http")
@@ -65,7 +74,6 @@ func TestInitPlugin(t *testing.T) {
 }
 
 func TestInitPluginBadSha(t *testing.T) {
-	fd := &MockFileDownloader{}
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      defaults.DefaultRolloutsConfigMapName,
@@ -82,7 +90,10 @@ func TestInitPluginBadSha(t *testing.T) {
 	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
 	assert.NoError(t, err)
 
-	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, fd)
+	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
+	assert.NoError(t, err)
+
+	err = DownloadPlugins(MockFileDownloader{})
 	assert.Error(t, err)
 
 	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, "http-badsha"))
@@ -92,26 +103,27 @@ func TestInitPluginBadSha(t *testing.T) {
 }
 
 func TestInitPluginConfigNotFound(t *testing.T) {
-	fd := &MockFileDownloader{}
 	client := fake.NewSimpleClientset()
 	i := informers.NewSharedInformerFactory(client, 0)
 	i.Start(make(chan struct{}))
 	cmi := i.Core().V1().ConfigMaps()
 	go cmi.Informer().Run(make(chan struct{}))
 
-	cm, err := InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, fd)
+	cm, err := config.InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
-	assert.Equal(t, cm, &Config{})
+	assert.Equal(t, cm, &config.Config{})
+
+	err = DownloadPlugins(MockFileDownloader{})
+	assert.NoError(t, err)
 }
 
 func TestFileMove(t *testing.T) {
-	fd := &MockFileDownloader{}
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      defaults.DefaultRolloutsConfigMapName,
 			Namespace: defaults.Namespace(),
 		},
-		Data: map[string]string{"plugins": "metrics:\n  - name: file-plugin\n    pluginLocation: file://./config.go"},
+		Data: map[string]string{"plugins": "metrics:\n  - name: file-plugin\n    pluginLocation: file://./plugin.go"},
 	}
 	client := fake.NewSimpleClientset(cm)
 	i := informers.NewSharedInformerFactory(client, 0)
@@ -122,7 +134,10 @@ func TestFileMove(t *testing.T) {
 	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
 	assert.NoError(t, err)
 
-	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, fd)
+	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
+	assert.NoError(t, err)
+
+	err = DownloadPlugins(MockFileDownloader{})
 	assert.NoError(t, err)
 
 	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, "file-plugin"))
@@ -132,13 +147,12 @@ func TestFileMove(t *testing.T) {
 }
 
 func TestDoubleInit(t *testing.T) {
-	fd := &MockFileDownloader{}
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      defaults.DefaultRolloutsConfigMapName,
 			Namespace: defaults.Namespace(),
 		},
-		Data: map[string]string{"plugins": "metrics:\n  - name: file-plugin\n    pluginLocation: file://./config.go"},
+		Data: map[string]string{"plugins": "metrics:\n  - name: file-plugin\n    pluginLocation: file://./plugin.go"},
 	}
 	client := fake.NewSimpleClientset(cm)
 	i := informers.NewSharedInformerFactory(client, 0)
@@ -149,10 +163,13 @@ func TestDoubleInit(t *testing.T) {
 	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
 	assert.NoError(t, err)
 
-	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, fd)
+	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
 
-	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, fd)
+	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
+	assert.NoError(t, err)
+
+	err = DownloadPlugins(MockFileDownloader{})
 	assert.NoError(t, err)
 
 	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, "file-plugin"))
@@ -161,14 +178,7 @@ func TestDoubleInit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestNotInitialized(t *testing.T) {
-	configMemoryCache = nil
-	_, err := GetConfig()
-	assert.Error(t, err)
-}
-
 func TestBadConfigMap(t *testing.T) {
-	fd := &MockFileDownloader{}
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argo-rollouts-config",
@@ -185,12 +195,14 @@ func TestBadConfigMap(t *testing.T) {
 	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
 	assert.NoError(t, err)
 
-	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config", fd)
+	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config")
 	assert.Error(t, err)
+
+	err = DownloadPlugins(MockFileDownloader{})
+	assert.NoError(t, err)
 }
 
 func TestBadLocation(t *testing.T) {
-	fd := &MockFileDownloader{}
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argo-rollouts-config",
@@ -207,6 +219,9 @@ func TestBadLocation(t *testing.T) {
 	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
 	assert.NoError(t, err)
 
-	_, err = InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config", fd)
+	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config")
+	assert.NoError(t, err)
+
+	err = DownloadPlugins(MockFileDownloader{})
 	assert.Error(t, err)
 }
