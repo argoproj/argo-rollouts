@@ -36,7 +36,6 @@ func (m MockFileDownloader) Get(url string) (*http.Response, error) {
 }
 
 func TestNotInitialized(t *testing.T) {
-	//configMemoryCache = nil
 	_, err := config.GetConfig()
 	assert.Error(t, err)
 }
@@ -96,6 +95,8 @@ func TestInitPluginConfigNotFound(t *testing.T) {
 	assert.Equal(t, cm, &config.Config{})
 
 	err = DownloadPlugins(MockFileDownloader{})
+	assert.NoError(t, err)
+	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
 	assert.NoError(t, err)
 }
 
@@ -158,9 +159,6 @@ func TestBadConfigMap(t *testing.T) {
 
 	_, err := config.InitializeConfig(client, "argo-rollouts-config")
 	assert.Error(t, err)
-
-	err = DownloadPlugins(MockFileDownloader{})
-	assert.NoError(t, err)
 }
 
 func TestBadLocation(t *testing.T) {
@@ -178,4 +176,7 @@ func TestBadLocation(t *testing.T) {
 
 	err = DownloadPlugins(MockFileDownloader{})
 	assert.Error(t, err)
+
+	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+	assert.NoError(t, err)
 }
