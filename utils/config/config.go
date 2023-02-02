@@ -1,14 +1,17 @@
 package config
 
 import (
+	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"sync"
+
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
-	informers "k8s.io/client-go/informers/core/v1"
-	"sync"
 )
 
 // Config is the in memory representation of the configmap with some additional fields/functions for ease of use.
@@ -21,9 +24,9 @@ var configMemoryCache *Config
 var mutex sync.RWMutex
 
 // InitializeConfig initializes the in memory config and downloads the plugins to the filesystem. Subsequent calls to this
-//function will update the configmap in memory.
-func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapName string) (*Config, error) {
-	configMapCluster, err := configMapInformer.Lister().ConfigMaps(defaults.Namespace()).Get(configMapName)
+// function will update the configmap in memory.
+func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (*Config, error) {
+	configMapCluster, err := k8sClientset.CoreV1().ConfigMaps(defaults.Namespace()).Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
 		if k8errors.IsNotFound(err) {
 			configMemoryCache = &Config{} // We create an empty config so that we don't try to initialize again

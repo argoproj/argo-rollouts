@@ -2,12 +2,13 @@ package plugin
 
 import (
 	"bytes"
-	"github.com/argoproj/argo-rollouts/utils/config"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/argoproj/argo-rollouts/utils/config"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/tj/assert"
