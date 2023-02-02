@@ -20,8 +20,8 @@ type Config struct {
 var configMemoryCache *Config
 var mutex sync.RWMutex
 
-// InitializeConfig initializes the in memory config and downloads the plugins to the filesystem. Subsequent calls to this function will return
-// the same config object.
+// InitializeConfig initializes the in memory config and downloads the plugins to the filesystem. Subsequent calls to this
+//function will update the configmap in memory.
 func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapName string) (*Config, error) {
 	configMapCluster, err := configMapInformer.Lister().ConfigMaps(defaults.Namespace()).Get(configMapName)
 	if err != nil {
