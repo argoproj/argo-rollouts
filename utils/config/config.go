@@ -25,8 +25,9 @@ func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapNa
 	configMapCluster, err := configMapInformer.Lister().ConfigMaps(defaults.Namespace()).Get(configMapName)
 	if err != nil {
 		if k8errors.IsNotFound(err) {
+			configMemoryCache = &Config{} // We create an empty config so that we don't try to initialize again
 			// If the configmap is not found, we return
-			return nil, nil
+			return configMemoryCache, nil
 		}
 		return nil, fmt.Errorf("failed to get configmap %s/%s: %w", defaults.Namespace(), configMapName, err)
 	}
