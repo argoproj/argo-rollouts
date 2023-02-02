@@ -14,7 +14,6 @@ import (
 	"github.com/tj/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -51,15 +50,8 @@ func TestInitPlugin(t *testing.T) {
 		Data: map[string]string{"plugins": "metrics:\n  - name: http\n    pluginLocation: https://test/plugin\n  - name: http-sha\n    pluginLocation: https://test/plugin\n    pluginSha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
 	}
 	client := fake.NewSimpleClientset(cm)
-	i := informers.NewSharedInformerFactory(client, 0)
-	i.Start(make(chan struct{}))
-	cmi := i.Core().V1().ConfigMaps()
-	go cmi.Informer().Run(make(chan struct{}))
 
-	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
-	assert.NoError(t, err)
-
-	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config")
+	_, err := config.InitializeConfig(client, "argo-rollouts-config")
 	assert.NoError(t, err)
 
 	err = DownloadPlugins(MockFileDownloader{})
@@ -83,15 +75,8 @@ func TestInitPluginBadSha(t *testing.T) {
 		Data: map[string]string{"plugins": "metrics:\n  - name: http-badsha\n    pluginLocation: https://test/plugin\n    pluginSha256: badsha352"},
 	}
 	client := fake.NewSimpleClientset(cm)
-	i := informers.NewSharedInformerFactory(client, 0)
-	i.Start(make(chan struct{}))
-	cmi := i.Core().V1().ConfigMaps()
-	go cmi.Informer().Run(make(chan struct{}))
 
-	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
-	assert.NoError(t, err)
-
-	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
+	_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
 
 	err = DownloadPlugins(MockFileDownloader{})
@@ -105,12 +90,8 @@ func TestInitPluginBadSha(t *testing.T) {
 
 func TestInitPluginConfigNotFound(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	i := informers.NewSharedInformerFactory(client, 0)
-	i.Start(make(chan struct{}))
-	cmi := i.Core().V1().ConfigMaps()
-	go cmi.Informer().Run(make(chan struct{}))
 
-	cm, err := config.InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
+	cm, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
 	assert.Equal(t, cm, &config.Config{})
 
@@ -127,15 +108,8 @@ func TestFileMove(t *testing.T) {
 		Data: map[string]string{"plugins": "metrics:\n  - name: file-plugin\n    pluginLocation: file://./plugin.go"},
 	}
 	client := fake.NewSimpleClientset(cm)
-	i := informers.NewSharedInformerFactory(client, 0)
-	i.Start(make(chan struct{}))
-	cmi := i.Core().V1().ConfigMaps()
-	go cmi.Informer().Run(make(chan struct{}))
 
-	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
-	assert.NoError(t, err)
-
-	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
+	_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
 
 	err = DownloadPlugins(MockFileDownloader{})
@@ -156,18 +130,11 @@ func TestDoubleInit(t *testing.T) {
 		Data: map[string]string{"plugins": "metrics:\n  - name: file-plugin\n    pluginLocation: file://./plugin.go"},
 	}
 	client := fake.NewSimpleClientset(cm)
-	i := informers.NewSharedInformerFactory(client, 0)
-	i.Start(make(chan struct{}))
-	cmi := i.Core().V1().ConfigMaps()
-	go cmi.Informer().Run(make(chan struct{}))
 
-	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
+	_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
 
-	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
-	assert.NoError(t, err)
-
-	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
+	_, err = config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
 
 	err = DownloadPlugins(MockFileDownloader{})
@@ -188,15 +155,8 @@ func TestBadConfigMap(t *testing.T) {
 		Data: map[string]string{"plugins": "badconfigmap"},
 	}
 	client := fake.NewSimpleClientset(cm)
-	i := informers.NewSharedInformerFactory(client, 0)
-	i.Start(make(chan struct{}))
-	cmi := i.Core().V1().ConfigMaps()
-	go cmi.Informer().Run(make(chan struct{}))
 
-	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
-	assert.NoError(t, err)
-
-	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config")
+	_, err := config.InitializeConfig(client, "argo-rollouts-config")
 	assert.Error(t, err)
 
 	err = DownloadPlugins(MockFileDownloader{})
@@ -212,15 +172,8 @@ func TestBadLocation(t *testing.T) {
 		Data: map[string]string{"plugins": "metrics:\n  - name: http\n    pluginLocation: agwegasdlkjf2324"},
 	}
 	client := fake.NewSimpleClientset(cm)
-	i := informers.NewSharedInformerFactory(client, 0)
-	i.Start(make(chan struct{}))
-	cmi := i.Core().V1().ConfigMaps()
-	go cmi.Informer().Run(make(chan struct{}))
 
-	err := i.Core().V1().ConfigMaps().Informer().GetIndexer().Add(cm)
-	assert.NoError(t, err)
-
-	_, err = config.InitializeConfig(i.Core().V1().ConfigMaps(), "argo-rollouts-config")
+	_, err := config.InitializeConfig(client, "argo-rollouts-config")
 	assert.NoError(t, err)
 
 	err = DownloadPlugins(MockFileDownloader{})
