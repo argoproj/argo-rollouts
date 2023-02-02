@@ -1,8 +1,9 @@
-package config
+package plugin
 
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/config"
 	"io"
 	"net/http"
 	"net/url"
@@ -85,8 +86,8 @@ func downloadFile(filepath string, url string, downloader FileDownloader) error 
 }
 
 // initMetricsPlugins this function downloads and/or checks that a plugin executable exits on the filesystem
-func initMetricsPlugins(fd FileDownloader) error {
-	config, err := GetConfig()
+func DownloadPlugins(fd FileDownloader) error {
+	config, err := config.GetConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}

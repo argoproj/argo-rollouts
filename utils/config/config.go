@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	"github.com/ghodss/yaml"
@@ -21,7 +20,7 @@ var configMemoryCache *Config
 
 // InitializeConfig initializes the in memory config and downloads the plugins to the filesystem. Subsequent calls to this function will return
 // the same config object.
-func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapName string, downloader FileDownloader) (*Config, error) {
+func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapName string) (*Config, error) {
 	configMapCluster, err := configMapInformer.Lister().ConfigMaps(defaults.Namespace()).Get(configMapName)
 	if err != nil {
 		if k8errors.IsNotFound(err) {
@@ -42,9 +41,6 @@ func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapNa
 		plugins:   plugins,
 	}
 
-	if err := initMetricsPlugins(downloader); err != nil {
-		return nil, err
-	}
 	return configMemoryCache, nil
 }
 

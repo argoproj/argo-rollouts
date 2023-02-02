@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/plugin"
 	"net/http"
 	"os"
 	"sync"
@@ -478,9 +479,14 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 		}
 	}
 
-	_, err := rolloutsConfig.InitializeConfig(c.controllerNamespaceInformerFactory.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName, rolloutsConfig.FileDownloaderImpl{})
+	_, err := rolloutsConfig.InitializeConfig(c.controllerNamespaceInformerFactory.Core().V1().ConfigMaps(), defaults.DefaultRolloutsConfigMapName)
 	if err != nil {
 		log.Fatalf("Failed to init config: %v", err)
+	}
+
+	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
+	if err != nil {
+		log.Fatalf("Failed to download plugins: %v", err)
 	}
 
 	go wait.Until(func() { c.wg.Add(1); c.rolloutController.Run(ctx, rolloutThreadiness); c.wg.Done() }, time.Second, ctx.Done())
