@@ -8,6 +8,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	informers "k8s.io/client-go/informers/core/v1"
+	"sync"
 )
 
 // Config is the in memory representation of the configmap with some additional fields/functions for ease of use.
@@ -17,6 +18,7 @@ type Config struct {
 }
 
 var configMemoryCache *Config
+var mutex sync.RWMutex
 
 // InitializeConfig initializes the in memory config and downloads the plugins to the filesystem. Subsequent calls to this function will return
 // the same config object.
@@ -36,16 +38,20 @@ func InitializeConfig(configMapInformer informers.ConfigMapInformer, configMapNa
 		return nil, fmt.Errorf("failed to unmarshal plugins while initializing: %w", err)
 	}
 
+	mutex.Lock()
 	configMemoryCache = &Config{
 		configMap: configMapCluster,
 		plugins:   plugins,
 	}
+	mutex.Unlock()
 
 	return configMemoryCache, nil
 }
 
 // GetConfig returns the initialized in memory config object if it exists otherwise errors if InitializeConfig has not been called.
 func GetConfig() (*Config, error) {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	if configMemoryCache == nil {
 		return nil, fmt.Errorf("config not initialized, please initialize before use")
 	}
@@ -54,5 +60,11 @@ func GetConfig() (*Config, error) {
 
 // GetMetricPluginsConfig returns the metric plugins configured in the configmap
 func (c *Config) GetMetricPluginsConfig() []types.PluginItem {
-	return configMemoryCache.plugins.Metrics
+	mutex.RLock()
+	defer mutex.RUnlock()
+	var copiedPlugins []types.PluginItem
+	for _, p := range configMemoryCache.plugins.Metrics {
+		copiedPlugins = append(copiedPlugins, p)
+	}
+	return copiedPlugins
 }

@@ -85,7 +85,7 @@ func downloadFile(filepath string, url string, downloader FileDownloader) error 
 	return err
 }
 
-// initMetricsPlugins this function downloads and/or checks that a plugin executable exits on the filesystem
+// DownloadPlugins this function downloads and/or checks that a plugin executable exits on the filesystem
 func DownloadPlugins(fd FileDownloader) error {
 	config, err := config.GetConfig()
 	if err != nil {
