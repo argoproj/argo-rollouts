@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/plugin/types"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	goPlugin "github.com/hashicorp/go-plugin"
 	"github.com/tj/assert"
@@ -159,4 +161,29 @@ func TestPluginClosedConnection(t *testing.T) {
 
 	cancel()
 	<-closeCh
+}
+
+func TestInvalidArgs(t *testing.T) {
+	server := MetricsRPCServer{}
+	badtype := struct {
+		Args string
+	}{}
+	err := server.Run(badtype, &v1alpha1.Measurement{})
+	assert.Error(t, err)
+
+	err = server.Resume(badtype, &v1alpha1.Measurement{})
+	assert.Error(t, err)
+
+	err = server.Terminate(badtype, &v1alpha1.Measurement{})
+	assert.Error(t, err)
+
+	err = server.GarbageCollect(badtype, &types.RpcError{})
+	assert.Error(t, err)
+
+	err = server.NewMetricsPlugin(badtype, &types.RpcError{})
+	assert.Error(t, err)
+
+	resp := make(map[string]string)
+	err = server.GetMetadata(badtype, &resp)
+	assert.Error(t, err)
 }
