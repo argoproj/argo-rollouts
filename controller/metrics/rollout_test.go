@@ -113,7 +113,13 @@ rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 
 rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_updated The number of updated replicas per rollout.
+# TYPE rollout_info_replicas_updated gauge
+rollout_info_replicas_updated{name="guestbook-bluegreen",namespace="default"} 0`,
 		},
 
 		{
@@ -131,7 +137,13 @@ rollout_info_replicas_available{name="guestbook-bluegreen",namespace="default"} 
 rollout_info_replicas_desired{name="guestbook-bluegreen",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0`,
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-bluegreen",namespace="default"} 0
+# HELP rollout_info_replicas_updated The number of updated replicas per rollout.
+# TYPE rollout_info_replicas_updated gauge
+rollout_info_replicas_updated{name="guestbook-bluegreen",namespace="default"} 0`,
 		},
 		{
 			fakeCanaryRollout,
@@ -148,7 +160,13 @@ rollout_info_replicas_available{name="guestbook-canary",namespace="default"} 1
 rollout_info_replicas_desired{name="guestbook-canary",namespace="default"} 1
 # HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
 # TYPE rollout_info_replicas_unavailable gauge
-rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0`,
+rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0
+# HELP rollout_info_replicas_unavailable The number of unavailable replicas per rollout.
+# TYPE rollout_info_replicas_unavailable gauge
+rollout_info_replicas_unavailable{name="guestbook-canary",namespace="default"} 0
+# HELP rollout_info_replicas_updated The number of updated replicas per rollout.
+# TYPE rollout_info_replicas_updated gauge
+rollout_info_replicas_updated{name="guestbook-canary",namespace="default"} 0`,
 		},
 	}
 
@@ -180,7 +198,7 @@ rollout_reconcile_sum{name="ro-test",namespace="ro-namespace"} 0.001
 rollout_reconcile_count{name="ro-test",namespace="ro-namespace"} 1
 `
 
-	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 	ro := &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ro-test",
@@ -305,7 +323,7 @@ rollout_events_total{name="ro-test-1",namespace="ro-namespace",reason="FooEvent"
 rollout_events_total{name="ro-test-2",namespace="ro-namespace",reason="BazEvent",type="Warning"} 2
 `
 
-	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-1", corev1.EventTypeNormal, "FooEvent").Inc()
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-1", corev1.EventTypeNormal, "BarEvent").Inc()
 	MetricRolloutEventsTotal.WithLabelValues("ro-namespace", "ro-test-2", corev1.EventTypeWarning, "BazEvent").Inc()

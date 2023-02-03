@@ -111,6 +111,69 @@ func (s *IstioSuite) TestIstioHostSplit() {
 	}
 }
 
+func (s *IstioSuite) TestIstioHostSplitOnlyTls() {
+
+	tests := []struct {
+		filename string
+	}{
+		{
+			"@istio/istio-host-only-tls-split.yaml",
+		},
+	}
+
+	for _, tc := range tests {
+
+		s.Given().
+			RolloutObjects(tc.filename).
+			When().
+			ApplyManifests().
+			WaitForRolloutStatus("Healthy").
+			Then().
+			Assert(func(t *fixtures.Then) {
+				vsvc := t.GetVirtualService()
+				assert.Equal(s.T(), int64(100), vsvc.Spec.TLS[0].Route[0].Weight)
+				assert.Equal(s.T(), int64(0), vsvc.Spec.TLS[0].Route[1].Weight)
+				desired, stable := t.GetServices()
+				rs1 := t.GetReplicaSetByRevision("1")
+				assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+				assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+			}).
+			When().
+			UpdateSpec().
+			WaitForRolloutStatus("Paused").
+			Then().
+			Assert(func(t *fixtures.Then) {
+				vsvc := t.GetVirtualService()
+				assert.Equal(s.T(), int64(90), vsvc.Spec.TLS[0].Route[0].Weight)
+				assert.Equal(s.T(), int64(10), vsvc.Spec.TLS[0].Route[1].Weight)
+
+				desired, stable := t.GetServices()
+				rs1 := t.GetReplicaSetByRevision("1")
+				rs2 := t.GetReplicaSetByRevision("2")
+				assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+				assert.Equal(s.T(), rs1.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+			}).
+			When().
+			PromoteRollout().
+			WaitForRolloutStatus("Healthy").
+			Sleep(1*time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+			Then().
+			Assert(func(t *fixtures.Then) {
+				vsvc := t.GetVirtualService()
+				assert.Equal(s.T(), int64(100), vsvc.Spec.TLS[0].Route[0].Weight)
+				assert.Equal(s.T(), int64(0), vsvc.Spec.TLS[0].Route[1].Weight)
+
+				desired, stable := t.GetServices()
+				rs2 := t.GetReplicaSetByRevision("2")
+				assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], desired.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+				assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stable.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey])
+			}).
+			ExpectRevisionPodCount("1", 1) // don't scale down old replicaset since it will be within scaleDownDelay
+
+		s.TearDownSuite()
+	}
+}
+
 func (s *IstioSuite) TestIstioSubsetSplit() {
 	s.Given().
 		RolloutObjects("@istio/istio-subset-split.yaml").

@@ -84,7 +84,7 @@ experiment_reconcile_error{name="name",namespace="ns"} 1
 # TYPE rollout_reconcile_error counter
 rollout_reconcile_error{name="name",namespace="ns"} 1`
 
-	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 
 	metricsServ.IncError("ns", "name", logutil.AnalysisRunKey)
 	metricsServ.IncError("ns", "name", logutil.ExperimentKey)
@@ -95,14 +95,7 @@ rollout_reconcile_error{name="name",namespace="ns"} 1`
 func TestVersionInfo(t *testing.T) {
 	expectedResponse := `# HELP argo_rollouts_controller_info Running Argo-rollouts version
 # TYPE argo_rollouts_controller_info gauge`
-	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
-	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
-}
-
-func TestSecondaryMetricsServer(t *testing.T) {
-	expectedResponse := ``
-
-	metricsServ := NewMetricsServer(newFakeServerConfig(), false)
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 	testHttpResponse(t, metricsServ.Handler, expectedResponse, assert.Contains)
 }
 
@@ -113,7 +106,7 @@ func TestRemove(t *testing.T) {
 experiment_reconcile_error{name="name1",namespace="ns"} 1
 rollout_reconcile_error{name="name1",namespace="ns"} 1`
 
-	metricsServ := NewMetricsServer(newFakeServerConfig(), true)
+	metricsServ := NewMetricsServer(newFakeServerConfig())
 
 	metricsServ.IncError("ns", "name1", logutil.RolloutKey)
 	metricsServ.IncError("ns", "name1", logutil.AnalysisRunKey)

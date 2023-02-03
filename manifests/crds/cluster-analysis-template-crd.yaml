@@ -2728,6 +2728,9 @@ spec:
                               type: array
                             insecure:
                               type: boolean
+                            jsonBody:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
                             jsonPath:
                               type: string
                             method:

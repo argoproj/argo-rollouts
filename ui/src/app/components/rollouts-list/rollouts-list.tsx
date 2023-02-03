@@ -144,7 +144,7 @@ const EmptyMessage = (props: {namespace: string}) => {
                 <CodeLine>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/rollout.yaml</CodeLine>
                 <CodeLine>kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/service.yaml</CodeLine>
                 or follow the{' '}
-                <a href='https://argoproj.github.io/argo-rollouts/getting-started/' target='_blank' rel='noreferrer'>
+                <a href='https://argo-rollouts.readthedocs.io/en/stable/getting-started/' target='_blank' rel='noreferrer'>
                     Getting Started guide
                 </a>
                 .

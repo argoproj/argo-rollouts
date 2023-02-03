@@ -3,6 +3,7 @@ package istio
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -114,7 +115,7 @@ func NewIstioController(cfg IstioControllerConfig) *IstioController {
 // Run starts the Istio informers. If Istio is not installed, will periodically check for presence
 // of Istio, then start informers once detected. This allows Argo Rollouts to be installed in any
 // order during cluster bootstrapping.
-func (c *IstioController) Run(stopCh <-chan struct{}) {
+func (c *IstioController) Run(ctx context.Context) {
 	ns := defaults.Namespace()
 	waitForIstioInstall := !istioutil.DoesIstioExist(c.DynamicClientSet, ns)
 	if waitForIstioInstall {
@@ -122,7 +123,7 @@ func (c *IstioController) Run(stopCh <-chan struct{}) {
 		for !istioutil.DoesIstioExist(c.DynamicClientSet, ns) {
 			// Should only execute if Istio is not installed on cluster
 			select {
-			case <-stopCh:
+			case <-ctx.Done():
 				ticker.Stop()
 				return
 			case <-ticker.C:
@@ -130,23 +131,29 @@ func (c *IstioController) Run(stopCh <-chan struct{}) {
 		}
 		ticker.Stop()
 		log.Info("Istio install detected. Starting informers")
-		go c.VirtualServiceInformer.Run(stopCh)
-		go c.DestinationRuleInformer.Run(stopCh)
+		go c.VirtualServiceInformer.Run(ctx.Done())
+		go c.DestinationRuleInformer.Run(ctx.Done())
 	} else {
 		log.Info("Istio detected")
 	}
 
-	cache.WaitForCacheSync(stopCh, c.VirtualServiceInformer.HasSynced, c.DestinationRuleInformer.HasSynced)
+	cache.WaitForCacheSync(ctx.Done(), c.VirtualServiceInformer.HasSynced, c.DestinationRuleInformer.HasSynced)
 
+	log.Info("Starting istio workers")
+	wg := sync.WaitGroup{}
 	for i := 0; i < destinationRuleWorkers; i++ {
+		wg.Add(1)
 		go wait.Until(func() {
-			controllerutil.RunWorker(c.destinationRuleWorkqueue, "destinationrule", c.syncDestinationRule, nil)
-		}, time.Second, stopCh)
+			controllerutil.RunWorker(ctx, c.destinationRuleWorkqueue, "destinationrule", c.syncDestinationRule, nil)
+			wg.Done()
+			log.Debug("Istio worker has stopped")
+		}, time.Second, ctx.Done())
 	}
 	log.Infof("Istio workers (%d) started", destinationRuleWorkers)
 
-	<-stopCh
-	log.Info("Istio controller stopped")
+	<-ctx.Done()
+	wg.Wait()
+	log.Info("All istio workers have stopped")
 }
 
 // EnqueueDestinationRule examines a VirtualService, finds the Rollout referencing
@@ -223,7 +230,7 @@ func (c *IstioController) GetReferencedVirtualServices(ro *v1alpha1.Rollout) (*[
 // `rollouts-pod-template-hash` label and the managed-by annotation. This handles the case when a
 // Rollout has either been deleted, or modified such that it is longer referencing the
 // DestinationRule.
-func (c *IstioController) syncDestinationRule(key string) error {
+func (c *IstioController) syncDestinationRule(ctx context.Context, key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -296,4 +303,8 @@ func getManagingRolloutName(un *unstructured.Unstructured) string {
 		return ""
 	}
 	return annots[v1alpha1.ManagedByRolloutsKey]
+}
+
+func (c *IstioController) ShutDownWithDrain() {
+	c.destinationRuleWorkqueue.ShutDownWithDrain()
 }

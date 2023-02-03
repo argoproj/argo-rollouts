@@ -2,13 +2,9 @@ package server
 
 import (
 	"context"
-	"embed"
 	"fmt"
-	"io/fs"
 	"net"
 	"net/http"
-	"path"
-	"regexp"
 	"strings"
 	"time"
 
@@ -47,9 +43,6 @@ import (
 	versionutils "github.com/argoproj/argo-rollouts/utils/version"
 )
 
-//go:embed static/*
-var static embed.FS //nolint
-
 var backoff = wait.Backoff{
 	Steps:    5,
 	Duration: 500 * time.Millisecond,
@@ -81,13 +74,6 @@ func NewServer(o ServerOptions) *ArgoRolloutsServer {
 	return &ArgoRolloutsServer{Options: o}
 }
 
-var re = regexp.MustCompile(`<base href=".*".*/>`)
-
-func withRootPath(fileContent []byte, rootpath string) []byte {
-	var temp = re.ReplaceAllString(string(fileContent), `<base href="`+path.Clean("/"+rootpath)+`/" />`)
-	return []byte(temp)
-}
-
 func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.Server {
 	mux := http.NewServeMux()
 	endpoint := fmt.Sprintf("0.0.0.0:%d", port)
@@ -117,107 +103,11 @@ func (s *ArgoRolloutsServer) newHTTPServer(ctx context.Context, port int) *http.
 		panic(err)
 	}
 
-	var handler http.Handler = gwmux
-
-	mux.Handle("/api/", handler)
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		requestedURI := path.Clean(r.RequestURI)
-		rootPath := path.Clean("/" + s.Options.RootPath)
-
-		if requestedURI == "/" {
-			http.Redirect(w, r, rootPath+"/", http.StatusFound)
-			return
-		}
-
-		//If the rootPath is not in the prefix 404
-		if !strings.HasPrefix(requestedURI, rootPath) {
-			http.NotFound(w, r)
-			return
-		}
-		//If the rootPath is the requestedURI, serve index.html
-		if requestedURI == rootPath {
-			fileBytes, openErr := s.readIndexHtml()
-			if openErr != nil {
-				log.Errorf("Error opening file index.html: %v", openErr)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			w.Write(fileBytes)
-			return
-		}
-
-		embedPath := path.Join("static", strings.TrimPrefix(requestedURI, rootPath))
-		file, openErr := static.Open(embedPath)
-		if openErr != nil {
-			fErr := openErr.(*fs.PathError)
-			//If the file is not found, serve index.html
-			if fErr.Err == fs.ErrNotExist {
-				fileBytes, openErr := s.readIndexHtml()
-				if openErr != nil {
-					log.Errorf("Error opening file index.html: %v", openErr)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				w.Write(fileBytes)
-				return
-			} else {
-				log.Errorf("Error opening file %s: %v", embedPath, openErr)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-		}
-		defer file.Close()
-
-		stat, statErr := file.Stat()
-		if statErr != nil {
-			log.Errorf("Failed to stat file or dir %s: %v", embedPath, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		fileBytes := make([]byte, stat.Size())
-		_, err = file.Read(fileBytes)
-		if err != nil {
-			log.Errorf("Failed to read file %s: %v", embedPath, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		w.Write(fileBytes)
-	})
+	var apiHandler http.Handler = gwmux
+	mux.Handle("/api/", apiHandler)
+	mux.HandleFunc("/", s.staticFileHttpHandler)
 
 	return &httpS
-}
-
-func (s *ArgoRolloutsServer) readIndexHtml() ([]byte, error) {
-	file, err := static.Open("static/index.html")
-	if err != nil {
-		log.Errorf("Failed to open file %s: %v", "static/index.html", err)
-		return nil, err
-	}
-	defer func() {
-		if file != nil {
-			if err := file.Close(); err != nil {
-				log.Errorf("Error closing file: %v", err)
-			}
-		}
-	}()
-
-	stat, err := file.Stat()
-	if err != nil {
-		log.Errorf("Failed to stat file or dir %s: %v", "static/index.html", err)
-		return nil, err
-	}
-
-	fileBytes := make([]byte, stat.Size())
-	_, err = file.Read(fileBytes)
-	if err != nil {
-		log.Errorf("Failed to read file %s: %v", "static/index.html", err)
-		return nil, err
-	}
-
-	return withRootPath(fileBytes, s.Options.RootPath), nil
 }
 
 func (s *ArgoRolloutsServer) newGRPCServer() *grpc.Server {
@@ -482,6 +372,7 @@ func (s *ArgoRolloutsServer) AbortRollout(ctx context.Context, q *rollout.AbortR
 
 func (s *ArgoRolloutsServer) getRollout(namespace string, name string) (*v1alpha1.Rollout, error) {
 	rolloutsInformerFactory := rolloutinformers.NewSharedInformerFactoryWithOptions(s.Options.RolloutsClientset, 0, rolloutinformers.WithNamespace(namespace))
+	cache.WaitForCacheSync(s.stopCh, rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Informer().HasSynced)
 	rolloutsLister := rolloutsInformerFactory.Argoproj().V1alpha1().Rollouts().Lister().Rollouts(namespace)
 	return rolloutsLister.Get(name)
 }

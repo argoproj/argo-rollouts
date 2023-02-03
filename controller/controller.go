@@ -6,7 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/wait"
+
+	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	kubeinformers "k8s.io/client-go/informers"
 
 	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
@@ -18,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
@@ -108,8 +114,8 @@ func NewLeaderElectionOptions() *LeaderElectionOptions {
 
 // Manager is the controller implementation for Argo-Rollout resources
 type Manager struct {
+	wg                      *sync.WaitGroup
 	metricsServer           *metrics.MetricsServer
-	secondaryMetricsServer  *metrics.MetricsServer
 	healthzServer           *http.Server
 	rolloutController       *rollout.Controller
 	experimentController    *experiments.Controller
@@ -141,6 +147,15 @@ type Manager struct {
 	kubeClientSet kubernetes.Interface
 
 	namespace string
+
+	dynamicInformerFactory             dynamicinformer.DynamicSharedInformerFactory
+	clusterDynamicInformerFactory      dynamicinformer.DynamicSharedInformerFactory
+	istioDynamicInformerFactory        dynamicinformer.DynamicSharedInformerFactory
+	namespaced                         bool
+	kubeInformerFactory                kubeinformers.SharedInformerFactory
+	controllerNamespaceInformerFactory kubeinformers.SharedInformerFactory
+	jobInformerFactory                 kubeinformers.SharedInformerFactory
+	istioPrimaryDynamicClient          dynamic.Interface
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -172,6 +187,13 @@ func NewManager(
 	k8sRequestProvider *metrics.K8sRequestsCountProvider,
 	nginxIngressClasses []string,
 	albIngressClasses []string,
+	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	clusterDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	istioDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	namespaced bool,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	controllerNamespaceInformerFactory kubeinformers.SharedInformerFactory,
+	jobInformerFactory kubeinformers.SharedInformerFactory,
 ) *Manager {
 
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
@@ -186,10 +208,9 @@ func NewManager(
 		ClusterAnalysisTemplateLister: clusterAnalysisTemplateInformer.Lister(),
 		ExperimentLister:              experimentsInformer.Lister(),
 		K8SRequestProvider:            k8sRequestProvider,
-	}, true)
+	})
 
 	healthzServer := NewHealthzServer(fmt.Sprintf(listenAddr, healthzPort))
-
 	rolloutWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Rollouts")
 	experimentWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Experiments")
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
@@ -293,33 +314,42 @@ func NewManager(
 	})
 
 	cm := &Manager{
-		metricsServer:                 metricsServer,
-		healthzServer:                 healthzServer,
-		rolloutSynced:                 rolloutsInformer.Informer().HasSynced,
-		serviceSynced:                 servicesInformer.Informer().HasSynced,
-		ingressSynced:                 ingressWrap.HasSynced,
-		jobSynced:                     jobInformer.Informer().HasSynced,
-		experimentSynced:              experimentsInformer.Informer().HasSynced,
-		analysisRunSynced:             analysisRunInformer.Informer().HasSynced,
-		analysisTemplateSynced:        analysisTemplateInformer.Informer().HasSynced,
-		clusterAnalysisTemplateSynced: clusterAnalysisTemplateInformer.Informer().HasSynced,
-		replicasSetSynced:             replicaSetInformer.Informer().HasSynced,
-		configMapSynced:               configMapInformer.Informer().HasSynced,
-		secretSynced:                  secretInformer.Informer().HasSynced,
-		rolloutWorkqueue:              rolloutWorkqueue,
-		experimentWorkqueue:           experimentWorkqueue,
-		analysisRunWorkqueue:          analysisRunWorkqueue,
-		serviceWorkqueue:              serviceWorkqueue,
-		ingressWorkqueue:              ingressWorkqueue,
-		rolloutController:             rolloutController,
-		serviceController:             serviceController,
-		ingressController:             ingressController,
-		experimentController:          experimentController,
-		analysisController:            analysisController,
-		notificationsController:       notificationsController,
-		refResolver:                   refResolver,
-		namespace:                     namespace,
-		kubeClientSet:                 kubeclientset,
+		wg:                                 &sync.WaitGroup{},
+		metricsServer:                      metricsServer,
+		healthzServer:                      healthzServer,
+		rolloutSynced:                      rolloutsInformer.Informer().HasSynced,
+		serviceSynced:                      servicesInformer.Informer().HasSynced,
+		ingressSynced:                      ingressWrap.HasSynced,
+		jobSynced:                          jobInformer.Informer().HasSynced,
+		experimentSynced:                   experimentsInformer.Informer().HasSynced,
+		analysisRunSynced:                  analysisRunInformer.Informer().HasSynced,
+		analysisTemplateSynced:             analysisTemplateInformer.Informer().HasSynced,
+		clusterAnalysisTemplateSynced:      clusterAnalysisTemplateInformer.Informer().HasSynced,
+		replicasSetSynced:                  replicaSetInformer.Informer().HasSynced,
+		configMapSynced:                    configMapInformer.Informer().HasSynced,
+		secretSynced:                       secretInformer.Informer().HasSynced,
+		rolloutWorkqueue:                   rolloutWorkqueue,
+		experimentWorkqueue:                experimentWorkqueue,
+		analysisRunWorkqueue:               analysisRunWorkqueue,
+		serviceWorkqueue:                   serviceWorkqueue,
+		ingressWorkqueue:                   ingressWorkqueue,
+		rolloutController:                  rolloutController,
+		serviceController:                  serviceController,
+		ingressController:                  ingressController,
+		experimentController:               experimentController,
+		analysisController:                 analysisController,
+		notificationsController:            notificationsController,
+		refResolver:                        refResolver,
+		namespace:                          namespace,
+		kubeClientSet:                      kubeclientset,
+		dynamicInformerFactory:             dynamicInformerFactory,
+		clusterDynamicInformerFactory:      clusterDynamicInformerFactory,
+		istioDynamicInformerFactory:        istioDynamicInformerFactory,
+		namespaced:                         namespaced,
+		kubeInformerFactory:                kubeInformerFactory,
+		controllerNamespaceInformerFactory: controllerNamespaceInformerFactory,
+		jobInformerFactory:                 jobInformerFactory,
+		istioPrimaryDynamicClient:          istioPrimaryDynamicClient,
 	}
 
 	return cm
@@ -328,32 +358,32 @@ func NewManager(
 // Run will sync informer caches and start controllers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // controllers to finish processing their current work items.
-func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, electOpts *LeaderElectionOptions, stopCh <-chan struct{}) error {
+func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness int, electOpts *LeaderElectionOptions) error {
 	defer runtime.HandleCrash()
-	defer c.serviceWorkqueue.ShutDown()
-	defer c.ingressWorkqueue.ShutDown()
-	defer c.rolloutWorkqueue.ShutDown()
-	defer c.experimentWorkqueue.ShutDown()
-	defer c.analysisRunWorkqueue.ShutDown()
+	defer func() {
+		log.Infof("Exiting Main Run function")
+	}()
 
-	// Wait for the caches to be synced before starting workers
-	log.Info("Waiting for controller's informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
-		return fmt.Errorf("failed to wait for caches to sync")
-	}
-	// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
-	if c.namespace == metav1.NamespaceAll {
-		if ok := cache.WaitForCacheSync(stopCh, c.clusterAnalysisTemplateSynced); !ok {
-			return fmt.Errorf("failed to wait for cluster-scoped caches to sync")
+	go func() {
+		log.Infof("Starting Healthz Server at %s", c.healthzServer.Addr)
+		err := c.healthzServer.ListenAndServe()
+		if err != nil {
+			err = errors.Wrap(err, "Healthz Server Error")
+			log.Error(err)
 		}
-	}
+	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	go func() {
+		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
+		if err := c.metricsServer.ListenAndServe(); err != nil {
+			log.Error(errors.Wrap(err, "Metric Server Error"))
+		}
+	}()
 
 	if !electOpts.LeaderElect {
 		log.Info("Leader election is turned off. Running in single-instance mode")
 		go c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
+		<-ctx.Done()
 	} else {
 		// id used to distinguish between multiple controller manager instances
 		id, err := os.Hostname()
@@ -368,63 +398,45 @@ func (c *Manager) Run(rolloutThreadiness, serviceThreadiness, ingressThreadiness
 		// add a uniquifier so that two processes on the same host don't accidentally both become active
 		id = id + "_" + string(uuid.NewUUID())
 		log.Infof("Leaderelection get id %s", id)
-		go leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
+		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock: &resourcelock.LeaseLock{
 				LeaseMeta: metav1.ObjectMeta{Name: defaultLeaderElectionLeaseLockName, Namespace: electOpts.LeaderElectionNamespace}, Client: c.kubeClientSet.CoordinationV1(),
 				LockConfig: resourcelock.ResourceLockConfig{Identity: id},
 			},
-			ReleaseOnCancel: true,
-			LeaseDuration:   electOpts.LeaderElectionLeaseDuration,
-			RenewDeadline:   electOpts.LeaderElectionRenewDeadline,
-			RetryPeriod:     electOpts.LeaderElectionRetryPeriod,
+			ReleaseOnCancel: false, // We can not set this to true because our context is sent on sig which means our code
+			// is still running prior to calling cancel. We would need to shut down and then call cancel in order to set this to true.
+			LeaseDuration: electOpts.LeaderElectionLeaseDuration,
+			RenewDeadline: electOpts.LeaderElectionRenewDeadline,
+			RetryPeriod:   electOpts.LeaderElectionRetryPeriod,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) {
-					if c.secondaryMetricsServer != nil {
-						log.Warnln("Shutdown Secondary Metrics Server")
-						c.secondaryMetricsServer.Shutdown(ctx)
-					}
+					log.Infof("I am the new leader: %s", id)
 					c.startLeading(ctx, rolloutThreadiness, serviceThreadiness, ingressThreadiness, experimentThreadiness, analysisThreadiness)
 				},
 				OnStoppedLeading: func() {
-					log.Infof("Stopped leading controller: %s", id)
-					return
+					log.Infof("OnStoppedLeading called, shutting down: %s, context err: %s", id, ctx.Err())
 				},
 				OnNewLeader: func(identity string) {
-					if identity == id {
-						return
-					}
 					log.Infof("New leader elected: %s", identity)
-
-					if c.secondaryMetricsServer != nil {
-						log.Warn("Secondary metrics server already started")
-						return
-					}
-
-					log.Infof("Starting Secondary Metric Server at %s", c.metricsServer.Addr)
-					c.secondaryMetricsServer = metrics.NewMetricsServer(metrics.ServerConfig{
-						Addr: c.metricsServer.Addr,
-					}, false)
-					err = c.secondaryMetricsServer.ListenAndServe()
-					if err != nil {
-						err = errors.Wrap(err, "Starting Secondary Metric Server")
-						log.Warn(err)
-					}
 				},
 			},
 		})
 	}
-
-	go func() {
-		log.Infof("Starting Healthz Server at %s", c.healthzServer.Addr)
-		err := c.healthzServer.ListenAndServe()
-		if err != nil {
-			err = errors.Wrap(err, "Starting Healthz Server")
-			log.Error(err)
-		}
-	}()
-
-	<-stopCh
 	log.Info("Shutting down workers")
+
+	c.serviceWorkqueue.ShutDownWithDrain()
+	c.ingressWorkqueue.ShutDownWithDrain()
+	c.rolloutWorkqueue.ShutDownWithDrain()
+	c.experimentWorkqueue.ShutDownWithDrain()
+	c.analysisRunWorkqueue.ShutDownWithDrain()
+	c.analysisRunWorkqueue.ShutDownWithDrain()
+
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second) // give max of 10 seconds for http servers to shut down
+	defer cancel()
+	c.healthzServer.Shutdown(ctxWithTimeout)
+	c.metricsServer.Shutdown(ctxWithTimeout)
+
+	c.wg.Wait()
 
 	return nil
 }
@@ -433,19 +445,40 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	defer runtime.HandleCrash()
 	// Start the informer factories to begin populating the informer caches
 	log.Info("Starting Controllers")
-	go wait.Until(func() { c.rolloutController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done())
-	go wait.Until(func() { c.serviceController.Run(serviceThreadiness, ctx.Done()) }, time.Second, ctx.Done())
-	go wait.Until(func() { c.ingressController.Run(ingressThreadiness, ctx.Done()) }, time.Second, ctx.Done())
-	go wait.Until(func() { c.experimentController.Run(experimentThreadiness, ctx.Done()) }, time.Second, ctx.Done())
-	go wait.Until(func() { c.analysisController.Run(analysisThreadiness, ctx.Done()) }, time.Second, ctx.Done())
-	go wait.Until(func() { c.notificationsController.Run(rolloutThreadiness, ctx.Done()) }, time.Second, ctx.Done())
 
-	go func() {
-		log.Infof("Starting Metric Server at %s", c.metricsServer.Addr)
-		if err := c.metricsServer.ListenAndServe(); err != nil {
-			log.Error(errors.Wrap(err, "Starting Metric Server"))
+	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
+	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
+	c.dynamicInformerFactory.Start(ctx.Done())
+	if !c.namespaced {
+		c.clusterDynamicInformerFactory.Start(ctx.Done())
+	}
+	c.kubeInformerFactory.Start(ctx.Done())
+	c.controllerNamespaceInformerFactory.Start(ctx.Done())
+	c.jobInformerFactory.Start(ctx.Done())
+
+	// Check if Istio installed on cluster before starting dynamicInformerFactory
+	if istioutil.DoesIstioExist(c.istioPrimaryDynamicClient, c.namespace) {
+		c.istioDynamicInformerFactory.Start(ctx.Done())
+	}
+
+	// Wait for the caches to be synced before starting workers
+	log.Info("Waiting for controller's informer caches to sync")
+	if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
+		log.Fatalf("failed to wait for caches to sync, exiting")
+	}
+	// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
+	if c.namespace == metav1.NamespaceAll {
+		if ok := cache.WaitForCacheSync(ctx.Done(), c.clusterAnalysisTemplateSynced); !ok {
+			log.Fatalf("failed to wait for cluster-scoped caches to sync, exiting")
 		}
-	}()
+	}
+
+	go wait.Until(func() { c.wg.Add(1); c.rolloutController.Run(ctx, rolloutThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+	go wait.Until(func() { c.wg.Add(1); c.serviceController.Run(ctx, serviceThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+	go wait.Until(func() { c.wg.Add(1); c.ingressController.Run(ctx, ingressThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+	go wait.Until(func() { c.wg.Add(1); c.experimentController.Run(ctx, experimentThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+	go wait.Until(func() { c.wg.Add(1); c.analysisController.Run(ctx, analysisThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+	go wait.Until(func() { c.wg.Add(1); c.notificationsController.Run(rolloutThreadiness, ctx.Done()); c.wg.Done() }, time.Second, ctx.Done())
 
 	log.Info("Started controller")
 }

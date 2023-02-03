@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Kubernetes sample-controller Authors.
+Copyright 2023 The Kubernetes sample-controller Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -213,6 +213,21 @@ message AntiAffinity {
 
   // +optional
   optional RequiredDuringSchedulingIgnoredDuringExecution requiredDuringSchedulingIgnoredDuringExecution = 2;
+}
+
+// ApisixRoute holds information on the APISIX Route the rollout needs to modify
+message ApisixRoute {
+  // Name refer to the name of the APISIX Route used to route traffic to the service
+  optional string name = 1;
+
+  // RuleRef a list of the APISIX Route HTTP Rules used to route traffic to the service
+  repeated string rules = 2;
+}
+
+// ApisixTrafficRouting defines the configuration required to use APISIX as traffic router
+message ApisixTrafficRouting {
+  // Route references an Apisix Route to modify to shape traffic
+  optional ApisixRoute route = 1;
 }
 
 // AppMeshTrafficRouting configuration for AWS AppMesh service mesh to enable fine grain configuration
@@ -497,6 +512,10 @@ message CanaryStrategy {
 
   // PingPongSpec holds the ping and pong services
   optional PingPongSpec pingPong = 15;
+
+  // Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
+  // MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
+  optional int32 minPodsPerReplicaSet = 16;
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
@@ -1083,6 +1102,10 @@ message PrometheusMetric {
 message RequiredDuringSchedulingIgnoredDuringExecution {
 }
 
+message RollbackWindowSpec {
+  optional int32 revisions = 1;
+}
+
 // Rollout is a specification for a Rollout resource
 message Rollout {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
@@ -1266,6 +1289,10 @@ message RolloutSpec {
   // +optional
   optional int32 minReadySeconds = 4;
 
+  // The window in which a rollback will be fast tracked (fully promoted)
+  // +optional
+  optional RollbackWindowSpec rollbackWindow = 13;
+
   // The deployment strategy to use to replace existing pods with new ones.
   // +optional
   optional RolloutStrategy strategy = 5;
@@ -1440,6 +1467,9 @@ message RolloutTrafficRouting {
   // A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
   // traffic router.
   repeated MangedRoutes managedRoutes = 8;
+
+  // Apisix holds specific configuration to use Apisix to route traffic
+  optional ApisixTrafficRouting apisix = 9;
 }
 
 message RouteMatch {
@@ -1701,7 +1731,7 @@ message WebMetric {
   // Headers are optional HTTP headers to use in the request
   repeated WebMetricHeader headers = 3;
 
-  // Body is the body of the we metric (must be POST/PUT)
+  // Body is the body of the web metric (must be POST/PUT)
   optional string body = 4;
 
   // TimeoutSeconds is the timeout for the request in seconds (default: 10)
@@ -1712,6 +1742,12 @@ message WebMetric {
 
   // Insecure skips host TLS verification
   optional bool insecure = 7;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // JSONBody is the body of the web metric in a json format (method must be POST/PUT)
+  optional bytes jsonBody = 8;
 }
 
 message WebMetricHeader {
