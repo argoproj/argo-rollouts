@@ -25,7 +25,7 @@ func main() {
 	setLogLevel("debug")
 	log.SetFormatter(createFormatter("text"))
 
-	rpcPluginImp := &plugin.RpcPlugin1{
+	rpcPluginImp := &plugin.RpcPlugin{
 		LogCtx: logCtx,
 	}
 	// pluginMap is the map of plugins we can dispense.

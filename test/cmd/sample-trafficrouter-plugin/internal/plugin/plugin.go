@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,7 +28,6 @@ import (
 
 var _ rpc.TrafficRouterPlugin = &RpcPlugin{}
 
-// Here is a real implementation of TrafficRouterPlugin
 type RpcPlugin struct {
 	LogCtx         *logrus.Entry
 	ingressWrapper *ingressutil.IngressWrap
@@ -57,74 +57,10 @@ func (p *RpcPlugin) NewTrafficRouterPlugin() pluginTypes.RpcError {
 	p.ingressWrapper = ingressWrapper
 	go p.ingressWrapper.Informer().Run(context.Background().Done())
 	cache.WaitForCacheSync(context.Background().Done(), p.ingressWrapper.Informer().HasSynced)
-
 	return pluginTypes.RpcError{}
 }
 
-// SetWeight modifies Nginx Ingress resources to reach desired state
-func (r *RpcPlugin) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
-	return pluginTypes.RpcError{}
-}
-
-func (r *RpcPlugin) SetHeaderRoute(ro *v1alpha1.Rollout, headerRouting *v1alpha1.SetHeaderRoute) pluginTypes.RpcError {
-	return pluginTypes.RpcError{}
-}
-
-func (r *RpcPlugin) VerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, pluginTypes.RpcError) {
-	verified := true
-	return &verified, pluginTypes.RpcError{}
-}
-
-// UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-func (r *RpcPlugin) UpdateHash(ro *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
-	return pluginTypes.RpcError{}
-}
-
-func (r *RpcPlugin) SetMirrorRoute(ro *v1alpha1.Rollout, setMirrorRoute *v1alpha1.SetMirrorRoute) pluginTypes.RpcError {
-	return pluginTypes.RpcError{}
-}
-
-func (r *RpcPlugin) RemoveManagedRoutes(ro *v1alpha1.Rollout) pluginTypes.RpcError {
-	return pluginTypes.RpcError{}
-}
-
-func (r *RpcPlugin) Type() string {
-	return plugin.Type
-}
-
-type RpcPlugin1 struct {
-	LogCtx         *logrus.Entry
-	ingressWrapper *ingressutil.IngressWrap
-}
-
-func (p *RpcPlugin1) NewTrafficRouterPlugin() pluginTypes.RpcError {
-	p.LogCtx.Info("NewTrafficRouterPlugin")
-
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	// if you want to change the loading rules (which files in which order), you can do so here
-	configOverrides := &clientcmd.ConfigOverrides{}
-	// if you want to change override values or bind them to flags, there are methods to help you
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-	config, err := kubeConfig.ClientConfig()
-	if err != nil {
-		return pluginTypes.RpcError{ErrorString: err.Error()}
-	}
-	kubeClient, _ := kubernetes.NewForConfig(config)
-
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-		kubeClient,
-		5*time.Minute,
-		kubeinformers.WithNamespace(metav1.NamespaceAll))
-
-	mode, _ := ingressutil.DetermineIngressMode("", kubeClient.DiscoveryClient)
-	ingressWrapper, _ := ingressutil.NewIngressWrapper(mode, kubeClient, kubeInformerFactory)
-	p.ingressWrapper = ingressWrapper
-	go p.ingressWrapper.Informer().Run(context.Background().Done())
-	cache.WaitForCacheSync(context.Background().Done(), p.ingressWrapper.Informer().HasSynced)
-	return pluginTypes.RpcError{}
-}
-
-func (r *RpcPlugin1) buildCanaryIngress(ro *v1alpha1.Rollout, stableIngress *networkingv1.Ingress, name string, desiredWeight int32) (*ingressutil.Ingress, error) {
+func (r *RpcPlugin) buildCanaryIngress(ro *v1alpha1.Rollout, stableIngress *networkingv1.Ingress, name string, desiredWeight int32) (*ingressutil.Ingress, error) {
 	stableIngressName := "canary-demo"
 	stableServiceName := ro.Spec.Strategy.Canary.StableService
 	canaryServiceName := ro.Spec.Strategy.Canary.CanaryService
@@ -194,7 +130,7 @@ func (r *RpcPlugin1) buildCanaryIngress(ro *v1alpha1.Rollout, stableIngress *net
 	return ingressutil.NewIngress(desiredCanaryIngress), nil
 }
 
-func (r *RpcPlugin1) buildLegacyCanaryIngress(ro *v1alpha1.Rollout, stableIngress *extensionsv1beta1.Ingress, name string, desiredWeight int32) (*ingressutil.Ingress, error) {
+func (r *RpcPlugin) buildLegacyCanaryIngress(ro *v1alpha1.Rollout, stableIngress *extensionsv1beta1.Ingress, name string, desiredWeight int32) (*ingressutil.Ingress, error) {
 	stableIngressName := "canary-demo"
 	stableServiceName := ro.Spec.Strategy.Canary.StableService
 	canaryServiceName := ro.Spec.Strategy.Canary.CanaryService
@@ -265,7 +201,7 @@ func (r *RpcPlugin1) buildLegacyCanaryIngress(ro *v1alpha1.Rollout, stableIngres
 }
 
 // canaryIngress returns the desired state of the canary ingress
-func (r *RpcPlugin1) canaryIngress(ro *v1alpha1.Rollout, stableIngress *ingressutil.Ingress, name string, desiredWeight int32) (*ingressutil.Ingress, error) {
+func (r *RpcPlugin) canaryIngress(ro *v1alpha1.Rollout, stableIngress *ingressutil.Ingress, name string, desiredWeight int32) (*ingressutil.Ingress, error) {
 	switch stableIngress.Mode() {
 	case ingressutil.IngressModeNetworking:
 		networkingIngress, err := stableIngress.GetNetworkingIngress()
@@ -285,11 +221,17 @@ func (r *RpcPlugin1) canaryIngress(ro *v1alpha1.Rollout, stableIngress *ingressu
 }
 
 // SetWeight modifies Nginx Ingress resources to reach desired state
-func (r *RpcPlugin1) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
+func (r *RpcPlugin) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
 	ctx := context.TODO()
 
-	stableIngressName := "canary-demo"
-	canaryIngressName := "canary-demo-canary"
+	s := v1alpha1.NginxTrafficRouting{}
+	err := json.Unmarshal(ro.Spec.Strategy.Canary.TrafficRouting.Plugin["nginx"], &s)
+	if err != nil {
+		return pluginTypes.RpcError{ErrorString: "could not unmarshal nginx config"}
+	}
+
+	stableIngressName := s.StableIngress
+	canaryIngressName := getCanaryIngressName(ro, stableIngressName)
 
 	// Check if stable ingress exists (from lister, which has a cache), error if it does not
 	stableIngress, err := r.ingressWrapper.GetCached(ro.Namespace, stableIngressName)
@@ -367,28 +309,45 @@ func (r *RpcPlugin1) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, additi
 	return pluginTypes.RpcError{}
 }
 
-func (r *RpcPlugin1) SetHeaderRoute(ro *v1alpha1.Rollout, headerRouting *v1alpha1.SetHeaderRoute) pluginTypes.RpcError {
+func (r *RpcPlugin) SetHeaderRoute(ro *v1alpha1.Rollout, headerRouting *v1alpha1.SetHeaderRoute) pluginTypes.RpcError {
 	return pluginTypes.RpcError{}
 }
 
-func (r *RpcPlugin1) VerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, pluginTypes.RpcError) {
+func (r *RpcPlugin) VerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, pluginTypes.RpcError) {
 	verified := true
 	return &verified, pluginTypes.RpcError{}
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
-func (r *RpcPlugin1) UpdateHash(ro *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
+func (r *RpcPlugin) UpdateHash(ro *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
 	return pluginTypes.RpcError{}
 }
 
-func (r *RpcPlugin1) SetMirrorRoute(ro *v1alpha1.Rollout, setMirrorRoute *v1alpha1.SetMirrorRoute) pluginTypes.RpcError {
+func (r *RpcPlugin) SetMirrorRoute(ro *v1alpha1.Rollout, setMirrorRoute *v1alpha1.SetMirrorRoute) pluginTypes.RpcError {
 	return pluginTypes.RpcError{}
 }
 
-func (r *RpcPlugin1) RemoveManagedRoutes(ro *v1alpha1.Rollout) pluginTypes.RpcError {
+func (r *RpcPlugin) RemoveManagedRoutes(ro *v1alpha1.Rollout) pluginTypes.RpcError {
 	return pluginTypes.RpcError{}
 }
 
-func (r *RpcPlugin1) Type() string {
+func (r *RpcPlugin) Type() string {
 	return plugin.Type
+}
+
+func getCanaryIngressName(rollout *v1alpha1.Rollout, stableIngress string) string {
+	// names limited to 253 characters
+	if rollout.Spec.Strategy.Canary != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting.Plugin != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting.Plugin["nginx"] != nil {
+
+		prefix := fmt.Sprintf("%s-%s", rollout.GetName(), stableIngress)
+		if len(prefix) > 253-len("-canary") {
+			// trim prefix
+			prefix = prefix[0 : 253-len("-canary")]
+		}
+		return fmt.Sprintf("%s%s", prefix, "-canary")
+	}
+	return ""
 }
