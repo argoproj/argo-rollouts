@@ -62,6 +62,12 @@ func GetConfig() (*Config, error) {
 	return configMemoryCache, nil
 }
 
+func UnInitializeConfig() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	configMemoryCache = nil
+}
+
 // GetMetricPluginsConfig returns the metric plugins configured in the configmap
 func (c *Config) GetMetricPluginsConfig() []types.PluginItem {
 	mutex.RLock()

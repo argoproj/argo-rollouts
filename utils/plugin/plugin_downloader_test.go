@@ -50,6 +50,8 @@ func TestInitPlugin(t *testing.T) {
 	}
 	client := fake.NewSimpleClientset(cm)
 
+	config.UnInitializeConfig()
+
 	_, err := config.InitializeConfig(client, "argo-rollouts-config")
 	assert.NoError(t, err)
 
@@ -75,6 +77,8 @@ func TestInitPluginBadSha(t *testing.T) {
 	}
 	client := fake.NewSimpleClientset(cm)
 
+	config.UnInitializeConfig()
+
 	_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
 
@@ -89,6 +93,8 @@ func TestInitPluginBadSha(t *testing.T) {
 
 func TestInitPluginConfigNotFound(t *testing.T) {
 	client := fake.NewSimpleClientset()
+
+	config.UnInitializeConfig()
 
 	cm, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
@@ -109,6 +115,8 @@ func TestFileMove(t *testing.T) {
 		Data: map[string]string{"plugins": "metrics:\n  - name: file-plugin\n    pluginLocation: file://./plugin.go"},
 	}
 	client := fake.NewSimpleClientset(cm)
+
+	config.UnInitializeConfig()
 
 	_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
@@ -131,6 +139,8 @@ func TestDoubleInit(t *testing.T) {
 		Data: map[string]string{"plugins": "metrics:\n  - name: file-plugin\n    pluginLocation: file://./plugin.go"},
 	}
 	client := fake.NewSimpleClientset(cm)
+
+	config.UnInitializeConfig()
 
 	_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
 	assert.NoError(t, err)
@@ -157,7 +167,12 @@ func TestBadConfigMap(t *testing.T) {
 	}
 	client := fake.NewSimpleClientset(cm)
 
+	config.UnInitializeConfig()
+
 	_, err := config.InitializeConfig(client, "argo-rollouts-config")
+	assert.Error(t, err)
+
+	err = DownloadPlugins(MockFileDownloader{})
 	assert.Error(t, err)
 }
 
@@ -171,6 +186,8 @@ func TestBadLocation(t *testing.T) {
 	}
 	client := fake.NewSimpleClientset(cm)
 
+	config.UnInitializeConfig()
+
 	_, err := config.InitializeConfig(client, "argo-rollouts-config")
 	assert.NoError(t, err)
 
@@ -179,4 +196,30 @@ func TestBadLocation(t *testing.T) {
 
 	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
 	assert.NoError(t, err)
+}
+
+func TestCheckPluginExits(t *testing.T) {
+	err := checkPluginExists("nonexistentplugin")
+	assert.Error(t, err)
+
+	realfile, err := filepath.Abs("plugin.go")
+	assert.NoError(t, err)
+	err = checkPluginExists(realfile)
+	assert.NoError(t, err)
+}
+
+func TestCheckShaOfPlugin(t *testing.T) {
+	_, err := checkShaOfPlugin("nonexistentplugin", "")
+	assert.Error(t, err)
+
+	realfile, err := filepath.Abs("plugin.go")
+	assert.NoError(t, err)
+	_, err = checkShaOfPlugin(realfile, "")
+	assert.NoError(t, err)
+}
+
+func TestDownloadFile(t *testing.T) {
+	err := downloadFile("error", "", FileDownloaderImpl{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to download file from")
 }
