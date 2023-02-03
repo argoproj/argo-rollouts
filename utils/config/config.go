@@ -62,6 +62,7 @@ func GetConfig() (*Config, error) {
 	return configMemoryCache, nil
 }
 
+// UnInitializeConfig resets the in memory config to nil. This is useful for testing.
 func UnInitializeConfig() {
 	mutex.Lock()
 	defer mutex.Unlock()
