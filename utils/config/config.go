@@ -62,7 +62,7 @@ func GetConfig() (*Config, error) {
 	return configMemoryCache, nil
 }
 
-// GetMetricPluginsConfig returns the metric plugins configured in the configmap for metric providers
+// UnInitializeConfig resets the in memory config to nil. This is useful for testing.
 func UnInitializeConfig() {
 	mutex.Lock()
 	defer mutex.Unlock()
