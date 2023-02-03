@@ -108,15 +108,18 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	}
 
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Plugin != nil {
-		pluginReconciler, err := plugin.NewReconciler(&plugin.ReconcilerConfig{
-			Rollout:  rollout,
-			Client:   c.kubeclientset,
-			Recorder: c.recorder,
-		})
-		if err != nil {
-			return trafficReconcilers, err
+		for pluginName := range rollout.Spec.Strategy.Canary.TrafficRouting.Plugin {
+			pluginReconciler, err := plugin.NewReconciler(&plugin.ReconcilerConfig{
+				Rollout:    rollout,
+				Client:     c.kubeclientset,
+				Recorder:   c.recorder,
+				PluginName: pluginName,
+			})
+			if err != nil {
+				return trafficReconcilers, err
+			}
+			trafficReconcilers = append(trafficReconcilers, pluginReconciler)
 		}
-		trafficReconcilers = append(trafficReconcilers, pluginReconciler)
 	}
 
 	// ensure that the trafficReconcilers is a healthy list and its not empty

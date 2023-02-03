@@ -57,6 +57,7 @@ func (p *RpcPlugin) NewTrafficRouterPlugin() pluginTypes.RpcError {
 	p.ingressWrapper = ingressWrapper
 	go p.ingressWrapper.Informer().Run(context.Background().Done())
 	cache.WaitForCacheSync(context.Background().Done(), p.ingressWrapper.Informer().HasSynced)
+
 	return pluginTypes.RpcError{}
 }
 
@@ -288,7 +289,7 @@ func (r *RpcPlugin1) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, additi
 	ctx := context.TODO()
 
 	stableIngressName := "canary-demo"
-	canaryIngressName := ingressutil.GetCanaryIngressName(ro)
+	canaryIngressName := "canary-demo-canary"
 
 	// Check if stable ingress exists (from lister, which has a cache), error if it does not
 	stableIngress, err := r.ingressWrapper.GetCached(ro.Namespace, stableIngressName)
@@ -371,7 +372,8 @@ func (r *RpcPlugin1) SetHeaderRoute(ro *v1alpha1.Rollout, headerRouting *v1alpha
 }
 
 func (r *RpcPlugin1) VerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, pluginTypes.RpcError) {
-	return nil, pluginTypes.RpcError{}
+	verified := true
+	return &verified, pluginTypes.RpcError{}
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes

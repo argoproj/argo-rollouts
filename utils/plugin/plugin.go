@@ -17,7 +17,7 @@ func GetPluginLocation(pluginName string) (string, error) {
 		return "", fmt.Errorf("failed to get config: %w", err)
 	}
 
-	for _, item := range configMap.GetMetricPluginsConfig() {
+	for _, item := range configMap.GetAllPlugins() {
 		if pluginName == item.Name {
 			asbFilePath, err := filepath.Abs(filepath.Join(defaults.DefaultRolloutPluginFolder, item.Name))
 			if err != nil {

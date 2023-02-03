@@ -82,10 +82,18 @@ func (c *Config) GetMetricPluginsConfig() []types.PluginItem {
 
 // GetTrafficPluginsConfig returns the metric plugins configured in the configmap for traffic routers
 func (c *Config) GetTrafficPluginsConfig() []types.PluginItem {
-	return configMemoryCache.plugins.Trafficrouters
+	mutex.RLock()
+	defer mutex.RUnlock()
+	var copiedPlugins []types.PluginItem
+	for _, p := range configMemoryCache.plugins.Trafficrouters {
+		copiedPlugins = append(copiedPlugins, p)
+	}
+	return copiedPlugins
 }
 
 // GetAllPlugins returns a flattened list of plugin items. This is useful for iterating over all plugins.
 func (c *Config) GetAllPlugins() []types.PluginItem {
-	return append(configMemoryCache.plugins.Metrics, configMemoryCache.plugins.Trafficrouters...)
+	var copiedPlugins []types.PluginItem
+	copiedPlugins = append(c.GetTrafficPluginsConfig(), c.GetMetricPluginsConfig()...)
+	return copiedPlugins
 }
