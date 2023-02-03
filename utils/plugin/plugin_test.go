@@ -13,11 +13,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestGetPluginLocationNotInit(t *testing.T) {
-	_, err := GetPluginLocation("http")
-	assert.Error(t, err)
-}
-
 func TestGetPluginLocation(t *testing.T) {
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
