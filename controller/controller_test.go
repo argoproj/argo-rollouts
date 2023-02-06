@@ -9,6 +9,7 @@ import (
 
 	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	notificationcontroller "github.com/argoproj/notifications-engine/pkg/controller"
+	openshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
 	smifake "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -240,6 +241,7 @@ func TestNewManager(t *testing.T) {
 		f.client,
 		dynamicClient,
 		smifake.NewSimpleClientset(),
+		openshiftfake.NewSimpleClientset(),
 		&discoveryfake.FakeDiscovery{},
 		k8sI.Apps().V1().ReplicaSets(),
 		k8sI.Core().V1().Services(),

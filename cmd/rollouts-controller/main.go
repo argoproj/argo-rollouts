@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	openshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -120,6 +121,9 @@ func newCommand() *cobra.Command {
 			discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
 			checkError(err)
 			smiClient, err := smiclientset.NewForConfig(config)
+			checkError(err)
+			openshiftClient, err := openshiftclientset.NewForConfig(config)
+			checkError(err)
 			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
 			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
@@ -169,6 +173,7 @@ func newCommand() *cobra.Command {
 				argoprojClient,
 				dynamicClient,
 				smiClient,
+				openshiftClient,
 				discoveryClient,
 				kubeInformerFactory.Apps().V1().ReplicaSets(),
 				kubeInformerFactory.Core().V1().Services(),

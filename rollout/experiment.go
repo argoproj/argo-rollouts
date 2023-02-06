@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -264,7 +263,7 @@ func (c *rolloutContext) deleteExperiments(exs []*v1alpha1.Experiment) error {
 		}
 		c.log.Infof("Trying to cleanup experiment '%s'", ex.Name)
 		err := c.argoprojclientset.ArgoprojV1alpha1().Experiments(ex.Namespace).Delete(ctx, ex.Name, metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
+		if err != nil && !k8serrors.IsNotFound(err) {
 			return err
 		}
 	}

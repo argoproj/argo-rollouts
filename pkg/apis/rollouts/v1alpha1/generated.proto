@@ -1056,6 +1056,12 @@ message ObjectRef {
   optional string name = 3;
 }
 
+// OpenshiftTrafficRouting defines the configuration required to use Openshift routes for traffic
+message OpenshiftTrafficRouting {
+  // Openshift route definition
+  repeated string routes = 1;
+}
+
 // PauseCondition the reason for a pause and when it started
 message PauseCondition {
   optional string reason = 1;
@@ -1470,6 +1476,9 @@ message RolloutTrafficRouting {
 
   // Apisix holds specific configuration to use Apisix to route traffic
   optional ApisixTrafficRouting apisix = 9;
+
+  // Openshift holds specific configuration to use routes for traffic
+  optional OpenshiftTrafficRouting openshift = 10;
 }
 
 message RouteMatch {

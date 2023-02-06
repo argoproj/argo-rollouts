@@ -223,6 +223,17 @@ rules:
   - get
   - update
 - apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - create
+  - watch
+  - get
+  - update
+  - list
+  - delete
+- apiGroups:
   - apisix.apache.org
   resources:
   - apisixroutes

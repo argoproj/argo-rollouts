@@ -862,6 +862,15 @@ spec:
                             required:
                             - stableIngress
                             type: object
+                          openshift:
+                            properties:
+                              routes:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - routes
+                            type: object
                           smi:
                             properties:
                               rootService:

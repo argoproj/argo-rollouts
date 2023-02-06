@@ -93,6 +93,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric":                                  schema_pkg_apis_rollouts_v1alpha1_NewRelicMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting":                             schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ObjectRef":                                       schema_pkg_apis_rollouts_v1alpha1_ObjectRef(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OpenshiftTrafficRouting":                         schema_pkg_apis_rollouts_v1alpha1_OpenshiftTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":                                  schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PingPongSpec":                                    schema_pkg_apis_rollouts_v1alpha1_PingPongSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                             schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
@@ -3158,6 +3159,35 @@ func schema_pkg_apis_rollouts_v1alpha1_ObjectRef(ref common.ReferenceCallback) c
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_OpenshiftTrafficRouting(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OpenshiftTrafficRouting defines the configuration required to use Openshift routes for traffic",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"routes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Openshift route definition",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"routes"},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4348,11 +4378,17 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixTrafficRouting"),
 						},
 					},
+					"openshift": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Openshift holds specific configuration to use routes for traffic",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OpenshiftTrafficRouting"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MangedRoutes", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TraefikTrafficRouting"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MangedRoutes", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OpenshiftTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TraefikTrafficRouting"},
 	}
 }
 

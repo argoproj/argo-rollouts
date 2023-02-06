@@ -399,6 +399,11 @@ spec:
         smi:
           rootService: root-svc # optional
           trafficSplitName: rollout-example-traffic-split # optional
+        
+        # OpenShift routing configuration
+        openshift:
+          routes:
+          - main-route # required (at least one)
 
       # Add a delay in second before scaling down the canary pods when update
       # is aborted for canary strategy with traffic routing (not applicable for basic canary).
