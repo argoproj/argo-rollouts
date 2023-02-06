@@ -47,6 +47,7 @@ func init() {
 	gob.RegisterName("UpdateHashArgs", new(UpdateHashArgs))
 	gob.RegisterName("SetWeightAndVerifyWeightArgs", new(SetWeightAndVerifyWeightArgs))
 	gob.RegisterName("SetHeaderArgs", new(SetHeaderArgs))
+	gob.RegisterName("SetMirrorArgs", new(SetMirrorArgs))
 	gob.RegisterName("RemoveManagedRoutesArgs", new(RemoveManagedRoutesArgs))
 }
 
@@ -57,9 +58,11 @@ type TrafficRouterPlugin interface {
 	types.RpcTrafficRoutingReconciler
 }
 
-// MetricsPluginRPC Here is an implementation that talks over RPC
+// TrafficRouterPluginRPC Here is an implementation that talks over RPC
 type TrafficRouterPluginRPC struct{ client *rpc.Client }
 
+// NewTrafficRouterPlugin this is the client aka the controller side function that calls the server side rpc (plugin)
+// this gets called once during startup of the plugin and can be used to setup informers or k8s clients etc.
 func (g *TrafficRouterPluginRPC) NewTrafficRouterPlugin() types.RpcError {
 	var resp types.RpcError
 	err := g.client.Call("Plugin.NewTrafficRouterPlugin", new(interface{}), &resp)
