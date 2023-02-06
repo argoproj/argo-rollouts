@@ -8,8 +8,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// Type holds this controller type
-const Type = "RPCPlugin"
+const ErrNotImplemented = "not-implemented"
 
 type ReconcilerConfig struct {
 	Rollout    *v1alpha1.Rollout
@@ -74,6 +73,11 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
 	verified, err := r.TrafficRouterPlugin.VerifyWeight(r.Rollout, desiredWeight, additionalDestinations)
 	if err.Error() != "" {
+		// We do this to keep sematics with local implementations, rpc calls can not send a nil back in a *bool so they
+		// send a *true with an error of ErrNotImplemented then we can wrap the response.
+		if err.Error() == ErrNotImplemented {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return verified, nil
@@ -88,7 +92,7 @@ func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) err
 	return nil
 }
 
-// RemoveAllRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
+// RemoveManagedRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
 func (r *Reconciler) RemoveManagedRoutes() error {
 	err := r.TrafficRouterPlugin.RemoveManagedRoutes(r.Rollout)
 	if err.Error() != "" {

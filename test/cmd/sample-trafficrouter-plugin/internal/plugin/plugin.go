@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -314,7 +316,7 @@ func (r *RpcPlugin) SetHeaderRoute(ro *v1alpha1.Rollout, headerRouting *v1alpha1
 
 func (r *RpcPlugin) VerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, pluginTypes.RpcError) {
 	verified := true
-	return &verified, pluginTypes.RpcError{}
+	return &verified, pluginTypes.RpcError{ErrorString: plugin.ErrNotImplemented}
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes
