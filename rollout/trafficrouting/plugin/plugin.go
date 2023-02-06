@@ -3,15 +3,13 @@ package plugin
 import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/client"
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	"k8s.io/client-go/kubernetes"
 )
 
 // Type holds this controller type
 const Type = "RPCPlugin"
-
-//var pluginClient *goPlugin.Client
-//var plugin rpc.TrafficRouterPlugin
 
 type ReconcilerConfig struct {
 	Rollout    *v1alpha1.Rollout
@@ -25,99 +23,74 @@ type Reconciler struct {
 	PluginName string
 	Client     kubernetes.Interface
 	Recorder   record.EventRecorder
+	rpc.TrafficRouterPlugin
 }
 
 func NewReconciler(cfg *ReconcilerConfig) (*Reconciler, error) {
-	var err error
+	pluginClient, err := client.GetTrafficPlugin(cfg.PluginName)
 	if err != nil {
 		return nil, err
 	}
 
 	reconciler := &Reconciler{
-		Rollout:    cfg.Rollout,
-		Client:     cfg.Client,
-		Recorder:   cfg.Recorder,
-		PluginName: cfg.PluginName,
+		Rollout:             cfg.Rollout,
+		Client:              cfg.Client,
+		Recorder:            cfg.Recorder,
+		PluginName:          cfg.PluginName,
+		TrafficRouterPlugin: pluginClient,
 	}
 	return reconciler, nil
 }
 
+// UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
 func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
-	plugin, err := client.GetTrafficPlugin(r.PluginName)
-	if err != nil {
-		return err
-	}
-
-	err = plugin.UpdateHash(r.Rollout, canaryHash, stableHash, additionalDestinations)
+	err := r.TrafficRouterPlugin.UpdateHash(r.Rollout, canaryHash, stableHash, additionalDestinations)
 	if err.Error() != "" {
 		return err
 	}
 	return nil
 }
 
+// SetWeight sets the canary weight to the desired weight
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-	plugin, err := client.GetTrafficPlugin(r.PluginName)
-	if err != nil {
-		return err
-	}
-
-	err = plugin.SetWeight(r.Rollout, desiredWeight, additionalDestinations)
+	err := r.TrafficRouterPlugin.SetWeight(r.Rollout, desiredWeight, additionalDestinations)
 	if err.Error() != "" {
 		return err
 	}
 	return nil
 }
 
+// SetHeaderRoute sets the header routing step
 func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) error {
-	plugin, err := client.GetTrafficPlugin(r.PluginName)
-	if err != nil {
-		return err
-	}
-
-	err = plugin.SetHeaderRoute(r.Rollout, headerRouting)
+	err := r.TrafficRouterPlugin.SetHeaderRoute(r.Rollout, headerRouting)
 	if err.Error() != "" {
 		return err
 	}
 	return nil
 }
 
+// VerifyWeight returns true if the canary is at the desired weight and additionalDestinations are at the weights specified
+// Returns nil if weight verification is not supported or not applicable
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
-	plugin, err := client.GetTrafficPlugin(r.PluginName)
-	if err != nil {
-		return nil, err
-	}
-
-	verified, err := plugin.VerifyWeight(r.Rollout, desiredWeight, additionalDestinations)
+	verified, err := r.TrafficRouterPlugin.VerifyWeight(r.Rollout, desiredWeight, additionalDestinations)
 	if err.Error() != "" {
 		return nil, err
 	}
 	return verified, nil
 }
 
-func (r *Reconciler) Type() string {
-	return Type
-}
-
+// SetMirrorRoute sets up the traffic router to mirror traffic to a service
 func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) error {
-	plugin, err := client.GetTrafficPlugin(r.PluginName)
-	if err != nil {
-		return err
-	}
-
-	err = plugin.SetMirrorRoute(r.Rollout, setMirrorRoute)
+	err := r.TrafficRouterPlugin.SetMirrorRoute(r.Rollout, setMirrorRoute)
 	if err.Error() != "" {
 		return err
 	}
 	return nil
 }
 
+// RemoveAllRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
 func (r *Reconciler) RemoveManagedRoutes() error {
-	plugin, err := client.GetTrafficPlugin(r.PluginName)
-	if err != nil {
-		return err
-	}
-
-	err = plugin.RemoveManagedRoutes(r.Rollout)
+	err := r.TrafficRouterPlugin.RemoveManagedRoutes(r.Rollout)
 	if err.Error() != "" {
 		return err
 	}

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
@@ -332,7 +331,7 @@ func (r *RpcPlugin) RemoveManagedRoutes(ro *v1alpha1.Rollout) pluginTypes.RpcErr
 }
 
 func (r *RpcPlugin) Type() string {
-	return plugin.Type
+	return "plugin-nginx"
 }
 
 func getCanaryIngressName(rollout *v1alpha1.Rollout, stableIngress string) string {

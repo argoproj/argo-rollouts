@@ -62,7 +62,7 @@ type TrafficRouterPlugin interface {
 type TrafficRouterPluginRPC struct{ client *rpc.Client }
 
 // NewTrafficRouterPlugin this is the client aka the controller side function that calls the server side rpc (plugin)
-// this gets called once during startup of the plugin and can be used to setup informers or k8s clients etc.
+// this gets called once during startup of the plugin and can be used to set up informers or k8s clients etc.
 func (g *TrafficRouterPluginRPC) NewTrafficRouterPlugin() types.RpcError {
 	var resp types.RpcError
 	err := g.client.Call("Plugin.NewTrafficRouterPlugin", new(interface{}), &resp)
@@ -72,6 +72,7 @@ func (g *TrafficRouterPluginRPC) NewTrafficRouterPlugin() types.RpcError {
 	return resp
 }
 
+// UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
 func (g *TrafficRouterPluginRPC) UpdateHash(rollout *v1alpha1.Rollout, canaryHash string, stableHash string, additionalDestinations []v1alpha1.WeightDestination) types.RpcError {
 	var resp types.RpcError
 	var args interface{} = UpdateHashArgs{
@@ -87,6 +88,7 @@ func (g *TrafficRouterPluginRPC) UpdateHash(rollout *v1alpha1.Rollout, canaryHas
 	return resp
 }
 
+// SetWeight sets the canary weight to the desired weight
 func (g *TrafficRouterPluginRPC) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) types.RpcError {
 	var resp types.RpcError
 	var args interface{} = SetWeightAndVerifyWeightArgs{
@@ -101,6 +103,7 @@ func (g *TrafficRouterPluginRPC) SetWeight(rollout *v1alpha1.Rollout, desiredWei
 	return resp
 }
 
+// SetHeaderRoute sets the header routing step
 func (g *TrafficRouterPluginRPC) SetHeaderRoute(rollout *v1alpha1.Rollout, setHeaderRoute *v1alpha1.SetHeaderRoute) types.RpcError {
 	var resp types.RpcError
 	var args interface{} = SetHeaderArgs{
@@ -114,6 +117,7 @@ func (g *TrafficRouterPluginRPC) SetHeaderRoute(rollout *v1alpha1.Rollout, setHe
 	return resp
 }
 
+// SetMirrorRoute sets up the traffic router to mirror traffic to a service
 func (g *TrafficRouterPluginRPC) SetMirrorRoute(rollout *v1alpha1.Rollout, setMirrorRoute *v1alpha1.SetMirrorRoute) types.RpcError {
 	var resp types.RpcError
 	var args interface{} = SetMirrorArgs{
@@ -127,6 +131,7 @@ func (g *TrafficRouterPluginRPC) SetMirrorRoute(rollout *v1alpha1.Rollout, setMi
 	return resp
 }
 
+// Type returns the type of the traffic routing reconciler
 func (g *TrafficRouterPluginRPC) Type() string {
 	var resp string
 	err := g.client.Call("Plugin.Type", new(interface{}), &resp)
@@ -137,6 +142,8 @@ func (g *TrafficRouterPluginRPC) Type() string {
 	return resp
 }
 
+// VerifyWeight returns true if the canary is at the desired weight and additionalDestinations are at the weights specified
+// Returns nil if weight verification is not supported or not applicable
 func (g *TrafficRouterPluginRPC) VerifyWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, types.RpcError) {
 	var resp VerifyWeightResponse
 	var args interface{} = SetWeightAndVerifyWeightArgs{
@@ -151,6 +158,7 @@ func (g *TrafficRouterPluginRPC) VerifyWeight(rollout *v1alpha1.Rollout, desired
 	return &resp.Verified, resp.Err
 }
 
+// RemoveAllRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
 func (g *TrafficRouterPluginRPC) RemoveManagedRoutes(rollout *v1alpha1.Rollout) types.RpcError {
 	var resp types.RpcError
 	var args interface{} = RemoveManagedRoutesArgs{
