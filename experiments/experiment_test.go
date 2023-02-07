@@ -70,6 +70,7 @@ func setExperimentService(template *v1alpha1.TemplateSpec) {
 	template.Service = &v1alpha1.TemplateService{}
 	template.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 		{
+			Name:          "testport",
 			ContainerPort: 80,
 			Protocol:      "TCP",
 		},

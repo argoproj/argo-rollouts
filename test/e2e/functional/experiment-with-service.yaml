@@ -26,6 +26,6 @@ spec:
                   memory: 16Mi
                   cpu: 1m
               ports:
-                - name: api
+                - name: testport
                   protocol: TCP
                   containerPort: 8080
