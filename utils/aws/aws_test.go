@@ -16,6 +16,7 @@ import (
 
 	testutil "github.com/argoproj/argo-rollouts/test/util"
 	"github.com/argoproj/argo-rollouts/utils/aws/mocks"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 )
 
@@ -95,6 +96,7 @@ func TestGetNumericTargetPort(t *testing.T) {
 }
 
 func TestGetTargetGroupMetadata(t *testing.T) {
+	defaults.SetDescribeTagsLimit(2)
 	fakeELB, c := newFakeClient()
 
 	// mock the output
@@ -106,24 +108,35 @@ func TestGetTargetGroupMetadata(t *testing.T) {
 			{
 				TargetGroupArn: pointer.StringPtr("tg-def456"),
 			},
+			{
+				TargetGroupArn: pointer.StringPtr("tg-ghi789"),
+			},
 		},
 	}
 	fakeELB.On("DescribeTargetGroups", mock.Anything, mock.Anything).Return(&tgOut, nil)
 
-	tagsOut := elbv2.DescribeTagsOutput{
-		TagDescriptions: []elbv2types.TagDescription{
-			{
-				ResourceArn: pointer.StringPtr("tg-abc123"),
+	mockDescribeTagsCall := fakeELB.On("DescribeTags", mock.Anything, mock.Anything)
+	mockDescribeTagsCall.RunFn = func(args mock.Arguments) {
+		tagsIn := args[1].(*elbv2.DescribeTagsInput)
+		assert.LessOrEqual(t, len(tagsIn.ResourceArns), defaults.GetDescribeTagsLimit())
+
+		tagsOut := elbv2.DescribeTagsOutput{
+			TagDescriptions: []elbv2types.TagDescription{},
+		}
+		for _, arn := range tagsIn.ResourceArns {
+			tagsOut.TagDescriptions = append(tagsOut.TagDescriptions, elbv2types.TagDescription{
+				ResourceArn: pointer.StringPtr(arn),
 				Tags: []elbv2types.Tag{
 					{
 						Key:   pointer.StringPtr("foo"),
 						Value: pointer.StringPtr("bar"),
 					},
 				},
-			},
-		},
+			})
+		}
+
+		mockDescribeTagsCall.ReturnArguments = mock.Arguments{&tagsOut, nil}
 	}
-	fakeELB.On("DescribeTags", mock.Anything, mock.Anything).Return(&tagsOut, nil)
 
 	listenersOut := elbv2.DescribeListenersOutput{
 		Listeners: []elbv2types.Listener{
@@ -158,14 +171,18 @@ func TestGetTargetGroupMetadata(t *testing.T) {
 	// Test
 	tgMeta, err := c.GetTargetGroupMetadata(context.TODO(), "lb-abc123")
 	assert.NoError(t, err)
-	assert.Len(t, tgMeta, 2)
+	assert.Len(t, tgMeta, 3)
 	assert.Equal(t, "tg-abc123", *tgMeta[0].TargetGroup.TargetGroupArn)
 	assert.Equal(t, "bar", tgMeta[0].Tags["foo"])
 	assert.Equal(t, int32(10), *tgMeta[0].Weight)
 
 	assert.Equal(t, "tg-def456", *tgMeta[1].TargetGroup.TargetGroupArn)
-	assert.Len(t, tgMeta[1].Tags, 0)
+	assert.Equal(t, "bar", tgMeta[1].Tags["foo"])
 	assert.Nil(t, tgMeta[1].Weight)
+
+	assert.Equal(t, "tg-ghi789", *tgMeta[2].TargetGroup.TargetGroupArn)
+	assert.Equal(t, "bar", tgMeta[2].Tags["foo"])
+	assert.Nil(t, tgMeta[2].Weight)
 }
 
 func TestBuildTargetGroupResourceID(t *testing.T) {
