@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/pkg/kubeclientmetrics"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -19,8 +20,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/argoproj/pkg/kubeclientmetrics"
 
 	"github.com/argoproj/argo-rollouts/controller"
 	"github.com/argoproj/argo-rollouts/controller/metrics"

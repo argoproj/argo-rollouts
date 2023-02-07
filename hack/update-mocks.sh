@@ -8,7 +8,7 @@ set -o pipefail
 PROJECT_ROOT=$(cd $(dirname "$0")/.. ; pwd)
 
 mockery \
-    --dir "${PROJECT_ROOT}"/metricproviders \
+    --dir "${PROJECT_ROOT}"/metric \
     --name Provider \
     --output "${PROJECT_ROOT}"/metricproviders/mocks
 

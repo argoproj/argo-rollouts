@@ -45,6 +45,10 @@ const (
 	// DefaultMetricCleanupDelay is the default time to delay metrics removal upon object removal, gives time for metrics
 	// to be collected
 	DefaultMetricCleanupDelay = int32(65)
+	// DefaultRolloutsConfigMapName is the default name of the ConfigMap that contains the Rollouts controller configuration
+	DefaultRolloutsConfigMapName = "argo-rollouts-config"
+	// DefaultRolloutPluginFolder is the default location where plugins will be downloaded and/or moved to.
+	DefaultRolloutPluginFolder = "plugin-bin"
 )
 
 const (

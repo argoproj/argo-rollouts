@@ -2948,6 +2948,21 @@ func schema_pkg_apis_rollouts_v1alpha1_MetricProvider(ref common.ReferenceCallba
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.InfluxdbMetric"),
 						},
 					},
+					"plugin": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Plugin specifies the hashicorp go-plugin metric to query",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "byte",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

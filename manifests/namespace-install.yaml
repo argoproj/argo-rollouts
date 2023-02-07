@@ -340,6 +340,15 @@ subjects:
   name: argo-rollouts
 ---
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: argo-rollouts
+  name: argo-rollouts-config
+---
+apiVersion: v1
 kind: Secret
 metadata:
   name: argo-rollouts-notification-secret
