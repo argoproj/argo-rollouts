@@ -202,10 +202,10 @@ func TestSetHeaderRouting(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{}
 		r := NewReconciler(&cfg)
-		headerRouting := &v1alpha1.SetHeaderRouting{}
+		headerRouting := &v1alpha1.SetHeaderRoute{}
 
 		// When
-		err := r.SetHeaderRouting(headerRouting)
+		err := r.SetHeaderRoute(headerRouting)
 
 		// Then
 		assert.NoError(t, err)

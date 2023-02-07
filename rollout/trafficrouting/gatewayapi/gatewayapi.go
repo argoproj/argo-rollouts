@@ -209,12 +209,20 @@ func hasBackendRefs(typedRule map[string]interface{}) (bool, error) {
 	return isFound, err
 }
 
-func (r *Reconciler) SetHeaderRouting(headerRouting *v1alpha1.SetHeaderRouting) error {
+func (r *Reconciler) SetHeaderRoute(setHeaderRoute *v1alpha1.SetHeaderRoute) error {
+	return nil
+}
+
+func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) error {
 	return nil
 }
 
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
 	return nil, nil
+}
+
+func (r *Reconciler) RemoveManagedRoutes() error {
+	return nil
 }
 
 func (r *Reconciler) Type() string {
