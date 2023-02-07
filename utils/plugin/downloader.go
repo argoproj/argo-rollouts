@@ -144,6 +144,7 @@ func DownloadPlugins(fd FileDownloader) error {
 			if err := copyFile(pluginPath, finalFileLocation); err != nil {
 				return fmt.Errorf("failed to copy plugin from %s to %s: %w", pluginPath, finalFileLocation, err)
 			}
+
 			log.Infof("Copied plugin from %s to %s", pluginPath, finalFileLocation)
 			if checkPluginExists(finalFileLocation) != nil {
 				return fmt.Errorf("failed to find filebased plugin at location: %s", plugin.PluginLocation)
