@@ -173,6 +173,11 @@ type MetricProvider struct {
 	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,9,opt,name=graphite"`
 	// Influxdb specifies the influxdb metric to query
 	Influxdb *InfluxdbMetric `json:"influxdb,omitempty" protobuf:"bytes,10,opt,name=influxdb"`
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Plugin specifies the hashicorp go-plugin metric to query
+	Plugin map[string]json.RawMessage `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement

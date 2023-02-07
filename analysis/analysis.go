@@ -327,7 +327,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 
 			provider, err := c.newProvider(*logger, t.metric)
 			if err != nil {
-				log.Errorf("Error in getting provider :%v", err)
+				log.Errorf("Error in getting metric provider :%v", err)
 				return err
 			}
 			if metricResult == nil {
