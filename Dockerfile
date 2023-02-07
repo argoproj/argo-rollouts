@@ -84,12 +84,10 @@ CMD ["dashboard"]
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM scratch
+FROM gcr.io/distroless/static-debian11
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-# Used for plugin sockets creation
-COPY --from=builder --chmod=777 /tmp /tmp
 
 # Use numeric user, allows kubernetes to identify this user as being
 # non-root when we use a security context with runAsNonRoot: true
