@@ -49,7 +49,7 @@ const (
 	DefaultRolloutsConfigMapName = "argo-rollouts-config"
 	// DefaultRolloutPluginFolder is the default location where plugins will be downloaded and/or moved to.
 	DefaultRolloutPluginFolder = "plugin-bin"
-  // DefaultDescribeTagsLimit is the default number resources (ARNs) in a single call
+	// DefaultDescribeTagsLimit is the default number resources (ARNs) in a single call
 	DefaultDescribeTagsLimit int = 20
 )
 
