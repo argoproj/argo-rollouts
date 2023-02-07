@@ -54,7 +54,7 @@ func NewCmdCompletion(o *options.ArgoRolloutsOptions) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			switch args[0] {
 			case "bash":
-				cmd.Root().GenBashCompletion(o.Out)
+				cmd.Root().GenBashCompletionV2(o.Out, false)
 			case "zsh":
 				cmd.Root().GenZshCompletion(o.Out)
 			case "fish":

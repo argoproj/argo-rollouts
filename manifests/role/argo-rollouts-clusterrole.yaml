@@ -239,3 +239,11 @@ rules:
   - watch
   - get
   - update
+- apiGroups:
+  - apisix.apache.org
+  resources:
+  - apisixroutes
+  verbs:
+  - watch
+  - get
+  - update

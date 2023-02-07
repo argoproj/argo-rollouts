@@ -288,7 +288,7 @@ func (s *FunctionalSuite) TestRolloutPDBRestart() {
 	s.Given().
 		HealthyRollout(`
 ---
-apiVersion: policy/v1beta1
+apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: rollout-pdb-restart

@@ -20,6 +20,7 @@ Argo Rollouts enables traffic management by manipulating the Service Mesh resour
 
 - [AWS ALB Ingress Controller](alb.md)
 - [Ambassador Edge Stack](ambassador.md)
+- [Apache APISIX](apisix.md)
 - [Istio](istio.md)
 - [Nginx Ingress Controller](nginx.md)
 - [Service Mesh Interface (SMI)](smi.md)

@@ -58,6 +58,8 @@ const (
 	DefaultGatewayAPIGroupVersion       = "gateway.networking.k8s.io/v1alpha2"
 	DefaultTraefikAPIGroup              = "traefik.containo.us"
 	DefaultTraefikVersion               = "traefik.containo.us/v1alpha1"
+	DefaultApisixAPIGroup               = "apisix.apache.org"
+	DefaultApisixVersion                = "apisix.apache.org/v2"
 )
 
 var (

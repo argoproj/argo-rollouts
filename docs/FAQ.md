@@ -88,7 +88,7 @@ on top of Argo Rollouts. In most cases, you would need one Rollout resource for 
 are deploying. Ideally you should also make your services backwards and forwards compatible (i.e. frontend should be able to work with both backend-preview and backend-active).
 
 ### How can I run my own custom tests (e.g. smoke tests) to decide if a Rollback should take place or not?
-Use a custom [Job](https://argoproj.github.io/argo-rollouts/analysis/job/) or [Web](https://argoproj.github.io/argo-rollouts/analysis/web/) Analysis. You can pack all your smoke tests in a single container and run them as a Job analysis. Argo Rollouts will use the results of the analysis to automatically rollback if the tests fail.
+Use a custom [Job](https://argo-rollouts.readthedocs.io/en/stable/analysis/job/) or [Web](https://argo-rollouts.readthedocs.io/en/stable/analysis/web/) Analysis. You can pack all your smoke tests in a single container and run them as a Job analysis. Argo Rollouts will use the results of the analysis to automatically rollback if the tests fail.
 
 
 ## Experiments

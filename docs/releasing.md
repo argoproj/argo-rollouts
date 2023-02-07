@@ -5,17 +5,13 @@
 1. Visit the [Release GitHub Action](https://github.com/argoproj/argo-rollouts/actions/workflows/release.yaml)
    and enter the tag.
 
+1. To automatically update the stable tag, select `Update stable tag`. (false by default)
+
 [![GitHub Release Action](release-action.png)](release-action.png)
 
 1. When the action completes, visit the generated draft [Github releases](https://github.com/argoproj/argo-rollouts/releases) and enter the details about the release:
    * Getting started (copy from previous release and new version)
    * Changelog
-
-1. Update `stable` tag:
-
-    ```bash
-    git tag stable --force && git push $REPO stable --force
-    ```
 
 1. Update Brew formula:
 
@@ -43,7 +39,7 @@
 
 ### Verify
 
-1. Install locally using the command below and follow the [Getting Started Guide](https://argoproj.github.io/argo-rollouts/getting-started/):
+1. Install locally using the command below and follow the [Getting Started Guide](https://argo-rollouts.readthedocs.io/en/stable/getting-started/):
 
     ```bash
     kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/download/${VERSION}/install.yaml

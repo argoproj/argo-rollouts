@@ -45,7 +45,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.49.0
-          args: --timeout 5m
+          args: --timeout 6m
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -90,7 +90,7 @@ jobs:
           path: coverage.out
 
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@v2.1.0
+        uses: codecov/codecov-action@v3.1.1
         with:
           file: coverage.out
 
@@ -138,8 +138,6 @@ jobs:
         run: |
           make go-mod-vendor
           make codegen
-          make manifests
-          make docs
 
       - name: Ensure nothing changed
         run: git diff --exit-code

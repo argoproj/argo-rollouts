@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/options"
+	completionutil "github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/util/completion"
 )
 
 const (
@@ -60,6 +61,7 @@ func NewCmdSetImage(o *options.ArgoRolloutsOptions) *cobra.Command {
 			fmt.Fprintf(o.Out, "%s \"%s\" image updated\n", strings.ToLower(un.GetKind()), un.GetName())
 			return nil
 		},
+		ValidArgsFunction: completionutil.RolloutNameCompletionFunc(o),
 	}
 	return cmd
 }
