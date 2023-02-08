@@ -20,11 +20,11 @@ type ExperimentSuite struct {
 
 // TestRolloutWithExperimentAndAnalysis this tests the ability for a rollout to launch an experiment,
 // and use self-referencing features/pass metadata arguments to the experiment and analysis, such as:
-//  * specRef: stable
-//  * specRef: canary
-//  * valueFrom.podTemplateHashValue: Stable
-//  * valueFrom.podTemplateHashValue: Latest
-//  * templates.XXXXX.podTemplateHash
+//   - specRef: stable
+//   - specRef: canary
+//   - valueFrom.podTemplateHashValue: Stable
+//   - valueFrom.podTemplateHashValue: Latest
+//   - templates.XXXXX.podTemplateHash
 func (s *ExperimentSuite) TestRolloutWithExperimentAndAnalysis() {
 	s.T().Parallel()
 	s.Given().
@@ -87,13 +87,17 @@ func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
 	g.ApplyManifests("@functional/experiment-with-service.yaml")
 	g.When().
 		WaitForExperimentPhase("experiment-with-service", "Running").
-		Sleep(time.Second*5).
+		WaitForExperimentCondition("experiment-with-service", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 1
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service", "test", 1).
 		ExpectExperimentServiceCount("experiment-with-service", 1).
 		When().
 		WaitForExperimentPhase("experiment-with-service", "Successful").
-		Sleep(time.Second*15).
+		WaitForExperimentCondition("experiment-with-service", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
 		Then().
 		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service", "test", 0).
 		ExpectExperimentServiceCount("experiment-with-service", 0)
