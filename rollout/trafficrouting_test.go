@@ -21,8 +21,6 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
 	apisixMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/gatewayapi"
-	gatewayapiMocks "github.com/argoproj/argo-rollouts/rollout/trafficrouting/gatewayapi/mocks"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
