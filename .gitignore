@@ -13,6 +13,7 @@ junit.xml
 rerunreport.txt
 site/
 vendor/
+plugin-bin/
 # static
 server/static/*
 !server/static/.gitkeep
