@@ -219,8 +219,9 @@ spec:
       canaryService: argo-rollouts-canary-service # our created canary service
       stableService: argo-rollouts-stable-service # our created stable service
       trafficRouting:
-        gatewayAPI:
-          httpRoute: argo-rollouts-http-route # our created httproute
+        plugin:
+          gatewayAPI:
+            httpRoute: argo-rollouts-http-route # our created httproute
       steps:
         - setWeight: 30
         - pause: {}
