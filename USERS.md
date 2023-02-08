@@ -24,6 +24,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Opensurvey Inc.](https://opensurvey.co.kr)
 1. [OpsVerse](https://opsverse.io)
 1. [Optum](https://www.optum.com)
+1. [Outreach](https://www.outreach.io)
 1. [PagerDuty](https://www.pagerduty.com/)
 1. [PayPal](https://www.paypal.com/)
 1. [PayPay](https://paypay.ne.jp/)
