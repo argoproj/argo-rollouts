@@ -290,10 +290,12 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 	for _, ctr := range rs.Spec.Template.Spec.Containers {
 		for _, port := range ctr.Ports {
 			servicePort := corev1.ServicePort{
-				Name:       port.Name,
 				Protocol:   port.Protocol,
 				Port:       port.ContainerPort,
 				TargetPort: intstr.FromInt(int(port.ContainerPort)),
+			}
+			if port.Name != nil {
+				servicePort.Name = port.Name
 			}
 			ports = append(ports, servicePort)
 		}
