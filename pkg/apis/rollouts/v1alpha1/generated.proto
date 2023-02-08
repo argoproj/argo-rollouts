@@ -756,13 +756,6 @@ message FieldRef {
   optional string fieldPath = 1;
 }
 
-// GatewayAPITrafficRouting defines the configuration required to use Gateway API as traffic router
-message GatewayAPITrafficRouting {
-  // HTTPRoute refers to the name of the HTTPRoute used to route traffic to the
-  // service
-  optional string httpRoute = 1;
-}
-
 // GraphiteMetric defines the Graphite query to perform canary analysis
 message GraphiteMetric {
   // Address is the HTTP address and port of the Graphite server
@@ -1477,15 +1470,18 @@ message RolloutTrafficRouting {
   // Traefik holds specific configuration to use Traefik to route traffic
   optional TraefikTrafficRouting traefik = 7;
 
-  // Gateway API holds specific configuration to use Gateway API to route traffic
-  optional GatewayAPITrafficRouting gatewayAPI = 8;
-
   // A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
   // traffic router.
-  repeated MangedRoutes managedRoutes = 9;
+  repeated MangedRoutes managedRoutes = 8;
 
   // Apisix holds specific configuration to use Apisix to route traffic
-  optional ApisixTrafficRouting apisix = 10;
+  optional ApisixTrafficRouting apisix = 9;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // Plugin holds specific configuration to use Apisix to route traffic
+  map<string, bytes> plugin = 10;
 }
 
 message RouteMatch {

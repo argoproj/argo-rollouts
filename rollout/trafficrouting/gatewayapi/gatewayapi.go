@@ -2,12 +2,14 @@ package gatewayapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	pluginTypes "github.com/argoproj/argo-rollouts/utils/plugin/types"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +34,12 @@ type ReconcilerConfig struct {
 	Rollout  *v1alpha1.Rollout
 	Client   ClientInterface
 	Recorder record.EventRecorder
+}
+
+type GatewayAPITrafficRouting struct {
+	// HTTPRoute refers to the name of the HTTPRoute used to route traffic to the
+	// service
+	HTTPRoute string `json:"httpRoute" protobuf:"bytes,1,name=httpRoute"`
 }
 
 type Reconciler struct {
@@ -82,61 +90,93 @@ func NewReconciler(cfg *ReconcilerConfig) *Reconciler {
 	return &reconciler
 }
 
-func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
-	return nil
+func (p *Reconciler) NewTrafficRouterPlugin() pluginTypes.RpcError {
+	return pluginTypes.RpcError{}
 }
 
-func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+func (r *Reconciler) UpdateHash(ro *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
+	return pluginTypes.RpcError{}
+}
+
+func (r *Reconciler) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
 	ctx := context.TODO()
-	rollout := r.Rollout
-	httpRouteName := rollout.Spec.Strategy.Canary.TrafficRouting.GatewayAPI.HTTPRoute
+	gatewayAPIConfig := GatewayAPITrafficRouting{}
+	err := json.Unmarshal(ro.Spec.Strategy.Canary.TrafficRouting.Plugin["gatewayAPI"], &gatewayAPIConfig)
+	if err != nil {
+		return pluginTypes.RpcError{
+			ErrorString: err.Error(),
+		}
+	}
+	httpRouteName := gatewayAPIConfig.HTTPRoute
 	httpRoute, err := r.Client.Get(ctx, httpRouteName, metav1.GetOptions{})
 	if err != nil {
-		return err
+		return pluginTypes.RpcError{
+			ErrorString: err.Error(),
+		}
 	}
-	canaryServiceName := rollout.Spec.Strategy.Canary.CanaryService
-	stableServiceName := rollout.Spec.Strategy.Canary.StableService
+	canaryServiceName := ro.Spec.Strategy.Canary.CanaryService
+	stableServiceName := ro.Spec.Strategy.Canary.StableService
 	rules, isFound, err := unstructured.NestedSlice(httpRoute.Object, "spec", "rules")
 	if err != nil {
-		return err
+		return pluginTypes.RpcError{
+			ErrorString: err.Error(),
+		}
 	}
 	if !isFound {
-		return errors.New("spec.rules field was not found in httpRoute")
+		return pluginTypes.RpcError{
+			ErrorString: errors.New("spec.rules field was not found in httpRoute").Error(),
+		}
 	}
 	backendRefs, err := getBackendRefList(rules)
 	if err != nil {
-		return err
+		return pluginTypes.RpcError{
+			ErrorString: err.Error(),
+		}
 	}
 	canaryBackendRef, err := getBackendRef(canaryServiceName, backendRefs)
 	if err != nil {
-		return err
+		return pluginTypes.RpcError{
+			ErrorString: err.Error(),
+		}
 	}
 	err = unstructured.SetNestedField(canaryBackendRef, int64(desiredWeight), "weight")
 	if err != nil {
-		return err
+		return pluginTypes.RpcError{
+			ErrorString: err.Error(),
+		}
 	}
 	stableBackendRef, err := getBackendRef(stableServiceName, backendRefs)
 	if err != nil {
-		return err
+		return pluginTypes.RpcError{
+			ErrorString: err.Error(),
+		}
 	}
 	err = unstructured.SetNestedField(stableBackendRef, int64(100-desiredWeight), "weight")
 	if err != nil {
-		return err
+		return pluginTypes.RpcError{
+			ErrorString: err.Error(),
+		}
 	}
 	rules, err = mergeBackendRefs(rules, backendRefs)
 	if err != nil {
-		return err
+		return pluginTypes.RpcError{
+			ErrorString: err.Error(),
+		}
 	}
 	err = unstructured.SetNestedSlice(httpRoute.Object, rules, "spec", "rules")
 	if err != nil {
-		return err
+		return pluginTypes.RpcError{
+			ErrorString: err.Error(),
+		}
 	}
 	_, err = r.Client.Update(ctx, httpRoute, metav1.UpdateOptions{})
 	if err != nil {
 		msg := fmt.Sprintf("Error updating Gateway API %q: %s", httpRoute.GetName(), err)
 		r.sendWarningEvent(GatewayAPIUpdateError, msg)
 	}
-	return err
+	return pluginTypes.RpcError{
+		ErrorString: err.Error(),
+	}
 }
 
 func getBackendRef(serviceName string, backendRefs []interface{}) (map[string]interface{}, error) {
@@ -209,20 +249,20 @@ func hasBackendRefs(typedRule map[string]interface{}) (bool, error) {
 	return isFound, err
 }
 
-func (r *Reconciler) SetHeaderRoute(setHeaderRoute *v1alpha1.SetHeaderRoute) error {
-	return nil
+func (r *Reconciler) SetHeaderRoute(ro *v1alpha1.Rollout, headerRouting *v1alpha1.SetHeaderRoute) pluginTypes.RpcError {
+	return pluginTypes.RpcError{}
 }
 
-func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) error {
-	return nil
+func (r *Reconciler) SetMirrorRoute(ro *v1alpha1.Rollout, setMirrorRoute *v1alpha1.SetMirrorRoute) pluginTypes.RpcError {
+	return pluginTypes.RpcError{}
 }
 
-func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
-	return nil, nil
+func (r *Reconciler) VerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, pluginTypes.RpcError) {
+	return nil, pluginTypes.RpcError{}
 }
 
-func (r *Reconciler) RemoveManagedRoutes() error {
-	return nil
+func (r *Reconciler) RemoveManagedRoutes(ro *v1alpha1.Rollout) pluginTypes.RpcError {
+	return pluginTypes.RpcError{}
 }
 
 func (r *Reconciler) Type() string {

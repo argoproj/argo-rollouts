@@ -1,6 +1,8 @@
 package gatewayapi
 
 import (
+	"encoding/json"
+	"log"
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -64,13 +66,14 @@ func TestUpdateHash(t *testing.T) {
 	t.Run("UpdateHash", func(t *testing.T) {
 		// Given
 		t.Parallel()
+		rollout := newRollout(stableServiceName, canaryServiceName, httpRouteName)
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, httpRouteName),
+			Rollout: rollout,
 		}
 		r := NewReconciler(&cfg)
 
 		// When
-		err := r.UpdateHash("", "")
+		err := r.UpdateHash(rollout, "", "", []v1alpha1.WeightDestination{})
 
 		// Then
 		assert.NoError(t, err)
@@ -83,17 +86,18 @@ func TestSetWeight(t *testing.T) {
 	t.Run("SetWeight", func(t *testing.T) {
 		// Given
 		t.Parallel()
+		rollout := newRollout(stableServiceName, canaryServiceName, httpRouteName)
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, httpRouteName),
+			Rollout: rollout,
 			Client:  client,
 		}
 		r := NewReconciler(&cfg)
 
 		// When
-		err := r.SetWeight(30)
+		rpcErr := r.SetWeight(rollout, 30, []v1alpha1.WeightDestination{})
 
 		// Then
-		assert.NoError(t, err)
+		assert.Empty(t, rpcErr.Error())
 		rules, isFound, err := unstructured.NestedSlice(mocks.HTTPRouteObj.Object, "spec", "rules")
 		assert.NoError(t, err)
 		assert.Equal(t, isFound, true)
@@ -115,8 +119,9 @@ func TestSetWeight(t *testing.T) {
 	t.Run("SetWeightWithError", func(t *testing.T) {
 		// Given
 		t.Parallel()
+		rollout := newRollout(stableServiceName, canaryServiceName, httpRouteName)
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, httpRouteName),
+			Rollout: rollout,
 			Client: &mocks.FakeClient{
 				IsGetError: true,
 			},
@@ -124,7 +129,7 @@ func TestSetWeight(t *testing.T) {
 		r := NewReconciler(&cfg)
 
 		// When
-		err := r.SetWeight(30)
+		err := r.SetWeight(rollout, 30, []v1alpha1.WeightDestination{})
 
 		// Then
 		assert.Error(t, err)
@@ -132,8 +137,9 @@ func TestSetWeight(t *testing.T) {
 	t.Run("SetWeightWithErrorManifest", func(t *testing.T) {
 		// Given
 		t.Parallel()
+		rollout := newRollout(stableServiceName, canaryServiceName, httpRouteName)
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, httpRouteName),
+			Rollout: rollout,
 			Client: &mocks.FakeClient{
 				IsGetErrorManifest: true,
 			},
@@ -141,7 +147,7 @@ func TestSetWeight(t *testing.T) {
 		r := NewReconciler(&cfg)
 
 		// When
-		err := r.SetWeight(30)
+		err := r.SetWeight(rollout, 30, []v1alpha1.WeightDestination{})
 
 		// Then
 		assert.Error(t, err)
@@ -149,14 +155,15 @@ func TestSetWeight(t *testing.T) {
 	t.Run("SetWeightWithErrorStableName", func(t *testing.T) {
 		// Given
 		t.Parallel()
+		rollout := newRollout(stableServiceName, canaryServiceName, httpRouteName)
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(fakeStableServiceName, canaryServiceName, httpRouteName),
+			Rollout: rollout,
 			Client:  client,
 		}
 		r := NewReconciler(&cfg)
 
 		// When
-		err := r.SetWeight(30)
+		err := r.SetWeight(rollout, 30, []v1alpha1.WeightDestination{})
 
 		// Then
 		assert.Error(t, err)
@@ -164,14 +171,15 @@ func TestSetWeight(t *testing.T) {
 	t.Run("SetWeightWithErrorCanaryName", func(t *testing.T) {
 		// Given
 		t.Parallel()
+		rollout := newRollout(stableServiceName, canaryServiceName, httpRouteName)
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, fakeCanaryServiceName, httpRouteName),
+			Rollout: rollout,
 			Client:  client,
 		}
 		r := NewReconciler(&cfg)
 
 		// When
-		err := r.SetWeight(30)
+		err := r.SetWeight(rollout, 30, []v1alpha1.WeightDestination{})
 
 		// Then
 		assert.Error(t, err)
@@ -179,8 +187,9 @@ func TestSetWeight(t *testing.T) {
 	t.Run("GatewayAPIUpdateError", func(t *testing.T) {
 		// Given
 		t.Parallel()
+		rollout := newRollout(stableServiceName, canaryServiceName, httpRouteName)
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, httpRouteName),
+			Rollout: rollout,
 			Client: &mocks.FakeClient{
 				UpdateError: true,
 			},
@@ -189,7 +198,7 @@ func TestSetWeight(t *testing.T) {
 		r := NewReconciler(&cfg)
 
 		// When
-		err := r.SetWeight(30)
+		err := r.SetWeight(rollout, 30, []v1alpha1.WeightDestination{})
 
 		// Then
 		assert.Error(t, err)
@@ -200,12 +209,13 @@ func TestSetHeaderRouting(t *testing.T) {
 	t.Run("SetHeaderRouting", func(t *testing.T) {
 		// Given
 		t.Parallel()
+		rollout := newRollout(stableServiceName, canaryServiceName, httpRouteName)
 		cfg := ReconcilerConfig{}
 		r := NewReconciler(&cfg)
 		headerRouting := &v1alpha1.SetHeaderRoute{}
 
 		// When
-		err := r.SetHeaderRoute(headerRouting)
+		err := r.SetHeaderRoute(rollout, headerRouting)
 
 		// Then
 		assert.NoError(t, err)
@@ -216,13 +226,14 @@ func TestVerifyWeight(t *testing.T) {
 	t.Run("VerifyWeight", func(t *testing.T) {
 		// Given
 		t.Parallel()
+		rollout := newRollout(stableServiceName, canaryServiceName, httpRouteName)
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, httpRouteName),
+			Rollout: rollout,
 		}
 		r := NewReconciler(&cfg)
 
 		// When
-		isSynced, err := r.VerifyWeight(32)
+		isSynced, err := r.VerifyWeight(rollout, 32, []v1alpha1.WeightDestination{})
 
 		// Then
 		assert.Nil(t, isSynced)
@@ -466,6 +477,13 @@ func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
 }
 
 func newRollout(stableSvc, canarySvc, httpRouteName string) *v1alpha1.Rollout {
+	gatewayAPIConfig := GatewayAPITrafficRouting{
+		HTTPRoute: httpRouteName,
+	}
+	encodedGatewayAPIConfig, err := json.Marshal(gatewayAPIConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rollout",
@@ -477,8 +495,8 @@ func newRollout(stableSvc, canarySvc, httpRouteName string) *v1alpha1.Rollout {
 					StableService: stableSvc,
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
-						GatewayAPI: &v1alpha1.GatewayAPITrafficRouting{
-							HTTPRoute: httpRouteName,
+						Plugin: map[string]json.RawMessage{
+							"gatewayAPI": encodedGatewayAPIConfig,
 						},
 					},
 				},

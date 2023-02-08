@@ -12,7 +12,6 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	a6 "github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/gatewayapi"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/istio"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/nginx"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/smi"
@@ -93,14 +92,6 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 		trafficReconcilers = append(trafficReconcilers, traefik.NewReconciler(&traefik.ReconcilerConfig{
 			Rollout:  rollout,
 			Client:   dynamicClient,
-			Recorder: c.recorder,
-		}))
-	}
-	if rollout.Spec.Strategy.Canary.TrafficRouting.GatewayAPI != nil {
-		dynamicGatewayAPIClient := gatewayapi.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
-		trafficReconcilers = append(trafficReconcilers, gatewayapi.NewReconciler(&gatewayapi.ReconcilerConfig{
-			Rollout:  rollout,
-			Client:   dynamicGatewayAPIClient,
 			Recorder: c.recorder,
 		}))
 	}

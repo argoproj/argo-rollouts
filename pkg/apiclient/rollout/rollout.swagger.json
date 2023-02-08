@@ -955,16 +955,6 @@
         }
       }
     },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GatewayAPITrafficRouting": {
-      "type": "object",
-      "properties": {
-        "httpRoute": {
-          "type": "string",
-          "title": "HTTPRoute refers to the name of the HTTPRoute used to route traffic to the\nservice"
-        }
-      },
-      "title": "GatewayAPITrafficRouting defines the configuration required to use Gateway API as traffic router"
-    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.HeaderRoutingMatch": {
       "type": "object",
       "properties": {
@@ -1620,10 +1610,6 @@
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting",
           "title": "Traefik holds specific configuration to use Traefik to route traffic"
         },
-        "gatewayAPI": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GatewayAPITrafficRouting",
-          "title": "Gateway API holds specific configuration to use Gateway API to route traffic"
-        },
         "managedRoutes": {
           "type": "array",
           "items": {
@@ -1634,6 +1620,14 @@
         "apisix": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ApisixTrafficRouting",
           "title": "Apisix holds specific configuration to use Apisix to route traffic"
+        },
+        "plugin": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "byte"
+          },
+          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nPlugin holds specific configuration to use Apisix to route traffic"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"

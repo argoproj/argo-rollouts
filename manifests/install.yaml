@@ -11779,13 +11779,6 @@ spec:
                                 - name
                                 type: object
                             type: object
-                          gatewayAPI:
-                            properties:
-                              httpRoute:
-                                type: string
-                            required:
-                            - httpRoute
-                            type: object
                           istio:
                             properties:
                               destinationRule:
@@ -11888,6 +11881,9 @@ spec:
                             required:
                             - stableIngress
                             type: object
+                          plugin:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
                           smi:
                             properties:
                               rootService:

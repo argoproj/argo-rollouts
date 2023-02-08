@@ -369,20 +369,16 @@ type RolloutTrafficRouting struct {
 	AppMesh *AppMeshTrafficRouting `json:"appMesh,omitempty" protobuf:"bytes,6,opt,name=appMesh"`
 	// Traefik holds specific configuration to use Traefik to route traffic
 	Traefik *TraefikTrafficRouting `json:"traefik,omitempty" protobuf:"bytes,7,opt,name=traefik"`
-	// Gateway API holds specific configuration to use Gateway API to route traffic
-	GatewayAPI *GatewayAPITrafficRouting `json:"gatewayAPI,omitempty" protobuf:"bytes,8,opt,name=gatewayAPI"`
 	// A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
 	// traffic router.
-	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,9,rep,name=managedRoutes"`
+	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
 	// Apisix holds specific configuration to use Apisix to route traffic
-	Apisix *ApisixTrafficRouting `json:"apisix,omitempty" protobuf:"bytes,10,opt,name=apisix"`
-}
-
-// GatewayAPITrafficRouting defines the configuration required to use Gateway API as traffic router
-type GatewayAPITrafficRouting struct {
-	// HTTPRoute refers to the name of the HTTPRoute used to route traffic to the
-	// service
-	HTTPRoute string `json:"httpRoute" protobuf:"bytes,1,name=httpRoute"`
+	Apisix *ApisixTrafficRouting `json:"apisix,omitempty" protobuf:"bytes,9,opt,name=apisix"`
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Plugin holds specific configuration to use Apisix to route traffic
+	Plugin map[string]json.RawMessage `json:"plugin,omitempty" protobuf:"bytes,10,opt,name=plugin"`
 }
 
 type MangedRoutes struct {
