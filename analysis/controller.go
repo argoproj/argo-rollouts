@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/metric"
+
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
 	log "github.com/sirupsen/logrus"
@@ -44,7 +46,7 @@ type Controller struct {
 
 	metricsServer *metrics.MetricsServer
 
-	newProvider func(logCtx log.Entry, metric v1alpha1.Metric) (metricproviders.Provider, error)
+	newProvider func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error)
 
 	// used for unit testing
 	enqueueAnalysis      func(obj interface{})
