@@ -99,6 +99,23 @@ func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
 		ExpectExperimentServiceCount("experiment-with-service", 0)
 }
 
+func (s *ExperimentSuite) TestExperimentWithMultiportServiceAndScaleDownDelay() {
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-with-multiport-service.yaml")
+	g.When().
+		WaitForExperimentPhase("experiment-with-multiport-service", "Running").
+		Sleep(time.Second*5).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-multiport-service", "test", 1).
+		ExpectExperimentServiceCount("experiment-with-multiport-service", 1).
+		When().
+		WaitForExperimentPhase("experiment-with-multiport-service", "Successful").
+		Sleep(time.Second*15).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-multiport-service", "test", 0).
+		ExpectExperimentServiceCount("experiment-with-multiport-service", 0)
+}
+
 func (s *ExperimentSuite) TestExperimentWithDryRunMetrics() {
 	g := s.Given()
 	g.ApplyManifests("@functional/experiment-dry-run-analysis.yaml")

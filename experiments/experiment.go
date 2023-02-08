@@ -294,7 +294,7 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 				Port:       port.ContainerPort,
 				TargetPort: intstr.FromInt(int(port.ContainerPort)),
 			}
-			if port.Name != nil {
+			if port.Name != "" {
 				servicePort.Name = port.Name
 			}
 			ports = append(ports, servicePort)

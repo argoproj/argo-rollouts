@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Experiment
 metadata:
-  name: experiment-with-service
+  name: experiment-with-multiport-service
 spec:
   duration: 10s
   scaleDownDelaySeconds: 5
@@ -12,19 +12,26 @@ spec:
       service: {}
       selector:
         matchLabels:
-          app: experiment-with-service
+          app: experiment-with-multiport-service
       template:
         metadata:
           labels:
-            app: experiment-with-service
+            app: experiment-with-multiport-service
         spec:
           containers:
-            - name: experiment-with-service
+            - name: experiment-with-multiport-service
               image: nginx:1.19-alpine
               resources:
                 requests:
                   memory: 16Mi
                   cpu: 1m
               ports:
-                - protocol: TCP
+                - name: testport1
+                  protocol: TCP
                   containerPort: 8080
+                - name: testport2
+                  protocol: TCP
+                  containerPort: 8081
+                - name: testport3
+                  protocol: TCP
+                  containerPort: 8082
