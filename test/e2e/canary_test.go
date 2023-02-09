@@ -603,11 +603,3 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		ExpectServiceSelector("dynamic-stable-scale-canary", map[string]string{"app": "dynamic-stable-scale", "rollouts-pod-template-hash": "868d98995b"}, false).
 		ExpectRevisionPodCount("1", 4)
 }
-
-//stable: 868d98995b
-//canary: f8754d5b4
-
-//rollouts-pod-template-hash -> 6889b96b9
-
-//canary: f8754d5b4
-//stable: 868d98995b
