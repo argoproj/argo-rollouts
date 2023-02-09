@@ -128,7 +128,7 @@ func (c *Config) ValidateConfig() error {
 	for _, pluginItem := range c.GetAllPlugins() {
 		matches := re.FindAllStringSubmatch(pluginItem.Repository, -1)
 		if len(matches) != 1 || len(matches[0]) != 4 {
-			return fmt.Errorf("plugin repository (%s) must be in the format of <domain>/<namespace>/<repo>", pluginItem.Name)
+			return fmt.Errorf("plugin repository (%s) must be in the format of <domain>/<namespace>/<repo>", pluginItem.Repository)
 		}
 	}
 	return nil
