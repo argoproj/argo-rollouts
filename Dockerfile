@@ -84,7 +84,7 @@ CMD ["dashboard"]
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM scratch
+FROM gcr.io/distroless/static-debian11
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/rollouts-controller /bin/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
