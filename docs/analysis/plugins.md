@@ -14,9 +14,6 @@ into the rollouts controller container. The second method is to use a HTTP(S) se
 
 ### Mounting the plugin executable into the rollouts controller container
 
-To use this method, you will need to build or download the plugin executable and then mount it into the rollouts controller container.
-The plugin executable must be mounted into the rollouts controller container at the path specified by the `--metric-plugin-location` flag.
-
 There are a few ways to mount the plugin executable into the rollouts controller container. Some of these will depend on your
 particular infrastructure. Here are a few methods:
 
@@ -24,7 +21,7 @@ particular infrastructure. Here are a few methods:
 * Using a Kubernetes volume mount with a shared volume such as NFS, EBS, etc.
 * Building the plugin into the rollouts controller container
 
-Then you can use the configmap to point to the plugin executable. Example:
+Then you can use the configmap to point to the plugin executable file location. Example:
 
 ```yaml
 apiVersion: v1
@@ -34,7 +31,7 @@ metadata:
 data:
   plugins: |-
     metrics:
-    - name: "prometheus" # name the plugin uses to find this configuration, it must match the name required by the plugin
+    - repository: "github.com/argoproj-labs/sample-rollouts-metric-plugin" # name the plugin uses to find this configuration, it must match the name required by the plugin
       pluginLocation: "file://./my-custom-plugin" # supports http(s):// urls and file://
 ```
 
@@ -51,7 +48,7 @@ metadata:
 data:
   plugins: |-
     metrics:
-    - name: "prometheus" # name the plugin uses to find this configuration, it must match the name required by the plugin
+    - repository: "github.com/argoproj-labs/sample-rollouts-metric-plugin" # name the plugin uses to find this configuration, it must match the name required by the plugin
       pluginLocation: "https://github.com/argoproj-labs/sample-rollouts-metric-plugin/releases/download/v0.0.3/metric-plugin-linux-amd64" # supports http(s):// urls and file://
       pluginSha256: "08f588b1c799a37bbe8d0fc74cc1b1492dd70b2c" #optional sha256 checksum of the plugin executable
 ```
