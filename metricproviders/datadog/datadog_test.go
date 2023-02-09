@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
@@ -126,6 +127,21 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
+		// Error if ratelimit response
+		{
+			webServerStatus:   429,
+			webServerResponse: `{"errors":["Bad Request"]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "default(result, 1) < 0.05",
+				Provider:         ddProviderIntervalDefault,
+			},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseError,
+			expectedErrorMessage:    "giving up after 3 attempt(s)",
+			useEnvVarForKeys:        false,
+		},
+
 		// Expect success with default() and data
 		{
 			webServerStatus:   200,
@@ -231,6 +247,8 @@ func TestRunSuite(t *testing.T) {
 
 	for _, test := range tests {
 		serverURL := test.serverURL
+		RetryMaxWait = time.Second * 5
+		RetryMax = 2
 
 		if serverURL == "" {
 			// Server setup with response
