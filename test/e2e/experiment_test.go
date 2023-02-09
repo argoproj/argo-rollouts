@@ -103,6 +103,27 @@ func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
 		ExpectExperimentServiceCount("experiment-with-service", 0)
 }
 
+func (s *ExperimentSuite) TestExperimentWithMultiportServiceAndScaleDownDelay() {
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-with-multiport-service.yaml")
+	g.When().
+		WaitForExperimentPhase("experiment-with-multiport-service", "Running").
+		WaitForExperimentCondition("experiment-with-multiport-service", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 1
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-multiport-service", "test", 1).
+		ExpectExperimentServiceCount("experiment-with-multiport-service", 1).
+		When().
+		WaitForExperimentPhase("experiment-with-multiport-service", "Successful").
+		WaitForExperimentCondition("experiment-with-multiport-service", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-multiport-service", "test", 0).
+		ExpectExperimentServiceCount("experiment-with-multiport-service", 0)
+}
+
 func (s *ExperimentSuite) TestExperimentWithDryRunMetrics() {
 	g := s.Given()
 	g.ApplyManifests("@functional/experiment-dry-run-analysis.yaml")
