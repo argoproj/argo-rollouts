@@ -166,14 +166,24 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 					desiredWeight = minInt(desiredWeight, c.rollout.Status.Canary.Weights.Canary.Weight)
 				}
 			}
-			err := reconciler.RemoveManagedRoutes()
-			if err != nil {
-				return err
+
+			if c.rollout.Spec.Strategy.Canary.DynamicStableScale && desiredWeight == 0 {
+				// If we are using dynamic stable scale we need to also make sure that desiredWeight=0 aka we are completely
+				// done with aborting before resetting the canary service selectors back to stable
+				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+				if err != nil {
+					return err
+				}
+			} else if !c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+				// We are not using dynamic stable scale here, so it is safe to reset the canary service selectors right
+				//away because we will also be immediately setting desiredWeight=0
+				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+				if err != nil {
+					return err
+				}
 			}
 
-			// If we are aborting, we want to set the desired weight to 0, but we also want to set the canary service
-			// to point to the stable service.
-			err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+			err := reconciler.RemoveManagedRoutes()
 			if err != nil {
 				return err
 			}
