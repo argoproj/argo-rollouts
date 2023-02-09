@@ -1571,6 +1571,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
     apisix?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
+     */
+    plugin?: { [key: string]: string; };
 }
 /**
  * 

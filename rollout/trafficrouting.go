@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/alb"
@@ -103,6 +105,21 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 			Client:   dynamicClient,
 			Recorder: c.recorder,
 		}))
+	}
+
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Plugin != nil {
+		for pluginName := range rollout.Spec.Strategy.Canary.TrafficRouting.Plugin {
+			pluginReconciler, err := plugin.NewReconciler(&plugin.ReconcilerConfig{
+				Rollout:    rollout,
+				Client:     c.kubeclientset,
+				Recorder:   c.recorder,
+				PluginName: pluginName,
+			})
+			if err != nil {
+				return trafficReconcilers, err
+			}
+			trafficReconcilers = append(trafficReconcilers, pluginReconciler)
+		}
 	}
 
 	// ensure that the trafficReconcilers is a healthy list and its not empty

@@ -39,7 +39,6 @@ func init() {
 	gob.RegisterName("TerminateAndResumeArgs", new(TerminateAndResumeArgs))
 	gob.RegisterName("GarbageCollectArgs", new(GarbageCollectArgs))
 	gob.RegisterName("InitMetricsPluginAndGetMetadataArgs", new(InitMetricsPluginAndGetMetadataArgs))
-	gob.RegisterName("RpcError", new(types.RpcError))
 }
 
 // MetricsPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
@@ -52,7 +51,7 @@ type MetricsPlugin interface {
 // MetricsPluginRPC Here is an implementation that talks over RPC
 type MetricsPluginRPC struct{ client *rpc.Client }
 
-// NewMetricsPlugin is the client side function that is wrapped by a local provider this makes an rpc call to the
+// NewMetricsPlugin is the client side function that is wrapped by a local provider this makes a rpc call to the
 // server side function.
 func (g *MetricsPluginRPC) NewMetricsPlugin(metric v1alpha1.Metric) types.RpcError {
 	var resp types.RpcError

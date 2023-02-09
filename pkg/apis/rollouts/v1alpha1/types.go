@@ -374,6 +374,11 @@ type RolloutTrafficRouting struct {
 	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
 	// Apisix holds specific configuration to use Apisix to route traffic
 	Apisix *ApisixTrafficRouting `json:"apisix,omitempty" protobuf:"bytes,9,opt,name=apisix"`
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Plugin holds specific configuration to use Apisix to route traffic
+	Plugin map[string]json.RawMessage `json:"plugin,omitempty" protobuf:"bytes,10,opt,name=plugin"`
 }
 
 type MangedRoutes struct {

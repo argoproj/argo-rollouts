@@ -3,6 +3,8 @@ package config
 import (
 	"context"
 	"fmt"
+	"path"
+	"regexp"
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +25,8 @@ type Config struct {
 
 var configMemoryCache *Config
 var mutex sync.RWMutex
+
+var re = regexp.MustCompile(`^([a-zA-Z0-9.\-]+\.+[a-zA-Z0-9]+)\/{1}([a-zA-Z0-9\-]+)\/{1}([a-zA-Z0-9_\-.]+)$`)
 
 // InitializeConfig initializes the in memory config and downloads the plugins to the filesystem. Subsequent calls to this
 // function will update the configmap in memory.
@@ -48,6 +52,11 @@ func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (
 		plugins:   plugins,
 	}
 	mutex.Unlock()
+
+	err = configMemoryCache.ValidateConfig()
+	if err != nil {
+		return nil, fmt.Errorf("validation of config due to (%w)", err)
+	}
 
 	return configMemoryCache, nil
 }
@@ -78,4 +87,49 @@ func (c *Config) GetMetricPluginsConfig() []types.PluginItem {
 		copiedPlugins = append(copiedPlugins, p)
 	}
 	return copiedPlugins
+}
+
+// GetTrafficPluginsConfig returns the metric plugins configured in the configmap for traffic routers
+func (c *Config) GetTrafficPluginsConfig() []types.PluginItem {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	var copiedPlugins []types.PluginItem
+	for _, p := range configMemoryCache.plugins.Trafficrouters {
+		copiedPlugins = append(copiedPlugins, p)
+	}
+	return copiedPlugins
+}
+
+// GetAllPlugins returns a flattened list of plugin items. This is useful for iterating over all plugins.
+func (c *Config) GetAllPlugins() []types.PluginItem {
+	var copiedPlugins []types.PluginItem
+	copiedPlugins = append(c.GetTrafficPluginsConfig(), c.GetMetricPluginsConfig()...)
+	return copiedPlugins
+}
+
+// GetPluginDirectoryAndFilename this functions return the directory and file name from a given pluginName such as
+// github.com/argoproj-labs/sample-plugin
+func GetPluginDirectoryAndFilename(pluginRepository string) (directory string, filename string, err error) {
+	matches := re.FindAllStringSubmatch(pluginRepository, -1)
+	if len(matches) != 1 || len(matches[0]) != 4 {
+		return "", "", fmt.Errorf("plugin repository (%s) must be in the format of <domain>/<namespace>/<repo>", pluginRepository)
+	}
+	domain := matches[0][1]
+	namespace := matches[0][2]
+	repo := matches[0][3]
+
+	return path.Join(domain, namespace), repo, nil
+}
+
+func (c *Config) ValidateConfig() error {
+	mutex.RLock()
+	defer mutex.RUnlock()
+
+	for _, pluginItem := range c.GetAllPlugins() {
+		matches := re.FindAllStringSubmatch(pluginItem.Repository, -1)
+		if len(matches) != 1 || len(matches[0]) != 4 {
+			return fmt.Errorf("plugin repository (%s) must be in the format of <domain>/<namespace>/<repo>", pluginItem.Name)
+		}
+	}
+	return nil
 }

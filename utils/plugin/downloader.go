@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/argoproj/argo-rollouts/utils/config"
+	argoConfig "github.com/argoproj/argo-rollouts/utils/config"
 
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 
@@ -88,7 +88,7 @@ func downloadFile(filepath string, url string, downloader FileDownloader) error 
 
 // DownloadPlugins this function downloads and/or checks that a plugin executable exits on the filesystem
 func DownloadPlugins(fd FileDownloader) error {
-	config, err := config.GetConfig()
+	config, err := argoConfig.GetConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
@@ -98,22 +98,28 @@ func DownloadPlugins(fd FileDownloader) error {
 		return fmt.Errorf("failed to get absolute path of plugin folder: %w", err)
 	}
 
-	err = os.MkdirAll(absoluteFilepath, 0700)
-	if err != nil {
-		return fmt.Errorf("failed to create plugin folder: %w", err)
-	}
-
-	for _, plugin := range config.GetMetricPluginsConfig() {
+	for _, plugin := range config.GetAllPlugins() {
 		urlObj, err := url.ParseRequestURI(plugin.PluginLocation)
 		if err != nil {
 			return fmt.Errorf("failed to parse plugin location: %w", err)
 		}
 
-		finalFileLocation := filepath.Join(absoluteFilepath, plugin.Name)
+		dir, pluginFile, err := argoConfig.GetPluginDirectoryAndFilename(plugin.Repository)
+		if err != nil {
+			return fmt.Errorf("failed to convert plugin name (%s) to directory and filename: (%w)", plugin.Repository, err)
+		}
+
+		finalFolderLocation := filepath.Join(absoluteFilepath, dir)
+		err = os.MkdirAll(finalFolderLocation, 0700)
+		if err != nil {
+			return fmt.Errorf("failed to create plugin folder for plugin (%s): (%w)", plugin.Repository, err)
+		}
+
+		finalFileLocation := filepath.Join(finalFolderLocation, pluginFile)
 
 		switch urlObj.Scheme {
 		case "http", "https":
-			log.Infof("Downloading plugin %s from: %s", plugin.Name, plugin.PluginLocation)
+			log.Infof("Downloading plugin %s from: %s", plugin.Repository, plugin.PluginLocation)
 			startTime := time.Now()
 			err = downloadFile(finalFileLocation, urlObj.String(), fd)
 			if err != nil {
@@ -144,6 +150,8 @@ func DownloadPlugins(fd FileDownloader) error {
 			if err := copyFile(pluginPath, finalFileLocation); err != nil {
 				return fmt.Errorf("failed to copy plugin from %s to %s: %w", pluginPath, finalFileLocation, err)
 			}
+
+			log.Infof("Copied plugin from %s to %s", pluginPath, finalFileLocation)
 			if checkPluginExists(finalFileLocation) != nil {
 				return fmt.Errorf("failed to find filebased plugin at location: %s", plugin.PluginLocation)
 			}
