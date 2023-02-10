@@ -104,22 +104,22 @@ func DownloadPlugins(fd FileDownloader) error {
 			return fmt.Errorf("failed to parse plugin location: %w", err)
 		}
 
-		dir, pluginFile, err := argoConfig.GetPluginDirectoryAndFilename(plugin.Repository)
+		dir, pluginFile, err := argoConfig.GetPluginDirectoryAndFilename(plugin.Plugin)
 		if err != nil {
-			return fmt.Errorf("failed to convert plugin name (%s) to directory and filename: (%w)", plugin.Repository, err)
+			return fmt.Errorf("failed to convert plugin name (%s) to directory and filename: (%w)", plugin.Plugin, err)
 		}
 
 		finalFolderLocation := filepath.Join(absoluteFilepath, dir)
 		err = os.MkdirAll(finalFolderLocation, 0700)
 		if err != nil {
-			return fmt.Errorf("failed to create plugin folder for plugin (%s): (%w)", plugin.Repository, err)
+			return fmt.Errorf("failed to create plugin folder for plugin (%s): (%w)", plugin.Plugin, err)
 		}
 
 		finalFileLocation := filepath.Join(finalFolderLocation, pluginFile)
 
 		switch urlObj.Scheme {
 		case "http", "https":
-			log.Infof("Downloading plugin %s from: %s", plugin.Repository, plugin.PluginLocation)
+			log.Infof("Downloading plugin %s from: %s", plugin.Plugin, plugin.PluginLocation)
 			startTime := time.Now()
 			err = downloadFile(finalFileLocation, urlObj.String(), fd)
 			if err != nil {

@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"fmt"
-	"path"
 	"regexp"
 	"sync"
 
@@ -26,7 +25,8 @@ type Config struct {
 var configMemoryCache *Config
 var mutex sync.RWMutex
 
-var re = regexp.MustCompile(`^([a-zA-Z0-9.\-]+\.+[a-zA-Z0-9]+)\/{1}([a-zA-Z0-9\-]+)\/{1}([a-zA-Z0-9_\-.]+)$`)
+// Regex to match plugin names, this matches github username and repo limits
+var re = regexp.MustCompile(`^([a-zA-Z0-9\-]+)\/{1}([a-zA-Z0-9_\-.]+)$`)
 
 // InitializeConfig initializes the in memory config and downloads the plugins to the filesystem. Subsequent calls to this
 // function will update the configmap in memory.
@@ -108,17 +108,16 @@ func (c *Config) GetAllPlugins() []types.PluginItem {
 }
 
 // GetPluginDirectoryAndFilename this functions return the directory and file name from a given pluginName such as
-// github.com/argoproj-labs/sample-plugin
-func GetPluginDirectoryAndFilename(pluginRepository string) (directory string, filename string, err error) {
-	matches := re.FindAllStringSubmatch(pluginRepository, -1)
-	if len(matches) != 1 || len(matches[0]) != 4 {
-		return "", "", fmt.Errorf("plugin repository (%s) must be in the format of <domain>/<namespace>/<repo>", pluginRepository)
+// argoproj-labs/sample-plugin
+func GetPluginDirectoryAndFilename(pluginName string) (directory string, filename string, err error) {
+	matches := re.FindAllStringSubmatch(pluginName, -1)
+	if len(matches) != 1 || len(matches[0]) != 3 {
+		return "", "", fmt.Errorf("plugin repository (%s) must be in the format of <namespace>/<plugin>", pluginName)
 	}
-	domain := matches[0][1]
-	namespace := matches[0][2]
-	repo := matches[0][3]
+	namespace := matches[0][1]
+	plugin := matches[0][2]
 
-	return path.Join(domain, namespace), repo, nil
+	return namespace, plugin, nil
 }
 
 func (c *Config) ValidateConfig() error {
@@ -126,9 +125,9 @@ func (c *Config) ValidateConfig() error {
 	defer mutex.RUnlock()
 
 	for _, pluginItem := range c.GetAllPlugins() {
-		matches := re.FindAllStringSubmatch(pluginItem.Repository, -1)
-		if len(matches) != 1 || len(matches[0]) != 4 {
-			return fmt.Errorf("plugin repository (%s) must be in the format of <domain>/<namespace>/<repo>", pluginItem.Repository)
+		matches := re.FindAllStringSubmatch(pluginItem.Plugin, -1)
+		if len(matches) != 1 || len(matches[0]) != 3 {
+			return fmt.Errorf("plugin repository (%s) must be in the format of <namespace>/<plugin>", pluginItem.Plugin)
 		}
 	}
 	return nil

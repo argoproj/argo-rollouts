@@ -46,7 +46,7 @@ func TestInitPlugin(t *testing.T) {
 			Name:      "argo-rollouts-config",
 			Namespace: "argo-rollouts",
 		},
-		Data: map[string]string{"plugins": "metrics:\n  - repository: github.com/argoproj-labs/http\n    pluginLocation: https://test/plugin\n  - repository: github.com/argoproj-labs/http-sha\n    pluginLocation: https://test/plugin\n    pluginSha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+		Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http\n    pluginLocation: https://test/plugin\n  - plugin: argoproj-labs/http-sha\n    pluginLocation: https://test/plugin\n    pluginSha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
 	}
 	client := fake.NewSimpleClientset(cm)
 
@@ -58,13 +58,13 @@ func TestInitPlugin(t *testing.T) {
 	err = DownloadPlugins(MockFileDownloader{})
 	assert.NoError(t, err)
 
-	dir, filename, err := config.GetPluginDirectoryAndFilename("github.com/argoproj-labs/http")
+	dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/http")
 	assert.NoError(t, err)
 
 	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
 	assert.NoError(t, err)
 
-	dir, filename, err = config.GetPluginDirectoryAndFilename("github.com/argoproj-labs/http-sha")
+	dir, filename, err = config.GetPluginDirectoryAndFilename("argoproj-labs/http-sha")
 	assert.NoError(t, err)
 
 	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
@@ -79,7 +79,7 @@ func TestInitPluginBadSha(t *testing.T) {
 			Name:      defaults.DefaultRolloutsConfigMapName,
 			Namespace: defaults.Namespace(),
 		},
-		Data: map[string]string{"plugins": "metrics:\n  - repository: github.com/argoproj-labs/http-badsha\n    pluginLocation: https://test/plugin\n    pluginSha256: badsha352"},
+		Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http-badsha\n    pluginLocation: https://test/plugin\n    pluginSha256: badsha352"},
 	}
 	client := fake.NewSimpleClientset(cm)
 
@@ -91,7 +91,7 @@ func TestInitPluginBadSha(t *testing.T) {
 	err = DownloadPlugins(MockFileDownloader{})
 	assert.Error(t, err)
 
-	dir, filename, err := config.GetPluginDirectoryAndFilename("github.com/argoproj-labs/http-badsha")
+	dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/http-badsha")
 	assert.NoError(t, err)
 	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
 	assert.NoError(t, err)
@@ -120,7 +120,7 @@ func TestFileMove(t *testing.T) {
 			Name:      defaults.DefaultRolloutsConfigMapName,
 			Namespace: defaults.Namespace(),
 		},
-		Data: map[string]string{"plugins": "metrics:\n  - repository: github.com/argoproj-labs/file-plugin\n    pluginLocation: file://./plugin.go"},
+		Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/file-plugin\n    pluginLocation: file://./plugin.go"},
 	}
 	client := fake.NewSimpleClientset(cm)
 
@@ -132,7 +132,7 @@ func TestFileMove(t *testing.T) {
 	err = DownloadPlugins(MockFileDownloader{})
 	assert.NoError(t, err)
 
-	dir, filename, err := config.GetPluginDirectoryAndFilename("github.com/argoproj-labs/file-plugin")
+	dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/file-plugin")
 	assert.NoError(t, err)
 	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
 	assert.NoError(t, err)
@@ -146,7 +146,7 @@ func TestDoubleInit(t *testing.T) {
 			Name:      defaults.DefaultRolloutsConfigMapName,
 			Namespace: defaults.Namespace(),
 		},
-		Data: map[string]string{"plugins": "metrics:\n  - repository: localrepo.com/namespace/file-plugin\n    pluginLocation: file://./plugin.go"},
+		Data: map[string]string{"plugins": "metrics:\n  - plugin: namespace/file-plugin\n    pluginLocation: file://./plugin.go"},
 	}
 	client := fake.NewSimpleClientset(cm)
 
@@ -161,7 +161,7 @@ func TestDoubleInit(t *testing.T) {
 	err = DownloadPlugins(MockFileDownloader{})
 	assert.NoError(t, err)
 
-	dir, filename, err := config.GetPluginDirectoryAndFilename("localrepo.com/namespace/file-plugin")
+	dir, filename, err := config.GetPluginDirectoryAndFilename("namespace/file-plugin")
 	assert.NoError(t, err)
 
 	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
@@ -195,7 +195,7 @@ func TestBadLocation(t *testing.T) {
 			Name:      "argo-rollouts-config",
 			Namespace: "argo-rollouts",
 		},
-		Data: map[string]string{"plugins": "metrics:\n  - repository: github.com/argoproj-labs/http\n    pluginLocation: agwegasdlkjf2324"},
+		Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http\n    pluginLocation: agwegasdlkjf2324"},
 	}
 	client := fake.NewSimpleClientset(cm)
 

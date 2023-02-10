@@ -226,7 +226,7 @@ func (r *RpcPlugin) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, additio
 	ctx := context.TODO()
 
 	s := v1alpha1.NginxTrafficRouting{}
-	err := json.Unmarshal(ro.Spec.Strategy.Canary.TrafficRouting.Plugin["nginx"], &s)
+	err := json.Unmarshal(ro.Spec.Strategy.Canary.TrafficRouting.Plugin["argoproj/argo-rollouts-traffic"], &s)
 	if err != nil {
 		return pluginTypes.RpcError{ErrorString: "could not unmarshal nginx config"}
 	}
@@ -341,7 +341,7 @@ func getCanaryIngressName(rollout *v1alpha1.Rollout, stableIngress string) strin
 	if rollout.Spec.Strategy.Canary != nil &&
 		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
 		rollout.Spec.Strategy.Canary.TrafficRouting.Plugin != nil &&
-		rollout.Spec.Strategy.Canary.TrafficRouting.Plugin["nginx"] != nil {
+		rollout.Spec.Strategy.Canary.TrafficRouting.Plugin["argoproj/argo-rollouts-traffic"] != nil {
 
 		prefix := fmt.Sprintf("%s-%s", rollout.GetName(), stableIngress)
 		if len(prefix) > 253-len("-canary") {

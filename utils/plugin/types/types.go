@@ -59,7 +59,7 @@ type Plugin struct {
 }
 
 type PluginItem struct {
-	Repository     string `json:"repository" yaml:"repository"`
+	Plugin         string `json:"plugin" yaml:"plugin"`
 	PluginLocation string `json:"pluginLocation" yaml:"pluginLocation"`
 	PluginSha256   string `json:"pluginSha256" yaml:"pluginSha256"`
 }

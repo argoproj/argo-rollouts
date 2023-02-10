@@ -18,8 +18,8 @@ func GetPluginLocation(pluginRepository string) (string, error) {
 	}
 
 	for _, item := range configMap.GetAllPlugins() {
-		if pluginRepository == item.Repository {
-			dir, filename, err := config.GetPluginDirectoryAndFilename(item.Repository)
+		if pluginRepository == item.Plugin {
+			dir, filename, err := config.GetPluginDirectoryAndFilename(item.Plugin)
 			if err != nil {
 				return "", err
 			}

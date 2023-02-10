@@ -39,7 +39,7 @@ type Config struct {
 
 func (g *RpcPlugin) NewMetricsPlugin(metric v1alpha1.Metric) types.RpcError {
 	config := Config{}
-	err := json.Unmarshal(metric.Provider.Plugin["prometheus"], &config)
+	err := json.Unmarshal(metric.Provider.Plugin["argoproj/argo-rollouts-metric"], &config)
 	if err != nil {
 		return types.RpcError{ErrorString: err.Error()}
 	}
@@ -57,7 +57,7 @@ func (g *RpcPlugin) Run(anaysisRun *v1alpha1.AnalysisRun, metric v1alpha1.Metric
 	}
 
 	config := Config{}
-	json.Unmarshal(metric.Provider.Plugin["prometheus"], &config)
+	json.Unmarshal(metric.Provider.Plugin["argoproj/argo-rollouts-metric"], &config)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -111,7 +111,7 @@ func (g *RpcPlugin) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	metricsMetadata := make(map[string]string)
 
 	config := Config{}
-	json.Unmarshal(metric.Provider.Plugin["prometheus"], &config)
+	json.Unmarshal(metric.Provider.Plugin["argoproj/argo-rollouts-metrics"], &config)
 	if config.Query != "" {
 		metricsMetadata["ResolvedPrometheusQuery"] = config.Query
 	}
