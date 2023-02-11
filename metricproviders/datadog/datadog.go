@@ -27,7 +27,7 @@ import (
 var unixNow = func() int64 { return timeutil.Now().Unix() }
 
 const (
-	//ProviderType indicates the provider is datadog
+	// ProviderType indicates the provider is datadog
 	ProviderType            = "Datadog"
 	DatadogTokensSecretName = "datadog"
 	DatadogApiKey           = "api-key"

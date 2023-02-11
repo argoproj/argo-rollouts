@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	//ProviderType indicates the provider is wavefront
+	// ProviderType indicates the provider is wavefront
 	ProviderType = "Wavefront"
-	//k8s secret that has wavefront api tokens
+	// WavefrontTokensSecretName k8s secret that has wavefront api tokens
 	WavefrontTokensSecretName = "wavefront-api-tokens"
 )
 
@@ -164,9 +164,9 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response *wavefrontap
 
 	} else if len(response.TimeSeries) > 1 {
 		results := make([]float64, 0, len(response.TimeSeries))
-		resultStrs := []string{}
-		epochStrs := []string{}
-		driftStrs := []string{}
+		var resultStrs []string
+		var epochStrs []string
+		var driftStrs []string
 		for _, series := range response.TimeSeries {
 			value, epoch, drift := p.findDataPointValue(series.DataPoints, startTime)
 			results = append(results, value)

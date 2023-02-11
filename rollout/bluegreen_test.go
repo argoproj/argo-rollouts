@@ -923,7 +923,7 @@ func TestBlueGreenRolloutStatusHPAStatusFieldsActiveSelectorSet(t *testing.T) {
 			"selector":"foo=bar,rollouts-pod-template-hash=%s"
 		}
 	}`
-	//_, availableStr := newAvailableCondition(true)
+	// _, availableStr := newAvailableCondition(true)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchWithoutSubs, rs1PodHash))
 
 	patchIndex := f.expectPatchRolloutActionWithPatch(r2, expectedPatch)
@@ -1323,7 +1323,7 @@ func TestBlueGreenReadyToScaleDownOldReplica(t *testing.T) {
 	assert.Equal(t, "", updatedRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey])
 
 	patch := f.getPatchedRollout(patchIndex)
-	//TODO: fix
+	// TODO: fix
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
 	assert.Equal(t, expectedPatch, patch)
 }
@@ -1339,7 +1339,7 @@ func TestFastRollback(t *testing.T) {
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	//Setting the scaleDownAt time
+	// Setting the scaleDownAt time
 	inTheFuture := timeutil.Now().Add(10 * time.Second).UTC().Format(time.RFC3339)
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
 	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
@@ -1383,7 +1383,7 @@ func TestBlueGreenScaleDownLimit(t *testing.T) {
 	rs3 := newReplicaSetWithStatus(r3, 1, 1)
 	rs3PodHash := rs3.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
-	//Setting the scaleDownAt time
+	// Setting the scaleDownAt time
 	inTheFuture := timeutil.MetaNow().Add(10 * time.Second).UTC().Format(time.RFC3339)
 	rs1.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
 	rs2.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = inTheFuture
@@ -1483,8 +1483,8 @@ func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
 
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
-	//completedCondition, _ := newCompletedCondition(true)
-	//conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	// completedCondition, _ := newCompletedCondition(true)
+	// conditions.SetRolloutCondition(&r2.Status, completedCondition)
 	r2.Status.Phase, r2.Status.Message = rolloututil.CalculateRolloutPhase(r2.Spec, r2.Status)
 
 	activeSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}

@@ -1008,7 +1008,7 @@ func TestRunMeasurementsResetConsecutiveErrorCounter(t *testing.T) {
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
-	//for _, status := range []v1alpha1.AnalysisPhase{v1alpha1.AnalysisPhaseSuccessful, v1alpha1.AnalysisPhaseInconclusive, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError} {
+	// for _, status := range []v1alpha1.AnalysisPhase{v1alpha1.AnalysisPhaseSuccessful, v1alpha1.AnalysisPhaseInconclusive, v1alpha1.AnalysisPhaseFailed, v1alpha1.AnalysisPhaseError} {
 	for _, status := range []v1alpha1.AnalysisPhase{v1alpha1.AnalysisPhaseError} {
 		run := v1alpha1.AnalysisRun{
 			Spec: v1alpha1.AnalysisRunSpec{
@@ -1348,7 +1348,7 @@ func TestSecretNotFound(t *testing.T) {
 			SecretKeyRef: &v1alpha1.SecretKeyRef{
 				Name: "secret-does-not-exist",
 			},
-			//SecretKeyRef: nil,
+			// SecretKeyRef: nil,
 		},
 	}}
 	tasks := []metricTask{{
@@ -1461,7 +1461,7 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
 
 	result = v1alpha1.MetricResult{
-		ConsecutiveError: 5, //default ConsecutiveErrorLimit for Metrics is 4
+		ConsecutiveError: 5, // default ConsecutiveErrorLimit for Metrics is 4
 		Measurements: []v1alpha1.Measurement{{
 			Phase: v1alpha1.AnalysisPhaseError,
 		}},

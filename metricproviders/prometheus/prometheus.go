@@ -58,7 +58,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	//TODO(dthomson) make timeout configurable
+	// TODO(dthomson) make timeout configurable
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -131,7 +131,7 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 		valueStr = valueStr + "]"
 		newStatus, err := evaluate.EvaluateResult(results, metric, p.logCtx)
 		return valueStr, newStatus, err
-	//TODO(dthomson) add other response types
+	// TODO(dthomson) add other response types
 	default:
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Prometheus metric type not supported")
 	}
@@ -169,7 +169,7 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	prometheusApiConfig := api.Config{
 		Address: metric.Provider.Prometheus.Address,
 	}
-	//Check if using Amazon Managed Prometheus if true build sigv4 client
+	// Check if using Amazon Managed Prometheus if true build sigv4 client
 	if strings.Contains(metric.Provider.Prometheus.Address, "aps-workspaces") {
 		var cfg *sigv4.SigV4Config
 		var next http.RoundTripper

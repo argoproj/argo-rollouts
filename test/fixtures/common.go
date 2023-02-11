@@ -207,7 +207,7 @@ func (c *Common) MarkPodsReady(revision string, quantity int) int {
 				}
 				time.Sleep(500 * time.Millisecond)
 			}
-			//c.log.Infof("Conditions: %v", pod.Status.Conditions)
+			// c.log.Infof("Conditions: %v", pod.Status.Conditions)
 			marked += 1
 		}
 	}
@@ -505,7 +505,7 @@ func (c *Common) SetLabels(obj *unstructured.Unstructured) {
 	obj.SetLabels(labels)
 }
 
-// GetServices() returns the desired (aka preview/canary) and stable (aka active) services
+// GetServices returns the desired (aka preview/canary) and stable (aka active) services
 func (c *Common) GetServices() (*corev1.Service, *corev1.Service) {
 	var desiredName, stableName string
 	ro := c.Rollout()
@@ -608,7 +608,7 @@ func (c *Common) GetDestinationRule() *istio.DestinationRule {
 	return &destRule
 }
 
-// We use a watch to collect events (as opposed to listing them after-the-fact), because:
+// StartEventWatch We use a watch to collect events (as opposed to listing them after-the-fact), because:
 // 1. the kubernetes event recorder can dedupe multiple events into one Event object
 // 2. listing events may return events out-of-order from when they were produced
 func (c *Common) StartEventWatch(ctx context.Context) {

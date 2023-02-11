@@ -256,7 +256,7 @@ func TestRolloutStatusProgressing(t *testing.T) {
 		assert.Equal(t, "rollout is restarting", message)
 	}
 	{
-		//Rollout observed workload generation is not updated
+		// Rollout observed workload generation is not updated
 		ro := newCanaryRollout()
 		ro.Spec.TemplateResolvedFromRef = true
 		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
@@ -330,7 +330,7 @@ func TestRolloutStatusHealthy(t *testing.T) {
 		assert.Equal(t, "", message)
 	}
 	{
-		//Rollout observed workload generation is updated
+		// Rollout observed workload generation is updated
 		ro := newCanaryRollout()
 		annotations.SetRolloutWorkloadRefGeneration(ro, "2")
 		ro.Status.Replicas = 5

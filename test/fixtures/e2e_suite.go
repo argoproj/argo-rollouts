@@ -36,20 +36,20 @@ import (
 )
 
 const (
-	// E2E_INSTANCE_ID is the instance id label attached to objects created by the e2e tests
+	// EnvVarE2EInstanceID is the instance id label attached to objects created by the e2e tests
 	EnvVarE2EInstanceID = "E2E_INSTANCE_ID"
-	// E2E_WAIT_TIMEOUT is a timeout in seconds when waiting for a test condition (default: 90)
+	// EnvVarE2EWaitTimeout is a timeout in seconds when waiting for a test condition (default: 90)
 	EnvVarE2EWaitTimeout = "E2E_WAIT_TIMEOUT"
-	// E2E_POD_DELAY slows down pod startup and shutdown by the value in seconds (default: 0)
+	// EnvVarE2EPodDelay slows down pod startup and shutdown by the value in seconds (default: 0)
 	// Used humans slow down rollout activity during a test
 	EnvVarE2EPodDelay = "E2E_POD_DELAY"
 	// EnvVarE2EImagePrefix is a prefix that will be prefixed to images used by the e2e tests
 	EnvVarE2EImagePrefix = "E2E_IMAGE_PREFIX"
-	// E2E_DEBUG makes e2e testing easier to debug by not tearing down the suite
+	// EnvVarE2EDebug makes e2e testing easier to debug by not tearing down the suite
 	EnvVarE2EDebug = "E2E_DEBUG"
-	// E2E_ALB_INGESS_ANNOTATIONS is a map of annotations to apply to ingress for AWS Load Balancer Controller
+	// EnvVarE2EALBIngressAnnotations is a map of annotations to apply to ingress for AWS Load Balancer Controller
 	EnvVarE2EALBIngressAnnotations = "E2E_ALB_INGESS_ANNOTATIONS"
-	// E2E_KLOG_LEVEL controls the kuberntes klog level for e2e tests
+	// EnvVarE2EKLogLevel controls the kuberntes klog level for e2e tests
 	EnvVarE2EKLogLevel = "E2E_KLOG_LEVEL"
 )
 
@@ -59,9 +59,9 @@ var (
 
 	E2EALBIngressAnnotations map[string]string
 
-	// All e2e tests will be labeled with this instance-id (unless E2E_INSTANCE_ID="")
+	// E2ELabelValueInstanceID All e2e tests will be labeled with this instance-id (unless E2E_INSTANCE_ID="")
 	E2ELabelValueInstanceID = "argo-rollouts-e2e"
-	// All e2e tests will be labeled with their test name
+	// E2ELabelKeyTestName All e2e tests will be labeled with their test name
 	E2ELabelKeyTestName = "e2e-test-name"
 
 	deploymentGVR = schema.GroupVersionResource{

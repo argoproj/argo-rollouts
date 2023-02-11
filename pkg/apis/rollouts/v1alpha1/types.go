@@ -147,7 +147,7 @@ const (
 	// DefaultReplicaSetScaleDownDeadlineAnnotationKey is the default key attached to an old stable ReplicaSet after
 	// the rollout transitioned to a new version. It contains the time when the controller can scale down the RS.
 	DefaultReplicaSetScaleDownDeadlineAnnotationKey = "scale-down-deadline"
-	// ManagedByRolloutKey is the key used to indicate which rollout(s) manage a resource but doesn't own it.
+	// ManagedByRolloutsKey is the key used to indicate which rollout(s) manage a resource but doesn't own it.
 	ManagedByRolloutsKey = "argo-rollouts.argoproj.io/managed-by-rollouts"
 	// DefaultReplicaSetRestartAnnotationKey indicates that the ReplicaSet with this annotation was restarted at the
 	// time listed in the value
@@ -378,8 +378,8 @@ type RolloutTrafficRouting struct {
 
 type MangedRoutes struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	//Possibly name for future use
-	//canaryRoute bool
+	// Possibly name for future use
+	// canaryRoute bool
 }
 
 // TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
@@ -610,7 +610,7 @@ type SetMirrorRoute struct {
 	Match []RouteMatch `json:"match,omitempty" protobuf:"bytes,2,opt,name=match"`
 
 	// Services The list of services to mirror the traffic to if the method, path, headers match
-	//Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
+	// Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
 	// Percentage What percent of the traffic that matched the rules should be mirrored
 	Percentage *int32 `json:"percentage,omitempty" protobuf:"varint,4,opt,name=percentage"`
 }
@@ -675,7 +675,7 @@ type RolloutAnalysisBackground struct {
 
 // RolloutAnalysis defines a template that is used to create a analysisRun
 type RolloutAnalysis struct {
-	//Templates reference to a list of analysis templates to combine for an AnalysisRun
+	// Templates reference to a list of analysis templates to combine for an AnalysisRun
 	Templates []RolloutAnalysisTemplate `json:"templates,omitempty" protobuf:"bytes,1,rep,name=templates"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
@@ -694,7 +694,7 @@ type RolloutAnalysis struct {
 }
 
 type RolloutAnalysisTemplate struct {
-	//TemplateName name of template to use in AnalysisRun
+	// TemplateName name of template to use in AnalysisRun
 	// +optional
 	TemplateName string `json:"templateName" protobuf:"bytes,1,opt,name=templateName"`
 	// Whether to look for the templateName at cluster scope or namespace scope
@@ -716,7 +716,7 @@ type AnalysisRunArgument struct {
 type ArgumentValueFrom struct {
 	// PodTemplateHashValue gets the value from one of the children ReplicaSet's Pod Template Hash
 	PodTemplateHashValue *ValueFromPodTemplateHash `json:"podTemplateHashValue,omitempty" protobuf:"bytes,1,opt,name=podTemplateHashValue,casttype=ValueFromPodTemplateHash"`
-	//FieldRef
+	// FieldRef
 	FieldRef *FieldRef `json:"fieldRef,omitempty" protobuf:"bytes,2,opt,name=fieldRef"`
 }
 
@@ -907,7 +907,7 @@ type RolloutStatus struct {
 	// The generation of referenced workload observed by the rollout controller
 	// +optional
 	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
-	/// ALB keeps information regarding the ALB and TargetGroups
+	// / ALB keeps information regarding the ALB and TargetGroups
 	ALB *ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
 }
 

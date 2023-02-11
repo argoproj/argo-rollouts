@@ -14,7 +14,7 @@ type mockQuery struct {
 	err      error
 }
 
-func (m mockAPI) NewQuery(queryParams *wavefront_api.QueryParams) WavefrontQueryAPI {
+func (m mockAPI) NewQuery(*wavefront_api.QueryParams) WavefrontQueryAPI {
 	return mockQuery{
 		response: m.response,
 		err:      m.err,

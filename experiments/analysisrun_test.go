@@ -692,7 +692,7 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
-	//assert.True(t, patchedEx.Spec.Terminate)
+	// assert.True(t, patchedEx.Spec.Terminate)
 	assert.Equal(t, patchedEx.Status.Phase, v1alpha1.AnalysisPhaseSuccessful)
 }
 

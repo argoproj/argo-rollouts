@@ -149,7 +149,7 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 			logCtx.Warnf("Updating replica set '%s' revision: OldRevision not int '%s'", newRS.Name, err)
 			return false
 		}
-		//If the RS annotation is empty then initialise it to 0
+		// If the RS annotation is empty then initialise it to 0
 		oldRevisionInt = 0
 	}
 	newRevisionInt, err := strconv.ParseInt(newRevision, 10, 64)
@@ -176,7 +176,7 @@ func SetNewReplicaSetAnnotations(rollout *v1alpha1.Rollout, newRS *appsv1.Replic
 		}
 	}
 	// If the new replica set is about to be created, we need to add replica annotations to it.
-	//TODO: look at implementation due to surge
+	// TODO: look at implementation due to surge
 	if !exists && SetReplicasAnnotations(newRS, defaults.GetReplicasOrDefault(rollout.Spec.Replicas)) {
 		annotationChanged = true
 	}

@@ -25,7 +25,7 @@ const (
 	ManagedActionsAnnotation = "rollouts.argoproj.io/managed-alb-actions"
 	// ManagedAnnotations holds list of ALB annotations that are managed by rollouts supports multiple annotations
 	ManagedAnnotations = "rollouts.argoproj.io/managed-alb-annotations"
-	//ALBIngressAnnotation is the prefix annotation that is used by the ALB Ingress controller to configure an ALB
+	// ALBIngressAnnotation is the prefix annotation that is used by the ALB Ingress controller to configure an ALB
 	ALBIngressAnnotation = "alb.ingress.kubernetes.io"
 	// ALBActionPrefix the prefix to specific actions within an ALB ingress.
 	ALBActionPrefix = "/actions."

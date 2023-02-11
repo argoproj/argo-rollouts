@@ -34,7 +34,7 @@ func EvaluateResult(result interface{}, metric v1alpha1.Metric, logCtx logrus.En
 
 	switch {
 	case metric.SuccessCondition == "" && metric.FailureCondition == "":
-		//Always return success unless there is an error
+		// Always return success unless there is an error
 		return v1alpha1.AnalysisPhaseSuccessful, nil
 	case metric.SuccessCondition != "" && metric.FailureCondition == "":
 		// Without a failure condition, a measurement is considered a failure if the measurement's success condition is not true
@@ -171,7 +171,7 @@ func asFloat(in interface{}) float64 {
 	panic(fmt.Sprintf("asFloat() not supported on %v %v", reflect.TypeOf(in), in))
 }
 
-// Check whether two slices of type string are equal or not.
+// Equal Check whether two slices of type string are equal or not.
 func Equal(a, b []string) bool {
 	if len(a) != len(b) {
 		return false

@@ -368,7 +368,7 @@ func TestVerifyExperimentSpecBaseCases(t *testing.T) {
 	minReadyLongerMessage := fmt.Sprintf(ExperimentMinReadyLongerThanDeadlineMessage, 0)
 	assert.Equal(t, minReadyLongerMessage, minReadyLongerThanProgressDeadlineCond.Message)
 
-	//Test switching from a prev invalid spec to another
+	// Test switching from a prev invalid spec to another
 	prevLastUpdateTime := selectorEverythingConf.LastUpdateTime
 	sameInvalidSpec := VerifyExperimentSpec(selectorEverything, selectorEverythingConf)
 	assert.NotNil(t, sameInvalidSpec)

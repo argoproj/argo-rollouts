@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	//ProviderType indicates the provider is kayenta
+	// ProviderType indicates the provider is kayenta
 	ProviderType   = "Kayenta"
 	scoreURLFormat = `%s/canary/%s`
 
@@ -194,7 +194,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 
 	status, ok, err := unstructured.NestedBool(patch, "complete")
 	if ok {
-		if !status { //resume later since it is incomplete
+		if !status { // resume later since it is incomplete
 			resumeTime := metav1.NewTime(timeutil.Now().Add(resumeDelay))
 			measurement.ResumeAt = &resumeTime
 			measurement.Phase = v1alpha1.AnalysisPhaseRunning

@@ -84,24 +84,24 @@ func FilterExperimentsToDelete(exs []*v1alpha1.Experiment, olderRSs []*appsv1.Re
 
 	var retainedSuccessful int32 = 0
 	var retainedUnsuccessful int32 = 0
-	exsToDelete := []*v1alpha1.Experiment{}
+	var exsToDelete []*v1alpha1.Experiment
 	for i := range exs {
 		ex := exs[i]
 		podHash, ok := ex.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-		//Experiment does not have podHash Label
+		// Experiment does not have podHash Label
 		if !ok {
 			exsToDelete = append(exsToDelete, ex)
 			continue
 		}
 		hasDeletionTimeStamp, ok := olderRsPodHashes[podHash]
 
-		//Experiment does not have matching rs
+		// Experiment does not have matching rs
 		if !ok {
 			exsToDelete = append(exsToDelete, ex)
 			continue
 		}
 
-		//Experiment has matching rs but rs has deletiontimestamp
+		// Experiment has matching rs but rs has deletiontimestamp
 		if ok && hasDeletionTimeStamp {
 			exsToDelete = append(exsToDelete, ex)
 			continue
