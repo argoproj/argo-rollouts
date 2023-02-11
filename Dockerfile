@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install golangci-lint
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.49.0 && \
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.51.1 && \
     golangci-lint linters
 
 COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
@@ -24,7 +24,11 @@ RUN cd ${GOPATH}/src/dummy && \
 ####################################################################################################
 # UI build stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:12.18.4 as argo-rollouts-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:16-alpine as argo-rollouts-ui
+
+RUN apk add --no-cache \
+    git && \
+    rm -rf /var/cache/apk/*
 
 WORKDIR /src
 ADD ["ui/package.json", "ui/yarn.lock", "./"]
@@ -40,7 +44,11 @@ RUN NODE_ENV='production' yarn build
 ####################################################################################################
 # Rollout Controller Build stage which performs the actual build of argo-rollouts binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.19 as argo-rollouts-build
+FROM --platform=$BUILDPLATFORM golang:1.19-alpine as argo-rollouts-build
+
+RUN apk add --no-cache \
+    make && \
+    rm -rf /var/cache/apk/*
 
 WORKDIR /go/src/github.com/argoproj/argo-rollouts
 
