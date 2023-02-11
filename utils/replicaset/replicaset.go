@@ -395,11 +395,11 @@ func GetReadyReplicaCountForReplicaSets(replicaSets []*appsv1.ReplicaSet) int32 
 // 2 desired, max unavailable 0%, surge 1% - should scale new(+1), then old(-1), then new(+1), then old(-1)
 // 1 desired, max unavailable 0%, surge 1% - should scale new(+1), then old(-1)
 func resolveFenceposts(maxSurge, maxUnavailable *intstrutil.IntOrString, desired int32) (int32, int32, error) {
-	surge, err := intstrutil.GetValueFromIntOrPercent(intstrutil.ValueOrDefault(maxSurge, intstrutil.FromInt(0)), int(desired), true)
+	surge, err := intstrutil.GetScaledValueFromIntOrPercent(intstrutil.ValueOrDefault(maxSurge, intstrutil.FromInt(0)), int(desired), true)
 	if err != nil {
 		return 0, 0, err
 	}
-	unavailable, err := intstrutil.GetValueFromIntOrPercent(intstrutil.ValueOrDefault(maxUnavailable, intstrutil.FromInt(0)), int(desired), false)
+	unavailable, err := intstrutil.GetScaledValueFromIntOrPercent(intstrutil.ValueOrDefault(maxUnavailable, intstrutil.FromInt(0)), int(desired), false)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -427,7 +427,7 @@ func MaxUnavailable(rollout *v1alpha1.Rollout) int32 {
 	if rollout.Spec.Strategy.Canary != nil {
 		_, maxUnavailable, _ = resolveFenceposts(defaults.GetMaxSurgeOrDefault(rollout), defaults.GetMaxUnavailableOrDefault(rollout), rolloutReplicas)
 	} else {
-		unavailable, _ := intstrutil.GetValueFromIntOrPercent(intstrutil.ValueOrDefault(defaults.GetMaxUnavailableOrDefault(rollout), intstrutil.FromInt(0)), int(rolloutReplicas), false)
+		unavailable, _ := intstrutil.GetScaledValueFromIntOrPercent(intstrutil.ValueOrDefault(defaults.GetMaxUnavailableOrDefault(rollout), intstrutil.FromInt(0)), int(rolloutReplicas), false)
 		maxUnavailable = int32(unavailable)
 	}
 
