@@ -35,200 +35,219 @@ func (m MockFileDownloader) Get(url string) (*http.Response, error) {
 	}, nil
 }
 
-func TestNotInitialized(t *testing.T) {
-	_, err := config.GetConfig()
-	assert.Error(t, err)
-}
+func TestPlugin(t *testing.T) {
+	t.Run("try to get config without being initialized", func(t *testing.T) {
+		_, err := config.GetConfig()
+		assert.Error(t, err)
+	})
 
-func TestInitPlugin(t *testing.T) {
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argo-rollouts-config",
-			Namespace: "argo-rollouts",
-		},
-		Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http\n    pluginLocation: https://test/plugin\n  - plugin: argoproj-labs/http-sha\n    pluginLocation: https://test/plugin\n    pluginSha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
-	}
-	client := fake.NewSimpleClientset(cm)
+	t.Run("test initializing and downloading plugins successfully", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-config",
+				Namespace: "argo-rollouts",
+			},
+			Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http\n    pluginLocation: https://test/plugin\n  - plugin: argoproj-labs/http-sha\n    pluginLocation: https://test/plugin\n    pluginSha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+		}
+		client := fake.NewSimpleClientset(cm)
 
-	config.UnInitializeConfig()
+		config.UnInitializeConfig()
 
-	_, err := config.InitializeConfig(client, "argo-rollouts-config")
-	assert.NoError(t, err)
+		_, err := config.InitializeConfig(client, "argo-rollouts-config")
+		assert.NoError(t, err)
 
-	err = DownloadPlugins(MockFileDownloader{})
-	assert.NoError(t, err)
+		err = DownloadPlugins(MockFileDownloader{})
+		assert.NoError(t, err)
 
-	dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/http")
-	assert.NoError(t, err)
+		dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/http")
+		assert.NoError(t, err)
 
-	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
-	assert.NoError(t, err)
+		err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
+		assert.NoError(t, err)
 
-	dir, filename, err = config.GetPluginDirectoryAndFilename("argoproj-labs/http-sha")
-	assert.NoError(t, err)
+		dir, filename, err = config.GetPluginDirectoryAndFilename("argoproj-labs/http-sha")
+		assert.NoError(t, err)
 
-	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
-	assert.NoError(t, err)
-	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
-	assert.NoError(t, err)
-}
+		err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
+		assert.NoError(t, err)
+		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+		assert.NoError(t, err)
+	})
 
-func TestInitPluginBadSha(t *testing.T) {
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.DefaultRolloutsConfigMapName,
-			Namespace: defaults.Namespace(),
-		},
-		Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http-badsha\n    pluginLocation: https://test/plugin\n    pluginSha256: badsha352"},
-	}
-	client := fake.NewSimpleClientset(cm)
+	t.Run("test bad sha", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.DefaultRolloutsConfigMapName,
+				Namespace: defaults.Namespace(),
+			},
+			Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http-badsha\n    pluginLocation: https://test/plugin\n    pluginSha256: badsha352"},
+		}
+		client := fake.NewSimpleClientset(cm)
 
-	config.UnInitializeConfig()
+		config.UnInitializeConfig()
 
-	_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
-	assert.NoError(t, err)
+		_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
+		assert.NoError(t, err)
 
-	err = DownloadPlugins(MockFileDownloader{})
-	assert.Error(t, err)
+		err = DownloadPlugins(MockFileDownloader{})
+		assert.Error(t, err)
 
-	dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/http-badsha")
-	assert.NoError(t, err)
-	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
-	assert.NoError(t, err)
-	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
-	assert.NoError(t, err)
-}
+		dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/http-badsha")
+		assert.NoError(t, err)
+		err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
+		assert.NoError(t, err)
+		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+		assert.NoError(t, err)
+	})
 
-func TestInitPluginConfigNotFound(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	t.Run("test plugin initialization with no configmap found", func(t *testing.T) {
+		client := fake.NewSimpleClientset()
 
-	config.UnInitializeConfig()
+		config.UnInitializeConfig()
 
-	cm, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
-	assert.NoError(t, err)
-	assert.Equal(t, cm, &config.Config{})
+		cm, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
+		assert.NoError(t, err)
+		assert.Equal(t, cm, &config.Config{})
 
-	err = DownloadPlugins(MockFileDownloader{})
-	assert.NoError(t, err)
-	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
-	assert.NoError(t, err)
-}
+		err = DownloadPlugins(MockFileDownloader{})
+		assert.NoError(t, err)
+		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+		assert.NoError(t, err)
+	})
 
-func TestFileMove(t *testing.T) {
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.DefaultRolloutsConfigMapName,
-			Namespace: defaults.Namespace(),
-		},
-		Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/file-plugin\n    pluginLocation: file://./plugin.go"},
-	}
-	client := fake.NewSimpleClientset(cm)
+	t.Run("test moving file to plugin location", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.DefaultRolloutsConfigMapName,
+				Namespace: defaults.Namespace(),
+			},
+			Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/file-plugin\n    pluginLocation: file://./plugin.go"},
+		}
+		client := fake.NewSimpleClientset(cm)
 
-	config.UnInitializeConfig()
+		config.UnInitializeConfig()
 
-	_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
-	assert.NoError(t, err)
+		_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
+		assert.NoError(t, err)
 
-	err = DownloadPlugins(MockFileDownloader{})
-	assert.NoError(t, err)
+		err = DownloadPlugins(MockFileDownloader{})
+		assert.NoError(t, err)
 
-	dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/file-plugin")
-	assert.NoError(t, err)
-	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
-	assert.NoError(t, err)
-	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
-	assert.NoError(t, err)
-}
+		dir, filename, err := config.GetPluginDirectoryAndFilename("argoproj-labs/file-plugin")
+		assert.NoError(t, err)
+		err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
+		assert.NoError(t, err)
+		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+		assert.NoError(t, err)
+	})
 
-func TestDoubleInit(t *testing.T) {
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.DefaultRolloutsConfigMapName,
-			Namespace: defaults.Namespace(),
-		},
-		Data: map[string]string{"plugins": "metrics:\n  - plugin: namespace/file-plugin\n    pluginLocation: file://./plugin.go"},
-	}
-	client := fake.NewSimpleClientset(cm)
+	t.Run("test initialzing the config system twice", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.DefaultRolloutsConfigMapName,
+				Namespace: defaults.Namespace(),
+			},
+			Data: map[string]string{"plugins": "metrics:\n  - plugin: namespace/file-plugin\n    pluginLocation: file://./plugin.go"},
+		}
+		client := fake.NewSimpleClientset(cm)
 
-	config.UnInitializeConfig()
+		config.UnInitializeConfig()
 
-	_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
-	assert.NoError(t, err)
+		_, err := config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
+		assert.NoError(t, err)
 
-	_, err = config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
-	assert.NoError(t, err)
+		_, err = config.InitializeConfig(client, defaults.DefaultRolloutsConfigMapName)
+		assert.NoError(t, err)
 
-	err = DownloadPlugins(MockFileDownloader{})
-	assert.NoError(t, err)
+		err = DownloadPlugins(MockFileDownloader{})
+		assert.NoError(t, err)
 
-	dir, filename, err := config.GetPluginDirectoryAndFilename("namespace/file-plugin")
-	assert.NoError(t, err)
+		dir, filename, err := config.GetPluginDirectoryAndFilename("namespace/file-plugin")
+		assert.NoError(t, err)
 
-	err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
-	assert.NoError(t, err)
-	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
-	assert.NoError(t, err)
-}
+		err = os.Remove(filepath.Join(defaults.DefaultRolloutPluginFolder, dir, filename))
+		assert.NoError(t, err)
+		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+		assert.NoError(t, err)
+	})
 
-func TestBadConfigMap(t *testing.T) {
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argo-rollouts-config",
-			Namespace: "argo-rollouts",
-		},
-		Data: map[string]string{"plugins": "badconfigmap"},
-	}
-	client := fake.NewSimpleClientset(cm)
+	t.Run("test a maformed configmap", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-config",
+				Namespace: "argo-rollouts",
+			},
+			Data: map[string]string{"plugins": "badconfigmap"},
+		}
+		client := fake.NewSimpleClientset(cm)
 
-	config.UnInitializeConfig()
+		config.UnInitializeConfig()
 
-	_, err := config.InitializeConfig(client, "argo-rollouts-config")
-	assert.Error(t, err)
+		_, err := config.InitializeConfig(client, "argo-rollouts-config")
+		assert.Error(t, err)
 
-	err = DownloadPlugins(MockFileDownloader{})
-	assert.Error(t, err)
-}
+		err = DownloadPlugins(MockFileDownloader{})
+		assert.Error(t, err)
+	})
 
-func TestBadLocation(t *testing.T) {
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argo-rollouts-config",
-			Namespace: "argo-rollouts",
-		},
-		Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http\n    pluginLocation: agwegasdlkjf2324"},
-	}
-	client := fake.NewSimpleClientset(cm)
+	t.Run("test malformed pluginLocation", func(t *testing.T) {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-config",
+				Namespace: "argo-rollouts",
+			},
+			Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http\n    pluginLocation: agwegasdlkjf2324"},
+		}
+		client := fake.NewSimpleClientset(cm)
 
-	config.UnInitializeConfig()
+		config.UnInitializeConfig()
 
-	_, err := config.InitializeConfig(client, "argo-rollouts-config")
-	assert.NoError(t, err)
+		_, err := config.InitializeConfig(client, "argo-rollouts-config")
+		assert.NoError(t, err)
 
-	err = DownloadPlugins(MockFileDownloader{})
-	assert.Error(t, err)
+		err = DownloadPlugins(MockFileDownloader{})
+		assert.Error(t, err)
 
-	err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
-	assert.NoError(t, err)
+		err = os.RemoveAll(defaults.DefaultRolloutPluginFolder)
+		assert.NoError(t, err)
+	})
 }
 
 func TestCheckPluginExits(t *testing.T) {
-	err := checkPluginExists("nonexistentplugin")
-	assert.Error(t, err)
+	t.Run("test that non existing files on the fs return error", func(t *testing.T) {
+		err := checkPluginExists("nonexistentplugin")
+		assert.Error(t, err)
+	})
 
-	realfile, err := filepath.Abs("plugin.go")
-	assert.NoError(t, err)
-	err = checkPluginExists(realfile)
-	assert.NoError(t, err)
+	t.Run("test that if a file exists on the fs we dont error", func(t *testing.T) {
+		realfile, err := filepath.Abs("plugin.go")
+		assert.NoError(t, err)
+		err = checkPluginExists(realfile)
+		assert.NoError(t, err)
+	})
 }
 
 func TestCheckShaOfPlugin(t *testing.T) {
-	_, err := checkShaOfPlugin("nonexistentplugin", "")
-	assert.Error(t, err)
+	t.Run("test sha of non existing file", func(t *testing.T) {
+		_, err := checkShaOfPlugin("nonexistentplugin", "")
+		assert.Error(t, err)
+	})
 
-	realfile, err := filepath.Abs("plugin.go")
-	assert.NoError(t, err)
-	_, err = checkShaOfPlugin(realfile, "")
-	assert.NoError(t, err)
+	t.Run("test sha of real file", func(t *testing.T) {
+		os.WriteFile("test-sha", []byte("test"), 0700)
+		realfile, err := filepath.Abs("test-sha")
+		assert.NoError(t, err)
+
+		shaNotValid, err := checkShaOfPlugin(realfile, "")
+		assert.NoError(t, err)
+		assert.Equal(t, false, shaNotValid)
+
+		shaValid, err := checkShaOfPlugin(realfile, "74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+		assert.NoError(t, err)
+		assert.Equal(t, true, shaValid)
+
+		os.Remove("test-sha")
+	})
 }
 
 func TestDownloadFile(t *testing.T) {
