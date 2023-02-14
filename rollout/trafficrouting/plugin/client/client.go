@@ -18,6 +18,8 @@ type trafficPlugin struct {
 var pluginClients *trafficPlugin
 var once sync.Once
 
+// GetTrafficPlugin returns a singleton plugin client for the given traffic router plugin. Calling this multiple times
+// returns the same plugin client instance for the plugin name defined in the rollout object.
 func GetTrafficPlugin(pluginName string) (rpc.TrafficRouterPlugin, error) {
 	once.Do(func() {
 		pluginClients = &trafficPlugin{

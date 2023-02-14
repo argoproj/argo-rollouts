@@ -178,11 +178,14 @@ type TrafficRouterRPCServer struct {
 	Impl TrafficRouterPlugin
 }
 
+// NewTrafficRouterPlugin this is the server aka the controller side function that receives calls from the client side rpc (controller)
+// this gets called once during startup of the plugin and can be used to set up informers or k8s clients etc.
 func (s *TrafficRouterRPCServer) NewTrafficRouterPlugin(args interface{}, resp *types.RpcError) error {
 	*resp = s.Impl.NewTrafficRouterPlugin()
 	return nil
 }
 
+// UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
 func (s *TrafficRouterRPCServer) UpdateHash(args interface{}, resp *types.RpcError) error {
 	runArgs, ok := args.(*UpdateHashArgs)
 	if !ok {
@@ -192,6 +195,7 @@ func (s *TrafficRouterRPCServer) UpdateHash(args interface{}, resp *types.RpcErr
 	return nil
 }
 
+// SetWeight sets the canary weight to the desired weight
 func (s *TrafficRouterRPCServer) SetWeight(args interface{}, resp *types.RpcError) error {
 	setWeigthArgs, ok := args.(*SetWeightAndVerifyWeightArgs)
 	if !ok {
@@ -201,6 +205,7 @@ func (s *TrafficRouterRPCServer) SetWeight(args interface{}, resp *types.RpcErro
 	return nil
 }
 
+// SetHeaderRoute sets the header routing step
 func (s *TrafficRouterRPCServer) SetHeaderRoute(args interface{}, resp *types.RpcError) error {
 	setHeaderArgs, ok := args.(*SetHeaderArgs)
 	if !ok {
@@ -210,6 +215,7 @@ func (s *TrafficRouterRPCServer) SetHeaderRoute(args interface{}, resp *types.Rp
 	return nil
 }
 
+// SetMirrorRoute sets up the traffic router to mirror traffic to a service
 func (s *TrafficRouterRPCServer) SetMirrorRoute(args interface{}, resp *types.RpcError) error {
 	setMirrorArgs, ok := args.(*SetMirrorArgs)
 	if !ok {
@@ -219,11 +225,14 @@ func (s *TrafficRouterRPCServer) SetMirrorRoute(args interface{}, resp *types.Rp
 	return nil
 }
 
+// Type returns the type of the traffic routing reconciler
 func (s *TrafficRouterRPCServer) Type(args interface{}, resp *string) error {
 	*resp = s.Impl.Type()
 	return nil
 }
 
+// VerifyWeight returns true if the canary is at the desired weight and additionalDestinations are at the weights specified
+// Returns nil if weight verification is not supported or not applicable
 func (s *TrafficRouterRPCServer) VerifyWeight(args interface{}, resp *VerifyWeightResponse) error {
 	verifyWeightArgs, ok := args.(*SetWeightAndVerifyWeightArgs)
 	if !ok {
@@ -237,6 +246,7 @@ func (s *TrafficRouterRPCServer) VerifyWeight(args interface{}, resp *VerifyWeig
 	return nil
 }
 
+// RemoveAllRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
 func (s *TrafficRouterRPCServer) RemoveManagedRoutes(args interface{}, resp *types.RpcError) error {
 	removeManagedRoutesArgs, ok := args.(*RemoveManagedRoutesArgs)
 	if !ok {
