@@ -93,8 +93,8 @@ Argo Rollouts currently supports two plugin systems as a plugin author your end 
 a hashicorp go-plugin. The two interfaces are `MetricsPlugin` and `TrafficRouterPlugin` for each of the respective plugins:
 
 ```go
-type MetricsPlugin interface {
-  InitPlugin(v1alpha1.Metric) types.RpcError
+type MetricsPlugin interface { 
+	InitPlugin(v1alpha1.Metric) types.RpcError
 	Run(*v1alpha1.AnalysisRun, v1alpha1.Metric) v1alpha1.Measurement
 	Resume(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
 	Terminate(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
@@ -104,7 +104,7 @@ type MetricsPlugin interface {
 }
 
 type TrafficRouterPlugin interface {
-  InitPlugin() RpcError
+	InitPlugin() RpcError
 	UpdateHash(rollout *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) RpcError
 	SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) RpcError
 	SetHeaderRoute(rollout *v1alpha1.Rollout, setHeaderRoute *v1alpha1.SetHeaderRoute) RpcError
