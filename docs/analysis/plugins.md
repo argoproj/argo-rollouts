@@ -31,7 +31,7 @@ metadata:
 data:
   plugins: |-
     metrics:
-    - plugin: "argoproj-labs/sample-rollouts-metric-plugin" # name the plugin uses to find this configuration, it must match the name required by the plugin
+    - plugin: "argoproj-labs/sample-rollouts-metric-plugin" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
       pluginLocation: "file://./my-custom-plugin" # supports http(s):// urls and file://
 ```
 
@@ -48,7 +48,7 @@ metadata:
 data:
   plugins: |-
     metrics:
-    - plugin: "argoproj-labs/sample-rollouts-metric-plugin" # name the plugin uses to find this configuration, it must match the name required by the plugin
+    - plugin: "argoproj-labs/sample-rollouts-metric-plugin" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
       pluginLocation: "https://github.com/argoproj-labs/sample-rollouts-metric-plugin/releases/download/v0.0.3/metric-plugin-linux-amd64" # supports http(s):// urls and file://
       pluginSha256: "08f588b1c799a37bbe8d0fc74cc1b1492dd70b2c" #optional sha256 checksum of the plugin executable
 ```
