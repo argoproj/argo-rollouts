@@ -93,7 +93,7 @@ func TestRunSuccessfully(t *testing.T) {
 
 	plugin := raw.(rpc.MetricsPlugin)
 
-	err = plugin.NewMetricsPlugin(v1alpha1.Metric{
+	err = plugin.InitPlugin(v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
 			Plugin: map[string]json.RawMessage{"prometheus": json.RawMessage(`{"address":"http://prometheus.local", "query":"machine_cpu_cores"}`)},
 		},

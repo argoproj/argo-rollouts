@@ -79,7 +79,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlu
 			}
 			m.plugin[pluginName] = pluginType
 
-			err = m.plugin[pluginName].NewMetricsPlugin(metric)
+			err = m.plugin[pluginName].InitPlugin(metric)
 			if err.Error() != "" {
 				return nil, fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, err)
 			}

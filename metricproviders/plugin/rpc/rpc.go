@@ -44,21 +44,21 @@ func init() {
 // MetricsPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
 // not import that package because it would create a circular dependency.
 type MetricsPlugin interface {
-	NewMetricsPlugin(metric v1alpha1.Metric) types.RpcError
+	InitPlugin(metric v1alpha1.Metric) types.RpcError
 	types.RpcMetricProvider
 }
 
 // MetricsPluginRPC Here is an implementation that talks over RPC
 type MetricsPluginRPC struct{ client *rpc.Client }
 
-// NewMetricsPlugin is the client side function that is wrapped by a local provider this makes a rpc call to the
+// InitPlugin is the client side function that is wrapped by a local provider this makes a rpc call to the
 // server side function.
-func (g *MetricsPluginRPC) NewMetricsPlugin(metric v1alpha1.Metric) types.RpcError {
+func (g *MetricsPluginRPC) InitPlugin(metric v1alpha1.Metric) types.RpcError {
 	var resp types.RpcError
 	var args interface{} = InitMetricsPluginAndGetMetadataArgs{
 		Metric: metric,
 	}
-	err := g.client.Call("Plugin.NewMetricsPlugin", &args, &resp)
+	err := g.client.Call("Plugin.InitPlugin", &args, &resp)
 	if err != nil {
 		return types.RpcError{ErrorString: err.Error()}
 	}
@@ -156,14 +156,14 @@ type MetricsRPCServer struct {
 	Impl MetricsPlugin
 }
 
-// NewMetricsPlugin is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
+// InitPlugin is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
-func (s *MetricsRPCServer) NewMetricsPlugin(args interface{}, resp *types.RpcError) error {
+func (s *MetricsRPCServer) InitPlugin(args interface{}, resp *types.RpcError) error {
 	initArgs, ok := args.(*InitMetricsPluginAndGetMetadataArgs)
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
 	}
-	*resp = s.Impl.NewMetricsPlugin(initArgs.Metric)
+	*resp = s.Impl.InitPlugin(initArgs.Metric)
 	return nil
 }
 

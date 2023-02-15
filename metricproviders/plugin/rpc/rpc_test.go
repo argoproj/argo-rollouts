@@ -82,7 +82,7 @@ func TestPlugin(t *testing.T) {
 	plugin, _, cancel, closeCh := pluginClient(t)
 	defer cancel()
 
-	err := plugin.NewMetricsPlugin(v1alpha1.Metric{
+	err := plugin.InitPlugin(v1alpha1.Metric{
 		Provider: v1alpha1.MetricProvider{
 			Plugin: map[string]json.RawMessage{"prometheus": json.RawMessage(`{"address":"http://prometheus.local", "query":"machine_cpu_cores"}`)},
 		},
@@ -135,7 +135,7 @@ func TestPluginClosedConnection(t *testing.T) {
 
 	const expectedError = "connection is shut down"
 
-	newMetrics := plugin.NewMetricsPlugin(v1alpha1.Metric{})
+	newMetrics := plugin.InitPlugin(v1alpha1.Metric{})
 	assert.Equal(t, expectedError, newMetrics.Error())
 
 	measurement := plugin.Terminate(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, v1alpha1.Measurement{})
@@ -180,7 +180,7 @@ func TestInvalidArgs(t *testing.T) {
 	err = server.GarbageCollect(badtype, &types.RpcError{})
 	assert.Error(t, err)
 
-	err = server.NewMetricsPlugin(badtype, &types.RpcError{})
+	err = server.InitPlugin(badtype, &types.RpcError{})
 	assert.Error(t, err)
 
 	resp := make(map[string]string)

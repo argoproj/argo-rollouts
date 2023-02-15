@@ -37,7 +37,7 @@ type Config struct {
 	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
 }
 
-func (g *RpcPlugin) NewMetricsPlugin(metric v1alpha1.Metric) types.RpcError {
+func (g *RpcPlugin) InitPlugin(metric v1alpha1.Metric) types.RpcError {
 	config := Config{}
 	err := json.Unmarshal(metric.Provider.Plugin["argoproj/argo-rollouts-metric"], &config)
 	if err != nil {

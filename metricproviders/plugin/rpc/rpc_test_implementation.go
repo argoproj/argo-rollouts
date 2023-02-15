@@ -21,7 +21,7 @@ type config struct {
 	Query   string `json:"query"`
 }
 
-func (g *testRpcPlugin) NewMetricsPlugin(metric v1alpha1.Metric) types.RpcError {
+func (g *testRpcPlugin) InitPlugin(metric v1alpha1.Metric) types.RpcError {
 	var c config
 	err := json.Unmarshal(metric.Provider.Plugin["prometheus"], &c)
 	if err != nil {
