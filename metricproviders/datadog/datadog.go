@@ -1,14 +1,17 @@
 package datadog
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -42,9 +45,24 @@ type Provider struct {
 	config datadogConfig
 }
 
+type datadogQueryAttributes struct {
+	From    int64               `json:"from"`
+	To      int64               `json:"to"`
+	Queries []map[string]string `json:"queries"`
+}
+
+type datadogQuery struct {
+	Attributes datadogQueryAttributes `json:"attributes"`
+	QueryType  string                 `json:"type"`
+}
+
 type datadogResponse struct {
-	Series []struct {
-		Pointlist [][]float64 `json:"pointlist"`
+	Data struct {
+		Attributes struct {
+			Values [][]float64
+			Times  []int64
+		}
+		Errors string
 	}
 }
 
@@ -72,9 +90,9 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	endpoint := "https://api.datadoghq.com/api/v1/query"
+	endpoint := "https://api.datadoghq.com/api/v2/query/timeseries"
 	if p.config.Address != "" {
-		endpoint = p.config.Address + "/api/v1/query"
+		endpoint = p.config.Address + "/api/v2/query/timeseries"
 	}
 
 	url, err := url.Parse(endpoint)
@@ -93,14 +111,21 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		interval = int64(expDuration.Seconds())
 	}
 
-	q := url.Query()
-	q.Set("query", metric.Provider.Datadog.Query)
-	q.Set("from", strconv.FormatInt(now-interval, 10))
-	q.Set("to", strconv.FormatInt(now, 10))
-	url.RawQuery = q.Encode()
+	queryBody, _ := json.Marshal(datadogQuery{
+		QueryType: "timeseries_request",
+		Attributes: datadogQueryAttributes{
+			From: now - interval,
+			To:   now,
+			Queries: []map[string]string{{
+				"data_source": "metrics",
+				"query":       metric.Provider.Datadog.Query,
+			}},
+		},
+	})
 
-	request := &http.Request{Method: "GET"}
+	request := &http.Request{Method: "POST"}
 	request.URL = url
+	request.Body = io.NopCloser(bytes.NewReader(queryBody))
 	request.Header = make(http.Header)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("DD-API-KEY", p.config.ApiKey)
@@ -149,26 +174,32 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)
 	}
 
+	// Handle an error returned by Datadog
+	if res.Data.Errors != "" {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("There were errors in your query: %v", res.Data.Errors)
+	}
+
 	// Handle an empty query result
-	if len(res.Series) == 0 || len(res.Series[0].Pointlist) == 0 {
+	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Values) == 0 || len(res.Data.Attributes.Times) == 0 {
 		var nilFloat64 *float64
 		status, err := evaluate.EvaluateResult(nilFloat64, metric, p.logCtx)
-		seriesBytes, jsonErr := json.Marshal(res.Series)
+		attributesBytes, jsonErr := json.Marshal(res.Data.Attributes)
 		if jsonErr != nil {
 			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Failed to marshall JSON empty series: %v", jsonErr)
 		}
 
-		return string(seriesBytes), status, err
+		return string(attributesBytes), status, err
 	}
 
 	// Handle a populated query result
-	series := res.Series[0]
-	datapoint := series.Pointlist[len(series.Pointlist)-1]
-	if len(datapoint) != 2 {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datapoint does not have 2 values")
+	attributes := res.Data.Attributes
+	datapoint := attributes.Values[0]
+	timepoint := attributes.Times[len(attributes.Times)-1]
+	if timepoint == 0 {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datapoint does not have a corresponding time value")
 	}
 
-	value := datapoint[1]
+	value := datapoint[len(datapoint)-1]
 	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
 	return strconv.FormatFloat(value, 'f', -1, 64), status, err
 }
