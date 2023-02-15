@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Kubernetes sample-controller Authors.
+Copyright 2023 The Kubernetes sample-controller Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -979,6 +979,12 @@ message MetricProvider {
 
   // SkyWalking specifies the skywalking metric to query
   optional SkyWalkingMetric skywalking = 11;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // Plugin specifies the hashicorp go-plugin metric to query
+  map<string, bytes> plugin = 12;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with

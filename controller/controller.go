@@ -9,9 +9,15 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/wait"
+	"github.com/argoproj/argo-rollouts/utils/plugin"
 
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
+
+	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
+	goPlugin "github.com/hashicorp/go-plugin"
+
+	"k8s.io/apimachinery/pkg/util/wait"
+
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	kubeinformers "k8s.io/client-go/informers"
 
@@ -352,6 +358,16 @@ func NewManager(
 		istioPrimaryDynamicClient:          istioPrimaryDynamicClient,
 	}
 
+	_, err := rolloutsConfig.InitializeConfig(kubeclientset, defaults.DefaultRolloutsConfigMapName)
+	if err != nil {
+		log.Fatalf("Failed to init config: %v", err)
+	}
+
+	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
+	if err != nil {
+		log.Fatalf("Failed to download plugins: %v", err)
+	}
+
 	return cm
 }
 
@@ -423,6 +439,7 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 		})
 	}
 	log.Info("Shutting down workers")
+	goPlugin.CleanupClients()
 
 	c.serviceWorkqueue.ShutDownWithDrain()
 	c.ingressWorkqueue.ShutDownWithDrain()

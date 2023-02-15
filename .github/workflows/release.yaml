@@ -84,21 +84,25 @@ jobs:
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
       - name: Build and push (controller-image)
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671 # v4.0.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.controller-meta.outputs.tags }}
+          provenance: false
+          sbom: false
 
       - name: Build and push (plugin-image)
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671 # v4.0.0
         with:
           context: .
           target: kubectl-argo-rollouts
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.plugin-meta.outputs.tags }}
+          provenance: false
+          sbom: false
 
 
   release-artifacts:

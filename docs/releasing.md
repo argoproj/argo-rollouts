@@ -39,7 +39,7 @@
 
 ### Verify
 
-1. Install locally using the command below and follow the [Getting Started Guide](https://argoproj.github.io/argo-rollouts/getting-started/):
+1. Install locally using the command below and follow the [Getting Started Guide](https://argo-rollouts.readthedocs.io/en/stable/getting-started/):
 
     ```bash
     kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/download/${VERSION}/install.yaml
