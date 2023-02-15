@@ -94,7 +94,7 @@ a hashicorp go-plugin. The two interfaces are `MetricsPlugin` and `TrafficRouter
 
 ```go
 type MetricsPlugin interface {
-	NewMetricsPlugin(v1alpha1.Metric) types.RpcError
+  InitPlugin(v1alpha1.Metric) types.RpcError
 	Run(*v1alpha1.AnalysisRun, v1alpha1.Metric) v1alpha1.Measurement
 	Resume(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
 	Terminate(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
@@ -104,7 +104,7 @@ type MetricsPlugin interface {
 }
 
 type TrafficRouterPlugin interface {
-	NewTrafficRouterPlugin() RpcError
+  InitPlugin() RpcError
 	UpdateHash(rollout *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) RpcError
 	SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) RpcError
 	SetHeaderRoute(rollout *v1alpha1.Rollout, setHeaderRoute *v1alpha1.SetHeaderRoute) RpcError
@@ -117,8 +117,8 @@ type TrafficRouterPlugin interface {
 
 ## Plugin New Function
 
-Each plugin interface has a `New` function, this function is called when the plugin is first started up and is only called 
-once per startup. The `New` function is used as a means to initialize the plugin it gives you the plugin author the ability 
+Each plugin interface has a `InitPlugin` function, this function is called when the plugin is first started up and is only called 
+once per startup. The `InitPlugin` function is used as a means to initialize the plugin it gives you the plugin author the ability 
 to either set up a client for a specific metrics provider or in the case of a traffic router construct a client or informer 
 for kubernetes api.
 
