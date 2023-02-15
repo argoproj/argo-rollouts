@@ -31,8 +31,8 @@ metadata:
 data:
   plugins: |-
     trafficrouters:
-    - plugin: "argoproj-labs/sample-rollouts-trafficrouter-plugin" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
-      pluginLocation: "file://./my-custom-plugin" # supports http(s):// urls and file://
+    - name: "argoproj-labs/sample-rollouts-trafficrouter-plugin" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
+      location: "file://./my-custom-plugin" # supports http(s):// urls and file://
 ```
 
 ### Using a HTTP(S) server to host the plugin executable
@@ -48,9 +48,9 @@ metadata:
 data:
   plugins: |-
     trafficrouters:
-    - plugin: "argoproj-labs/sample-rollouts-trafficrouter-plugin" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
-      pluginLocation: "https://github.com/argoproj-labs/sample-rollouts-trafficrouter-plugin/releases/download/v0.0.3/metric-plugin-linux-amd64" # supports http(s):// urls and file://
-      pluginSha256: "08f588b1c799a37bbe8d0fc74cc1b1492dd70b2c" #optional sha256 checksum of the plugin executable
+    - name: "argoproj-labs/sample-rollouts-trafficrouter-plugin" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
+      location: "https://github.com/argoproj-labs/sample-rollouts-trafficrouter-plugin/releases/download/v0.0.3/metric-plugin-linux-amd64" # supports http(s):// urls and file://
+      sha256: "08f588b1c799a37bbe8d0fc74cc1b1492dd70b2c" #optional sha256 checksum of the plugin executable
 ```
 
 ## Some words of caution

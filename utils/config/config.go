@@ -112,7 +112,7 @@ func (c *Config) GetAllPlugins() []types.PluginItem {
 func GetPluginDirectoryAndFilename(pluginName string) (directory string, filename string, err error) {
 	matches := re.FindAllStringSubmatch(pluginName, -1)
 	if len(matches) != 1 || len(matches[0]) != 3 {
-		return "", "", fmt.Errorf("plugin repository (%s) must be in the format of <namespace>/<plugin>", pluginName)
+		return "", "", fmt.Errorf("plugin repository (%s) must be in the format of <namespace>/<name>", pluginName)
 	}
 	namespace := matches[0][1]
 	plugin := matches[0][2]
@@ -125,9 +125,9 @@ func (c *Config) ValidateConfig() error {
 	defer mutex.RUnlock()
 
 	for _, pluginItem := range c.GetAllPlugins() {
-		matches := re.FindAllStringSubmatch(pluginItem.Plugin, -1)
+		matches := re.FindAllStringSubmatch(pluginItem.Name, -1)
 		if len(matches) != 1 || len(matches[0]) != 3 {
-			return fmt.Errorf("plugin repository (%s) must be in the format of <namespace>/<plugin>", pluginItem.Plugin)
+			return fmt.Errorf("plugin repository (%s) must be in the format of <namespace>/<name>", pluginItem.Name)
 		}
 	}
 	return nil

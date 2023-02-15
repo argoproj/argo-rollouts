@@ -16,12 +16,12 @@ repo which you would be granted admin access on.
 
 There is also a slight standardization of naming convention for plugin names which are used in the configmap registration,
 as well as what the plugin uses for locating its specific configuration on rollout or analysis resources. The name
-needs to be in the form of `<namespace>/<pluginname>` and both <namespace> and <pluginname> have a regular expression check
+needs to be in the form of `<namespace>/<name>` and both <namespace> and <name> have a regular expression check
 that matches Github's requirements for `username/org` and `repository name`. This requirement is in place to help allow multiple creators
 of the same plugin type to exists such as `<org1>/nginx` and `<org2>/nginx`. These names could be based of the repo name 
 such as `argoproj-labs/sample-rollouts-metric-plugin` but it is not a requirement. 
 
-There will also be a standard for naming repositories under argoproj-labs in the form of `rollouts-<type>-<tool>-plugin`
+There will also be a standard for naming repositories under argoproj-labs in the form of `rollouts-<tool>-<type>-plugin`
 where `<type>` is say `metric`, or `trafficrouter` and `<tool>` is the software the plugin is for say nginx.
 
 ## Plugin Name
@@ -39,11 +39,11 @@ metadata:
 data:
   plugins: |-
     metrics:
-    - plugin: "argoproj-labs/metrics"
-      pluginLocation: "file:///Users/zaller/Development/argo-rollouts/metric-plugin"
+    - name: "argoproj-labs/metrics"
+      location: "file:///Users/zaller/Development/argo-rollouts/metric-plugin"
     trafficrouters:
-    - plugin: "argoproj-labs/nginx"
-      pluginLocation: "file:///tmp/argo-rollouts/traffic-plugin"
+    - name: "argoproj-labs/nginx"
+      location: "file:///tmp/argo-rollouts/traffic-plugin"
 ```
 
 As you can see there is a field called `plugin:` under both `metrics` or `trafficrouters` this is the first place where your
