@@ -81,7 +81,7 @@ func TestPlugin(t *testing.T) {
 	plugin, _, cancel, closeCh := pluginClient(t)
 	defer cancel()
 
-	err := plugin.NewTrafficRouterPlugin()
+	err := plugin.InitPlugin()
 	if err.Error() != "" {
 		t.Fail()
 	}
@@ -124,7 +124,7 @@ func TestPluginClosedConnection(t *testing.T) {
 
 	const expectedError = "connection is shut down"
 
-	err := plugin.NewTrafficRouterPlugin()
+	err := plugin.InitPlugin()
 	assert.Equal(t, expectedError, err.Error())
 
 	err = plugin.RemoveManagedRoutes(&v1alpha1.Rollout{})

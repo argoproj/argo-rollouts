@@ -34,8 +34,8 @@ type RpcPlugin struct {
 	ingressWrapper *ingressutil.IngressWrap
 }
 
-func (p *RpcPlugin) NewTrafficRouterPlugin() pluginTypes.RpcError {
-	p.LogCtx.Info("NewTrafficRouterPlugin")
+func (p *RpcPlugin) InitPlugin() pluginTypes.RpcError {
+	p.LogCtx.Info("InitPlugin")
 
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	// if you want to change the loading rules (which files in which order), you can do so here

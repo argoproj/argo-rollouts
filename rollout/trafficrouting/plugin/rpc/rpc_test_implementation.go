@@ -8,7 +8,7 @@ import (
 
 type testRpcPlugin struct{}
 
-func (p *testRpcPlugin) NewTrafficRouterPlugin() types.RpcError {
+func (p *testRpcPlugin) InitPlugin() types.RpcError {
 	return types.RpcError{}
 }
 

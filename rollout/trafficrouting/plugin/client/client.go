@@ -71,7 +71,7 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 		}
 		t.plugin[pluginName] = plugin.(rpc.TrafficRouterPlugin)
 
-		err = t.plugin[pluginName].NewTrafficRouterPlugin()
+		err = t.plugin[pluginName].InitPlugin()
 		if err.Error() != "" {
 			return nil, err
 		}

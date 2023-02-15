@@ -20,7 +20,7 @@ func TestGetPluginLocation(t *testing.T) {
 				Name:      "argo-rollouts-config",
 				Namespace: "argo-rollouts",
 			},
-			Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http\n    pluginLocation: https://test/plugin\n  - plugin: argoproj-labs/http-sha\n    pluginLocation: https://test/plugin\n    pluginSha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+			Data: map[string]string{"plugins": "metrics:\n  - name: argoproj-labs/http\n    location: https://test/plugin\n  - name: argoproj-labs/http-sha\n    location: https://test/plugin\n    sha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
 		}
 		client := fake.NewSimpleClientset(cm)
 
@@ -40,7 +40,7 @@ func TestGetPluginLocation(t *testing.T) {
 				Name:      "argo-rollouts-config",
 				Namespace: "argo-rollouts",
 			},
-			Data: map[string]string{"plugins": "metrics:\n  - plugin: argoproj-labs/http\n    pluginLocation: https://test/plugin\n  - plugin: argoproj-labs/http-sha\n    pluginLocation: https://test/plugin\n    pluginSha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+			Data: map[string]string{"plugins": "metrics:\n  - name: argoproj-labs/http\n    location: https://test/plugin\n  - name: argoproj-labs/http-sha\n    location: https://test/plugin\n    sha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
 		}
 		client := fake.NewSimpleClientset(cm)
 

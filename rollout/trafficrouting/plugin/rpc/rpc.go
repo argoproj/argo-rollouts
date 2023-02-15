@@ -54,7 +54,7 @@ func init() {
 // TrafficRouterPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
 // not import that package because it would create a circular dependency.
 type TrafficRouterPlugin interface {
-	NewTrafficRouterPlugin() types.RpcError
+	InitPlugin() types.RpcError
 	types.RpcTrafficRoutingReconciler
 }
 
@@ -63,9 +63,9 @@ type TrafficRouterPluginRPC struct{ client *rpc.Client }
 
 // NewTrafficRouterPlugin this is the client aka the controller side function that calls the server side rpc (plugin)
 // this gets called once during startup of the plugin and can be used to set up informers or k8s clients etc.
-func (g *TrafficRouterPluginRPC) NewTrafficRouterPlugin() types.RpcError {
+func (g *TrafficRouterPluginRPC) InitPlugin() types.RpcError {
 	var resp types.RpcError
-	err := g.client.Call("Plugin.NewTrafficRouterPlugin", new(interface{}), &resp)
+	err := g.client.Call("Plugin.InitPlugin", new(interface{}), &resp)
 	if err != nil {
 		return types.RpcError{ErrorString: err.Error()}
 	}
@@ -178,10 +178,10 @@ type TrafficRouterRPCServer struct {
 	Impl TrafficRouterPlugin
 }
 
-// NewTrafficRouterPlugin this is the server aka the controller side function that receives calls from the client side rpc (controller)
+// InitPlugin this is the server aka the controller side function that receives calls from the client side rpc (controller)
 // this gets called once during startup of the plugin and can be used to set up informers or k8s clients etc.
-func (s *TrafficRouterRPCServer) NewTrafficRouterPlugin(args interface{}, resp *types.RpcError) error {
-	*resp = s.Impl.NewTrafficRouterPlugin()
+func (s *TrafficRouterRPCServer) InitPlugin(args interface{}, resp *types.RpcError) error {
+	*resp = s.Impl.InitPlugin()
 	return nil
 }
 
