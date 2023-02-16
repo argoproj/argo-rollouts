@@ -111,6 +111,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://argo-rollouts.readthedocs.io/analysis/skywalking/</loc>
+         <lastmod>2023-02-16</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/wavefront/</loc>
          <lastmod>2023-02-16</lastmod>
          <changefreq>daily</changefreq>

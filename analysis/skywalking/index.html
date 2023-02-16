@@ -8,27 +8,27 @@
       
       
       
-        <link rel="canonical" href="https://argo-rollouts.readthedocs.io/features/traffic-management/ambassador/">
+        <link rel="canonical" href="https://argo-rollouts.readthedocs.io/analysis/skywalking/">
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../influxdb/">
       
       
-        <link rel="next" href="../apisix/">
+        <link rel="next" href="../../features/experiment/">
       
-      <link rel="icon" href="../../../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.12">
     
     
       
-        <title>Ambassador - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
+        <title>Apache SkyWalking - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.0d440cfe.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.0d440cfe.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.2505c338.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.2505c338.min.css">
       
       
 
@@ -44,9 +44,9 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/versions.css">
+      <link rel="stylesheet" href="../../assets/versions.css">
     
-    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
   
@@ -87,7 +87,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#ambassador-edge-stack" class="md-skip">
+        <a href="#apache-skywalking-metrics" class="md-skip">
           Skip to content
         </a>
       
@@ -101,9 +101,9 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-header__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
+    <a href="../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-header__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
       
-  <img src="../../../assets/logo.png" alt="logo">
+  <img src="../../assets/logo.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -119,7 +119,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Ambassador
+              Apache SkyWalking
             
           </span>
         </div>
@@ -218,9 +218,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
+    <a href="../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
       
-  <img src="../../../assets/logo.png" alt="logo">
+  <img src="../../assets/logo.png" alt="logo">
 
     </a>
     Argo Rollouts - Kubernetes Progressive Delivery Controller
@@ -248,7 +248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../.." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         Overview
       </a>
     </li>
@@ -263,7 +263,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../installation/" class="md-nav__link">
+      <a href="../../installation/" class="md-nav__link">
         Installation
       </a>
     </li>
@@ -278,7 +278,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../concepts/" class="md-nav__link">
+      <a href="../../concepts/" class="md-nav__link">
         Concepts
       </a>
     </li>
@@ -293,7 +293,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../architecture/" class="md-nav__link">
+      <a href="../../architecture/" class="md-nav__link">
         Architecture
       </a>
     </li>
@@ -335,7 +335,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting-started/" class="md-nav__link">
+      <a href="../../getting-started/" class="md-nav__link">
         Basic Usage
       </a>
     </li>
@@ -349,7 +349,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting-started/ambassador/" class="md-nav__link">
+      <a href="../../getting-started/ambassador/" class="md-nav__link">
         Ambassador
       </a>
     </li>
@@ -363,7 +363,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting-started/alb/" class="md-nav__link">
+      <a href="../../getting-started/alb/" class="md-nav__link">
         AWS ALB
       </a>
     </li>
@@ -377,7 +377,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting-started/appmesh/" class="md-nav__link">
+      <a href="../../getting-started/appmesh/" class="md-nav__link">
         AWS App Mesh
       </a>
     </li>
@@ -391,7 +391,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting-started/istio/" class="md-nav__link">
+      <a href="../../getting-started/istio/" class="md-nav__link">
         Istio
       </a>
     </li>
@@ -405,7 +405,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting-started/nginx/" class="md-nav__link">
+      <a href="../../getting-started/nginx/" class="md-nav__link">
         NGINX
       </a>
     </li>
@@ -419,7 +419,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting-started/smi/" class="md-nav__link">
+      <a href="../../getting-started/smi/" class="md-nav__link">
         SMI
       </a>
     </li>
@@ -433,7 +433,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting-started/mixed/" class="md-nav__link">
+      <a href="../../getting-started/mixed/" class="md-nav__link">
         Multiple Providers
       </a>
     </li>
@@ -455,7 +455,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../dashboard/" class="md-nav__link">
+      <a href="../../dashboard/" class="md-nav__link">
         Dashboard
       </a>
     </li>
@@ -524,7 +524,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../bluegreen/" class="md-nav__link">
+      <a href="../../features/bluegreen/" class="md-nav__link">
         BlueGreen
       </a>
     </li>
@@ -538,7 +538,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../canary/" class="md-nav__link">
+      <a href="../../features/canary/" class="md-nav__link">
         Canary
       </a>
     </li>
@@ -559,7 +559,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../specification/" class="md-nav__link">
+      <a href="../../features/specification/" class="md-nav__link">
         Rollout Spec
       </a>
     </li>
@@ -573,7 +573,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../hpa-support/" class="md-nav__link">
+      <a href="../../features/hpa-support/" class="md-nav__link">
         HPA
       </a>
     </li>
@@ -587,7 +587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../vpa-support/" class="md-nav__link">
+      <a href="../../features/vpa-support/" class="md-nav__link">
         VPA
       </a>
     </li>
@@ -601,7 +601,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ephemeral-metadata/" class="md-nav__link">
+      <a href="../../features/ephemeral-metadata/" class="md-nav__link">
         Ephemeral Metadata
       </a>
     </li>
@@ -615,7 +615,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../restart/" class="md-nav__link">
+      <a href="../../features/restart/" class="md-nav__link">
         Restarting Rollouts
       </a>
     </li>
@@ -629,7 +629,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../scaledown-aborted-rs/" class="md-nav__link">
+      <a href="../../features/scaledown-aborted-rs/" class="md-nav__link">
         Scaledown Aborted Rollouts
       </a>
     </li>
@@ -643,7 +643,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../rollback/" class="md-nav__link">
+      <a href="../../features/rollback/" class="md-nav__link">
         Rollback Window
       </a>
     </li>
@@ -657,7 +657,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../anti-affinity/anti-affinity/" class="md-nav__link">
+      <a href="../../features/anti-affinity/anti-affinity/" class="md-nav__link">
         Anti Affinity
       </a>
     </li>
@@ -671,7 +671,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../helm/" class="md-nav__link">
+      <a href="../../features/helm/" class="md-nav__link">
         Helm
       </a>
     </li>
@@ -685,7 +685,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../kustomize/" class="md-nav__link">
+      <a href="../../features/kustomize/" class="md-nav__link">
         Kustomize
       </a>
     </li>
@@ -699,8 +699,155 @@
   
   
     <li class="md-nav__item">
-      <a href="../../controller-metrics/" class="md-nav__link">
+      <a href="../../features/controller-metrics/" class="md-nav__link">
         Controller Metrics
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+      
+      
+      
+        <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+          Traffic Management
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_8">
+          <span class="md-nav__icon md-icon"></span>
+          Traffic Management
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/ambassador/" class="md-nav__link">
+        Ambassador
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/apisix/" class="md-nav__link">
+        APISIX
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/alb/" class="md-nav__link">
+        AWS ALB
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/istio/" class="md-nav__link">
+        Istio
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/nginx/" class="md-nav__link">
+        NGINX
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/smi/" class="md-nav__link">
+        SMI
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/traffic-management/traefik/" class="md-nav__link">
+        Traefik
       </a>
     </li>
   
@@ -728,19 +875,19 @@
       
       
       
-      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
       
       
       
-        <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
-          Traffic Management
+        <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+          Analysis
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
-        <label class="md-nav__title" for="__nav_8">
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <label class="md-nav__title" for="__nav_9">
           <span class="md-nav__icon md-icon"></span>
-          Traffic Management
+          Analysis
         </label>
         <ul class="md-nav__list" data-md-scrollfix>
           
@@ -750,8 +897,162 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../../features/analysis/" class="md-nav__link">
         Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        Plugins
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prometheus/" class="md-nav__link">
+        Prometheus
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datadog/" class="md-nav__link">
+        DataDog
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../newrelic/" class="md-nav__link">
+        NewRelic
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../wavefront/" class="md-nav__link">
+        Wavefront
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../job/" class="md-nav__link">
+        Job
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../web/" class="md-nav__link">
+        Web
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kayenta/" class="md-nav__link">
+        Kayenta
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cloudwatch/" class="md-nav__link">
+        CloudWatch
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../graphite/" class="md-nav__link">
+        Graphite
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../influxdb/" class="md-nav__link">
+        InfluxDB
       </a>
     </li>
   
@@ -773,349 +1074,10 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          Ambassador
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
-        Ambassador
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
-    How it works
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#endpoint-resolver" class="md-nav__link">
-    Endpoint Resolver
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../apisix/" class="md-nav__link">
-        APISIX
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../alb/" class="md-nav__link">
-        AWS ALB
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../istio/" class="md-nav__link">
-        Istio
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../nginx/" class="md-nav__link">
-        NGINX
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../smi/" class="md-nav__link">
-        SMI
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../traefik/" class="md-nav__link">
-        Traefik
-      </a>
-    </li>
-  
-
-            
-          
-        </ul>
-      </nav>
-    </li>
-  
-
-    
-      
-      
-      
-
-  
-  
-  
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-      
-      
-      
-      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
-      
-      
-      
-        <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
-          Analysis
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
-        <label class="md-nav__title" for="__nav_9">
-          <span class="md-nav__icon md-icon"></span>
-          Analysis
-        </label>
-        <ul class="md-nav__list" data-md-scrollfix>
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../analysis/" class="md-nav__link">
-        Overview
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/plugins/" class="md-nav__link">
-        Plugins
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/prometheus/" class="md-nav__link">
-        Prometheus
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/datadog/" class="md-nav__link">
-        DataDog
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/newrelic/" class="md-nav__link">
-        NewRelic
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/wavefront/" class="md-nav__link">
-        Wavefront
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/job/" class="md-nav__link">
-        Job
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/web/" class="md-nav__link">
-        Web
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/kayenta/" class="md-nav__link">
-        Kayenta
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/cloudwatch/" class="md-nav__link">
-        CloudWatch
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/graphite/" class="md-nav__link">
-        Graphite
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/influxdb/" class="md-nav__link">
-        InfluxDB
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../analysis/skywalking/" class="md-nav__link">
         Apache SkyWalking
       </a>
+      
     </li>
   
 
@@ -1135,7 +1097,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../experiment/" class="md-nav__link">
+      <a href="../../features/experiment/" class="md-nav__link">
         Experiments
       </a>
     </li>
@@ -1177,7 +1139,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notifications/" class="md-nav__link">
+      <a href="../../features/notifications/" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -1218,7 +1180,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/alertmanager/" class="md-nav__link">
+      <a href="../../generated/notification-services/alertmanager/" class="md-nav__link">
         Alertmanager
       </a>
     </li>
@@ -1232,7 +1194,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/email/" class="md-nav__link">
+      <a href="../../generated/notification-services/email/" class="md-nav__link">
         Email
       </a>
     </li>
@@ -1246,7 +1208,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/github/" class="md-nav__link">
+      <a href="../../generated/notification-services/github/" class="md-nav__link">
         GitHub
       </a>
     </li>
@@ -1260,7 +1222,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/googlechat/" class="md-nav__link">
+      <a href="../../generated/notification-services/googlechat/" class="md-nav__link">
         Google Chat
       </a>
     </li>
@@ -1274,7 +1236,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/grafana/" class="md-nav__link">
+      <a href="../../generated/notification-services/grafana/" class="md-nav__link">
         Grafana
       </a>
     </li>
@@ -1288,7 +1250,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/mattermost/" class="md-nav__link">
+      <a href="../../generated/notification-services/mattermost/" class="md-nav__link">
         Mattermost
       </a>
     </li>
@@ -1302,7 +1264,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/newrelic/" class="md-nav__link">
+      <a href="../../generated/notification-services/newrelic/" class="md-nav__link">
         NewRelic
       </a>
     </li>
@@ -1316,7 +1278,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/opsgenie/" class="md-nav__link">
+      <a href="../../generated/notification-services/opsgenie/" class="md-nav__link">
         Opsgenie
       </a>
     </li>
@@ -1330,7 +1292,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/overview/" class="md-nav__link">
+      <a href="../../generated/notification-services/overview/" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -1344,7 +1306,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/pagerduty/" class="md-nav__link">
+      <a href="../../generated/notification-services/pagerduty/" class="md-nav__link">
         Pagerduty
       </a>
     </li>
@@ -1358,7 +1320,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/pushover/" class="md-nav__link">
+      <a href="../../generated/notification-services/pushover/" class="md-nav__link">
         Pushover
       </a>
     </li>
@@ -1372,7 +1334,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/rocketchat/" class="md-nav__link">
+      <a href="../../generated/notification-services/rocketchat/" class="md-nav__link">
         Rocket.Chat
       </a>
     </li>
@@ -1386,7 +1348,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/slack/" class="md-nav__link">
+      <a href="../../generated/notification-services/slack/" class="md-nav__link">
         Slack
       </a>
     </li>
@@ -1400,7 +1362,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/teams/" class="md-nav__link">
+      <a href="../../generated/notification-services/teams/" class="md-nav__link">
         Teams
       </a>
     </li>
@@ -1414,7 +1376,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/telegram/" class="md-nav__link">
+      <a href="../../generated/notification-services/telegram/" class="md-nav__link">
         Telegram
       </a>
     </li>
@@ -1428,7 +1390,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/webex/" class="md-nav__link">
+      <a href="../../generated/notification-services/webex/" class="md-nav__link">
         Webex Teams
       </a>
     </li>
@@ -1442,7 +1404,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/notification-services/webhook/" class="md-nav__link">
+      <a href="../../generated/notification-services/webhook/" class="md-nav__link">
         Webhook
       </a>
     </li>
@@ -1498,7 +1460,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../kubectl-plugin/" class="md-nav__link">
+      <a href="../../features/kubectl-plugin/" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -1539,7 +1501,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" class="md-nav__link">
         Rollouts
       </a>
     </li>
@@ -1553,7 +1515,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/" class="md-nav__link">
         Rollouts Abort
       </a>
     </li>
@@ -1567,7 +1529,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/" class="md-nav__link">
         Rollouts Completion
       </a>
     </li>
@@ -1581,7 +1543,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/" class="md-nav__link">
         Rollouts Create
       </a>
     </li>
@@ -1595,7 +1557,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/" class="md-nav__link">
         Rollouts Create Analysisrun
       </a>
     </li>
@@ -1609,7 +1571,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/" class="md-nav__link">
         Rollouts Dashboard
       </a>
     </li>
@@ -1623,7 +1585,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/" class="md-nav__link">
         Rollouts Get
       </a>
     </li>
@@ -1637,7 +1599,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/" class="md-nav__link">
         Rollouts Get Experiment
       </a>
     </li>
@@ -1651,7 +1613,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/" class="md-nav__link">
         Rollouts Get Rollout
       </a>
     </li>
@@ -1665,7 +1627,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/" class="md-nav__link">
         Rollouts Lint
       </a>
     </li>
@@ -1679,7 +1641,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/" class="md-nav__link">
         Rollouts List
       </a>
     </li>
@@ -1693,7 +1655,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/" class="md-nav__link">
         Rollouts List Experiments
       </a>
     </li>
@@ -1707,7 +1669,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/" class="md-nav__link">
         Rollouts List Rollouts
       </a>
     </li>
@@ -1721,7 +1683,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/" class="md-nav__link">
         Rollouts Notifications
       </a>
     </li>
@@ -1735,7 +1697,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/" class="md-nav__link">
         Rollouts Notifications Template
       </a>
     </li>
@@ -1749,7 +1711,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/" class="md-nav__link">
         Rollouts Notifications Template Get
       </a>
     </li>
@@ -1763,7 +1725,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/" class="md-nav__link">
         Rollouts Notifications Template Notify
       </a>
     </li>
@@ -1777,7 +1739,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/" class="md-nav__link">
         Rollouts Notifications Trigger
       </a>
     </li>
@@ -1791,7 +1753,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/" class="md-nav__link">
         Rollouts Notifications Trigger Get
       </a>
     </li>
@@ -1805,7 +1767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/" class="md-nav__link">
         Rollouts Notifications Trigger Run
       </a>
     </li>
@@ -1819,7 +1781,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/" class="md-nav__link">
         Rollouts Pause
       </a>
     </li>
@@ -1833,7 +1795,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/" class="md-nav__link">
         Rollouts Promote
       </a>
     </li>
@@ -1847,7 +1809,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/" class="md-nav__link">
         Rollouts Restart
       </a>
     </li>
@@ -1861,7 +1823,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/" class="md-nav__link">
         Rollouts Retry
       </a>
     </li>
@@ -1875,7 +1837,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/" class="md-nav__link">
         Rollouts Retry Experiment
       </a>
     </li>
@@ -1889,7 +1851,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/" class="md-nav__link">
         Rollouts Retry Rollout
       </a>
     </li>
@@ -1903,7 +1865,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/" class="md-nav__link">
         Rollouts Set
       </a>
     </li>
@@ -1917,7 +1879,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/" class="md-nav__link">
         Rollouts Set Image
       </a>
     </li>
@@ -1931,7 +1893,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/" class="md-nav__link">
         Rollouts Status
       </a>
     </li>
@@ -1945,7 +1907,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/" class="md-nav__link">
         Rollouts Terminate
       </a>
     </li>
@@ -1959,7 +1921,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/" class="md-nav__link">
         Rollouts Terminate Analysisrun
       </a>
     </li>
@@ -1973,7 +1935,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/" class="md-nav__link">
         Rollouts Terminate Experiment
       </a>
     </li>
@@ -1987,7 +1949,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/" class="md-nav__link">
         Rollouts Undo
       </a>
     </li>
@@ -2001,7 +1963,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/" class="md-nav__link">
+      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/" class="md-nav__link">
         Rollouts Version
       </a>
     </li>
@@ -2030,7 +1992,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../best-practices/" class="md-nav__link">
+      <a href="../../best-practices/" class="md-nav__link">
         Best Practices
       </a>
     </li>
@@ -2045,7 +2007,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../migrating/" class="md-nav__link">
+      <a href="../../migrating/" class="md-nav__link">
         Migrating
       </a>
     </li>
@@ -2060,7 +2022,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../FAQ/" class="md-nav__link">
+      <a href="../../FAQ/" class="md-nav__link">
         FAQ
       </a>
     </li>
@@ -2075,7 +2037,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../security/" class="md-nav__link">
+      <a href="../../security/" class="md-nav__link">
         Security
       </a>
     </li>
@@ -2090,7 +2052,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../roadmap/" class="md-nav__link">
+      <a href="../../roadmap/" class="md-nav__link">
         Roadmap/Release Schedule
       </a>
     </li>
@@ -2132,7 +2094,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../CONTRIBUTING/" class="md-nav__link">
+      <a href="../../CONTRIBUTING/" class="md-nav__link">
         Contribution Guide
       </a>
     </li>
@@ -2146,7 +2108,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../getting-started/setup/" class="md-nav__link">
+      <a href="../../getting-started/setup/" class="md-nav__link">
         Environment Setup
       </a>
     </li>
@@ -2160,7 +2122,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../releasing/" class="md-nav__link">
+      <a href="../../releasing/" class="md-nav__link">
         Releasing
       </a>
     </li>
@@ -2239,28 +2201,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
-    How it works
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#endpoint-resolver" class="md-nav__link">
-    Endpoint Resolver
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -2278,78 +2218,38 @@
 
 
 
-<h1 id="ambassador-edge-stack">Ambassador Edge Stack<a class="headerlink" href="#ambassador-edge-stack" title="Permanent link">&para;</a></h1>
-<p><a href="https://www.getambassador.io/products/edge-stack/">Ambassador Edge Stack</a> provides the functionality you need at the edge your Kubernetes cluster (hence, an "edge stack"). This includes an API gateway, ingress controller, load balancer, developer portal, canary traffic routing and more. It provides a group of CRDs that users can configure to enable different functionalities. </p>
-<p>Argo-Rollouts provides an integration that leverages Ambassador's <a href="https://www.getambassador.io/docs/latest/topics/using/canary/">canary routing capability</a>. This allows the traffic to your application to be gradually incremented while new versions are being deployed.</p>
-<h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>Ambassador Edge Stack provides a resource called <code>Mapping</code> that is used to configure how to route traffic to services. Ambassador canary deployment is achieved by creating 2 mappings with the same URL prefix pointing to different services. Consider the following example:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">getambassador.io/v2</span>
-<span class="nt">kind</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Mapping</span>
-<span class="nt">metadata</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-mapping</span>
-<span class="nt">spec</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">prefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/someapp</span>
-<span class="w">  </span><span class="nt">rewrite</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span>
-<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">someapp-stable:80</span>
-<span class="nn">---</span>
-<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">getambassador.io/v2</span>
-<span class="nt">kind</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">Mapping</span>
-<span class="nt">metadata</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-mapping</span>
-<span class="nt">spec</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">prefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/someapp</span>
-<span class="w">  </span><span class="nt">rewrite</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span>
-<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">someapp-canary:80</span>
-<span class="w">  </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
-</code></pre></div>
-<p>In the example above we are configuring Ambassador to route 30% of the traffic coming from <code>&lt;public ingress&gt;/someapp</code> to the service <code>someapp-canary</code> and the rest of the traffic will go to the service <code>someapp-stable</code>. If users want to gradually increase the traffic to the canary service, they have to update the <code>canary-mapping</code> setting the weight to the desired value either manually or automating it somehow. </p>
-<p>With Argo-Rollouts there is no need to create the <code>canary-mapping</code>. The process of creating it and gradually updating its weight is fully automated by the Argo-Rollouts controller. The following example shows how to configure the <code>Rollout</code> resource to use Ambassador as a traffic router for canary deployments:</p>
+<h1 id="apache-skywalking-metrics">Apache SkyWalking Metrics<a class="headerlink" href="#apache-skywalking-metrics" title="Permanent link">&para;</a></h1>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Available since v1.5.0</p>
+</div>
+<p>A <a href="https://skywalking.apache.org/">SkyWalking</a> query using GraphQL can be used to obtain measurements for analysis.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
-<span class="nn">...</span>
-<span class="nt">spec</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">someapp-stable</span>
-<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">someapp-canary</span>
-<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">ambassador</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">mappings</span><span class="p">:</span>
-<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-mapping</span>
-<span class="w">      </span><span class="nt">steps</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">60s</span><span class="p p-Indicator">}</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="nv">60s</span><span class="p p-Indicator">}</span>
-</code></pre></div>
-<p>Under <code>spec.strategy.canary.trafficRouting.ambassador</code> there are 2 possible attributes:</p>
-<ul>
-<li><code>mappings</code>: Required. At least one Ambassador mapping must be provided for Argo-Rollouts to be able to manage the canary deployment. Multiple mappings are also supported in case there are multiple routes to the service (e.g., your service has multiple ports, or can be accessed via different URLs). If no mapping is provided Argo-Rollouts will send an error event and the rollout will be aborted. </li>
-</ul>
-<p>When Ambassador is configured in the <code>trafficRouting</code> attribute of the manifest, the Rollout controller will:
-1. Create one canary mapping for each stable mapping provided in the Rollout manifest
-1. Proceed with the steps according to the configuration updating the canary mapping weight
-1. At the end of the process Argo-Rollout will delete all the canary mappings created</p>
-<h2 id="endpoint-resolver">Endpoint Resolver<a class="headerlink" href="#endpoint-resolver" title="Permanent link">&para;</a></h2>
-<p>By default, Ambassador uses kube-proxy to route traffic to Pods. However we should configure it to bypass kube-proxy and route traffic directly to pods. This will provide true L7 load balancing which is desirable in a canary workflow. This approach is called <a href="https://www.getambassador.io/docs/latest/topics/running/load-balancer/">endpoint routing</a> and can be achieve by configuring <a href="https://www.getambassador.io/docs/latest/topics/running/resolvers/#the-kubernetes-endpoint-resolver">endpoint resolvers</a>.</p>
-<p>To configure Ambassador to use endpoint resolver it is necessary to apply the following resource in the cluster:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">getambassador.io/v2</span>
-<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">KubernetesEndpointResolver</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">endpoint</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apdex</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apdex</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;all(result.service_apdex.values.values,</span><span class="nv"> </span><span class="s">{asFloat(.value)</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">9900})&quot;</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">skywalking</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3m</span>
+<span class="w">        </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://skywalking-oap.istio-system:12800</span>
+<span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">query queryData($duration: Duration!) {</span>
+<span class="w">            </span><span class="no">service_apdex: readMetricsValues(</span>
+<span class="w">              </span><span class="no">condition: { name: &quot;service_apdex&quot;, entity: { scope: Service, serviceName: &quot;{{ args.service-name }}&quot;, normal: true } },</span>
+<span class="w">              </span><span class="no">duration: $duration) {</span>
+<span class="w">                </span><span class="no">label values { values { value } }</span>
+<span class="w">              </span><span class="no">}</span>
+<span class="w">          </span><span class="no">}</span>
 </code></pre></div>
-<p>And then configure the mapping to use it setting the <code>resolver</code> attribute:</p>
-<div class="highlight"><pre><span></span><code>apiVersion: getambassador.io/v2
-kind:  Mapping
-metadata:
-  name: stable-mapping
-spec:
-  resolver: endpoint
-  prefix: /someapp
-  rewrite: /
-  service: someapp-stable:80
-</code></pre></div>
-<p>For more details about the Ambassador and Argo-Rollouts integration, see the <a href="https://deploy-preview-508--datawire-ambassador.netlify.app/docs/pre-release/argo/">Ambassador Argo documentation</a>.</p>
+<p>The <code>result</code> evaluated for the query depends on the specific GraphQL you give, you can try to run the GraphQL query first and inspect the output format, then compose the condition.</p>
 
 
   
@@ -2389,12 +2289,12 @@ spec:
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.db81ec45.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.db81ec45.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.4b2c34cd.min.js"></script>
+      <script src="../../assets/javascripts/bundle.4b2c34cd.min.js"></script>
       
-        <script src="../../../assets/versions.js"></script>
+        <script src="../../assets/versions.js"></script>
       
     
   </body>
