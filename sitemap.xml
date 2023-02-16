@@ -451,12 +451,22 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/newrelic/</loc>
+         <lastmod>2023-02-16</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/opsgenie/</loc>
          <lastmod>2023-02-16</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/overview/</loc>
+         <lastmod>2023-02-16</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/pagerduty/</loc>
          <lastmod>2023-02-16</lastmod>
          <changefreq>daily</changefreq>
     </url>
@@ -482,6 +492,11 @@
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/telegram/</loc>
+         <lastmod>2023-02-16</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/webex/</loc>
          <lastmod>2023-02-16</lastmod>
          <changefreq>daily</changefreq>
     </url>
