@@ -4,11 +4,12 @@ import (
 	"fmt"
 
 	"github.com/argoproj/argo-rollouts/metric"
+	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
+	"github.com/argoproj/argo-rollouts/metricproviders/skywalking"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
 	"github.com/argoproj/argo-rollouts/metricproviders/graphite"
-	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
 	"github.com/argoproj/argo-rollouts/metricproviders/kayenta"
 	"github.com/argoproj/argo-rollouts/metricproviders/newrelic"
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin"
@@ -85,6 +86,12 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 			return nil, err
 		}
 		return influxdb.NewInfluxdbProvider(client, logCtx), nil
+	case skywalking.ProviderType:
+		client, err := skywalking.NewSkyWalkingClient(metric, f.KubeClient)
+		if err != nil {
+			return nil, err
+		}
+		return skywalking.NewSkyWalkingProvider(client, logCtx), nil
 	case plugin.ProviderType:
 		plugin, err := plugin.NewRpcPlugin(metric)
 		return plugin, err
@@ -114,6 +121,8 @@ func Type(metric v1alpha1.Metric) string {
 		return graphite.ProviderType
 	} else if metric.Provider.Influxdb != nil {
 		return influxdb.ProviderType
+	} else if metric.Provider.SkyWalking != nil {
+		return skywalking.ProviderType
 	} else if metric.Provider.Plugin != nil {
 		return plugin.ProviderType
 	}
