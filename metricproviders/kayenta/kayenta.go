@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	//ProviderType indicates the provider is kayenta
+	// ProviderType indicates the provider is kayenta
 	ProviderType   = "Kayenta"
 	scoreURLFormat = `%s/canary/%s`
 
@@ -78,7 +78,7 @@ func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
 		return "", err
 	}
 
-	data, err := ioutil.ReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", err
 	}
@@ -142,7 +142,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
 
-	data, err := ioutil.ReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -180,7 +180,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	data, err := ioutil.ReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
@@ -194,7 +194,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 
 	status, ok, err := unstructured.NestedBool(patch, "complete")
 	if ok {
-		if !status { //resume later since it is incomplete
+		if !status { // resume later since it is incomplete
 			resumeTime := metav1.NewTime(timeutil.Now().Add(resumeDelay))
 			measurement.ResumeAt = &resumeTime
 			measurement.Phase = v1alpha1.AnalysisPhaseRunning
