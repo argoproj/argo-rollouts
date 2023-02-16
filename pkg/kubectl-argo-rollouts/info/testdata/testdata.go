@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"runtime"
 	"time"
@@ -80,7 +80,7 @@ func NewAbortedRollout() *RolloutObjects {
 }
 
 func discoverObjects(path string) *RolloutObjects {
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		panic(err)
 	}
@@ -89,7 +89,7 @@ func discoverObjects(path string) *RolloutObjects {
 
 	var objs RolloutObjects
 	for _, file := range files {
-		yamlBytes, err := ioutil.ReadFile(path + "/" + file.Name())
+		yamlBytes, err := os.ReadFile(path + "/" + file.Name())
 		if err != nil {
 			panic(err)
 		}
