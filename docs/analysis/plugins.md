@@ -5,7 +5,7 @@
 Argo Rollouts supports getting analysis metrics via 3rd party plugin system. This allows users to extend the capabilities of Rollouts 
 to support metric providers that are not natively supported. Rollout's uses a plugin library called
 [go-plugin](https://github.com/hashicorp/go-plugin) to do this. You can find a sample plugin 
-here: [sample-rollouts-metric-plugin](https://github.com/argoproj-labs/sample-rollouts-metric-plugin)
+here: [rollouts-sample_prometheus-metric-plugin](https://github.com/argoproj-labs/rollouts-sample_prometheus-metric-plugin)
 
 ## Using a Metric Plugin
 
@@ -31,7 +31,7 @@ metadata:
 data:
   plugins: |-
     metrics:
-    - name: "argoproj-labs/sample-rollouts-metric-plugin" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
+    - name: "argoproj-labs/sample-prometheus" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
       location: "file://./my-custom-plugin" # supports http(s):// urls and file://
 ```
 
@@ -48,9 +48,9 @@ metadata:
 data:
   plugins: |-
     metrics:
-    - name: "argoproj-labs/sample-rollouts-metric-plugin" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
-      location: "https://github.com/argoproj-labs/sample-rollouts-metric-plugin/releases/download/v0.0.3/metric-plugin-linux-amd64" # supports http(s):// urls and file://
-      sha256: "08f588b1c799a37bbe8d0fc74cc1b1492dd70b2c" #optional sha256 checksum of the plugin executable
+    - name: "argoproj-labs/sample-prometheus" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
+      location: "https://github.com/argoproj-labs/rollouts-sample_prometheus-metric-plugin/releases/download/v0.0.4/metric-plugin-linux-amd64" # supports http(s):// urls and file://
+      sha256: "dac10cbf57633c9832a17f8c27d2ca34aa97dd3d" #optional sha256 checksum of the plugin executable
 ```
 
 ## Some words of caution
@@ -70,6 +70,6 @@ it is up to you to define your risk for and decide how you want to install the p
 
 #### Add Your Plugin Here
   * If you have created a plugin, please submit a PR to add it to this list.
-#### [sample-rollouts-metric-plugin](https://github.com/argoproj-labs/sample-rollouts-metric-plugin)
+#### [rollouts-sample_prometheus-metric-plugin](https://github.com/argoproj-labs/rollouts-sample_prometheus-metric-plugin)
   * This is just a sample plugin that can be used as a starting point for creating your own plugin. 
 It is not meant to be used in production. It is based on the built-in prometheus provider.
