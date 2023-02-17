@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/argoproj/notifications-engine/pkg/docs"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-rollouts/pkg/kubectl-argo-rollouts/cmd"
@@ -42,7 +42,7 @@ func generateNotificationsDocs() {
 func generatePluginsDocs() {
 	tf, o := options.NewFakeArgoRolloutsOptions()
 
-	//Set static config dir so that gen docs does not change depending on what machine it is ran on
+	// Set static config dir so that gen docs does not change depending on what machine it is ran on
 	configDir := "$HOME/.kube/cache"
 	o.ConfigFlags.CacheDir = &configDir
 
@@ -65,7 +65,7 @@ func generatePluginsDocs() {
 func updateMkDocsNav(parent string, child string, files []string) error {
 	trimPrefixes(files, "docs/")
 	sort.Strings(files)
-	data, err := ioutil.ReadFile("mkdocs.yml")
+	data, err := os.ReadFile("mkdocs.yml")
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func updateMkDocsNav(parent string, child string, files []string) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile("mkdocs.yml", newmkdocs, 0644)
+	return os.WriteFile("mkdocs.yml", newmkdocs, 0644)
 }
 
 func findNavItem(nav []interface{}, key string) (interface{}, int) {

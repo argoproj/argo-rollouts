@@ -30,7 +30,7 @@ import (
 var unixNow = func() int64 { return timeutil.Now().Unix() }
 
 const (
-	//ProviderType indicates the provider is datadog
+	// ProviderType indicates the provider is datadog
 	ProviderType            = "Datadog"
 	DatadogTokensSecretName = "datadog"
 	DatadogApiKey           = "api-key"
@@ -156,7 +156,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
