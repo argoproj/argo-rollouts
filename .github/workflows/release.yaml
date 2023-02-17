@@ -173,7 +173,7 @@ jobs:
           cosign-release: 'v1.13.1'
 
       - name: Install crane to get digest of image
-        uses: imjasonh/setup-crane@v0.2
+        uses: imjasonh/setup-crane@v0.3
 
       - name: Get digest of controller-image
         run: |
