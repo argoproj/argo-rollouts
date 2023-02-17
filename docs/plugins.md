@@ -18,8 +18,8 @@ There is also a slight standardization of naming convention for plugin names whi
 as well as what the plugin uses for locating its specific configuration on rollout or analysis resources. The name
 needs to be in the form of `<namespace>/<name>` and both <namespace> and <name> have a regular expression check
 that matches Github's requirements for `username/org` and `repository name`. This requirement is in place to help allow multiple creators
-of the same plugin type to exists such as `<org1>/nginx` and `<org2>/nginx`. These names could be based of the repo name 
-such as `argoproj-labs/sample-rollouts-metric-plugin` but it is not a requirement. 
+of the same plugin type to exist such as `<org1>/nginx` and `<org2>/nginx`. These names could be based of the repo name 
+such as `argoproj-labs/rollouts-sample_prometheus-metric-plugin` but it is not a requirement. 
 
 There will also be a standard for naming repositories under argoproj-labs in the form of `rollouts-<tool>-<type>-plugin`
 where `<type>` is say `metric`, or `trafficrouter` and `<tool>` is the software the plugin is for say nginx.
@@ -115,7 +115,7 @@ type TrafficRouterPlugin interface {
 }
 ```
 
-## Plugin New Function
+## Plugin Init Function
 
 Each plugin interface has a `InitPlugin` function, this function is called when the plugin is first started up and is only called 
 once per startup. The `InitPlugin` function is used as a means to initialize the plugin it gives you the plugin author the ability 
