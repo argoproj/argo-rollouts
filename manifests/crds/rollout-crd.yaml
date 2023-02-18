@@ -3247,40 +3247,40 @@ spec:
                     properties:
                       arn:
                         type: string
-                      name:
-                        type: string
                       fullName:
+                        type: string
+                      name:
                         type: string
                     required:
                     - arn
-                    - name
                     - fullName
+                    - name
                     type: object
                   loadBalancer:
                     properties:
                       arn:
                         type: string
-                      name:
-                        type: string
                       fullName:
+                        type: string
+                      name:
                         type: string
                     required:
                     - arn
-                    - name
                     - fullName
+                    - name
                     type: object
                   stableTargetGroup:
                     properties:
                       arn:
                         type: string
-                      name:
-                        type: string
                       fullName:
+                        type: string
+                      name:
                         type: string
                     required:
                     - arn
-                    - name
                     - fullName
+                    - name
                     type: object
                 type: object
               availableReplicas:

@@ -354,6 +354,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResource
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef
      */
     arn?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef
+     */
+    fullName?: string;
 }
 /**
  * 
