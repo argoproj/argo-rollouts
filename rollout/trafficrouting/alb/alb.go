@@ -231,6 +231,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 
 		r.cfg.Status.ALB.LoadBalancer.Name = *lb.LoadBalancerName
 		r.cfg.Status.ALB.LoadBalancer.ARN = *lb.LoadBalancerArn
+		r.cfg.Status.ALB.LoadBalancer.FullName = strings.Join(strings.Split(*lb.LoadBalancerArn, "/")[2:], "/")
 
 		lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 		if err != nil {
