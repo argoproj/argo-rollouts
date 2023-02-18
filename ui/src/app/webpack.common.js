@@ -11,6 +11,7 @@ const config = {
         main: './src/app/index.tsx',
     },
     output: {
+        hashFunction: "sha256",
         filename: '[name].[chunkhash].js',
         path: __dirname + '/../../dist/app',
     },
