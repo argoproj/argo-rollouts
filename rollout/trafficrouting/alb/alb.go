@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 
@@ -241,6 +242,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 			if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
 				r.cfg.Status.ALB.CanaryTargetGroup.Name = *tg.TargetGroupName
 				r.cfg.Status.ALB.CanaryTargetGroup.ARN = *tg.TargetGroupArn
+				r.cfg.Status.ALB.CanaryTargetGroup.FullName = strings.Join(strings.Split(*tg.TargetGroupArn, "/")[1:], "/")
 				if tg.Weight != nil {
 					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 					logCtx.Infof("canary weight of %s (desired: %d, current: %d)", canaryResourceID, desiredWeight, *tg.Weight)
@@ -267,6 +269,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 			} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
 				r.cfg.Status.ALB.StableTargetGroup.Name = *tg.TargetGroupName
 				r.cfg.Status.ALB.StableTargetGroup.ARN = *tg.TargetGroupArn
+				r.cfg.Status.ALB.StableTargetGroup.FullName = strings.Join(strings.Split(*tg.TargetGroupArn, "/")[1:], "/")
 			}
 		}
 	}
