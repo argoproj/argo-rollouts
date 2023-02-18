@@ -457,17 +457,14 @@ func (f *fakeAWSClient) getAlbStatus() *v1alpha1.ALBStatus {
 		LoadBalancer: v1alpha1.AwsResourceRef{
 			Name:     *f.loadBalancer.LoadBalancerName,
 			ARN:      *f.loadBalancer.LoadBalancerArn,
-			FullName: *f.loadBalancer.LoadBalancerFullName,
 		},
 		CanaryTargetGroup: v1alpha1.AwsResourceRef{
 			Name:     *f.targetGroups[0].TargetGroupName,
 			ARN:      *f.targetGroups[0].TargetGroupArn,
-			FullName: *f.targetGroups[0].TargetGroupFullName,
 		},
 		StableTargetGroup: v1alpha1.AwsResourceRef{
 			Name:     *f.targetGroups[len(f.targetGroups)-1].TargetGroupName,
 			ARN:      *f.targetGroups[len(f.targetGroups)-1].TargetGroupArn,
-			FullName: *f.targetGroups[len(f.targetGroups)-1].TargetGroupFullName,
 		},
 	}
 }
