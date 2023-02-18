@@ -3249,9 +3249,12 @@ spec:
                         type: string
                       name:
                         type: string
+                      fullName:
+                        type: string
                     required:
                     - arn
                     - name
+                    - fullName
                     type: object
                   loadBalancer:
                     properties:
@@ -3259,9 +3262,12 @@ spec:
                         type: string
                       name:
                         type: string
+                      fullName:
+                        type: string
                     required:
                     - arn
                     - name
+                    - fullName
                     type: object
                   stableTargetGroup:
                     properties:
@@ -3269,9 +3275,12 @@ spec:
                         type: string
                       name:
                         type: string
+                      fullName:
+                        type: string
                     required:
                     - arn
                     - name
+                    - fullName
                     type: object
                 type: object
               availableReplicas:

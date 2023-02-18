@@ -702,6 +702,9 @@
         },
         "arn": {
           "type": "string"
+        },
+        "fullName": {
+          "type": "string"
         }
       }
     },
