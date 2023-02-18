@@ -1560,7 +1560,7 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      */
     traefik?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting;
     /**
-     * A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream traffic router.
+     * ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream traffic router.
      * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes>}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
