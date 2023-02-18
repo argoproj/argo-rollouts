@@ -455,16 +455,16 @@ func (f *fakeAWSClient) GetTargetGroupHealth(ctx context.Context, targetGroupARN
 func (f *fakeAWSClient) getAlbStatus() *v1alpha1.ALBStatus {
 	return &v1alpha1.ALBStatus{
 		LoadBalancer: v1alpha1.AwsResourceRef{
-			Name:     *f.loadBalancer.LoadBalancerName,
-			ARN:      *f.loadBalancer.LoadBalancerArn,
+			Name: *f.loadBalancer.LoadBalancerName,
+			ARN:  *f.loadBalancer.LoadBalancerArn,
 		},
 		CanaryTargetGroup: v1alpha1.AwsResourceRef{
-			Name:     *f.targetGroups[0].TargetGroupName,
-			ARN:      *f.targetGroups[0].TargetGroupArn,
+			Name: *f.targetGroups[0].TargetGroupName,
+			ARN:  *f.targetGroups[0].TargetGroupArn,
 		},
 		StableTargetGroup: v1alpha1.AwsResourceRef{
-			Name:     *f.targetGroups[len(f.targetGroups)-1].TargetGroupName,
-			ARN:      *f.targetGroups[len(f.targetGroups)-1].TargetGroupArn,
+			Name: *f.targetGroups[len(f.targetGroups)-1].TargetGroupName,
+			ARN:  *f.targetGroups[len(f.targetGroups)-1].TargetGroupArn,
 		},
 	}
 }
