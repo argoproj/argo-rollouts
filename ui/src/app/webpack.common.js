@@ -21,26 +21,34 @@ const config = {
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
         alias: {react: require.resolve('react')},
+        fallback: {
+            fs: false
+        },
     },
 
     module: {
         rules: [
             {
                 test: /\.tsx?$/,
-                loaders: [`ts-loader?allowTsInNodeModules=true&configFile=${path.resolve('./tsconfig.json')}`],
+                use: [
+                    {
+                        loader: 'ts-loader',
+                        options: {
+                            allowTsInNodeModules: true,
+                            configFile: path.resolve('./tsconfig.json'),
+                        }
+                    }
+                ]
             },
             {
                 test: /\.scss$/,
-                loader: 'style-loader!raw-loader!sass-loader',
+                use: [`style-loader`, `raw-loader`, `sass-loader`],
             },
             {
                 test: /\.css$/,
-                loader: 'style-loader!raw-loader',
+                use: ['style-loader', 'raw-loader'],
             },
         ],
-    },
-    node: {
-        fs: 'empty',
     },
     plugins: [
         new webpack.DefinePlugin({
