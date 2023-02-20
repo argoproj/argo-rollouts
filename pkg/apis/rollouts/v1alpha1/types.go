@@ -58,7 +58,7 @@ type RolloutSpec struct {
 	MinReadySeconds int32 `json:"minReadySeconds,omitempty" protobuf:"varint,4,opt,name=minReadySeconds"`
 	// The window in which a rollback will be fast tracked (fully promoted)
 	// +optional
-	RollbackWindow *RollbackWindowSpec `json:"rollbackWindow,omtempty" protobuf:"bytes,13,opt,name=rollbackWindow"`
+	RollbackWindow *RollbackWindowSpec `json:"rollbackWindow,omitempty" protobuf:"bytes,13,opt,name=rollbackWindow"`
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
 	Strategy RolloutStrategy `json:"strategy" protobuf:"bytes,5,opt,name=strategy"`

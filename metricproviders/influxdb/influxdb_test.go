@@ -3,7 +3,7 @@ package influxdb
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 
@@ -39,7 +39,7 @@ func TestRunSuccessfully(t *testing.T) {
 ,,0,2020-02-17T22:19:49.747562847Z,2020-02-18T22:19:49.747562847Z,2020-02-18T22:08:44.850214724Z,6.6,f,test,1,adsfasdf
 `
 	reader := strings.NewReader(csvTable)
-	result := influxdb2.NewQueryTableResult(ioutil.NopCloser(reader))
+	result := influxdb2.NewQueryTableResult(io.NopCloser(reader))
 	mock := &mockAPI{response: result}
 	p := NewInfluxdbProvider(mock, e)
 	metric := v1alpha1.Metric{
@@ -71,7 +71,7 @@ func TestRunWithTimeseries(t *testing.T) {
 ,,0,2020-02-17T22:19:49.747562847Z,2020-02-18T22:19:49.747562847Z,2020-02-18T22:08:44.850214724Z,20,f,test,1,adsfasdf
 `
 	reader := strings.NewReader(csvTable)
-	result := influxdb2.NewQueryTableResult(ioutil.NopCloser(reader))
+	result := influxdb2.NewQueryTableResult(io.NopCloser(reader))
 	mock := &mockAPI{response: result}
 	p := NewInfluxdbProvider(mock, e)
 	metric := v1alpha1.Metric{
@@ -102,7 +102,7 @@ func TestRunWithEmptyResult(t *testing.T) {
 ,result,table,_start,_stop,_time,_value,_field,_measurement,a,b
 `
 	reader := strings.NewReader(csvTable)
-	result := influxdb2.NewQueryTableResult(ioutil.NopCloser(reader))
+	result := influxdb2.NewQueryTableResult(io.NopCloser(reader))
 	mock := &mockAPI{response: result}
 	p := NewInfluxdbProvider(mock, *e)
 	metric := v1alpha1.Metric{

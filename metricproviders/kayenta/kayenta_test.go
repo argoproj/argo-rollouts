@@ -3,7 +3,7 @@ package kayenta
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -153,7 +153,7 @@ func TestRunSuccessfully(t *testing.T) {
 	c := NewTestClient(func(req *http.Request) *http.Response {
 		if req.URL.String() == jobURL {
 			assert.Equal(t, req.URL.String(), jobURL)
-			body, err := ioutil.ReadAll(req.Body)
+			body, err := io.ReadAll(req.Body)
 			if err != nil {
 				panic(err)
 			}
@@ -171,7 +171,7 @@ func TestRunSuccessfully(t *testing.T) {
 			return &http.Response{
 				StatusCode: 200,
 				// Send response to be tested
-				Body: ioutil.NopCloser(bytes.NewBufferString(`
+				Body: io.NopCloser(bytes.NewBufferString(`
 			{
 				"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
             }
@@ -186,7 +186,7 @@ func TestRunSuccessfully(t *testing.T) {
 			return &http.Response{
 				StatusCode: 200,
 				// Send response to be tested
-				Body: ioutil.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+				Body: io.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
 				// Must be set to non-nil value or it panics
 				Header: make(http.Header),
 			}
@@ -235,11 +235,11 @@ func TestRunBadJobResponse(t *testing.T) {
 			return &http.Response{
 				StatusCode: 500,
 				// Send response to be tested
-				//	Body: ioutil.NopCloser(bytes.NewBufferString(`
-				//{
+				//	Body: io.NopCloser(bytes.NewBufferString(`
+				// {
 				//	"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
-				//}
-				//`)),
+				// }
+				// `)),
 				// Must be set to non-nil value or it panics
 				Header: make(http.Header),
 			}
@@ -250,7 +250,7 @@ func TestRunBadJobResponse(t *testing.T) {
 			return &http.Response{
 				StatusCode: 200,
 				// Send response to be tested
-				Body: ioutil.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+				Body: io.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
 				// Must be set to non-nil value or it panics
 				Header: make(http.Header),
 			}
@@ -287,7 +287,7 @@ func TestRunBadLookupResponse(t *testing.T) {
 		if req.URL.String() == jobURL {
 			assert.Equal(t, req.URL.String(), jobURL)
 
-			body, _ := ioutil.ReadAll(req.Body)
+			body, _ := io.ReadAll(req.Body)
 			assert.Equal(t, string(body), `
 							{
 								"scopes": {
@@ -302,11 +302,11 @@ func TestRunBadLookupResponse(t *testing.T) {
 			return &http.Response{
 				StatusCode: 500,
 				// Send response to be tested
-				//	Body: ioutil.NopCloser(bytes.NewBufferString(`
-				//{
+				//	Body: io.NopCloser(bytes.NewBufferString(`
+				// {
 				//	"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
-				//}
-				//`)),
+				// }
+				// `)),
 				// Must be set to non-nil value or it panics
 				Header: make(http.Header),
 			}
@@ -317,7 +317,7 @@ func TestRunBadLookupResponse(t *testing.T) {
 			return &http.Response{
 				StatusCode: 500,
 				// Send response to be tested
-				//Body: ioutil.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+				// Body: io.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
 				// Must be set to non-nil value or it panics
 				Header: make(http.Header),
 			}
@@ -352,7 +352,7 @@ func TestRunInvalidLookupResponse(t *testing.T) {
 		if req.URL.String() == jobURL {
 			assert.Equal(t, req.URL.String(), jobURL)
 
-			body, _ := ioutil.ReadAll(req.Body)
+			body, _ := io.ReadAll(req.Body)
 			assert.Equal(t, string(body), `
 							{
 								"scopes": {
@@ -367,11 +367,11 @@ func TestRunInvalidLookupResponse(t *testing.T) {
 			return &http.Response{
 				StatusCode: 500,
 				// Send response to be tested
-				//	Body: ioutil.NopCloser(bytes.NewBufferString(`
-				//{
+				//	Body: io.NopCloser(bytes.NewBufferString(`
+				// {
 				//	"canaryExecutionId" : "01DS50WVHAWSTAQACJKB1VKDQB"
-				//}
-				//`)),
+				// }
+				// `)),
 				// Must be set to non-nil value or it panics
 				Header: make(http.Header),
 			}
@@ -382,7 +382,7 @@ func TestRunInvalidLookupResponse(t *testing.T) {
 			return &http.Response{
 				StatusCode: 200,
 				// Send response to be tested
-				Body: ioutil.NopCloser(bytes.NewBufferString(`{"this is bad": "yee"}`)),
+				Body: io.NopCloser(bytes.NewBufferString(`{"this is bad": "yee"}`)),
 				// Must be set to non-nil value or it panics
 				Header: make(http.Header),
 			}
@@ -419,7 +419,7 @@ func TestRunEmptyExecutionId(t *testing.T) {
 			return &http.Response{
 				StatusCode: 200,
 				// Send response to be tested
-				Body: ioutil.NopCloser(bytes.NewBufferString(`
+				Body: io.NopCloser(bytes.NewBufferString(`
 			{
 				"canaryExecutionId" : ""
             }
@@ -434,7 +434,7 @@ func TestRunEmptyExecutionId(t *testing.T) {
 			return &http.Response{
 				StatusCode: 200,
 				// Send response to be tested
-				Body: ioutil.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
+				Body: io.NopCloser(bytes.NewBufferString(configIdLookupResponse)),
 				// Must be set to non-nil value or it panics
 				Header: make(http.Header),
 			}
@@ -471,8 +471,8 @@ func TestResumeSuccessfully(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			//result.judgeResult.score.score
-			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			// result.judgeResult.score.score
+			Body: io.NopCloser(bytes.NewBufferString(`
 			{
 				"complete" : true,
 				"result" : {
@@ -540,8 +540,8 @@ func TestResumeMissingScore(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			//result.judgeResult.score.score
-			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			// result.judgeResult.score.score
+			Body: io.NopCloser(bytes.NewBufferString(`
 			{
 				"complete" : true,
 				"result" : {
@@ -578,8 +578,8 @@ func TestResumeFailure(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			//result.judgeResult.score.score
-			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			// result.judgeResult.score.score
+			Body: io.NopCloser(bytes.NewBufferString(`
 			{
 				"complete" : true,
 				"result" : {
@@ -617,8 +617,8 @@ func TestResumeInconclusive(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			//result.judgeResult.score.score
-			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			// result.judgeResult.score.score
+			Body: io.NopCloser(bytes.NewBufferString(`
 			{
 				"complete" : true,
 				"result" : {
@@ -656,8 +656,8 @@ func TestResumeIncompleteStatus(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			//result.judgeResult.score.score
-			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			// result.judgeResult.score.score
+			Body: io.NopCloser(bytes.NewBufferString(`
 			{
 				"complete" : false,
 				"result" : {
@@ -696,8 +696,8 @@ func TestResumeMissingCompleteStatus(t *testing.T) {
 
 		return &http.Response{
 			StatusCode: 200,
-			//result.judgeResult.score.score
-			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			// result.judgeResult.score.score
+			Body: io.NopCloser(bytes.NewBufferString(`
 			{
 				"result" : {
 								"judgeResult": {

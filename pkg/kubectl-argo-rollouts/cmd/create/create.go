@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"unicode"
 
@@ -153,7 +153,7 @@ func (c *CreateOptions) getNamespace(un unstructured.Unstructured) string {
 
 func (c *CreateOptions) createResource(path string) (runtime.Object, error) {
 	ctx := context.TODO()
-	fileBytes, err := ioutil.ReadFile(path)
+	fileBytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func (c *CreateAnalysisRunOptions) getAnalysisTemplate() (*unstructured.Unstruct
 	if c.From != "" {
 		return c.DynamicClient.Resource(v1alpha1.AnalysisTemplateGVR).Namespace(c.Namespace()).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
-		fileBytes, err := ioutil.ReadFile(c.FromFile)
+		fileBytes, err := os.ReadFile(c.FromFile)
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +350,7 @@ func (c *CreateAnalysisRunOptions) getClusterAnalysisTemplate() (*unstructured.U
 	if c.From != "" {
 		return c.DynamicClient.Resource(v1alpha1.ClusterAnalysisTemplateGVR).Get(ctx, c.From, metav1.GetOptions{})
 	} else {
-		fileBytes, err := ioutil.ReadFile(c.FromFile)
+		fileBytes, err := os.ReadFile(c.FromFile)
 		if err != nil {
 			return nil, err
 		}
