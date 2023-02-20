@@ -18,6 +18,7 @@ type metricPlugin struct {
 
 var pluginClients *metricPlugin
 var once sync.Once
+var mutex sync.RWMutex
 
 // GetMetricPlugin returns a singleton plugin client for the given metric plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the metric.
@@ -54,13 +55,18 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlu
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
 
+		mutex.RLock()
 		if m.pluginClient[pluginName] == nil || m.pluginClient[pluginName].Exited() {
+			mutex.RUnlock()
+
+			mutex.Lock()
 			m.pluginClient[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
 				HandshakeConfig: handshakeConfig,
 				Plugins:         pluginMap,
 				Cmd:             exec.Command(pluginPath),
 				Managed:         true,
 			})
+			mutex.Unlock()
 
 			rpcClient, err := m.pluginClient[pluginName].Client()
 			if err != nil {
@@ -77,12 +83,16 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlu
 			if !ok {
 				return nil, fmt.Errorf("unexpected type from plugin")
 			}
+			mutex.Lock()
 			m.plugin[pluginName] = pluginType
+			mutex.Unlock()
 
-			err = m.plugin[pluginName].InitPlugin(metric)
+			err = m.plugin[pluginName].InitPlugin()
 			if err.Error() != "" {
 				return nil, fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, err)
 			}
+		} else {
+			mutex.RUnlock()
 		}
 
 		return m.plugin[pluginName], nil

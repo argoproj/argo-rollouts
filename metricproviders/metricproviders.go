@@ -94,6 +94,9 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		return skywalking.NewSkyWalkingProvider(client, logCtx), nil
 	case plugin.ProviderType:
 		plugin, err := plugin.NewRpcPlugin(metric)
+		if err != nil {
+			return nil, err
+		}
 		return plugin, err
 	default:
 		return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)

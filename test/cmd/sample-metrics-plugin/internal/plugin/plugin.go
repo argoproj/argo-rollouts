@@ -27,7 +27,6 @@ const EnvVarArgoRolloutsPrometheusAddress string = "ARGO_ROLLOUTS_PROMETHEUS_ADD
 // Here is a real implementation of MetricsPlugin
 type RpcPlugin struct {
 	LogCtx log.Entry
-	api    v1.API
 }
 
 type Config struct {
@@ -37,16 +36,7 @@ type Config struct {
 	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
 }
 
-func (g *RpcPlugin) InitPlugin(metric v1alpha1.Metric) types.RpcError {
-	config := Config{}
-	err := json.Unmarshal(metric.Provider.Plugin["argoproj/argo-rollouts-metric"], &config)
-	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
-	}
-
-	api, err := newPrometheusAPI(config.Address)
-	g.api = api
-
+func (g *RpcPlugin) InitPlugin() types.RpcError {
 	return types.RpcError{}
 }
 
@@ -57,12 +47,20 @@ func (g *RpcPlugin) Run(anaysisRun *v1alpha1.AnalysisRun, metric v1alpha1.Metric
 	}
 
 	config := Config{}
-	json.Unmarshal(metric.Provider.Plugin["argoproj/argo-rollouts-metric"], &config)
+	err := json.Unmarshal(metric.Provider.Plugin["argoproj/sample-prometheus"], &config)
+	if err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	}
+
+	api, err := newPrometheusAPI(config.Address)
+	if err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	response, warnings, err := g.api.Query(ctx, config.Query, time.Now())
+	response, warnings, err := api.Query(ctx, config.Query, time.Now())
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -111,7 +109,7 @@ func (g *RpcPlugin) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	metricsMetadata := make(map[string]string)
 
 	config := Config{}
-	json.Unmarshal(metric.Provider.Plugin["argoproj/argo-rollouts-metrics"], &config)
+	json.Unmarshal(metric.Provider.Plugin["argoproj/sample-prometheus"], &config)
 	if config.Query != "" {
 		metricsMetadata["ResolvedPrometheusQuery"] = config.Query
 	}

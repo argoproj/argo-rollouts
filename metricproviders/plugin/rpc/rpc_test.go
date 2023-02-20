@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -82,11 +81,7 @@ func TestPlugin(t *testing.T) {
 	plugin, _, cancel, closeCh := pluginClient(t)
 	defer cancel()
 
-	err := plugin.InitPlugin(v1alpha1.Metric{
-		Provider: v1alpha1.MetricProvider{
-			Plugin: map[string]json.RawMessage{"prometheus": json.RawMessage(`{"address":"http://prometheus.local", "query":"machine_cpu_cores"}`)},
-		},
-	})
+	err := plugin.InitPlugin()
 	if err.Error() != "" {
 		t.Fail()
 	}
@@ -135,7 +130,7 @@ func TestPluginClosedConnection(t *testing.T) {
 
 	const expectedError = "connection is shut down"
 
-	newMetrics := plugin.InitPlugin(v1alpha1.Metric{})
+	newMetrics := plugin.InitPlugin()
 	assert.Equal(t, expectedError, newMetrics.Error())
 
 	measurement := plugin.Terminate(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, v1alpha1.Measurement{})
@@ -178,9 +173,6 @@ func TestInvalidArgs(t *testing.T) {
 	assert.Error(t, err)
 
 	err = server.GarbageCollect(badtype, &types.RpcError{})
-	assert.Error(t, err)
-
-	err = server.InitPlugin(badtype, &types.RpcError{})
 	assert.Error(t, err)
 
 	resp := make(map[string]string)

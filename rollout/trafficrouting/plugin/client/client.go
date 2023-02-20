@@ -17,6 +17,7 @@ type trafficPlugin struct {
 
 var pluginClients *trafficPlugin
 var once sync.Once
+var mutex sync.RWMutex
 
 // GetTrafficPlugin returns a singleton plugin client for the given traffic router plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the rollout object.
@@ -46,18 +47,23 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 		"RpcTrafficRouterPlugin": &rpc.RpcTrafficRouterPlugin{},
 	}
 
+	mutex.RLock()
 	if t.pluginClient[pluginName] == nil || t.pluginClient[pluginName].Exited() {
+		mutex.RUnlock()
+
 		pluginPath, err := plugin.GetPluginLocation(pluginName)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
 
+		mutex.Lock()
 		t.pluginClient[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
 			HandshakeConfig: handshakeConfig,
 			Plugins:         pluginMap,
 			Cmd:             exec.Command(pluginPath),
 			Managed:         true,
 		})
+		mutex.Unlock()
 
 		rpcClient, err := t.pluginClient[pluginName].Client()
 		if err != nil {
@@ -69,12 +75,16 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 		if err != nil {
 			return nil, err
 		}
+		mutex.Lock()
 		t.plugin[pluginName] = plugin.(rpc.TrafficRouterPlugin)
+		mutex.Unlock()
 
 		err = t.plugin[pluginName].InitPlugin()
 		if err.Error() != "" {
 			return nil, err
 		}
+	} else {
+		mutex.RUnlock()
 	}
 
 	client, err := t.pluginClient[pluginName].Client()

@@ -30,7 +30,7 @@ type GarbageCollectArgs struct {
 	Limit       int
 }
 
-type InitMetricsPluginAndGetMetadataArgs struct {
+type GetMetadataArgs struct {
 	Metric v1alpha1.Metric
 }
 
@@ -38,13 +38,13 @@ func init() {
 	gob.RegisterName("RunArgs", new(RunArgs))
 	gob.RegisterName("TerminateAndResumeArgs", new(TerminateAndResumeArgs))
 	gob.RegisterName("GarbageCollectArgs", new(GarbageCollectArgs))
-	gob.RegisterName("InitMetricsPluginAndGetMetadataArgs", new(InitMetricsPluginAndGetMetadataArgs))
+	gob.RegisterName("GetMetadataArgs", new(GetMetadataArgs))
 }
 
 // MetricsPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
 // not import that package because it would create a circular dependency.
 type MetricsPlugin interface {
-	InitPlugin(metric v1alpha1.Metric) types.RpcError
+	InitPlugin() types.RpcError
 	types.RpcMetricProvider
 }
 
@@ -53,12 +53,9 @@ type MetricsPluginRPC struct{ client *rpc.Client }
 
 // InitPlugin is the client side function that is wrapped by a local provider this makes a rpc call to the
 // server side function.
-func (g *MetricsPluginRPC) InitPlugin(metric v1alpha1.Metric) types.RpcError {
+func (g *MetricsPluginRPC) InitPlugin() types.RpcError {
 	var resp types.RpcError
-	var args interface{} = InitMetricsPluginAndGetMetadataArgs{
-		Metric: metric,
-	}
-	err := g.client.Call("Plugin.InitPlugin", &args, &resp)
+	err := g.client.Call("Plugin.InitPlugin", new(interface{}), &resp)
 	if err != nil {
 		return types.RpcError{ErrorString: err.Error()}
 	}
@@ -138,7 +135,7 @@ func (g *MetricsPluginRPC) Type() string {
 // GetMetadata is the client side function that is wrapped by a local provider this makes an rpc call to the server side function.
 func (g *MetricsPluginRPC) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	var resp map[string]string
-	var args interface{} = InitMetricsPluginAndGetMetadataArgs{
+	var args interface{} = GetMetadataArgs{
 		Metric: metric,
 	}
 	err := g.client.Call("Plugin.GetMetadata", &args, &resp)
@@ -159,11 +156,7 @@ type MetricsRPCServer struct {
 // InitPlugin is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
 func (s *MetricsRPCServer) InitPlugin(args interface{}, resp *types.RpcError) error {
-	initArgs, ok := args.(*InitMetricsPluginAndGetMetadataArgs)
-	if !ok {
-		return fmt.Errorf("invalid args %s", args)
-	}
-	*resp = s.Impl.InitPlugin(initArgs.Metric)
+	*resp = s.Impl.InitPlugin()
 	return nil
 }
 
@@ -221,7 +214,7 @@ func (s *MetricsRPCServer) Type(args interface{}, resp *string) error {
 // GetMetadata is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
 func (s *MetricsRPCServer) GetMetadata(args interface{}, resp *map[string]string) error {
-	getMetadataArgs, ok := args.(*InitMetricsPluginAndGetMetadataArgs)
+	getMetadataArgs, ok := args.(*GetMetadataArgs)
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
 	}
