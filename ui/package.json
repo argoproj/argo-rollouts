@@ -21,7 +21,7 @@
     },
     "scripts": {
         "start": "webpack serve --config ./src/app/webpack.dev.js",
-        "build": "rm -rf dist && webpack --config ./src/app/webpack.prod.js",
+        "build": "rm -rf dist && NODE_OPTIONS=--openssl-legacy-provider webpack --config ./src/app/webpack.prod.js",
         "test": "react-scripts test",
         "eject": "react-scripts eject",
         "protogen": "../hack/swagger-codegen.sh generate -i ../pkg/apiclient/rollout/rollout.swagger.json -l typescript-fetch -o src/models/rollout/generated"
