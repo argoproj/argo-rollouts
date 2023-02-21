@@ -18,7 +18,18 @@ type metricPlugin struct {
 
 var pluginClients *metricPlugin
 var once sync.Once
-var mutex sync.RWMutex
+var mutex sync.Mutex
+
+var handshakeConfig = goPlugin.HandshakeConfig{
+	ProtocolVersion:  1,
+	MagicCookieKey:   "ARGO_ROLLOUTS_RPC_PLUGIN",
+	MagicCookieValue: "metrics",
+}
+
+// pluginMap is the map of plugins we can dispense.
+var pluginMap = map[string]goPlugin.Plugin{
+	"RpcMetricsPlugin": &rpc.RpcMetricsPlugin{},
+}
 
 // GetMetricPlugin returns a singleton plugin client for the given metric plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the metric.
@@ -37,36 +48,25 @@ func GetMetricPlugin(metric v1alpha1.Metric) (rpc.MetricsPlugin, error) {
 }
 
 func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlugin, error) {
-	var handshakeConfig = goPlugin.HandshakeConfig{
-		ProtocolVersion:  1,
-		MagicCookieKey:   "ARGO_ROLLOUTS_RPC_PLUGIN",
-		MagicCookieValue: "metrics",
-	}
+	mutex.Lock()
+	defer mutex.Unlock()
 
-	// pluginMap is the map of plugins we can dispense.
-	var pluginMap = map[string]goPlugin.Plugin{
-		"RpcMetricsPlugin": &rpc.RpcMetricsPlugin{},
-	}
-
-	//There should only ever be one plugin defined in metric.Provider.Plugin
+	// There should only ever be one plugin defined in metric.Provider.Plugin per analysis template this gets checked
+	// during validation
 	for pluginName := range metric.Provider.Plugin {
 		pluginPath, err := plugin.GetPluginLocation(pluginName)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
 
-		mutex.RLock()
 		if m.pluginClient[pluginName] == nil || m.pluginClient[pluginName].Exited() {
-			mutex.RUnlock()
 
-			mutex.Lock()
 			m.pluginClient[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
 				HandshakeConfig: handshakeConfig,
 				Plugins:         pluginMap,
 				Cmd:             exec.Command(pluginPath),
 				Managed:         true,
 			})
-			mutex.Unlock()
 
 			rpcClient, err := m.pluginClient[pluginName].Client()
 			if err != nil {
@@ -83,19 +83,26 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlu
 			if !ok {
 				return nil, fmt.Errorf("unexpected type from plugin")
 			}
-			mutex.Lock()
 			m.plugin[pluginName] = pluginType
-			mutex.Unlock()
 
 			err = m.plugin[pluginName].InitPlugin()
 			if err.Error() != "" {
 				return nil, fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, err)
 			}
-		} else {
-			mutex.RUnlock()
+		}
+
+		client, err := m.pluginClient[pluginName].Client()
+		if err != nil {
+			return nil, err
+		}
+		if err := client.Ping(); err != nil {
+			m.pluginClient[pluginName].Kill()
+			m.pluginClient[pluginName] = nil
+			return nil, fmt.Errorf("could not ping plugin will cleanup process so we can restart it next reconcile (%w)", err)
 		}
 
 		return m.plugin[pluginName], nil
 	}
+
 	return nil, fmt.Errorf("no plugin found")
 }

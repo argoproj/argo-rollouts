@@ -17,7 +17,18 @@ type trafficPlugin struct {
 
 var pluginClients *trafficPlugin
 var once sync.Once
-var mutex sync.RWMutex
+var mutex sync.Mutex
+
+var handshakeConfig = goPlugin.HandshakeConfig{
+	ProtocolVersion:  1,
+	MagicCookieKey:   "ARGO_ROLLOUTS_RPC_PLUGIN",
+	MagicCookieValue: "trafficrouter",
+}
+
+// pluginMap is the map of plugins we can dispense.
+var pluginMap = map[string]goPlugin.Plugin{
+	"RpcTrafficRouterPlugin": &rpc.RpcTrafficRouterPlugin{},
+}
 
 // GetTrafficPlugin returns a singleton plugin client for the given traffic router plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the rollout object.
@@ -36,34 +47,22 @@ func GetTrafficPlugin(pluginName string) (rpc.TrafficRouterPlugin, error) {
 }
 
 func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin, error) {
-	var handshakeConfig = goPlugin.HandshakeConfig{
-		ProtocolVersion:  1,
-		MagicCookieKey:   "ARGO_ROLLOUTS_RPC_PLUGIN",
-		MagicCookieValue: "trafficrouter",
-	}
+	mutex.Lock()
+	defer mutex.Unlock()
 
-	// pluginMap is the map of plugins we can dispense.
-	var pluginMap = map[string]goPlugin.Plugin{
-		"RpcTrafficRouterPlugin": &rpc.RpcTrafficRouterPlugin{},
-	}
-
-	mutex.RLock()
 	if t.pluginClient[pluginName] == nil || t.pluginClient[pluginName].Exited() {
-		mutex.RUnlock()
 
 		pluginPath, err := plugin.GetPluginLocation(pluginName)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
 
-		mutex.Lock()
 		t.pluginClient[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
 			HandshakeConfig: handshakeConfig,
 			Plugins:         pluginMap,
 			Cmd:             exec.Command(pluginPath),
 			Managed:         true,
 		})
-		mutex.Unlock()
 
 		rpcClient, err := t.pluginClient[pluginName].Client()
 		if err != nil {
@@ -75,16 +74,17 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 		if err != nil {
 			return nil, err
 		}
-		mutex.Lock()
-		t.plugin[pluginName] = plugin.(rpc.TrafficRouterPlugin)
-		mutex.Unlock()
+
+		pluginType, ok := plugin.(rpc.TrafficRouterPlugin)
+		if !ok {
+			return nil, fmt.Errorf("unexpected type from plugin")
+		}
+		t.plugin[pluginName] = pluginType
 
 		err = t.plugin[pluginName].InitPlugin()
 		if err.Error() != "" {
 			return nil, err
 		}
-	} else {
-		mutex.RUnlock()
 	}
 
 	client, err := t.pluginClient[pluginName].Client()
