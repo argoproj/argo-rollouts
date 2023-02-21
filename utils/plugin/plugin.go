@@ -11,14 +11,14 @@ import (
 
 // GetPluginLocation returns the location of the plugin on the filesystem via plugin name. If the plugin is not
 // configured in the configmap, an error is returned.
-func GetPluginLocation(pluginRepository string) (string, error) {
+func GetPluginLocation(pluginName string) (string, error) {
 	configMap, err := config.GetConfig()
 	if err != nil {
 		return "", fmt.Errorf("failed to get config: %w", err)
 	}
 
 	for _, item := range configMap.GetAllPlugins() {
-		if pluginRepository == item.Name {
+		if pluginName == item.Name {
 			dir, filename, err := config.GetPluginDirectoryAndFilename(item.Name)
 			if err != nil {
 				return "", err
@@ -30,5 +30,5 @@ func GetPluginLocation(pluginRepository string) (string, error) {
 			return absFilePath, nil
 		}
 	}
-	return "", fmt.Errorf("plugin %s not configured in configmap", pluginRepository)
+	return "", fmt.Errorf("plugin %s not configured in configmap", pluginName)
 }
