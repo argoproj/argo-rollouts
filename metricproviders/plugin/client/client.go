@@ -70,7 +70,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlu
 
 			rpcClient, err := m.pluginClient[pluginName].Client()
 			if err != nil {
-				return nil, fmt.Errorf("unable to start plugin (%s): %w", pluginName, err)
+				return nil, fmt.Errorf("unable to get plugin client (%s): %w", pluginName, err)
 			}
 
 			// Request the plugin
@@ -93,7 +93,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlu
 
 		client, err := m.pluginClient[pluginName].Client()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to get plugin client (%s) for ping: %w", pluginName, err)
 		}
 		if err := client.Ping(); err != nil {
 			m.pluginClient[pluginName].Kill()

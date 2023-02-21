@@ -66,13 +66,13 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 
 		rpcClient, err := t.pluginClient[pluginName].Client()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to get plugin client (%s): %w", pluginName, err)
 		}
 
 		// Request the plugin
 		plugin, err := rpcClient.Dispense("RpcTrafficRouterPlugin")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to dispense plugin (%s): %w", pluginName, err)
 		}
 
 		pluginType, ok := plugin.(rpc.TrafficRouterPlugin)
@@ -83,13 +83,13 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 
 		err = t.plugin[pluginName].InitPlugin()
 		if err.Error() != "" {
-			return nil, err
+			return nil, fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, err)
 		}
 	}
 
 	client, err := t.pluginClient[pluginName].Client()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get plugin client (%s) for ping: %w", pluginName, err)
 	}
 	if err := client.Ping(); err != nil {
 		t.pluginClient[pluginName].Kill()
