@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
@@ -455,16 +456,19 @@ func (f *fakeAWSClient) GetTargetGroupHealth(ctx context.Context, targetGroupARN
 func (f *fakeAWSClient) getAlbStatus() *v1alpha1.ALBStatus {
 	return &v1alpha1.ALBStatus{
 		LoadBalancer: v1alpha1.AwsResourceRef{
-			Name: *f.loadBalancer.LoadBalancerName,
-			ARN:  *f.loadBalancer.LoadBalancerArn,
+			Name:     *f.loadBalancer.LoadBalancerName,
+			ARN:      *f.loadBalancer.LoadBalancerArn,
+			FullName: strings.Join(strings.Split(*f.loadBalancer.LoadBalancerArn, "/")[2:], "/"),
 		},
 		CanaryTargetGroup: v1alpha1.AwsResourceRef{
-			Name: *f.targetGroups[0].TargetGroupName,
-			ARN:  *f.targetGroups[0].TargetGroupArn,
+			Name:     *f.targetGroups[0].TargetGroupName,
+			ARN:      *f.targetGroups[0].TargetGroupArn,
+			FullName: strings.Join(strings.Split(*f.targetGroups[0].TargetGroupArn, "/")[1:], "/"),
 		},
 		StableTargetGroup: v1alpha1.AwsResourceRef{
-			Name: *f.targetGroups[len(f.targetGroups)-1].TargetGroupName,
-			ARN:  *f.targetGroups[len(f.targetGroups)-1].TargetGroupArn,
+			Name:     *f.targetGroups[len(f.targetGroups)-1].TargetGroupName,
+			ARN:      *f.targetGroups[len(f.targetGroups)-1].TargetGroupArn,
+			FullName: strings.Join(strings.Split(*f.targetGroups[len(f.targetGroups)-1].TargetGroupArn, "/")[1:], "/"),
 		},
 	}
 }
