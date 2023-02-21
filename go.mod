@@ -56,13 +56,12 @@ require (
 )
 
 require (
-	github.com/bradleyfalzon/ghinstallation v1.1.1 // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
-	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible // indirect
-	github.com/google/go-github/v29 v29.0.2 // indirect
-	github.com/google/go-github/v33 v33.0.0 // indirect
+	github.com/PagerDuty/go-pagerduty v1.6.0 // indirect
+	github.com/bradleyfalzon/ghinstallation/v2 v2.1.0 // indirect
+	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
+	github.com/google/go-github/v41 v41.0.0 // indirect
+	github.com/google/go-github/v45 v45.2.0 // indirect
 	github.com/matryer/is v1.4.0 // indirect
-	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
 )
 
 require (
@@ -159,7 +158,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/russross/blackfriday v1.6.0 // indirect
-	github.com/slack-go/slack v0.11.0 // indirect
+	github.com/slack-go/slack v0.12.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
