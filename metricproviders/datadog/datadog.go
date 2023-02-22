@@ -39,14 +39,8 @@ const (
 )
 
 var (
-	RetryMaxWaitSeconds = DefaultRetryMaxWaitSeconds
-	RetryMax            = DefaultRetryMax
-	// ProviderType indicates the provider is datadog
-	ProviderType            = "Datadog"
-	DatadogTokensSecretName = "datadog"
-	DatadogApiKey           = "api-key"
-	DatadogAppKey           = "app-key"
-	DatadogAddress          = "address"
+	retryMaxWaitSeconds = DefaultRetryMaxWaitSeconds
+	retryMax            = DefaultRetryMax
 )
 
 // Provider contains all the required components to run a Datadog query
@@ -123,8 +117,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	// Configure retryable HTTP Client that automatically retries on 429 status codes
 	// with exponential backoff.
 	retryClient := retryablehttp.NewClient()
-	retryClient.RetryMax = RetryMax
-	retryClient.RetryWaitMax = time.Second * RetryMaxWaitSeconds
+	retryClient.RetryMax = retryMax
+	retryClient.RetryWaitMax = time.Second * retryMaxWaitSeconds
 	retryClient.HTTPClient.Timeout = time.Duration(10) * time.Second
 	httpClient := retryClient.StandardClient()
 
@@ -222,11 +216,11 @@ func lookupKeysInEnv(keys []string) map[string]string {
 }
 
 func SetRetryMax(max int) {
-	RetryMax = max
+	retryMax = max
 }
 
 func SetRetryMaxWait(seconds time.Duration) {
-	RetryMaxWaitSeconds = seconds
+	retryMaxWaitSeconds = seconds
 }
 
 func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*Provider, error) {
