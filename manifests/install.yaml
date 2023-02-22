@@ -2711,6 +2711,15 @@ spec:
                             query:
                               type: string
                           type: object
+                        skywalking:
+                          properties:
+                            address:
+                              type: string
+                            interval:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         wavefront:
                           properties:
                             address:
@@ -5591,6 +5600,15 @@ spec:
                             query:
                               type: string
                           type: object
+                        skywalking:
+                          properties:
+                            address:
+                              type: string
+                            interval:
+                              type: string
+                            query:
+                              type: string
+                          type: object
                         wavefront:
                           properties:
                             address:
@@ -8353,6 +8371,15 @@ spec:
                         prometheus:
                           properties:
                             address:
+                              type: string
+                            query:
+                              type: string
+                          type: object
+                        skywalking:
+                          properties:
+                            address:
+                              type: string
+                            interval:
                               type: string
                             query:
                               type: string

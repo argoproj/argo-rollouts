@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -39,8 +39,14 @@ const (
 )
 
 var (
-	retryMaxWaitSeconds = DefaultRetryMaxWaitSeconds
-	retryMax            = DefaultRetryMax
+	RetryMaxWaitSeconds = DefaultRetryMaxWaitSeconds
+	RetryMax            = DefaultRetryMax
+	// ProviderType indicates the provider is datadog
+	ProviderType            = "Datadog"
+	DatadogTokensSecretName = "datadog"
+	DatadogApiKey           = "api-key"
+	DatadogAppKey           = "app-key"
+	DatadogAddress          = "address"
 )
 
 // Provider contains all the required components to run a Datadog query
@@ -117,8 +123,8 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	// Configure retryable HTTP Client that automatically retries on 429 status codes
 	// with exponential backoff.
 	retryClient := retryablehttp.NewClient()
-	retryClient.RetryMax = retryMax
-	retryClient.RetryWaitMax = time.Second * retryMaxWaitSeconds
+	retryClient.RetryMax = RetryMax
+	retryClient.RetryWaitMax = time.Second * RetryMaxWaitSeconds
 	retryClient.HTTPClient.Timeout = time.Duration(10) * time.Second
 	httpClient := retryClient.StandardClient()
 
@@ -144,7 +150,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
@@ -216,11 +222,11 @@ func lookupKeysInEnv(keys []string) map[string]string {
 }
 
 func SetRetryMax(max int) {
-	retryMax = max
+	RetryMax = max
 }
 
 func SetRetryMaxWait(seconds time.Duration) {
-	retryMaxWaitSeconds = seconds
+	RetryMaxWaitSeconds = seconds
 }
 
 func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*Provider, error) {

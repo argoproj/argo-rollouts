@@ -1,7 +1,7 @@
 package util
 
 import (
-	"io/ioutil"
+	"os"
 
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -27,7 +27,7 @@ func ObjectFromYAML(yamlStr string) *unstructured.Unstructured {
 // ObjectFromPath returns a runtime.Object from the given path. Path is a relative path from source root
 func ObjectFromPath(path string) *unstructured.Unstructured {
 	path = "../../" + path
-	body, err := ioutil.ReadFile(path)
+	body, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
