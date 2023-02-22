@@ -94,7 +94,7 @@ a hashicorp go-plugin. The two interfaces are `MetricsPlugin` and `TrafficRouter
 
 ```go
 type MetricsPlugin interface { 
-	InitPlugin(v1alpha1.Metric) types.RpcError
+	InitPlugin() types.RpcError
 	Run(*v1alpha1.AnalysisRun, v1alpha1.Metric) v1alpha1.Measurement
 	Resume(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
 	Terminate(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
