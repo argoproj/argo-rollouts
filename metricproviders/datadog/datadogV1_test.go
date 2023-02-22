@@ -1,12 +1,11 @@
 package datadog
 
 import (
-	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -34,8 +33,9 @@ func TestRunSuite(t *testing.T) {
 
 	ddProviderInterval10m := v1alpha1.MetricProvider{
 		Datadog: &v1alpha1.DatadogMetric{
-			Query:    "avg:kubernetes.cpu.user.total{*}",
-			Interval: "10m",
+			Query:      "avg:kubernetes.cpu.user.total{*}",
+			Interval:   "10m",
+			ApiVersion: "v1",
 		},
 	}
 
@@ -54,7 +54,7 @@ func TestRunSuite(t *testing.T) {
 		// When last value of time series matches condition then succeed.
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"data": {"attributes": {"values": [[0.0020008318672513122, 0.0003332881882246533]], "times": [1598867910000, 1598867925000]}}}`,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.0003332881882246533]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
@@ -69,7 +69,7 @@ func TestRunSuite(t *testing.T) {
 		// Same test as above, but derive DD keys from env var instead of k8s secret
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"data": {"attributes": {"values": [[0.0020008318672513122, 0.0003332881882246533]], "times": [1598867910000, 1598867925000]}}}`,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.0003332881882246533]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
@@ -84,7 +84,7 @@ func TestRunSuite(t *testing.T) {
 		// When last value of time series does not match condition then fail.
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"data": {"attributes": {"values": [[0.0020008318672513122, 0.006121378742186943]], "times": [1598867910000, 1598867925000]}}}`,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
@@ -130,7 +130,7 @@ func TestRunSuite(t *testing.T) {
 		// Expect success with default() and data
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"data": {"attributes": {"values": [[0.0020008318672513122, 0.006121378742186943]], "times": [1598867910000, 1598867925000]}}}`,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "default(result, 0) < 0.05",
@@ -145,7 +145,7 @@ func TestRunSuite(t *testing.T) {
 		// Expect error with no default() and no data
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"data": {"attributes": {"values": [], "times": []}}}`,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "result < 0.05",
@@ -160,14 +160,14 @@ func TestRunSuite(t *testing.T) {
 		// Expect success with default() and no data
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"data": {"attributes": {"values": [], "times": []}}}`,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "default(result, 0) < 0.05",
 				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
-			expectedValue:           `{"Values":[],"Times":[]}`,
+			expectedValue:           `[{"pointlist":[]}]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
@@ -175,14 +175,14 @@ func TestRunSuite(t *testing.T) {
 		// Expect failure with bad default() and no data
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"data": {"attributes": {"values": [], "times": []}}}`,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "default(result, 1) < 0.05",
 				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
-			expectedValue:           `{"Values":[],"Times":[]}`,
+			expectedValue:           `[{"pointlist":[]}]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
 			useEnvVarForKeys:        false,
 		},
@@ -190,7 +190,7 @@ func TestRunSuite(t *testing.T) {
 		// Expect success with bad default() and good data
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"data": {"attributes": {"values": [[0.0020008318672513122, 0.006121378742186943]], "times": [1598867910000, 1598867925000]}}}`,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "default(result, 1) < 0.05",
@@ -202,10 +202,10 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
-		// Error if datadog returns non-array values
+		// Error if datadog returns non-array series
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"data": {"attributes": {"values": "invalid", "times": "invalid"}}}`,
+			webServerResponse: `{"status":"ok","series":"invalid"}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "result < 0.001",
@@ -214,7 +214,7 @@ func TestRunSuite(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field .Data.Attributes.Values of type [][]float64",
+			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field datadogResponseV1.Series of type []struct { Pointlist [][]float64 \"json:\\\"pointlist\\\"\" }",
 			useEnvVarForKeys:        false,
 		},
 
@@ -223,7 +223,7 @@ func TestRunSuite(t *testing.T) {
 			serverURL:            "://wrong.schema",
 			metric:               v1alpha1.Metric{},
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage: "parse \"://wrong.schema/api/v2/query/timeseries\": missing protocol scheme",
+			expectedErrorMessage: "parse \"://wrong.schema\": missing protocol scheme",
 			useEnvVarForKeys:     false,
 		},
 	}
@@ -238,33 +238,22 @@ func TestRunSuite(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 
 				//Check query variables
-				bodyBytes, err := ioutil.ReadAll(req.Body)
-				if err != nil {
-					t.Errorf("\nreceived no bytes in request: %v", err)
-				}
-
-				var reqBody datadogQuery
-				err = json.Unmarshal(bodyBytes, &reqBody)
-				if err != nil {
-					t.Errorf("\nCould not parse JSON request body: %v", err)
-				}
-
-				actualQuery := reqBody.Attributes.Queries[0]["query"]
-				actualFrom := reqBody.Attributes.From
-				actualTo := reqBody.Attributes.To
+				actualQuery := req.URL.Query().Get("query")
+				actualFrom := req.URL.Query().Get("from")
+				actualTo := req.URL.Query().Get("to")
 
 				if actualQuery != "avg:kubernetes.cpu.user.total{*}" {
 					t.Errorf("\nquery expected avg:kubernetes.cpu.user.total{*} but got %s", actualQuery)
 				}
 
-				if actualFrom != unixNow()-test.expectedIntervalSeconds {
-					t.Errorf("\nfrom %d expected be equal to %d", actualFrom, unixNow()-test.expectedIntervalSeconds)
+				if from, err := strconv.ParseInt(actualFrom, 10, 64); err == nil && from != unixNow()-test.expectedIntervalSeconds {
+					t.Errorf("\nfrom %d expected be equal to %d", from, unixNow()-test.expectedIntervalSeconds)
 				} else if err != nil {
 					t.Errorf("\nfailed to parse from: %v", err)
 				}
 
-				if actualTo != unixNow() {
-					t.Errorf("\nto %d was expected be equal to %d", actualTo, unixNow())
+				if to, err := strconv.ParseInt(actualTo, 10, 64); err == nil && to != unixNow() {
+					t.Errorf("\nto %d was expected be equal to %d", to, unixNow())
 				} else if err != nil {
 					t.Errorf("\nfailed to parse to: %v", err)
 				}

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -56,7 +55,13 @@ type datadogQuery struct {
 	QueryType  string                 `json:"type"`
 }
 
-type datadogResponse struct {
+type datadogResponseV1 struct {
+	Series []struct {
+		Pointlist [][]float64 `json:"pointlist"`
+	}
+}
+
+type datadogResponseV2 struct {
 	Data struct {
 		Attributes struct {
 			Values [][]float64
@@ -90,15 +95,33 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	endpoint := "https://api.datadoghq.com/api/v2/query/timeseries"
+	endpoint := "https://api.datadoghq.com"
 	if p.config.Address != "" {
-		endpoint = p.config.Address + "/api/v2/query/timeseries"
+		endpoint = p.config.Address
 	}
 
+	// Check if the URL is valid first before adding the endpoint
 	url, err := url.Parse(endpoint)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
+
+	apiVersion := "v1"
+	if metric.Provider.Datadog.ApiVersion != "" {
+		apiVersion = metric.Provider.Datadog.ApiVersion
+	}
+
+	if apiVersion == "v1" {
+		p.logCtx.Warn("Datadog will soon deprecate their API v1. Please consider switching to v2 soon.")
+	}
+
+	route := "/api/v1/query"
+	if apiVersion == "v2" {
+		route = "/api/v2/query/timeseries"
+	}
+
+	// Add endpoint after getting the API version
+	url, _ = url.Parse(endpoint + route)
 
 	now := unixNow()
 	var interval int64 = 300
@@ -111,21 +134,12 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		interval = int64(expDuration.Seconds())
 	}
 
-	queryBody, _ := json.Marshal(datadogQuery{
-		QueryType: "timeseries_request",
-		Attributes: datadogQueryAttributes{
-			From: now - interval,
-			To:   now,
-			Queries: []map[string]string{{
-				"data_source": "metrics",
-				"query":       metric.Provider.Datadog.Query,
-			}},
-		},
-	})
+	request, err := p.createRequest(metric.Provider.Datadog.Query, apiVersion, now, interval, url)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
 
-	request := &http.Request{Method: "POST"}
 	request.URL = url
-	request.Body = io.NopCloser(bytes.NewReader(queryBody))
 	request.Header = make(http.Header)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("DD-API-KEY", p.config.ApiKey)
@@ -141,7 +155,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	value, status, err := p.parseResponse(metric, response)
+	value, status, err := p.parseResponse(metric, response, apiVersion)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
@@ -154,7 +168,45 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	return measurement
 }
 
-func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
+func (p *Provider) createRequest(query string, apiVersion string, now int64, interval int64, url *url.URL) (*http.Request, error) {
+	if apiVersion == "v1" {
+		q := url.Query()
+		q.Set("query", query)
+		q.Set("from", strconv.FormatInt(now-interval, 10))
+		q.Set("to", strconv.FormatInt(now, 10))
+		url.RawQuery = q.Encode()
+
+		return &http.Request{Method: "GET"}, nil
+	} else if apiVersion == "v2" {
+		queryBody, _ := json.Marshal(datadogQuery{
+			QueryType: "timeseries_request",
+			Attributes: datadogQueryAttributes{
+				From: now - interval,
+				To:   now,
+				Queries: []map[string]string{{
+					"data_source": "metrics",
+					"query":       query,
+				}},
+			},
+		})
+		request := &http.Request{Method: "POST"}
+		request.Body = io.NopCloser(bytes.NewReader(queryBody))
+		return request, nil
+	}
+
+	return nil, fmt.Errorf("Invalid API version: %s", apiVersion)
+}
+
+func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response, apiVersion string) (string, v1alpha1.AnalysisPhase, error) {
+	if apiVersion == "v1" {
+		return p.parseResponseV1(metric, response)
+	} else if apiVersion == "v2" {
+		return p.parseResponseV2(metric, response)
+	}
+	return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Invalid API version: %s", apiVersion)
+}
+
+func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
 
 	bodyBytes, err := io.ReadAll(response.Body)
 
@@ -168,7 +220,51 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("received non 2xx response code: %v %s", response.StatusCode, string(bodyBytes))
 	}
 
-	var res datadogResponse
+	var res datadogResponseV1
+	err = json.Unmarshal(bodyBytes, &res)
+	if err != nil {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)
+	}
+
+	// Handle an empty query result
+	if len(res.Series) == 0 || len(res.Series[0].Pointlist) == 0 {
+		var nilFloat64 *float64
+		status, err := evaluate.EvaluateResult(nilFloat64, metric, p.logCtx)
+		seriesBytes, jsonErr := json.Marshal(res.Series)
+		if jsonErr != nil {
+			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Failed to marshall JSON empty series: %v", jsonErr)
+		}
+
+		return string(seriesBytes), status, err
+	}
+
+	// Handle a populated query result
+	series := res.Series[0]
+	datapoint := series.Pointlist[len(series.Pointlist)-1]
+	if len(datapoint) != 2 {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datapoint does not have 2 values")
+	}
+
+	value := datapoint[1]
+	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
+	return strconv.FormatFloat(value, 'f', -1, 64), status, err
+}
+
+func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
+
+	bodyBytes, err := io.ReadAll(response.Body)
+
+	if err != nil {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
+	}
+
+	if response.StatusCode == http.StatusForbidden || response.StatusCode == http.StatusUnauthorized {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("received authentication error response code: %v %s", response.StatusCode, string(bodyBytes))
+	} else if response.StatusCode != http.StatusOK {
+		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("received non 2xx response code: %v %s", response.StatusCode, string(bodyBytes))
+	}
+
+	var res datadogResponseV2
 	err = json.Unmarshal(bodyBytes, &res)
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Could not parse JSON body: %v", err)

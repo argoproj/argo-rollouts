@@ -179,6 +179,8 @@ spec:
                           type: object
                         datadog:
                           properties:
+                            apiVersion:
+                              type: string
                             interval:
                               type: string
                             query:
@@ -3068,6 +3070,8 @@ spec:
                           type: object
                         datadog:
                           properties:
+                            apiVersion:
+                              type: string
                             interval:
                               type: string
                             query:
@@ -5843,6 +5847,8 @@ spec:
                           type: object
                         datadog:
                           properties:
+                            apiVersion:
+                              type: string
                             interval:
                               type: string
                             query:
