@@ -549,14 +549,14 @@ func TestVerifyWeight(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 			LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-			LoadBalancerArn:  pointer.StringPtr("lb-abc123-arn/456/789"),
+			LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
 			DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("canary-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(11),
 				Tags: map[string]string{
@@ -566,7 +566,7 @@ func TestVerifyWeight(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("stable-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(89),
 				Tags: map[string]string{
@@ -587,14 +587,14 @@ func TestVerifyWeight(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 			LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-			LoadBalancerArn:  pointer.StringPtr("lb-abc123-arn/456/789"),
+			LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
 			DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("canary-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(10),
 				Tags: map[string]string{
@@ -604,7 +604,7 @@ func TestVerifyWeight(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("stable-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(11),
 				Tags: map[string]string{
@@ -725,14 +725,14 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 			LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-			LoadBalancerArn:  pointer.StringPtr("lb-abc123-arn/456/789"),
+			LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
 			DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("canary-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(10),
 				Tags: map[string]string{
@@ -742,7 +742,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("stable-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(90),
 				Tags: map[string]string{
@@ -763,14 +763,14 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 			LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-			LoadBalancerArn:  pointer.StringPtr("lb-abc123-arn/456/789"),
+			LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
 			DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("canary-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(10),
 				Tags: map[string]string{
@@ -780,7 +780,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("ex-svc-1-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(100),
 				Tags: map[string]string{
@@ -790,7 +790,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("ex-svc-2-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(100),
 				Tags: map[string]string{
@@ -800,7 +800,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("stable-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(85),
 				Tags: map[string]string{
@@ -821,14 +821,14 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		r, fakeClient := newFakeReconciler(&status)
 		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 			LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-			LoadBalancerArn:  pointer.StringPtr("lb-abc123-arn/456/789"),
+			LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
 			DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 		}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("canary-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(10),
 				Tags: map[string]string{
@@ -838,7 +838,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("ex-svc-1-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
 				},
 				Weight: &weightDestinations[0].Weight,
 				Tags: map[string]string{
@@ -848,7 +848,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("ex-svc-2-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/1234567890123456"),
 				},
 				Weight: &weightDestinations[1].Weight,
 				Tags: map[string]string{
@@ -858,7 +858,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("stable-tg-abc123-arn/456"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(85),
 				Tags: map[string]string{
