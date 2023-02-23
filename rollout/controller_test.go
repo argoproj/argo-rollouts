@@ -1955,11 +1955,9 @@ func TestWriteBackToInformer(t *testing.T) {
 	// *v1alpha1.Rollout the underlying cause is not fully known.
 	//un, ok := obj.(*unstructured.Unstructured)
 	//assert.True(t, ok)
-	var mapObj map[string]interface{}
-	inrec, err := json.Marshal(obj)
+	unObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	assert.NoError(t, err)
-	json.Unmarshal(inrec, &mapObj)
-	un := &unstructured.Unstructured{Object: mapObj}
+	un := unstructured.Unstructured{Object: unObj}
 
 	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
 	assert.NotEmpty(t, stableRS)
