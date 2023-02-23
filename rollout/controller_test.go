@@ -1948,8 +1948,19 @@ func TestWriteBackToInformer(t *testing.T) {
 	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
 	assert.NoError(t, err)
 	assert.True(t, exists)
-	un, ok := obj.(*unstructured.Unstructured)
-	assert.True(t, ok)
+
+	// Want to keep this code for future reference, this commented code would randomly fail to do the type cast
+	// using json marshalling to convert to a map[string]interface{} instead seems to fix the issue when I test
+	// this function in a loop. I want to keep this code because it seems really strange that the type cast would
+	// randomly fail.
+	//un, ok := obj.(*unstructured.Unstructured)
+	//assert.True(t, ok)
+	var mapObj map[string]interface{}
+	inrec, err := json.Marshal(obj)
+	assert.NoError(t, err)
+	json.Unmarshal(inrec, &mapObj)
+	un := &unstructured.Unstructured{Object: mapObj}
+
 	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
 	assert.NotEmpty(t, stableRS)
 	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
