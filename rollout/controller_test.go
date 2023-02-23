@@ -1957,9 +1957,8 @@ func TestWriteBackToInformer(t *testing.T) {
 	//assert.True(t, ok)
 	unObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	assert.NoError(t, err)
-	un := unstructured.Unstructured{Object: unObj}
 
-	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
+	stableRS, _, _ := unstructured.NestedString(unObj, "status", "stableRS")
 	assert.NotEmpty(t, stableRS)
 	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
 }
