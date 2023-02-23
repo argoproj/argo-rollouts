@@ -454,21 +454,33 @@ func (f *fakeAWSClient) GetTargetGroupHealth(ctx context.Context, targetGroupARN
 }
 
 func (f *fakeAWSClient) getAlbStatus() *v1alpha1.ALBStatus {
+	LoadBalancerFullName := ""
+	if lbArnParts := strings.Split(*f.loadBalancer.LoadBalancerArn, "/"); len(lbArnParts) > 2 {
+		LoadBalancerFullName = strings.Join(lbArnParts[2:], "/")
+	}
+	CanaryTargetGroupFullName := ""
+	if tgArnParts := strings.Split(*f.targetGroups[0].TargetGroupArn, "/"); len(tgArnParts) > 1 {
+		CanaryTargetGroupFullName = strings.Join(tgArnParts[1:], "/")
+	}
+	StableTargetGroupFullName := ""
+	if tgArnParts := strings.Split(*f.targetGroups[len(f.targetGroups)-1].TargetGroupArn, "/"); len(tgArnParts) > 1 {
+		StableTargetGroupFullName = strings.Join(tgArnParts[1:], "/")
+	}
 	return &v1alpha1.ALBStatus{
 		LoadBalancer: v1alpha1.AwsResourceRef{
 			Name:     *f.loadBalancer.LoadBalancerName,
 			ARN:      *f.loadBalancer.LoadBalancerArn,
-			FullName: strings.Join(strings.Split(*f.loadBalancer.LoadBalancerArn, "/")[2:], "/"),
+			FullName: LoadBalancerFullName,
 		},
 		CanaryTargetGroup: v1alpha1.AwsResourceRef{
 			Name:     *f.targetGroups[0].TargetGroupName,
 			ARN:      *f.targetGroups[0].TargetGroupArn,
-			FullName: strings.Join(strings.Split(*f.targetGroups[0].TargetGroupArn, "/")[1:], "/"),
+			FullName: CanaryTargetGroupFullName,
 		},
 		StableTargetGroup: v1alpha1.AwsResourceRef{
 			Name:     *f.targetGroups[len(f.targetGroups)-1].TargetGroupName,
 			ARN:      *f.targetGroups[len(f.targetGroups)-1].TargetGroupArn,
-			FullName: strings.Join(strings.Split(*f.targetGroups[len(f.targetGroups)-1].TargetGroupArn, "/")[1:], "/"),
+			FullName: StableTargetGroupFullName,
 		},
 	}
 }
@@ -617,6 +629,47 @@ func TestVerifyWeight(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
 		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
+	}
+
+	// LoadBalancer found, but ARNs are unparsable
+	{
+		var status v1alpha1.RolloutStatus
+		r, fakeClient := newFakeReconciler(&status)
+		fakeClient.loadBalancer = &elbv2types.LoadBalancer{
+			LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
+			LoadBalancerArn:  pointer.StringPtr("lb-abc123-arn"),
+			DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+		}
+		fakeClient.targetGroups = []aws.TargetGroupMeta{
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
+					TargetGroupArn:  pointer.StringPtr("canary-tg-abc123-arn"),
+				},
+				Weight: pointer.Int32Ptr(10),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
+				},
+			},
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
+					TargetGroupArn:  pointer.StringPtr("stable-tg-abc123-arn"),
+				},
+				Weight: pointer.Int32Ptr(11),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+				},
+			},
+		}
+
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.True(t, *weightVerified)
+		albStatus := *fakeClient.getAlbStatus()
+		assert.Equal(t, albStatus.LoadBalancer.FullName, "")
+		assert.Equal(t, albStatus.CanaryTargetGroup.FullName, "")
+		assert.Equal(t, albStatus.StableTargetGroup.FullName, "")
 	}
 }
 
