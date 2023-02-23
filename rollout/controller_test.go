@@ -1949,12 +1949,9 @@ func TestWriteBackToInformer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, exists)
 
-	// Want to keep this code for future reference, this commented code would randomly fail to do the type cast
-	// using json marshalling to convert to a map[string]interface{} fixes the issue. The type returned from
-	// c.rolloutsIndexer.GetByKey is not always the same type it switches between *unstructured.Unstructured and
-	// *v1alpha1.Rollout the underlying cause is not fully known.
-	//un, ok := obj.(*unstructured.Unstructured)
-	//assert.True(t, ok)
+	// The type returned from c.rolloutsIndexer.GetByKey is not always the same type it switches between
+	// *unstructured.Unstructured and *v1alpha1.Rollout the underlying cause is not fully known. We use the
+	// runtime.DefaultUnstructuredConverter to account for this.
 	unObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	assert.NoError(t, err)
 
