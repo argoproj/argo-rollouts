@@ -588,6 +588,9 @@ message DatadogMetric {
   optional string interval = 1;
 
   optional string query = 2;
+
+  // ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.
+  optional string apiVersion = 3;
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.
