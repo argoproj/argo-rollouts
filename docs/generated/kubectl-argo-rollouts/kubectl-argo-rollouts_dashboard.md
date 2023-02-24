@@ -14,7 +14,6 @@ kubectl argo rollouts dashboard [flags]
 
 ```
   -h, --help               help for dashboard
-  -p, --port int           port to listen on (default 3100)
       --root-path string   changes the root path of the dashboard (default "rollouts")
 ```
 
