@@ -290,6 +290,8 @@ message AwsResourceRef {
   optional string name = 1;
 
   optional string arn = 2;
+
+  optional string fullName = 3;
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
