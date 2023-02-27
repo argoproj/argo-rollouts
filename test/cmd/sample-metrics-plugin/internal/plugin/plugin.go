@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 
