@@ -38,10 +38,10 @@ metadata:
   name: argo-rollouts-config
 data:
   plugins: |-
-    metricproviders:
+    metricProviders:
     - name: "argoproj-labs/metrics"
       location: "file:///Users/zaller/Development/argo-rollouts/metric-plugin"
-    trafficrouters:
+    trafficRouters:
     - name: "argoproj-labs/nginx"
       location: "file:///tmp/argo-rollouts/traffic-plugin"
 ```
@@ -93,7 +93,7 @@ Argo Rollouts currently supports two plugin systems as a plugin author your end 
 a hashicorp go-plugin. The two interfaces are `MetricsPlugin` and `TrafficRouterPlugin` for each of the respective plugins:
 
 ```go
-type MetricsPlugin interface { 
+type MetricProviderPlugin interface { 
 	InitPlugin() types.RpcError
 	Run(*v1alpha1.AnalysisRun, v1alpha1.Metric) v1alpha1.Measurement
 	Resume(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement

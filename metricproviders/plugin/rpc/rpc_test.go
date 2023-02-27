@@ -15,7 +15,7 @@ import (
 var testHandshake = goPlugin.HandshakeConfig{
 	ProtocolVersion:  1,
 	MagicCookieKey:   "ARGO_ROLLOUTS_RPC_PLUGIN",
-	MagicCookieValue: "metrics",
+	MagicCookieValue: "metricprovider",
 }
 
 func pluginClient(t *testing.T) (MetricProviderPlugin, goPlugin.ClientProtocol, func(), chan struct{}) {

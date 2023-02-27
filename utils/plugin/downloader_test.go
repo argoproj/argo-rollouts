@@ -47,7 +47,7 @@ func TestPlugin(t *testing.T) {
 				Name:      "argo-rollouts-config",
 				Namespace: "argo-rollouts",
 			},
-			Data: map[string]string{"plugins": "metricproviders:\n  - name: argoproj-labs/http\n    location: https://test/plugin\n  - name: argoproj-labs/http-sha\n    location: https://test/plugin\n    sha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+			Data: map[string]string{"plugins": "metricProviders:\n  - name: argoproj-labs/http\n    location: https://test/plugin\n  - name: argoproj-labs/http-sha\n    location: https://test/plugin\n    sha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
 		}
 		client := fake.NewSimpleClientset(cm)
 
@@ -80,7 +80,7 @@ func TestPlugin(t *testing.T) {
 				Name:      defaults.DefaultRolloutsConfigMapName,
 				Namespace: defaults.Namespace(),
 			},
-			Data: map[string]string{"plugins": "metricproviders:\n  - name: argoproj-labs/http-badsha\n    location: https://test/plugin\n    sha256: badsha352"},
+			Data: map[string]string{"plugins": "metricProviders:\n  - name: argoproj-labs/http-badsha\n    location: https://test/plugin\n    sha256: badsha352"},
 		}
 		client := fake.NewSimpleClientset(cm)
 
@@ -121,7 +121,7 @@ func TestPlugin(t *testing.T) {
 				Name:      defaults.DefaultRolloutsConfigMapName,
 				Namespace: defaults.Namespace(),
 			},
-			Data: map[string]string{"plugins": "metricproviders:\n  - name: argoproj-labs/file-plugin\n    location: file://./plugin.go"},
+			Data: map[string]string{"plugins": "metricProviders:\n  - name: argoproj-labs/file-plugin\n    location: file://./plugin.go"},
 		}
 		client := fake.NewSimpleClientset(cm)
 
@@ -147,7 +147,7 @@ func TestPlugin(t *testing.T) {
 				Name:      defaults.DefaultRolloutsConfigMapName,
 				Namespace: defaults.Namespace(),
 			},
-			Data: map[string]string{"plugins": "metricproviders:\n  - name: namespace/file-plugin\n    location: file://./plugin.go"},
+			Data: map[string]string{"plugins": "metricProviders:\n  - name: namespace/file-plugin\n    location: file://./plugin.go"},
 		}
 		client := fake.NewSimpleClientset(cm)
 
@@ -196,7 +196,7 @@ func TestPlugin(t *testing.T) {
 				Name:      "argo-rollouts-config",
 				Namespace: "argo-rollouts",
 			},
-			Data: map[string]string{"plugins": "metricproviders:\n  - name: argoproj-labs/http\n    location: agwegasdlkjf2324"},
+			Data: map[string]string{"plugins": "metricProviders:\n  - name: argoproj-labs/http\n    location: agwegasdlkjf2324"},
 		}
 		client := fake.NewSimpleClientset(cm)
 
