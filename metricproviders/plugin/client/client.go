@@ -23,7 +23,7 @@ var mutex sync.Mutex
 var handshakeConfig = goPlugin.HandshakeConfig{
 	ProtocolVersion:  1,
 	MagicCookieKey:   "ARGO_ROLLOUTS_RPC_PLUGIN",
-	MagicCookieValue: "metrics",
+	MagicCookieValue: "metricprovider",
 }
 
 // pluginMap is the map of plugins we can dispense.
