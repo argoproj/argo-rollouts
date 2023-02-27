@@ -107,8 +107,8 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 		}))
 	}
 
-	if rollout.Spec.Strategy.Canary.TrafficRouting.Plugin != nil {
-		for pluginName := range rollout.Spec.Strategy.Canary.TrafficRouting.Plugin {
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Plugins != nil {
+		for pluginName := range rollout.Spec.Strategy.Canary.TrafficRouting.Plugins {
 			pluginReconciler, err := plugin.NewReconciler(&plugin.ReconcilerConfig{
 				Rollout:    rollout,
 				Client:     c.kubeclientset,

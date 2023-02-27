@@ -41,6 +41,8 @@ func init() {
 	gob.RegisterName("GetMetadataArgs", new(GetMetadataArgs))
 }
 
+var _ types.RpcMetricProvider = &MetricsPluginRPC{}
+
 // MetricsPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
 // not import that package because it would create a circular dependency.
 type MetricsPlugin interface {

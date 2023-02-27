@@ -377,8 +377,8 @@ type RolloutTrafficRouting struct {
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object
-	// Plugin holds specific configuration that traffic router plugins can use for routing traffic
-	Plugin map[string]json.RawMessage `json:"plugin,omitempty" protobuf:"bytes,10,opt,name=plugin"`
+	// Plugins holds specific configuration that traffic router plugins can use for routing traffic
+	Plugins map[string]json.RawMessage `json:"plugins,omitempty" protobuf:"bytes,10,opt,name=plugins"`
 }
 
 type MangedRoutes struct {

@@ -2371,8 +2371,8 @@ func (in *RolloutTrafficRouting) DeepCopyInto(out *RolloutTrafficRouting) {
 		*out = new(ApisixTrafficRouting)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Plugin != nil {
-		in, out := &in.Plugin, &out.Plugin
+	if in.Plugins != nil {
+		in, out := &in.Plugins, &out.Plugins
 		*out = make(map[string]json.RawMessage, len(*in))
 		for key, val := range *in {
 			var outVal []byte

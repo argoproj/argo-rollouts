@@ -11908,7 +11908,7 @@ spec:
                             required:
                             - stableIngress
                             type: object
-                          plugin:
+                          plugins:
                             type: object
                             x-kubernetes-preserve-unknown-fields: true
                           smi:

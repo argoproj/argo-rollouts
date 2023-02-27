@@ -1582,7 +1582,7 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
      * @type {{ [key: string]: string; }}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
-    plugin?: { [key: string]: string; };
+    plugins?: { [key: string]: string; };
 }
 /**
  * 
