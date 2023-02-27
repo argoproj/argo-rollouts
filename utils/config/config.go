@@ -83,7 +83,7 @@ func (c *Config) GetMetricPluginsConfig() []types.PluginItem {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	var copiedPlugins []types.PluginItem
-	for _, p := range configMemoryCache.plugins.Metrics {
+	for _, p := range configMemoryCache.plugins.MetricProviders {
 		copiedPlugins = append(copiedPlugins, p)
 	}
 	return copiedPlugins

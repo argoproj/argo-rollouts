@@ -10,7 +10,7 @@ import (
 const ProviderType = "RPCPlugin"
 
 type MetricPlugin struct {
-	rpc.MetricsPlugin
+	rpc.MetricProviderPlugin
 }
 
 // NewRpcPlugin returns a new RPC plugin with a singleton client
@@ -21,7 +21,7 @@ func NewRpcPlugin(metric v1alpha1.Metric) (metric.Provider, error) {
 	}
 
 	return MetricPlugin{
-		MetricsPlugin: pluginClient,
+		MetricProviderPlugin: pluginClient,
 	}, nil
 }
 

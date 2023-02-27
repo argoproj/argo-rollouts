@@ -18,14 +18,14 @@ var testHandshake = goPlugin.HandshakeConfig{
 	MagicCookieValue: "metrics",
 }
 
-func pluginClient(t *testing.T) (MetricsPlugin, goPlugin.ClientProtocol, func(), chan struct{}) {
+func pluginClient(t *testing.T) (MetricProviderPlugin, goPlugin.ClientProtocol, func(), chan struct{}) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	rpcPluginImp := &testRpcPlugin{}
 
 	// pluginMap is the map of plugins we can dispense.
 	var pluginMap = map[string]goPlugin.Plugin{
-		"RpcMetricsPlugin": &RpcMetricsPlugin{Impl: rpcPluginImp},
+		"RpcMetricProviderPlugin": &RpcMetricProviderPlugin{Impl: rpcPluginImp},
 	}
 
 	ch := make(chan *goPlugin.ReattachConfig, 1)
@@ -64,12 +64,12 @@ func pluginClient(t *testing.T) (MetricsPlugin, goPlugin.ClientProtocol, func(),
 	}
 
 	// Request the plugin
-	raw, err := client.Dispense("RpcMetricsPlugin")
+	raw, err := client.Dispense("RpcMetricProviderPlugin")
 	if err != nil {
 		t.Fail()
 	}
 
-	plugin, ok := raw.(MetricsPlugin)
+	plugin, ok := raw.(MetricProviderPlugin)
 	if !ok {
 		t.Fail()
 	}

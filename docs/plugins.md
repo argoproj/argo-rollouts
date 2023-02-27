@@ -38,7 +38,7 @@ metadata:
   name: argo-rollouts-config
 data:
   plugins: |-
-    metrics:
+    metricproviders:
     - name: "argoproj-labs/metrics"
       location: "file:///Users/zaller/Development/argo-rollouts/metric-plugin"
     trafficrouters:

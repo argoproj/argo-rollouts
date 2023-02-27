@@ -4377,9 +4377,9 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixTrafficRouting"),
 						},
 					},
-					"plugin": {
+					"plugins": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Plugin holds specific configuration that traffic router plugins can use for routing traffic",
+							Description: "Plugins holds specific configuration that traffic router plugins can use for routing traffic",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,

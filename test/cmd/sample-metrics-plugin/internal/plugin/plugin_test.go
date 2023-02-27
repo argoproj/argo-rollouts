@@ -34,7 +34,7 @@ func TestRunSuccessfully(t *testing.T) {
 
 	// pluginMap is the map of plugins we can dispense.
 	var pluginMap = map[string]goPlugin.Plugin{
-		"RpcMetricsPlugin": &rpc.RpcMetricsPlugin{Impl: rpcPluginImp},
+		"RpcMetricProviderPlugin": &rpc.RpcMetricProviderPlugin{Impl: rpcPluginImp},
 	}
 
 	ch := make(chan *goPlugin.ReattachConfig, 1)
@@ -84,12 +84,12 @@ func TestRunSuccessfully(t *testing.T) {
 	}
 
 	// Request the plugin
-	raw, err := client.Dispense("RpcMetricsPlugin")
+	raw, err := client.Dispense("RpcMetricProviderPlugin")
 	if err != nil {
 		t.Fail()
 	}
 
-	plugin := raw.(rpc.MetricsPlugin)
+	plugin := raw.(rpc.MetricProviderPlugin)
 
 	err = plugin.InitPlugin()
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 
 type metricPlugin struct {
 	pluginClient map[string]*goPlugin.Client
-	plugin       map[string]rpc.MetricsPlugin
+	plugin       map[string]rpc.MetricProviderPlugin
 }
 
 var pluginClients *metricPlugin
@@ -28,16 +28,16 @@ var handshakeConfig = goPlugin.HandshakeConfig{
 
 // pluginMap is the map of plugins we can dispense.
 var pluginMap = map[string]goPlugin.Plugin{
-	"RpcMetricsPlugin": &rpc.RpcMetricsPlugin{},
+	"RpcMetricProviderPlugin": &rpc.RpcMetricProviderPlugin{},
 }
 
 // GetMetricPlugin returns a singleton plugin client for the given metric plugin. Calling this multiple times
 // returns the same plugin client instance for the plugin name defined in the metric.
-func GetMetricPlugin(metric v1alpha1.Metric) (rpc.MetricsPlugin, error) {
+func GetMetricPlugin(metric v1alpha1.Metric) (rpc.MetricProviderPlugin, error) {
 	once.Do(func() {
 		pluginClients = &metricPlugin{
 			pluginClient: make(map[string]*goPlugin.Client),
-			plugin:       make(map[string]rpc.MetricsPlugin),
+			plugin:       make(map[string]rpc.MetricProviderPlugin),
 		}
 	})
 	plugin, err := pluginClients.startPluginSystem(metric)
@@ -47,7 +47,7 @@ func GetMetricPlugin(metric v1alpha1.Metric) (rpc.MetricsPlugin, error) {
 	return plugin, nil
 }
 
-func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlugin, error) {
+func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricProviderPlugin, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -74,12 +74,12 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlu
 			}
 
 			// Request the plugin
-			plugin, err := rpcClient.Dispense("RpcMetricsPlugin")
+			plugin, err := rpcClient.Dispense("RpcMetricProviderPlugin")
 			if err != nil {
 				return nil, fmt.Errorf("unable to dispense plugin (%s): %w", pluginName, err)
 			}
 
-			pluginType, ok := plugin.(rpc.MetricsPlugin)
+			pluginType, ok := plugin.(rpc.MetricProviderPlugin)
 			if !ok {
 				return nil, fmt.Errorf("unexpected type from plugin")
 			}

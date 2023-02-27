@@ -43,9 +43,9 @@ func init() {
 
 var _ types.RpcMetricProvider = &MetricsPluginRPC{}
 
-// MetricsPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
+// MetricProviderPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
 // not import that package because it would create a circular dependency.
-type MetricsPlugin interface {
+type MetricProviderPlugin interface {
 	InitPlugin() types.RpcError
 	types.RpcMetricProvider
 }
@@ -152,7 +152,7 @@ func (g *MetricsPluginRPC) GetMetadata(metric v1alpha1.Metric) map[string]string
 // the requirements of net/rpc
 type MetricsRPCServer struct {
 	// This is the real implementation
-	Impl MetricsPlugin
+	Impl MetricProviderPlugin
 }
 
 // InitPlugin is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
@@ -224,7 +224,7 @@ func (s *MetricsRPCServer) GetMetadata(args interface{}, resp *map[string]string
 	return nil
 }
 
-// RpcMetricsPlugin This is the implementation of plugin.Plugin so we can serve/consume
+// RpcMetricProviderPlugin This is the implementation of plugin.Plugin so we can serve/consume
 //
 // This has two methods: Server must return an RPC server for this plugin
 // type. We construct a MetricsRPCServer for this.
@@ -234,15 +234,15 @@ func (s *MetricsRPCServer) GetMetadata(args interface{}, resp *map[string]string
 //
 // Ignore MuxBroker. That is used to create more multiplexed streams on our
 // plugin connection and is a more advanced use case.
-type RpcMetricsPlugin struct {
+type RpcMetricProviderPlugin struct {
 	// Impl Injection
-	Impl MetricsPlugin
+	Impl MetricProviderPlugin
 }
 
-func (p *RpcMetricsPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
+func (p *RpcMetricProviderPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
 	return &MetricsRPCServer{Impl: p.Impl}, nil
 }
 
-func (RpcMetricsPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (RpcMetricProviderPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
 	return &MetricsPluginRPC{client: c}, nil
 }

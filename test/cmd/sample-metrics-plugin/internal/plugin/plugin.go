@@ -25,9 +25,9 @@ import (
 
 const EnvVarArgoRolloutsPrometheusAddress string = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
 
-var _ rpc.MetricsPlugin = &RpcPlugin{}
+var _ rpc.MetricProviderPlugin = &RpcPlugin{}
 
-// Here is a real implementation of MetricsPlugin
+// Here is a real implementation of MetricProviderPlugin
 type RpcPlugin struct {
 	LogCtx log.Entry
 }
