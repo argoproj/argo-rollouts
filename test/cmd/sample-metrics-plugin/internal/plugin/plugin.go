@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 	"net/url"
 	"os"
 	"time"
@@ -23,6 +24,8 @@ import (
 )
 
 const EnvVarArgoRolloutsPrometheusAddress string = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
+
+var _ rpc.MetricsPlugin = &RpcPlugin{}
 
 // Here is a real implementation of MetricsPlugin
 type RpcPlugin struct {

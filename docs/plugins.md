@@ -6,7 +6,7 @@ Argo Rollouts plugins depend on hashicorp's [go-plugin](https://github.com/hashi
 provides a way for a plugin to be compiled as a standalone executable and then loaded by the rollouts controller at runtime.
 This works by having the plugin executable act as a rpc server and the rollouts controller act as a client. The plugin executable
 is started by the rollouts controller and is a long-lived process and that the rollouts controller connects to over a unix socket.
-The communication protocol uses golang build in net/rpc library so plugins have to be written in golang.
+The communication protocol uses golang built in net/rpc library so plugins have to be written in golang.
 
 ## Plugin Repository
 
@@ -14,12 +14,12 @@ In order to get plugins listed in the main argo rollouts documentation we ask th
 the [argoproj-labs](https://github.com/argoproj-labs) organization. Please open an issue under argo-rollouts requesting a 
 repo which you would be granted admin access on. 
 
-There is also a slight standardization of naming convention for plugin names which are used in the configmap registration,
-as well as what the plugin uses for locating its specific configuration on rollout or analysis resources. The name
-needs to be in the form of `<namespace>/<name>` and both <namespace> and <name> have a regular expression check
-that matches Github's requirements for `username/org` and `repository name`. This requirement is in place to help allow multiple creators
-of the same plugin type to exist such as `<org1>/nginx` and `<org2>/nginx`. These names could be based of the repo name 
-such as `argoproj-labs/rollouts-sample_prometheus-metric-plugin` but it is not a requirement. 
+There is also a standard naming convention for plugin names used for configmap registration, as well as what the plugin 
+uses for locating its specific configuration on rollout or analysis resources. The name needs to be in the form of 
+`<namespace>/<name>` and both <namespace> and <name> have a regular expression check that matches Github's requirements 
+for `username/org` and `repository name`. This requirement is in place to help with allowing multiple creators of the same plugin 
+types to exist such as `<org1>/nginx` and `<org2>/nginx`. These names could be based of the repo name such 
+as `argoproj-labs/rollouts-sample_prometheus-metric-plugin` but it is not a requirement. 
 
 There will also be a standard for naming repositories under argoproj-labs in the form of `rollouts-<tool>-<type>-plugin`
 where `<type>` is say `metric`, or `trafficrouter` and `<tool>` is the software the plugin is for say nginx.
@@ -46,7 +46,7 @@ data:
       location: "file:///tmp/argo-rollouts/traffic-plugin"
 ```
 
-As you can see there is a field called `plugin:` under both `metrics` or `trafficrouters` this is the first place where your
+As you can see there is a field called `name:` under both `metrics` or `trafficrouters` this is the first place where your
 end users will need to configure the name of the plugin. The second location is either in the rollout object or the analysis
 template which you can see the examples below.
 
@@ -120,15 +120,15 @@ type TrafficRouterPlugin interface {
 Each plugin interface has a `InitPlugin` function, this function is called when the plugin is first started up and is only called 
 once per startup. The `InitPlugin` function is used as a means to initialize the plugin it gives you the plugin author the ability 
 to either set up a client for a specific metrics provider or in the case of a traffic router construct a client or informer 
-for kubernetes api.
+for kubernetes api. The one thing to note about this though is because these calls happen over RPC the plugin author should
+not depend on state being stored in the plugin struct as it will not be persisted between calls.
 
 ## Kubernetes RBAC
 
 The plugin runs as a child process of the rollouts controller and as such it will inherit the same RBAC permissions as the
-controller. This means that if you are using a service account for the rollouts controller you will need to make sure that
-the service account has the correct permissions for the plugin to function. This might mean instructing users to create a role
-and role binding to the standard rollouts service account for the plugin to use. This will probably affect traffic router 
-plugins more than metrics plugins.
+controller. This means that the service account for the rollouts controller will need the correct permissions for the plugin 
+to function. This might mean instructing users to create a role and role binding to the standard rollouts service account 
+for the plugin to use. This will probably affect traffic router plugins more than metrics plugins.
 
 ## Sample Plugins
 
