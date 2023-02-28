@@ -14299,30 +14299,39 @@ spec:
                     properties:
                       arn:
                         type: string
+                      fullName:
+                        type: string
                       name:
                         type: string
                     required:
                     - arn
+                    - fullName
                     - name
                     type: object
                   loadBalancer:
                     properties:
                       arn:
                         type: string
+                      fullName:
+                        type: string
                       name:
                         type: string
                     required:
                     - arn
+                    - fullName
                     - name
                     type: object
                   stableTargetGroup:
                     properties:
                       arn:
                         type: string
+                      fullName:
+                        type: string
                       name:
                         type: string
                     required:
                     - arn
+                    - fullName
                     - name
                     type: object
                 type: object

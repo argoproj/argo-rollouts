@@ -1741,13 +1741,6 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 							Format:  "",
 						},
 					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 				},
 				Required: []string{"query"},
 			},
