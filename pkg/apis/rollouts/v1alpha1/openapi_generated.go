@@ -1051,8 +1051,15 @@ func schema_pkg_apis_rollouts_v1alpha1_AwsResourceRef(ref common.ReferenceCallba
 							Format:  "",
 						},
 					},
+					"fullName": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
 				},
-				Required: []string{"name", "arn"},
+				Required: []string{"name", "arn", "fullName"},
 			},
 		},
 	}
@@ -1739,6 +1746,13 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 							Default: "",
 							Type:    []string{"string"},
 							Format:  "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
