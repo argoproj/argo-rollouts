@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+
 	"github.com/argoproj/argo-rollouts/metric"
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/client"
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
