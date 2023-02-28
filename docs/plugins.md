@@ -78,12 +78,12 @@ spec:
       canaryService: example-plugin-ro-canary-analysis
       stableService: example-plugin-ro-stable-analysis
       trafficRouting:
-        plugin:
+        plugins:
           argoproj-labs/nginx:
             stableIngress: canary-demo
 ```
 
-You can see that we use the plugin name under `spec.metrics[].provider.plugin` for analysis template and `spec.strategy.canary.trafficRouting.plugin`
+You can see that we use the plugin name under `spec.metrics[].provider.plugin` for analysis template and `spec.strategy.canary.trafficRouting.plugins`
 for traffic routers. You as a plugin author can then put any configuration you need under that object and you will be able to
 look up that config in your plugin via the plugin name key.
 
