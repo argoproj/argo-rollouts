@@ -40,7 +40,7 @@ data:
   plugins: |-
     metricProviders:
     - name: "argoproj-labs/metrics"
-      location: "file:///Users/zaller/Development/argo-rollouts/metric-plugin"
+      location: "file:///tmp/argo-rollouts/metric-plugin"
     trafficRouters:
     - name: "argoproj-labs/nginx"
       location: "file:///tmp/argo-rollouts/traffic-plugin"
@@ -84,8 +84,8 @@ spec:
 ```
 
 You can see that we use the plugin name under `spec.metrics[].provider.plugin` for analysis template and `spec.strategy.canary.trafficRouting.plugins`
-for traffic routers. You as a plugin author can then put any configuration you need under that object and you will be able to
-look up that config in your plugin via the plugin name key.
+for traffic routers. You as a plugin author can then put any configuration you need under `argoproj-labs/nginx` and you will be able to
+look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.
 
 ## Plugin Interfaces
 
@@ -93,25 +93,43 @@ Argo Rollouts currently supports two plugin systems as a plugin author your end 
 a hashicorp go-plugin. The two interfaces are `MetricsPlugin` and `TrafficRouterPlugin` for each of the respective plugins:
 
 ```go
-type MetricProviderPlugin interface { 
-	InitPlugin() types.RpcError
-	Run(*v1alpha1.AnalysisRun, v1alpha1.Metric) v1alpha1.Measurement
-	Resume(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
-	Terminate(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
-	GarbageCollect(*v1alpha1.AnalysisRun, v1alpha1.Metric, int) RpcError
-	Type() string
-	GetMetadata(metric v1alpha1.Metric) map[string]string
+type MetricProviderPlugin interface {
+  // InitPlugin initializes the traffic router plugin this gets called once when the plugin is loaded.
+  InitPlugin() RpcError
+  // Run start a new external system call for a measurement
+  // Should be idempotent and do nothing if a call has already been started
+  Run(*v1alpha1.AnalysisRun, v1alpha1.Metric) v1alpha1.Measurement
+  // Resume Checks if the external system call is finished and returns the current measurement
+  Resume(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
+  // Terminate will terminate an in-progress measurement
+  Terminate(*v1alpha1.AnalysisRun, v1alpha1.Metric, v1alpha1.Measurement) v1alpha1.Measurement
+  // GarbageCollect is used to garbage collect completed measurements to the specified limit
+  GarbageCollect(*v1alpha1.AnalysisRun, v1alpha1.Metric, int) RpcError
+  // Type gets the provider type
+  Type() string
+  // GetMetadata returns any additional metadata which providers need to store/display as part
+  // of the metric result. For example, Prometheus uses is to store the final resolved queries.
+  GetMetadata(metric v1alpha1.Metric) map[string]string
 }
 
 type TrafficRouterPlugin interface {
-	InitPlugin() RpcError
-	UpdateHash(rollout *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) RpcError
-	SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) RpcError
-	SetHeaderRoute(rollout *v1alpha1.Rollout, setHeaderRoute *v1alpha1.SetHeaderRoute) RpcError
-	SetMirrorRoute(rollout *v1alpha1.Rollout, setMirrorRoute *v1alpha1.SetMirrorRoute) RpcError
-	VerifyWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, RpcError)
-	RemoveManagedRoutes(ro *v1alpha1.Rollout) RpcError
-	Type() string
+  // InitPlugin initializes the traffic router plugin this gets called once when the plugin is loaded.
+  InitPlugin() RpcError
+  // UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
+  UpdateHash(rollout *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) RpcError
+  // SetWeight sets the canary weight to the desired weight
+  SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) RpcError
+  // SetHeaderRoute sets the header routing step
+  SetHeaderRoute(rollout *v1alpha1.Rollout, setHeaderRoute *v1alpha1.SetHeaderRoute) RpcError
+  // SetMirrorRoute sets up the traffic router to mirror traffic to a service
+  SetMirrorRoute(rollout *v1alpha1.Rollout, setMirrorRoute *v1alpha1.SetMirrorRoute) RpcError
+  // VerifyWeight returns true if the canary is at the desired weight and additionalDestinations are at the weights specified
+  // Returns nil if weight verification is not supported or not applicable
+  VerifyWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, RpcError)
+  // RemoveManagedRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
+  RemoveManagedRoutes(ro *v1alpha1.Rollout) RpcError
+  // Type returns the type of the traffic routing reconciler
+  Type() string
 }
 ```
 
