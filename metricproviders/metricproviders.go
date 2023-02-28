@@ -95,9 +95,9 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 	case plugin.ProviderType:
 		plugin, err := plugin.NewRpcPlugin(metric)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create plugin: %v", err)
 		}
-		return plugin, err
+		return plugin, nil
 	default:
 		return nil, fmt.Errorf("no valid provider in metric '%s'", metric.Name)
 	}
