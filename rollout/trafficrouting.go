@@ -183,6 +183,16 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 					desiredWeight = minInt(desiredWeight, c.rollout.Status.Canary.Weights.Canary.Weight)
 				}
 			}
+
+			if (c.rollout.Spec.Strategy.Canary.DynamicStableScale && desiredWeight == 0) || !c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+				// If we are using dynamic stable scale we need to also make sure that desiredWeight=0 aka we are completely
+				// done with aborting before resetting the canary service selectors back to stable
+				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+				if err != nil {
+					return err
+				}
+			}
+
 			err := reconciler.RemoveManagedRoutes()
 			if err != nil {
 				return err

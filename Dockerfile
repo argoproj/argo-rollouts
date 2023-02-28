@@ -69,7 +69,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make ${MAKE_TARGET}
 ####################################################################################################
 # Kubectl plugin image
 ####################################################################################################
-FROM docker.io/library/ubuntu:20.10 as kubectl-argo-rollouts
+FROM gcr.io/distroless/static-debian11 as kubectl-argo-rollouts
 
 COPY --from=argo-rollouts-build /go/src/github.com/argoproj/argo-rollouts/dist/kubectl-argo-rollouts /bin/kubectl-argo-rollouts
 
