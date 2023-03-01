@@ -1242,6 +1242,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExpe
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
      */
     weight?: number;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate
+     */
+    service?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService;
 }
 /**
  * 
@@ -1766,6 +1772,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute
      */
     sniHosts?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService
+     */
+    name?: string;
 }
 /**
  * 
