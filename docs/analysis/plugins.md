@@ -1,6 +1,6 @@
 # Metric Plugins
 
-!!! important Available since v1.5
+!!! important Available since v1.5 - Status: Alpha
 
 Argo Rollouts supports getting analysis metrics via 3rd party plugin system. This allows users to extend the capabilities of Rollouts 
 to support metric providers that are not natively supported. Rollout's uses a plugin library called
