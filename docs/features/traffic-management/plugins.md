@@ -61,8 +61,8 @@ the server hosting the plugin is available again.
 
 Argo Rollouts will download the plugin at startup only once but if the pod is deleted it will need to download the plugin again on next startup. Running
 Argo Rollouts in HA mode can help a little with this situation because each pod will download the plugin at startup. So if a single pod gets
-deleted during a server outage, the other pods will still be able to take over because there will already be a plugin executable available to it. However,
-it is up to you to define your risk for and decide how you want to install the plugin executable.
+deleted during a server outage, the other pods will still be able to take over because there will already be a plugin executable available to it. It is the
+responsibility of the Argo Rollouts administrator to define the plugin installation method considering the risks of each approach.
 
 ## List of Available Plugins (alphabetical order)
 
