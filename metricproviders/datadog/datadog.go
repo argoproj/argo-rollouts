@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/evaluate"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+	retryablehttp "github.com/hashicorp/go-retryablehttp"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,12 +28,19 @@ import (
 var unixNow = func() int64 { return timeutil.Now().Unix() }
 
 const (
-	// ProviderType indicates the provider is datadog
-	ProviderType            = "Datadog"
-	DatadogTokensSecretName = "datadog"
-	DatadogApiKey           = "api-key"
-	DatadogAppKey           = "app-key"
-	DatadogAddress          = "address"
+	//ProviderType indicates the provider is datadog
+	ProviderType                             = "Datadog"
+	DatadogTokensSecretName                  = "datadog"
+	DatadogApiKey                            = "api-key"
+	DatadogAppKey                            = "app-key"
+	DatadogAddress                           = "address"
+	DefaultRetryMaxWaitSeconds time.Duration = 120
+	DefaultRetryMax            int           = 10
+)
+
+var (
+	retryMaxWaitSeconds = DefaultRetryMaxWaitSeconds
+	retryMax            = DefaultRetryMax
 )
 
 // Provider contains all the required components to run a Datadog query
@@ -54,7 +62,7 @@ type datadogConfig struct {
 	AppKey  string `yaml:"app-key,omitempty"`
 }
 
-// Type incidates provider is a Datadog provider
+// Type indicates provider is a Datadog provider
 func (p *Provider) Type() string {
 	return ProviderType
 }
@@ -106,10 +114,15 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	request.Header.Set("DD-API-KEY", p.config.ApiKey)
 	request.Header.Set("DD-APPLICATION-KEY", p.config.AppKey)
 
-	// Send Request
-	httpClient := &http.Client{
-		Timeout: time.Duration(10) * time.Second,
-	}
+	// Configure retryable HTTP Client that automatically retries on 429 status codes
+	// with exponential backoff.
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = retryMax
+	retryClient.RetryWaitMax = time.Second * retryMaxWaitSeconds
+	retryClient.HTTPClient.Timeout = time.Duration(10) * time.Second
+	httpClient := retryClient.StandardClient()
+
+	// Send request
 	response, err := httpClient.Do(request)
 
 	if err != nil {
@@ -200,6 +213,14 @@ func lookupKeysInEnv(keys []string) map[string]string {
 		}
 	}
 	return valuesByKey
+}
+
+func SetRetryMax(max int) {
+	retryMax = max
+}
+
+func SetRetryMaxWait(seconds time.Duration) {
+	retryMaxWaitSeconds = seconds
 }
 
 func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*Provider, error) {
