@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 
@@ -230,6 +231,12 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 
 		r.cfg.Status.ALB.LoadBalancer.Name = *lb.LoadBalancerName
 		r.cfg.Status.ALB.LoadBalancer.ARN = *lb.LoadBalancerArn
+		if lbArnParts := strings.Split(*lb.LoadBalancerArn, "/"); len(lbArnParts) > 2 {
+			r.cfg.Status.ALB.LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
+		} else {
+			r.cfg.Status.ALB.LoadBalancer.FullName = ""
+			r.log.Errorf("error parsing load balancer arn: '%s'", *lb.LoadBalancerArn)
+		}
 
 		lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 		if err != nil {
@@ -241,6 +248,12 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 			if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
 				r.cfg.Status.ALB.CanaryTargetGroup.Name = *tg.TargetGroupName
 				r.cfg.Status.ALB.CanaryTargetGroup.ARN = *tg.TargetGroupArn
+				if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
+					r.cfg.Status.ALB.CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+				} else {
+					r.cfg.Status.ALB.CanaryTargetGroup.FullName = ""
+					r.log.Errorf("error parsing canary target group arn: '%s'", *tg.TargetGroupArn)
+				}
 				if tg.Weight != nil {
 					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 					logCtx.Infof("canary weight of %s (desired: %d, current: %d)", canaryResourceID, desiredWeight, *tg.Weight)
@@ -267,6 +280,12 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 			} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
 				r.cfg.Status.ALB.StableTargetGroup.Name = *tg.TargetGroupName
 				r.cfg.Status.ALB.StableTargetGroup.ARN = *tg.TargetGroupArn
+				if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
+					r.cfg.Status.ALB.StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+				} else {
+					r.cfg.Status.ALB.StableTargetGroup.FullName = ""
+					r.log.Errorf("error parsing stable target group arn: '%s'", *tg.TargetGroupArn)
+				}
 			}
 		}
 	}

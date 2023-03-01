@@ -1,4 +1,36 @@
 
+<a name="v1.4.1"></a>
+## [v1.4.1](https://github.com/argoproj/argo-rollouts/compare/v1.4.0...v1.4.1) (2023-02-20)
+
+### Build
+
+* manually run auto changelog and fix workflow ([#2494](https://github.com/argoproj/argo-rollouts/issues/2494))
+
+### Chore
+
+* bump node version and set openssl-legacy-provider ([#2606](https://github.com/argoproj/argo-rollouts/issues/2606))
+* fix typo for json tag on rollbackWindow ([#2598](https://github.com/argoproj/argo-rollouts/issues/2598))
+* disable docker sbom and attestations ([#2528](https://github.com/argoproj/argo-rollouts/issues/2528))
+
+### Docs
+
+* commit generated docs for readthedocs.org ([#2535](https://github.com/argoproj/argo-rollouts/issues/2535))
+
+### Feat
+
+* Add name attribute to ServicePort ([#2572](https://github.com/argoproj/argo-rollouts/issues/2572))
+
+### Fix
+
+* update GetTargetGroupMetadata to call DescribeTags in batches ([#2570](https://github.com/argoproj/argo-rollouts/issues/2570))
+* Rollback change on service creation with weightless experiments ([#2624](https://github.com/argoproj/argo-rollouts/issues/2624))
+
+### BREAKING CHANGE
+
+
+There was an unintentional change in behavior related to service creation with experiments introduced in v1.4.0 this has been reverted in v1.4.1 back to the original behavior. In v1.4.0 services where always created with for inline experiments even if there was no weight set. In 1.4.1 we go back to the original behavior of requiring weight to be set in order to create a service.
+
+
 <a name="v1.4.0"></a>
 ## [v1.4.0](https://github.com/argoproj/argo-rollouts/compare/v1.4.0-rc1...v1.4.0) (2023-01-03)
 
@@ -12,7 +44,7 @@
 
 
 <a name="v1.4.0-rc1"></a>
-## [v1.4.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.3.2...v1.4.0-rc1) (2022-12-20)
+## [v1.4.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.3.3...v1.4.0-rc1) (2022-12-20)
 
 ### Build
 
@@ -180,6 +212,25 @@
 ### Test
 
 * **controller:** add extra checks to TestWriteBackToInformer ([#2326](https://github.com/argoproj/argo-rollouts/issues/2326))
+
+
+<a name="v1.3.3"></a>
+## [v1.3.3](https://github.com/argoproj/argo-rollouts/compare/v1.3.2...v1.3.3) (2023-02-24)
+
+### Chore
+
+* make docs match branch now that we are supporting versions
+* bump node version and set openssl-legacy-provider ([#2606](https://github.com/argoproj/argo-rollouts/issues/2606))
+* disable docker sbom and attestations ([#2528](https://github.com/argoproj/argo-rollouts/issues/2528))
+
+### Docs
+
+* commit generated docs for readthedocs.org ([#2535](https://github.com/argoproj/argo-rollouts/issues/2535))
+* fix rendering by upgrading deps ([#2495](https://github.com/argoproj/argo-rollouts/issues/2495))
+
+### Fix
+
+* support only tls in virtual services ([#2502](https://github.com/argoproj/argo-rollouts/issues/2502))
 
 
 <a name="v1.3.2"></a>

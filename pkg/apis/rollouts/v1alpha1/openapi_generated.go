@@ -1051,8 +1051,15 @@ func schema_pkg_apis_rollouts_v1alpha1_AwsResourceRef(ref common.ReferenceCallba
 							Format:  "",
 						},
 					},
+					"fullName": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
 				},
-				Required: []string{"name", "arn"},
+				Required: []string{"name", "arn", "fullName"},
 			},
 		},
 	}
