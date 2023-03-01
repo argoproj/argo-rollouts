@@ -10,7 +10,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	"github.com/hashicorp/go-plugin"
-	log "github.com/sirupsen/logrus"
 )
 
 type RunArgs struct {
@@ -75,6 +74,9 @@ func (g *MetricsPluginRPC) Run(analysisRun *v1alpha1.AnalysisRun, metric v1alpha
 	if err != nil {
 		return metricutil.MarkMeasurementError(resp, fmt.Errorf("Run rpc call error: %s", err))
 	}
+	if resp.Phase == v1alpha1.AnalysisPhaseError {
+		resp.Message = fmt.Sprintf("failed to run via plugin: %s", resp.Message)
+	}
 	return resp
 }
 
@@ -90,6 +92,9 @@ func (g *MetricsPluginRPC) Resume(analysisRun *v1alpha1.AnalysisRun, metric v1al
 	if err != nil {
 		return metricutil.MarkMeasurementError(resp, fmt.Errorf("Resume rpc call error: %s", err))
 	}
+	if resp.Phase == v1alpha1.AnalysisPhaseError {
+		resp.Message = fmt.Sprintf("failed to resume via plugin: %s", resp.Message)
+	}
 	return resp
 }
 
@@ -104,6 +109,9 @@ func (g *MetricsPluginRPC) Terminate(analysisRun *v1alpha1.AnalysisRun, metric v
 	err := g.client.Call("Plugin.Terminate", &args, &resp)
 	if err != nil {
 		return metricutil.MarkMeasurementError(resp, fmt.Errorf("Terminate rpc call error: %s", err))
+	}
+	if resp.Phase == v1alpha1.AnalysisPhaseError {
+		resp.Message = fmt.Sprintf("failed to terminate via plugin: %s", resp.Message)
 	}
 	return resp
 }
@@ -128,9 +136,8 @@ func (g *MetricsPluginRPC) Type() string {
 	var resp string
 	err := g.client.Call("Plugin.Type", new(interface{}), &resp)
 	if err != nil {
-		return err.Error()
+		return fmt.Sprintf("Type rpc call error: %s", err)
 	}
-
 	return resp
 }
 
@@ -142,8 +149,10 @@ func (g *MetricsPluginRPC) GetMetadata(metric v1alpha1.Metric) map[string]string
 	}
 	err := g.client.Call("Plugin.GetMetadata", &args, &resp)
 	if err != nil {
-		log.Errorf("Error calling GetMetadata: %v", err)
 		return map[string]string{"error": fmt.Sprintf("GetMetadata rpc call error: %s", err)}
+	}
+	if resp != nil && resp["error"] != "" {
+		resp["error"] = fmt.Sprintf("failed to get metadata via plugin: %s", resp["error"])
 	}
 	return resp
 }

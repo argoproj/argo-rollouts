@@ -10,8 +10,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const ErrNotImplemented = "not-implemented"
-
 type ReconcilerConfig struct {
 	Rollout    *v1alpha1.Rollout
 	PluginName string
@@ -45,27 +43,27 @@ func NewReconciler(cfg *ReconcilerConfig) (*Reconciler, error) {
 
 // UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
 func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
-	err := r.TrafficRouterPlugin.UpdateHash(r.Rollout, canaryHash, stableHash, additionalDestinations)
-	if err.Error() != "" {
-		return err
+	resp := r.TrafficRouterPlugin.UpdateHash(r.Rollout, canaryHash, stableHash, additionalDestinations)
+	if resp.HasError() {
+		return fmt.Errorf("failed to update hash via plugin: %w", resp)
 	}
 	return nil
 }
 
 // SetWeight sets the canary weight to the desired weight
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-	err := r.TrafficRouterPlugin.SetWeight(r.Rollout, desiredWeight, additionalDestinations)
-	if err.Error() != "" {
-		return err
+	resp := r.TrafficRouterPlugin.SetWeight(r.Rollout, desiredWeight, additionalDestinations)
+	if resp.HasError() {
+		return fmt.Errorf("failed to set weight via plugin: %w", resp)
 	}
 	return nil
 }
 
 // SetHeaderRoute sets the header routing step
 func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) error {
-	err := r.TrafficRouterPlugin.SetHeaderRoute(r.Rollout, headerRouting)
-	if err.Error() != "" {
-		return err
+	resp := r.TrafficRouterPlugin.SetHeaderRoute(r.Rollout, headerRouting)
+	if resp.HasError() {
+		return fmt.Errorf("failed to set header route via plugin: %w", resp)
 	}
 	return nil
 }
@@ -73,32 +71,27 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 // VerifyWeight returns true if the canary is at the desired weight and additionalDestinations are at the weights specified
 // Returns nil if weight verification is not supported or not applicable
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
-	verified, err := r.TrafficRouterPlugin.VerifyWeight(r.Rollout, desiredWeight, additionalDestinations)
-	if err.Error() != "" {
-		// We do this to keep sematics with local implementations, rpc calls can not send a nil back in a *bool so they
-		// send a *true with an error of ErrNotImplemented then we can wrap the response.
-		if err.Error() == ErrNotImplemented {
-			return nil, nil
-		}
-		return nil, err
+	verified, errResp := r.TrafficRouterPlugin.VerifyWeight(r.Rollout, desiredWeight, additionalDestinations)
+	if errResp.HasError() {
+		return verified.IsVerified(), fmt.Errorf("failed to verify weight via plugin: %w", errResp)
 	}
-	return verified, nil
+	return verified.IsVerified(), nil
 }
 
 // SetMirrorRoute sets up the traffic router to mirror traffic to a service
 func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) error {
-	err := r.TrafficRouterPlugin.SetMirrorRoute(r.Rollout, setMirrorRoute)
-	if err.Error() != "" {
-		return err
+	resp := r.TrafficRouterPlugin.SetMirrorRoute(r.Rollout, setMirrorRoute)
+	if resp.HasError() {
+		return fmt.Errorf("failed to set mirror route via plugin: %w", resp)
 	}
 	return nil
 }
 
 // RemoveManagedRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
 func (r *Reconciler) RemoveManagedRoutes() error {
-	err := r.TrafficRouterPlugin.RemoveManagedRoutes(r.Rollout)
-	if err.Error() != "" {
-		return err
+	resp := r.TrafficRouterPlugin.RemoveManagedRoutes(r.Rollout)
+	if resp.HasError() {
+		return fmt.Errorf("failed to remove managed routes via plugin: %w", resp)
 	}
 	return nil
 }

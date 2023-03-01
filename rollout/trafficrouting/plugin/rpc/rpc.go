@@ -39,7 +39,7 @@ type RemoveManagedRoutesArgs struct {
 }
 
 type VerifyWeightResponse struct {
-	Verified bool
+	Verified types.RpcVerified
 	Err      types.RpcError
 }
 
@@ -136,7 +136,7 @@ func (g *TrafficRouterPluginRPC) Type() string {
 	var resp string
 	err := g.client.Call("Plugin.Type", new(interface{}), &resp)
 	if err != nil {
-		return err.Error()
+		return fmt.Sprintf("Type rpc call error: %s", err)
 	}
 
 	return resp
@@ -144,7 +144,7 @@ func (g *TrafficRouterPluginRPC) Type() string {
 
 // VerifyWeight returns true if the canary is at the desired weight and additionalDestinations are at the weights specified
 // Returns nil if weight verification is not supported or not applicable
-func (g *TrafficRouterPluginRPC) VerifyWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, types.RpcError) {
+func (g *TrafficRouterPluginRPC) VerifyWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (types.RpcVerified, types.RpcError) {
 	var resp VerifyWeightResponse
 	var args interface{} = SetWeightAndVerifyWeightArgs{
 		Rollout:                *rollout,
@@ -153,9 +153,9 @@ func (g *TrafficRouterPluginRPC) VerifyWeight(rollout *v1alpha1.Rollout, desired
 	}
 	err := g.client.Call("Plugin.VerifyWeight", &args, &resp)
 	if err != nil {
-		return nil, types.RpcError{ErrorString: fmt.Sprintf("VerifyWeight rpc call error: %s", err)}
+		return types.NotVerified, types.RpcError{ErrorString: fmt.Sprintf("VerifyWeight rpc call error: %s", err)}
 	}
-	return &resp.Verified, resp.Err
+	return resp.Verified, resp.Err
 }
 
 // RemoveAllRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
@@ -240,7 +240,7 @@ func (s *TrafficRouterRPCServer) VerifyWeight(args interface{}, resp *VerifyWeig
 	}
 	verified, err := s.Impl.VerifyWeight(&verifyWeightArgs.Rollout, verifyWeightArgs.DesiredWeight, verifyWeightArgs.AdditionalDestinations)
 	*resp = VerifyWeightResponse{
-		Verified: *verified,
+		Verified: verified,
 		Err:      err,
 	}
 	return nil

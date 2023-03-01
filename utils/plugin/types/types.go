@@ -10,12 +10,44 @@ func init() {
 	gob.RegisterName("RpcError", new(RpcError))
 }
 
+// RpcError is a wrapper around the error type to allow for usage with net/rpc
+// and empty ErrorString == "" is considered no error
 type RpcError struct {
 	ErrorString string
 }
 
 func (e RpcError) Error() string {
 	return e.ErrorString
+}
+
+// HasError returns true if there is an error
+func (e RpcError) HasError() bool {
+	return e.ErrorString != ""
+}
+
+// RpcVerified is a wrapper around the *bool as used in VerifyWeight for traffic routers. This is needed because
+// net/rpc does not support pointers.
+type RpcVerified int32
+
+const (
+	NotVerified RpcVerified = iota
+	Verified
+	NotImplemented
+)
+
+func (v *RpcVerified) IsVerified() *bool {
+	verified := true
+	notVerified := false
+	switch *v {
+	case Verified:
+		return &verified
+	case NotVerified:
+		return &notVerified
+	case NotImplemented:
+		return nil
+	default:
+		return &notVerified
+	}
 }
 
 type RpcMetricProvider interface {
@@ -46,7 +78,7 @@ type RpcTrafficRoutingReconciler interface {
 	SetMirrorRoute(rollout *v1alpha1.Rollout, setMirrorRoute *v1alpha1.SetMirrorRoute) RpcError
 	// VerifyWeight returns true if the canary is at the desired weight and additionalDestinations are at the weights specified
 	// Returns nil if weight verification is not supported or not applicable
-	VerifyWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, RpcError)
+	VerifyWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (RpcVerified, RpcError)
 	// RemoveManagedRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
 	RemoveManagedRoutes(ro *v1alpha1.Rollout) RpcError
 	// Type returns the type of the traffic routing reconciler

@@ -101,8 +101,8 @@ func TestPlugin(t *testing.T) {
 	assert.Equal(t, "", err.Error())
 
 	b, err := plugin.VerifyWeight(&ro, 0, []v1alpha1.WeightDestination{})
-	assert.Equal(t, "not-implemented", err.Error())
-	assert.Equal(t, true, *b)
+	assert.Equal(t, "", err.Error())
+	assert.Equal(t, true, *b.IsVerified())
 
 	err = plugin.UpdateHash(&ro, "canary-hash", "stable-hash", []v1alpha1.WeightDestination{})
 	assert.Equal(t, "", err.Error())

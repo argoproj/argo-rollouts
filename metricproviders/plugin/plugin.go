@@ -29,9 +29,9 @@ func NewRpcPlugin(metric v1alpha1.Metric) (metric.Provider, error) {
 
 // GarbageCollect calls the plugins garbage collect method but cast the error back to an "error" type for the internal interface
 func (m MetricPlugin) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, limit int) error {
-	err := m.MetricProviderPlugin.GarbageCollect(run, metric, limit)
-	if err.Error() != "" {
-		return err
+	resp := m.MetricProviderPlugin.GarbageCollect(run, metric, limit)
+	if resp.HasError() {
+		return fmt.Errorf("failed to garbage collect via plugin: %w", resp)
 	}
 	return nil
 }

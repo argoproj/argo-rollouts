@@ -20,9 +20,8 @@ func (r *testRpcPlugin) SetHeaderRoute(ro *v1alpha1.Rollout, headerRouting *v1al
 	return types.RpcError{}
 }
 
-func (r *testRpcPlugin) VerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, types.RpcError) {
-	verified := true
-	return &verified, types.RpcError{ErrorString: "not-implemented"}
+func (r *testRpcPlugin) VerifyWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (types.RpcVerified, types.RpcError) {
+	return types.Verified, types.RpcError{}
 }
 
 // UpdateHash informs a traffic routing reconciler about new canary/stable pod hashes

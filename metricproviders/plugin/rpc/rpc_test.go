@@ -91,7 +91,7 @@ func TestPlugin(t *testing.T) {
 
 	runMeasurementErr := plugin.Run(nil, v1alpha1.Metric{})
 	assert.Equal(t, "Error", string(runMeasurementErr.Phase))
-	assert.Equal(t, "analysisRun is nil", runMeasurementErr.Message)
+	assert.Contains(t, runMeasurementErr.Message, "analysisRun is nil")
 
 	resumeMeasurement := plugin.Resume(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, v1alpha1.Measurement{
 		Phase:   "TestCompletedResume",
