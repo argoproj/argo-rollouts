@@ -59,7 +59,7 @@ func (g *MetricsPluginRPC) InitPlugin() types.RpcError {
 	var resp types.RpcError
 	err := g.client.Call("Plugin.InitPlugin", new(interface{}), &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
+		return types.RpcError{ErrorString: fmt.Sprintf("InitPlugin rpc call error: %s", err)}
 	}
 	return resp
 }
@@ -73,7 +73,7 @@ func (g *MetricsPluginRPC) Run(analysisRun *v1alpha1.AnalysisRun, metric v1alpha
 	}
 	err := g.client.Call("Plugin.Run", &args, &resp)
 	if err != nil {
-		return metricutil.MarkMeasurementError(resp, err)
+		return metricutil.MarkMeasurementError(resp, fmt.Errorf("Run rpc call error: %s", err))
 	}
 	return resp
 }
@@ -88,7 +88,7 @@ func (g *MetricsPluginRPC) Resume(analysisRun *v1alpha1.AnalysisRun, metric v1al
 	}
 	err := g.client.Call("Plugin.Resume", &args, &resp)
 	if err != nil {
-		return metricutil.MarkMeasurementError(resp, err)
+		return metricutil.MarkMeasurementError(resp, fmt.Errorf("Resume rpc call error: %s", err))
 	}
 	return resp
 }
@@ -103,7 +103,7 @@ func (g *MetricsPluginRPC) Terminate(analysisRun *v1alpha1.AnalysisRun, metric v
 	}
 	err := g.client.Call("Plugin.Terminate", &args, &resp)
 	if err != nil {
-		return metricutil.MarkMeasurementError(resp, err)
+		return metricutil.MarkMeasurementError(resp, fmt.Errorf("Terminate rpc call error: %s", err))
 	}
 	return resp
 }
@@ -118,7 +118,7 @@ func (g *MetricsPluginRPC) GarbageCollect(analysisRun *v1alpha1.AnalysisRun, met
 	}
 	err := g.client.Call("Plugin.GarbageCollect", &args, &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
+		return types.RpcError{ErrorString: fmt.Sprintf("GarbageCollect rpc call error: %s", err)}
 	}
 	return resp
 }
@@ -143,7 +143,7 @@ func (g *MetricsPluginRPC) GetMetadata(metric v1alpha1.Metric) map[string]string
 	err := g.client.Call("Plugin.GetMetadata", &args, &resp)
 	if err != nil {
 		log.Errorf("Error calling GetMetadata: %v", err)
-		return map[string]string{"error": err.Error()}
+		return map[string]string{"error": fmt.Sprintf("GetMetadata rpc call error: %s", err)}
 	}
 	return resp
 }

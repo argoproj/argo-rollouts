@@ -131,28 +131,28 @@ func TestPluginClosedConnection(t *testing.T) {
 	const expectedError = "connection is shut down"
 
 	newMetrics := plugin.InitPlugin()
-	assert.Equal(t, expectedError, newMetrics.Error())
+	assert.Contains(t, newMetrics.Error(), expectedError)
 
 	measurement := plugin.Terminate(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, v1alpha1.Measurement{})
-	assert.Equal(t, expectedError, measurement.Message)
+	assert.Contains(t, measurement.Message, expectedError)
 
 	measurement = plugin.Run(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{})
-	assert.Equal(t, expectedError, measurement.Message)
+	assert.Contains(t, measurement.Message, expectedError)
 
 	measurement = plugin.Resume(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, v1alpha1.Measurement{})
-	assert.Equal(t, expectedError, measurement.Message)
+	assert.Contains(t, measurement.Message, expectedError)
 
 	measurement = plugin.Terminate(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, v1alpha1.Measurement{})
-	assert.Equal(t, expectedError, measurement.Message)
+	assert.Contains(t, measurement.Message, expectedError)
 
 	typeStr := plugin.Type()
-	assert.Equal(t, expectedError, typeStr)
+	assert.Contains(t, typeStr, expectedError)
 
 	metadata := plugin.GetMetadata(v1alpha1.Metric{})
-	assert.Equal(t, expectedError, metadata["error"])
+	assert.Contains(t, metadata["error"], expectedError)
 
 	gcError := plugin.GarbageCollect(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, 0)
-	assert.Equal(t, expectedError, gcError.Error())
+	assert.Contains(t, gcError.Error(), expectedError)
 
 	cancel()
 	<-closeCh

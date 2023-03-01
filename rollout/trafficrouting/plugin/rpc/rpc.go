@@ -67,7 +67,7 @@ func (g *TrafficRouterPluginRPC) InitPlugin() types.RpcError {
 	var resp types.RpcError
 	err := g.client.Call("Plugin.InitPlugin", new(interface{}), &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
+		return types.RpcError{ErrorString: fmt.Sprintf("InitPlugin rpc call error: %s", err)}
 	}
 	return resp
 }
@@ -83,7 +83,7 @@ func (g *TrafficRouterPluginRPC) UpdateHash(rollout *v1alpha1.Rollout, canaryHas
 	}
 	err := g.client.Call("Plugin.UpdateHash", &args, &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
+		return types.RpcError{ErrorString: fmt.Sprintf("UpdateHash rpc call error: %s", err)}
 	}
 	return resp
 }
@@ -98,7 +98,7 @@ func (g *TrafficRouterPluginRPC) SetWeight(rollout *v1alpha1.Rollout, desiredWei
 	}
 	err := g.client.Call("Plugin.SetWeight", &args, &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
+		return types.RpcError{ErrorString: fmt.Sprintf("SetWeight rpc call error: %s", err)}
 	}
 	return resp
 }
@@ -112,7 +112,7 @@ func (g *TrafficRouterPluginRPC) SetHeaderRoute(rollout *v1alpha1.Rollout, setHe
 	}
 	err := g.client.Call("Plugin.SetHeaderRoute", &args, &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
+		return types.RpcError{ErrorString: fmt.Sprintf("SetHeaderRoute rpc call error: %s", err)}
 	}
 	return resp
 }
@@ -126,7 +126,7 @@ func (g *TrafficRouterPluginRPC) SetMirrorRoute(rollout *v1alpha1.Rollout, setMi
 	}
 	err := g.client.Call("Plugin.SetMirrorRoute", &args, &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
+		return types.RpcError{ErrorString: fmt.Sprintf("SetMirrorRoute rpc call error: %s", err)}
 	}
 	return resp
 }
@@ -153,7 +153,7 @@ func (g *TrafficRouterPluginRPC) VerifyWeight(rollout *v1alpha1.Rollout, desired
 	}
 	err := g.client.Call("Plugin.VerifyWeight", &args, &resp)
 	if err != nil {
-		return nil, types.RpcError{ErrorString: err.Error()}
+		return nil, types.RpcError{ErrorString: fmt.Sprintf("VerifyWeight rpc call error: %s", err)}
 	}
 	return &resp.Verified, resp.Err
 }
@@ -166,7 +166,7 @@ func (g *TrafficRouterPluginRPC) RemoveManagedRoutes(rollout *v1alpha1.Rollout) 
 	}
 	err := g.client.Call("Plugin.RemoveManagedRoutes", &args, &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
+		return types.RpcError{ErrorString: fmt.Sprintf("RemoveManagedRoutes rpc call error: %s", err)}
 	}
 	return resp
 }

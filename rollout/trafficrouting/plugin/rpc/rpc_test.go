@@ -125,22 +125,22 @@ func TestPluginClosedConnection(t *testing.T) {
 	const expectedError = "connection is shut down"
 
 	err := plugin.InitPlugin()
-	assert.Equal(t, expectedError, err.Error())
+	assert.Contains(t, err.Error(), expectedError)
 
 	err = plugin.RemoveManagedRoutes(&v1alpha1.Rollout{})
-	assert.Equal(t, expectedError, err.Error())
+	assert.Contains(t, err.Error(), expectedError)
 
 	err = plugin.SetMirrorRoute(&v1alpha1.Rollout{}, &v1alpha1.SetMirrorRoute{})
-	assert.Equal(t, expectedError, err.Error())
+	assert.Contains(t, err.Error(), expectedError)
 
 	err = plugin.SetHeaderRoute(&v1alpha1.Rollout{}, &v1alpha1.SetHeaderRoute{})
-	assert.Equal(t, expectedError, err.Error())
+	assert.Contains(t, err.Error(), expectedError)
 
 	err = plugin.SetWeight(&v1alpha1.Rollout{}, 0, []v1alpha1.WeightDestination{})
-	assert.Equal(t, expectedError, err.Error())
+	assert.Contains(t, err.Error(), expectedError)
 
 	_, err = plugin.VerifyWeight(&v1alpha1.Rollout{}, 0, []v1alpha1.WeightDestination{})
-	assert.Equal(t, expectedError, err.Error())
+	assert.Contains(t, err.Error(), expectedError)
 
 	cancel()
 	<-closeCh
