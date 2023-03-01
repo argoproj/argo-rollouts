@@ -124,7 +124,7 @@ type TrafficRouterPlugin interface {
   SetMirrorRoute(rollout *v1alpha1.Rollout, setMirrorRoute *v1alpha1.SetMirrorRoute) RpcError
   // VerifyWeight returns true if the canary is at the desired weight and additionalDestinations are at the weights specified
   // Returns nil if weight verification is not supported or not applicable
-  VerifyWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (*bool, RpcError)
+  VerifyWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) (RpcVerified, RpcError)
   // RemoveManagedRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes
   RemoveManagedRoutes(ro *v1alpha1.Rollout) RpcError
   // Type returns the type of the traffic routing reconciler
