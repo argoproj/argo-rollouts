@@ -29,8 +29,7 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-config
 data:
-  plugins: |-
-    metricProviders:
+  metricProviderPlugins: |-
     - name: "argoproj-labs/sample-prometheus" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
       location: "file://./my-custom-plugin" # supports http(s):// urls and file://
 ```
@@ -46,8 +45,7 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-config
 data:
-  plugins: |-
-    metricProviders:
+  metricProviderPlugins: |-
     - name: "argoproj-labs/sample-prometheus" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
       location: "https://github.com/argoproj-labs/rollouts-sample_prometheus-metric-plugin/releases/download/v0.0.4/metric-plugin-linux-amd64" # supports http(s):// urls and file://
       sha256: "dac10cbf57633c9832a17f8c27d2ca34aa97dd3d" #optional sha256 checksum of the plugin executable

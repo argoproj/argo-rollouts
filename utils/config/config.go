@@ -19,7 +19,7 @@ import (
 // Config is the in memory representation of the configmap with some additional fields/functions for ease of use.
 type Config struct {
 	configMap *v1.ConfigMap
-	plugins   types.Plugin
+	plugins   []types.PluginItem
 }
 
 var configMemoryCache *Config
@@ -41,15 +41,20 @@ func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (
 		return nil, fmt.Errorf("failed to get configmap %s/%s: %w", defaults.Namespace(), configMapName, err)
 	}
 
-	plugins := types.Plugin{}
-	if err = yaml.Unmarshal([]byte(configMapCluster.Data["plugins"]), &plugins); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal plugins while initializing: %w", err)
+	var trafficRouterPlugins []types.PluginItem
+	if err = yaml.Unmarshal([]byte(configMapCluster.Data["trafficRouterPlugins"]), &trafficRouterPlugins); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal traffic router plugins while initializing: %w", err)
+	}
+
+	var metricProviderPlugins []types.PluginItem
+	if err = yaml.Unmarshal([]byte(configMapCluster.Data["metricProviderPlugins"]), &metricProviderPlugins); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal metric provider plugins while initializing: %w", err)
 	}
 
 	mutex.Lock()
 	configMemoryCache = &Config{
 		configMap: configMapCluster,
-		plugins:   plugins,
+		plugins:   append(trafficRouterPlugins, metricProviderPlugins...),
 	}
 	mutex.Unlock()
 
@@ -78,32 +83,13 @@ func UnInitializeConfig() {
 	configMemoryCache = nil
 }
 
-// GetMetricPluginsConfig returns the metric plugins configured in the configmap
-func (c *Config) GetMetricPluginsConfig() []types.PluginItem {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	var copiedPlugins []types.PluginItem
-	for _, p := range configMemoryCache.plugins.MetricProviders {
-		copiedPlugins = append(copiedPlugins, p)
-	}
-	return copiedPlugins
-}
-
-// GetTrafficPluginsConfig returns the metric plugins configured in the configmap for traffic routers
-func (c *Config) GetTrafficPluginsConfig() []types.PluginItem {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	var copiedPlugins []types.PluginItem
-	for _, p := range configMemoryCache.plugins.Trafficrouters {
-		copiedPlugins = append(copiedPlugins, p)
-	}
-	return copiedPlugins
-}
-
 // GetAllPlugins returns a flattened list of plugin items. This is useful for iterating over all plugins.
 func (c *Config) GetAllPlugins() []types.PluginItem {
+	mutex.RLock()
+	defer mutex.RUnlock()
+
 	var copiedPlugins []types.PluginItem
-	copiedPlugins = append(c.GetTrafficPluginsConfig(), c.GetMetricPluginsConfig()...)
+	copiedPlugins = append(copiedPlugins, configMemoryCache.plugins...)
 	return copiedPlugins
 }
 

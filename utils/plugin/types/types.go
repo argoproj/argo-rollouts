@@ -53,9 +53,17 @@ type RpcTrafficRoutingReconciler interface {
 	Type() string
 }
 
-type Plugin struct {
-	MetricProviders []PluginItem `json:"metricProviders" yaml:"metricProviders"`
-	Trafficrouters  []PluginItem `json:"trafficRouters" yaml:"trafficRouters"`
+//type Plugin struct {
+//	MetricProviders []PluginItem `json:"metricProviders" yaml:"metricProviders"`
+//	TrafficRouters  []PluginItem `json:"trafficRouters" yaml:"trafficRouters"`
+//}
+
+type TrafficRouterPlugins struct {
+	TrafficRouters []PluginItem `json:"trafficRouterPlugins" yaml:"trafficRouterPlugins"`
+}
+
+type MetricProviderPlugins struct {
+	MetricProviders []PluginItem `json:"metricProviderPlugins" yaml:"metricProviderPlugins"`
 }
 
 type PluginItem struct {

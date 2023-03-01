@@ -37,11 +37,10 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-config
 data:
-  plugins: |-
-    metricProviders:
+  metricProviderPlugins: |-
     - name: "argoproj-labs/metrics"
       location: "file:///tmp/argo-rollouts/metric-plugin"
-    trafficRouters:
+  trafficRouterPlugins: |-
     - name: "argoproj-labs/nginx"
       location: "file:///tmp/argo-rollouts/traffic-plugin"
 ```

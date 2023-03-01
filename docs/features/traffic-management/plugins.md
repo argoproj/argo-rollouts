@@ -29,8 +29,7 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-config
 data:
-  plugins: |-
-    trafficRouters:
+  trafficRouterPlugins: |-
     - name: "argoproj-labs/sample-nginx" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
       location: "file://./my-custom-plugin" # supports http(s):// urls and file://
 ```
@@ -46,8 +45,7 @@ kind: ConfigMap
 metadata:
   name: argo-rollouts-config
 data:
-  plugins: |-
-    trafficRouters:
+  trafficRouterPlugins: |-
     - name: "argoproj-labs/sample-nginx" # name of the plugin, it must match the name required by the plugin so it can find it's configuration
       location: "https://github.com/argoproj-labs/rollouts-sample_nginx-trafficrouter-plugin/releases/download/v0.0.1/metric-plugin-linux-amd64" # supports http(s):// urls and file://
       sha256: "08f588b1c799a37bbe8d0fc74cc1b1492dd70b2c" #optional sha256 checksum of the plugin executable
