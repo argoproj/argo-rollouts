@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"fmt"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/client"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
@@ -28,7 +30,7 @@ type Reconciler struct {
 func NewReconciler(cfg *ReconcilerConfig) (*Reconciler, error) {
 	pluginClient, err := client.GetTrafficPlugin(cfg.PluginName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get traffic router plugin %s: %w", cfg.PluginName, err)
 	}
 
 	reconciler := &Reconciler{
