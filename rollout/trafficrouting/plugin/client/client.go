@@ -81,8 +81,8 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 		}
 		t.plugin[pluginName] = pluginType
 
-		err = t.plugin[pluginName].InitPlugin()
-		if err.Error() != "" {
+		resp := t.plugin[pluginName].InitPlugin()
+		if resp.HasError() {
 			return nil, fmt.Errorf("unable to initialize plugin via rpc (%s): %w", pluginName, err)
 		}
 	}
