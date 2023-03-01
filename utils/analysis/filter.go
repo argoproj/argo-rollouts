@@ -145,20 +145,20 @@ func FilterAnalysisRunsToDelete(ars []*v1alpha1.AnalysisRun, allRSs []*appsv1.Re
 	for i := range ars {
 		ar := ars[i]
 		podHash, ok := ar.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
-		//AnalysisRun does not have podHash Label
+		// AnalysisRun does not have podHash Label
 		if !ok {
 			arsToDelete = append(arsToDelete, ar)
 			continue
 		}
 		hasDeletionTimeStamp, ok := olderRsPodHashes[podHash]
 
-		//AnalysisRun does not have matching rs
+		// AnalysisRun does not have matching rs
 		if !ok {
 			arsToDelete = append(arsToDelete, ar)
 			continue
 		}
 
-		//AnalysisRun has matching rs but rs has deletiontimestamp
+		// AnalysisRun has matching rs but rs has deletiontimestamp
 		if ok && hasDeletionTimeStamp {
 			arsToDelete = append(arsToDelete, ar)
 			continue

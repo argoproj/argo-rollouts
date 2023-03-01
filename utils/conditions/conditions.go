@@ -49,7 +49,7 @@ const (
 
 	// NewReplicaSetReason is added in a rollout when it creates a new replica set.
 	NewReplicaSetReason = "NewReplicaSetCreated"
-	//NewReplicaSetMessage is added in a rollout when it creates a new replicas set.
+	// NewReplicaSetMessage is added in a rollout when it creates a new replicas set.
 	NewReplicaSetMessage = "Created new replica set %q"
 	// NewReplicaSetDetailedMessage is a more detailed format message
 	NewReplicaSetDetailedMessage = "Created ReplicaSet %s (revision %d)"
@@ -110,11 +110,11 @@ const (
 	// rollout that paused amidst a rollout and are bounded by a deadline.
 	RolloutResumedMessage = "Rollout is resumed"
 
-	// RolloutStepCompleted indicates when a canary step has completed
+	// RolloutStepCompletedReason indicates when a canary step has completed
 	RolloutStepCompletedReason  = "RolloutStepCompleted"
 	RolloutStepCompletedMessage = "Rollout step %d/%d completed (%s)"
 
-	// TrafficWeightUpdated is emitted any time traffic weight is modified
+	// TrafficWeightUpdatedReason is emitted any time traffic weight is modified
 	TrafficWeightUpdatedReason  = "TrafficWeightUpdated"
 	TrafficWeightUpdatedMessage = "Traffic weight updated %s"
 
@@ -157,11 +157,11 @@ const (
 	// ServiceReferencingManagedService is added in a rollout when the multiple rollouts reference a Rollout
 	ServiceReferencingManagedService = "Service %q is managed by another Rollout"
 
-	// TargetGroupHealthyReason is emitted when target group has been verified
+	// TargetGroupVerifiedReason is emitted when target group has been verified
 	TargetGroupVerifiedReason              = "TargetGroupVerified"
 	TargetGroupVerifiedRegistrationMessage = "Service %s (TargetGroup %s) verified: %d endpoints registered"
 	TargetGroupVerifiedWeightsMessage      = "Service %s (TargetGroup %s) verified: canary weight %d set"
-	// TargetGroupHealthyReason is emitted when target group has not been verified
+	// TargetGroupUnverifiedReason is emitted when target group has not been verified
 	TargetGroupUnverifiedReason              = "TargetGroupUnverified"
 	TargetGroupUnverifiedRegistrationMessage = "Service %s (TargetGroup %s) not verified: %d/%d endpoints registered"
 	TargetGroupUnverifiedWeightsMessage      = "Service %s (TargetGroup %s) not verified: canary weight %d not yet set (current: %d)"

@@ -1019,7 +1019,7 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
 	f.runController(key, true, false, c, i, k8sI)
 
-	//When the controller starts, it will enqueue the rollout while syncing the informer and during the reconciliation step
+	// When the controller starts, it will enqueue the rollout while syncing the informer and during the reconciliation step
 	assert.Equal(t, 2, f.enqueuedObjects[key])
 
 }
@@ -1034,7 +1034,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{
-				Duration: v1alpha1.DurationFromInt(3600), //1 hour
+				Duration: v1alpha1.DurationFromInt(3600), // 1 hour
 			},
 		},
 	}
@@ -1068,7 +1068,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
 	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
 	f.runController(key, true, false, c, i, k8sI)
-	//When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
+	// When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
 	assert.Equal(t, 1, f.enqueuedObjects[key])
 
 }

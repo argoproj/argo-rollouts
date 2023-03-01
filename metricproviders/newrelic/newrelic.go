@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	//ProviderType indicates the provider is wavefront
+	// ProviderType indicates the provider is wavefront
 	ProviderType                     = "NewRelic"
 	DefaultNewRelicProfileSecretName = "newrelic"
 	repoURL                          = "https://github.com/argoproj/argo-rollouts"

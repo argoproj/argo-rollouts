@@ -12,7 +12,7 @@ func GetReplicaSetByTemplateHash(allRS []*appsv1.ReplicaSet, podTemplateHash str
 		return nil, allRS
 	}
 
-	otherRSs := []*appsv1.ReplicaSet{}
+	var otherRSs []*appsv1.ReplicaSet
 	var filterRS *appsv1.ReplicaSet
 	for i := range allRS {
 		rs := allRS[i]

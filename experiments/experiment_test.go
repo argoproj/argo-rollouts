@@ -28,8 +28,8 @@ import (
 )
 
 func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experimentContext {
-	exobjects := []runtime.Object{}
-	kubeobjects := []runtime.Object{}
+	var exobjects []runtime.Object
+	var kubeobjects []runtime.Object
 	for _, obj := range objects {
 		switch obj.(type) {
 		case *v1alpha1.Experiment:

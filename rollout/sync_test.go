@@ -25,7 +25,7 @@ import (
 )
 
 func rs(name string, replicas int, selector map[string]string, timestamp metav1.Time, ownerRef *metav1.OwnerReference) *appsv1.ReplicaSet {
-	ownerRefs := []metav1.OwnerReference{}
+	var ownerRefs []metav1.OwnerReference
 	if ownerRef != nil {
 		ownerRefs = append(ownerRefs, *ownerRef)
 	}

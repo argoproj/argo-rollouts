@@ -33,7 +33,7 @@ func (fd FileDownloaderImpl) Get(url string) (resp *http.Response, err error) {
 // checkPluginExists this function checks if the plugin exists in the configured path if not we panic
 func checkPluginExists(pluginLocation string) error {
 	if pluginLocation != "" {
-		//Check for plugin executable existence
+		// Check for plugin executable existence
 		_, err := os.Stat(pluginLocation)
 		if err != nil {
 			return fmt.Errorf("plugin stat file at %s", pluginLocation)

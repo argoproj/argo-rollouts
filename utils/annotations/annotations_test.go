@@ -86,7 +86,7 @@ func generateRollout(image string) v1alpha1.Rollout {
 
 func TestAnnotationUtils(t *testing.T) {
 
-	//Setup
+	// Setup
 	tRollout := generateRollout("nginx")
 	tRS := generateRS(&tRollout)
 	tRollout.Annotations[RevisionAnnotation] = "1"
@@ -177,13 +177,13 @@ func TestAnnotationUtils(t *testing.T) {
 
 	// Check if annotations are copied properly from rollout to RS
 	t.Run("SetNewReplicaSetAnnotations", func(t *testing.T) {
-		//Try to set the increment revision from 1 through 20
+		// Try to set the increment revision from 1 through 20
 		tRS.Annotations = nil
 		for i := 0; i < 20; i++ {
 
 			nextRevision := fmt.Sprintf("%d", i+1)
 			SetNewReplicaSetAnnotations(&tRollout, &tRS, nextRevision, true)
-			//Now the ReplicaSets Revision Annotation should be i+1
+			// Now the ReplicaSets Revision Annotation should be i+1
 
 			if tRS.Annotations[RevisionAnnotation] != nextRevision {
 				t.Errorf("Revision Expected=%s Obtained=%s", nextRevision, tRS.Annotations[RevisionAnnotation])
@@ -334,7 +334,7 @@ func TestAnnotationUtils(t *testing.T) {
 		assert.Equal(t, false, ok, "Should be an error as 20M value does not fit into int32")
 	})
 
-	//Check if annotations reflect rollouts state
+	// Check if annotations reflect rollouts state
 	tRS.Annotations[DesiredReplicasAnnotation] = "1"
 	tRS.Status.AvailableReplicas = 1
 	tRS.Spec.Replicas = new(int32)
@@ -362,7 +362,7 @@ func TestAnnotationUtils(t *testing.T) {
 		}
 	})
 
-	//Tear Down
+	// Tear Down
 }
 
 func TestReplicasAnnotationsNeedUpdate(t *testing.T) {

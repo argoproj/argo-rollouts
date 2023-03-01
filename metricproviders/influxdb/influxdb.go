@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	//ProviderType indicates the provider is InfluxDB
+	// ProviderType indicates the provider is InfluxDB
 	ProviderType = "Influxdb"
-	//DefaultInfluxdbTokensSecretName is the k8s secret that has InfluxDB api token, org and address
+	// DefaultInfluxdbTokensSecretName is the k8s secret that has InfluxDB api token, org and address
 	DefaultInfluxdbTokensSecretName = "influxdb"
 	influxdbToken                   = "authToken"
 	influxdbOrg                     = "org"

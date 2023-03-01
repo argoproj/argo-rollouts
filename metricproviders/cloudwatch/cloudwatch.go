@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	//ProviderType indicates the provider is cloudwatch
+	// ProviderType indicates the provider is cloudwatch
 	ProviderType = "CloudWatch"
 )
 

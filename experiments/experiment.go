@@ -503,7 +503,7 @@ func (ec *experimentContext) createAnalysisRun(analysis v1alpha1.ExperimentAnaly
 }
 
 func (ec *experimentContext) ResolveAnalysisRunArgs(args []v1alpha1.Argument) ([]v1alpha1.Argument, error) {
-	resolvedArgs := []v1alpha1.Argument{}
+	var resolvedArgs []v1alpha1.Argument
 	for _, arg := range args {
 		resolvedArg := v1alpha1.Argument{Name: arg.Name}
 		if arg.Value != nil {

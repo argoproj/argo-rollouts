@@ -263,7 +263,7 @@ func Namespace() string {
 	return "argo-rollouts"
 }
 
-// SetDefaultVerifyTargetGroup sets the default setWeight verification when instantiating the reconciler
+// SetVerifyTargetGroup sets the default setWeight verification when instantiating the reconciler
 func SetVerifyTargetGroup(b bool) {
 	defaultVerifyTargetGroup = b
 }

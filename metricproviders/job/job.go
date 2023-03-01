@@ -26,7 +26,7 @@ const (
 	JobNameKey = "job-name"
 	// AnalysisRunNameAnnotationKey is the job's annotation key containing the name of the controller AnalysisRun
 	AnalysisRunNameAnnotationKey = "analysisrun.argoproj.io/name"
-	// AnalysisRunMetricLabelKey is the job's annotation key containing the name of the associated AnalysisRun metric
+	// AnalysisRunMetricAnnotationKey is the job's annotation key containing the name of the associated AnalysisRun metric
 	AnalysisRunMetricAnnotationKey = "analysisrun.argoproj.io/metric-name"
 	// AnalysisRunUIDLabelKey is the job's label key containing the uid of the associated AnalysisRun
 	// Also used to filter the job informer

@@ -17,7 +17,7 @@ import (
 // BuildArgumentsForRolloutAnalysisRun builds the arguments for a analysis base created by a rollout
 func BuildArgumentsForRolloutAnalysisRun(args []v1alpha1.AnalysisRunArgument, stableRS, newRS *appsv1.ReplicaSet, r *v1alpha1.Rollout) ([]v1alpha1.Argument, error) {
 	var err error
-	arguments := []v1alpha1.Argument{}
+	var arguments []v1alpha1.Argument
 	for i := range args {
 		arg := args[i]
 		value := arg.Value

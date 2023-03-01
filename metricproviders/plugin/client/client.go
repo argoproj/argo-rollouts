@@ -47,7 +47,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricsPlu
 		"RpcMetricsPlugin": &rpc.RpcMetricsPlugin{},
 	}
 
-	//There should only ever be one plugin defined in metric.Provider.Plugin
+	// There should only ever be one plugin defined in metric.Provider.Plugin
 	for pluginName := range metric.Provider.Plugin {
 		pluginPath, err := plugin.GetPluginLocation(pluginName)
 		if err != nil {

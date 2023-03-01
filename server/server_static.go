@@ -16,7 +16,7 @@ import (
 
 var (
 	//go:embed static/*
-	static         embed.FS //nolint
+	static         embed.FS // nolint
 	staticBasePath = "static"
 	indexHtmlFile  = staticBasePath + "/index.html"
 )
@@ -35,7 +35,7 @@ func (s *ArgoRolloutsServer) staticFileHttpHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	//If the rootPath is not in the prefix 404
+	// If the rootPath is not in the prefix 404
 	if !strings.HasPrefix(requestedURI, rootPath) {
 		http.NotFound(w, r)
 		return
@@ -43,7 +43,7 @@ func (s *ArgoRolloutsServer) staticFileHttpHandler(w http.ResponseWriter, r *htt
 
 	embedPath := path.Join(staticBasePath, strings.TrimPrefix(requestedURI, rootPath))
 
-	//If the rootPath is the requestedURI, serve index.html
+	// If the rootPath is the requestedURI, serve index.html
 	if requestedURI == rootPath {
 		embedPath = indexHtmlFile
 	}

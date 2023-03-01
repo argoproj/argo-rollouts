@@ -22,7 +22,7 @@ var testHandshake = goPlugin.HandshakeConfig{
 
 // This is just an example of how to test a plugin.
 func TestRunSuccessfully(t *testing.T) {
-	//Skip test because this is just an example of how to test a plugin.
+	// Skip test because this is just an example of how to test a plugin.
 	t.Skip("Skipping test because it requires a running prometheus server")
 
 	ctx, cancel := context.WithCancel(context.Background())
