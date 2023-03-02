@@ -122,7 +122,10 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 
 	// Add endpoint after getting the API version
-	url, _ = url.Parse(endpoint + route)
+	url, err = url.Parse(endpoint + route)
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
+	}
 
 	now := unixNow()
 	var interval int64 = 300
