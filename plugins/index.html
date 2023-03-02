@@ -8,27 +8,25 @@
       
       
       
-        <link rel="canonical" href="https://argo-rollouts.readthedocs.io/analysis/prometheus/">
+        <link rel="canonical" href="https://argo-rollouts.readthedocs.io/plugins/">
       
       
-        <link rel="prev" href="../plugins/">
+        <link rel="prev" href="../releasing/">
       
       
-        <link rel="next" href="../datadog/">
-      
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.1.0">
     
     
       
-        <title>Prometheus - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
+        <title>Plugins - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.402914a4.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.402914a4.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.a0c5b2b5.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.a0c5b2b5.min.css">
       
       
 
@@ -44,9 +42,9 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/versions.css">
+      <link rel="stylesheet" href="../assets/versions.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
   
@@ -87,7 +85,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#prometheus-metrics" class="md-skip">
+        <a href="#creating-an-argo-rollouts-plugin" class="md-skip">
           Skip to content
         </a>
       
@@ -103,9 +101,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-header__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
+    <a href=".." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-header__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
       
-  <img src="../../assets/logo.png" alt="logo">
+  <img src="../assets/logo.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -121,7 +119,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Prometheus
+              Plugins
             
           </span>
         </div>
@@ -220,9 +218,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
+    <a href=".." title="Argo Rollouts - Kubernetes Progressive Delivery Controller" class="md-nav__button md-logo" aria-label="Argo Rollouts - Kubernetes Progressive Delivery Controller" data-md-component="logo">
       
-  <img src="../../assets/logo.png" alt="logo">
+  <img src="../assets/logo.png" alt="logo">
 
     </a>
     Argo Rollouts - Kubernetes Progressive Delivery Controller
@@ -250,7 +248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         Overview
       </a>
     </li>
@@ -265,7 +263,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../installation/" class="md-nav__link">
+      <a href="../installation/" class="md-nav__link">
         Installation
       </a>
     </li>
@@ -280,7 +278,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../concepts/" class="md-nav__link">
+      <a href="../concepts/" class="md-nav__link">
         Concepts
       </a>
     </li>
@@ -295,7 +293,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         Architecture
       </a>
     </li>
@@ -337,7 +335,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         Basic Usage
       </a>
     </li>
@@ -351,7 +349,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/ambassador/" class="md-nav__link">
+      <a href="../getting-started/ambassador/" class="md-nav__link">
         Ambassador
       </a>
     </li>
@@ -365,7 +363,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/alb/" class="md-nav__link">
+      <a href="../getting-started/alb/" class="md-nav__link">
         AWS ALB
       </a>
     </li>
@@ -379,7 +377,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/appmesh/" class="md-nav__link">
+      <a href="../getting-started/appmesh/" class="md-nav__link">
         AWS App Mesh
       </a>
     </li>
@@ -393,7 +391,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/istio/" class="md-nav__link">
+      <a href="../getting-started/istio/" class="md-nav__link">
         Istio
       </a>
     </li>
@@ -407,7 +405,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/nginx/" class="md-nav__link">
+      <a href="../getting-started/nginx/" class="md-nav__link">
         NGINX
       </a>
     </li>
@@ -421,7 +419,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/smi/" class="md-nav__link">
+      <a href="../getting-started/smi/" class="md-nav__link">
         SMI
       </a>
     </li>
@@ -435,7 +433,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/mixed/" class="md-nav__link">
+      <a href="../getting-started/mixed/" class="md-nav__link">
         Multiple Providers
       </a>
     </li>
@@ -457,7 +455,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../dashboard/" class="md-nav__link">
+      <a href="../dashboard/" class="md-nav__link">
         Dashboard
       </a>
     </li>
@@ -526,7 +524,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/bluegreen/" class="md-nav__link">
+      <a href="../features/bluegreen/" class="md-nav__link">
         BlueGreen
       </a>
     </li>
@@ -540,7 +538,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/canary/" class="md-nav__link">
+      <a href="../features/canary/" class="md-nav__link">
         Canary
       </a>
     </li>
@@ -561,7 +559,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/specification/" class="md-nav__link">
+      <a href="../features/specification/" class="md-nav__link">
         Rollout Spec
       </a>
     </li>
@@ -575,7 +573,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/hpa-support/" class="md-nav__link">
+      <a href="../features/hpa-support/" class="md-nav__link">
         HPA
       </a>
     </li>
@@ -589,7 +587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/vpa-support/" class="md-nav__link">
+      <a href="../features/vpa-support/" class="md-nav__link">
         VPA
       </a>
     </li>
@@ -603,7 +601,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/ephemeral-metadata/" class="md-nav__link">
+      <a href="../features/ephemeral-metadata/" class="md-nav__link">
         Ephemeral Metadata
       </a>
     </li>
@@ -617,7 +615,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/restart/" class="md-nav__link">
+      <a href="../features/restart/" class="md-nav__link">
         Restarting Rollouts
       </a>
     </li>
@@ -631,7 +629,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/scaledown-aborted-rs/" class="md-nav__link">
+      <a href="../features/scaledown-aborted-rs/" class="md-nav__link">
         Scaledown Aborted Rollouts
       </a>
     </li>
@@ -645,7 +643,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/rollback/" class="md-nav__link">
+      <a href="../features/rollback/" class="md-nav__link">
         Rollback Window
       </a>
     </li>
@@ -659,7 +657,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/anti-affinity/anti-affinity/" class="md-nav__link">
+      <a href="../features/anti-affinity/anti-affinity/" class="md-nav__link">
         Anti Affinity
       </a>
     </li>
@@ -673,7 +671,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/helm/" class="md-nav__link">
+      <a href="../features/helm/" class="md-nav__link">
         Helm
       </a>
     </li>
@@ -687,7 +685,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/kustomize/" class="md-nav__link">
+      <a href="../features/kustomize/" class="md-nav__link">
         Kustomize
       </a>
     </li>
@@ -701,7 +699,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/controller-metrics/" class="md-nav__link">
+      <a href="../features/controller-metrics/" class="md-nav__link">
         Controller Metrics
       </a>
     </li>
@@ -750,7 +748,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/" class="md-nav__link">
+      <a href="../features/traffic-management/" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -764,7 +762,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/ambassador/" class="md-nav__link">
+      <a href="../features/traffic-management/ambassador/" class="md-nav__link">
         Ambassador
       </a>
     </li>
@@ -778,7 +776,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/apisix/" class="md-nav__link">
+      <a href="../features/traffic-management/apisix/" class="md-nav__link">
         APISIX
       </a>
     </li>
@@ -792,7 +790,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/alb/" class="md-nav__link">
+      <a href="../features/traffic-management/alb/" class="md-nav__link">
         AWS ALB
       </a>
     </li>
@@ -806,7 +804,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/istio/" class="md-nav__link">
+      <a href="../features/traffic-management/istio/" class="md-nav__link">
         Istio
       </a>
     </li>
@@ -820,7 +818,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/nginx/" class="md-nav__link">
+      <a href="../features/traffic-management/nginx/" class="md-nav__link">
         NGINX
       </a>
     </li>
@@ -834,7 +832,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../traffic-management/plugins.md" class="md-nav__link">
+      <a href="../traffic-management/plugins.md" class="md-nav__link">
         Plugins
       </a>
     </li>
@@ -848,7 +846,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/smi/" class="md-nav__link">
+      <a href="../features/traffic-management/smi/" class="md-nav__link">
         SMI
       </a>
     </li>
@@ -862,7 +860,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/traffic-management/traefik/" class="md-nav__link">
+      <a href="../features/traffic-management/traefik/" class="md-nav__link">
         Traefik
       </a>
     </li>
@@ -882,16 +880,14 @@
 
   
   
-    
-  
   
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
       
       
       
-      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
       
       
       
@@ -900,7 +896,7 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
         <label class="md-nav__title" for="__nav_9">
           <span class="md-nav__icon md-icon"></span>
           Analysis
@@ -913,7 +909,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/analysis/" class="md-nav__link">
+      <a href="../features/analysis/" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -927,7 +923,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../plugins/" class="md-nav__link">
+      <a href="../analysis/plugins/" class="md-nav__link">
         Plugins
       </a>
     </li>
@@ -939,21 +935,11 @@
               
   
   
-    
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../analysis/prometheus/" class="md-nav__link">
         Prometheus
       </a>
-      
     </li>
   
 
@@ -965,7 +951,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../datadog/" class="md-nav__link">
+      <a href="../analysis/datadog/" class="md-nav__link">
         DataDog
       </a>
     </li>
@@ -979,7 +965,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../newrelic/" class="md-nav__link">
+      <a href="../analysis/newrelic/" class="md-nav__link">
         NewRelic
       </a>
     </li>
@@ -993,7 +979,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../wavefront/" class="md-nav__link">
+      <a href="../analysis/wavefront/" class="md-nav__link">
         Wavefront
       </a>
     </li>
@@ -1007,7 +993,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../job/" class="md-nav__link">
+      <a href="../analysis/job/" class="md-nav__link">
         Job
       </a>
     </li>
@@ -1021,7 +1007,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../web/" class="md-nav__link">
+      <a href="../analysis/web/" class="md-nav__link">
         Web
       </a>
     </li>
@@ -1035,7 +1021,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../kayenta/" class="md-nav__link">
+      <a href="../analysis/kayenta/" class="md-nav__link">
         Kayenta
       </a>
     </li>
@@ -1049,7 +1035,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cloudwatch/" class="md-nav__link">
+      <a href="../analysis/cloudwatch/" class="md-nav__link">
         CloudWatch
       </a>
     </li>
@@ -1063,7 +1049,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../graphite/" class="md-nav__link">
+      <a href="../analysis/graphite/" class="md-nav__link">
         Graphite
       </a>
     </li>
@@ -1077,7 +1063,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../influxdb/" class="md-nav__link">
+      <a href="../analysis/influxdb/" class="md-nav__link">
         InfluxDB
       </a>
     </li>
@@ -1091,7 +1077,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../skywalking/" class="md-nav__link">
+      <a href="../analysis/skywalking/" class="md-nav__link">
         Apache SkyWalking
       </a>
     </li>
@@ -1113,7 +1099,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/experiment/" class="md-nav__link">
+      <a href="../features/experiment/" class="md-nav__link">
         Experiments
       </a>
     </li>
@@ -1155,7 +1141,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/notifications/" class="md-nav__link">
+      <a href="../features/notifications/" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -1196,7 +1182,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/alertmanager/" class="md-nav__link">
+      <a href="../generated/notification-services/alertmanager/" class="md-nav__link">
         Alertmanager
       </a>
     </li>
@@ -1210,7 +1196,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/email/" class="md-nav__link">
+      <a href="../generated/notification-services/email/" class="md-nav__link">
         Email
       </a>
     </li>
@@ -1224,7 +1210,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/github/" class="md-nav__link">
+      <a href="../generated/notification-services/github/" class="md-nav__link">
         GitHub
       </a>
     </li>
@@ -1238,7 +1224,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/googlechat/" class="md-nav__link">
+      <a href="../generated/notification-services/googlechat/" class="md-nav__link">
         Google Chat
       </a>
     </li>
@@ -1252,7 +1238,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/grafana/" class="md-nav__link">
+      <a href="../generated/notification-services/grafana/" class="md-nav__link">
         Grafana
       </a>
     </li>
@@ -1266,7 +1252,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/mattermost/" class="md-nav__link">
+      <a href="../generated/notification-services/mattermost/" class="md-nav__link">
         Mattermost
       </a>
     </li>
@@ -1280,7 +1266,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/newrelic/" class="md-nav__link">
+      <a href="../generated/notification-services/newrelic/" class="md-nav__link">
         NewRelic
       </a>
     </li>
@@ -1294,7 +1280,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/opsgenie/" class="md-nav__link">
+      <a href="../generated/notification-services/opsgenie/" class="md-nav__link">
         Opsgenie
       </a>
     </li>
@@ -1308,7 +1294,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/overview/" class="md-nav__link">
+      <a href="../generated/notification-services/overview/" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -1322,7 +1308,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/pagerduty/" class="md-nav__link">
+      <a href="../generated/notification-services/pagerduty/" class="md-nav__link">
         Pagerduty
       </a>
     </li>
@@ -1336,7 +1322,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/pushover/" class="md-nav__link">
+      <a href="../generated/notification-services/pushover/" class="md-nav__link">
         Pushover
       </a>
     </li>
@@ -1350,7 +1336,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/rocketchat/" class="md-nav__link">
+      <a href="../generated/notification-services/rocketchat/" class="md-nav__link">
         Rocket.Chat
       </a>
     </li>
@@ -1364,7 +1350,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/slack/" class="md-nav__link">
+      <a href="../generated/notification-services/slack/" class="md-nav__link">
         Slack
       </a>
     </li>
@@ -1378,7 +1364,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/teams/" class="md-nav__link">
+      <a href="../generated/notification-services/teams/" class="md-nav__link">
         Teams
       </a>
     </li>
@@ -1392,7 +1378,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/telegram/" class="md-nav__link">
+      <a href="../generated/notification-services/telegram/" class="md-nav__link">
         Telegram
       </a>
     </li>
@@ -1406,7 +1392,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/webex/" class="md-nav__link">
+      <a href="../generated/notification-services/webex/" class="md-nav__link">
         Webex Teams
       </a>
     </li>
@@ -1420,7 +1406,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/notification-services/webhook/" class="md-nav__link">
+      <a href="../generated/notification-services/webhook/" class="md-nav__link">
         Webhook
       </a>
     </li>
@@ -1476,7 +1462,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/kubectl-plugin/" class="md-nav__link">
+      <a href="../features/kubectl-plugin/" class="md-nav__link">
         Overview
       </a>
     </li>
@@ -1517,7 +1503,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts/" class="md-nav__link">
         Rollouts
       </a>
     </li>
@@ -1531,7 +1517,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/" class="md-nav__link">
         Rollouts Abort
       </a>
     </li>
@@ -1545,7 +1531,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/" class="md-nav__link">
         Rollouts Completion
       </a>
     </li>
@@ -1559,7 +1545,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/" class="md-nav__link">
         Rollouts Create
       </a>
     </li>
@@ -1573,7 +1559,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/" class="md-nav__link">
         Rollouts Create Analysisrun
       </a>
     </li>
@@ -1587,7 +1573,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/" class="md-nav__link">
         Rollouts Dashboard
       </a>
     </li>
@@ -1601,7 +1587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/" class="md-nav__link">
         Rollouts Get
       </a>
     </li>
@@ -1615,7 +1601,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/" class="md-nav__link">
         Rollouts Get Experiment
       </a>
     </li>
@@ -1629,7 +1615,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/" class="md-nav__link">
         Rollouts Get Rollout
       </a>
     </li>
@@ -1643,7 +1629,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/" class="md-nav__link">
         Rollouts Lint
       </a>
     </li>
@@ -1657,7 +1643,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/" class="md-nav__link">
         Rollouts List
       </a>
     </li>
@@ -1671,7 +1657,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/" class="md-nav__link">
         Rollouts List Experiments
       </a>
     </li>
@@ -1685,7 +1671,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/" class="md-nav__link">
         Rollouts List Rollouts
       </a>
     </li>
@@ -1699,7 +1685,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/" class="md-nav__link">
         Rollouts Notifications
       </a>
     </li>
@@ -1713,7 +1699,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/" class="md-nav__link">
         Rollouts Notifications Template
       </a>
     </li>
@@ -1727,7 +1713,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/" class="md-nav__link">
         Rollouts Notifications Template Get
       </a>
     </li>
@@ -1741,7 +1727,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/" class="md-nav__link">
         Rollouts Notifications Template Notify
       </a>
     </li>
@@ -1755,7 +1741,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/" class="md-nav__link">
         Rollouts Notifications Trigger
       </a>
     </li>
@@ -1769,7 +1755,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/" class="md-nav__link">
         Rollouts Notifications Trigger Get
       </a>
     </li>
@@ -1783,7 +1769,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/" class="md-nav__link">
         Rollouts Notifications Trigger Run
       </a>
     </li>
@@ -1797,7 +1783,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/" class="md-nav__link">
         Rollouts Pause
       </a>
     </li>
@@ -1811,7 +1797,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/" class="md-nav__link">
         Rollouts Promote
       </a>
     </li>
@@ -1825,7 +1811,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/" class="md-nav__link">
         Rollouts Restart
       </a>
     </li>
@@ -1839,7 +1825,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/" class="md-nav__link">
         Rollouts Retry
       </a>
     </li>
@@ -1853,7 +1839,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/" class="md-nav__link">
         Rollouts Retry Experiment
       </a>
     </li>
@@ -1867,7 +1853,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/" class="md-nav__link">
         Rollouts Retry Rollout
       </a>
     </li>
@@ -1881,7 +1867,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/" class="md-nav__link">
         Rollouts Set
       </a>
     </li>
@@ -1895,7 +1881,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/" class="md-nav__link">
         Rollouts Set Image
       </a>
     </li>
@@ -1909,7 +1895,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/" class="md-nav__link">
         Rollouts Status
       </a>
     </li>
@@ -1923,7 +1909,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/" class="md-nav__link">
         Rollouts Terminate
       </a>
     </li>
@@ -1937,7 +1923,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/" class="md-nav__link">
         Rollouts Terminate Analysisrun
       </a>
     </li>
@@ -1951,7 +1937,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/" class="md-nav__link">
         Rollouts Terminate Experiment
       </a>
     </li>
@@ -1965,7 +1951,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/" class="md-nav__link">
         Rollouts Undo
       </a>
     </li>
@@ -1979,7 +1965,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/" class="md-nav__link">
+      <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/" class="md-nav__link">
         Rollouts Version
       </a>
     </li>
@@ -2008,7 +1994,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../best-practices/" class="md-nav__link">
+      <a href="../best-practices/" class="md-nav__link">
         Best Practices
       </a>
     </li>
@@ -2023,7 +2009,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../migrating/" class="md-nav__link">
+      <a href="../migrating/" class="md-nav__link">
         Migrating
       </a>
     </li>
@@ -2038,7 +2024,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../FAQ/" class="md-nav__link">
+      <a href="../FAQ/" class="md-nav__link">
         FAQ
       </a>
     </li>
@@ -2053,7 +2039,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../security/" class="md-nav__link">
+      <a href="../security/" class="md-nav__link">
         Security
       </a>
     </li>
@@ -2068,7 +2054,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../roadmap/" class="md-nav__link">
+      <a href="../roadmap/" class="md-nav__link">
         Roadmap/Release Schedule
       </a>
     </li>
@@ -2081,14 +2067,16 @@
 
   
   
+    
+  
   
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
       
       
       
-      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" checked>
       
       
       
@@ -2097,7 +2085,7 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="true">
         <label class="md-nav__title" for="__nav_18">
           <span class="md-nav__icon md-icon"></span>
           Contributing
@@ -2110,7 +2098,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../CONTRIBUTING/" class="md-nav__link">
+      <a href="../CONTRIBUTING/" class="md-nav__link">
         Contribution Guide
       </a>
     </li>
@@ -2124,7 +2112,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/setup/" class="md-nav__link">
+      <a href="../getting-started/setup/" class="md-nav__link">
         Environment Setup
       </a>
     </li>
@@ -2138,7 +2126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../releasing/" class="md-nav__link">
+      <a href="../releasing/" class="md-nav__link">
         Releasing
       </a>
     </li>
@@ -2150,11 +2138,114 @@
               
   
   
+    
   
-    <li class="md-nav__item">
-      <a href="../../plugins/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Plugins
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         Plugins
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#high-level-overview" class="md-nav__link">
+    High Level Overview
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-repository" class="md-nav__link">
+    Plugin Repository
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-name" class="md-nav__link">
+    Plugin Name
+  </a>
+  
+    <nav class="md-nav" aria-label="Plugin Name">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#analysistemplate-example" class="md-nav__link">
+    AnalysisTemplate Example
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#traffic-router-example" class="md-nav__link">
+    Traffic Router Example
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-interfaces" class="md-nav__link">
+    Plugin Interfaces
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-init-function" class="md-nav__link">
+    Plugin Init Function
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kubernetes-rbac" class="md-nav__link">
+    Kubernetes RBAC
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sample-plugins" class="md-nav__link">
+    Sample Plugins
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2231,6 +2322,83 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#high-level-overview" class="md-nav__link">
+    High Level Overview
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-repository" class="md-nav__link">
+    Plugin Repository
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-name" class="md-nav__link">
+    Plugin Name
+  </a>
+  
+    <nav class="md-nav" aria-label="Plugin Name">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#analysistemplate-example" class="md-nav__link">
+    AnalysisTemplate Example
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#traffic-router-example" class="md-nav__link">
+    Traffic Router Example
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-interfaces" class="md-nav__link">
+    Plugin Interfaces
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-init-function" class="md-nav__link">
+    Plugin Init Function
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kubernetes-rbac" class="md-nav__link">
+    Kubernetes RBAC
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sample-plugins" class="md-nav__link">
+    Sample Plugins
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -2247,39 +2415,135 @@
   
 
 
-<h1 id="prometheus-metrics">Prometheus Metrics<a class="headerlink" href="#prometheus-metrics" title="Permanent link">&para;</a></h1>
-<p>A <a href="https://prometheus.io/">Prometheus</a> query can be used to obtain measurements for analysis.</p>
+<h1 id="creating-an-argo-rollouts-plugin">Creating an Argo Rollouts Plugin<a class="headerlink" href="#creating-an-argo-rollouts-plugin" title="Permanent link">&para;</a></h1>
+<h2 id="high-level-overview">High Level Overview<a class="headerlink" href="#high-level-overview" title="Permanent link">&para;</a></h2>
+<p>Argo Rollouts plugins depend on hashicorp's <a href="https://github.com/hashicorp/go-plugin">go-plugin</a> library. This library 
+provides a way for a plugin to be compiled as a standalone executable and then loaded by the rollouts controller at runtime.
+This works by having the plugin executable act as a rpc server and the rollouts controller act as a client. The plugin executable
+is started by the rollouts controller and is a long-lived process and that the rollouts controller connects to over a unix socket.
+The communication protocol uses golang built in net/rpc library so plugins have to be written in golang.</p>
+<h2 id="plugin-repository">Plugin Repository<a class="headerlink" href="#plugin-repository" title="Permanent link">&para;</a></h2>
+<p>In order to get plugins listed in the main argo rollouts documentation we ask that the plugin repository be created under
+the <a href="https://github.com/argoproj-labs">argoproj-labs</a> organization. Please open an issue under argo-rollouts requesting a 
+repo which you would be granted admin access on. </p>
+<p>There is also a standard naming convention for plugin names used for configmap registration, as well as what the plugin 
+uses for locating its specific configuration on rollout or analysis resources. The name needs to be in the form of 
+<code>&lt;namespace&gt;/&lt;name&gt;</code> and both <namespace> and <name> have a regular expression check that matches Github's requirements 
+for <code>username/org</code> and <code>repository name</code>. This requirement is in place to help with allowing multiple creators of the same plugin 
+types to exist such as <code>&lt;org1&gt;/nginx</code> and <code>&lt;org2&gt;/nginx</code>. These names could be based of the repo name such 
+as <code>argoproj-labs/rollouts-sample_prometheus-metric-plugin</code> but it is not a requirement. </p>
+<p>There will also be a standard for naming repositories under argoproj-labs in the form of <code>rollouts-&lt;tool&gt;-&lt;type&gt;-plugin</code>
+where <code>&lt;type&gt;</code> is say <code>metric</code>, or <code>trafficrouter</code> and <code>&lt;tool&gt;</code> is the software the plugin is for say nginx.</p>
+<h2 id="plugin-name">Plugin Name<a class="headerlink" href="#plugin-name" title="Permanent link">&para;</a></h2>
+<p>So now that we have an idea on plugin naming and repository standards let's pick a name to use for the rest of this 
+documentation and call our plugin <code>argoproj-labs/nginx</code>.</p>
+<p>This name will be used in a few different spots the first is the config map that your plugin users will need to configure.
+It looks like this below.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts-config</span>
+<span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">metricProviderPlugins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|-</span>
+<span class="w">    </span><span class="no">- name: &quot;argoproj-labs/metrics&quot;</span>
+<span class="w">      </span><span class="no">location: &quot;file:///tmp/argo-rollouts/metric-plugin&quot;</span>
+<span class="w">  </span><span class="nt">trafficRouterPlugins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|-</span>
+<span class="w">    </span><span class="no">- name: &quot;argoproj-labs/nginx&quot;</span>
+<span class="w">      </span><span class="no">location: &quot;file:///tmp/argo-rollouts/traffic-plugin&quot;</span>
+</code></pre></div>
+<p>As you can see there is a field called <code>name:</code> under both <code>metrics</code> or <code>trafficrouters</code> this is the first place where your
+end users will need to configure the name of the plugin. The second location is either in the rollout object or the analysis
+template which you can see the examples below.</p>
+<h4 id="analysistemplate-example">AnalysisTemplate Example<a class="headerlink" href="#analysistemplate-example" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
 <span class="nt">metadata</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
 <span class="nt">spec</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
 <span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
-<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
-<span class="w">    </span><span class="c1"># NOTE: prometheus queries return results in the form of a vector.</span>
-<span class="w">    </span><span class="c1"># So it is common to access the index 0 of the returned array to obtain the value</span>
-<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result[0] &gt;= 0.95</span>
-<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">prometheus</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
-<span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<span class="w">          </span><span class="no">sum(irate(</span>
-<span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code!~&quot;5.*&quot;}[5m]</span>
-<span class="w">          </span><span class="no">)) /</span>
-<span class="w">          </span><span class="no">sum(irate(</span>
-<span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
-<span class="w">          </span><span class="no">))</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="w">      </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">plugin</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">argoproj-labs/metrics</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://prometheus.local</span>
 </code></pre></div>
-<p>The example shows Istio metrics, but you can use any kind of metric available to your prometheus instance. We suggest
-you validate your <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/">PromQL expression</a> using the <a href="https://prometheus.io/docs/introduction/first_steps/#using-the-expression-browser">Prometheus GUI first</a>.</p>
-<p>See the <a href="../../features/analysis">Analysis Overview page</a> for more details on the available options.</p>
-<h1 id="additional-metadata">Additional Metadata<a class="headerlink" href="#additional-metadata" title="Permanent link">&para;</a></h1>
-<p>Any additional metadata from the Prometheus controller, like the resolved queries after substituting the template's
-arguments, etc. will appear under the <code>Metadata</code> map in the <code>MetricsResult</code> object of <code>AnalysisRun</code>.</p>
+<h4 id="traffic-router-example">Traffic Router Example<a class="headerlink" href="#traffic-router-example" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example-plugin-ro</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example-plugin-ro-canary-analysis</span>
+<span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example-plugin-ro-stable-analysis</span>
+<span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">plugins</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">argoproj-labs/nginx</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
+</code></pre></div>
+<p>You can see that we use the plugin name under <code>spec.metrics[].provider.plugin</code> for analysis template and <code>spec.strategy.canary.trafficRouting.plugins</code>
+for traffic routers. You as a plugin author can then put any configuration you need under <code>argoproj-labs/nginx</code> and you will be able to
+look up that config in your plugin via the plugin name key. You will also want to document what configuration options your plugin supports.</p>
+<h2 id="plugin-interfaces">Plugin Interfaces<a class="headerlink" href="#plugin-interfaces" title="Permanent link">&para;</a></h2>
+<p>Argo Rollouts currently supports two plugin systems as a plugin author your end goal is to implement these interfaces as
+a hashicorp go-plugin. The two interfaces are <code>MetricsPlugin</code> and <code>TrafficRouterPlugin</code> for each of the respective plugins:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">MetricProviderPlugin</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// InitPlugin initializes the traffic router plugin this gets called once when the plugin is loaded.</span>
+<span class="w">  </span><span class="nx">InitPlugin</span><span class="p">()</span><span class="w"> </span><span class="nx">RpcError</span>
+<span class="w">  </span><span class="c1">// Run start a new external system call for a measurement</span>
+<span class="w">  </span><span class="c1">// Should be idempotent and do nothing if a call has already been started</span>
+<span class="w">  </span><span class="nx">Run</span><span class="p">(</span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">AnalysisRun</span><span class="p">,</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Metric</span><span class="p">)</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Measurement</span>
+<span class="w">  </span><span class="c1">// Resume Checks if the external system call is finished and returns the current measurement</span>
+<span class="w">  </span><span class="nx">Resume</span><span class="p">(</span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">AnalysisRun</span><span class="p">,</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Metric</span><span class="p">,</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Measurement</span><span class="p">)</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Measurement</span>
+<span class="w">  </span><span class="c1">// Terminate will terminate an in-progress measurement</span>
+<span class="w">  </span><span class="nx">Terminate</span><span class="p">(</span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">AnalysisRun</span><span class="p">,</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Metric</span><span class="p">,</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Measurement</span><span class="p">)</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Measurement</span>
+<span class="w">  </span><span class="c1">// GarbageCollect is used to garbage collect completed measurements to the specified limit</span>
+<span class="w">  </span><span class="nx">GarbageCollect</span><span class="p">(</span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">AnalysisRun</span><span class="p">,</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Metric</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="nx">RpcError</span>
+<span class="w">  </span><span class="c1">// Type gets the provider type</span>
+<span class="w">  </span><span class="nx">Type</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="c1">// GetMetadata returns any additional metadata which providers need to store/display as part</span>
+<span class="w">  </span><span class="c1">// of the metric result. For example, Prometheus uses is to store the final resolved queries.</span>
+<span class="w">  </span><span class="nx">GetMetadata</span><span class="p">(</span><span class="nx">metric</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Metric</span><span class="p">)</span><span class="w"> </span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span>
+<span class="p">}</span>
+
+<span class="kd">type</span><span class="w"> </span><span class="nx">TrafficRouterPlugin</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// InitPlugin initializes the traffic router plugin this gets called once when the plugin is loaded.</span>
+<span class="w">  </span><span class="nx">InitPlugin</span><span class="p">()</span><span class="w"> </span><span class="nx">RpcError</span>
+<span class="w">  </span><span class="c1">// UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes</span>
+<span class="w">  </span><span class="nx">UpdateHash</span><span class="p">(</span><span class="nx">rollout</span><span class="w"> </span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="nx">canaryHash</span><span class="p">,</span><span class="w"> </span><span class="nx">stableHash</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">additionalDestinations</span><span class="w"> </span><span class="p">[]</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">WeightDestination</span><span class="p">)</span><span class="w"> </span><span class="nx">RpcError</span>
+<span class="w">  </span><span class="c1">// SetWeight sets the canary weight to the desired weight</span>
+<span class="w">  </span><span class="nx">SetWeight</span><span class="p">(</span><span class="nx">rollout</span><span class="w"> </span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="nx">desiredWeight</span><span class="w"> </span><span class="kt">int32</span><span class="p">,</span><span class="w"> </span><span class="nx">additionalDestinations</span><span class="w"> </span><span class="p">[]</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">WeightDestination</span><span class="p">)</span><span class="w"> </span><span class="nx">RpcError</span>
+<span class="w">  </span><span class="c1">// SetHeaderRoute sets the header routing step</span>
+<span class="w">  </span><span class="nx">SetHeaderRoute</span><span class="p">(</span><span class="nx">rollout</span><span class="w"> </span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="nx">setHeaderRoute</span><span class="w"> </span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">SetHeaderRoute</span><span class="p">)</span><span class="w"> </span><span class="nx">RpcError</span>
+<span class="w">  </span><span class="c1">// SetMirrorRoute sets up the traffic router to mirror traffic to a service</span>
+<span class="w">  </span><span class="nx">SetMirrorRoute</span><span class="p">(</span><span class="nx">rollout</span><span class="w"> </span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="nx">setMirrorRoute</span><span class="w"> </span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">SetMirrorRoute</span><span class="p">)</span><span class="w"> </span><span class="nx">RpcError</span>
+<span class="w">  </span><span class="c1">// VerifyWeight returns true if the canary is at the desired weight and additionalDestinations are at the weights specified</span>
+<span class="w">  </span><span class="c1">// Returns nil if weight verification is not supported or not applicable</span>
+<span class="w">  </span><span class="nx">VerifyWeight</span><span class="p">(</span><span class="nx">rollout</span><span class="w"> </span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Rollout</span><span class="p">,</span><span class="w"> </span><span class="nx">desiredWeight</span><span class="w"> </span><span class="kt">int32</span><span class="p">,</span><span class="w"> </span><span class="nx">additionalDestinations</span><span class="w"> </span><span class="p">[]</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">WeightDestination</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">RpcVerified</span><span class="p">,</span><span class="w"> </span><span class="nx">RpcError</span><span class="p">)</span>
+<span class="w">  </span><span class="c1">// RemoveManagedRoutes Removes all routes that are managed by rollouts by looking at spec.strategy.canary.trafficRouting.managedRoutes</span>
+<span class="w">  </span><span class="nx">RemoveManagedRoutes</span><span class="p">(</span><span class="nx">ro</span><span class="w"> </span><span class="o">*</span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">Rollout</span><span class="p">)</span><span class="w"> </span><span class="nx">RpcError</span>
+<span class="w">  </span><span class="c1">// Type returns the type of the traffic routing reconciler</span>
+<span class="w">  </span><span class="nx">Type</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="plugin-init-function">Plugin Init Function<a class="headerlink" href="#plugin-init-function" title="Permanent link">&para;</a></h2>
+<p>Each plugin interface has a <code>InitPlugin</code> function, this function is called when the plugin is first started up and is only called 
+once per startup. The <code>InitPlugin</code> function is used as a means to initialize the plugin it gives you the plugin author the ability 
+to either set up a client for a specific metrics provider or in the case of a traffic router construct a client or informer 
+for kubernetes api. The one thing to note about this though is because these calls happen over RPC the plugin author should
+not depend on state being stored in the plugin struct as it will not be persisted between calls.</p>
+<h2 id="kubernetes-rbac">Kubernetes RBAC<a class="headerlink" href="#kubernetes-rbac" title="Permanent link">&para;</a></h2>
+<p>The plugin runs as a child process of the rollouts controller and as such it will inherit the same RBAC permissions as the
+controller. This means that the service account for the rollouts controller will need the correct permissions for the plugin 
+to function. This might mean instructing users to create a role and role binding to the standard rollouts service account 
+for the plugin to use. This will probably affect traffic router plugins more than metrics plugins.</p>
+<h2 id="sample-plugins">Sample Plugins<a class="headerlink" href="#sample-plugins" title="Permanent link">&para;</a></h2>
+<p>There are two sample plugins within the argo-rollouts repo that you can use as a reference for creating your own plugin.</p>
+<ul>
+<li><a href="https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/sample-metrics-plugin">Sample Metrics Plugin</a></li>
+<li><a href="https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/sample-trafficrouter-plugin">Sample Traffic Router Plugin</a></li>
+</ul>
 
 
   
@@ -2319,12 +2583,12 @@ arguments, etc. will appear under the <code>Metadata</code> map in the <code>Met
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.208ed371.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.208ed371.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.ce72ebac.min.js"></script>
+      <script src="../assets/javascripts/bundle.ce72ebac.min.js"></script>
       
-        <script src="../../assets/versions.js"></script>
+        <script src="../assets/versions.js"></script>
       
     
   </body>
