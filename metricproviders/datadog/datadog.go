@@ -35,6 +35,7 @@ const (
 	DatadogApiKey           = "api-key"
 	DatadogAppKey           = "app-key"
 	DatadogAddress          = "address"
+	DefaultApiVersion       = "v1"
 )
 
 // Provider contains all the required components to run a Datadog query
@@ -106,7 +107,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	apiVersion := "v1"
+	apiVersion := DefaultApiVersion
 	if metric.Provider.Datadog.ApiVersion != "" {
 		apiVersion = metric.Provider.Datadog.ApiVersion
 	}

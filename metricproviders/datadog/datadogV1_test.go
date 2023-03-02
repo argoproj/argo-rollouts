@@ -33,9 +33,8 @@ func TestRunSuite(t *testing.T) {
 
 	ddProviderInterval10m := v1alpha1.MetricProvider{
 		Datadog: &v1alpha1.DatadogMetric{
-			Query:      "avg:kubernetes.cpu.user.total{*}",
-			Interval:   "10m",
-			ApiVersion: "v1",
+			Query:    "avg:kubernetes.cpu.user.total{*}",
+			Interval: "10m",
 		},
 	}
 
@@ -236,6 +235,9 @@ func TestRunSuite(t *testing.T) {
 		if serverURL == "" {
 			// Server setup with response
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				if test.metric.Provider.Datadog.ApiVersion == "" && DefaultApiVersion != "v1" {
+					t.Errorf("\nApiVersion was left blank in the tests, but the default API version is not v1 anymore.")
+				}
 
 				//Check query variables
 				actualQuery := req.URL.Query().Get("query")
