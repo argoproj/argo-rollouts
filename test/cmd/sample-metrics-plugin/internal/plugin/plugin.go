@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
+
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin"
@@ -24,10 +26,11 @@ import (
 
 const EnvVarArgoRolloutsPrometheusAddress string = "ARGO_ROLLOUTS_PROMETHEUS_ADDRESS"
 
-// Here is a real implementation of MetricsPlugin
+var _ rpc.MetricProviderPlugin = &RpcPlugin{}
+
+// Here is a real implementation of MetricProviderPlugin
 type RpcPlugin struct {
 	LogCtx log.Entry
-	api    v1.API
 }
 
 type Config struct {
@@ -37,16 +40,7 @@ type Config struct {
 	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
 }
 
-func (g *RpcPlugin) NewMetricsPlugin(metric v1alpha1.Metric) types.RpcError {
-	config := Config{}
-	err := json.Unmarshal(metric.Provider.Plugin["prometheus"], &config)
-	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
-	}
-
-	api, err := newPrometheusAPI(config.Address)
-	g.api = api
-
+func (g *RpcPlugin) InitPlugin() types.RpcError {
 	return types.RpcError{}
 }
 
@@ -57,12 +51,20 @@ func (g *RpcPlugin) Run(anaysisRun *v1alpha1.AnalysisRun, metric v1alpha1.Metric
 	}
 
 	config := Config{}
-	json.Unmarshal(metric.Provider.Plugin["prometheus"], &config)
+	err := json.Unmarshal(metric.Provider.Plugin["argoproj/sample-prometheus"], &config)
+	if err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	}
+
+	api, err := newPrometheusAPI(config.Address)
+	if err != nil {
+		return metricutil.MarkMeasurementError(newMeasurement, err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	response, warnings, err := g.api.Query(ctx, config.Query, time.Now())
+	response, warnings, err := api.Query(ctx, config.Query, time.Now())
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -111,7 +113,7 @@ func (g *RpcPlugin) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	metricsMetadata := make(map[string]string)
 
 	config := Config{}
-	json.Unmarshal(metric.Provider.Plugin["prometheus"], &config)
+	json.Unmarshal(metric.Provider.Plugin["argoproj/sample-prometheus"], &config)
 	if config.Query != "" {
 		metricsMetadata["ResolvedPrometheusQuery"] = config.Query
 	}

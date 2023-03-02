@@ -10,7 +10,6 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	metricutil "github.com/argoproj/argo-rollouts/utils/metric"
 	"github.com/hashicorp/go-plugin"
-	log "github.com/sirupsen/logrus"
 )
 
 type RunArgs struct {
@@ -30,7 +29,7 @@ type GarbageCollectArgs struct {
 	Limit       int
 }
 
-type InitMetricsPluginAndGetMetadataArgs struct {
+type GetMetadataArgs struct {
 	Metric v1alpha1.Metric
 }
 
@@ -38,30 +37,28 @@ func init() {
 	gob.RegisterName("RunArgs", new(RunArgs))
 	gob.RegisterName("TerminateAndResumeArgs", new(TerminateAndResumeArgs))
 	gob.RegisterName("GarbageCollectArgs", new(GarbageCollectArgs))
-	gob.RegisterName("InitMetricsPluginAndGetMetadataArgs", new(InitMetricsPluginAndGetMetadataArgs))
-	gob.RegisterName("RpcError", new(types.RpcError))
+	gob.RegisterName("GetMetadataArgs", new(GetMetadataArgs))
 }
 
-// MetricsPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
+var _ types.RpcMetricProvider = &MetricsPluginRPC{}
+
+// MetricProviderPlugin is the interface that we're exposing as a plugin. It needs to match metricproviders.Providers but we can
 // not import that package because it would create a circular dependency.
-type MetricsPlugin interface {
-	NewMetricsPlugin(metric v1alpha1.Metric) types.RpcError
+type MetricProviderPlugin interface {
+	InitPlugin() types.RpcError
 	types.RpcMetricProvider
 }
 
 // MetricsPluginRPC Here is an implementation that talks over RPC
 type MetricsPluginRPC struct{ client *rpc.Client }
 
-// NewMetricsPlugin is the client side function that is wrapped by a local provider this makes an rpc call to the
+// InitPlugin is the client side function that is wrapped by a local provider this makes a rpc call to the
 // server side function.
-func (g *MetricsPluginRPC) NewMetricsPlugin(metric v1alpha1.Metric) types.RpcError {
+func (g *MetricsPluginRPC) InitPlugin() types.RpcError {
 	var resp types.RpcError
-	var args interface{} = InitMetricsPluginAndGetMetadataArgs{
-		Metric: metric,
-	}
-	err := g.client.Call("Plugin.NewMetricsPlugin", &args, &resp)
+	err := g.client.Call("Plugin.InitPlugin", new(interface{}), &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
+		return types.RpcError{ErrorString: fmt.Sprintf("InitPlugin rpc call error: %s", err)}
 	}
 	return resp
 }
@@ -75,7 +72,10 @@ func (g *MetricsPluginRPC) Run(analysisRun *v1alpha1.AnalysisRun, metric v1alpha
 	}
 	err := g.client.Call("Plugin.Run", &args, &resp)
 	if err != nil {
-		return metricutil.MarkMeasurementError(resp, err)
+		return metricutil.MarkMeasurementError(resp, fmt.Errorf("Run rpc call error: %s", err))
+	}
+	if resp.Phase == v1alpha1.AnalysisPhaseError {
+		resp.Message = fmt.Sprintf("failed to run via plugin: %s", resp.Message)
 	}
 	return resp
 }
@@ -90,7 +90,10 @@ func (g *MetricsPluginRPC) Resume(analysisRun *v1alpha1.AnalysisRun, metric v1al
 	}
 	err := g.client.Call("Plugin.Resume", &args, &resp)
 	if err != nil {
-		return metricutil.MarkMeasurementError(resp, err)
+		return metricutil.MarkMeasurementError(resp, fmt.Errorf("Resume rpc call error: %s", err))
+	}
+	if resp.Phase == v1alpha1.AnalysisPhaseError {
+		resp.Message = fmt.Sprintf("failed to resume via plugin: %s", resp.Message)
 	}
 	return resp
 }
@@ -105,7 +108,10 @@ func (g *MetricsPluginRPC) Terminate(analysisRun *v1alpha1.AnalysisRun, metric v
 	}
 	err := g.client.Call("Plugin.Terminate", &args, &resp)
 	if err != nil {
-		return metricutil.MarkMeasurementError(resp, err)
+		return metricutil.MarkMeasurementError(resp, fmt.Errorf("Terminate rpc call error: %s", err))
+	}
+	if resp.Phase == v1alpha1.AnalysisPhaseError {
+		resp.Message = fmt.Sprintf("failed to terminate via plugin: %s", resp.Message)
 	}
 	return resp
 }
@@ -120,7 +126,7 @@ func (g *MetricsPluginRPC) GarbageCollect(analysisRun *v1alpha1.AnalysisRun, met
 	}
 	err := g.client.Call("Plugin.GarbageCollect", &args, &resp)
 	if err != nil {
-		return types.RpcError{ErrorString: err.Error()}
+		return types.RpcError{ErrorString: fmt.Sprintf("GarbageCollect rpc call error: %s", err)}
 	}
 	return resp
 }
@@ -130,22 +136,23 @@ func (g *MetricsPluginRPC) Type() string {
 	var resp string
 	err := g.client.Call("Plugin.Type", new(interface{}), &resp)
 	if err != nil {
-		return err.Error()
+		return fmt.Sprintf("Type rpc call error: %s", err)
 	}
-
 	return resp
 }
 
 // GetMetadata is the client side function that is wrapped by a local provider this makes an rpc call to the server side function.
 func (g *MetricsPluginRPC) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	var resp map[string]string
-	var args interface{} = InitMetricsPluginAndGetMetadataArgs{
+	var args interface{} = GetMetadataArgs{
 		Metric: metric,
 	}
 	err := g.client.Call("Plugin.GetMetadata", &args, &resp)
 	if err != nil {
-		log.Errorf("Error calling GetMetadata: %v", err)
-		return map[string]string{"error": err.Error()}
+		return map[string]string{"error": fmt.Sprintf("GetMetadata rpc call error: %s", err)}
+	}
+	if resp != nil && resp["error"] != "" {
+		resp["error"] = fmt.Sprintf("failed to get metadata via plugin: %s", resp["error"])
 	}
 	return resp
 }
@@ -154,17 +161,13 @@ func (g *MetricsPluginRPC) GetMetadata(metric v1alpha1.Metric) map[string]string
 // the requirements of net/rpc
 type MetricsRPCServer struct {
 	// This is the real implementation
-	Impl MetricsPlugin
+	Impl MetricProviderPlugin
 }
 
-// NewMetricsPlugin is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
+// InitPlugin is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
-func (s *MetricsRPCServer) NewMetricsPlugin(args interface{}, resp *types.RpcError) error {
-	initArgs, ok := args.(*InitMetricsPluginAndGetMetadataArgs)
-	if !ok {
-		return fmt.Errorf("invalid args %s", args)
-	}
-	*resp = s.Impl.NewMetricsPlugin(initArgs.Metric)
+func (s *MetricsRPCServer) InitPlugin(args interface{}, resp *types.RpcError) error {
+	*resp = s.Impl.InitPlugin()
 	return nil
 }
 
@@ -222,7 +225,7 @@ func (s *MetricsRPCServer) Type(args interface{}, resp *string) error {
 // GetMetadata is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
 func (s *MetricsRPCServer) GetMetadata(args interface{}, resp *map[string]string) error {
-	getMetadataArgs, ok := args.(*InitMetricsPluginAndGetMetadataArgs)
+	getMetadataArgs, ok := args.(*GetMetadataArgs)
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
 	}
@@ -230,7 +233,7 @@ func (s *MetricsRPCServer) GetMetadata(args interface{}, resp *map[string]string
 	return nil
 }
 
-// RpcMetricsPlugin This is the implementation of plugin.Plugin so we can serve/consume
+// RpcMetricProviderPlugin This is the implementation of plugin.Plugin so we can serve/consume
 //
 // This has two methods: Server must return an RPC server for this plugin
 // type. We construct a MetricsRPCServer for this.
@@ -240,15 +243,15 @@ func (s *MetricsRPCServer) GetMetadata(args interface{}, resp *map[string]string
 //
 // Ignore MuxBroker. That is used to create more multiplexed streams on our
 // plugin connection and is a more advanced use case.
-type RpcMetricsPlugin struct {
+type RpcMetricProviderPlugin struct {
 	// Impl Injection
-	Impl MetricsPlugin
+	Impl MetricProviderPlugin
 }
 
-func (p *RpcMetricsPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
+func (p *RpcMetricProviderPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
 	return &MetricsRPCServer{Impl: p.Impl}, nil
 }
 
-func (RpcMetricsPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (RpcMetricProviderPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
 	return &MetricsPluginRPC{client: c}, nil
 }
