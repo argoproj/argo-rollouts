@@ -40,6 +40,8 @@ jobs:
         kubernetes-minor-version:
           - 1.23
           - 1.24
+          - 1.25
+          - 1.26
     name: Run end-to-end tests
     runs-on: ubuntu-latest
     steps:
