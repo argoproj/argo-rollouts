@@ -182,7 +182,7 @@ func (p *Provider) createRequest(query string, apiVersion string, now int64, int
 
 		return &http.Request{Method: "GET"}, nil
 	} else if apiVersion == "v2" {
-		queryBody, _ := json.Marshal(datadogQuery{
+		queryBody, err := json.Marshal(datadogQuery{
 			QueryType: "timeseries_request",
 			Attributes: datadogQueryAttributes{
 				From: now - interval,
@@ -193,6 +193,9 @@ func (p *Provider) createRequest(query string, apiVersion string, now int64, int
 				}},
 			},
 		})
+		if err != nil {
+			return nil, fmt.Errorf("Could not parse your JSON request: %v", err)
+		}
 		request := &http.Request{Method: "POST"}
 		request.Body = io.NopCloser(bytes.NewReader(queryBody))
 		return request, nil
