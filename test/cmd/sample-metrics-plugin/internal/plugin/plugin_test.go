@@ -2,13 +2,11 @@ package plugin
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/plugin/rpc"
 
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	log "github.com/sirupsen/logrus"
 
 	goPlugin "github.com/hashicorp/go-plugin"
@@ -36,7 +34,7 @@ func TestRunSuccessfully(t *testing.T) {
 
 	// pluginMap is the map of plugins we can dispense.
 	var pluginMap = map[string]goPlugin.Plugin{
-		"RpcMetricsPlugin": &rpc.RpcMetricsPlugin{Impl: rpcPluginImp},
+		"RpcMetricProviderPlugin": &rpc.RpcMetricProviderPlugin{Impl: rpcPluginImp},
 	}
 
 	ch := make(chan *goPlugin.ReattachConfig, 1)
@@ -86,18 +84,14 @@ func TestRunSuccessfully(t *testing.T) {
 	}
 
 	// Request the plugin
-	raw, err := client.Dispense("RpcMetricsPlugin")
+	raw, err := client.Dispense("RpcMetricProviderPlugin")
 	if err != nil {
 		t.Fail()
 	}
 
-	plugin := raw.(rpc.MetricsPlugin)
+	plugin := raw.(rpc.MetricProviderPlugin)
 
-	err = plugin.NewMetricsPlugin(v1alpha1.Metric{
-		Provider: v1alpha1.MetricProvider{
-			Plugin: map[string]json.RawMessage{"prometheus": json.RawMessage(`{"address":"http://prometheus.local", "query":"machine_cpu_cores"}`)},
-		},
-	})
+	err = plugin.InitPlugin()
 	if err != nil {
 		t.Fail()
 	}

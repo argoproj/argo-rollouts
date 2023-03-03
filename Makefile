@@ -286,3 +286,7 @@ checksums:
 build-sample-metric-plugin-debug:
 	go build -gcflags="all=-N -l" -o metric-plugin test/cmd/sample-metrics-plugin/main.go
 
+.PHONY: build-sample-traffic-plugin-debug
+build-sample-traffic-plugin-debug:
+	go build -gcflags="all=-N -l" -o traffic-plugin test/cmd/sample-trafficrouter-plugin/main.go
+

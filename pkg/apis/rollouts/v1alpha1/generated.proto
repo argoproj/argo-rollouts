@@ -1478,12 +1478,18 @@ message RolloutTrafficRouting {
   // Traefik holds specific configuration to use Traefik to route traffic
   optional TraefikTrafficRouting traefik = 7;
 
-  // A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
+  // ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
   // traffic router.
   repeated MangedRoutes managedRoutes = 8;
 
   // Apisix holds specific configuration to use Apisix to route traffic
   optional ApisixTrafficRouting apisix = 9;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // Plugins holds specific configuration that traffic router plugins can use for routing traffic
+  map<string, bytes> plugins = 10;
 }
 
 message RouteMatch {
