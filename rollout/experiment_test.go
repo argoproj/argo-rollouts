@@ -827,18 +827,18 @@ func TestRolloutCreateWeightlessExperimentWithService(t *testing.T) {
 	steps := []v1alpha1.CanaryStep{{
 		Experiment: &v1alpha1.RolloutExperimentStep{
 			Templates: []v1alpha1.RolloutExperimentTemplate{
-				// Service should be created for "stable-template"
+				// Service should be created for "stable-weightless-template"
 				{
-					Name:     "stable-template",
+					Name:     "stable-weightless-template",
 					SpecRef:  v1alpha1.StableSpecRef,
 					Replicas: pointer.Int32Ptr(1),
 					Service: &v1alpha1.TemplateService{
 						Name: "test-service",
 					},
 				},
-				// Service should NOT be created for "canary-template"
+				// Service should NOT be created for "canary-weightless-template"
 				{
-					Name:     "canary-template",
+					Name:     "canary-weightless-template",
 					SpecRef:  v1alpha1.CanarySpecRef,
 					Replicas: pointer.Int32Ptr(1),
 				},
@@ -859,9 +859,9 @@ func TestRolloutCreateWeightlessExperimentWithService(t *testing.T) {
 	ex, err := GetExperimentFromTemplate(r2, rs1, rs2)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "stable-template", ex.Spec.Templates[0].Name)
+	assert.Equal(t, "stable-weightless-template", ex.Spec.Templates[0].Name)
 	assert.NotNil(t, ex.Spec.Templates[0].Service)
 
-	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Name)
+	assert.Equal(t, "canary-weightless-template", ex.Spec.Templates[1].Name)
 	assert.Nil(t, ex.Spec.Templates[1].Service)
 }
