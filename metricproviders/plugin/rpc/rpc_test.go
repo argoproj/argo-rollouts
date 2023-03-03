@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -16,17 +15,17 @@ import (
 var testHandshake = goPlugin.HandshakeConfig{
 	ProtocolVersion:  1,
 	MagicCookieKey:   "ARGO_ROLLOUTS_RPC_PLUGIN",
-	MagicCookieValue: "metrics",
+	MagicCookieValue: "metricprovider",
 }
 
-func pluginClient(t *testing.T) (MetricsPlugin, goPlugin.ClientProtocol, func(), chan struct{}) {
+func pluginClient(t *testing.T) (MetricProviderPlugin, goPlugin.ClientProtocol, func(), chan struct{}) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	rpcPluginImp := &testRpcPlugin{}
 
 	// pluginMap is the map of plugins we can dispense.
 	var pluginMap = map[string]goPlugin.Plugin{
-		"RpcMetricsPlugin": &RpcMetricsPlugin{Impl: rpcPluginImp},
+		"RpcMetricProviderPlugin": &RpcMetricProviderPlugin{Impl: rpcPluginImp},
 	}
 
 	ch := make(chan *goPlugin.ReattachConfig, 1)
@@ -65,12 +64,12 @@ func pluginClient(t *testing.T) (MetricsPlugin, goPlugin.ClientProtocol, func(),
 	}
 
 	// Request the plugin
-	raw, err := client.Dispense("RpcMetricsPlugin")
+	raw, err := client.Dispense("RpcMetricProviderPlugin")
 	if err != nil {
 		t.Fail()
 	}
 
-	plugin, ok := raw.(MetricsPlugin)
+	plugin, ok := raw.(MetricProviderPlugin)
 	if !ok {
 		t.Fail()
 	}
@@ -82,11 +81,7 @@ func TestPlugin(t *testing.T) {
 	plugin, _, cancel, closeCh := pluginClient(t)
 	defer cancel()
 
-	err := plugin.NewMetricsPlugin(v1alpha1.Metric{
-		Provider: v1alpha1.MetricProvider{
-			Plugin: map[string]json.RawMessage{"prometheus": json.RawMessage(`{"address":"http://prometheus.local", "query":"machine_cpu_cores"}`)},
-		},
-	})
+	err := plugin.InitPlugin()
 	if err.Error() != "" {
 		t.Fail()
 	}
@@ -96,7 +91,7 @@ func TestPlugin(t *testing.T) {
 
 	runMeasurementErr := plugin.Run(nil, v1alpha1.Metric{})
 	assert.Equal(t, "Error", string(runMeasurementErr.Phase))
-	assert.Equal(t, "analysisRun is nil", runMeasurementErr.Message)
+	assert.Contains(t, runMeasurementErr.Message, "analysisRun is nil")
 
 	resumeMeasurement := plugin.Resume(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, v1alpha1.Measurement{
 		Phase:   "TestCompletedResume",
@@ -135,29 +130,29 @@ func TestPluginClosedConnection(t *testing.T) {
 
 	const expectedError = "connection is shut down"
 
-	newMetrics := plugin.NewMetricsPlugin(v1alpha1.Metric{})
-	assert.Equal(t, expectedError, newMetrics.Error())
+	newMetrics := plugin.InitPlugin()
+	assert.Contains(t, newMetrics.Error(), expectedError)
 
 	measurement := plugin.Terminate(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, v1alpha1.Measurement{})
-	assert.Equal(t, expectedError, measurement.Message)
+	assert.Contains(t, measurement.Message, expectedError)
 
 	measurement = plugin.Run(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{})
-	assert.Equal(t, expectedError, measurement.Message)
+	assert.Contains(t, measurement.Message, expectedError)
 
 	measurement = plugin.Resume(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, v1alpha1.Measurement{})
-	assert.Equal(t, expectedError, measurement.Message)
+	assert.Contains(t, measurement.Message, expectedError)
 
 	measurement = plugin.Terminate(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, v1alpha1.Measurement{})
-	assert.Equal(t, expectedError, measurement.Message)
+	assert.Contains(t, measurement.Message, expectedError)
 
 	typeStr := plugin.Type()
-	assert.Equal(t, expectedError, typeStr)
+	assert.Contains(t, typeStr, expectedError)
 
 	metadata := plugin.GetMetadata(v1alpha1.Metric{})
-	assert.Equal(t, expectedError, metadata["error"])
+	assert.Contains(t, metadata["error"], expectedError)
 
 	gcError := plugin.GarbageCollect(&v1alpha1.AnalysisRun{}, v1alpha1.Metric{}, 0)
-	assert.Equal(t, expectedError, gcError.Error())
+	assert.Contains(t, gcError.Error(), expectedError)
 
 	cancel()
 	<-closeCh
@@ -178,9 +173,6 @@ func TestInvalidArgs(t *testing.T) {
 	assert.Error(t, err)
 
 	err = server.GarbageCollect(badtype, &types.RpcError{})
-	assert.Error(t, err)
-
-	err = server.NewMetricsPlugin(badtype, &types.RpcError{})
 	assert.Error(t, err)
 
 	resp := make(map[string]string)
