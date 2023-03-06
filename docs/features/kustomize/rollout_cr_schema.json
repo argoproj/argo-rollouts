@@ -243,6 +243,9 @@
                                             },
                                             "datadog": {
                                                 "properties": {
+                                                    "apiVersion": {
+                                                        "type": "string"
+                                                    },
                                                     "interval": {
                                                         "type": "string"
                                                     },
@@ -4529,6 +4532,9 @@
                                             },
                                             "datadog": {
                                                 "properties": {
+                                                    "apiVersion": {
+                                                        "type": "string"
+                                                    },
                                                     "interval": {
                                                         "type": "string"
                                                     },
@@ -8815,6 +8821,9 @@
                                             },
                                             "datadog": {
                                                 "properties": {
+                                                    "apiVersion": {
+                                                        "type": "string"
+                                                    },
                                                     "interval": {
                                                         "type": "string"
                                                     },
