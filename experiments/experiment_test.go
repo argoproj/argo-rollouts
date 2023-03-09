@@ -399,7 +399,7 @@ func TestFailServiceCreation(t *testing.T) {
 	})
 	newStatus := exCtx.reconcile()
 	assert.Equal(t, v1alpha1.TemplateStatusError, newStatus.TemplateStatuses[0].Status)
-	assert.Contains(t, newStatus.TemplateStatuses[0].Message, "Failed to create Service for template 'bad'")
+	assert.Contains(t, newStatus.TemplateStatuses[0].Message, "Failed to create Service foo-bad for template 'bad'")
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, newStatus.Phase)
 }
 
