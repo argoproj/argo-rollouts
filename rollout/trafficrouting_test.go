@@ -248,7 +248,6 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 					SpecRef:  "canary",
 					Replicas: pointer.Int32Ptr(1),
 					Weight:   pointer.Int32Ptr(5),
-					Service:  &v1alpha1.TemplateService{},
 				}},
 			},
 		},
