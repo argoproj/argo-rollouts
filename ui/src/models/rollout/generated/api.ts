@@ -859,7 +859,7 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTraffi
      * @type {Array<string>}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTrafficRouting
      */
-    additionalStableIngresses?: Array<string>;
+    stableIngresses?: Array<string>;
 }
 /**
  * 

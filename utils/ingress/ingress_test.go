@@ -74,8 +74,8 @@ func TestGetRolloutIngressKeysForCanaryWithTrafficRoutingMultiIngress(t *testing
 					StableService: "stable-service",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress:             "stable-ingress",
-							AdditionalStableIngresses: []string{"stable-ingress-additional"},
+							StableIngress:   "stable-ingress",
+							StableIngresses: []string{"stable-ingress-additional"},
 						},
 						ALB: &v1alpha1.ALBTrafficRouting{
 							Ingress: "alb-ingress",
@@ -101,8 +101,8 @@ func TestGetCanaryIngressName(t *testing.T) {
 					StableService: "stable-service",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress:             "stable-ingress",
-							AdditionalStableIngresses: []string{"stable-ingress-additional"},
+							StableIngress:   "stable-ingress",
+							StableIngresses: []string{"stable-ingress-additional"},
 						},
 					},
 				},
@@ -121,15 +121,15 @@ func TestGetCanaryIngressName(t *testing.T) {
 		assert.Equal(t, 253, len(canaryIngress), "canary ingress truncated to 253")
 		assert.Equal(t, true, strings.HasSuffix(canaryIngress, "-canary"), "canary ingress has -canary suffix")
 	})
-	t.Run("AdditionalStableIngresses - NoTrim", func(t *testing.T) {
-		for _, ing := range rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses {
+	t.Run("StableIngresses - NoTrim", func(t *testing.T) {
+		for _, ing := range rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngresses {
 			canaryIngress := GetCanaryIngressName(rollout.GetName(), ing)
 			assert.Equal(t, "myrollout-stable-ingress-additional-canary", canaryIngress)
 		}
 	})
-	t.Run("AdditionalStableIngresses - Trim", func(t *testing.T) {
-		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses = []string{fmt.Sprintf("stable-ingress%s", strings.Repeat("a", 260))}
-		for _, ing := range rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses {
+	t.Run("StableIngresses - Trim", func(t *testing.T) {
+		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngresses = []string{fmt.Sprintf("stable-ingress%s", strings.Repeat("a", 260))}
+		for _, ing := range rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngresses {
 			canaryIngress := GetCanaryIngressName(rollout.GetName(), ing)
 			assert.Equal(t, 253, len(canaryIngress), "canary ingress truncated to 253")
 			assert.Equal(t, true, strings.HasSuffix(canaryIngress, "-canary"), "canary ingress has -canary suffix")

@@ -808,11 +808,11 @@ func (c *rolloutContext) getReferencedIngresses() (*[]ingressutil.Ingress, error
 			ingresses = append(ingresses, *ingress)
 		} else if canary.TrafficRouting.Nginx != nil {
 			// If the rollout resource manages more than 1 ingress
-			if len(canary.TrafficRouting.Nginx.AdditionalStableIngresses) > 0 {
-				for _, ing := range canary.TrafficRouting.Nginx.AdditionalStableIngresses {
+			if len(canary.TrafficRouting.Nginx.StableIngresses) > 0 {
+				for _, ing := range canary.TrafficRouting.Nginx.StableIngresses {
 					ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, ing)
 					if k8serrors.IsNotFound(err) {
-						return nil, field.Invalid(fldPath.Child("nginx", "AdditionalStableIngresses"), canary.TrafficRouting.Nginx.AdditionalStableIngresses, err.Error())
+						return nil, field.Invalid(fldPath.Child("nginx", "StableIngresses"), canary.TrafficRouting.Nginx.StableIngresses, err.Error())
 					}
 					if err != nil {
 						return nil, err

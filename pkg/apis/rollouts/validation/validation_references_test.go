@@ -276,8 +276,8 @@ func getRolloutMultiIngress() *v1alpha1.Rollout {
 					CanaryService: "canary-service-name",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress:             StableIngress,
-							AdditionalStableIngresses: []string{AddStableIngress1, AddStableIngress2},
+							StableIngress:   StableIngress,
+							StableIngresses: []string{AddStableIngress1, AddStableIngress2},
 						},
 					},
 				},
@@ -365,7 +365,7 @@ func TestValidateRolloutReferencedResourcesMultiNginxIngress(t *testing.T) {
 	stableService := "stable-service"
 	wrongService := "wrong-stable-service"
 	stableIngressKey := "spec.strategy.canary.trafficRouting.nginx.stableIngress"
-	addStableIngresKey := "spec.strategy.canary.trafficRouting.nginx.additionalStableIngresses"
+	addStableIngresKey := "spec.strategy.canary.trafficRouting.nginx.stableIngresses"
 	tests := []struct {
 		name           string
 		service1       string

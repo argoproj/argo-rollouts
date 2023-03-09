@@ -11865,14 +11865,14 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
-                              additionalStableIngresses:
-                                items:
-                                  type: string
-                                type: array
                               annotationPrefix:
                                 type: string
                               stableIngress:
                                 type: string
+                              stableIngresses:
+                                items:
+                                  type: string
+                                type: array
                             required:
                             - stableIngress
                             type: object

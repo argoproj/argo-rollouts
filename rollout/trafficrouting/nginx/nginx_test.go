@@ -27,7 +27,7 @@ import (
 
 const StableIngress string = "stable-ingress"
 const CanaryIngress string = "rollout-stable-ingress-canary"
-const AdditionalStableIngresses string = "additional-stable-ingress"
+const StableIngresses string = "additional-stable-ingress"
 const stableService string = "stable-service"
 const canaryService string = "canary-service"
 const createCanaryAction string = "action: create canary ingress"
@@ -49,9 +49,9 @@ func generateMultiIngressTestData() []multiIngressTestData {
 	},
 		{
 			"multiIngress",
-			[]string{StableIngress, AdditionalStableIngresses},
+			[]string{StableIngress, StableIngresses},
 			[]string{CanaryIngress, "rollout-additional-stable-ingress-canary"},
-			[]string{AdditionalStableIngresses},
+			[]string{StableIngresses},
 		}}
 }
 
@@ -158,8 +158,8 @@ func fakeRollout(stableSvc, canarySvc, stableIng string, addStableIngs []string)
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						Nginx: &v1alpha1.NginxTrafficRouting{
-							StableIngress:             stableIng,
-							AdditionalStableIngresses: addStableIngs,
+							StableIngress:   stableIng,
+							StableIngresses: addStableIngs,
 						},
 					},
 				},

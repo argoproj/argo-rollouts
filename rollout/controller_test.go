@@ -1752,8 +1752,8 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
 	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		Nginx: &v1alpha1.NginxTrafficRouting{
-			StableIngress:             "nginx-ingress-name",
-			AdditionalStableIngresses: []string{AddIngress},
+			StableIngress:   "nginx-ingress-name",
+			StableIngresses: []string{AddIngress},
 		},
 	}
 	r.Namespace = metav1.NamespaceDefault
@@ -1767,7 +1767,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 		{
 			"get referenced Nginx ingress - fail on secondary when both missing",
 			[]*ingressutil.Ingress{},
-			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "AdditionalStableIngresses"), []string{AddIngress}, fmt.Sprintf("ingress.extensions \"%s\" not found", AddIngress)),
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "StableIngresses"), []string{AddIngress}, fmt.Sprintf("ingress.extensions \"%s\" not found", AddIngress)),
 		},
 		{
 			"get referenced Nginx ingress - fail on primary when additional present",
@@ -1791,7 +1791,7 @@ func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
 					},
 				}),
 			},
-			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "AdditionalStableIngresses"), []string{AddIngress}, fmt.Sprintf("ingress.extensions \"%s\" not found", AddIngress)),
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "StableIngresses"), []string{AddIngress}, fmt.Sprintf("ingress.extensions \"%s\" not found", AddIngress)),
 		},
 	}
 

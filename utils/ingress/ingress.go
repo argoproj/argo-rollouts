@@ -96,9 +96,9 @@ func GetRolloutIngressKeys(rollout *v1alpha1.Rollout) []string {
 	if rollout.Spec.Strategy.Canary != nil &&
 		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
 		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil &&
-		len(rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses) > 0 {
+		len(rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngresses) > 0 {
 
-		for _, stableIngress := range rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalStableIngresses {
+		for _, stableIngress := range rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngresses {
 			// Also start watcher for `-canary` ingress which is created by the trafficmanagement controller
 			ingresses = append(
 				ingresses,
