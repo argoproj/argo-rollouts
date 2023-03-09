@@ -75,6 +75,14 @@ type ALBTargetGroup struct {
 	Weight *int64 `json:"Weight,omitempty"`
 }
 
+func MultipleNginxIngressesConfigured(rollout *v1alpha1.Rollout) bool {
+	return rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngresses != nil
+}
+
+func SingleNginxIngressConfigured(rollout *v1alpha1.Rollout) bool {
+	return rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress != ""
+}
+
 // GetRolloutIngressKeys returns ingresses keys (namespace/ingressName) which are referenced by specified rollout
 func GetRolloutIngressKeys(rollout *v1alpha1.Rollout) []string {
 	var ingresses []string

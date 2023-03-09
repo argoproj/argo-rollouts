@@ -561,6 +561,12 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 	}
 	refResources.AnalysisTemplatesWithType = *analysisTemplates
 
+	// // Validate Rollout Nginx Ingress Controller before referencing
+	err = validation.ValidateRolloutNginxIngressesConfig(c.rollout)
+	if err != nil {
+		return nil, err
+	}
+
 	ingresses, err := c.getReferencedIngresses()
 	if err != nil {
 		return nil, err

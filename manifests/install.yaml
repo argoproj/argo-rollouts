@@ -11873,8 +11873,6 @@ spec:
                                 items:
                                   type: string
                                 type: array
-                            required:
-                            - stableIngress
                             type: object
                           smi:
                             properties:

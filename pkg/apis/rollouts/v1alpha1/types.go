@@ -426,7 +426,7 @@ type NginxTrafficRouting struct {
 	// +optional
 	AnnotationPrefix string `json:"annotationPrefix,omitempty" protobuf:"bytes,1,opt,name=annotationPrefix"`
 	// StableIngress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
-	StableIngress string `json:"stableIngress" protobuf:"bytes,2,opt,name=stableIngress"`
+	StableIngress string `json:"stableIngress,omitempty" protobuf:"bytes,2,opt,name=stableIngress"`
 	// +optional
 	AdditionalIngressAnnotations map[string]string `json:"additionalIngressAnnotations,omitempty" protobuf:"bytes,3,rep,name=additionalIngressAnnotations"`
 	// StableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario

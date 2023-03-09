@@ -220,35 +220,43 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
 	canary := rollout.Spec.Strategy.Canary
-	var ingressName string
-	var serviceName string
 
 	if canary.TrafficRouting.Nginx != nil {
-		additionalIngress := canary.TrafficRouting.Nginx.StableIngresses
-		// If there are additional stable Nginx ingresses, and one of them is being validated,
-		// use that ingress name.
-		if len(additionalIngress) > 0 && slices.Contains(additionalIngress, ingress.GetName()) {
-			fldPath = fldPath.Child("nginx").Child("stableIngresses")
-			serviceName = canary.StableService
-			ingressName = ingress.GetName()
-			allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
-		} else {
-			fldPath = fldPath.Child("nginx").Child("stableIngress")
-			serviceName = canary.StableService
-			ingressName = canary.TrafficRouting.Nginx.StableIngress
-			allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
-		}
+		return validateNginxIngress(canary, ingress, fldPath)
 	} else if canary.TrafficRouting.ALB != nil {
-		fldPath = fldPath.Child("alb").Child("ingress")
-		ingressName = canary.TrafficRouting.ALB.Ingress
-		serviceName = canary.StableService
-		if canary.TrafficRouting.ALB.RootService != "" {
-			serviceName = canary.TrafficRouting.ALB.RootService
-		}
-		allErrs = reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
+		return validateAlbIngress(canary, ingress, fldPath)
+	} else {
+		return allErrs
+	}
+}
+
+func validateNginxIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.Ingress, fldPath *field.Path) field.ErrorList {
+	additionalIngresses := canary.TrafficRouting.Nginx.StableIngresses
+	allErrs := field.ErrorList{}
+	// If there are additional stable Nginx ingresses, and one of them is being validated,
+	// use that ingress name.
+	if len(additionalIngresses) > 0 && slices.Contains(additionalIngresses, ingress.GetName()) {
+		fldPath = fldPath.Child("nginx").Child("stableIngresses")
+		serviceName := canary.StableService
+		ingressName := ingress.GetName()
+		return reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
+	} else {
+		fldPath = fldPath.Child("nginx").Child("stableIngress")
+		serviceName := canary.StableService
+		ingressName := canary.TrafficRouting.Nginx.StableIngress
+		return reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
+	}
+}
+
+func validateAlbIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.Ingress, fldPath *field.Path) field.ErrorList {
+	fldPath = fldPath.Child("alb").Child("ingress")
+	ingressName := canary.TrafficRouting.ALB.Ingress
+	serviceName := canary.StableService
+	if canary.TrafficRouting.ALB.RootService != "" {
+		serviceName = canary.TrafficRouting.ALB.RootService
 	}
 
-	return allErrs
+	return reportErrors(ingress, serviceName, ingressName, fldPath, field.ErrorList{})
 }
 
 func reportErrors(ingress *ingressutil.Ingress, serviceName, ingressName string, fldPath *field.Path, allErrs field.ErrorList) field.ErrorList {
@@ -259,12 +267,36 @@ func reportErrors(ingress *ingressutil.Ingress, serviceName, ingressName string,
 	return allErrs
 }
 
+// Validates that only one or the other of the two fields
+// (StableIngress, StableIngresses) is defined on the Nginx struct
+func ValidateRolloutNginxIngressesConfig(r *v1alpha1.Rollout) error {
+	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx")
+	var err error
+
+	// If the traffic strategy isn't canary -> Nginx, no need to validate
+	// fields on Nginx struct.
+	if r.Spec.Strategy.Canary == nil ||
+		r.Spec.Strategy.Canary.TrafficRouting == nil ||
+		r.Spec.Strategy.Canary.TrafficRouting.Nginx == nil {
+		return nil
+	}
+
+	// If both StableIngress and StableIngresses are configured or if neither are configured,
+	// that's an error. It must be one or the other.
+	if ingressutil.MultipleNginxIngressesConfigured(r) && ingressutil.SingleNginxIngressConfigured(r) {
+		err = field.InternalError(fldPath, fmt.Errorf("Either StableIngress or StableIngresses must be configured. Both are configured."))
+	} else if !(ingressutil.MultipleNginxIngressesConfigured(r) || ingressutil.SingleNginxIngressConfigured(r)) {
+		err = field.InternalError(fldPath, fmt.Errorf("Either StableIngress or StableIngresses must be configured. Neither are configured."))
+	}
+
+	return err
+}
+
 // ValidateRolloutVirtualServicesConfig checks either VirtualService or VirtualServices configured
 // It returns an error if both VirtualService and VirtualServices are configured.
 // Also, returns an error if both are not configured.
 func ValidateRolloutVirtualServicesConfig(r *v1alpha1.Rollout) error {
-	var fldPath *field.Path
-	fldPath = field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
+	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "istio")
 	errorString := "either VirtualService or VirtualServices must be configured"
 
 	if r.Spec.Strategy.Canary != nil {
