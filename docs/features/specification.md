@@ -337,6 +337,10 @@ spec:
           templates:
           - name: baseline
             specRef: stable
+            # optional, creates a service for the experiment if set
+            service:
+              # optional, service: {} is also acceptable if name is not included
+              name: test-service
           - name: canary
             specRef: canary
             # optional, set the weight of traffic routed to this version

@@ -52,6 +52,11 @@ spec:
   - name: purple
     # Number of replicas to run (optional). If omitted, will run a single replica
     replicas: 1
+    # Flag to create Service for this Experiment (optional)
+    # If omitted, a Service won't be created.
+    service:
+      # Name of the Service (optional). If omitted, service: {} would also be acceptable.
+      name: service-name
     selector:
       matchLabels:
         app: canary-demo
@@ -120,7 +125,8 @@ spec:
 An Experiment is intended to temporarily run one or more templates. The lifecycle of an Experiment
 is as follows:
 
-1. Create and scale a ReplicaSet for each pod template specified under `spec.templates`
+1. Create and scale a ReplicaSet for each pod template specified under `spec.templates`. If
+   `service` is specified under a pod template, a Service will also be created for that pod.
 2. Wait for all ReplicaSets reach full availability. If a ReplicaSet does not become available
    within `spec.progressDeadlineSeconds`, the Experiment will fail. Once available, the Experiment
    will transition from the `Pending` state to a `Running` state.
