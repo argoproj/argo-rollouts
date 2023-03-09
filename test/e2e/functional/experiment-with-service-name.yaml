@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Experiment
 metadata:
-  name: experiment-with-service
+  name: experiment-with-service-name
 spec:
   duration: 10s
   scaleDownDelaySeconds: 5
@@ -13,14 +13,14 @@ spec:
         name: service-name
       selector:
         matchLabels:
-          app: experiment-with-service
+          app: experiment-with-service-name
       template:
         metadata:
           labels:
-            app: experiment-with-service
+            app: experiment-with-service-name
         spec:
           containers:
-            - name: experiment-with-service
+            - name: experiment-with-service-name
               image: nginx:1.19-alpine
               resources:
                 requests:
