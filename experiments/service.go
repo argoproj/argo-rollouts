@@ -83,7 +83,7 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 		if errors.IsAlreadyExists(err) {
 			svc, err := ec.kubeclientset.CoreV1().Services(ec.ex.Namespace).Get(ctx, service.Name, metav1.GetOptions{})
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("did not get existing service: %v", err)
 			}
 			controllerRef := metav1.GetControllerOf(svc)
 			if controllerRef == nil || controllerRef.UID != ec.ex.UID || svc.Annotations == nil || svc.Annotations[v1alpha1.ExperimentNameAnnotationKey] != ec.ex.Name || svc.Annotations[v1alpha1.ExperimentTemplateNameAnnotationKey] != template.Name {
@@ -91,7 +91,7 @@ func (ec *experimentContext) CreateService(serviceName string, template v1alpha1
 			}
 			return svc, nil
 		} else {
-			return nil, err
+			return nil, fmt.Errorf("cannot create service: %v %v", err, newService)
 		}
 	}
 	return service, nil
