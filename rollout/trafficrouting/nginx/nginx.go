@@ -227,13 +227,10 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 		// Fail out if there is an issue setting weight on additional ingresesses.
 		// Fundamental assumption is that each additional Ingress is equal in importance
 		// as primary Ingress resource.
-		if err := r.SetWeightPerIngress(desiredWeight, ingresses); err != nil {
-			return err
-		}
-
+		return r.SetWeightPerIngress(desiredWeight, ingresses)
+	} else {
+		return r.SetWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress})
 	}
-
-	return r.SetWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress})
 }
 
 // SetWeightMultiIngress modifies each Nginx Ingress resource to reach desired state in the scenario of a rollout

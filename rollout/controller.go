@@ -799,44 +799,60 @@ func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollou
 }
 
 func (c *rolloutContext) getReferencedIngresses() (*[]ingressutil.Ingress, error) {
-	ingresses := []ingressutil.Ingress{}
 	canary := c.rollout.Spec.Strategy.Canary
-	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
+
 	if canary != nil && canary.TrafficRouting != nil {
 		if canary.TrafficRouting.ALB != nil {
-			ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.ALB.Ingress)
-			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath.Child("alb", "ingress"), canary.TrafficRouting.ALB.Ingress, err.Error())
-			}
-			if err != nil {
-				return nil, err
-			}
-			ingresses = append(ingresses, *ingress)
+			return c.getReferencedALBIngresses(canary)
 		} else if canary.TrafficRouting.Nginx != nil {
-			// If the rollout resource manages more than 1 ingress
-			if len(canary.TrafficRouting.Nginx.StableIngresses) > 0 {
-				for _, ing := range canary.TrafficRouting.Nginx.StableIngresses {
-					ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, ing)
-					if k8serrors.IsNotFound(err) {
-						return nil, field.Invalid(fldPath.Child("nginx", "StableIngresses"), canary.TrafficRouting.Nginx.StableIngresses, err.Error())
-					}
-					if err != nil {
-						return nil, err
-					}
-					ingresses = append(ingresses, *ingress)
-				}
-			}
-			ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.Nginx.StableIngress)
-			if k8serrors.IsNotFound(err) {
-				return nil, field.Invalid(fldPath.Child("nginx", "stableIngress"), canary.TrafficRouting.Nginx.StableIngress, err.Error())
-			}
+			return c.getReferencedNginxIngresses(canary)
+		}
+	}
+	return &[]ingressutil.Ingress{}, nil
+}
+
+func (c *rolloutContext) getReferencedNginxIngresses(canary *v1alpha1.CanaryStrategy) (*[]ingressutil.Ingress, error) {
+	ingresses := []ingressutil.Ingress{}
+
+	// The rollout resource manages more than 1 ingress.
+	if canary.TrafficRouting.Nginx.StableIngresses != nil {
+		for _, ing := range canary.TrafficRouting.Nginx.StableIngresses {
+			ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, ing)
 			if err != nil {
-				return nil, err
+				return handleCacheError("nginx", []string{"StableIngresses"}, canary.TrafficRouting.Nginx.StableIngresses, err)
 			}
 			ingresses = append(ingresses, *ingress)
 		}
+	} else {
+		// The rollout resource manages only 1 ingress.
+		ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.Nginx.StableIngress)
+		if err != nil {
+			return handleCacheError("nginx", []string{"stableIngress"}, canary.TrafficRouting.Nginx.StableIngress, err)
+		}
+		ingresses = append(ingresses, *ingress)
 	}
+
 	return &ingresses, nil
+}
+
+// return nil, field.Invalid(fldPath.Child("alb", "ingress"), canary.TrafficRouting.ALB.Ingress, err.Error())
+func (c *rolloutContext) getReferencedALBIngresses(canary *v1alpha1.CanaryStrategy) (*[]ingressutil.Ingress, error) {
+	ingresses := []ingressutil.Ingress{}
+	ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.ALB.Ingress)
+	if err != nil {
+		return handleCacheError("alb", []string{"ingress"}, canary.TrafficRouting.ALB.Ingress, err)
+	}
+	ingresses = append(ingresses, *ingress)
+	return &ingresses, nil
+}
+
+func handleCacheError(name string, childFields []string, value interface{}, err error) (*[]ingressutil.Ingress, error) {
+	if k8serrors.IsNotFound(err) {
+		fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
+		return nil, field.Invalid(fldPath.Child(name, childFields...), value, err.Error())
+	} else {
+		return nil, err
+	}
 }
 
 func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
