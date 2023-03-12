@@ -415,8 +415,21 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	err = roCtx.reconcile()
 	if roCtx.newRollout != nil {
 		c.writeBackToInformer(roCtx.newRollout)
+		if err != nil {
+			logCtx.Warnf("newRollout written to informer '%s': %v", roCtx.newRollout.Name, err)
+		}
 	}
 	if err != nil {
+		if k8serrors.IsConflict(err) {
+			if roCtx.newRollout != nil {
+				logCtx.Warnf("Retrying updating of newRollout '%s': %v", roCtx.newRollout.Name, err)
+				c.enqueueRolloutAfter(roCtx.newRollout, time.Second)
+			} else {
+				logCtx.Warnf("Retrying updating of Rollout '%s': %v", roCtx.rollout.Name, err)
+				c.enqueueRolloutAfter(roCtx.rollout, time.Second)
+			}
+			return nil
+		}
 		logCtx.Errorf("roCtx.reconcile err %v", err)
 	}
 	return err
