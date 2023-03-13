@@ -10,7 +10,7 @@ spec:
     - name: test
       replicas: 1
       service:
-        name: service-name
+        name: test-service-name
       selector:
         matchLabels:
           app: experiment-with-service-name
