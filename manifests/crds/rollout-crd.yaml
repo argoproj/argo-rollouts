@@ -864,6 +864,9 @@ spec:
                                   type: string
                                 type: array
                             type: object
+                          plugins:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
                           smi:
                             properties:
                               rootService:
@@ -3249,30 +3252,39 @@ spec:
                     properties:
                       arn:
                         type: string
+                      fullName:
+                        type: string
                       name:
                         type: string
                     required:
                     - arn
+                    - fullName
                     - name
                     type: object
                   loadBalancer:
                     properties:
                       arn:
                         type: string
+                      fullName:
+                        type: string
                       name:
                         type: string
                     required:
                     - arn
+                    - fullName
                     - name
                     type: object
                   stableTargetGroup:
                     properties:
                       arn:
                         type: string
+                      fullName:
+                        type: string
                       name:
                         type: string
                     required:
                     - arn
+                    - fullName
                     - name
                     type: object
                 type: object

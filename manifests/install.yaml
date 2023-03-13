@@ -179,6 +179,8 @@ spec:
                           type: object
                         datadog:
                           properties:
+                            apiVersion:
+                              type: string
                             interval:
                               type: string
                             query:
@@ -2701,9 +2703,21 @@ spec:
                           required:
                           - query
                           type: object
+                        plugin:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         prometheus:
                           properties:
                             address:
+                              type: string
+                            query:
+                              type: string
+                          type: object
+                        skywalking:
+                          properties:
+                            address:
+                              type: string
+                            interval:
                               type: string
                             query:
                               type: string
@@ -3056,6 +3070,8 @@ spec:
                           type: object
                         datadog:
                           properties:
+                            apiVersion:
+                              type: string
                             interval:
                               type: string
                             query:
@@ -5578,9 +5594,21 @@ spec:
                           required:
                           - query
                           type: object
+                        plugin:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         prometheus:
                           properties:
                             address:
+                              type: string
+                            query:
+                              type: string
+                          type: object
+                        skywalking:
+                          properties:
+                            address:
+                              type: string
+                            interval:
                               type: string
                             query:
                               type: string
@@ -5819,6 +5847,8 @@ spec:
                           type: object
                         datadog:
                           properties:
+                            apiVersion:
+                              type: string
                             interval:
                               type: string
                             query:
@@ -8341,9 +8371,21 @@ spec:
                           required:
                           - query
                           type: object
+                        plugin:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         prometheus:
                           properties:
                             address:
+                              type: string
+                            query:
+                              type: string
+                          type: object
+                        skywalking:
+                          properties:
+                            address:
+                              type: string
+                            interval:
                               type: string
                             query:
                               type: string
@@ -11874,6 +11916,9 @@ spec:
                                   type: string
                                 type: array
                             type: object
+                          plugins:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
                           smi:
                             properties:
                               rootService:
@@ -14259,30 +14304,39 @@ spec:
                     properties:
                       arn:
                         type: string
+                      fullName:
+                        type: string
                       name:
                         type: string
                     required:
                     - arn
+                    - fullName
                     - name
                     type: object
                   loadBalancer:
                     properties:
                       arn:
                         type: string
+                      fullName:
+                        type: string
                       name:
                         type: string
                     required:
                     - arn
+                    - fullName
                     - name
                     type: object
                   stableTargetGroup:
                     properties:
                       arn:
                         type: string
+                      fullName:
+                        type: string
                       name:
                         type: string
                     required:
                     - arn
+                    - fullName
                     - name
                     type: object
                 type: object
@@ -14821,6 +14875,15 @@ subjects:
 - kind: ServiceAccount
   name: argo-rollouts
   namespace: argo-rollouts
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: rollouts-controller
+    app.kubernetes.io/name: argo-rollouts
+    app.kubernetes.io/part-of: argo-rollouts
+  name: argo-rollouts-config
 ---
 apiVersion: v1
 kind: Secret

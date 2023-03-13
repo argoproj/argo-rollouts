@@ -20,11 +20,17 @@ spec:
     failureLimit: 3
     provider:
       datadog:
+        apiVersion: v2
         interval: 5m
         query: |
           sum:requests.error.count{service:{{args.service-name}}} /
           sum:requests.request.count{service:{{args.service-name}}}
 ```
+
+The field `apiVersion` refers to the API version of Datadog (v1 or v2). Default value is `v1` if this is omitted.
+
+!!! note
+    Datadog is moving away from the legacy v1 API. Rate limits imposed by Datadog are therefore stricter when using v1. It is recommended to switch to v2 soon. If you switch to v2, you will not need to change any other field aside from `apiVersion`.
 
 Datadog api and app tokens can be configured in a kubernetes secret in argo-rollouts namespace.
 
@@ -39,3 +45,5 @@ data:
   api-key: <datadog-api-key>
   app-key: <datadog-app-key>
 ```
+
+`apiVersion` here is different from the `apiVersion` from the Datadog configuration above.

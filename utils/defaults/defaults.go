@@ -1,7 +1,6 @@
 package defaults
 
 import (
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -45,6 +44,12 @@ const (
 	// DefaultMetricCleanupDelay is the default time to delay metrics removal upon object removal, gives time for metrics
 	// to be collected
 	DefaultMetricCleanupDelay = int32(65)
+	// DefaultRolloutsConfigMapName is the default name of the ConfigMap that contains the Rollouts controller configuration
+	DefaultRolloutsConfigMapName = "argo-rollouts-config"
+	// DefaultRolloutPluginFolder is the default location where plugins will be downloaded and/or moved to.
+	DefaultRolloutPluginFolder = "plugin-bin"
+	// DefaultDescribeTagsLimit is the default number resources (ARNs) in a single call
+	DefaultDescribeTagsLimit int = 20
 )
 
 const (
@@ -68,6 +73,7 @@ var (
 	targetGroupBindingAPIVersion = DefaultTargetGroupBindingAPIVersion
 	appmeshCRDVersion            = DefaultAppMeshCRDVersion
 	defaultMetricCleanupDelay    = DefaultMetricCleanupDelay
+	defaultDescribeTagsLimit     = DefaultDescribeTagsLimit
 )
 
 const (
@@ -249,7 +255,7 @@ func Namespace() string {
 		return ns
 	}
 	// Fall back to the namespace associated with the service account token, if available
-	if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
 		if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
 			return ns
 		}
@@ -319,4 +325,14 @@ func GetMetricCleanupDelaySeconds() time.Duration {
 // SetMetricCleanupDelaySeconds sets the metric cleanup delay in seconds
 func SetMetricCleanupDelaySeconds(seconds int32) {
 	defaultMetricCleanupDelay = seconds
+}
+
+// GetDescribeTagsLimit returns limit of resources can be requested in a single call
+func GetDescribeTagsLimit() int {
+	return defaultDescribeTagsLimit
+}
+
+// SetDescribeTagsLimit sets the limit of resources can be requested in a single call
+func SetDescribeTagsLimit(limit int) {
+	defaultDescribeTagsLimit = limit
 }

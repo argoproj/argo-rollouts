@@ -173,6 +173,13 @@ type MetricProvider struct {
 	Graphite *GraphiteMetric `json:"graphite,omitempty" protobuf:"bytes,9,opt,name=graphite"`
 	// Influxdb specifies the influxdb metric to query
 	Influxdb *InfluxdbMetric `json:"influxdb,omitempty" protobuf:"bytes,10,opt,name=influxdb"`
+	// SkyWalking specifies the skywalking metric to query
+	SkyWalking *SkyWalkingMetric `json:"skywalking,omitempty" protobuf:"bytes,11,opt,name=skywalking"`
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Plugin specifies the hashicorp go-plugin metric to query
+	Plugin map[string]json.RawMessage `json:"plugin,omitempty" protobuf:"bytes,12,opt,name=plugin"`
 }
 
 // AnalysisPhase is the overall phase of an AnalysisRun, MetricResult, or Measurement
@@ -296,6 +303,12 @@ type AnalysisRunList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []AnalysisRun `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+type SkyWalkingMetric struct {
+	Address  string         `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
+	Query    string         `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+	Interval DurationString `json:"interval,omitempty" protobuf:"bytes,3,opt,name=interval,casttype=DurationString"`
 }
 
 // AnalysisRunSpec is the spec for a AnalysisRun resource
@@ -511,4 +524,6 @@ type WebMetricHeader struct {
 type DatadogMetric struct {
 	Interval DurationString `json:"interval,omitempty" protobuf:"bytes,1,opt,name=interval,casttype=DurationString"`
 	Query    string         `json:"query" protobuf:"bytes,2,opt,name=query"`
+	// ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.
+	ApiVersion string `json:"apiVersion,omitempty" protobuf:"bytes,3,opt,name=apiVersion"`
 }

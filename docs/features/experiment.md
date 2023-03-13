@@ -6,7 +6,7 @@ The Experiment CRD allows users to have ephemeral runs of one or more ReplicaSet
 running ephemeral ReplicaSets, the Experiment CRD can launch AnalysisRuns alongside the ReplicaSets.
 Generally, those AnalysisRun is used to confirm that new ReplicaSets are running as expected.
 
-A Service routing traffic to the Experiment ReplicaSet is also generated.
+A Service routing traffic to the Experiment ReplicaSet is also generated if a weight for that experiment is set.
 
 ## Use cases of Experiments
 
@@ -245,7 +245,7 @@ to `experiment-baseline`, leaving the remaining 90% of traffic to the old stack.
 
 !!! note
     When a weighted experiment step with traffic routing is used, a
-    Service is auto-created for each experiment template. The traffic routers use
+    service is auto-created for each experiment template. The traffic routers use
     this service to send traffic to the experiment pods.
 
 By default, the generated Service has the name of the ReplicaSet and inherits

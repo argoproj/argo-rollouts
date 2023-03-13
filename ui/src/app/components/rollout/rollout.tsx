@@ -130,11 +130,11 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                         interactive={
                             interactive
                                 ? {
-                                    editState: interactive.editState,
-                                    setImage: (container, image, tag) => {
-                                        interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
-                                    },
-                                }
+                                      editState: interactive.editState,
+                                      setImage: (container, image, tag) => {
+                                          interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
+                                      },
+                                  }
                                 : null
                         }
                     />
@@ -314,7 +314,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
 
     if (props.step.setMirrorRoute) {
         content = `Set Mirror: ${props.step.setMirrorRoute.name}`;
-        if(!props.step.setMirrorRoute.match) {
+        if (!props.step.setMirrorRoute.match) {
             content = `Remove Mirror: ${props.step.setMirrorRoute.name}`;
         }
     }
@@ -328,11 +328,16 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
 
     return (
         <React.Fragment>
-            <EffectDiv className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
+            <EffectDiv style={{zIndex: 1}} className={`steps__step ${props.complete ? 'steps__step--complete' : ''} ${props.current ? 'steps__step--current' : ''}`}>
                 <div
                     className={`steps__step-title ${
-                        props.step.experiment || (props.step.setCanaryScale && openCanary) || (props.step.analysis && openAnalysis) 
-                        || (props.step.setHeaderRoute && openHeader) || (props.step.setMirrorRoute && openMirror) ? 'steps__step-title--experiment' : ''
+                        props.step.experiment ||
+                        (props.step.setCanaryScale && openCanary) ||
+                        (props.step.analysis && openAnalysis) ||
+                        (props.step.setHeaderRoute && openHeader) ||
+                        (props.step.setMirrorRoute && openMirror)
+                            ? 'steps__step-title--experiment'
+                            : ''
                     }`}>
                     {icon && <i className={`fa ${icon}`} />} {content}
                     {unit}
@@ -346,8 +351,7 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                             <i className={`fa ${openAnalysis ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
                         </ThemeDiv>
                     )}
-
-                    {props.step.setHeaderRoute && props.step.setHeaderRoute.match &&(
+                    {props.step.setHeaderRoute && props.step.setHeaderRoute.match && (
                         <ThemeDiv style={{marginLeft: 'auto'}} onClick={() => setOpenHeader(!openHeader)}>
                             <i className={`fa ${openCanary ? 'fa-chevron-circle-up' : 'fa-chevron-circle-down'}`} />
                         </ThemeDiv>
@@ -389,7 +393,11 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
     );
 };
 
-const ExperimentWidget = ({template, opened, onToggle}: {
+const ExperimentWidget = ({
+    template,
+    opened,
+    onToggle,
+}: {
     template: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentTemplate;
     opened: boolean;
     onToggle: (name: string) => void;
@@ -435,32 +443,54 @@ const WidgetItemSetMirror = ({value}: {value: GithubComArgoprojArgoRolloutsPkgAp
                 <div className='steps__step__content-value'>{value.percentage}</div>
                 {Object.values(value.match).map((val, index) => {
                     if (!val) return null;
-                    let stringMatcherValue = ""
-                    let stringMatcherType = ""
-                    let fragments = []
+                    let stringMatcherValue = '';
+                    let stringMatcherType = '';
+                    let fragments = [];
                     if (val.path != null) {
-                        if(val.path.exact != null) {stringMatcherValue = val.path.exact; stringMatcherType="Exact"}
-                        if(val.path.prefix != null) {stringMatcherValue = val.path.prefix; stringMatcherType="Prefix"}
-                        if(val.path.regex != null) {stringMatcherValue = val.path.regex; stringMatcherType="Regex"}
+                        if (val.path.exact != null) {
+                            stringMatcherValue = val.path.exact;
+                            stringMatcherType = 'Exact';
+                        }
+                        if (val.path.prefix != null) {
+                            stringMatcherValue = val.path.prefix;
+                            stringMatcherType = 'Prefix';
+                        }
+                        if (val.path.regex != null) {
+                            stringMatcherValue = val.path.regex;
+                            stringMatcherType = 'Regex';
+                        }
                         fragments.push(
                             <Fragment key={value.name}>
-                                <div className='steps__step__content-title'>{index} - Path ({stringMatcherType})</div>
+                                <div className='steps__step__content-title'>
+                                    {index} - Path ({stringMatcherType})
+                                </div>
                                 <div className='steps__step__content-value'>{stringMatcherValue}</div>
                             </Fragment>
                         );
                     }
                     if (val.method != null) {
-                        if(val.method.exact != null) {stringMatcherValue = val.method.exact; stringMatcherType="Exact"}
-                        if(val.method.prefix != null) {stringMatcherValue = val.method.prefix; stringMatcherType="Prefix"}
-                        if(val.method.regex != null) {stringMatcherValue = val.method.regex; stringMatcherType="Regex"}
+                        if (val.method.exact != null) {
+                            stringMatcherValue = val.method.exact;
+                            stringMatcherType = 'Exact';
+                        }
+                        if (val.method.prefix != null) {
+                            stringMatcherValue = val.method.prefix;
+                            stringMatcherType = 'Prefix';
+                        }
+                        if (val.method.regex != null) {
+                            stringMatcherValue = val.method.regex;
+                            stringMatcherType = 'Regex';
+                        }
                         fragments.push(
                             <Fragment key={value.name}>
-                                <div className='steps__step__content-title'>{index} - Method ({stringMatcherType})</div>
+                                <div className='steps__step__content-title'>
+                                    {index} - Method ({stringMatcherType})
+                                </div>
                                 <div className='steps__step__content-value'>{stringMatcherValue}</div>
                             </Fragment>
                         );
                     }
-                    return fragments
+                    return fragments;
                 })}
             </Fragment>
         </EffectDiv>
@@ -475,19 +505,19 @@ const WidgetItemSetHeader = ({values}: {values: GithubComArgoprojArgoRolloutsPkg
                 if (!record.headerName) return null;
                 if (!record.headerValue) return null;
 
-                let headerValue = ""
-                let headerValueType = ""
+                let headerValue = '';
+                let headerValueType = '';
                 if (record.headerValue.regex) {
-                    headerValue = record.headerValue.regex
-                    headerValueType = "Regex"
+                    headerValue = record.headerValue.regex;
+                    headerValueType = 'Regex';
                 }
                 if (record.headerValue.prefix) {
-                    headerValue = record.headerValue.prefix
-                    headerValueType = "Prefix"
+                    headerValue = record.headerValue.prefix;
+                    headerValueType = 'Prefix';
                 }
                 if (record.headerValue.exact) {
-                    headerValue = record.headerValue.exact
-                    headerValueType = "Exact"
+                    headerValue = record.headerValue.exact;
+                    headerValueType = 'Exact';
                 }
                 return (
                     <Fragment key={record.headerName}>

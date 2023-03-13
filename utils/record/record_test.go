@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/utils/defaults"
 	"github.com/argoproj/notifications-engine/pkg/api"
+	notificationapi "github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/mocks"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/triggers"
@@ -20,8 +24,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestRecordLog(t *testing.T) {
@@ -137,6 +141,101 @@ func TestSendNotificationsWhenCondition(t *testing.T) {
 	//ch := make(chan prometheus.HistogramVec, 1)
 	err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
 	assert.NoError(t, err)
+}
+
+func TestSendNotificationsWhenConditionTime(t *testing.T) {
+	tNow := metav1.NewTime(time.Now().Add(-time.Minute * 5))
+	r := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "guestbook",
+			Namespace:   "default",
+			Annotations: map[string]string{"notifications.argoproj.io/subscribe.on-foo-reason.console": "console"},
+		},
+		Spec: v1alpha1.RolloutSpec{
+			RestartAt: &tNow,
+		},
+	}
+
+	t.Run("Test when condition is true", func(t *testing.T) {
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-notification-secret",
+				Namespace: "argo-rollouts",
+			},
+			Data: nil,
+		}
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-notification-configmap",
+				Namespace: "argo-rollouts",
+			},
+			Data: map[string]string{
+				"trigger.on-foo-reason":  "- send: [on-foo-reason]\n  when: \"time.Now().Sub(time.Parse(rollout.spec.restartAt)).Minutes() > 4\"\n",
+				"template.on-foo-reason": "message: Rollout {{.rollout.metadata.name}}'s time check",
+			},
+		}
+
+		k8sClient := fake.NewSimpleClientset()
+		sharedInformers := informers.NewSharedInformerFactory(k8sClient, 0)
+		cmInformer := sharedInformers.Core().V1().ConfigMaps().Informer()
+		secretInformer := sharedInformers.Core().V1().Secrets().Informer()
+
+		secretInformer.GetIndexer().Add(secret)
+		cmInformer.GetIndexer().Add(cm)
+
+		apiFactory := notificationapi.NewFactory(NewAPIFactorySettings(), defaults.Namespace(), secretInformer, cmInformer)
+		api, err := apiFactory.GetAPI()
+		assert.NoError(t, err)
+
+		objMap, err := toObjectMap(r)
+		assert.NoError(t, err)
+
+		cr, err := api.RunTrigger("on-foo-reason", objMap)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cr))
+		assert.True(t, cr[0].Triggered)
+	})
+
+	t.Run("Test when condition parse panics", func(t *testing.T) {
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-notification-secret",
+				Namespace: "argo-rollouts",
+			},
+			Data: nil,
+		}
+
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argo-rollouts-notification-configmap",
+				Namespace: "argo-rollouts",
+			},
+			Data: map[string]string{
+				"trigger.on-foo-reason":  "- send: [on-foo-reason]\n  when: \"time.Now().Sub(time.Parse(rollout.metadata.name)).Minutes() > 6\"\n",
+				"template.on-foo-reason": "message: Rollout {{.rollout.metadata.name}}'s time check",
+			},
+		}
+
+		k8sClient := fake.NewSimpleClientset()
+		sharedInformers := informers.NewSharedInformerFactory(k8sClient, 0)
+		cmInformer := sharedInformers.Core().V1().ConfigMaps().Informer()
+		secretInformer := sharedInformers.Core().V1().Secrets().Informer()
+
+		secretInformer.GetIndexer().Add(secret)
+		cmInformer.GetIndexer().Add(cm)
+
+		apiFactory := notificationapi.NewFactory(NewAPIFactorySettings(), defaults.Namespace(), secretInformer, cmInformer)
+		api, err := apiFactory.GetAPI()
+		assert.NoError(t, err)
+
+		objMap, err := toObjectMap(r)
+		assert.NoError(t, err)
+
+		cr, err := api.RunTrigger("on-foo-reason", objMap)
+		assert.NoError(t, err)
+		assert.False(t, cr[0].Triggered)
+	})
 }
 
 func TestNotificationFailedCounter(t *testing.T) {
@@ -333,7 +432,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 	rollout := map[string]interface{}{"name": "hello"}
 	vars := getVars(rollout, services.Destination{})
 
-	assert.Equal(t, map[string]interface{}{"rollout": rollout}, vars)
+	assert.Equal(t, map[string]interface{}{"rollout": rollout, "time": timeExprs}, vars)
 }
 
 func TestWorkloadRefObjectMap(t *testing.T) {

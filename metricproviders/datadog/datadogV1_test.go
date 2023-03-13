@@ -213,7 +213,7 @@ func TestRunSuite(t *testing.T) {
 			},
 			expectedIntervalSeconds: 300,
 			expectedPhase:           v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field datadogResponse.Series of type []struct { Pointlist [][]float64 \"json:\\\"pointlist\\\"\" }",
+			expectedErrorMessage:    "Could not parse JSON body: json: cannot unmarshal string into Go struct field datadogResponseV1.Series of type []struct { Pointlist [][]float64 \"json:\\\"pointlist\\\"\" }",
 			useEnvVarForKeys:        false,
 		},
 
@@ -222,7 +222,7 @@ func TestRunSuite(t *testing.T) {
 			serverURL:            "://wrong.schema",
 			metric:               v1alpha1.Metric{},
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
-			expectedErrorMessage: "parse \"://wrong.schema/api/v1/query\": missing protocol scheme",
+			expectedErrorMessage: "parse \"://wrong.schema\": missing protocol scheme",
 			useEnvVarForKeys:     false,
 		},
 	}
@@ -235,6 +235,9 @@ func TestRunSuite(t *testing.T) {
 		if serverURL == "" {
 			// Server setup with response
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				if test.metric.Provider.Datadog.ApiVersion == "" && DefaultApiVersion != "v1" {
+					t.Errorf("\nApiVersion was left blank in the tests, but the default API version is not v1 anymore.")
+				}
 
 				//Check query variables
 				actualQuery := req.URL.Query().Get("query")

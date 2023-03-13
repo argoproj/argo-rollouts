@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -207,7 +206,7 @@ func (c *Common) MarkPodsReady(revision string, quantity int) int {
 				}
 				time.Sleep(500 * time.Millisecond)
 			}
-			//c.log.Infof("Conditions: %v", pod.Status.Conditions)
+			// c.log.Infof("Conditions: %v", pod.Status.Conditions)
 			marked += 1
 		}
 	}
@@ -446,7 +445,7 @@ func (c *Common) yamlBytes(text string) []byte {
 	var err error
 	if strings.HasPrefix(text, "@") {
 		file := strings.TrimPrefix(text, "@")
-		yamlBytes, err = ioutil.ReadFile(file)
+		yamlBytes, err = os.ReadFile(file)
 		c.CheckError(err)
 	} else {
 		yamlBytes = []byte(text)

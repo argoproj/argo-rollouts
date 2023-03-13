@@ -411,4 +411,8 @@ func TestSetDefaults(t *testing.T) {
 	assert.Equal(t, DefaultMetricCleanupDelay, int32(GetMetricCleanupDelaySeconds().Seconds()))
 	SetMetricCleanupDelaySeconds(24)
 	assert.Equal(t, time.Duration(24)*time.Second, GetMetricCleanupDelaySeconds())
+
+	assert.Equal(t, DefaultDescribeTagsLimit, GetDescribeTagsLimit())
+	SetDescribeTagsLimit(2)
+	assert.Equal(t, 2, GetDescribeTagsLimit())
 }
