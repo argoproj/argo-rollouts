@@ -51,3 +51,4 @@ metadata:
 * [Rocket.Chat](./rocketchat.md)
 * [Pushover](./pushover.md)
 * [Alertmanager](./alertmanager.md)
+* [PagerDuty](./pagerduty.md)
