@@ -33,25 +33,28 @@ const canaryService string = "canary-service"
 const createCanaryAction string = "action: create canary ingress"
 
 type multiIngressTestData struct {
-	name                string
-	ingresses           []string
-	canaryIngresses     []string
-	additionalIngresses []string
+	name            string
+	singleIngress   string
+	canaryIngresses []string
+	multiIngress    []string
+	ingresses       []string
 }
 
 func generateMultiIngressTestData() []multiIngressTestData {
 
 	return []multiIngressTestData{{
 		"singleIngress",
-		[]string{StableIngress},
+		StableIngress,
 		[]string{CanaryIngress},
-		[]string{},
+		nil,
+		[]string{StableIngress},
 	},
 		{
 			"multiIngress",
-			[]string{StableIngress, StableIngresses},
+			"",
 			[]string{CanaryIngress, "rollout-additional-stable-ingress-canary"},
-			[]string{StableIngresses},
+			[]string{StableIngress, StableIngresses},
+			[]string{StableIngress, StableIngresses},
 		}}
 }
 
@@ -215,7 +218,7 @@ func TestCanaryIngressCreate(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			r := Reconciler{
 				cfg: ReconcilerConfig{
-					Rollout: fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses),
+					Rollout: fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress),
 				},
 			}
 			for _, ing := range test.ingresses {
@@ -250,7 +253,7 @@ func TestCanaryIngressPatchWeight(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			r := Reconciler{
 				cfg: ReconcilerConfig{
-					Rollout: fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses),
+					Rollout: fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress),
 				},
 			}
 			for _, ing := range test.ingresses {
@@ -284,7 +287,7 @@ func TestCanaryIngressUpdateRoute(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			r := Reconciler{
 				cfg: ReconcilerConfig{
-					Rollout: fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses),
+					Rollout: fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress),
 				},
 			}
 
@@ -320,7 +323,7 @@ func TestCanaryIngressRetainIngressClass(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			r := Reconciler{
 				cfg: ReconcilerConfig{
-					Rollout: fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses),
+					Rollout: fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress),
 				},
 			}
 			for _, ing := range test.ingresses {
@@ -351,7 +354,7 @@ func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
 			for _, ing := range test.ingresses {
 				r := Reconciler{
 					cfg: ReconcilerConfig{
-						Rollout: fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses),
+						Rollout: fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress),
 					},
 				}
 				r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.AdditionalIngressAnnotations = map[string]string{
@@ -384,7 +387,7 @@ func TestReconciler_canaryIngress(t *testing.T) {
 			t.Parallel()
 			r := Reconciler{
 				cfg: ReconcilerConfig{
-					Rollout: fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses),
+					Rollout: fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress),
 				},
 			}
 			for _, ing := range test.ingresses {
@@ -413,7 +416,7 @@ func TestReconciler_canaryIngress(t *testing.T) {
 
 func TestType(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	rollout := fakeRollout(stableService, canaryService, StableIngress, []string{})
+	rollout := fakeRollout(stableService, canaryService, StableIngress, nil)
 	r := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -424,7 +427,7 @@ func TestType(t *testing.T) {
 }
 
 func TestReconcileStableIngressNotFound(t *testing.T) {
-	rollout := fakeRollout(stableService, canaryService, StableIngress, []string{})
+	rollout := fakeRollout(stableService, canaryService, StableIngress, nil)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
@@ -447,11 +450,12 @@ func TestReconcileStableIngressFound(t *testing.T) {
 	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rollout := fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses)
+			rollout := fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress)
 			client := fake.NewSimpleClientset()
 			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 			for _, ing := range test.ingresses {
-				k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(extensionsIngress(ing, 80, stableService))
+				ingress := extensionsIngress(ing, 80, stableService)
+				k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(ingress)
 			}
 			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
 			if err != nil {
@@ -483,8 +487,7 @@ func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
 	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
-			rollout := fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses)
+			rollout := fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress)
 			client := fake.NewSimpleClientset()
 			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 			for _, ing := range test.ingresses {
@@ -511,63 +514,73 @@ func TestReconcileStableIngressFoundWrongBackend(t *testing.T) {
 }
 
 func TestReconcileStableAndCanaryIngressFoundNoOwner(t *testing.T) {
-	rollout := fakeRollout(stableService, canaryService, StableIngress, []string{})
-	stableIngress := extensionsIngress(StableIngress, 80, stableService)
-	canaryIngress := extensionsIngress(CanaryIngress, 80, canaryService)
+	tests := generateMultiIngressTestData()
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rollout := fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress)
+			stableIngress := extensionsIngress(StableIngress, 80, stableService)
+			canaryIngress := extensionsIngress(CanaryIngress, 80, canaryService)
 
-	client := fake.NewSimpleClientset()
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+			client := fake.NewSimpleClientset()
+			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+			k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
+			k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
+			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:        rollout,
+				Client:         client,
+				Recorder:       record.NewFakeEventRecorder(),
+				ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+				IngressWrapper: ingressWrapper,
+			})
+
+			err = r.SetWeight(10)
+			assert.NotNil(t, err, "Reconcile returns error")
+		})
 	}
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
-
-	err = r.SetWeight(10)
-	assert.NotNil(t, err, "Reconcile returns error")
 }
 
 func TestReconcileStableAndCanaryIngressFoundBadOwner(t *testing.T) {
-	otherRollout := fakeRollout("stable-service2", "canary-service2", "stable-ingress2", []string{})
-	otherRollout.SetUID("4b712b69-5de9-11ea-a10a-0a9ba5899dd2")
-	rollout := fakeRollout(stableService, canaryService, StableIngress, []string{})
-	stableIngress := extensionsIngress(StableIngress, 80, stableService)
-	canaryIngress := extensionsIngress(CanaryIngress, 80, canaryService)
-	setIngressOwnerRef(canaryIngress, otherRollout)
-	client := fake.NewSimpleClientset()
-	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
-	if err != nil {
-		t.Fatal(err)
+	tests := generateMultiIngressTestData()
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			otherRollout := fakeRollout("stable-service2", "canary-service2", "stable-ingress2", nil)
+			otherRollout.SetUID("4b712b69-5de9-11ea-a10a-0a9ba5899dd2")
+			rollout := fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress)
+			stableIngress := extensionsIngress(StableIngress, 80, stableService)
+			canaryIngress := extensionsIngress(CanaryIngress, 80, canaryService)
+			setIngressOwnerRef(canaryIngress, otherRollout)
+			client := fake.NewSimpleClientset()
+			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+			k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(stableIngress)
+			k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(canaryIngress)
+			ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			r := NewReconciler(ReconcilerConfig{
+				Rollout:        rollout,
+				Client:         client,
+				Recorder:       record.NewFakeEventRecorder(),
+				ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+				IngressWrapper: ingressWrapper,
+			})
+
+			err = r.SetWeight(10)
+			assert.NotNil(t, err, "Reconcile returns error")
+		})
 	}
-
-	r := NewReconciler(ReconcilerConfig{
-		Rollout:        rollout,
-		Client:         client,
-		Recorder:       record.NewFakeEventRecorder(),
-		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
-		IngressWrapper: ingressWrapper,
-	})
-
-	err = r.SetWeight(10)
-	assert.NotNil(t, err, "Reconcile returns error")
 }
 
 func TestReconcileStableAndCanaryIngressFoundPatch(t *testing.T) {
 	tests := generateMultiIngressTestData()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			rollout := fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses)
+			rollout := fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress)
 			var canaryIngresses []*extensionsv1beta1.Ingress
 			var ingresses []*extensionsv1beta1.Ingress
 			for i, ing := range test.ingresses {
@@ -625,7 +638,7 @@ func TestReconcileWillInvokeNetworkingIngress(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// given
-			rollout := fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses)
+			rollout := fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress)
 			var ingresses []*networkingv1.Ingress
 			for i, ing := range test.ingresses {
 				stableIngress := networkingIngress(ing, 80, stableService)
@@ -686,7 +699,7 @@ func TestReconcileStableAndCanaryIngressFoundNoChange(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// given
-			rollout := fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses)
+			rollout := fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress)
 			client := fake.NewSimpleClientset()
 			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 
@@ -731,7 +744,7 @@ func TestReconcileCanaryCreateError(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// given
-			rollout := fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses)
+			rollout := fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress)
 			client := fake.NewSimpleClientset()
 			client.ReactionChain = nil
 			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -760,7 +773,7 @@ func TestReconcileCanaryCreateError(t *testing.T) {
 
 			// then
 			assert.NotNil(t, err, "Reconcile returns error")
-			assert.Equal(t, fmt.Sprintf("error creating canary ingress `%s`: fake error", test.canaryIngresses[len(test.canaryIngresses)-1]), err.Error())
+			assert.Equal(t, fmt.Sprintf("error creating canary ingress `%s`: fake error", test.canaryIngresses[0]), err.Error())
 			actions := client.Actions()
 			assert.Len(t, actions, 1)
 			if !t.Failed() {
@@ -777,7 +790,7 @@ func TestReconcileCanaryCreateErrorAlreadyExistsPatch(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// given
-			rollout := fakeRollout(stableService, canaryService, StableIngress, test.additionalIngresses)
+			rollout := fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress)
 			client := fake.NewSimpleClientset()
 			client.ReactionChain = nil
 			k8sI := kubeinformers.NewSharedInformerFactory(client, 0)

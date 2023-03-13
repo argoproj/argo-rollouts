@@ -222,11 +222,7 @@ func (r *Reconciler) canaryIngress(stableIngress *ingressutil.Ingress, name stri
 
 // SetWeight modifies Nginx Ingress resources to reach desired state
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-	// Set weight for additional ingresses if present
 	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngresses; ingresses != nil {
-		// Fail out if there is an issue setting weight on additional ingresesses.
-		// Fundamental assumption is that each additional Ingress is equal in importance
-		// as primary Ingress resource.
 		return r.SetWeightPerIngress(desiredWeight, ingresses)
 	} else {
 		return r.SetWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress})
@@ -272,7 +268,7 @@ func (r *Reconciler) SetWeightPerIngress(desiredWeight int32, ingresses []string
 			r.cfg.Recorder.Eventf(r.cfg.Rollout, record.EventOptions{EventReason: "CreatingCanaryIngress"}, "Creating canary ingress `%s` with weight `%d`", canaryIngressName, desiredWeight)
 			_, err = r.cfg.IngressWrapper.Create(ctx, r.cfg.Rollout.Namespace, desiredCanaryIngress, metav1.CreateOptions{})
 			if err == nil {
-				return nil
+				continue
 			}
 			if !k8serrors.IsAlreadyExists(err) {
 				r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("err", err.Error()).Error("error creating canary ingress")
@@ -306,7 +302,7 @@ func (r *Reconciler) SetWeightPerIngress(desiredWeight int32, ingresses []string
 		}
 		if !modified {
 			r.log.WithField(logutil.IngressKey, canaryIngressName).Info("No changes to canary ingress - skipping patch")
-			return nil
+			continue
 		}
 
 		r.log.WithField(logutil.IngressKey, canaryIngressName).WithField("patch", string(patch)).Debug("applying canary Ingress patch")
@@ -319,6 +315,7 @@ func (r *Reconciler) SetWeightPerIngress(desiredWeight int32, ingresses []string
 			return fmt.Errorf("error patching canary ingress `%s`: %v", canaryIngressName, err)
 		}
 	}
+
 	return nil
 }
 
