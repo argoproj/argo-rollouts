@@ -2,7 +2,7 @@ package create
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -207,7 +207,7 @@ func TestCreateJSON(t *testing.T) {
 
 func TestCreateAnalysisRunFromTemplateInCluster(t *testing.T) {
 	var template unstructured.Unstructured
-	fileBytes, err := ioutil.ReadFile("testdata/analysis-template.yaml")
+	fileBytes, err := os.ReadFile("testdata/analysis-template.yaml")
 	assert.NoError(t, err)
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)
@@ -245,7 +245,7 @@ func TestCreateAnalysisRunFromTemplateNotFoundInCluster(t *testing.T) {
 
 func TestCreateAnalysisRunFromClusterTemplateInCluster(t *testing.T) {
 	var template unstructured.Unstructured
-	fileBytes, err := ioutil.ReadFile("testdata/cluster-analysis-template.yaml")
+	fileBytes, err := os.ReadFile("testdata/cluster-analysis-template.yaml")
 	assert.NoError(t, err)
 	err = unmarshal(fileBytes, &template)
 	assert.NoError(t, err)

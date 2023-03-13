@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -293,7 +293,7 @@ func loadK8SDefinitions() (spec.Definitions, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +442,7 @@ func generateKustomizeSchema(crds []*extensionsobj.CustomResourceDefinition, out
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(outputPath, data, 0644)
+	return os.WriteFile(outputPath, data, 0644)
 }
 
 // Generate CRD spec for Rollout Resource
@@ -480,7 +480,7 @@ func main() {
 		if path == "" {
 			panic(fmt.Sprintf("unknown kind: %s", crdKind))
 		}
-		err = ioutil.WriteFile(path, yamlBytes, 0644)
+		err = os.WriteFile(path, yamlBytes, 0644)
 		checkErr(err)
 	}
 }

@@ -176,6 +176,7 @@ Follow one of the traffic routing guides to see how Argo Rollouts can leverage a
 provider to achieve more advanced traffic shaping.
 
 * [ALB Guide](getting-started/alb/index.md)
+* [App Mesh Guide](getting-started/appmesh/index.md)
 * [Ambassador Guide](getting-started/ambassador/index.md)
 * [Istio Guide](getting-started/istio/index.md)
 * [Multiple Providers Guide](getting-started/mixed/index.md)

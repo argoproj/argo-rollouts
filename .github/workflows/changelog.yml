@@ -17,10 +17,10 @@ jobs:
           fetch-depth: 0
       - name: Update Changelog
         run: |
-          curl -o git-chglog.tar.gz -L https://github.com/git-chglog/git-chglog/releases/download/v0.15.1/git-chglog_0.15.1_darwin_amd64.tar.gz
+          curl -o git-chglog.tar.gz -L https://github.com/git-chglog/git-chglog/releases/download/v0.15.1/git-chglog_0.15.1_linux_amd64.tar.gz
           tar -zxvf git-chglog.tar.gz
           chmod u+x git-chglog
-          ./git-chglog --sort semver -o CHANGELOG-AUTO.md v1.3.1..
+          ./git-chglog --sort semver -o CHANGELOG.md v1.3.1..
           rm git-chglog
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v4
@@ -30,3 +30,5 @@ jobs:
           body: Update changelog to reflect release changes
           branch: update-changelog
           base: master
+          add-paths: |
+            CHANGELOG.md

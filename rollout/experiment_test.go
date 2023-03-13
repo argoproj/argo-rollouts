@@ -791,7 +791,7 @@ func TestRolloutCreateExperimentWithService(t *testing.T) {
 					Replicas: pointer.Int32Ptr(1),
 					Weight:   pointer.Int32Ptr(5),
 				},
-				// Service should also be created for "canary-template"
+				// Service should NOT be created for "canary-template"
 				{
 					Name:     "canary-template",
 					SpecRef:  v1alpha1.CanarySpecRef,
@@ -818,5 +818,5 @@ func TestRolloutCreateExperimentWithService(t *testing.T) {
 	assert.NotNil(t, ex.Spec.Templates[0].Service)
 
 	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Name)
-	assert.NotNil(t, ex.Spec.Templates[1].Service)
+	assert.Nil(t, ex.Spec.Templates[1].Service)
 }

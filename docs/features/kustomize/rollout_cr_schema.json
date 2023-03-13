@@ -243,6 +243,9 @@
                                             },
                                             "datadog": {
                                                 "properties": {
+                                                    "apiVersion": {
+                                                        "type": "string"
+                                                    },
                                                     "interval": {
                                                         "type": "string"
                                                     },
@@ -4165,9 +4168,27 @@
                                                 ],
                                                 "type": "object"
                                             },
+                                            "plugin": {
+                                                "type": "object",
+                                                "x-kubernetes-preserve-unknown-fields": true
+                                            },
                                             "prometheus": {
                                                 "properties": {
                                                     "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "skywalking": {
+                                                "properties": {
+                                                    "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "interval": {
                                                         "type": "string"
                                                     },
                                                     "query": {
@@ -4511,6 +4532,9 @@
                                             },
                                             "datadog": {
                                                 "properties": {
+                                                    "apiVersion": {
+                                                        "type": "string"
+                                                    },
                                                     "interval": {
                                                         "type": "string"
                                                     },
@@ -8433,9 +8457,27 @@
                                                 ],
                                                 "type": "object"
                                             },
+                                            "plugin": {
+                                                "type": "object",
+                                                "x-kubernetes-preserve-unknown-fields": true
+                                            },
                                             "prometheus": {
                                                 "properties": {
                                                     "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "skywalking": {
+                                                "properties": {
+                                                    "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "interval": {
                                                         "type": "string"
                                                     },
                                                     "query": {
@@ -8779,6 +8821,9 @@
                                             },
                                             "datadog": {
                                                 "properties": {
+                                                    "apiVersion": {
+                                                        "type": "string"
+                                                    },
                                                     "interval": {
                                                         "type": "string"
                                                     },
@@ -12701,9 +12746,27 @@
                                                 ],
                                                 "type": "object"
                                             },
+                                            "plugin": {
+                                                "type": "object",
+                                                "x-kubernetes-preserve-unknown-fields": true
+                                            },
                                             "prometheus": {
                                                 "properties": {
                                                     "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "skywalking": {
+                                                "properties": {
+                                                    "address": {
+                                                        "type": "string"
+                                                    },
+                                                    "interval": {
                                                         "type": "string"
                                                     },
                                                     "query": {

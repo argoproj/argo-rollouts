@@ -212,6 +212,11 @@ spec:
       # traffic routing.
       scaleDownDelaySeconds: 30
 
+      # The minimum number of pods that will be requested for each ReplicaSet
+      # when using traffic routed canary. This is to ensure high availability
+      # of each ReplicaSet. Defaults to 1. +optional
+      minPodsPerReplicaSet: 2
+
       # Limits the number of old RS that can run at one time before getting
       # scaled down. Defaults to nil
       scaleDownDelayRevisionLimit: 2

@@ -96,7 +96,7 @@ install-toolchain: install-go-tools-local install-protoc-local
 
 # generates all auto-generated code
 .PHONY: codegen
-codegen: go-mod-vendor gen-proto gen-k8scodegen gen-openapi gen-mocks gen-crd manifests
+codegen: go-mod-vendor gen-proto gen-k8scodegen gen-openapi gen-mocks gen-crd manifests docs
 
 # generates all files related to proto files
 .PHONY: gen-proto
@@ -209,7 +209,7 @@ lint: go-mod-vendor
 
 .PHONY: test
 test: test-kustomize
-	go test -covermode=count -coverprofile=coverage.out ${TEST_TARGET}
+	@make test-unit
 
 .PHONY: test-kustomize
 test-kustomize:
@@ -225,7 +225,7 @@ test-e2e: install-devtools-local
 
 .PHONY: test-unit
  test-unit: install-devtools-local
-	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname --packages="./..." -- -covermode=count -coverprofile=coverage.out ./...
+	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v ./test/cmd/sample-metrics-plugin`
 
 
 .PHONY: coverage
@@ -279,3 +279,14 @@ trivy:
 .PHONY: checksums
 checksums:
 	shasum -a 256 ./dist/kubectl-argo-rollouts-* | awk -F './dist/' '{print $$1 $$2}' > ./dist/argo-rollouts-checksums.txt
+
+# Build sample plugin with debug info
+# https://www.jetbrains.com/help/go/attach-to-running-go-processes-with-debugger.html
+.PHONY: build-sample-metric-plugin-debug
+build-sample-metric-plugin-debug:
+	go build -gcflags="all=-N -l" -o metric-plugin test/cmd/sample-metrics-plugin/main.go
+
+.PHONY: build-sample-traffic-plugin-debug
+build-sample-traffic-plugin-debug:
+	go build -gcflags="all=-N -l" -o traffic-plugin test/cmd/sample-trafficrouter-plugin/main.go
+

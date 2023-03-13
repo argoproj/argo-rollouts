@@ -126,8 +126,18 @@ func TestErrorWithInvalidReference(t *testing.T) {
 }
 
 func TestEvaluateArray(t *testing.T) {
-	floats := []float64{float64(2), float64(2)}
-	b, err := EvalCondition(floats, "all(result, {# > 1})")
+	floats := map[string]interface{}{
+		"service_apdex": map[string]interface{}{
+			"label": nil,
+			"values": map[string]interface{}{
+				"values": []interface{}{float64(2), float64(2)},
+			},
+		},
+	}
+	b, err := EvalCondition(floats, "all(result.service_apdex.values.values, {# > 1})")
+	if err != nil {
+		panic(err)
+	}
 	assert.Nil(t, err)
 	assert.True(t, b)
 }

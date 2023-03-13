@@ -1948,9 +1948,14 @@ func TestWriteBackToInformer(t *testing.T) {
 	obj, exists, err := c.rolloutsIndexer.GetByKey(roKey)
 	assert.NoError(t, err)
 	assert.True(t, exists)
-	un, ok := obj.(*unstructured.Unstructured)
-	assert.True(t, ok)
-	stableRS, _, _ := unstructured.NestedString(un.Object, "status", "stableRS")
+
+	// The type returned from c.rolloutsIndexer.GetByKey is not always the same type it switches between
+	// *unstructured.Unstructured and *v1alpha1.Rollout the underlying cause is not fully known. We use the
+	// runtime.DefaultUnstructuredConverter to account for this.
+	unObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	assert.NoError(t, err)
+
+	stableRS, _, _ := unstructured.NestedString(unObj, "status", "stableRS")
 	assert.NotEmpty(t, stableRS)
 	assert.Equal(t, rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], stableRS)
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Kubernetes sample-controller Authors.
+Copyright 2023 The Kubernetes sample-controller Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -290,6 +290,8 @@ message AwsResourceRef {
   optional string name = 1;
 
   optional string arn = 2;
+
+  optional string fullName = 3;
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
@@ -512,6 +514,10 @@ message CanaryStrategy {
 
   // PingPongSpec holds the ping and pong services
   optional PingPongSpec pingPong = 15;
+
+  // Assuming the desired number of pods in a stable or canary ReplicaSet is not zero, then make sure it is at least
+  // MinPodsPerReplicaSet for High Availability. Only applicable for TrafficRoutedCanary
+  optional int32 minPodsPerReplicaSet = 16;
 }
 
 // CloudWatchMetric defines the cloudwatch query to perform canary analysis
@@ -584,6 +590,9 @@ message DatadogMetric {
   optional string interval = 1;
 
   optional string query = 2;
+
+  // ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.
+  optional string apiVersion = 3;
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.
@@ -972,6 +981,15 @@ message MetricProvider {
 
   // Influxdb specifies the influxdb metric to query
   optional InfluxdbMetric influxdb = 10;
+
+  // SkyWalking specifies the skywalking metric to query
+  optional SkyWalkingMetric skywalking = 11;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // Plugin specifies the hashicorp go-plugin metric to query
+  map<string, bytes> plugin = 12;
 }
 
 // MetricResult contain a list of the most recent measurements for a single metric along with
@@ -1460,12 +1478,18 @@ message RolloutTrafficRouting {
   // Traefik holds specific configuration to use Traefik to route traffic
   optional TraefikTrafficRouting traefik = 7;
 
-  // A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
+  // ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
   // traffic router.
   repeated MangedRoutes managedRoutes = 8;
 
   // Apisix holds specific configuration to use Apisix to route traffic
   optional ApisixTrafficRouting apisix = 9;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // Plugins holds specific configuration that traffic router plugins can use for routing traffic
+  map<string, bytes> plugins = 10;
 }
 
 message RouteMatch {
@@ -1568,6 +1592,14 @@ message SetMirrorRoute {
   // Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
   // Percentage What percent of the traffic that matched the rules should be mirrored
   optional int32 percentage = 4;
+}
+
+message SkyWalkingMetric {
+  optional string address = 1;
+
+  optional string query = 2;
+
+  optional string interval = 3;
 }
 
 message StickinessConfig {

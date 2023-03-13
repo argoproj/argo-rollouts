@@ -23,9 +23,11 @@ nav:
   - Basic Usage: getting-started.md
   - Ambassador: getting-started/ambassador/index.md
   - AWS ALB: getting-started/alb/index.md
+  - AWS App Mesh: getting-started/appmesh/index.md
   - Istio: getting-started/istio/index.md
   - NGINX: getting-started/nginx/index.md
   - SMI: getting-started/smi/index.md
+  - Multiple Providers: getting-started/mixed/index.md
 - Dashboard: dashboard.md
 - Rollout:
   - Deployment Strategies:
@@ -49,10 +51,12 @@ nav:
   - AWS ALB: features/traffic-management/alb.md
   - Istio: features/traffic-management/istio.md
   - NGINX: features/traffic-management/nginx.md
+  - Plugins: traffic-management/plugins.md
   - SMI: features/traffic-management/smi.md
   - Traefik: features/traffic-management/traefik.md
 - Analysis:
   - Overview: features/analysis.md
+  - Plugins: analysis/plugins.md
   - Prometheus: analysis/prometheus.md
   - DataDog: analysis/datadog.md
   - NewRelic: analysis/newrelic.md
@@ -63,6 +67,7 @@ nav:
   - CloudWatch: analysis/cloudwatch.md
   - Graphite: analysis/graphite.md
   - InfluxDB: analysis/influxdb.md
+  - Apache SkyWalking: analysis/skywalking.md
 - Experiments: features/experiment.md
 - Notifications:
   - Overview: features/notifications.md
@@ -125,17 +130,18 @@ nav:
 - Migrating: migrating.md
 - FAQ: FAQ.md
 - Security: security.md
-- Roadmap: roadmap.md
+- Roadmap/Release Schedule: roadmap.md
 - Contributing:
   - Contribution Guide: CONTRIBUTING.md
   - Environment Setup: getting-started/setup/index.md
   - Releasing: releasing.md
+  - Plugins: plugins.md
 - Releases ⧉: https://github.com/argoproj/argo-rollouts/releases
 - Roadmap ⧉: https://github.com/argoproj/argo-rollouts/milestones
 - Blog ⧉: https://blog.argoproj.io/
 repo_url: https://github.com/argoproj/argo-rollouts
 site_name: Argo Rollouts - Kubernetes Progressive Delivery Controller
-site_url: https://argoproj.github.io/argo-rollouts
+site_url: https://argo-rollouts.readthedocs.io/
 theme:
   font:
     text: Work Sans
