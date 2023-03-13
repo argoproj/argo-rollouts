@@ -231,11 +231,11 @@ func ValidateIngress(rollout *v1alpha1.Rollout, ingress *ingressutil.Ingress) fi
 }
 
 func validateNginxIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.Ingress, fldPath *field.Path) field.ErrorList {
-	additionalIngresses := canary.TrafficRouting.Nginx.StableIngresses
+	stableIngresses := canary.TrafficRouting.Nginx.StableIngresses
 	allErrs := field.ErrorList{}
 	// If there are additional stable Nginx ingresses, and one of them is being validated,
 	// use that ingress name.
-	if len(additionalIngresses) > 0 && slices.Contains(additionalIngresses, ingress.GetName()) {
+	if stableIngresses != nil && slices.Contains(stableIngresses, ingress.GetName()) {
 		fldPath = fldPath.Child("nginx").Child("stableIngresses")
 		serviceName := canary.StableService
 		ingressName := ingress.GetName()
