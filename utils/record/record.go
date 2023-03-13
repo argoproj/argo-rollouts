@@ -232,7 +232,7 @@ func NewAPIFactorySettings() api.Settings {
 		ConfigMapName: NotificationConfigMap,
 		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-				return map[string]interface{}{"rollout": obj}
+				return map[string]interface{}{"rollout": obj, "time": timeExprs}
 			}, nil
 		},
 	}
@@ -367,4 +367,21 @@ func translateReasonToTrigger(reason string) string {
 	trigger := matchFirstCap.ReplaceAllString(reason, "${1}-${2}")
 	trigger = matchAllCap.ReplaceAllString(trigger, "${1}-${2}")
 	return "on-" + strings.ToLower(trigger)
+}
+
+var timeExprs = map[string]interface{}{
+	"Parse": parse,
+	"Now":   now,
+}
+
+func parse(timestamp string) time.Time {
+	res, err := time.Parse(time.RFC3339, timestamp)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
+func now() time.Time {
+	return time.Now()
 }
