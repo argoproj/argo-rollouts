@@ -6,10 +6,10 @@ require (
 	github.com/antonmedv/expr v1.12.3
 	github.com/argoproj/notifications-engine v0.4.0
 	github.com/argoproj/pkg v0.13.6
-	github.com/aws/aws-sdk-go-v2 v1.17.6
+	github.com/aws/aws-sdk-go-v2 v1.17.7
 	github.com/aws/aws-sdk-go-v2/config v1.18.17
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.25.5
-	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.19.6
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.19.7
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/evanphx/json-patch/v5 v5.6.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -82,8 +82,8 @@ require (
 	github.com/aws/aws-sdk-go v1.44.39 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.17 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.0 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.30 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.24 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.31 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.25 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.31 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.24 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.12.5 // indirect
