@@ -2118,6 +2118,11 @@ func (in *RolloutExperimentTemplate) DeepCopyInto(out *RolloutExperimentTemplate
 		*out = new(int32)
 		**out = **in
 	}
+	if in.Service != nil {
+		in, out := &in.Service, &out.Service
+		*out = new(TemplateService)
+		**out = **in
+	}
 	return
 }
 

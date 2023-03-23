@@ -820,3 +820,90 @@ func TestRolloutCreateExperimentWithService(t *testing.T) {
 	assert.Equal(t, "canary-template", ex.Spec.Templates[1].Name)
 	assert.Nil(t, ex.Spec.Templates[1].Service)
 }
+
+// TestRolloutCreateWeightlessExperimentWithService does the same as TestRolloutCreateExperimentWithService, but when weight is not set.
+// CreateService is true when Service is set, even when Weight isn't, otherwise false.
+func TestRolloutCreateWeightlessExperimentWithServiceAndName(t *testing.T) {
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{
+				// Service should be created for "stable-weightless-named-template"
+				{
+					Name:     "stable-weightless-named-template",
+					SpecRef:  v1alpha1.StableSpecRef,
+					Replicas: pointer.Int32Ptr(1),
+					Service: &v1alpha1.TemplateService{
+						Name: "test-service",
+					},
+				},
+				// Service should NOT be created for "canary-weightless-named-template"
+				{
+					Name:     "canary-weightless-named-template",
+					SpecRef:  v1alpha1.CanarySpecRef,
+					Replicas: pointer.Int32Ptr(1),
+				},
+			},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.StableRS = rs1PodHash
+
+	ex, err := GetExperimentFromTemplate(r2, rs1, rs2)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "stable-weightless-named-template", ex.Spec.Templates[0].Name)
+	assert.NotNil(t, ex.Spec.Templates[0].Service)
+
+	assert.Equal(t, "canary-weightless-named-template", ex.Spec.Templates[1].Name)
+	assert.Nil(t, ex.Spec.Templates[1].Service)
+}
+
+// TestRolloutCreateWeightlessExperimentWithService does the same as TestRolloutCreateWeightlessExperimentWithServiceAndName, but when Name is not set.
+func TestRolloutCreateWeightlessExperimentWithService(t *testing.T) {
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{
+				// Service should be created for "stable-weightless-template"
+				{
+					Name:     "stable-weightless-template",
+					SpecRef:  v1alpha1.StableSpecRef,
+					Replicas: pointer.Int32Ptr(1),
+					Service:  &v1alpha1.TemplateService{},
+				},
+				// Service should NOT be created for "canary-weightless-template"
+				{
+					Name:     "canary-weightless-template",
+					SpecRef:  v1alpha1.CanarySpecRef,
+					Replicas: pointer.Int32Ptr(1),
+				},
+			},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2.Status.CurrentStepIndex = pointer.Int32Ptr(0)
+	r2.Status.StableRS = rs1PodHash
+
+	ex, err := GetExperimentFromTemplate(r2, rs1, rs2)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "stable-weightless-template", ex.Spec.Templates[0].Name)
+	assert.NotNil(t, ex.Spec.Templates[0].Service)
+
+	assert.Equal(t, "canary-weightless-template", ex.Spec.Templates[1].Name)
+	assert.Nil(t, ex.Spec.Templates[1].Service)
+}

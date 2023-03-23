@@ -103,6 +103,27 @@ func (s *ExperimentSuite) TestExperimentWithServiceAndScaleDownDelay() {
 		ExpectExperimentServiceCount("experiment-with-service", 0)
 }
 
+func (s *ExperimentSuite) TestExperimentWithServiceNameAndScaleDownDelay() {
+	g := s.Given()
+	g.ApplyManifests("@functional/experiment-with-service-name.yaml")
+	g.When().
+		WaitForExperimentPhase("experiment-with-service-name", "Running").
+		WaitForExperimentCondition("experiment-with-service-name", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 1
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service-name", "test", 1).
+		ExpectExperimentServiceCount("experiment-with-service-name", 1).
+		When().
+		WaitForExperimentPhase("experiment-with-service-name", "Successful").
+		WaitForExperimentCondition("experiment-with-service-name", func(ex *rov1.Experiment) bool {
+			return s.GetReplicaSetFromExperiment(ex, "test").Status.Replicas == 0
+		}, "number-of-rs-pods-meet", fixtures.E2EWaitTimeout).
+		Then().
+		ExpectExperimentTemplateReplicaSetNumReplicas("experiment-with-service-name", "test", 0).
+		ExpectExperimentServiceCount("experiment-with-service-name", 0)
+}
+
 func (s *ExperimentSuite) TestExperimentWithMultiportServiceAndScaleDownDelay() {
 	g := s.Given()
 	g.ApplyManifests("@functional/experiment-with-multiport-service.yaml")

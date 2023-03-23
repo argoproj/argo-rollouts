@@ -301,10 +301,14 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 		}
 	}
 	if (svc == nil || svc.Name != rs.Name) && len(ports) > 0 {
-		newService, err := ec.CreateService(rs.Name, *template, rs.Labels, ports)
+		serviceName := rs.Name
+		if template.Service.Name != "" {
+			serviceName = template.Service.Name
+		}
+		newService, err := ec.CreateService(serviceName, *template, rs.Labels, ports)
 		if err != nil {
 			templateStatus.Status = v1alpha1.TemplateStatusError
-			templateStatus.Message = fmt.Sprintf("Failed to create Service for template '%s': %v", template.Name, err)
+			templateStatus.Message = fmt.Sprintf("Failed to create Service %s for template '%s': %v", serviceName, template.Name, err)
 		} else {
 			ec.templateServices[template.Name] = newService
 			templateStatus.ServiceName = newService.Name

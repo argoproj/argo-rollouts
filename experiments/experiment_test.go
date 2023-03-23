@@ -399,7 +399,7 @@ func TestFailServiceCreation(t *testing.T) {
 	})
 	newStatus := exCtx.reconcile()
 	assert.Equal(t, v1alpha1.TemplateStatusError, newStatus.TemplateStatuses[0].Status)
-	assert.Contains(t, newStatus.TemplateStatuses[0].Message, "Failed to create Service for template 'bad'")
+	assert.Contains(t, newStatus.TemplateStatuses[0].Message, "Failed to create Service foo-bad for template 'bad'")
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, newStatus.Phase)
 }
 
@@ -529,4 +529,28 @@ func TestServiceInheritPortsFromRS(t *testing.T) {
 	assert.NotNil(t, exCtx.templateServices["bar"])
 	assert.Equal(t, exCtx.templateServices["bar"].Name, "foo-bar")
 	assert.Equal(t, exCtx.templateServices["bar"].Spec.Ports[0].Port, int32(80))
+}
+
+func TestServiceNameSet(t *testing.T) {
+	templates := generateTemplates("bar")
+	templates[0].Service = &v1alpha1.TemplateService{
+		Name: "service-name",
+	}
+	templates[0].Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
+		{
+			Name:          "testport",
+			ContainerPort: 80,
+			Protocol:      "TCP",
+		},
+	}
+	ex := newExperiment("foo", templates, "")
+
+	exCtx := newTestContext(ex)
+	rs := templateToRS(ex, templates[0], 0)
+	exCtx.templateRSs["bar"] = rs
+
+	exCtx.reconcile()
+
+	assert.NotNil(t, exCtx.templateServices["bar"])
+	assert.Equal(t, exCtx.templateServices["bar"].Name, "service-name")
 }
