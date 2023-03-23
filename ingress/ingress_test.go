@@ -26,9 +26,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-const StableService string = "test-stable-service"
-const AdditionalStableService string = "test-stable-service-additional"
-const AdditionalIngress string = "test-stable-ingress-additional"
+const stableService string = "test-stable-service"
+const additionalIngress string = "test-stable-ingress-additional"
 const stableIngress string = "test-stable-ingress"
 
 func testString(val string) string {
@@ -194,7 +193,7 @@ func TestSyncIngressNotReferencedByRollout(t *testing.T) {
 	}{
 		{
 			[]*extensionsv1beta1.Ingress{
-				newNginxIngress(stableIngress, 80, StableService),
+				newNginxIngress(stableIngress, 80, stableService),
 			},
 			"Single Ingress",
 			[]string{
@@ -203,13 +202,13 @@ func TestSyncIngressNotReferencedByRollout(t *testing.T) {
 		},
 		{
 			[]*extensionsv1beta1.Ingress{
-				newNginxIngress(stableIngress, 80, StableService),
-				newNginxIngress(AdditionalIngress, 80, StableService),
+				newNginxIngress(stableIngress, 80, stableService),
+				newNginxIngress(additionalIngress, 80, stableService),
 			},
 			"Multi Ingress",
 			[]string{
 				testString(stableIngress),
-				testString(AdditionalIngress),
+				testString(additionalIngress),
 			},
 		},
 	}
@@ -236,7 +235,7 @@ func TestSyncIngressReferencedByRollout(t *testing.T) {
 	}{
 		{
 			[]*extensionsv1beta1.Ingress{
-				newNginxIngress(stableIngress, 80, StableService),
+				newNginxIngress(stableIngress, 80, stableService),
 			},
 			"Single Ingress",
 			[]string{
@@ -246,16 +245,16 @@ func TestSyncIngressReferencedByRollout(t *testing.T) {
 		},
 		{
 			[]*extensionsv1beta1.Ingress{
-				newNginxIngress(stableIngress, 80, StableService),
-				newNginxIngress(AdditionalIngress, 80, StableService),
+				newNginxIngress(stableIngress, 80, stableService),
+				newNginxIngress(additionalIngress, 80, stableService),
 			},
 			"Multi Ingress",
 			[]string{
 				testString(stableIngress),
-				testString(AdditionalIngress),
-				testString(AdditionalIngress),
+				testString(additionalIngress),
+				testString(additionalIngress),
 			},
-			[]string{AdditionalIngress},
+			[]string{additionalIngress},
 		},
 	}
 	for _, test := range tests {
@@ -269,7 +268,7 @@ func TestSyncIngressReferencedByRollout(t *testing.T) {
 				Spec: v1alpha1.RolloutSpec{
 					Strategy: v1alpha1.RolloutStrategy{
 						Canary: &v1alpha1.CanaryStrategy{
-							StableService: StableService,
+							StableService: stableService,
 							CanaryService: "canary-service",
 							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 								Nginx: &v1alpha1.NginxTrafficRouting{
@@ -304,7 +303,7 @@ func TestSkipIngressWithNoClass(t *testing.T) {
 	}{
 		{
 			[]*extensionsv1beta1.Ingress{
-				newNginxIngressWithAnnotation(stableIngress, 80, StableService),
+				newNginxIngressWithAnnotation(stableIngress, 80, stableService),
 			},
 			"Single Ingress",
 			[]string{
@@ -314,13 +313,13 @@ func TestSkipIngressWithNoClass(t *testing.T) {
 		},
 		{
 			[]*extensionsv1beta1.Ingress{
-				newNginxIngressWithAnnotation(stableIngress, 80, StableService),
-				newNginxIngressWithAnnotation(AdditionalIngress, 80, StableService),
+				newNginxIngressWithAnnotation(stableIngress, 80, stableService),
+				newNginxIngressWithAnnotation(additionalIngress, 80, stableService),
 			},
 			"Multi Ingress",
 			[]string{
 				testString(stableIngress),
-				testString(AdditionalIngress),
+				testString(additionalIngress),
 			},
 			[]string{stableIngress},
 		},
@@ -340,7 +339,7 @@ func TestSkipIngressWithNoClass(t *testing.T) {
 				Spec: v1alpha1.RolloutSpec{
 					Strategy: v1alpha1.RolloutStrategy{
 						Canary: &v1alpha1.CanaryStrategy{
-							StableService: StableService,
+							StableService: stableService,
 							CanaryService: "canary-service",
 							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 								Nginx: &v1alpha1.NginxTrafficRouting{
