@@ -2629,6 +2629,10 @@
 <span class="w">          </span><span class="nt">templates</span><span class="p">:</span>
 <span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">baseline</span>
 <span class="w">            </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span>
+<span class="w">            </span><span class="c1"># optional, creates a service for the experiment if set</span>
+<span class="w">            </span><span class="nt">service</span><span class="p">:</span>
+<span class="w">              </span><span class="c1"># optional, service: {} is also acceptable if name is not included</span>
+<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test-service</span>
 <span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span>
 <span class="w">            </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span>
 <span class="w">            </span><span class="c1"># optional, set the weight of traffic routed to this version</span>

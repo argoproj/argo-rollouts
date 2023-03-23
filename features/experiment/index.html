@@ -1176,6 +1176,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#experiment-service-creation-without-weight" class="md-nav__link">
+    Experiment Service Creation without Weight
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2343,6 +2350,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#experiment-service-creation-without-weight" class="md-nav__link">
+    Experiment Service Creation without Weight
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2366,7 +2380,8 @@
 <p>The Experiment CRD allows users to have ephemeral runs of one or more ReplicaSets. In addition to
 running ephemeral ReplicaSets, the Experiment CRD can launch AnalysisRuns alongside the ReplicaSets.
 Generally, those AnalysisRun is used to confirm that new ReplicaSets are running as expected.</p>
-<p>A Service routing traffic to the Experiment ReplicaSet is also generated if a weight for that experiment is set.</p>
+<p>A Service routing traffic to the Experiment ReplicaSet is also generated if a weight (which requires traffic routing)
+OR the Service attribute for that experiment is set.</p>
 <h2 id="use-cases-of-experiments">Use cases of Experiments<a class="headerlink" href="#use-cases-of-experiments" title="Permanent link">&para;</a></h2>
 <ul>
 <li>
@@ -2411,6 +2426,11 @@ perform analysis against the pods of the Experiment </p>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">purple</span>
 <span class="w">    </span><span class="c1"># Number of replicas to run (optional). If omitted, will run a single replica</span>
 <span class="w">    </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="c1"># Flag to create Service for this Experiment (optional)</span>
+<span class="w">    </span><span class="c1"># If omitted, a Service won&#39;t be created.</span>
+<span class="w">    </span><span class="nt">service</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># Name of the Service (optional). If omitted, service: {} would also be acceptable.</span>
+<span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
 <span class="w">    </span><span class="nt">selector</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">matchLabels</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-demo</span>
@@ -2476,7 +2496,8 @@ perform analysis against the pods of the Experiment </p>
 <p>An Experiment is intended to temporarily run one or more templates. The lifecycle of an Experiment
 is as follows:</p>
 <ol>
-<li>Create and scale a ReplicaSet for each pod template specified under <code>spec.templates</code></li>
+<li>Create and scale a ReplicaSet for each pod template specified under <code>spec.templates</code>. If
+   <code>service</code> is specified under a pod template, a Service will also be created for that pod.</li>
 <li>Wait for all ReplicaSets reach full availability. If a ReplicaSet does not become available
    within <code>spec.progressDeadlineSeconds</code>, the Experiment will fail. Once available, the Experiment
    will transition from the <code>Pending</code> state to a <code>Running</code> state.</li>
@@ -2602,6 +2623,35 @@ this service to send traffic to the experiment pods.</p>
 <p>By default, the generated Service has the name of the ReplicaSet and inherits
 ports and selector from the specRef definition. It can be accessed in using the <code>{{templates.baseline.replicaset.name}}</code>
 or <code>{{templates.canary.replicaset.name}}</code> variables respectively.</p>
+<h2 id="experiment-service-creation-without-weight">Experiment Service Creation without Weight<a class="headerlink" href="#experiment-service-creation-without-weight" title="Permanent link">&para;</a></h2>
+<p>If you don't want to use traffic routing for your Experiments but still want to create
+a Service for them, you can set a Service object which takes an optional Name, without
+having to set a Weight for them.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="w">  </span><span class="nt">labels</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
+<span class="nt">strategy</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">canary</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">experiment</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">duration</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span>
+<span class="w">          </span><span class="nt">templates</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experiment-baseline</span>
+<span class="w">              </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable</span>
+<span class="w">              </span><span class="nt">service</span><span class="p">:</span>
+<span class="w">                </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test-service</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">experiment-canary</span>
+<span class="w">              </span><span class="nt">specRef</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary</span>
+</code></pre></div>
+<p>In the above example, during an update, the first step would start
+a baseline vs. canary experiment. This time, a service would be created
+for <code>experiment-baseline</code> even without setting a weight for it or traffic
+routing for the rollout.</p>
 
 
   
