@@ -3,6 +3,8 @@ package apisix
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/pkg/errors"
@@ -10,7 +12,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"time"
 )
 
 var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
@@ -21,6 +22,7 @@ const Type = "Apisix"
 const apisixRouteUpdateError = "ApisixRouteUpdateError"
 const apisixRouteCreateError = "ApisixRouteCreateError"
 const apisixRouteDeleteError = "ApisixRouteDeleteError"
+const failedToTypeAssertion = "Failed type assertion for Apisix http route"
 
 type ReconcilerConfig struct {
 	Rollout  *v1alpha1.Rollout
@@ -71,39 +73,9 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 		return err
 	}
 
-	httpRoutes, isFound, err := unstructured.NestedSlice(apisixRoute.Object, "spec", "http")
+	httpRoutes, err := r.processSetSeightRoutes(desiredWeight, err, apisixRoute, rollout, apisixRouteName)
 	if err != nil {
 		return err
-	}
-	if !isFound {
-		return errors.New("spec.http was not found in Apisix Route manifest")
-	}
-	rules := rollout.Spec.Strategy.Canary.TrafficRouting.Apisix.Route.Rules
-	if rules == nil {
-		rules = append(rules, apisixRouteName)
-	}
-	for _, ruleName := range rules {
-		httpRoute, err := GetHttpRoute(httpRoutes, ruleName)
-		if err != nil {
-			return err
-		}
-
-		backends, err := GetBackends(httpRoute)
-		if err != nil {
-			return err
-		}
-
-		canaryBackendName := rollout.Spec.Strategy.Canary.CanaryService
-		err = setBackendWeight(canaryBackendName, backends, int64(desiredWeight))
-		if err != nil {
-			return err
-		}
-
-		stableBackendName := rollout.Spec.Strategy.Canary.StableService
-		err = setBackendWeight(stableBackendName, backends, int64(100-desiredWeight))
-		if err != nil {
-			return err
-		}
 	}
 
 	err = unstructured.SetNestedSlice(apisixRoute.Object, httpRoutes, "spec", "http")
@@ -119,11 +91,49 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return err
 }
 
+func (r *Reconciler) processSetSeightRoutes(desiredWeight int32, err error, apisixRoute *unstructured.Unstructured, rollout *v1alpha1.Rollout, apisixRouteName string) ([]interface{}, error) {
+	httpRoutes, isFound, err := unstructured.NestedSlice(apisixRoute.Object, "spec", "http")
+	if err != nil {
+		return nil, err
+	}
+	if !isFound {
+		return nil, errors.New("spec.http was not found in Apisix Route manifest")
+	}
+	rules := rollout.Spec.Strategy.Canary.TrafficRouting.Apisix.Route.Rules
+	if rules == nil {
+		rules = append(rules, apisixRouteName)
+	}
+	for _, ruleName := range rules {
+		httpRoute, err := GetHttpRoute(httpRoutes, ruleName)
+		if err != nil {
+			return nil, err
+		}
+
+		backends, err := GetBackends(httpRoute)
+		if err != nil {
+			return nil, err
+		}
+
+		canaryBackendName := rollout.Spec.Strategy.Canary.CanaryService
+		err = setBackendWeight(canaryBackendName, backends, int64(desiredWeight))
+		if err != nil {
+			return nil, err
+		}
+
+		stableBackendName := rollout.Spec.Strategy.Canary.StableService
+		err = setBackendWeight(stableBackendName, backends, int64(100-desiredWeight))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return httpRoutes, nil
+}
+
 func GetHttpRoute(routes []interface{}, ref string) (interface{}, error) {
 	for _, route := range routes {
 		typedRoute, ok := route.(map[string]interface{})
 		if !ok {
-			return nil, errors.New("Failed type assertion for Apisix http route")
+			return nil, errors.New(failedToTypeAssertion)
 		}
 		rawName, ok := typedRoute["name"]
 		if !ok {
@@ -131,7 +141,7 @@ func GetHttpRoute(routes []interface{}, ref string) (interface{}, error) {
 		}
 		typedName, ok := rawName.(string)
 		if !ok {
-			return nil, errors.New("Failed type assertion for Apisix http route rule name")
+			return nil, errors.New(fmt.Sprintf("%s rule name", failedToTypeAssertion))
 		}
 		if typedName == ref {
 			return route, nil
@@ -144,7 +154,7 @@ func GetHttpRoute(routes []interface{}, ref string) (interface{}, error) {
 func GetBackends(httpRoute interface{}) ([]interface{}, error) {
 	typedHttpRoute, ok := httpRoute.(map[string]interface{})
 	if !ok {
-		return nil, errors.New("Failed type assertion for Apisix http route")
+		return nil, errors.New(failedToTypeAssertion)
 	}
 	rawBackends, ok := typedHttpRoute["backends"]
 	if !ok {
@@ -152,7 +162,7 @@ func GetBackends(httpRoute interface{}) ([]interface{}, error) {
 	}
 	backends, ok := rawBackends.([]interface{})
 	if !ok {
-		return nil, errors.New("Failed type assertion for Apisix http route backends")
+		return nil, errors.New(fmt.Sprintf("%s backends", failedToTypeAssertion))
 	}
 	return backends, nil
 }
@@ -162,7 +172,7 @@ func setBackendWeight(backendName string, backends []interface{}, weight int64) 
 	for _, backend := range backends {
 		typedBackend, ok := backend.(map[string]interface{})
 		if !ok {
-			return errors.New("Failed type assertion for Apisix http route backend")
+			return errors.New(fmt.Sprintf("%s backends", failedToTypeAssertion))
 		}
 		nameOfCurrentBackend, isFound, err := unstructured.NestedString(typedBackend, "serviceName")
 		if err != nil {
@@ -193,29 +203,9 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 		return err
 	}
 
-	setHeaderApisixRoute, err := r.Client.Get(ctx, headerRouting.Name, metav1.GetOptions{})
-	isNew := false
-
-	if err != nil {
-		// create new ApisixRoute CR
-		if k8serrors.IsNotFound(err) {
-			setHeaderApisixRoute = apisixRoute.DeepCopy()
-			setHeaderApisixRoute.SetName(headerRouting.Name)
-			setHeaderApisixRoute.SetResourceVersion("")
-			setHeaderApisixRoute.SetGeneration(0)
-			setHeaderApisixRoute.SetUID("")
-			setHeaderApisixRoute.SetCreationTimestamp(metav1.NewTime(time.Time{}))
-			setHeaderApisixRoute.SetOwnerReferences([]metav1.OwnerReference{
-				*metav1.NewControllerRef(r.Rollout, controllerKind),
-			})
-			isNew = true
-		} else {
-			return err
-		}
-	} else {
-		if !metav1.IsControlledBy(setHeaderApisixRoute, r.Rollout) {
-			return errors.New(fmt.Sprintf("duplicate ApisixRoute [%s] already exists", headerRouting.Name))
-		}
+	setHeaderApisixRoute, isNew, err := r.makeSetHeaderRoute(ctx, headerRouting, apisixRoute)
+	if !isNew && err != nil {
+		return err
 	}
 
 	if headerRouting.Match == nil {
@@ -232,51 +222,7 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 		}
 	}
 
-	httpRoutes, isFound, err := unstructured.NestedSlice(setHeaderApisixRoute.Object, "spec", "http")
-	if err != nil {
-		return err
-	}
-	if !isFound {
-		return errors.New("spec.http was not found in Apisix Route manifest")
-	}
-	rules := rollout.Spec.Strategy.Canary.TrafficRouting.Apisix.Route.Rules
-	if rules == nil {
-		rules = append(rules, apisixRouteName)
-	}
-	for _, ruleName := range rules {
-		httpRoute, err := GetHttpRoute(httpRoutes, ruleName)
-		if err != nil {
-			return err
-		}
-
-		backends, err := GetBackends(httpRoute)
-		if err != nil {
-			return err
-		}
-
-		canaryBackendName := rollout.Spec.Strategy.Canary.CanaryService
-		err = setBackendWeight(canaryBackendName, backends, 100)
-		if err != nil {
-			return err
-		}
-
-		stableBackendName := rollout.Spec.Strategy.Canary.StableService
-		err = removeBackend(httpRoute, stableBackendName, backends)
-		if err != nil {
-			return err
-		}
-		if isNew {
-			if err = processRulePriority(httpRoute); err != nil {
-				return err
-			}
-		}
-
-		if err = setApisixRuleMatch(httpRoute, headerRouting); err != nil {
-			return err
-		}
-	}
-
-	err = unstructured.SetNestedSlice(setHeaderApisixRoute.Object, httpRoutes, "spec", "http")
+	err = r.processSetHeaderApisixRoute(headerRouting, setHeaderApisixRoute, isNew)
 	if err != nil {
 		return err
 	}
@@ -299,8 +245,82 @@ func (r *Reconciler) SetHeaderRoute(headerRouting *v1alpha1.SetHeaderRoute) erro
 		}
 
 	}
-
 	return err
+}
+
+func (r *Reconciler) processSetHeaderApisixRoute(headerRouting *v1alpha1.SetHeaderRoute, setHeaderApisixRoute *unstructured.Unstructured, isNew bool) error {
+	httpRoutes, isFound, err := unstructured.NestedSlice(setHeaderApisixRoute.Object, "spec", "http")
+	if err != nil {
+		return err
+	}
+	if !isFound {
+		return errors.New("spec.http was not found in Apisix Route manifest")
+	}
+	rules := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Apisix.Route.Rules
+	if rules == nil {
+		rules = append(rules, r.Rollout.Spec.Strategy.Canary.TrafficRouting.Apisix.Route.Name)
+	}
+	for _, ruleName := range rules {
+		httpRoute, err := GetHttpRoute(httpRoutes, ruleName)
+		if err != nil {
+			return err
+		}
+
+		backends, err := GetBackends(httpRoute)
+		if err != nil {
+			return err
+		}
+
+		canaryBackendName := r.Rollout.Spec.Strategy.Canary.CanaryService
+		err = setBackendWeight(canaryBackendName, backends, 100)
+		if err != nil {
+			return err
+		}
+
+		stableBackendName := r.Rollout.Spec.Strategy.Canary.StableService
+		err = removeBackend(httpRoute, stableBackendName, backends)
+		if err != nil {
+			return err
+		}
+		if isNew {
+			if err = processRulePriority(httpRoute); err != nil {
+				return err
+			}
+		}
+
+		if err = setApisixRuleMatch(httpRoute, headerRouting); err != nil {
+			return err
+		}
+	}
+	return unstructured.SetNestedSlice(setHeaderApisixRoute.Object, httpRoutes, "spec", "http")
+}
+
+func (r *Reconciler) makeSetHeaderRoute(ctx context.Context, headerRouting *v1alpha1.SetHeaderRoute, apisixRoute *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
+	setHeaderApisixRoute, err := r.Client.Get(ctx, headerRouting.Name, metav1.GetOptions{})
+	isNew := false
+
+	if err != nil {
+		// create new ApisixRoute CR
+		if k8serrors.IsNotFound(err) {
+			setHeaderApisixRoute = apisixRoute.DeepCopy()
+			setHeaderApisixRoute.SetName(headerRouting.Name)
+			setHeaderApisixRoute.SetResourceVersion("")
+			setHeaderApisixRoute.SetGeneration(0)
+			setHeaderApisixRoute.SetUID("")
+			setHeaderApisixRoute.SetCreationTimestamp(metav1.NewTime(time.Time{}))
+			setHeaderApisixRoute.SetOwnerReferences([]metav1.OwnerReference{
+				*metav1.NewControllerRef(r.Rollout, controllerKind),
+			})
+			isNew = true
+		} else {
+			return nil, false, err
+		}
+	} else {
+		if !metav1.IsControlledBy(setHeaderApisixRoute, r.Rollout) {
+			return nil, false, errors.New(fmt.Sprintf("duplicate ApisixRoute [%s] already exists", headerRouting.Name))
+		}
+	}
+	return setHeaderApisixRoute, isNew, nil
 }
 
 func removeBackend(route interface{}, backendName string, backends []interface{}) error {
@@ -341,11 +361,7 @@ func processRulePriority(route interface{}) error {
 	if !ok {
 		priority = 0
 	}
-
 	priority++
-	if err != nil {
-		return err
-	}
 	typedRoute["priority"] = priority
 	return nil
 }

@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,6 +29,8 @@ type FakeClient struct {
 	IsGetNotFoundError             bool
 	IsGetManagedRouteError         bool
 	IsDuplicateSetHeaderRouteError bool
+	IsDeleteError                  bool
+	IsCreateError                  bool
 	DeleteName                     string
 	UpdatedObj                     *unstructured.Unstructured
 	CreatedObj                     *unstructured.Unstructured
@@ -53,6 +56,9 @@ func (f *FakeRecorder) K8sRecorder() record.EventRecorder {
 }
 
 func (f *FakeClient) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	if f.IsCreateError {
+		return nil, errors.New("create apisix route error!")
+	}
 	f.CreatedObj = obj
 	return nil, nil
 }
@@ -94,6 +100,9 @@ func (f *FakeClient) UpdateStatus(ctx context.Context, obj *unstructured.Unstruc
 }
 
 func (f *FakeClient) Delete(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error {
+	if f.IsDeleteError {
+		return errors.New("delete apisixroute error!")
+	}
 	f.DeleteName = name
 	return nil
 }

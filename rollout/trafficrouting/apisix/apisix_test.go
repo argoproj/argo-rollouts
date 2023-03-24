@@ -13,6 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 )
 
+const SetHeaderRouteName = "set-header"
+const HeaderName = "header-name"
+
 const apisixRoute = `
 apiVersion: apisix.apache.org/v2
 kind: ApisixRoute
@@ -387,13 +390,7 @@ func TestSetHeaderRoute(t *testing.T) {
 		r := NewReconciler(&cfg)
 		// When
 		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-			Name: "set-header",
-			Match: []v1alpha1.HeaderRoutingMatch{{
-				HeaderName: "header-name",
-				HeaderValue: &v1alpha1.StringMatch{
-					Exact: "value",
-				},
-			}},
+			Name: SetHeaderRouteName,
 		})
 
 		// Then
@@ -410,9 +407,9 @@ func TestSetHeaderRoute(t *testing.T) {
 		r := NewReconciler(&cfg)
 		// When
 		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-			Name: "set-header",
+			Name: SetHeaderRouteName,
 			Match: []v1alpha1.HeaderRoutingMatch{{
-				HeaderName: "header-name",
+				HeaderName: HeaderName,
 				HeaderValue: &v1alpha1.StringMatch{
 					Exact: "value",
 				},
@@ -433,9 +430,9 @@ func TestSetHeaderRoute(t *testing.T) {
 		r := NewReconciler(&cfg)
 		// When
 		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-			Name: "set-header",
+			Name: SetHeaderRouteName,
 			Match: []v1alpha1.HeaderRoutingMatch{{
-				HeaderName: "header-name",
+				HeaderName: HeaderName,
 				HeaderValue: &v1alpha1.StringMatch{
 					Exact: "value",
 				},
@@ -459,7 +456,7 @@ func TestSetHeaderRoute(t *testing.T) {
 
 		// When
 		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-			Name:  "set-header",
+			Name:  SetHeaderRouteName,
 			Match: nil,
 		})
 
@@ -478,13 +475,13 @@ func TestSetHeaderRoute(t *testing.T) {
 
 		// When
 		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-			Name:  "set-header",
+			Name:  SetHeaderRouteName,
 			Match: nil,
 		})
 
 		// Then
 		assert.NoError(t, err)
-		assert.Equal(t, "set-header", client.DeleteName)
+		assert.Equal(t, SetHeaderRouteName, client.DeleteName)
 	})
 	t.Run("SetHeaderRoutePriorityWithNew", func(t *testing.T) {
 		// Given
@@ -500,9 +497,9 @@ func TestSetHeaderRoute(t *testing.T) {
 
 		// When
 		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-			Name: "set-header",
+			Name: SetHeaderRouteName,
 			Match: []v1alpha1.HeaderRoutingMatch{{
-				HeaderName: "header-name",
+				HeaderName: HeaderName,
 				HeaderValue: &v1alpha1.StringMatch{
 					Exact: "value",
 				},
@@ -536,9 +533,9 @@ func TestSetHeaderRoute(t *testing.T) {
 
 		// When
 		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-			Name: "set-header",
+			Name: SetHeaderRouteName,
 			Match: []v1alpha1.HeaderRoutingMatch{{
-				HeaderName: "header-name",
+				HeaderName: HeaderName,
 				HeaderValue: &v1alpha1.StringMatch{
 					Exact: "value",
 				},
@@ -573,21 +570,21 @@ func TestSetHeaderRoute(t *testing.T) {
 
 		// When
 		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-			Name: "set-header",
+			Name: SetHeaderRouteName,
 			Match: []v1alpha1.HeaderRoutingMatch{
 				{
-					HeaderName: "header-name",
+					HeaderName: HeaderName,
 					HeaderValue: &v1alpha1.StringMatch{
 						Exact: "value",
 					},
 				},
 				{
-					HeaderName: "header-name",
+					HeaderName: HeaderName,
 					HeaderValue: &v1alpha1.StringMatch{
 						Regex: "value",
 					},
 				}, {
-					HeaderName: "header-name",
+					HeaderName: HeaderName,
 					HeaderValue: &v1alpha1.StringMatch{
 						Prefix: "value",
 					},
@@ -606,9 +603,9 @@ func TestSetHeaderRoute(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, true, ok)
 		values := [][]string{
-			{"Equal", "header-name", "Header", "value"},
-			{"RegexMatch", "header-name", "Header", "value"},
-			{"RegexMatch", "header-name", "Header", fmt.Sprintf("^%s.*", "value")},
+			{"Equal", HeaderName, "Header", "value"},
+			{"RegexMatch", HeaderName, "Header", "value"},
+			{"RegexMatch", HeaderName, "Header", fmt.Sprintf("^%s.*", "value")},
 		}
 		for i, expr := range exprs {
 			assertExpr(t, expr, values[i][0], values[i][1], values[i][2], values[i][3])
@@ -628,21 +625,21 @@ func TestSetHeaderRoute(t *testing.T) {
 
 		// When
 		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
-			Name: "set-header",
+			Name: SetHeaderRouteName,
 			Match: []v1alpha1.HeaderRoutingMatch{
 				{
-					HeaderName: "header-name",
+					HeaderName: HeaderName,
 					HeaderValue: &v1alpha1.StringMatch{
 						Exact: "value",
 					},
 				},
 				{
-					HeaderName: "header-name",
+					HeaderName: HeaderName,
 					HeaderValue: &v1alpha1.StringMatch{
 						Regex: "value",
 					},
 				}, {
-					HeaderName: "header-name",
+					HeaderName: HeaderName,
 					HeaderValue: &v1alpha1.StringMatch{
 						Prefix: "value",
 					},
@@ -661,13 +658,110 @@ func TestSetHeaderRoute(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, true, ok)
 		values := [][]string{
-			{"Equal", "header-name", "Header", "value"},
-			{"RegexMatch", "header-name", "Header", "value"},
-			{"RegexMatch", "header-name", "Header", fmt.Sprintf("^%s.*", "value")},
+			{"Equal", HeaderName, "Header", "value"},
+			{"RegexMatch", HeaderName, "Header", "value"},
+			{"RegexMatch", HeaderName, "Header", fmt.Sprintf("^%s.*", "value")},
 		}
 		for i, expr := range exprs {
 			assertExpr(t, expr, values[i][0], values[i][1], values[i][2], values[i][3])
 		}
+	})
+	t.Run("SetHeaderDeleteError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		client := &mocks.FakeClient{
+			IsDeleteError: true,
+		}
+		cfg := ReconcilerConfig{
+			Rollout:  newRollout(stableServiceName, canaryServiceName, apisixRouteName),
+			Client:   client,
+			Recorder: &mocks.FakeRecorder{},
+		}
+		r := NewReconciler(&cfg)
+		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+			Name:  SetHeaderRouteName,
+			Match: nil,
+		})
+		assert.Error(t, err)
+	})
+	t.Run("SetHeaderCreateError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		client := &mocks.FakeClient{
+			IsCreateError:      true,
+			IsGetNotFoundError: true,
+		}
+		cfg := ReconcilerConfig{
+			Rollout:  newRollout(stableServiceName, canaryServiceName, apisixRouteName),
+			Client:   client,
+			Recorder: &mocks.FakeRecorder{},
+		}
+		r := NewReconciler(&cfg)
+		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+			Name: SetHeaderRouteName,
+			Match: []v1alpha1.HeaderRoutingMatch{{
+				HeaderName: HeaderName,
+				HeaderValue: &v1alpha1.StringMatch{
+					Exact: "value",
+				},
+			}},
+		})
+		assert.Error(t, err)
+	})
+	t.Run("SetHeaderUpdateError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		client := &mocks.FakeClient{
+			UpdateError:        true,
+			IsGetNotFoundError: false,
+		}
+		cfg := ReconcilerConfig{
+			Rollout:  newRollout(stableServiceName, canaryServiceName, apisixRouteName),
+			Client:   client,
+			Recorder: &mocks.FakeRecorder{},
+		}
+		r := NewReconciler(&cfg)
+		err := r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+			Name: SetHeaderRouteName,
+			Match: []v1alpha1.HeaderRoutingMatch{{
+				HeaderName: HeaderName,
+				HeaderValue: &v1alpha1.StringMatch{
+					Exact: "value",
+				},
+			}},
+		})
+		assert.Error(t, err)
+	})
+	t.Run("RemoveManagedRoutesDeleteError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		client := &mocks.FakeClient{
+			IsDeleteError: true,
+		}
+		cfg := ReconcilerConfig{
+			Rollout:  newRollout(stableServiceName, canaryServiceName, apisixRouteName),
+			Client:   client,
+			Recorder: &mocks.FakeRecorder{},
+		}
+		r := NewReconciler(&cfg)
+		err := r.RemoveManagedRoutes()
+		assert.Error(t, err)
+	})
+	t.Run("RemoveManagedRoutesNilManagedRoutes", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		client := &mocks.FakeClient{
+			IsDeleteError: true,
+		}
+		cfg := ReconcilerConfig{
+			Rollout:  newRollout(stableServiceName, canaryServiceName, apisixRouteName),
+			Client:   client,
+			Recorder: &mocks.FakeRecorder{},
+		}
+		cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = nil
+		r := NewReconciler(&cfg)
+		err := r.RemoveManagedRoutes()
+		assert.NoError(t, err)
 	})
 }
 
@@ -741,7 +835,7 @@ func TestRemoveManagedRoutes(t *testing.T) {
 		err := r.RemoveManagedRoutes()
 		// Then
 		assert.NoError(t, err)
-		assert.Equal(t, "set-header", client.DeleteName)
+		assert.Equal(t, SetHeaderRouteName, client.DeleteName)
 	})
 	t.Run("RemoveManagedRoutesError", func(t *testing.T) {
 		client := &mocks.FakeClient{
@@ -847,7 +941,7 @@ func newRollout(stableSvc, canarySvc, apisixRouteRef string) *v1alpha1.Rollout {
 						},
 						ManagedRoutes: []v1alpha1.MangedRoutes{
 							{
-								Name: "set-header",
+								Name: SetHeaderRouteName,
 							},
 						},
 					},
