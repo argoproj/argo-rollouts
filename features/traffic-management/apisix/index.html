@@ -2371,12 +2371,22 @@ helm<span class="w"> </span>upgrade<span class="w"> </span>-i<span class="w"> </
 <span class="w">      </span><span class="nt">canaryService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-apisix-canary-canary</span>
 <span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-apisix-canary-stable</span>
 <span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">managedRoutes</span><span class="p">:</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">set-header</span>
 <span class="w">        </span><span class="nt">apisix</span><span class="p">:</span>
 <span class="w">          </span><span class="nt">route</span><span class="p">:</span>
 <span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-apisix-route</span>
 <span class="w">            </span><span class="nt">rules</span><span class="p">:</span>
 <span class="w">              </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-apisix</span>
 <span class="w">      </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setCanaryScale</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">          </span><span class="nt">setHeaderRoute</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">match</span><span class="p">:</span>
+<span class="w">              </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">headerName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trace</span>
+<span class="w">                </span><span class="nt">headerValue</span><span class="p">:</span>
+<span class="w">                  </span><span class="nt">exact</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">debug</span>
+<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">set-header</span>
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pause</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">setWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span>
@@ -2468,8 +2478,27 @@ Spec:
 <span class="w">      </span>Service<span class="w"> </span>Port:<span class="w">  </span><span class="m">80</span>
 <span class="w">      </span>Weight:<span class="w">        </span><span class="m">20</span>
 ......
+</code></pre></div>
+The <code>rollout-apisix-canary-canary</code> service gets 20% traffic through the Apache APISIX.</p>
+<p>You can check SetHeader ApisixRoute's match by the following command
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>describe<span class="w"> </span>apisixroute<span class="w"> </span>set-header
+
+......
+Spec:
+<span class="w">  </span>Http:
+<span class="w">    </span>Backends:
+<span class="w">      </span>Service<span class="w"> </span>Name:<span class="w">  </span>rollout-apisix-canary-canary
+<span class="w">      </span>Service<span class="w"> </span>Port:<span class="w">  </span><span class="m">80</span>
+<span class="w">      </span>Weight:<span class="w">        </span><span class="m">100</span>
+<span class="w">    </span>Match:
+<span class="w">      </span>Exprs:
+<span class="w">        </span>Op:<span class="w">  </span>Equal
+<span class="w">        </span>Subject:
+<span class="w">          </span>Name:<span class="w">   </span>trace
+<span class="w">          </span>Scope:<span class="w">  </span>Header
+<span class="w">        </span>Value:<span class="w">    </span>debug
+......
 </code></pre></div></p>
-<p>The <code>rollout-apisix-canary-canary</code> service gets 20% traffic through the Apache APISIX.</p>
 
 
   
