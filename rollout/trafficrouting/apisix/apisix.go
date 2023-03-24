@@ -73,7 +73,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 		return err
 	}
 
-	httpRoutes, err := r.processSetSeightRoutes(desiredWeight, err, apisixRoute, rollout, apisixRouteName)
+	httpRoutes, err := r.processSetWeightRoutes(desiredWeight, apisixRoute, rollout, apisixRouteName)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return err
 }
 
-func (r *Reconciler) processSetSeightRoutes(desiredWeight int32, err error, apisixRoute *unstructured.Unstructured, rollout *v1alpha1.Rollout, apisixRouteName string) ([]interface{}, error) {
+func (r *Reconciler) processSetWeightRoutes(desiredWeight int32, apisixRoute *unstructured.Unstructured, rollout *v1alpha1.Rollout, apisixRouteName string) ([]interface{}, error) {
 	httpRoutes, isFound, err := unstructured.NestedSlice(apisixRoute.Object, "spec", "http")
 	if err != nil {
 		return nil, err
