@@ -582,6 +582,21 @@ func (c *Common) GetApisixRoute() *unstructured.Unstructured {
 	return a6Route
 }
 
+func (c *Common) GetApisixSetHeaderRoute() *unstructured.Unstructured {
+	ctx := context.TODO()
+	rollout, err := c.rolloutClient.ArgoprojV1alpha1().Rollouts(c.Rollout().GetNamespace()).Get(ctx, c.Rollout().GetName(), metav1.GetOptions{})
+	c.CheckError(err)
+	dyClient := a6util.NewDynamicClient(c.dynamicClient, c.Rollout().GetNamespace())
+	index := *rollout.Status.CurrentStepIndex
+	if step := rollout.Spec.Strategy.Canary.Steps[index]; step.SetHeaderRoute != nil {
+		name := step.SetHeaderRoute.Name
+		a6Route, err := dyClient.Get(ctx, name, metav1.GetOptions{})
+		c.CheckError(err)
+		return a6Route
+	}
+	return nil
+}
+
 func (c *Common) GetAppMeshVirtualRouter() *unstructured.Unstructured {
 	ro := c.Rollout()
 	ctx := context.TODO()

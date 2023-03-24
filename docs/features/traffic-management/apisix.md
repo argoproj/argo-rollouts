@@ -66,12 +66,22 @@ spec:
       canaryService: rollout-apisix-canary-canary
       stableService: rollout-apisix-canary-stable
       trafficRouting:
+        managedRoutes:
+          - name: set-header
         apisix:
           route:
             name: rollouts-apisix-route
             rules:
               - rollouts-apisix
       steps:
+        - setCanaryScale:
+            replicas: 1
+          setHeaderRoute:
+            match:
+              - headerName: trace
+                headerValue:
+                  exact: debug
+            name: set-header
         - setWeight: 20
         - pause: {}
         - setWeight: 40
@@ -182,5 +192,25 @@ Spec:
       Weight:        20
 ......
 ```
-
 The `rollout-apisix-canary-canary` service gets 20% traffic through the Apache APISIX.
+
+You can check SetHeader ApisixRoute's match by the following command
+```bash
+kubectl describe apisixroute set-header
+
+......
+Spec:
+  Http:
+    Backends:
+      Service Name:  rollout-apisix-canary-canary
+      Service Port:  80
+      Weight:        100
+    Match:
+      Exprs:
+        Op:  Equal
+        Subject:
+          Name:   trace
+          Scope:  Header
+        Value:    debug
+......
+```

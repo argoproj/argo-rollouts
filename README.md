@@ -52,7 +52,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 |-----------------------------------|------------------------------|-----------------------------|----------------------------|----------------------------|
 | ALB Ingress Controller            | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :white_check_mark: (alpha) |
 | Ambassador                        | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |
-| Apache APISIX Ingress Controller  | :white_check_mark: (alpha)   | :x:                         | :x:                        | :x:                        |
+| Apache APISIX Ingress Controller  | :white_check_mark: (alpha)   | :x:                         | :x:                        | :white_check_mark: (alpha)                        |
 | Istio                             | :white_check_mark: (stable)  | :white_check_mark: (stable) | :white_check_mark: (alpha) | :white_check_mark: (alpha) |
 | Nginx Ingress Controller          | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |
 | SMI                               | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :x:                        |

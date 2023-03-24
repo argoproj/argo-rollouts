@@ -9,12 +9,23 @@ spec:
       canaryService: rollout-apisix-canary-canary
       stableService: rollout-apisix-canary-stable
       trafficRouting:
+        managedRoutes:
+          - name: set-header
         apisix:
           route:
             name: rollouts-apisix-route
             rules:
               - rollouts-apisix
       steps:
+        - setCanaryScale:
+            replicas: 1
+          setHeaderRoute:
+            match:
+              - headerName: trace
+                headerValue:
+                  exact: debug
+            name: set-header
+        - pause: { }
         - setWeight: 20
         - pause: { }
         - setWeight: 40
