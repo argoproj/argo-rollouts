@@ -27,6 +27,7 @@ API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,IstioVirtualService,TLSRoutes
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,KayentaMetric,Scopes
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,MetricResult,Measurements
+API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,NginxTrafficRouting,StableIngresses
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,RolloutAnalysis,Args
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,RolloutAnalysis,DryRun
 API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,RolloutAnalysis,MeasurementRetention

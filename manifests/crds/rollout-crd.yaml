@@ -864,8 +864,10 @@ spec:
                                 type: string
                               stableIngress:
                                 type: string
-                            required:
-                            - stableIngress
+                              stableIngresses:
+                                items:
+                                  type: string
+                                type: array
                             type: object
                           plugins:
                             type: object

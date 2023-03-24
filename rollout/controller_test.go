@@ -1706,6 +1706,7 @@ func TestGetReferencedIngressesALB(t *testing.T) {
 }
 
 func TestGetReferencedIngressesNginx(t *testing.T) {
+	primaryIngress := "nginx-ingress-name"
 	f := newFixture(t)
 	defer f.Close()
 	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
@@ -1718,18 +1719,22 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 	defer f.Close()
 
 	t.Run("get referenced Nginx ingress - fail", func(t *testing.T) {
+		// clear fixture
+		f.ingressLister = []*ingressutil.Ingress{}
 		c, _, _ := f.newController(noResyncPeriodFunc)
 		roCtx, err := c.newRolloutContext(r)
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
-		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "stableIngress"), "nginx-ingress-name", "ingress.extensions \"nginx-ingress-name\" not found")
+		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "stableIngress"), primaryIngress, fmt.Sprintf("ingress.extensions \"%s\" not found", primaryIngress))
 		assert.Equal(t, expectedErr.Error(), err.Error())
 	})
 
 	t.Run("get referenced Nginx ingress - success", func(t *testing.T) {
+		// clear fixture
+		f.ingressLister = []*ingressutil.Ingress{}
 		ingress := &extensionsv1beta1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "nginx-ingress-name",
+				Name:      primaryIngress,
 				Namespace: metav1.NamespaceDefault,
 			},
 		}
@@ -1739,6 +1744,97 @@ func TestGetReferencedIngressesNginx(t *testing.T) {
 		assert.NoError(t, err)
 		_, err = roCtx.getReferencedIngresses()
 		assert.NoError(t, err)
+	})
+}
+func TestGetReferencedIngressesNginxMultiIngress(t *testing.T) {
+	primaryIngress := "nginx-ingress-name"
+	addIngress := "nginx-ingress-additional"
+	ingresses := []string{primaryIngress, addIngress}
+	f := newFixture(t)
+	defer f.Close()
+	r := newCanaryRollout("rollout", 1, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+	r.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Nginx: &v1alpha1.NginxTrafficRouting{
+			StableIngresses: ingresses,
+		},
+	}
+	r.Namespace = metav1.NamespaceDefault
+	defer f.Close()
+
+	tests := []struct {
+		name        string
+		ingresses   []*ingressutil.Ingress
+		expectedErr *field.Error
+	}{
+		{
+			"get referenced Nginx ingress - fail first ingress when both missing",
+			[]*ingressutil.Ingress{},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "StableIngresses"), ingresses, fmt.Sprintf("ingress.extensions \"%s\" not found", primaryIngress)),
+		},
+		{
+			"get referenced Nginx ingress - fail on primary when additional present",
+			[]*ingressutil.Ingress{
+				ingressutil.NewLegacyIngress(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      addIngress,
+						Namespace: metav1.NamespaceDefault,
+					},
+				}),
+			},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "StableIngresses"), ingresses, fmt.Sprintf("ingress.extensions \"%s\" not found", primaryIngress)),
+		},
+		{
+			"get referenced Nginx ingress - fail on secondary when only secondary missing",
+			[]*ingressutil.Ingress{
+				ingressutil.NewLegacyIngress(&extensionsv1beta1.Ingress{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      primaryIngress,
+						Namespace: metav1.NamespaceDefault,
+					},
+				}),
+			},
+			field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "nginx", "StableIngresses"), ingresses, fmt.Sprintf("ingress.extensions \"%s\" not found", addIngress)),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// clear fixture
+			f.ingressLister = []*ingressutil.Ingress{}
+			for _, ing := range test.ingresses {
+				f.ingressLister = append(f.ingressLister, ing)
+			}
+			c, _, _ := f.newController(noResyncPeriodFunc)
+			roCtx, err := c.newRolloutContext(r)
+			assert.NoError(t, err)
+			_, err = roCtx.getReferencedIngresses()
+			assert.Equal(t, test.expectedErr.Error(), err.Error())
+		})
+	}
+
+	t.Run("get referenced Nginx ingress - success", func(t *testing.T) {
+		// clear fixture
+		f.ingressLister = []*ingressutil.Ingress{}
+		ingress := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      primaryIngress,
+				Namespace: metav1.NamespaceDefault,
+			},
+		}
+		ingressAdditional := &extensionsv1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      addIngress,
+				Namespace: metav1.NamespaceDefault,
+			},
+		}
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingress))
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ingressAdditional))
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := c.newRolloutContext(r)
+		assert.NoError(t, err)
+		ingresses, err := roCtx.getReferencedIngresses()
+		assert.NoError(t, err)
+		assert.Len(t, *ingresses, 2, "Should find the main ingress and the additional ingress")
 	})
 }
 

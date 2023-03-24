@@ -75,6 +75,14 @@ type ALBTargetGroup struct {
 	Weight *int64 `json:"Weight,omitempty"`
 }
 
+func MultipleNginxIngressesConfigured(rollout *v1alpha1.Rollout) bool {
+	return rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngresses != nil
+}
+
+func SingleNginxIngressConfigured(rollout *v1alpha1.Rollout) bool {
+	return rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress != ""
+}
+
 // GetRolloutIngressKeys returns ingresses keys (namespace/ingressName) which are referenced by specified rollout
 func GetRolloutIngressKeys(rollout *v1alpha1.Rollout) []string {
 	var ingresses []string
@@ -83,13 +91,31 @@ func GetRolloutIngressKeys(rollout *v1alpha1.Rollout) []string {
 		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil &&
 		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress != "" {
 
+		stableIngress := rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress
 		// Also start watcher for `-canary` ingress which is created by the trafficmanagement controller
 		ingresses = append(
 			ingresses,
-			fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress),
-			fmt.Sprintf("%s/%s", rollout.Namespace, GetCanaryIngressName(rollout)),
+			fmt.Sprintf("%s/%s", rollout.Namespace, stableIngress),
+			fmt.Sprintf("%s/%s", rollout.Namespace, GetCanaryIngressName(rollout.GetName(), stableIngress)),
 		)
 	}
+
+	// Scenario where one rollout is managing multiple Ngnix ingresses.
+	if rollout.Spec.Strategy.Canary != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngresses != nil {
+
+		for _, stableIngress := range rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngresses {
+			// Also start watcher for `-canary` ingress which is created by the trafficmanagement controller
+			ingresses = append(
+				ingresses,
+				fmt.Sprintf("%s/%s", rollout.Namespace, stableIngress),
+				fmt.Sprintf("%s/%s", rollout.Namespace, GetCanaryIngressName(rollout.GetName(), stableIngress)),
+			)
+		}
+	}
+
 	if rollout.Spec.Strategy.Canary != nil &&
 		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
 		rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil &&
@@ -104,14 +130,10 @@ func GetRolloutIngressKeys(rollout *v1alpha1.Rollout) []string {
 }
 
 // GetCanaryIngressName constructs the name to use for the canary ingress resource from a given Rollout
-func GetCanaryIngressName(rollout *v1alpha1.Rollout) string {
+func GetCanaryIngressName(rolloutName, stableIngressName string) string {
 	// names limited to 253 characters
-	if rollout.Spec.Strategy.Canary != nil &&
-		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
-		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx != nil &&
-		rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress != "" {
-
-		prefix := fmt.Sprintf("%s-%s", rollout.GetName(), rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress)
+	if stableIngressName != "" {
+		prefix := fmt.Sprintf("%s-%s", rolloutName, stableIngressName)
 		if len(prefix) > 253-len(CanaryIngressSuffix) {
 			// trim prefix
 			prefix = prefix[0 : 253-len(CanaryIngressSuffix)]

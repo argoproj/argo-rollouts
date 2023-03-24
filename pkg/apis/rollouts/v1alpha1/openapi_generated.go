@@ -3133,7 +3133,6 @@ func schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref common.ReferenceC
 					"stableIngress": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StableIngress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3153,8 +3152,22 @@ func schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref common.ReferenceC
 							},
 						},
 					},
+					"stableIngresses": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StableIngresses refers to the names of `Ingress` resources in the same namespace as the `Rollout` in a multi ingress scenario",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"stableIngress"},
 			},
 		},
 	}

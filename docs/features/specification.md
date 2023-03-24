@@ -387,7 +387,12 @@ spec:
 
         # NGINX Ingress Controller routing configuration
         nginx:
-          stableIngress: primary-ingress  # required
+          # Either stableIngress or stableIngresses must be configured, but not both.
+          stableIngress: primary-ingress
+          stableIngresses:
+            - primary-ingress
+            - secondary-ingress
+            - tertiary-ingress
           annotationPrefix: customingress.nginx.ingress.kubernetes.io # optional
           additionalIngressAnnotations:   # optional
             canary-by-header: X-Canary
