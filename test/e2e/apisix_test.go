@@ -43,7 +43,7 @@ func (s *APISIXSuite) TestAPISIXCanaryStep() {
 		WaitForRolloutStatus("Healthy").
 		Then().
 		Assert(func(t *fixtures.Then) {
-			//s.check(t, 100, 0)
+			s.check(t, 100, 0)
 		}).
 		ExpectExperimentCount(0).
 		When().
