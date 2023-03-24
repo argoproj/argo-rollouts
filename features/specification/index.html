@@ -2679,7 +2679,12 @@
 
 <span class="w">        </span><span class="c1"># NGINX Ingress Controller routing configuration</span>
 <span class="w">        </span><span class="nt">nginx</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary-ingress</span><span class="w">  </span><span class="c1"># required</span>
+<span class="w">          </span><span class="c1"># Either stableIngress or stableIngresses must be configured, but not both.</span>
+<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary-ingress</span>
+<span class="w">          </span><span class="nt">stableIngresses</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary-ingress</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">secondary-ingress</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tertiary-ingress</span>
 <span class="w">          </span><span class="nt">annotationPrefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">customingress.nginx.ingress.kubernetes.io</span><span class="w"> </span><span class="c1"># optional</span>
 <span class="w">          </span><span class="nt">additionalIngressAnnotations</span><span class="p">:</span><span class="w">   </span><span class="c1"># optional</span>
 <span class="w">            </span><span class="nt">canary-by-header</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">X-Canary</span>

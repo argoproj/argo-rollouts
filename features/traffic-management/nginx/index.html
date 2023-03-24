@@ -863,8 +863,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#using-argo-rollouts-with-multiple-nginx-ingress-controllers" class="md-nav__link">
-    Using Argo Rollouts with multiple NGINX ingress controllers
+  <a href="#using-argo-rollouts-with-multiple-nginx-ingress-controllers-per-service" class="md-nav__link">
+    Using Argo Rollouts with multiple NGINX ingress controllers per service
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-argo-rollouts-with-custom-nginx-ingress-controller-names" class="md-nav__link">
+    Using Argo Rollouts with custom NGINX ingress controller names
   </a>
   
 </li>
@@ -2283,8 +2290,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#using-argo-rollouts-with-multiple-nginx-ingress-controllers" class="md-nav__link">
-    Using Argo Rollouts with multiple NGINX ingress controllers
+  <a href="#using-argo-rollouts-with-multiple-nginx-ingress-controllers-per-service" class="md-nav__link">
+    Using Argo Rollouts with multiple NGINX ingress controllers per service
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-argo-rollouts-with-custom-nginx-ingress-controller-names" class="md-nav__link">
+    Using Argo Rollouts with custom NGINX ingress controller names
   </a>
   
 </li>
@@ -2327,7 +2341,12 @@
 <span class="w">      </span><span class="nt">stableService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stable-service</span><span class="w">  </span><span class="c1"># required</span>
 <span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">nginx</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary-ingress</span><span class="w">  </span><span class="c1"># required</span>
+<span class="w">          </span><span class="c1"># Either stableIngress or stableIngresses must be configured, but not both.</span>
+<span class="w">          </span><span class="nt">stableIngress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary-ingress</span>
+<span class="w">          </span><span class="nt">stableIngresses</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">primary-ingress</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">secondary-ingress</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tertiary-ingress</span>
 <span class="w">          </span><span class="nt">annotationPrefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">customingress.nginx.ingress.kubernetes.io</span><span class="w"> </span><span class="c1"># optional</span>
 <span class="w">          </span><span class="nt">additionalIngressAnnotations</span><span class="p">:</span><span class="w">   </span><span class="c1"># optional</span>
 <span class="w">            </span><span class="nt">canary-by-header</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">X-Canary</span>
@@ -2336,7 +2355,9 @@
 <p>The stable Ingress field is a reference to an Ingress in the same namespace of the Rollout. The Rollout requires the primary Ingress routes traffic to the stable Service. The Rollout checks that condition by confirming the Ingress has a backend that matches the Rollout's stableService.</p>
 <p>The controller routes traffic to the canary Service by creating a second Ingress with the canary annotations. As the Rollout progresses through the Canary steps, the controller updates the canary Ingress's canary annotations to reflect the desired state of the Rollout enabling traffic splitting between two different versions.</p>
 <p>Since the Nginx Ingress controller allows users to configure the annotation prefix used by the Ingress controller, Rollouts can specify the optional <code>annotationPrefix</code> field. The canary Ingress uses that prefix instead of the default <code>nginx.ingress.kubernetes.io</code> if the field set.</p>
-<h2 id="using-argo-rollouts-with-multiple-nginx-ingress-controllers">Using Argo Rollouts with multiple NGINX ingress controllers<a class="headerlink" href="#using-argo-rollouts-with-multiple-nginx-ingress-controllers" title="Permanent link">&para;</a></h2>
+<h2 id="using-argo-rollouts-with-multiple-nginx-ingress-controllers-per-service">Using Argo Rollouts with multiple NGINX ingress controllers per service<a class="headerlink" href="#using-argo-rollouts-with-multiple-nginx-ingress-controllers-per-service" title="Permanent link">&para;</a></h2>
+<p>Starting with v1.5, argo rollouts supports multiple Nginx ingress controllers pointing at one service with canary deployments. If only one ingress controller is needed, utilize the existing key <code>stableIngress</code>. If multiple ingress controllers are needed (e.g., separating internal vs external traffic), use the key <code>stableIngresses</code> instead. It takes an array of string values that are the names of the ingress controllers. Canary steps are applied identically across all ingress controllers.</p>
+<h2 id="using-argo-rollouts-with-custom-nginx-ingress-controller-names">Using Argo Rollouts with custom NGINX ingress controller names<a class="headerlink" href="#using-argo-rollouts-with-custom-nginx-ingress-controller-names" title="Permanent link">&para;</a></h2>
 <p>As a default, the Argo Rollouts controller only operates on ingresses with the <code>kubernetes.io/ingress.class</code> annotation or <code>spec.ingressClassName</code> set to <code>nginx</code>. A user can configure the controller to operate on Ingresses with different class name by specifying the <code>--nginx-ingress-classes</code> flag. A user can list the <code>--nginx-ingress-classes</code> flag multiple times if the Argo Rollouts controller should operate on multiple values. This solves the case where a cluster has multiple Ingress controllers operating on different class values.</p>
 <p>If the user would like the controller to operate on any Ingress without the <code>kubernetes.io/ingress.class</code> annotation or <code>spec.ingressClassName</code>, a user should add the following <code>--nginx-ingress-classes ''</code>.</p>
 
