@@ -149,6 +149,9 @@ spec:
                           type: object
                       type: object
                     service:
+                      properties:
+                        name:
+                          type: string
                       type: object
                     template:
                       properties:
