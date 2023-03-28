@@ -1,4 +1,131 @@
 
+<a name="v1.5.0-rc1"></a>
+## [v1.5.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.4.1...v1.5.0-rc1) (2023-03-27)
+
+### Build
+
+* manually run auto changelog and fix workflow ([#2494](https://github.com/argoproj/argo-rollouts/issues/2494))
+
+### Chore
+
+* update e2e k8s versions ([#2637](https://github.com/argoproj/argo-rollouts/issues/2637))
+* Remove namespaced crds ([#2516](https://github.com/argoproj/argo-rollouts/issues/2516))
+* fix dependabot broken dependency ([#2529](https://github.com/argoproj/argo-rollouts/issues/2529))
+* disable docker sbom and attestations ([#2528](https://github.com/argoproj/argo-rollouts/issues/2528))
+* improve e2e test timing ([#2577](https://github.com/argoproj/argo-rollouts/issues/2577))
+* fix typo for json tag on rollbackWindow ([#2598](https://github.com/argoproj/argo-rollouts/issues/2598))
+* update package dependencie ([#2602](https://github.com/argoproj/argo-rollouts/issues/2602))
+* bump node version and set openssl-legacy-provider ([#2606](https://github.com/argoproj/argo-rollouts/issues/2606))
+* switch to distroless for cli/dashboard image ([#2596](https://github.com/argoproj/argo-rollouts/issues/2596))
+* add Tuhu to users ([#2630](https://github.com/argoproj/argo-rollouts/issues/2630))
+* bump deps for prisma ([#2643](https://github.com/argoproj/argo-rollouts/issues/2643))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.25.6 to 1.25.7 ([#2682](https://github.com/argoproj/argo-rollouts/issues/2682))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.15 to 1.18.16 ([#2652](https://github.com/argoproj/argo-rollouts/issues/2652))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.16 to 1.18.17 ([#2659](https://github.com/argoproj/argo-rollouts/issues/2659))
+* **deps:** bump github.com/antonmedv/expr from 1.12.2 to 1.12.3 ([#2653](https://github.com/argoproj/argo-rollouts/issues/2653))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.5 to 1.19.6 ([#2654](https://github.com/argoproj/argo-rollouts/issues/2654))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.25.4 to 1.25.5 ([#2655](https://github.com/argoproj/argo-rollouts/issues/2655))
+* **deps:** bump github.com/antonmedv/expr from 1.12.1 to 1.12.2 ([#2649](https://github.com/argoproj/argo-rollouts/issues/2649))
+* **deps:** bump google.golang.org/protobuf from 1.28.1 to 1.29.0 ([#2646](https://github.com/argoproj/argo-rollouts/issues/2646))
+* **deps:** bump github.com/golang/protobuf from 1.5.2 to 1.5.3 ([#2645](https://github.com/argoproj/argo-rollouts/issues/2645))
+* **deps:** bump github.com/prometheus/common from 0.41.0 to 0.42.0 ([#2644](https://github.com/argoproj/argo-rollouts/issues/2644))
+* **deps:** bump minimist from 1.2.5 to 1.2.8 in /ui ([#2638](https://github.com/argoproj/argo-rollouts/issues/2638))
+* **deps:** bump github.com/hashicorp/go-plugin from 1.4.8 to 1.4.9 ([#2636](https://github.com/argoproj/argo-rollouts/issues/2636))
+* **deps:** bump github.com/prometheus/common from 0.40.0 to 0.41.0 ([#2634](https://github.com/argoproj/argo-rollouts/issues/2634))
+* **deps:** bump google.golang.org/protobuf from 1.29.0 to 1.29.1 ([#2660](https://github.com/argoproj/argo-rollouts/issues/2660))
+* **deps:** bump google.golang.org/protobuf from 1.29.1 to 1.30.0 ([#2665](https://github.com/argoproj/argo-rollouts/issues/2665))
+* **deps:** bump github.com/stretchr/testify from 1.8.1 to 1.8.2 ([#2627](https://github.com/argoproj/argo-rollouts/issues/2627))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.6 to 1.19.7 ([#2672](https://github.com/argoproj/argo-rollouts/issues/2672))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.25.3 to 1.25.4 ([#2617](https://github.com/argoproj/argo-rollouts/issues/2617))
+* **deps:** bump github.com/antonmedv/expr from 1.12.0 to 1.12.1 ([#2619](https://github.com/argoproj/argo-rollouts/issues/2619))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.4 to 1.19.5 ([#2616](https://github.com/argoproj/argo-rollouts/issues/2616))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.3 to 1.19.4 ([#2612](https://github.com/argoproj/argo-rollouts/issues/2612))
+* **deps:** bump github.com/prometheus/common from 0.39.0 to 0.40.0 ([#2611](https://github.com/argoproj/argo-rollouts/issues/2611))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.13 to 1.18.14 ([#2614](https://github.com/argoproj/argo-rollouts/issues/2614))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.25.2 to 1.25.3 ([#2615](https://github.com/argoproj/argo-rollouts/issues/2615))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.14 to 1.18.15 ([#2618](https://github.com/argoproj/argo-rollouts/issues/2618))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.17 to 1.18.19 ([#2673](https://github.com/argoproj/argo-rollouts/issues/2673))
+* **deps:** bump imjasonh/setup-crane from 0.2 to 0.3 ([#2600](https://github.com/argoproj/argo-rollouts/issues/2600))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.25.5 to 1.25.6 ([#2671](https://github.com/argoproj/argo-rollouts/issues/2671))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config ([#2593](https://github.com/argoproj/argo-rollouts/issues/2593))
+* **deps:** bump github.com/antonmedv/expr from 1.12.3 to 1.12.5 ([#2670](https://github.com/argoproj/argo-rollouts/issues/2670))
+* **deps:** bump google.golang.org/grpc from 1.52.3 to 1.53.0 ([#2574](https://github.com/argoproj/argo-rollouts/issues/2574))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 ([#2565](https://github.com/argoproj/argo-rollouts/issues/2565))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config ([#2564](https://github.com/argoproj/argo-rollouts/issues/2564))
+* **deps:** bump github.com/antonmedv/expr from 1.11.0 to 1.12.0 ([#2567](https://github.com/argoproj/argo-rollouts/issues/2567))
+* **deps:** bump github.com/aws/aws-sdk-go-v2 from 1.17.3 to 1.17.4 ([#2566](https://github.com/argoproj/argo-rollouts/issues/2566))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch ([#2563](https://github.com/argoproj/argo-rollouts/issues/2563))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 ([#2559](https://github.com/argoproj/argo-rollouts/issues/2559))
+* **deps:** bump github.com/antonmedv/expr from 1.9.0 to 1.11.0 ([#2558](https://github.com/argoproj/argo-rollouts/issues/2558))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config ([#2555](https://github.com/argoproj/argo-rollouts/issues/2555))
+* **deps:** bump docker/build-push-action from 3.3.0 to 4.0.0 ([#2550](https://github.com/argoproj/argo-rollouts/issues/2550))
+* **deps:** bump github.com/influxdata/influxdb-client-go/v2 ([#2544](https://github.com/argoproj/argo-rollouts/issues/2544))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config ([#2542](https://github.com/argoproj/argo-rollouts/issues/2542))
+* **deps:** bump google.golang.org/grpc from 1.52.1 to 1.52.3 ([#2541](https://github.com/argoproj/argo-rollouts/issues/2541))
+* **deps:** bump google.golang.org/grpc from 1.52.0 to 1.52.1 ([#2538](https://github.com/argoproj/argo-rollouts/issues/2538))
+* **deps:** bump dependabot/fetch-metadata from 1.3.5 to 1.3.6 ([#2537](https://github.com/argoproj/argo-rollouts/issues/2537))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch ([#2534](https://github.com/argoproj/argo-rollouts/issues/2534))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config ([#2533](https://github.com/argoproj/argo-rollouts/issues/2533))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 ([#2532](https://github.com/argoproj/argo-rollouts/issues/2532))
+* **deps:** bump google.golang.org/grpc from 1.53.0 to 1.54.0 ([#2674](https://github.com/argoproj/argo-rollouts/issues/2674))
+* **deps:** bump actions/setup-go from 3 to 4 ([#2663](https://github.com/argoproj/argo-rollouts/issues/2663))
+* **deps:** bump github.com/antonmedv/expr from 1.9.0 to 1.10.0 ([#2527](https://github.com/argoproj/argo-rollouts/issues/2527))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch ([#2523](https://github.com/argoproj/argo-rollouts/issues/2523))
+* **deps:** bump actions/stale from 7 to 8 ([#2677](https://github.com/argoproj/argo-rollouts/issues/2677))
+* **deps:** bump google.golang.org/grpc from 1.51.0 to 1.52.0 ([#2513](https://github.com/argoproj/argo-rollouts/issues/2513))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch ([#2505](https://github.com/argoproj/argo-rollouts/issues/2505))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 ([#2506](https://github.com/argoproj/argo-rollouts/issues/2506))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config ([#2504](https://github.com/argoproj/argo-rollouts/issues/2504))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config ([#2497](https://github.com/argoproj/argo-rollouts/issues/2497))
+* **deps:** bump actions/stale from 6 to 7 ([#2496](https://github.com/argoproj/argo-rollouts/issues/2496))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config ([#2492](https://github.com/argoproj/argo-rollouts/issues/2492))
+
+### Docs
+
+* Mention Internet Bug Bounty in the security policy ([#2642](https://github.com/argoproj/argo-rollouts/issues/2642))
+* Update Changelog ([#2625](https://github.com/argoproj/argo-rollouts/issues/2625))
+* fix missing links for getting started documentation ([#2557](https://github.com/argoproj/argo-rollouts/issues/2557))
+* fix spelling in example notification templates ([#2554](https://github.com/argoproj/argo-rollouts/issues/2554))
+* Add best practice for reducing memory usage ([#2545](https://github.com/argoproj/argo-rollouts/issues/2545))
+* commit generated docs for readthedocs.org ([#2535](https://github.com/argoproj/argo-rollouts/issues/2535))
+* fix incorrect description for autoPromotionSeconds ([#2525](https://github.com/argoproj/argo-rollouts/issues/2525))
+* manually add changelog due to action failure ([#2510](https://github.com/argoproj/argo-rollouts/issues/2510))
+* fix typo apisix ([#2508](https://github.com/argoproj/argo-rollouts/issues/2508))
+* add release schedule ([#2446](https://github.com/argoproj/argo-rollouts/issues/2446))
+* fix rendering by upgrading deps ([#2495](https://github.com/argoproj/argo-rollouts/issues/2495))
+
+### Feat
+
+* Apache APISIX SetHeader support. Fixes [#2668](https://github.com/argoproj/argo-rollouts/issues/2668) ([#2678](https://github.com/argoproj/argo-rollouts/issues/2678))
+* support N nginx ingresses ([#2467](https://github.com/argoproj/argo-rollouts/issues/2467))
+* Add Service field to Rollout Experiment to allow service creation ([#2633](https://github.com/argoproj/argo-rollouts/issues/2633))
+* Provide time.Parse and time.Now while evaluating notification trigger condition ([#2206](https://github.com/argoproj/argo-rollouts/issues/2206))
+* Allow switching between Datadog v1 and v2. Fixes [#2549](https://github.com/argoproj/argo-rollouts/issues/2549) ([#2592](https://github.com/argoproj/argo-rollouts/issues/2592))
+* add support for traffic router plugins ([#2573](https://github.com/argoproj/argo-rollouts/issues/2573))
+* Add name attribute to ServicePort ([#2572](https://github.com/argoproj/argo-rollouts/issues/2572))
+* metric plugin system based on hashicorp go-plugin ([#2514](https://github.com/argoproj/argo-rollouts/issues/2514))
+* Adding SigV4 Option for Prometheus Metric Analysis ([#2489](https://github.com/argoproj/argo-rollouts/issues/2489))
+* **analysis:** add Apache SkyWalking as metrics provider
+* **controller:** Adding status.alb.canaryTargetGroup.fullName for ALB. Fixes [#2589](https://github.com/argoproj/argo-rollouts/issues/2589) ([#2604](https://github.com/argoproj/argo-rollouts/issues/2604))
+
+### Fix
+
+* update GetTargetGroupMetadata to call DescribeTags in batches ([#2570](https://github.com/argoproj/argo-rollouts/issues/2570))
+* switch service selector back to stable on canary service when aborted ([#2540](https://github.com/argoproj/argo-rollouts/issues/2540))
+* change log generator to only add CHANGELOG.md ([#2626](https://github.com/argoproj/argo-rollouts/issues/2626))
+* Rollback change on service creation with weightless experiments ([#2624](https://github.com/argoproj/argo-rollouts/issues/2624))
+* flakey TestWriteBackToInformer test ([#2621](https://github.com/argoproj/argo-rollouts/issues/2621))
+* remove outdated ioutil package dependencies ([#2583](https://github.com/argoproj/argo-rollouts/issues/2583))
+* analysis information box [#2530](https://github.com/argoproj/argo-rollouts/issues/2530)  ([#2575](https://github.com/argoproj/argo-rollouts/issues/2575))
+* support only tls in virtual services ([#2502](https://github.com/argoproj/argo-rollouts/issues/2502))
+* **analysis:** Nil Pointer Fixes [#2458](https://github.com/argoproj/argo-rollouts/issues/2458) ([#2680](https://github.com/argoproj/argo-rollouts/issues/2680))
+
+### BREAKING CHANGE
+
+
+There was an unintentional change in behavior related to service creation with experiments introduced in v1.4.0 this has been reverted in v1.4.1 back to the original behavior. In v1.4.0 services where always created with for inline experiments even if there was no weight set. In 1.4.1 we go back to the original behavior of requiring weight to be set in order to create a service.
+
+
 <a name="v1.4.1"></a>
 ## [v1.4.1](https://github.com/argoproj/argo-rollouts/compare/v1.4.0...v1.4.1) (2023-02-20)
 
