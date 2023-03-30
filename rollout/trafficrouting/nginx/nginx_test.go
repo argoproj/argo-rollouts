@@ -392,10 +392,10 @@ func TestCanaryIngressRetainIngressClass(t *testing.T) {
 func TestCanaryIngressRetainTLS(t *testing.T) {
 	r := Reconciler{
 		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+			Rollout: fakeRollout(stableService, canaryService, StableIngress, nil),
 		},
 	}
-	stable := networkingIngress("stable-ingress", 80, "stable-service")
+	stable := networkingIngress(StableIngress, 80, stableService)
 	stable.Spec.TLS = []networkingv1.IngressTLS{
 		{
 			Hosts:      []string{"fakehost.example.com"},
@@ -408,7 +408,7 @@ func TestCanaryIngressRetainTLS(t *testing.T) {
 	}
 	stableIngress := ingressutil.NewIngress(stable)
 
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout), 15)
+	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), StableIngress), 15)
 	assert.Nil(t, err, "No error returned when calling canaryIngress")
 
 	checkTLS(t, desiredCanaryIngress, [][]string{
@@ -420,13 +420,60 @@ func TestCanaryIngressRetainTLS(t *testing.T) {
 	})
 }
 
+func TestCanaryIngressRetainTLSWithMultipleStableIngresses(t *testing.T) {
+	r := Reconciler{
+		cfg: ReconcilerConfig{
+			Rollout: fakeRollout(stableService, canaryService, StableIngress, []string{StableIngresses}),
+		},
+	}
+
+	// main
+	stable := networkingIngress(StableIngress, 80, stableService)
+	stable.Spec.TLS = []networkingv1.IngressTLS{
+		{
+			Hosts:      []string{"fakehost.example.com"},
+			SecretName: "tls-secret-name",
+		},
+	}
+	stableIngress := ingressutil.NewIngress(stable)
+
+	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), StableIngress), 15)
+	assert.Nil(t, err, "No error returned when calling canaryIngress")
+
+	checkTLS(t, desiredCanaryIngress, [][]string{
+		{"fakehost.example.com"},
+	}, []string{
+		"tls-secret-name",
+	})
+
+	// additional
+	stableAdditional := networkingIngress(StableIngresses, 80, stableService)
+	stableAdditional.Spec.TLS = []networkingv1.IngressTLS{
+		{
+			Hosts:      []string{"fakehost-additional.example.com"},
+			SecretName: "tls-secret-name-additional",
+		},
+	}
+	stableAdditionalIngress := ingressutil.NewIngress(stableAdditional)
+
+	desiredAdditionalCanaryIngress, err := r.canaryIngress(stableAdditionalIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), StableIngresses), 15)
+	assert.Nil(t, err, "No error returned when calling canaryIngress")
+
+	checkTLS(t, desiredAdditionalCanaryIngress, [][]string{
+		{"fakehost-additional.example.com"},
+	}, []string{
+		"tls-secret-name-additional",
+	})
+
+}
+
 func TestCanaryIngressRetainLegacyTLS(t *testing.T) {
 	r := Reconciler{
 		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+			Rollout: fakeRollout(stableService, canaryService, StableIngress, nil),
 		},
 	}
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
+	stable := extensionsIngress(StableIngress, 80, stableService)
 	stable.Spec.TLS = []extensionsv1beta1.IngressTLS{
 		{
 			Hosts:      []string{"fakehost.example.com"},
@@ -439,7 +486,7 @@ func TestCanaryIngressRetainLegacyTLS(t *testing.T) {
 	}
 	stableIngress := ingressutil.NewLegacyIngress(stable)
 
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout), 15)
+	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), StableIngress), 15)
 	assert.Nil(t, err, "No error returned when calling canaryIngress")
 
 	checkTLS(t, desiredCanaryIngress, [][]string{
@@ -454,14 +501,14 @@ func TestCanaryIngressRetainLegacyTLS(t *testing.T) {
 func TestCanaryIngressNotAddTLS(t *testing.T) {
 	r := Reconciler{
 		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+			Rollout: fakeRollout(stableService, canaryService, StableIngress, nil),
 		},
 	}
-	stable := networkingIngress("stable-ingress", 80, "stable-service")
+	stable := networkingIngress(StableIngress, 80, stableService)
 
 	stableIngress := ingressutil.NewIngress(stable)
 
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout), 15)
+	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), StableIngress), 15)
 	assert.Nil(t, err, "No error returned when calling canaryIngress")
 
 	desired, err := desiredCanaryIngress.GetNetworkingIngress()
@@ -476,120 +523,14 @@ func TestCanaryIngressNotAddTLS(t *testing.T) {
 func TestCanaryIngressNotAddLegacyTLS(t *testing.T) {
 	r := Reconciler{
 		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
+			Rollout: fakeRollout(stableService, canaryService, StableIngress, nil),
 		},
 	}
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
+	stable := extensionsIngress(StableIngress, 80, stableService)
 
 	stableIngress := ingressutil.NewLegacyIngress(stable)
 
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	desired, err := desiredCanaryIngress.GetExtensionsIngress()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Nil(t, desired.Spec.TLS, "No TLS in the the canary ingress should be present")
-}
-
-func TestCanaryIngressRetainTLS(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
-		},
-	}
-	stable := networkingIngress("stable-ingress", 80, "stable-service")
-	stable.Spec.TLS = []networkingv1.IngressTLS{
-		{
-			Hosts:      []string{"fakehost.example.com"},
-			SecretName: "tls-secret-name",
-		},
-		{
-			Hosts:      []string{"fakehost.example.com", "*.example.com"},
-			SecretName: "tls-secret-name-two",
-		},
-	}
-	stableIngress := ingressutil.NewIngress(stable)
-
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkTLS(t, desiredCanaryIngress, [][]string{
-		{"fakehost.example.com"},
-		{"fakehost.example.com", "*.example.com"},
-	}, []string{
-		"tls-secret-name",
-		"tls-secret-name-two",
-	})
-}
-
-func TestCanaryIngressRetainLegacyTLS(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
-		},
-	}
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
-	stable.Spec.TLS = []extensionsv1beta1.IngressTLS{
-		{
-			Hosts:      []string{"fakehost.example.com"},
-			SecretName: "tls-secret-name",
-		},
-		{
-			Hosts:      []string{"fakehost.example.com", "*.example.com"},
-			SecretName: "tls-secret-name-two",
-		},
-	}
-	stableIngress := ingressutil.NewLegacyIngress(stable)
-
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	checkTLS(t, desiredCanaryIngress, [][]string{
-		{"fakehost.example.com"},
-		{"fakehost.example.com", "*.example.com"},
-	}, []string{
-		"tls-secret-name",
-		"tls-secret-name-two",
-	})
-}
-
-func TestCanaryIngressNotAddTLS(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
-		},
-	}
-	stable := networkingIngress("stable-ingress", 80, "stable-service")
-
-	stableIngress := ingressutil.NewIngress(stable)
-
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout), 15)
-	assert.Nil(t, err, "No error returned when calling canaryIngress")
-
-	desired, err := desiredCanaryIngress.GetNetworkingIngress()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Nil(t, desired.Spec.TLS, "No TLS in the the canary ingress should be present")
-}
-
-func TestCanaryIngressNotAddLegacyTLS(t *testing.T) {
-	r := Reconciler{
-		cfg: ReconcilerConfig{
-			Rollout: fakeRollout("stable-service", "canary-service", "stable-ingress"),
-		},
-	}
-	stable := extensionsIngress("stable-ingress", 80, "stable-service")
-
-	stableIngress := ingressutil.NewLegacyIngress(stable)
-
-	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout), 15)
+	desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), StableIngress), 15)
 	assert.Nil(t, err, "No error returned when calling canaryIngress")
 
 	desired, err := desiredCanaryIngress.GetExtensionsIngress()
