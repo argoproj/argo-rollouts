@@ -413,13 +413,14 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}
 
 	err = roCtx.reconcile()
+	if err != nil {
+		logCtx.Errorf("roCtx.reconcile err %v", err)
+		return err
+	}
 	if roCtx.newRollout != nil {
 		c.writeBackToInformer(roCtx.newRollout)
 	}
-	if err != nil {
-		logCtx.Errorf("roCtx.reconcile err %v", err)
-	}
-	return err
+	return nil
 }
 
 // writeBackToInformer writes a just recently updated Rollout back into the informer cache.
