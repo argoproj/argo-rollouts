@@ -1391,8 +1391,8 @@ func (r *Reconciler) orderRoutes(istioVirtualService *unstructured.Unstructured)
 // splitManagedRoutesAndNonManagedRoutes This splits the routes from an istio virtual service into two slices
 // one slice contains all the routes that are also in the rollouts managedRoutes object and one that contains routes
 // that where only in the virtual service (aka routes that where manually added by user)
-func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes, httpRouteI []interface{}) (httpRoutesWithinManagedRoutes []VirtualServiceHTTPRoute, httpRoutesNotWithinManagedRoutes []VirtualServiceHTTPRoute, err error) {
-	var httpRoutes []VirtualServiceHTTPRoute
+func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes, httpRouteI []interface{}) (httpRoutesWithinManagedRoutes []map[string]interface{}, httpRoutesNotWithinManagedRoutes []map[string]interface{}, err error) {
+	var httpRoutes []map[string]interface{}
 
 	jsonHttpRoutes, err := json.Marshal(httpRouteI)
 	if err != nil {
@@ -1406,7 +1406,7 @@ func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes
 	for _, route := range httpRoutes {
 		var found bool = false
 		for _, managedRoute := range managedRoutes {
-			if route.Name == managedRoute.Name {
+			if route["name"] == managedRoute.Name {
 				httpRoutesWithinManagedRoutes = append(httpRoutesWithinManagedRoutes, route)
 				found = true
 				break
@@ -1423,11 +1423,11 @@ func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes
 // getOrderedVirtualServiceRoutes This returns an []interface{} of istio virtual routes where the routes are ordered based
 // on the rollouts managedRoutes field. We take the routes from the rollouts managedRoutes field order them and place them on top
 // of routes that are manually defined within the virtual service (aka. routes that users have defined manually)
-func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1alpha1.MangedRoutes, httpRoutesWithinManagedRoutes []VirtualServiceHTTPRoute, httpRoutesNotWithinManagedRoutes []VirtualServiceHTTPRoute) ([]interface{}, error) {
-	var orderedManagedRoutes []VirtualServiceHTTPRoute
+func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1alpha1.MangedRoutes, httpRoutesWithinManagedRoutes []map[string]interface{}, httpRoutesNotWithinManagedRoutes []map[string]interface{}) ([]interface{}, error) {
+	var orderedManagedRoutes []map[string]interface{}
 	for _, route := range managedRoutes {
 		for _, managedRoute := range httpRoutesWithinManagedRoutes {
-			if route.Name == managedRoute.Name {
+			if route.Name == managedRoute["name"] {
 				orderedManagedRoutes = append(orderedManagedRoutes, managedRoute)
 			}
 		}
@@ -1442,7 +1442,7 @@ func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1
 
 			// No need to check if exist because the empty string returned on cast failure is good for this check
 			name, _ := r["name"].(string)
-			if name == routeTyped.Name {
+			if name == routeTyped["name"] || (name == "" && routeTyped["name"] == nil) {
 				orderedInterfaceVSVCHTTPRoutes = append(orderedInterfaceVSVCHTTPRoutes, route)
 			}
 		}
