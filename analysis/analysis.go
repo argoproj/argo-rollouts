@@ -325,22 +325,18 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			metricResult := analysisutil.GetResult(run, t.metric.Name)
 			resultsLock.Unlock()
 
-			provider, err := c.newProvider(*logger, t.metric)
-			if err != nil {
-				log.Errorf("Error in getting metric provider :%v", err)
-				return err
-			}
 			if metricResult == nil {
 				metricResult = &v1alpha1.MetricResult{
-					Name:     t.metric.Name,
-					Phase:    v1alpha1.AnalysisPhaseRunning,
-					DryRun:   dryRunMetricsMap[t.metric.Name],
-					Metadata: provider.GetMetadata(t.metric),
+					Name:   t.metric.Name,
+					Phase:  v1alpha1.AnalysisPhaseRunning,
+					DryRun: dryRunMetricsMap[t.metric.Name],
 				}
 			}
 
 			var newMeasurement v1alpha1.Measurement
+			provider, err := c.newProvider(*logger, t.metric)
 			if err != nil {
+				log.Errorf("Error in getting metric provider :%v", err)
 				if t.incompleteMeasurement != nil {
 					newMeasurement = *t.incompleteMeasurement
 				} else {
@@ -350,6 +346,9 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				newMeasurement.Phase = v1alpha1.AnalysisPhaseError
 				newMeasurement.Message = err.Error()
 			} else {
+
+				metricResult.Metadata = provider.GetMetadata(t.metric)
+
 				if t.incompleteMeasurement == nil {
 					newMeasurement = provider.Run(run, t.metric)
 				} else {
