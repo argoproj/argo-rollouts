@@ -347,7 +347,14 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				newMeasurement.Message = err.Error()
 			} else {
 
-				metricResult.Metadata = provider.GetMetadata(t.metric)
+				if metricResult == nil {
+					metricResult = &v1alpha1.MetricResult{
+						Name:     t.metric.Name,
+						Phase:    v1alpha1.AnalysisPhaseRunning,
+						DryRun:   dryRunMetricsMap[t.metric.Name],
+						Metadata: provider.GetMetadata(t.metric),
+					}
+				}
 
 				if t.incompleteMeasurement == nil {
 					newMeasurement = provider.Run(run, t.metric)
