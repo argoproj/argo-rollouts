@@ -322,9 +322,9 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			logger := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
 
 			var newMeasurement v1alpha1.Measurement
-			provider, err := c.newProvider(*logger, t.metric)
-			if err != nil {
-				log.Errorf("Error in getting metric provider :%v", err)
+			provider, providerErr := c.newProvider(*logger, t.metric)
+			if providerErr != nil {
+				log.Errorf("Error in getting metric provider :%v", providerErr)
 				if t.incompleteMeasurement != nil {
 					newMeasurement = *t.incompleteMeasurement
 				} else {
@@ -332,9 +332,8 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 					newMeasurement.StartedAt = &startedAt
 				}
 				newMeasurement.Phase = v1alpha1.AnalysisPhaseError
-				newMeasurement.Message = err.Error()
+				newMeasurement.Message = providerErr.Error()
 			} else {
-
 				if t.incompleteMeasurement == nil {
 					newMeasurement = provider.Run(run, t.metric)
 				} else {
@@ -356,11 +355,13 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			resultsLock.Unlock()
 			if metricResult == nil {
 				metricResult = &v1alpha1.MetricResult{
-					Name:     t.metric.Name,
-					Phase:    v1alpha1.AnalysisPhaseRunning,
-					DryRun:   dryRunMetricsMap[t.metric.Name],
-					Metadata: provider.GetMetadata(t.metric),
+					Name:   t.metric.Name,
+					Phase:  v1alpha1.AnalysisPhaseRunning,
+					DryRun: dryRunMetricsMap[t.metric.Name],
 				}
+			}
+			if providerErr != nil {
+				metricResult.Metadata = provider.GetMetadata(t.metric)
 			}
 
 			if newMeasurement.Phase.Completed() {
