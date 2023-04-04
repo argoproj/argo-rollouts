@@ -237,3 +237,12 @@ rules:
   - watch
   - get
   - update
+- apiGroups:
+  - projectcontour.io
+  resources:
+  - httpproxies
+  verbs:
+  - get
+  - list
+  - watch
+  - update
