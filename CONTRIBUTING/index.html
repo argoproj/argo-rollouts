@@ -2453,9 +2453,9 @@
 <ul>
 <li><a href="https://docs.docker.com/install/#supported-platforms">docker</a></li>
 <li><a href="https://golang.org/">golang</a></li>
-<li><a href="https://kubernetes.io/docs/tasks/tools/install-kubectl/">kubectl</a></li>
+<li><a href="https://kubernetes.io/docs/tasks/tools/#kubectl">kubectl</a></li>
 <li><a href="https://github.com/kubernetes-sigs/kustomize/releases">kustomize</a></li>
-<li><a href="https://kubernetes.io/docs/setup/minikube/">minikube</a> or Docker for Desktop</li>
+<li><a href="https://k3d.io/">k3d</a> recommended</li>
 </ul>
 <p>Kustomize is required for unit tests (<code>make test</code> is using it), so you <a href="https://kubectl.docs.kubernetes.io/installation/kustomize/">must install it</a>
 locally if you wish to make code contributions to Argo Rollouts.</p>
@@ -2473,7 +2473,7 @@ brew<span class="w"> </span>install<span class="w"> </span>golangci-lint
 go<span class="w"> </span>get<span class="w"> </span>-u<span class="w"> </span>github.com/golangci/golangci-lint/cmd/golangci-lint
 </code></pre></div>
 <p>Brew users can quickly install the lot:</p>
-<div class="highlight"><pre><span></span><code>brew<span class="w"> </span>install<span class="w"> </span>go<span class="w"> </span>kubectl<span class="w"> </span>kustomize<span class="w"> </span>golangci-lint<span class="w"> </span>protobuf<span class="w"> </span>swagger-codegen
+<div class="highlight"><pre><span></span><code>brew<span class="w"> </span>install<span class="w"> </span>go<span class="w"> </span>kubectl<span class="w"> </span>kustomize<span class="w"> </span>golangci-lint<span class="w"> </span>protobuf<span class="w"> </span>swagger-codegen<span class="w"> </span>k3d
 </code></pre></div>
 <p>Set up environment variables (e.g. is <code>~/.bashrc</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">GOPATH</span><span class="o">=</span>~/go
@@ -2507,6 +2507,12 @@ go<span class="w"> </span>run<span class="w"> </span>./cmd/rollouts-controller/m
 <p>The end-to-end tests need to run against a kubernetes cluster with the Argo Rollouts controller
 running. The rollout controller can be started with the command:</p>
 <div class="highlight"><pre><span></span><code>make start-e2e
+</code></pre></div>
+<p>Start and prepare your cluster for e2e tests:</p>
+<div class="highlight"><pre><span></span><code>k3d cluster create
+kubectl create ns argo-rollouts
+kubectl apply -k manifests/crds
+kubectl apply -f test/e2e/crds
 </code></pre></div>
 <p>Then run the e2e tests:</p>
 <div class="highlight"><pre><span></span><code>make test-e2e
