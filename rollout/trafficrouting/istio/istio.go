@@ -1436,13 +1436,15 @@ func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1
 	orderedVirtualServiceHTTPRoutes := append(orderedManagedRoutes, httpRoutesNotWithinManagedRoutes...)
 
 	var orderedInterfaceVSVCHTTPRoutes []interface{}
-	for _, routeTyped := range orderedVirtualServiceHTTPRoutes {
+	for _, routeMap := range orderedVirtualServiceHTTPRoutes {
 		for _, route := range httpRouteI {
 			r := route.(map[string]interface{})
 
 			// No need to check if exist because the empty string returned on cast failure is good for this check
 			name, _ := r["name"].(string)
-			if name == routeTyped["name"] || (name == "" && routeTyped["name"] == nil) {
+			// The second or clause is for the case when we have a route that has no name set because this field
+			// is optional in istio virtual service if there is only one route
+			if name == routeMap["name"] || (name == "" && routeMap["name"] == nil) {
 				orderedInterfaceVSVCHTTPRoutes = append(orderedInterfaceVSVCHTTPRoutes, route)
 			}
 		}
