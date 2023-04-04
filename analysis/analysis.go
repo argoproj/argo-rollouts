@@ -360,7 +360,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 					DryRun: dryRunMetricsMap[t.metric.Name],
 				}
 			}
-			if providerErr != nil {
+			if provider != nil && providerErr == nil {
 				metricResult.Metadata = provider.GetMetadata(t.metric)
 			}
 
