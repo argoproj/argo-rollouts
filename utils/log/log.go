@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bombsimon/logrusr/v2"
+	"github.com/sirupsen/logrus"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,6 +34,9 @@ const (
 // SetKLogLevel set the klog level for the k8s go-client
 func SetKLogLevel(klogLevel int) {
 	klog.InitFlags(nil)
+	logrusLog := logrus.New()
+	logger := logrusr.New(logrusLog)
+	klog.SetLogger(logger)
 	_ = flag.Set("logtostderr", "true")
 	_ = flag.Set("v", strconv.Itoa(klogLevel))
 }

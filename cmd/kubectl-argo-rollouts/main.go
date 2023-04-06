@@ -3,6 +3,9 @@ package main
 import (
 	"os"
 
+	"github.com/bombsimon/logrusr/v2"
+	"github.com/sirupsen/logrus"
+
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -15,6 +18,9 @@ import (
 
 func main() {
 	klog.InitFlags(nil)
+	logrusLog := logrus.New()
+	logger := logrusr.New(logrusLog)
+	klog.SetLogger(logger)
 	streams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
 	o := options.NewArgoRolloutsOptions(streams)
 	root := cmd.NewCmdArgoRollouts(o)
