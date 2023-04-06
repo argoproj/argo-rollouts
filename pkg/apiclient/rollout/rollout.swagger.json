@@ -526,13 +526,20 @@
           "type": "string",
           "title": "RootService references the service in the ingress to the controller should add the action to"
         },
-        "stickinessConfig": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StickinessConfig",
-          "title": "AdditionalForwardConfig allows to specify further settings on the ForwaredConfig\n+optional"
-        },
         "annotationPrefix": {
           "type": "string",
           "title": "AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller\n+optional"
+        },
+        "stickinessConfig": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StickinessConfig",
+          "title": "StickinessConfig refers to the duration-based stickiness of the target groups associated with an `Ingress`\n+optional"
+        },
+        "ingresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Ingresses refers to the name of an `Ingress` resource in the same namespace as the `Rollout` in a multi ingress scenario\n+optional"
         }
       },
       "title": "ALBTrafficRouting configuration for ALB ingress controller to control traffic routing"

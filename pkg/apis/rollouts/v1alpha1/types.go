@@ -335,17 +335,20 @@ type AnalysisRunStrategy struct {
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
 type ALBTrafficRouting struct {
 	// Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
-	Ingress string `json:"ingress" protobuf:"bytes,1,opt,name=ingress"`
+	Ingress string `json:"ingress,omitempty" protobuf:"bytes,1,opt,name=ingress"`
 	// ServicePort refers to the port that the Ingress action should route traffic to
 	ServicePort int32 `json:"servicePort" protobuf:"varint,2,opt,name=servicePort"`
 	// RootService references the service in the ingress to the controller should add the action to
 	RootService string `json:"rootService,omitempty" protobuf:"bytes,3,opt,name=rootService"`
-	// AdditionalForwardConfig allows to specify further settings on the ForwaredConfig
-	// +optional
-	StickinessConfig *StickinessConfig `json:"stickinessConfig,omitempty" protobuf:"bytes,5,opt,name=stickinessConfig"`
 	// AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller
 	// +optional
 	AnnotationPrefix string `json:"annotationPrefix,omitempty" protobuf:"bytes,4,opt,name=annotationPrefix"`
+	// StickinessConfig refers to the duration-based stickiness of the target groups associated with an `Ingress`
+	// +optional
+	StickinessConfig *StickinessConfig `json:"stickinessConfig,omitempty" protobuf:"bytes,5,opt,name=stickinessConfig"`
+	// Ingresses refers to the name of an `Ingress` resource in the same namespace as the `Rollout` in a multi ingress scenario
+	// +optional
+	Ingresses []string `json:"ingresses,omitempty" protobuf:"bytes,6,opt,name=ingresses"`
 }
 
 type StickinessConfig struct {

@@ -56,6 +56,11 @@ func (in *ALBTrafficRouting) DeepCopyInto(out *ALBTrafficRouting) {
 		*out = new(StickinessConfig)
 		**out = **in
 	}
+	if in.Ingresses != nil {
+		in, out := &in.Ingresses, &out.Ingresses
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

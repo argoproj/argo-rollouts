@@ -561,8 +561,14 @@ func (c *rolloutContext) getRolloutReferencedResources() (*validation.Referenced
 	}
 	refResources.AnalysisTemplatesWithType = *analysisTemplates
 
-	// // Validate Rollout Nginx Ingress Controller before referencing
+	// Validate Rollout Nginx Ingress Controller before referencing
 	err = validation.ValidateRolloutNginxIngressesConfig(c.rollout)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate Rollout ALB Ingress Controller before referencing
+	err = validation.ValidateRolloutAlbIngressesConfig(c.rollout)
 	if err != nil {
 		return nil, err
 	}
@@ -838,11 +844,32 @@ func (c *rolloutContext) getReferencedNginxIngresses(canary *v1alpha1.CanaryStra
 // return nil, field.Invalid(fldPath.Child("alb", "ingress"), canary.TrafficRouting.ALB.Ingress, err.Error())
 func (c *rolloutContext) getReferencedALBIngresses(canary *v1alpha1.CanaryStrategy) (*[]ingressutil.Ingress, error) {
 	ingresses := []ingressutil.Ingress{}
-	ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.ALB.Ingress)
-	if err != nil {
-		return handleCacheError("alb", []string{"ingress"}, canary.TrafficRouting.ALB.Ingress, err)
+
+	//	ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.ALB.Ingress)
+	//	if err != nil {
+	//		return handleCacheError("alb", []string{"ingress"}, canary.TrafficRouting.ALB.Ingress, err)
+	//	}
+	//	ingresses = append(ingresses, *ingress)
+	//	return &ingresses, nil
+
+	// The rollout resource manages more than 1 ingress.
+	if canary.TrafficRouting.ALB.Ingresses != nil {
+		for _, ing := range canary.TrafficRouting.ALB.Ingresses {
+			ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, ing)
+			if err != nil {
+				return handleCacheError("alb", []string{"ingresses"}, canary.TrafficRouting.ALB.Ingresses, err)
+			}
+			ingresses = append(ingresses, *ingress)
+		}
+	} else {
+		// The rollout resource manages only 1 ingress.
+		ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.ALB.Ingress)
+		if err != nil {
+			return handleCacheError("alb", []string{"ingress"}, canary.TrafficRouting.ALB.Ingress, err)
+		}
+		ingresses = append(ingresses, *ingress)
 	}
-	ingresses = append(ingresses, *ingress)
+
 	return &ingresses, nil
 }
 

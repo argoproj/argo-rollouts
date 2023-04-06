@@ -688,6 +688,10 @@ spec:
                                 type: string
                               ingress:
                                 type: string
+                              ingresses:
+                                items:
+                                  type: string
+                                type: array
                               rootService:
                                 type: string
                               servicePort:
@@ -705,7 +709,6 @@ spec:
                                 - enabled
                                 type: object
                             required:
-                            - ingress
                             - servicePort
                             type: object
                           ambassador:

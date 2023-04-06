@@ -128,16 +128,22 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficR
     rootService?: string;
     /**
      * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficRouting
+     */
+    annotationPrefix?: string;
+    /**
+     * 
      * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficRouting
      */
     stickinessConfig?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StickinessConfig;
     /**
      * 
-     * @type {string}
+     * @type {Array<string>}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBTrafficRouting
      */
-    annotationPrefix?: string;
+    ingresses?: Array<string>;
 }
 /**
  * 

@@ -83,6 +83,14 @@ func SingleNginxIngressConfigured(rollout *v1alpha1.Rollout) bool {
 	return rollout.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress != ""
 }
 
+func MultipleAlbIngressesConfigured(rollout *v1alpha1.Rollout) bool {
+	return rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses != nil
+}
+
+func SingleAlbIngressConfigured(rollout *v1alpha1.Rollout) bool {
+	return rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress != ""
+}
+
 // GetRolloutIngressKeys returns ingresses keys (namespace/ingressName) which are referenced by specified rollout
 func GetRolloutIngressKeys(rollout *v1alpha1.Rollout) []string {
 	var ingresses []string
@@ -124,6 +132,20 @@ func GetRolloutIngressKeys(rollout *v1alpha1.Rollout) []string {
 			ingresses,
 			fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress),
 		)
+	}
+
+	// Scenario where one rollout is managing multiple ALB ingresses.
+	if rollout.Spec.Strategy.Canary != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil &&
+		rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses != nil {
+
+		for _, ingress := range rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses {
+			ingresses = append(
+				ingresses,
+				fmt.Sprintf("%s/%s", rollout.Namespace, ingress),
+			)
+		}
 	}
 
 	return ingresses
