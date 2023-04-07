@@ -417,7 +417,8 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		logCtx.Errorf("roCtx.reconcile err %v", err)
 		// return an err here so that we do not update the informer cache with a "bad" rollout object, for the case when
 		// we get an error during reconciliation but c.newRollout still gets updated this can happen in syncReplicaSetRevision
-		// https://github.com/argoproj/argo-rollouts/issues/2522#issuecomment-1492181154
+		// https://github.com/argoproj/argo-rollouts/issues/2522#issuecomment-1492181154 I also believe there are other cases
+		// that newRollout can get updated while we get an error during reconciliation
 		return err
 	}
 	if roCtx.newRollout != nil {
