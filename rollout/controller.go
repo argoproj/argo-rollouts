@@ -841,16 +841,8 @@ func (c *rolloutContext) getReferencedNginxIngresses(canary *v1alpha1.CanaryStra
 	return &ingresses, nil
 }
 
-// return nil, field.Invalid(fldPath.Child("alb", "ingress"), canary.TrafficRouting.ALB.Ingress, err.Error())
 func (c *rolloutContext) getReferencedALBIngresses(canary *v1alpha1.CanaryStrategy) (*[]ingressutil.Ingress, error) {
 	ingresses := []ingressutil.Ingress{}
-
-	//	ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, canary.TrafficRouting.ALB.Ingress)
-	//	if err != nil {
-	//		return handleCacheError("alb", []string{"ingress"}, canary.TrafficRouting.ALB.Ingress, err)
-	//	}
-	//	ingresses = append(ingresses, *ingress)
-	//	return &ingresses, nil
 
 	// The rollout resource manages more than 1 ingress.
 	if canary.TrafficRouting.ALB.Ingresses != nil {

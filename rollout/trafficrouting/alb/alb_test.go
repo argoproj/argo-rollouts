@@ -58,9 +58,6 @@ func fakeRollout(stableSvc, canarySvc string, pingPong *v1alpha1.PingPongSpec, s
 }
 
 func fakeRolloutWithMultiIngress(stableSvc, canarySvc string, pingPong *v1alpha1.PingPongSpec, stableIngresses []string, port int32) *v1alpha1.Rollout {
-	//	rollout := fakeRollout(stableSvc, canarySvc, pingPong, stableIng, port)
-	//	rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses = []string{addStableIng}
-	//	return rollout
 	return &v1alpha1.Rollout{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rollout",
@@ -188,9 +185,7 @@ func TestType(t *testing.T) {
 
 func TestTypeMultiIngress(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	//rollout := fakeRolloutWithMultiIngress("stable-service", "canary-service", nil, stableIngresses, 443)
 	rollout := fakeRolloutWithMultiIngress("stable-service", "canary-service", nil, []string{"stable-ingress", "multi-ingress"}, 443)
-	// rollout := fakeRolloutWithMultiIngress("stable-service", "canary-service", nil, {"stable-ingress","multi-ingress"}, 443)
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        rollout,
 		Client:         client,
@@ -229,7 +224,6 @@ func TestIngressNotFound(t *testing.T) {
 }
 
 func TestIngressNotFoundMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress("stable-service", "canary-service", nil, "stable-ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress("stable-service", "canary-service", nil, []string{"stable-ingress", "multi-ingress"}, 443)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
@@ -273,7 +267,6 @@ func TestServiceNotFoundInIngress(t *testing.T) {
 }
 
 func TestServiceNotFoundInMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress("stable-service", "canary-service", nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress("stable-service", "canary-service", nil, []string{"stable-ingress", "multi-ingress"}, 443)
 	ro.Spec.Strategy.Canary.TrafficRouting.ALB.RootService = "invalid-svc"
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 50, ro.Name, false)
@@ -322,7 +315,6 @@ func TestNoChanges(t *testing.T) {
 }
 
 func TestNoChangesMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
@@ -371,7 +363,6 @@ func TestErrorOnInvalidManagedBy(t *testing.T) {
 }
 
 func TestErrorOnInvalidManagedByMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress("stable-service", "canary-service", nil, []string{"stable-ingress", "multi-ingress"}, 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
@@ -421,7 +412,6 @@ func TestSetInitialDesiredWeight(t *testing.T) {
 }
 
 func TestSetInitialDesiredWeightMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
@@ -477,7 +467,6 @@ func TestSetWeightPingPong(t *testing.T) {
 
 func TestSetWeightPingPongMultiIngress(t *testing.T) {
 	pp := &v1alpha1.PingPongSpec{PingService: PING_SVC, PongService: PONG_SVC}
-	//ro := fakeRolloutWithMultiIngress("", "", pp, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress("", "", pp, []string{"ingress", "multi-ingress"}, 443)
 	ro.Spec.Strategy.Canary.TrafficRouting.ALB.RootService = "root-service"
 	ro.Status.Canary.StablePingPong = PONG_SVC
@@ -528,7 +517,6 @@ func TestUpdateDesiredWeightWithStickyConfig(t *testing.T) {
 }
 
 func TestUpdateDesiredWeightWithStickyConfigMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, true)
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, true)
@@ -575,7 +563,6 @@ func TestUpdateDesiredWeight(t *testing.T) {
 }
 
 func TestUpdateDesiredWeightMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
@@ -684,7 +671,6 @@ func TestErrorPatching(t *testing.T) {
 }
 
 func TestErrorPatchingMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
@@ -919,7 +905,6 @@ func TestVerifyWeight(t *testing.T) {
 	{
 		var status v1alpha1.RolloutStatus
 		r, fakeClient := newFakeReconciler(&status)
-		//fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
 				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
@@ -960,7 +945,6 @@ func TestVerifyWeight(t *testing.T) {
 	{
 		var status v1alpha1.RolloutStatus
 		r, fakeClient := newFakeReconciler(&status)
-		//fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
 				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
@@ -1003,7 +987,6 @@ func TestVerifyWeight(t *testing.T) {
 
 func TestVerifyWeightMultiIngress(t *testing.T) {
 	newFakeReconciler := func(status *v1alpha1.RolloutStatus) (*Reconciler, *fakeAWSClient) {
-		//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 		ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 		ro.Status.StableRS = "a45fe23"
 		ro.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
@@ -1097,11 +1080,6 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				DNSName:          pointer.StringPtr("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
 			},
 		}
-		//fakeClient.loadBalancer = &elbv2types.LoadBalancer{
-		//	LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-		//	LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-		//	DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
-		//}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
@@ -1167,11 +1145,6 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				DNSName:          pointer.StringPtr("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
 			},
 		}
-		//fakeClient.loadBalancer = &elbv2types.LoadBalancer{
-		//	LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-		//	LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
-		//	DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
-		//}
 		fakeClient.targetGroups = []aws.TargetGroupMeta{
 			{
 				TargetGroup: elbv2types.TargetGroup{
@@ -1214,56 +1187,6 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 				},
 			},
 		}
-		//{
-		//	var status v1alpha1.RolloutStatus
-		//	r, fakeClient := newFakeReconciler(&status)
-		//	fakeClient.loadBalancer = &elbv2types.LoadBalancer{
-		//		LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-		//		LoadBalancerArn:  pointer.StringPtr("lb-abc123-arn"),
-		//		DNSName:          pointer.StringPtr("verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
-		//	}
-		//	fakeClient.targetGroups = []aws.TargetGroupMeta{
-		//		{
-		//			TargetGroup: elbv2types.TargetGroup{
-		//				TargetGroupName: pointer.StringPtr("multi-ingress-canary-tg-abc123-name"),
-		//				TargetGroupArn:  pointer.StringPtr("multi-ingress-canary-tg-abc123-arn"),
-		//			},
-		//			Weight: pointer.Int32Ptr(10),
-		//			Tags: map[string]string{
-		//				aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
-		//			},
-		//		},
-		//		{
-		//			TargetGroup: elbv2types.TargetGroup{
-		//				TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-		//				TargetGroupArn:  pointer.StringPtr("canary-tg-abc123-arn"),
-		//			},
-		//			Weight: pointer.Int32Ptr(10),
-		//			Tags: map[string]string{
-		//				aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-canary-svc:443",
-		//			},
-		//		},
-		//		{
-		//			TargetGroup: elbv2types.TargetGroup{
-		//				TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-		//				TargetGroupArn:  pointer.StringPtr("stable-tg-abc123-arn"),
-		//			},
-		//			Weight: pointer.Int32Ptr(90),
-		//			Tags: map[string]string{
-		//				aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
-		//			},
-		//		},
-		//		{
-		//			TargetGroup: elbv2types.TargetGroup{
-		//				TargetGroupName: pointer.StringPtr("multi-ingress-stable-tg-abc123-name"),
-		//				TargetGroupArn:  pointer.StringPtr("multi-ingress-stable-tg-abc123-arn"),
-		//			},
-		//			Weight: pointer.Int32Ptr(90),
-		//			Tags: map[string]string{
-		//				aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
-		//			},
-		//		},
-		//	}
 
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
@@ -1320,7 +1243,6 @@ func TestSetWeightWithMultipleBackends(t *testing.T) {
 }
 
 func TestSetWeightWithMultipleBackendsMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
@@ -1425,7 +1347,6 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 	{
 		var status v1alpha1.RolloutStatus
 		r, fakeClient := newFakeReconciler(&status)
-		//fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
 				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
@@ -1466,7 +1387,6 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 	{
 		var status v1alpha1.RolloutStatus
 		r, fakeClient := newFakeReconciler(&status)
-		//fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
 				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
@@ -1527,7 +1447,6 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 	{
 		var status v1alpha1.RolloutStatus
 		r, fakeClient := newFakeReconciler(&status)
-		//fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
 				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
@@ -1716,7 +1635,6 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 	{
 		var status v1alpha1.RolloutStatus
 		r, fakeClient := newFakeReconciler(&status)
-		//fakeClient.loadBalancer = &elbv2types.LoadBalancer{
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
 				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
@@ -1733,7 +1651,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("canary-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(10),
 				Tags: map[string]string{
@@ -1743,7 +1661,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("multi-ingress-canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("multi-ingress-canary-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(10),
 				Tags: map[string]string{
@@ -1753,7 +1671,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("ex-svc-1-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(100),
 				Tags: map[string]string{
@@ -1763,7 +1681,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("ex-svc-2-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/123456789012345"),
 				},
 				Weight: pointer.Int32Ptr(100),
 				Tags: map[string]string{
@@ -1773,7 +1691,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("multi-ingress-stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("multi-ingress-stable-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-stable-tg-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(85),
 				Tags: map[string]string{
@@ -1783,7 +1701,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("stable-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(85),
 				Tags: map[string]string{
@@ -1805,7 +1723,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
 				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
-				LoadBalancerArn:  pointer.StringPtr("lb-abc123-arn"),
+				LoadBalancerArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/lb-abc123-name/1234567890123456"),
 				DNSName:          pointer.StringPtr("verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
 			},
 			{
@@ -1818,7 +1736,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("canary-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/canary-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(10),
 				Tags: map[string]string{
@@ -1828,7 +1746,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("multi-ingress-canary-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("multi-ingress-canary-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-canary-tg-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(10),
 				Tags: map[string]string{
@@ -1838,7 +1756,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("ex-svc-1-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("ex-svc-1-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-1-tg-abc123-name/1234567890123456"),
 				},
 				Weight: &weightDestinations[0].Weight,
 				Tags: map[string]string{
@@ -1848,7 +1766,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("ex-svc-2-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("ex-svc-2-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/ex-svc-2-tg-abc123-name/123456789012345"),
 				},
 				Weight: &weightDestinations[1].Weight,
 				Tags: map[string]string{
@@ -1858,7 +1776,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("multi-ingress-stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("multi-ingress-stable-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-stable-tg-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(85),
 				Tags: map[string]string{
@@ -1868,7 +1786,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			{
 				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("stable-tg-abc123-arn"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(85),
 				Tags: map[string]string{
@@ -1924,7 +1842,6 @@ func TestSetHeaderRoute(t *testing.T) {
 }
 
 func TestSetHeaderRouteMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
 		{Name: "header-route"},
@@ -2040,7 +1957,6 @@ func TestRemoveManagedRoutes(t *testing.T) {
 }
 
 func TestRemoveManagedRoutesMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
 		{Name: "header-route"},
@@ -2182,7 +2098,6 @@ func TestSetMirrorRoute(t *testing.T) {
 }
 
 func TestSetMirrorRouteMultiIngress(t *testing.T) {
-	//ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, "ingress", "multi-ingress", 443)
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)

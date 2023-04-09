@@ -249,15 +249,6 @@ func validateNginxIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.
 }
 
 func validateAlbIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.Ingress, fldPath *field.Path) field.ErrorList {
-	//fldPath = fldPath.Child("alb").Child("ingress")
-	//ingressName := canary.TrafficRouting.ALB.Ingress
-	//serviceName := canary.StableService
-	//if canary.TrafficRouting.ALB.RootService != "" {
-	//	serviceName = canary.TrafficRouting.ALB.RootService
-	//}
-
-	//return reportErrors(ingress, serviceName, ingressName, fldPath, field.ErrorList{})
-
 	ingresses := canary.TrafficRouting.ALB.Ingresses
 	allErrs := field.ErrorList{}
 	// If there are multiple ALB ingresses, and one of them is being validated,

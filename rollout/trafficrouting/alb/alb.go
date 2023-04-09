@@ -132,19 +132,6 @@ func (r *Reconciler) SetHeaderRoute(headerRoute *v1alpha1.SetHeaderRoute) error 
 		return nil
 	}
 
-	//TODO
-	// Set header route for additional ingresses if present
-	//if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
-	//	// Fail out if there is an issue setting header route on additional ingresses.
-	//	// Fundamental assumption is that each additional Ingress is equal in importance
-	//	// as primary Ingress resource.
-	//	if err := r.SetHeaderRoutePerIngress(headerRoute, ingresses); err != nil {
-	//		return err
-	//	}
-	//}
-
-	//return r.SetHeaderRoutePerIngress(headerRoute, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress})
-
 	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
 		return r.SetHeaderRoutePerIngress(headerRoute, ingresses)
 	} else {
@@ -232,18 +219,6 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	} else {
 		return r.VerifyWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress}, additionalDestinations...)
 	}
-
-	//TODO
-	//if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
-	//	// Fail out if there is an issue verifying weight on additional ingresses.
-	//	// Fundamental assumption is that each additional Ingress is equal in importance
-	//	// as primary Ingress resource.
-	//	if weightVerified, err := r.VerifyWeightPerIngress(desiredWeight, ingresses, additionalDestinations...); err != nil {
-	//		return weightVerified, err
-	//	}
-	//}
-
-	//return r.VerifyWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress}, additionalDestinations...)
 }
 
 func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []string, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
@@ -348,7 +323,6 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 			}
 		}
 	}
-	//return pointer.BoolPtr(numVerifiedWeights == 1+len(additionalDestinations)), nil
 	return pointer.BoolPtr(numVerifiedWeights == len(ingresses)+len(additionalDestinations)), nil
 }
 
@@ -551,23 +525,11 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 		return nil
 	}
 
-	//TODO
-	// Remove managed routes for additional ingresses if present
 	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
 		return r.RemoveManagedRoutesPerIngress(ingresses)
 	} else {
 		return r.RemoveManagedRoutesPerIngress([]string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress})
 	}
-	//if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
-	//	// Fail out if there is an issue remove routes on additional ingresses.
-	//	// Fundamental assumption is that each additional Ingress is equal in importance
-	//	// as primary Ingress resource.
-	//	if err := r.RemoveManagedRoutesPerIngress(ingresses); err != nil {
-	//		return err
-	//	}
-	//}
-
-	// return r.RemoveManagedRoutesPerIngress([]string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress})
 }
 
 func (r *Reconciler) RemoveManagedRoutesPerIngress(ingresses []string) error {

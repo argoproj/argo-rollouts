@@ -259,7 +259,6 @@ func getAlbRollout(ingress string) *v1alpha1.Rollout {
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						ALB: &v1alpha1.ALBTrafficRouting{
 							Ingress: ingress,
-							//Ingress: "alb-ingress",
 						},
 					},
 				},
@@ -636,7 +635,6 @@ func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 				allErrs = ValidateRolloutReferencedResources(getAlbRolloutMultiIngress([]string{StableIngress, AddStableIngress1, AddStableIngress2}), refResources)
 			} else {
 				allErrs = ValidateRolloutReferencedResources(getAlbRollout(StableIngress), refResources)
-				//allErrs = ValidateRolloutReferencedResources(getRolloutSingleIngress(StableIngress), refResources)
 			}
 
 			if len(test.expectedErrors) > 0 {
