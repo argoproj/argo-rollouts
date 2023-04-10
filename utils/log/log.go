@@ -5,7 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bombsimon/logrusr/v2"
+	"github.com/bombsimon/logrusr/v4"
+
 	"github.com/sirupsen/logrus"
 
 	log "github.com/sirupsen/logrus"
