@@ -31,12 +31,14 @@ const (
 	NamespaceKey = "namespace"
 )
 
+// SetKLogLogger set the klog logger for the k8s go-client
+func SetKLogLogger(logger *logrus.Logger) {
+	klog.SetLogger(logrusr.New(logger))
+}
+
 // SetKLogLevel set the klog level for the k8s go-client
 func SetKLogLevel(klogLevel int) {
 	klog.InitFlags(nil)
-	logrusLog := logrus.New()
-	logger := logrusr.New(logrusLog)
-	klog.SetLogger(logger)
 	_ = flag.Set("logtostderr", "true")
 	_ = flag.Set("v", strconv.Itoa(klogLevel))
 }

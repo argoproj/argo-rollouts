@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/klog/v2"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -273,4 +275,15 @@ func TestWithVersionFields(t *testing.T) {
 	logMessage := buf.String()
 	assert.True(t, strings.Contains(logMessage, "generation=2"))
 	assert.True(t, strings.Contains(logMessage, "resourceVersion=123"))
+}
+
+func TestKLogLogger(t *testing.T) {
+	buf := bytes.NewBufferString("")
+	logger := log.New()
+	logger.SetOutput(buf)
+	SetKLogLogger(logger)
+	defer klog.ClearLogger()
+	klog.Info("Logging from klog")
+	logMessage := buf.String()
+	assert.Contains(t, logMessage, "Logging from klog")
 }
