@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/argoproj/pkg/kubeclientmetrics"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -85,7 +83,7 @@ func newCommand() *cobra.Command {
 			if logFormat != "" {
 				log.SetFormatter(createFormatter(logFormat))
 			}
-			logutil.SetKLogLogger(logrus.New())
+			logutil.SetKLogLogger(log.New())
 			logutil.SetKLogLevel(klogLevel)
 			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 

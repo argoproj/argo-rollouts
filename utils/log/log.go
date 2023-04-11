@@ -7,8 +7,6 @@ import (
 
 	"github.com/bombsimon/logrusr/v4"
 
-	"github.com/sirupsen/logrus"
-
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,7 +31,7 @@ const (
 )
 
 // SetKLogLogger set the klog logger for the k8s go-client
-func SetKLogLogger(logger *logrus.Logger) {
+func SetKLogLogger(logger *log.Logger) {
 	klog.SetLogger(logrusr.New(logger))
 }
 
