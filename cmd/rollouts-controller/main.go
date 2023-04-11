@@ -83,6 +83,7 @@ func newCommand() *cobra.Command {
 			if logFormat != "" {
 				log.SetFormatter(createFormatter(logFormat))
 			}
+			logutil.SetKLogLogger(log.New())
 			logutil.SetKLogLevel(klogLevel)
 			log.WithField("version", version.GetVersion()).Info("Argo Rollouts starting")
 
