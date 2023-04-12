@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bombsimon/logrusr/v4"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,6 +29,11 @@ const (
 	// NamespaceKey defines the key for the namespace field
 	NamespaceKey = "namespace"
 )
+
+// SetKLogLogger set the klog logger for the k8s go-client
+func SetKLogLogger(logger *log.Logger) {
+	klog.SetLogger(logrusr.New(logger))
+}
 
 // SetKLogLevel set the klog level for the k8s go-client
 func SetKLogLevel(klogLevel int) {
