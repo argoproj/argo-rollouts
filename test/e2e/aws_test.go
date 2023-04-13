@@ -46,6 +46,17 @@ func (s *AWSSuite) TestALBCanaryUpdate() {
 		WaitForRolloutStatus("Healthy")
 }
 
+func (s *AWSSuite) TestALBCanaryUpdateMultiIngress() {
+	if val, _ := os.LookupEnv(fixtures.EnvVarE2EALBIngressAnnotations); val == "" {
+		s.T().SkipNow()
+	}
+	s.Given().
+		HealthyRollout(`@functional/alb-canary-multi-ingress-rollout.yaml`).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Healthy")
+}
+
 func (s *AWSSuite) TestALBBlueGreenUpdate() {
 	if val, _ := os.LookupEnv(fixtures.EnvVarE2EALBIngressAnnotations); val == "" {
 		s.T().SkipNow()
