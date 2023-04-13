@@ -54,7 +54,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: alb-canary-root
+            name: alb-canary-multi-ingress-root
             port:
               name: use-annotation
 ---
@@ -72,7 +72,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: alb-canary-root
+            name: alb-canary-multi-ingress-root
             port:
               name: use-annotation
 ---
