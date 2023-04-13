@@ -51,7 +51,7 @@ nav:
   - AWS ALB: features/traffic-management/alb.md
   - Istio: features/traffic-management/istio.md
   - NGINX: features/traffic-management/nginx.md
-  - Plugins: traffic-management/plugins.md
+  - Plugins: features/traffic-management/plugins.md
   - SMI: features/traffic-management/smi.md
   - Traefik: features/traffic-management/traefik.md
 - Analysis:
