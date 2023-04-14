@@ -1,4 +1,4 @@
-import {ActionButton, EffectDiv, formatTimestamp, InfoItemProps, InfoItemRow, ThemeDiv, Tooltip} from 'argo-ui/v2';
+import {EffectDiv, formatTimestamp, InfoItemProps, InfoItemRow, ThemeDiv, Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
 import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {IconForTag} from '../../shared/utils/utils';
@@ -6,6 +6,10 @@ import {PodWidget, ReplicaSets} from '../pods/pods';
 import {ImageInfo, parseImages} from './rollout';
 import './rollout.scss';
 import '../pods/pods.scss';
+import {ConfirmButton} from '../confirm-button/confirm-button';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faUndoAlt} from '@fortawesome/free-solid-svg-icons';
+import {Button} from 'antd';
 
 export interface Revision {
     number: string;
@@ -49,14 +53,13 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
                 Revision {revision.number}
                 <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
                     {!props.current && props.rollback && (
-                        <ActionButton
-                            action={() => props.rollback(Number(revision.number))}
-                            label='ROLLBACK'
-                            icon='fa-undo-alt'
-                            style={{fontSize: '13px'}}
-                            indicateLoading
-                            shouldConfirm
-                        />
+                        <ConfirmButton
+                            onClick={() => props.rollback(Number(revision.number))}
+                            type='default'
+                            icon={<FontAwesomeIcon icon={faUndoAlt} style={{marginRight: '5px'}} />}
+                            style={{fontSize: '13px', marginRight: '10px'}}>
+                            Rollback
+                        </ConfirmButton>
                     )}
                     <ThemeDiv className='revision__header__button' onClick={() => setCollapsed(!collapsed)}>
                         <i className={`fa ${icon}`} />
@@ -116,10 +119,9 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                 className={`analysis__runs-action ${
                                     ar.status === 'Running' ? 'analysis--pending' : ar.status === 'Successful' ? 'analysis--success' : 'analysis--failure'
                                 }`}>
-                                <ActionButton
-                                    action={() => (selection?.objectMeta.name === ar.objectMeta.name ? setSelection(null) : setSelection(ar))}
-                                    label={`Analysis ${temp[len - 2] + '-' + temp[len - 1]}`}
-                                />
+                                <Button onClick={() => (selection?.objectMeta.name === ar.objectMeta.name ? setSelection(null) : setSelection(ar))}>
+                                    {`Analysis ${temp[len - 2] + '-' + temp[len - 1]}`}
+                                </Button>
                             </div>
                         </Tooltip>
                     );

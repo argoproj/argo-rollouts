@@ -16,6 +16,11 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
         margin: 0 auto;
     }
 
+    &__search {
+        width: 100%;
+        font-size: 15px;
+    }
+
     &__rollouts-container {
         padding: 20px;
         display: flex;
@@ -89,7 +94,7 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
 
     &__toolbar {
         width: 100%;
-        padding-top: 1.5em;
+        padding: 1em 0;
         background-color: white;
         border-bottom: 1px solid white;
 
@@ -169,10 +174,8 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
             color: $argo-color-gray-8;
             display: flex;
             align-items: center;
-            font-weight: 500;
-            font-size: 18px;
-            border-bottom: 1px solid $argo-color-gray-4;
-            padding-bottom: 1em;
+            font-weight: 600;
+            font-size: 20px;
             margin-bottom: 1em;
         }
 

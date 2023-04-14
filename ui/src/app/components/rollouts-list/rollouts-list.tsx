@@ -1,4 +1,4 @@
-import {Autocomplete, EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, useAutocomplete, WaitFor} from 'argo-ui/v2';
+import {EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, WaitFor} from 'argo-ui/v2';
 import * as React from 'react';
 import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import {Link, useHistory} from 'react-router-dom';
@@ -10,9 +10,17 @@ import {ParsePodStatus, PodStatus, ReplicaSets} from '../pods/pods';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import './rollouts-list.scss';
+import {AutoComplete} from 'antd';
 
 const useRolloutNames = (rollouts: RolloutInfo[]) => {
-    const parseNames = (rl: RolloutInfo[]) => (rl || []).map((r) => r.objectMeta?.name || '');
+    const parseNames = (rl: RolloutInfo[]) =>
+        (rl || []).map((r) => {
+            const name = r.objectMeta?.name || '';
+            return {
+                label: name,
+                value: name,
+            };
+        });
 
     const [rolloutNames, setRolloutNames] = React.useState(parseNames(rollouts));
     React.useEffect(() => {
@@ -28,26 +36,25 @@ export const RolloutsList = () => {
     const loading = rolloutsList.loading;
     const [filteredRollouts, setFilteredRollouts] = React.useState(rollouts);
     const [pos, nav, reset] = useNav(filteredRollouts.length);
-    const [searchString, setSearchString, searchInput] = useAutocomplete('');
+    const [searchString, setSearchString] = React.useState('');
     const searchParam = new URLSearchParams(window.location.search).get('q');
     React.useEffect(() => {
-      if (searchParam && searchParam != searchString) {
-        setSearchString(searchParam);
-      }
+        if (searchParam && searchParam != searchString) {
+            setSearchString(searchParam);
+        }
     }, []);
 
-    const {useKeybinding, keybindingState} = React.useContext(KeybindingContext);
+    const searchRef = React.useRef(null);
 
-    // ignore H key when typing
-    const hGroup = keybindingState.groupForKey[Key.H];
-    const showHelpMenu = keybindingState.groups[hGroup][Key.H].action;
-    keybindingState.groups[hGroup][Key.H].action = () => {
-        if (searchInput.inputref.current === document.activeElement) {
-            return false;
-        } else {
-            return showHelpMenu();
+    React.useEffect(() => {
+        if (searchRef.current) {
+            // or, if Input component in your ref, then use input property like:
+            // searchRef.current.input.focus();
+            searchRef.current.focus();
         }
-    };
+    }, [searchRef]);
+
+    const {useKeybinding} = React.useContext(KeybindingContext);
 
     useKeybinding(Key.RIGHT, () => nav(1));
     useKeybinding(Key.LEFT, () => nav(-1));
@@ -66,8 +73,8 @@ export const RolloutsList = () => {
 
     useKeybinding(Key.SLASH, () => {
         if (!searchString) {
-            if (searchInput.inputref.current) {
-                searchInput.inputref.current.focus();
+            if (searchRef) {
+                searchRef.current.focus();
             }
             return true;
         }
@@ -88,7 +95,9 @@ export const RolloutsList = () => {
             setFilteredRollouts(filtered);
         }
         if (searchString) {
-          history.replace(`/${namespaceCtx.namespace}?q=${searchString}`);
+            history.replace(`/${namespaceCtx.namespace}?q=${searchString}`);
+        } else {
+            history.replace(`/${namespaceCtx.namespace}`);
         }
     }, [searchString, rollouts]);
 
@@ -101,14 +110,14 @@ export const RolloutsList = () => {
                     <React.Fragment>
                         <ThemeDiv className='rollouts-list__toolbar'>
                             <div className='rollouts-list__search-container'>
-                                <Autocomplete
-                                    items={rolloutNames}
+                                <AutoComplete
+                                    placeholder='Filter...'
                                     className='rollouts-list__search'
-                                    placeholder='Search...'
-                                    style={{marginBottom: '1.5em'}}
-                                    onItemClick={(item) => history.push(`/rollout/${namespaceCtx.namespace}/${item}`)}
-                                    icon='fa-search'
-                                    {...searchInput}
+                                    onSelect={(val) => history.push(`/rollout/${namespaceCtx.namespace}/${val}`)}
+                                    options={rolloutNames}
+                                    onChange={(val) => setSearchString(val)}
+                                    value={searchString}
+                                    ref={searchRef}
                                 />
                             </div>
                         </ThemeDiv>
