@@ -188,17 +188,7 @@ export const Rollout = () => {
     const api = React.useContext(RolloutAPIContext);
     const namespaceCtx = React.useContext(NamespaceContext);
 
-    const {useKeybinding} = React.useContext(KeybindingContext);
     const editState = React.useState(false);
-    const history = useHistory();
-
-    useKeybinding(Key.L, () => {
-        if (editState[0]) {
-            return false;
-        }
-        history.push('/rollouts');
-        return true;
-    });
 
     return (
         <div className='rollout'>
