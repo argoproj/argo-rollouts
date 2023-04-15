@@ -1,4 +1,4 @@
-import {EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, WaitFor} from 'argo-ui/v2';
+import {InfoItemKind, InfoItemRow, Spinner, ThemeDiv, WaitFor} from 'argo-ui/v2';
 import * as React from 'react';
 import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import {Link, useHistory} from 'react-router-dom';
@@ -10,7 +10,9 @@ import {ParsePodStatus, PodStatus, ReplicaSets} from '../pods/pods';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import './rollouts-list.scss';
-import {AutoComplete} from 'antd';
+import {AutoComplete, Tooltip} from 'antd';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faCircleNotch, faRedoAlt} from '@fortawesome/free-solid-svg-icons';
 
 const useRolloutNames = (rollouts: RolloutInfo[]) => {
     const parseNames = (rl: RolloutInfo[]) =>
@@ -193,33 +195,34 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; deselect: () => void
     }, [watching, rollout]);
 
     return (
-        <EffectDiv className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`} innerref={ref}>
-            <Link to={`/rollout/${rollout.objectMeta?.namespace}/${rollout.objectMeta?.name}`} className='rollouts-list__widget__container'>
-                <WidgetHeader
-                    rollout={rollout}
-                    refresh={() => {
-                        subscribe(true);
-                        setTimeout(() => {
-                            subscribe(false);
-                        }, 1000);
-                    }}
+        <Link
+            to={`/rollout/${rollout.objectMeta?.namespace}/${rollout.objectMeta?.name}`}
+            className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`}
+            ref={ref}>
+            <WidgetHeader
+                rollout={rollout}
+                refresh={() => {
+                    subscribe(true);
+                    setTimeout(() => {
+                        subscribe(false);
+                    }, 1000);
+                }}
+            />
+            <ThemeDiv className='rollouts-list__widget__body'>
+                <InfoItemRow
+                    label={'Strategy'}
+                    items={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? 'fa-palette' : 'fa-dove', kind: rollout.strategy.toLowerCase() as InfoItemKind}}
                 />
-                <ThemeDiv className='rollouts-list__widget__body'>
-                    <InfoItemRow
-                        label={'Strategy'}
-                        items={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? 'fa-palette' : 'fa-dove', kind: rollout.strategy.toLowerCase() as InfoItemKind}}
-                    />
-                    {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: 'fa-weight'}} />}
-                </ThemeDiv>
-                <WaitFor loading={(rollout.replicaSets || []).length < 1} loader={<Spinner />}>
-                    <ReplicaSets replicaSets={rollout.replicaSets} showRevisions />
-                </WaitFor>
-                <div className='rollouts-list__widget__actions'>
-                    <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
-                    <RolloutActionButton action={RolloutAction.Promote} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
-                </div>
-            </Link>
-        </EffectDiv>
+                {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: 'fa-weight'}} />}
+            </ThemeDiv>
+            <WaitFor loading={(rollout.replicaSets || []).length < 1} loader={<Spinner />}>
+                <ReplicaSets replicaSets={rollout.replicaSets} showRevisions />
+            </WaitFor>
+            <div className='rollouts-list__widget__actions'>
+                <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
+                <RolloutActionButton action={RolloutAction.Promote} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
+            </div>
+        </Link>
     );
 };
 
@@ -233,15 +236,19 @@ const WidgetHeader = (props: {rollout: RolloutInfo; refresh: () => void}) => {
         <header>
             {rollout.objectMeta?.name}
             <span style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
-                <i
-                    className={`rollouts-list__widget__refresh fa ${loading ? 'fa-circle-notch' : 'fa-redo-alt'} ${loading ? 'fa-spin' : ''}`}
-                    style={{marginRight: '10px', fontSize: '14px'}}
-                    onClick={(e) => {
-                        props.refresh();
-                        setLoading(true);
-                        e.preventDefault();
-                    }}
-                />
+                <Tooltip title='Refresh'>
+                    <FontAwesomeIcon
+                        icon={loading ? faCircleNotch : faRedoAlt}
+                        spin={loading}
+                        className={`rollouts-list__widget__refresh`}
+                        style={{marginRight: '10px', fontSize: '14px'}}
+                        onClick={(e) => {
+                            props.refresh();
+                            setLoading(true);
+                            e.preventDefault();
+                        }}
+                    />
+                </Tooltip>
                 <StatusIcon status={rollout.status as RolloutStatus} />
             </span>
         </header>

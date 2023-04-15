@@ -8,6 +8,7 @@ import './pods.scss';
 import {Dropdown, MenuProps, Tooltip} from 'antd';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {IconDefinition, faCheck, faCircleNotch, faClipboard, faExclamationTriangle, faQuestionCircle, faTimes} from '@fortawesome/free-solid-svg-icons';
+import {EllipsisMiddle} from '../ellipsis-middle/ellipsis-middle';
 
 export enum PodStatus {
     Pending = 'pending',
@@ -66,7 +67,12 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
         <ThemeDiv className='pods'>
             {rsName && (
                 <ThemeDiv className='pods__header'>
-                    <span style={{marginRight: '5px'}}>{rsName}</span> <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
+                    <div style={{width: '250px', display: 'flex', alignItems: 'center'}}>
+                        <span style={{marginRight: '5px', maxWidth: '100%'}}>
+                            <EllipsisMiddle suffixCount={10}>{rsName}</EllipsisMiddle>
+                        </span>
+                        <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
+                    </div>
                     {props.showRevision && <div style={{marginLeft: 'auto'}}>Revision {props.rs.revision}</div>}
                     {props.rs.scaleDownDeadline && (
                         <div style={{marginLeft: 'auto'}}>
