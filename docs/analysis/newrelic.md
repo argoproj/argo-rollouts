@@ -33,7 +33,7 @@ kind: Secret
 metadata:
   name: newrelic
 type: Opaque
-data:
+stringData:
   personal-api-key: <newrelic-personal-api-key>
   account-id: <newrelic-account-id>
   region: "us" # optional, defaults to "us" if not set. Only set to "eu" if you use EU New Relic
@@ -47,7 +47,7 @@ kind: Secret
 metadata:
   name: newrelic
 type: Opaque
-data:
+stringData:
   personal-api-key: <newrelic-personal-api-key>
   account-id: <newrelic-account-id>
   region: "us" # optional, defaults to "us" if not set. Only set to "eu" if you use EU New Relic
