@@ -1,8 +1,7 @@
 import {EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, WaitFor} from 'argo-ui/v2';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
-import {Key, KeybindingContext} from 'react-keyhooks';
-import {useHistory, useParams} from 'react-router-dom';
+import {useParams} from 'react-router-dom';
 import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep,
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch,

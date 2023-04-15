@@ -1,12 +1,12 @@
 import * as React from 'react';
 
-import {InfoItemRow, Theme, ThemeContext, ThemeDiv} from 'argo-ui/v2';
+import {Theme, ThemeContext, ThemeDiv} from 'argo-ui/v2';
 import {useParams} from 'react-router';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 
 import './header.scss';
 import {Link, useHistory} from 'react-router-dom';
-import {AutoComplete, Button, Tooltip} from 'antd';
+import {AutoComplete, Button, Input, Tooltip} from 'antd';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faBook, faKeyboard, faMoon, faSun} from '@fortawesome/free-solid-svg-icons';
 
@@ -45,7 +45,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                 <Logo />
                 <div>
                     <div className='rollouts-header__title'>
-                        <img src='/assets/images/argologo.svg' alt='Argo Text Logo' style={{filter: 'invert(100%)', height: '1em'}}/>
+                        <img src='/assets/images/argologo.svg' alt='Argo Text Logo' style={{filter: 'invert(100%)', height: '1em'}} />
                     </div>
                     <div className='rollouts-header__label'>Rollouts {version}</div>
                 </div>
@@ -66,11 +66,11 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                         <ThemeToggle />
                     </Tooltip>
                 </span>
-                {(namespaceInfo.availableNamespaces || []).length == 0 ? (
-                    <InfoItemRow label={'NS:'} items={{content: namespaceInfo.namespace}} />
-                ) : (
-                    <ThemeDiv className='rollouts-header__namespace'>
-                        <div className='rollouts-header__label'>NAMESPACE</div>
+                <ThemeDiv className='rollouts-header__namespace'>
+                    <div className='rollouts-header__label'>NAMESPACE</div>
+                    {(namespaceInfo.availableNamespaces || []).length == 0 ? (
+                        <Input value={namespaceInfo.namespace} disabled={true} style={{color: 'black', cursor: 'default', backgroundColor: 'white'}} />
+                    ) : (
                         <AutoComplete
                             style={{width: 200}}
                             className='rollouts-header__namespace-selector'
@@ -84,8 +84,8 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                             }}
                             value={nsInput}
                         />
-                    </ThemeDiv>
-                )}
+                    )}
+                </ThemeDiv>
             </div>
         </header>
     );
