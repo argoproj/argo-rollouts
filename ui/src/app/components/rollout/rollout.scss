@@ -6,8 +6,7 @@
     background: none;
 
     &__background {
-        background: $argo-color-gray-2;
-        border: 1px solid $argo-color-gray-4;
+        background: $argo-color-gray-1;
         border-radius: 5px;
     }
 
@@ -18,7 +17,7 @@
 
     &:hover > &__background {
         transform: scale(1.02);
-        box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+        box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     &__header {
@@ -40,9 +39,8 @@
 }
 
 .steps {
-    width: 250px;
+    width: 300px;
     flex-shrink: 0;
-    max-height: 500px;
     overflow-y: auto;
 
     &__step {
@@ -163,9 +161,8 @@
 }
 
 .info {
-    border: 1px solid $argo-color-gray-4;
     border-radius: 5px;
-    padding: 20px;
+    padding: 15px;
     background-color: white;
     height: max-content;
     box-sizing: border-box;
@@ -387,7 +384,7 @@
     }
 
     &__revisions {
-        width: 550px;
+        width: 100%;
     }
 
     &__body {

@@ -104,77 +104,82 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
     }
 
     return (
-        <React.Fragment>
-            <div className='rollout__row rollout__row--top'>
-                <ThemeDiv className='info rollout__info'>
-                    <div className='info__title'>Summary</div>
+        <div style={{display: 'flex', margin: '0 auto'}}>
+            <div style={{marginRight: '20px'}}>{(rollout?.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && <Steps rollout={rollout} curStep={curStep} />}</div>
 
-                    <InfoItemRow
-                        items={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy), kind: rollout.strategy?.toLowerCase() as InfoItemKind}}
-                        label='Strategy'
-                    />
-                    <ThemeDiv className='rollout__info__section'>
-                        {rollout.strategy === Strategy.Canary && (
-                            <React.Fragment>
-                                <InfoItemRow items={{content: rollout.step, icon: 'fa-shoe-prints'}} label='Step' />
-                                <InfoItemRow items={{content: rollout.setWeight, icon: 'fa-balance-scale-right'}} label='Set Weight' />
-                                <InfoItemRow items={{content: rollout.actualWeight, icon: 'fa-balance-scale'}} label='Actual Weight' />{' '}
-                            </React.Fragment>
-                        )}
-                    </ThemeDiv>
-                </ThemeDiv>
-                <ThemeDiv className='info rollout__info'>
-                    <ContainersWidget
-                        images={images}
-                        containers={rollout.containers || []}
-                        interactive={
-                            interactive
-                                ? {
-                                      editState: interactive.editState,
-                                      setImage: (container, image, tag) => {
-                                          interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
-                                      },
-                                  }
-                                : null
-                        }
-                    />
-                </ThemeDiv>
-            </div>
+            <div>
+                <div className='rollout__row rollout__row--top'>
+                    <ThemeDiv className='info rollout__info'>
+                        <div className='info__title'>Summary</div>
 
-            <div className='rollout__row rollout__row--bottom'>
-                {rollout.replicaSets && rollout.replicaSets.length > 0 && (
-                    <ThemeDiv className='info rollout__info rollout__revisions'>
-                        <div className='info__title'>Revisions</div>
-                        <div style={{marginTop: '1em'}}>
-                            {revisions.map((r, i) => (
-                                <RevisionWidget
-                                    key={i}
-                                    revision={r}
-                                    initCollapsed={false}
-                                    rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
-                                    current={i === 0}
-                                    message={rollout.message}
-                                />
-                            ))}
-                        </div>
+                        <InfoItemRow
+                            items={{content: rollout.strategy, icon: iconForStrategy(rollout.strategy as Strategy), kind: rollout.strategy?.toLowerCase() as InfoItemKind}}
+                            label='Strategy'
+                        />
+                        <ThemeDiv className='rollout__info__section'>
+                            {rollout.strategy === Strategy.Canary && (
+                                <React.Fragment>
+                                    <InfoItemRow items={{content: rollout.step, icon: 'fa-shoe-prints'}} label='Step' />
+                                    <InfoItemRow items={{content: rollout.setWeight, icon: 'fa-balance-scale-right'}} label='Set Weight' />
+                                    <InfoItemRow items={{content: rollout.actualWeight, icon: 'fa-balance-scale'}} label='Actual Weight' />{' '}
+                                </React.Fragment>
+                            )}
+                        </ThemeDiv>
                     </ThemeDiv>
-                )}
-                {(rollout?.strategy || '').toLowerCase() === 'canary' && rollout.steps && rollout.steps.length > 0 && (
-                    <ThemeDiv className='info steps'>
-                        <ThemeDiv className='info__title'>Steps</ThemeDiv>
-                        <div style={{marginTop: '1em'}}>
-                            {rollout.steps
-                                .filter((step) => Object.keys(step).length)
-                                .map((step, i, arr) => (
-                                    <Step key={`step-${i}`} step={step} complete={i < curStep} current={i === curStep} last={i === arr.length - 1} />
+                    <ThemeDiv className='info rollout__info'>
+                        <ContainersWidget
+                            images={images}
+                            containers={rollout.containers || []}
+                            interactive={
+                                interactive
+                                    ? {
+                                          editState: interactive.editState,
+                                          setImage: (container, image, tag) => {
+                                              interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
+                                          },
+                                      }
+                                    : null
+                            }
+                        />
+                    </ThemeDiv>
+                </div>
+
+                <div className='rollout__row rollout__row--bottom'>
+                    {rollout.replicaSets && rollout.replicaSets.length > 0 && (
+                        <ThemeDiv className='info rollout__info rollout__revisions'>
+                            <div className='info__title'>Revisions</div>
+                            <div style={{marginTop: '1em'}}>
+                                {revisions.map((r, i) => (
+                                    <RevisionWidget
+                                        key={i}
+                                        revision={r}
+                                        initCollapsed={false}
+                                        rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
+                                        current={i === 0}
+                                        message={rollout.message}
+                                    />
                                 ))}
-                        </div>
-                    </ThemeDiv>
-                )}
+                            </div>
+                        </ThemeDiv>
+                    )}
+                </div>
             </div>
-        </React.Fragment>
+        </div>
     );
 };
+
+const Steps = (props: {rollout: RolloutInfo; curStep: number}) => (
+    <ThemeDiv className='info steps'>
+        <ThemeDiv className='info__title'>Steps</ThemeDiv>
+        <div style={{marginTop: '1em'}}>
+            {props.rollout.steps
+                .filter((step) => Object.keys(step).length)
+                .map((step, i, arr) => (
+                    <Step key={`step-${i}`} step={step} complete={i < props.curStep} current={i === props.curStep} last={i === arr.length - 1} />
+                ))}
+        </div>
+    </ThemeDiv>
+);
 
 export const Rollout = () => {
     const {name} = useParams<{name: string}>();
