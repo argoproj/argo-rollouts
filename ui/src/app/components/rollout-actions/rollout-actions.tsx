@@ -3,10 +3,10 @@ import {RolloutInfo} from '../../../models/rollout/rollout';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {formatTimestamp} from '../../shared/utils/utils';
 import {RolloutStatus} from '../status-icon/status-icon';
-import { ConfirmButton } from '../confirm-button/confirm-button';
-import { FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import { faArrowCircleUp, faChevronCircleUp, faExclamationCircle, faRedoAlt, faSync } from '@fortawesome/free-solid-svg-icons';
-import { IconProp } from '@fortawesome/fontawesome-svg-core';
+import {ConfirmButton} from '../confirm-button/confirm-button';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faArrowCircleUp, faChevronCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
+import {IconProp} from '@fortawesome/fontawesome-svg-core';
 
 export enum RolloutAction {
     Restart = 'Restart',
@@ -96,19 +96,18 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             style={{margin: '0 5px'}}
             skipconfirm={!ap.shouldConfirm}
             type='primary'
-            onClick={(async () => {
+            onClick={async (e) => {
                 setLoading(true);
                 await ap.action(ap.body || {}, namespaceCtx.namespace, props.rollout.objectMeta?.name || '');
                 if (props.callback) {
                     await props.callback();
                 }
                 setLoading(false);
-            })}
+            }}
             disabled={ap.disabled}
             loading={loading}
             tooltip={ap.tooltip}
-            icon={<FontAwesomeIcon icon={ap.icon} style={{marginRight: '5px'}}/>}
-            >
+            icon={<FontAwesomeIcon icon={ap.icon} style={{marginRight: '5px'}} />}>
             {props.action}
         </ConfirmButton>
     );
