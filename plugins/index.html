@@ -2417,25 +2417,25 @@
 
 <h1 id="creating-an-argo-rollouts-plugin">Creating an Argo Rollouts Plugin<a class="headerlink" href="#creating-an-argo-rollouts-plugin" title="Permanent link">&para;</a></h1>
 <h2 id="high-level-overview">High Level Overview<a class="headerlink" href="#high-level-overview" title="Permanent link">&para;</a></h2>
-<p>Argo Rollouts plugins depend on hashicorp's <a href="https://github.com/hashicorp/go-plugin">go-plugin</a> library. This library 
+<p>Argo Rollouts plugins depend on hashicorp's <a href="https://github.com/hashicorp/go-plugin">go-plugin</a> library. This library
 provides a way for a plugin to be compiled as a standalone executable and then loaded by the rollouts controller at runtime.
 This works by having the plugin executable act as a rpc server and the rollouts controller act as a client. The plugin executable
 is started by the rollouts controller and is a long-lived process and that the rollouts controller connects to over a unix socket.
 The communication protocol uses golang built in net/rpc library so plugins have to be written in golang.</p>
 <h2 id="plugin-repository">Plugin Repository<a class="headerlink" href="#plugin-repository" title="Permanent link">&para;</a></h2>
 <p>In order to get plugins listed in the main argo rollouts documentation we ask that the plugin repository be created under
-the <a href="https://github.com/argoproj-labs">argoproj-labs</a> organization. Please open an issue under argo-rollouts requesting a 
-repo which you would be granted admin access on. </p>
-<p>There is also a standard naming convention for plugin names used for configmap registration, as well as what the plugin 
-uses for locating its specific configuration on rollout or analysis resources. The name needs to be in the form of 
-<code>&lt;namespace&gt;/&lt;name&gt;</code> and both <namespace> and <name> have a regular expression check that matches Github's requirements 
-for <code>username/org</code> and <code>repository name</code>. This requirement is in place to help with allowing multiple creators of the same plugin 
-types to exist such as <code>&lt;org1&gt;/nginx</code> and <code>&lt;org2&gt;/nginx</code>. These names could be based of the repo name such 
-as <code>argoproj-labs/rollouts-sample_prometheus-metric-plugin</code> but it is not a requirement. </p>
-<p>There will also be a standard for naming repositories under argoproj-labs in the form of <code>rollouts-&lt;tool&gt;-&lt;type&gt;-plugin</code>
+the <a href="https://github.com/argoproj-labs">argoproj-labs</a> organization. Please open an issue under argo-rollouts requesting a
+repo which you would be granted admin access on.</p>
+<p>There is also a standard naming convention for plugin names used for configmap registration, as well as what the plugin
+uses for locating its specific configuration on rollout or analysis resources. The name needs to be in the form of
+<code>&lt;namespace&gt;/&lt;name&gt;</code> and both <namespace> and <name> have a regular expression check that matches Github's requirements
+for <code>username/org</code> and <code>repository name</code>. This requirement is in place to help with allowing multiple creators of the same plugin
+types to exist such as <code>&lt;org1&gt;/nginx</code> and <code>&lt;org2&gt;/nginx</code>. These names could be based of the repo name such
+as <code>argoproj-labs/rollouts-plugin-metric-sample-prometheus</code> but it is not a requirement.</p>
+<p>There will also be a standard for naming repositories under argoproj-labs in the form of <code>rollouts-plugin-&lt;type&gt;-&lt;tool&gt;</code>
 where <code>&lt;type&gt;</code> is say <code>metric</code>, or <code>trafficrouter</code> and <code>&lt;tool&gt;</code> is the software the plugin is for say nginx.</p>
 <h2 id="plugin-name">Plugin Name<a class="headerlink" href="#plugin-name" title="Permanent link">&para;</a></h2>
-<p>So now that we have an idea on plugin naming and repository standards let's pick a name to use for the rest of this 
+<p>So now that we have an idea on plugin naming and repository standards let's pick a name to use for the rest of this
 documentation and call our plugin <code>argoproj-labs/nginx</code>.</p>
 <p>This name will be used in a few different spots the first is the config map that your plugin users will need to configure.
 It looks like this below.</p>
@@ -2528,15 +2528,15 @@ a hashicorp go-plugin. The two interfaces are <code>MetricsPlugin</code> and <co
 <span class="p">}</span>
 </code></pre></div>
 <h2 id="plugin-init-function">Plugin Init Function<a class="headerlink" href="#plugin-init-function" title="Permanent link">&para;</a></h2>
-<p>Each plugin interface has a <code>InitPlugin</code> function, this function is called when the plugin is first started up and is only called 
-once per startup. The <code>InitPlugin</code> function is used as a means to initialize the plugin it gives you the plugin author the ability 
-to either set up a client for a specific metrics provider or in the case of a traffic router construct a client or informer 
+<p>Each plugin interface has a <code>InitPlugin</code> function, this function is called when the plugin is first started up and is only called
+once per startup. The <code>InitPlugin</code> function is used as a means to initialize the plugin it gives you the plugin author the ability
+to either set up a client for a specific metrics provider or in the case of a traffic router construct a client or informer
 for kubernetes api. The one thing to note about this though is because these calls happen over RPC the plugin author should
 not depend on state being stored in the plugin struct as it will not be persisted between calls.</p>
 <h2 id="kubernetes-rbac">Kubernetes RBAC<a class="headerlink" href="#kubernetes-rbac" title="Permanent link">&para;</a></h2>
 <p>The plugin runs as a child process of the rollouts controller and as such it will inherit the same RBAC permissions as the
-controller. This means that the service account for the rollouts controller will need the correct permissions for the plugin 
-to function. This might mean instructing users to create a role and role binding to the standard rollouts service account 
+controller. This means that the service account for the rollouts controller will need the correct permissions for the plugin
+to function. This might mean instructing users to create a role and role binding to the standard rollouts service account
 for the plugin to use. This will probably affect traffic router plugins more than metrics plugins.</p>
 <h2 id="sample-plugins">Sample Plugins<a class="headerlink" href="#sample-plugins" title="Permanent link">&para;</a></h2>
 <p>There are two sample plugins within the argo-rollouts repo that you can use as a reference for creating your own plugin.</p>

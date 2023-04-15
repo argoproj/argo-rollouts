@@ -1010,8 +1010,8 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#rollouts-sample_prometheus-metric-plugin" class="md-nav__link">
-    rollouts-sample_prometheus-metric-plugin
+  <a href="#rollouts-plugin-metric-sample-prometheus" class="md-nav__link">
+    rollouts-plugin-metric-sample-prometheus
   </a>
   
 </li>
@@ -2372,8 +2372,8 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#rollouts-sample_prometheus-metric-plugin" class="md-nav__link">
-    rollouts-sample_prometheus-metric-plugin
+  <a href="#rollouts-plugin-metric-sample-prometheus" class="md-nav__link">
+    rollouts-plugin-metric-sample-prometheus
   </a>
   
 </li>
@@ -2403,10 +2403,10 @@
 
 <h1 id="metric-plugins">Metric Plugins<a class="headerlink" href="#metric-plugins" title="Permanent link">&para;</a></h1>
 <p>!!! important Available since v1.5 - Status: Alpha</p>
-<p>Argo Rollouts supports getting analysis metrics via 3rd party plugin system. This allows users to extend the capabilities of Rollouts 
+<p>Argo Rollouts supports getting analysis metrics via 3rd party plugin system. This allows users to extend the capabilities of Rollouts
 to support metric providers that are not natively supported. Rollout's uses a plugin library called
-<a href="https://github.com/hashicorp/go-plugin">go-plugin</a> to do this. You can find a sample plugin 
-here: <a href="https://github.com/argoproj-labs/rollouts-sample_prometheus-metric-plugin">rollouts-sample_prometheus-metric-plugin</a></p>
+<a href="https://github.com/hashicorp/go-plugin">go-plugin</a> to do this. You can find a sample plugin
+here: <a href="https://github.com/argoproj-labs/rollouts-plugin-metric-sample-prometheus">rollouts-plugin-metric-sample-prometheus</a></p>
 <h2 id="using-a-metric-plugin">Using a Metric Plugin<a class="headerlink" href="#using-a-metric-plugin" title="Permanent link">&para;</a></h2>
 <p>There are two methods of installing and using an argo rollouts plugin. The first method is to mount up the plugin executable
 into the rollouts controller container. The second method is to use a HTTP(S) server to host the plugin executable.</p>
@@ -2429,7 +2429,7 @@ particular infrastructure. Here are a few methods:</p>
 <span class="w">      </span><span class="no">location: &quot;file://./my-custom-plugin&quot; # supports http(s):// urls and file://</span>
 </code></pre></div>
 <h3 id="using-a-https-server-to-host-the-plugin-executable">Using a HTTP(S) server to host the plugin executable<a class="headerlink" href="#using-a-https-server-to-host-the-plugin-executable" title="Permanent link">&para;</a></h3>
-<p>Argo Rollouts supports downloading the plugin executable from a HTTP(S) server. To use this method, you will need to 
+<p>Argo Rollouts supports downloading the plugin executable from a HTTP(S) server. To use this method, you will need to
 configure the controller via the <code>argo-rollouts-config</code> configmap and set <code>pluginLocation</code> to a http(s) url. Example:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
@@ -2438,27 +2438,27 @@ configure the controller via the <code>argo-rollouts-config</code> configmap and
 <span class="nt">data</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">metricProviderPlugins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|-</span>
 <span class="w">    </span><span class="no">- name: &quot;argoproj-labs/sample-prometheus&quot; # name of the plugin, it must match the name required by the plugin so it can find it&#39;s configuration</span>
-<span class="w">      </span><span class="no">location: &quot;https://github.com/argoproj-labs/rollouts-sample_prometheus-metric-plugin/releases/download/v0.0.4/metric-plugin-linux-amd64&quot; # supports http(s):// urls and file://</span>
+<span class="w">      </span><span class="no">location: &quot;https://github.com/argoproj-labs/rollouts-plugin-metric-sample-prometheus/releases/download/v0.0.4/metric-plugin-linux-amd64&quot; # supports http(s):// urls and file://</span>
 <span class="w">      </span><span class="no">sha256: &quot;dac10cbf57633c9832a17f8c27d2ca34aa97dd3d&quot; #optional sha256 checksum of the plugin executable</span>
 </code></pre></div>
 <h2 id="some-words-of-caution">Some words of caution<a class="headerlink" href="#some-words-of-caution" title="Permanent link">&para;</a></h2>
 <p>Depending on which method you use to install and the plugin, there are some things to be aware of.
 The rollouts controller will not start if it can not download or find the plugin executable. This means that if you are using
 a method of installation that requires a download of the plugin and the server hosting the plugin for some reason is not available and the rollouts
-controllers pod got deleted while the server was down or is coming up for the first time, it will not be able to start until 
+controllers pod got deleted while the server was down or is coming up for the first time, it will not be able to start until
 the server hosting the plugin is available again.</p>
 <p>Argo Rollouts will download the plugin at startup only once but if the pod is deleted it will need to download the plugin again on next startup. Running
 Argo Rollouts in HA mode can help a little with this situation because each pod will download the plugin at startup. So if a single pod gets
-deleted during a server outage, the other pods will still be able to take over because there will already be a plugin executable available to it. It is the 
+deleted during a server outage, the other pods will still be able to take over because there will already be a plugin executable available to it. It is the
 responsibility of the Argo Rollouts administrator to define the plugin installation method considering the risks of each approach.</p>
 <h2 id="list-of-available-plugins-alphabetical-order">List of Available Plugins (alphabetical order)<a class="headerlink" href="#list-of-available-plugins-alphabetical-order" title="Permanent link">&para;</a></h2>
 <h4 id="add-your-plugin-here">Add Your Plugin Here<a class="headerlink" href="#add-your-plugin-here" title="Permanent link">&para;</a></h4>
 <ul>
 <li>If you have created a plugin, please submit a PR to add it to this list.</li>
 </ul>
-<h4 id="rollouts-sample_prometheus-metric-plugin"><a href="https://github.com/argoproj-labs/rollouts-sample_prometheus-metric-plugin">rollouts-sample_prometheus-metric-plugin</a><a class="headerlink" href="#rollouts-sample_prometheus-metric-plugin" title="Permanent link">&para;</a></h4>
+<h4 id="rollouts-plugin-metric-sample-prometheus"><a href="https://github.com/argoproj-labs/rollouts-plugin-metric-sample-prometheus">rollouts-plugin-metric-sample-prometheus</a><a class="headerlink" href="#rollouts-plugin-metric-sample-prometheus" title="Permanent link">&para;</a></h4>
 <ul>
-<li>This is just a sample plugin that can be used as a starting point for creating your own plugin. 
+<li>This is just a sample plugin that can be used as a starting point for creating your own plugin.
 It is not meant to be used in production. It is based on the built-in prometheus provider.</li>
 </ul>
 
