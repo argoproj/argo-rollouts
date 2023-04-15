@@ -40,6 +40,7 @@ func TestRunSuite(t *testing.T) {
 
 	// Test Cases
 	var tests = []struct {
+		testName                string
 		serverURL               string
 		webServerStatus         int
 		webServerResponse       string
@@ -52,6 +53,7 @@ func TestRunSuite(t *testing.T) {
 	}{
 		// When last value of time series matches condition then succeed.
 		{
+			testName:          "When last value of time series matches condition then succeed.",
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.0003332881882246533]]}]}`,
 			metric: v1alpha1.Metric{
@@ -67,6 +69,7 @@ func TestRunSuite(t *testing.T) {
 		},
 		// Same test as above, but derive DD keys from env var instead of k8s secret
 		{
+			testName:          "Same test as above, but derive DD keys from env var instead of k8s secret",
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.0003332881882246533]]}]}`,
 			metric: v1alpha1.Metric{
@@ -82,6 +85,7 @@ func TestRunSuite(t *testing.T) {
 		},
 		// When last value of time series does not match condition then fail.
 		{
+			testName:          "When last value of time series does not match condition then fail.",
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
 			metric: v1alpha1.Metric{
@@ -97,6 +101,7 @@ func TestRunSuite(t *testing.T) {
 		},
 		// Error if the request is invalid
 		{
+			testName:          "Error if the request is invalid",
 			webServerStatus:   400,
 			webServerResponse: `{"status":"error","error":"error messsage"}`,
 			metric: v1alpha1.Metric{
@@ -112,6 +117,7 @@ func TestRunSuite(t *testing.T) {
 		},
 		// Error if there is an authentication issue
 		{
+			testName:          "Error if there is an authentication issue",
 			webServerStatus:   401,
 			webServerResponse: `{"errors": ["No authenticated user."]}`,
 			metric: v1alpha1.Metric{
@@ -128,6 +134,7 @@ func TestRunSuite(t *testing.T) {
 
 		// Expect success with default() and data
 		{
+			testName:          "Expect success with default() and data",
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
 			metric: v1alpha1.Metric{
@@ -143,6 +150,7 @@ func TestRunSuite(t *testing.T) {
 
 		// Expect error with no default() and no data
 		{
+			testName:          "Expect error with no default() and no data",
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
@@ -156,8 +164,26 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
+		// Failed message contains failure reason
+		{
+			testName:          "Failed message contains failure reason",
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.0003332881882246533]]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result > 0.05",
+				Provider:         ddProviderIntervalDefault,
+			},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			expectedErrorMessage:    `Result (0.0003332881882246533) did not pass condition (result > 0.05)`,
+			useEnvVarForKeys:        false,
+			expectedValue:           "0.0003332881882246533",
+		},
+
 		// Expect success with default() and no data
 		{
+			testName:          "Expect success with default() and no data",
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
@@ -173,6 +199,7 @@ func TestRunSuite(t *testing.T) {
 
 		// Expect failure with bad default() and no data
 		{
+			testName:          "Expect failure with bad default() and no data",
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
 			metric: v1alpha1.Metric{
@@ -188,6 +215,7 @@ func TestRunSuite(t *testing.T) {
 
 		// Expect success with bad default() and good data
 		{
+			testName:          "Expect success with bad default() and good data",
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.006121378742186943]]}]}`,
 			metric: v1alpha1.Metric{
@@ -203,6 +231,7 @@ func TestRunSuite(t *testing.T) {
 
 		// Error if datadog returns non-array series
 		{
+			testName:          "Error if datadog returns non-array series",
 			webServerStatus:   200,
 			webServerResponse: `{"status":"ok","series":"invalid"}`,
 			metric: v1alpha1.Metric{
@@ -219,6 +248,7 @@ func TestRunSuite(t *testing.T) {
 
 		// Error if server address is faulty
 		{
+			testName:             "Error if server address is faulty",
 			serverURL:            "://wrong.schema",
 			metric:               v1alpha1.Metric{},
 			expectedPhase:        v1alpha1.AnalysisPhaseError,
@@ -230,117 +260,120 @@ func TestRunSuite(t *testing.T) {
 	// Run
 
 	for _, test := range tests {
-		serverURL := test.serverURL
+		t.Run(test.testName, func(t *testing.T) {
+			serverURL := test.serverURL
 
-		if serverURL == "" {
-			// Server setup with response
-			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-				if test.metric.Provider.Datadog.ApiVersion == "" && DefaultApiVersion != "v1" {
-					t.Errorf("\nApiVersion was left blank in the tests, but the default API version is not v1 anymore.")
-				}
+			if serverURL == "" {
+				// Server setup with response
+				server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+					if test.metric.Provider.Datadog.ApiVersion == "" && DefaultApiVersion != "v1" {
+						t.Errorf("\nApiVersion was left blank in the tests, but the default API version is not v1 anymore.")
+					}
 
-				//Check query variables
-				actualQuery := req.URL.Query().Get("query")
-				actualFrom := req.URL.Query().Get("from")
-				actualTo := req.URL.Query().Get("to")
+					//Check query variables
+					actualQuery := req.URL.Query().Get("query")
+					actualFrom := req.URL.Query().Get("from")
+					actualTo := req.URL.Query().Get("to")
 
-				if actualQuery != "avg:kubernetes.cpu.user.total{*}" {
-					t.Errorf("\nquery expected avg:kubernetes.cpu.user.total{*} but got %s", actualQuery)
-				}
+					if actualQuery != "avg:kubernetes.cpu.user.total{*}" {
+						t.Errorf("\nquery expected avg:kubernetes.cpu.user.total{*} but got %s", actualQuery)
+					}
 
-				if from, err := strconv.ParseInt(actualFrom, 10, 64); err == nil && from != unixNow()-test.expectedIntervalSeconds {
-					t.Errorf("\nfrom %d expected be equal to %d", from, unixNow()-test.expectedIntervalSeconds)
-				} else if err != nil {
-					t.Errorf("\nfailed to parse from: %v", err)
-				}
+					if from, err := strconv.ParseInt(actualFrom, 10, 64); err == nil && from != unixNow()-test.expectedIntervalSeconds {
+						t.Errorf("\nfrom %d expected be equal to %d", from, unixNow()-test.expectedIntervalSeconds)
+					} else if err != nil {
+						t.Errorf("\nfailed to parse from: %v", err)
+					}
 
-				if to, err := strconv.ParseInt(actualTo, 10, 64); err == nil && to != unixNow() {
-					t.Errorf("\nto %d was expected be equal to %d", to, unixNow())
-				} else if err != nil {
-					t.Errorf("\nfailed to parse to: %v", err)
-				}
+					if to, err := strconv.ParseInt(actualTo, 10, 64); err == nil && to != unixNow() {
+						t.Errorf("\nto %d was expected be equal to %d", to, unixNow())
+					} else if err != nil {
+						t.Errorf("\nfailed to parse to: %v", err)
+					}
 
-				//Check headers
-				if req.Header.Get("Content-Type") != "application/json" {
-					t.Errorf("\nContent-Type header expected to be application/json but got %s", req.Header.Get("Content-Type"))
-				}
-				if req.Header.Get("DD-API-KEY") != expectedApiKey {
-					t.Errorf("\nDD-API-KEY header expected %s but got %s", expectedApiKey, req.Header.Get("DD-API-KEY"))
-				}
-				if req.Header.Get("DD-APPLICATION-KEY") != expectedAppKey {
-					t.Errorf("\nDD-APPLICATION-KEY header expected %s but got %s", expectedAppKey, req.Header.Get("DD-APPLICATION-KEY"))
-				}
+					//Check headers
+					if req.Header.Get("Content-Type") != "application/json" {
+						t.Errorf("\nContent-Type header expected to be application/json but got %s", req.Header.Get("Content-Type"))
+					}
+					if req.Header.Get("DD-API-KEY") != expectedApiKey {
+						t.Errorf("\nDD-API-KEY header expected %s but got %s", expectedApiKey, req.Header.Get("DD-API-KEY"))
+					}
+					if req.Header.Get("DD-APPLICATION-KEY") != expectedAppKey {
+						t.Errorf("\nDD-APPLICATION-KEY header expected %s but got %s", expectedAppKey, req.Header.Get("DD-APPLICATION-KEY"))
+					}
 
-				// Return mock response
-				if test.webServerStatus < 200 || test.webServerStatus >= 300 {
-					http.Error(rw, test.webServerResponse, test.webServerStatus)
-				} else {
-					rw.Header().Set("Content-Type", "application/json")
-					io.WriteString(rw, test.webServerResponse)
-				}
-			}))
-			defer server.Close()
+					// Return mock response
+					if test.webServerStatus < 200 || test.webServerStatus >= 300 {
+						http.Error(rw, test.webServerResponse, test.webServerStatus)
+					} else {
+						rw.Header().Set("Content-Type", "application/json")
+						io.WriteString(rw, test.webServerResponse)
+					}
+				}))
+				defer server.Close()
 
-			serverURL = server.URL
-		}
-
-		tokenSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: DatadogTokensSecretName,
-			},
-			Data: map[string][]byte{
-				"address": []byte(serverURL),
-				"api-key": []byte(expectedApiKey),
-				"app-key": []byte(expectedAppKey),
-			},
-		}
-
-		if test.useEnvVarForKeys {
-			os.Setenv("DD_API_KEY", expectedApiKey)
-			os.Setenv("DD_APP_KEY", expectedAppKey)
-			os.Setenv("DD_ADDRESS", serverURL)
-		} else {
-			os.Unsetenv("DD_API_KEY")
-			os.Unsetenv("DD_APP_KEY")
-			os.Unsetenv("DD_ADDRESS")
-		}
-
-		logCtx := log.WithField("test", "test")
-
-		fakeClient := k8sfake.NewSimpleClientset()
-		fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			if test.useEnvVarForKeys {
-				return true, nil, nil
+				serverURL = server.URL
 			}
-			return true, tokenSecret, nil
+
+			tokenSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: DatadogTokensSecretName,
+				},
+				Data: map[string][]byte{
+					"address": []byte(serverURL),
+					"api-key": []byte(expectedApiKey),
+					"app-key": []byte(expectedAppKey),
+				},
+			}
+
+			if test.useEnvVarForKeys {
+				os.Setenv("DD_API_KEY", expectedApiKey)
+				os.Setenv("DD_APP_KEY", expectedAppKey)
+				os.Setenv("DD_ADDRESS", serverURL)
+			} else {
+				os.Unsetenv("DD_API_KEY")
+				os.Unsetenv("DD_APP_KEY")
+				os.Unsetenv("DD_ADDRESS")
+			}
+
+			logCtx := log.WithField("test", "test")
+
+			fakeClient := k8sfake.NewSimpleClientset()
+			fakeClient.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				if test.useEnvVarForKeys {
+					return true, nil, nil
+				}
+				return true, tokenSecret, nil
+			})
+
+			provider, _ := NewDatadogProvider(*logCtx, fakeClient)
+
+			metricsMetadata := provider.GetMetadata(test.metric)
+			assert.Nil(t, metricsMetadata)
+
+			// Get our result
+			measurement := provider.Run(newAnalysisRun(), test.metric)
+
+			// Common Asserts
+			assert.NotNil(t, measurement)
+			assert.Equal(t, string(test.expectedPhase), string(measurement.Phase))
+
+			// Phase specific cases
+			switch test.expectedPhase {
+			case v1alpha1.AnalysisPhaseSuccessful:
+				assert.NotNil(t, measurement.StartedAt)
+				assert.Equal(t, test.expectedValue, measurement.Value)
+				assert.NotNil(t, measurement.FinishedAt)
+			case v1alpha1.AnalysisPhaseFailed:
+				assert.NotNil(t, measurement.StartedAt)
+				assert.Equal(t, test.expectedValue, measurement.Value)
+				assert.NotNil(t, measurement.FinishedAt)
+				assert.Contains(t, measurement.Message, test.expectedErrorMessage)
+			case v1alpha1.AnalysisPhaseError:
+				assert.Contains(t, measurement.Message, test.expectedErrorMessage)
+			}
+
 		})
-
-		provider, _ := NewDatadogProvider(*logCtx, fakeClient)
-
-		metricsMetadata := provider.GetMetadata(test.metric)
-		assert.Nil(t, metricsMetadata)
-
-		// Get our result
-		measurement := provider.Run(newAnalysisRun(), test.metric)
-
-		// Common Asserts
-		assert.NotNil(t, measurement)
-		assert.Equal(t, string(test.expectedPhase), string(measurement.Phase))
-
-		// Phase specific cases
-		switch test.expectedPhase {
-		case v1alpha1.AnalysisPhaseSuccessful:
-			assert.NotNil(t, measurement.StartedAt)
-			assert.Equal(t, test.expectedValue, measurement.Value)
-			assert.NotNil(t, measurement.FinishedAt)
-		case v1alpha1.AnalysisPhaseFailed:
-			assert.NotNil(t, measurement.StartedAt)
-			assert.Equal(t, test.expectedValue, measurement.Value)
-			assert.NotNil(t, measurement.FinishedAt)
-		case v1alpha1.AnalysisPhaseError:
-			assert.Contains(t, measurement.Message, test.expectedErrorMessage)
-		}
-
 	}
 }
 

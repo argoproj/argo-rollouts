@@ -45,7 +45,13 @@ func EvaluateResult(result interface{}, metric v1alpha1.Metric, logCtx logrus.En
 	}
 
 	if failCondition {
-		return v1alpha1.AnalysisPhaseFailed, nil
+		if metric.SuccessCondition != "" {
+			err = errors.New(fmt.Sprintf("Result (%v) did not pass condition (%s)", result, metric.SuccessCondition))
+		}
+		if metric.FailureCondition != "" {
+			err = errors.New(fmt.Sprintf("Result (%v) did not fail condition (%s)", result, metric.FailureCondition))
+		}
+		return v1alpha1.AnalysisPhaseFailed, err
 	}
 
 	if !failCondition && !successCondition {
