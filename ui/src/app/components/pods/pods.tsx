@@ -1,10 +1,13 @@
-import {Menu, ThemeDiv, Tooltip, WaitFor, InfoItem} from 'argo-ui/v2';
+import {ThemeDiv, WaitFor, InfoItem} from 'argo-ui/v2';
 import * as React from 'react';
 import * as moment from 'moment';
 import {Duration, Ticker} from 'argo-ui';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
 import './pods.scss';
+import {Dropdown, MenuProps, Tooltip} from 'antd';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {IconDefinition, faCheck, faCircleNotch, faClipboard, faExclamationTriangle, faQuestionCircle, faTimes} from '@fortawesome/free-solid-svg-icons';
 
 export enum PodStatus {
     Pending = 'pending',
@@ -34,52 +37,6 @@ export const ParsePodStatus = (status: string): PodStatus => {
         default:
             return PodStatus.Unknown;
     }
-};
-
-export const PodIcon = (props: {status: string; customIcon?: string}) => {
-    const {status, customIcon} = props;
-    let icon;
-    let spin = false;
-    if (status.startsWith('Init:')) {
-        icon = 'fa-circle-notch';
-        spin = true;
-    }
-    if (status.startsWith('Signal:') || status.startsWith('ExitCode:')) {
-        icon = 'fa-times';
-    }
-    if (status.endsWith('Error') || status.startsWith('Err')) {
-        icon = 'fa-exclamation-triangle';
-    }
-
-    const className = ParsePodStatus(status);
-
-    if (customIcon) icon = customIcon;
-    else
-        switch (className) {
-            case PodStatus.Pending:
-                icon = 'fa-circle-notch';
-                spin = true;
-                break;
-            case PodStatus.Success:
-                icon = 'fa-check';
-                break;
-            case PodStatus.Failed:
-                icon = 'fa-times';
-                break;
-            case PodStatus.Warning:
-                icon = 'fa-exclamation-triangle';
-                break;
-            default:
-                spin = false;
-                icon = 'fa-question-circle';
-                break;
-        }
-
-    return (
-        <ThemeDiv className={`pod-icon pod-icon--${className}`}>
-            <i className={`fa ${icon} ${spin ? 'fa-spin' : ''}`} />
-        </ThemeDiv>
-    );
 };
 
 export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRevisions?: boolean}) => {
@@ -118,7 +75,7 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                                     const time = moment(props.rs.scaleDownDeadline).diff(now.toDate(), 'second');
                                     return time <= 0 ? null : (
                                         <Tooltip
-                                            content={
+                                            title={
                                                 <span>
                                                     Scaledown in <Duration durationMs={time} />
                                                 </span>
@@ -156,10 +113,66 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
     );
 };
 
-export const PodWidget = ({name, status, tooltip, customIcon}: {name: string; status: string; tooltip: React.ReactNode; customIcon?: string}) => (
-    <Menu items={[{label: 'Copy Name', action: () => navigator.clipboard.writeText(name), icon: 'fa-clipboard'}]}>
-        <Tooltip content={tooltip}>
-            <PodIcon status={status} customIcon={customIcon} />
-        </Tooltip>
-    </Menu>
-);
+const CopyMenu = (name: string): MenuProps['items'] => {
+    return [
+        {
+            key: 1,
+            label: (
+                <div onClick={() => navigator.clipboard.writeText(name)}>
+                    <FontAwesomeIcon icon={faClipboard} style={{marginRight: '5px'}} /> Copy Name
+                </div>
+            ),
+        },
+    ];
+};
+
+export const PodWidget = ({name, status, tooltip, customIcon}: {name: string; status: string; tooltip: React.ReactNode; customIcon?: IconDefinition}) => {
+    let icon: IconDefinition;
+    let spin = false;
+    if (status.startsWith('Init:')) {
+        icon = faCircleNotch;
+        spin = true;
+    }
+    if (status.startsWith('Signal:') || status.startsWith('ExitCode:')) {
+        icon = faTimes;
+    }
+    if (status.endsWith('Error') || status.startsWith('Err')) {
+        icon = faExclamationTriangle;
+    }
+
+    const className = ParsePodStatus(status);
+
+    if (customIcon) {
+        icon = customIcon;
+    } else {
+        switch (className) {
+            case PodStatus.Pending:
+                icon = faCircleNotch;
+                spin = true;
+                break;
+            case PodStatus.Success:
+                icon = faCheck;
+                break;
+            case PodStatus.Failed:
+                icon = faTimes;
+                break;
+            case PodStatus.Warning:
+                icon = faExclamationTriangle;
+                break;
+            default:
+                spin = false;
+                icon = faQuestionCircle;
+                break;
+        }
+    }
+
+    return (
+        <Dropdown menu={{items: CopyMenu(name)}} trigger={['click']}>
+            <Tooltip title={tooltip}>
+                <div className={`pod-icon pod-icon--${className}`}>
+                    <FontAwesomeIcon icon={icon} spin={spin} />
+                </div>
+            </Tooltip>
+        </Dropdown>
+    );
+};

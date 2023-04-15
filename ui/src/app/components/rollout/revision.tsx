@@ -8,7 +8,7 @@ import './rollout.scss';
 import '../pods/pods.scss';
 import {ConfirmButton} from '../confirm-button/confirm-button';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faUndoAlt} from '@fortawesome/free-solid-svg-icons';
+import {faChartBar, faUndoAlt} from '@fortawesome/free-solid-svg-icons';
 import {Button} from 'antd';
 
 export interface Revision {
@@ -151,7 +151,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                                     <div>MetricName: {job.metricName}</div>
                                                 </div>
                                             }
-                                            customIcon='fa-chart-bar'
+                                            customIcon={faChartBar}
                                         />
                                     );
                                 })}
@@ -214,7 +214,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                                     <div>MetricName: {nonJob.metricName}</div>
                                                 </div>
                                             }
-                                            customIcon='fa-chart-bar'
+                                            customIcon={faChartBar}
                                         />
                                     );
                                 })}
