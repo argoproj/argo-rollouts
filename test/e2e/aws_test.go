@@ -202,6 +202,43 @@ func (s *AWSSuite) TestALBExperimentStep() {
 		Assert(assertWeights(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100))
 }
 
+func (s *AWSSuite) TestALBExperimentStepMultiIngress() {
+	s.Given().
+		RolloutObjects("@alb/rollout-alb-multi-ingress-experiment.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(assertWeightsMultiIngress(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100)).
+		ExpectExperimentCount(0).
+		When().
+		UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).
+		Sleep(10 * time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			//ingress := t.GetALBIngress()
+			ingresses := t.GetALBIngresses()
+			for _, ingress := range ingresses {
+				action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
+				assert.True(s.T(), ok)
+
+				ex := t.GetRolloutExperiments().Items[0]
+				exServiceName := ex.Status.TemplateStatuses[0].ServiceName
+
+				port := 80
+				expectedAction := fmt.Sprintf(actionTemplateWithExperiment, "alb-rollout-canary", port, 10, exServiceName, port, 20, "alb-rollout-stable", port, 70)
+				assert.Equal(s.T(), expectedAction, action)
+			}
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Then().
+		Assert(assertWeightsMultiIngress(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100))
+}
+
 func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 	s.Given().
 		RolloutObjects("@alb/rollout-alb-experiment-no-setweight.yaml").
