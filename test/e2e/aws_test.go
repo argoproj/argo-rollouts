@@ -348,6 +348,48 @@ func (s *AWSSuite) TestAlbHeaderRoute() {
 		})
 }
 
+func (s *AWSSuite) TestAlbHeaderRouteMultiIngress() {
+	s.Given().
+		RolloutObjects("@header-routing/alb-header-route-multi-ingress.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(func(t *fixtures.Then) {
+			assertAlbActionDoesNotExistMultiIngress(t, s, "header-route")
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "canary-service", 0)
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "stable-service", 100)
+		}).
+		When().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		Sleep(5 * time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			assertAlbActionDoesNotExistMultiIngress(t, s, "header-route")
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "canary-service", 20)
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "stable-service", 80)
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Paused").
+		Sleep(5 * time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			assertAlbActionServiceWeightMultiIngress(t, s, "header-route", "canary-service", 100)
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "canary-service", 20)
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "stable-service", 80)
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Paused").
+		Sleep(5 * time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			assertAlbActionDoesNotExistMultiIngress(t, s, "header-route")
+		})
+}
+
 func assertAlbActionServiceWeight(t *fixtures.Then, s *AWSSuite, actionName, serviceName string, expectedWeight int64) {
 	ingress := t.GetALBIngress()
 	key := "alb.ingress.kubernetes.io/actions." + actionName
@@ -370,9 +412,42 @@ func assertAlbActionServiceWeight(t *fixtures.Then, s *AWSSuite, actionName, ser
 	assert.True(s.T(), found, "Service %s was not found", serviceName)
 }
 
+func assertAlbActionServiceWeightMultiIngress(t *fixtures.Then, s *AWSSuite, actionName, serviceName string, expectedWeight int64) {
+	ingresses := t.GetALBIngresses()
+	for _, ingress := range ingresses {
+		key := "alb.ingress.kubernetes.io/actions." + actionName
+		actionStr, ok := ingress.Annotations[key]
+		assert.True(s.T(), ok, "Annotation for action was not found: %s", key)
+
+		var albAction ingress2.ALBAction
+		err := json.Unmarshal([]byte(actionStr), &albAction)
+		if err != nil {
+			panic(err)
+		}
+
+		found := false
+		for _, group := range albAction.ForwardConfig.TargetGroups {
+			if group.ServiceName == serviceName {
+				assert.Equal(s.T(), pointer.Int64(expectedWeight), group.Weight)
+				found = true
+			}
+		}
+		assert.True(s.T(), found, "Service %s was not found", serviceName)
+	}
+}
+
 func assertAlbActionDoesNotExist(t *fixtures.Then, s *AWSSuite, actionName string) {
 	ingress := t.GetALBIngress()
 	key := "alb.ingress.kubernetes.io/actions." + actionName
 	_, ok := ingress.Annotations[key]
 	assert.False(s.T(), ok, "Annotation for action should not exist: %s", key)
+}
+
+func assertAlbActionDoesNotExistMultiIngress(t *fixtures.Then, s *AWSSuite, actionName string) {
+	ingresses := t.GetALBIngresses()
+	for _, ingress := range ingresses {
+		key := "alb.ingress.kubernetes.io/actions." + actionName
+		_, ok := ingress.Annotations[key]
+		assert.False(s.T(), ok, "Annotation for action should not exist: %s", key)
+	}
 }
