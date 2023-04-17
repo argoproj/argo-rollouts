@@ -217,7 +217,6 @@ func (s *AWSSuite) TestALBExperimentStepMultiIngress() {
 		Sleep(10 * time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
-			//ingress := t.GetALBIngress()
 			ingresses := t.GetALBIngresses()
 			for _, ingress := range ingresses {
 				action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
@@ -270,6 +269,41 @@ func (s *AWSSuite) TestALBExperimentStepNoSetWeight() {
 		Sleep(2 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
 		Then().
 		Assert(assertWeights(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100))
+}
+
+func (s *AWSSuite) TestALBExperimentStepNoSetWeightMultiIngress() {
+	s.Given().
+		RolloutObjects("@alb/rollout-alb-multi-ingress-experiment-no-setweight.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		Assert(assertWeightsMultiIngress(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100)).
+		ExpectExperimentCount(0).
+		When().
+		UpdateSpec().
+		Sleep(10 * time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			ingresses := t.GetALBIngresses()
+			for _, ingress := range ingresses {
+				action, ok := ingress.Annotations["alb.ingress.kubernetes.io/actions.alb-rollout-root"]
+				assert.True(s.T(), ok)
+
+				experiment := t.GetRolloutExperiments().Items[0]
+				exService1, exService2 := experiment.Status.TemplateStatuses[0].ServiceName, experiment.Status.TemplateStatuses[1].ServiceName
+
+				port := 80
+				expectedAction := fmt.Sprintf(actionTemplateWithExperiments, "alb-rollout-canary", port, 0, exService1, port, 20, exService2, port, 20, "alb-rollout-stable", port, 60)
+				assert.Equal(s.T(), expectedAction, action)
+			}
+		}).
+		When().
+		PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(2 * time.Second). // stable is currently set first, and then changes made to VirtualServices/DestinationRules
+		Then().
+		Assert(assertWeightsMultiIngress(s, "alb-rollout-canary", "alb-rollout-stable", 0, 100))
 }
 
 func (s *AWSSuite) TestAlbHeaderRoute() {
