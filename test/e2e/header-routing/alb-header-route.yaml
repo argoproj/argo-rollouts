@@ -31,21 +31,7 @@ kind: Ingress
 metadata:
   name: alb-rollout-ingress
   annotations:
-    alb.ingress.kubernetes.io/security-groups: 'iks-intuit-cidr-ingress-tcp-443'
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-2:795188202216:certificate/27d920c5-a8a6-4210-9f31-bd4a2d439039
-    alb.ingress.kubernetes.io/load-balancer-attributes: access_logs.s3.enabled=false
-    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
-    kubernetes.io/ingress.class: aws-alb
-    alb.ingress.kubernetes.io/load-balancer-name: rollouts-sample
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
-    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
-    alb.ingress.kubernetes.io/healthcheck-path: /color
-    alb.ingress.kubernetes.io/backend-protocol: HTTP
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/subnets: IngressSubnetAz1, IngressSubnetAz2, IngressSubnetAz3
+    kubernetes.io/ingress.class: alb
 spec:
   rules:
     - http:
