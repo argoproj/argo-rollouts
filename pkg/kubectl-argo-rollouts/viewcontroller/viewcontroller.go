@@ -9,6 +9,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -20,6 +22,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-rollouts/pkg/apiclient/rollout"
+	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutclientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	rolloutinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions"
 	rolloutlisters "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
@@ -182,24 +185,52 @@ func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 		return nil, err
 	}
 
-	allReplicaSets, err := c.replicaSetLister.List(labels.Everything())
+	selector, err := metav1.LabelSelectorAsSelector(ro.Spec.Selector)
 	if err != nil {
 		return nil, err
 	}
 
-	allPods, err := c.podLister.List(labels.Everything())
+	// Get rs of rollouts
+	allReplicaSets, err := c.replicaSetLister.List(selector)
 	if err != nil {
 		return nil, err
 	}
 
-	allExps, err := c.experimentLister.List(labels.Everything())
+	// Get experiments and their rs
+	selector = labels.SelectorFromSet(map[string]string{
+		v1alpha1.ManagedByRolloutsKey: ro.Name,
+	})
+	allExps, err := c.experimentLister.List(selector)
+	if err != nil {
+		return nil, err
+	}
+	rsExps, err := c.replicaSetLister.List(selector)
+	if err != nil {
+		return nil, err
+	}
+	allReplicaSets = append(allReplicaSets, rsExps...)
+
+	// Get analysisruns
+	allAnalysisRuns, err := c.analysisRunLister.List(selector)
 	if err != nil {
 		return nil, err
 	}
 
-	allAnalysisRuns, err := c.analysisRunLister.List(labels.Everything())
-	if err != nil {
-		return nil, err
+	podTemplateHashes := map[string]int{}
+	for i, rs := range allReplicaSets {
+		podTemplateHashes[rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]] = i
+	}
+
+	allPods := []*corev1.Pod{}
+	for hash := range podTemplateHashes {
+		selector := labels.SelectorFromSet(map[string]string{
+			v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+		})
+		pods, err := c.podLister.List(selector)
+		if err != nil {
+			return nil, err
+		}
+		allPods = append(allPods, pods...)
 	}
 
 	var workloadRef *v1.Deployment

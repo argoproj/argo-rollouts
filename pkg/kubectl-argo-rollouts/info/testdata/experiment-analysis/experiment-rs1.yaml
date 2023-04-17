@@ -6,6 +6,7 @@ metadata:
   labels:
     experiment.argoproj.io/name: rollout-experiment-analysis-6f646bf7b7-1-vcv27
     experiment.argoproj.io/template-name: baseline
+    rollout: rollout-experiment-analysis
   name: rollout-experiment-analysis-6f646bf7b7-1-vcv27-baseline-7d768b8b5f
   namespace: jesse-test
   ownerReferences:

@@ -9,6 +9,7 @@ metadata:
   labels:
     rollout-type: Background
     rollouts-pod-template-hash: 6f646bf7b7
+    rollout: rollout-experiment-analysis
   name: rollout-experiment-analysis-random-fail-6f646bf7b7-skqcr
   namespace: jesse-test
   ownerReferences:

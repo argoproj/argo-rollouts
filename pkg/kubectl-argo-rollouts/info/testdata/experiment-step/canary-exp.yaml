@@ -7,6 +7,7 @@ metadata:
   generation: 7
   labels:
     rollouts-pod-template-hash: 645d5dbc4c
+    rollout: canary-demo
   name: canary-demo-645d5dbc4c-2-0
   namespace: jesse-test
   ownerReferences:
@@ -76,3 +77,4 @@ status:
     replicas: 1
     status: Running
     updatedReplicas: 1
+    collisionCount: 1

@@ -8,6 +8,7 @@ metadata:
   generation: 7
   labels:
     rollouts-pod-template-hash: 6f646bf7b7
+    rollout: rollout-experiment-analysis
   name: rollout-experiment-analysis-6f646bf7b7-1-vcv27
   namespace: jesse-test
   ownerReferences:
@@ -90,6 +91,7 @@ status:
     replicas: 1
     status: Running
     updatedReplicas: 1
+    collisionCount: 1
   - availableReplicas: 1
     lastTransitionTime: "2019-10-30T07:28:43Z"
     name: canary
@@ -97,3 +99,4 @@ status:
     replicas: 1
     status: Running
     updatedReplicas: 1
+    collisionCount: 1

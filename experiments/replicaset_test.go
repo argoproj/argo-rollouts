@@ -45,6 +45,44 @@ func TestCreateMultipleRS(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 }
 
+func TestCreateMultipleRSFromRollout(t *testing.T) {
+	templates := generateTemplates("bar", "baz")
+	e := newExperiment("foo", templates, "")
+	e.ObjectMeta.Labels = map[string]string{
+		v1alpha1.ManagedByRolloutsKey: "foo",
+	}
+
+	f := newFixture(t, e)
+	defer f.Close()
+
+	createFirstRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[0], 0))
+	createSecondRSIndex := f.expectCreateReplicaSetAction(templateToRS(e, templates[1], 0))
+	patchIndex := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+	patch := f.getPatchedExperiment(patchIndex)
+	firstRS := f.getCreatedReplicaSet(createFirstRSIndex)
+	assert.NotNil(t, firstRS)
+	assert.Equal(t, generateRSName(e, templates[0]), firstRS.Name)
+	assert.Equal(t, "foo", firstRS.ObjectMeta.Labels[v1alpha1.ManagedByRolloutsKey])
+
+	secondRS := f.getCreatedReplicaSet(createSecondRSIndex)
+	assert.NotNil(t, secondRS)
+	assert.Equal(t, generateRSName(e, templates[1]), secondRS.Name)
+	assert.Equal(t, "foo", secondRS.ObjectMeta.Labels[v1alpha1.ManagedByRolloutsKey])
+
+	templateStatus := []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
+	}
+	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
+
+	expectedPatch := calculatePatch(e, `{
+		"status":{
+		}
+	}`, templateStatus, cond)
+	assert.Equal(t, expectedPatch, patch)
+}
+
 func TestCreateMissingRS(t *testing.T) {
 	templates := generateTemplates("bar", "baz")
 	e := newExperiment("foo", templates, "")

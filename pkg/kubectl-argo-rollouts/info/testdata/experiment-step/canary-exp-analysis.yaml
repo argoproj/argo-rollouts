@@ -4,6 +4,8 @@ metadata:
   creationTimestamp: "2019-11-07T22:38:23Z"
   generation: 2
   name: canary-demo-645d5dbc4c-2-0-stress-test
+  labels:
+    rollout: canary-demo
   namespace: jesse-test
   ownerReferences:
   - apiVersion: argoproj.io/v1alpha1
