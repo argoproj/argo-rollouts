@@ -1,4 +1,3 @@
-import {ThemeDiv, ThemeProvider} from 'argo-ui/v2';
 import {Header} from './components/header/header';
 import {createBrowserHistory} from 'history';
 import * as React from 'react';
@@ -11,7 +10,7 @@ import {Rollout} from './components/rollout/rollout';
 import {RolloutsList} from './components/rollouts-list/rollouts-list';
 import {Shortcut, Shortcuts} from './components/shortcuts/shortcuts';
 import {ConfigProvider} from 'antd';
-import { theme } from '../config/theme';
+import {theme} from '../config/theme';
 
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
@@ -21,7 +20,7 @@ const Page = (props: {path: string; component: React.ReactNode; exact?: boolean;
     const [showShortcuts, setShowShortcuts] = React.useState(false);
     return (
         <ConfigProvider theme={theme}>
-            <ThemeDiv className='rollouts'>
+            <div className='rollouts'>
                 {showShortcuts && (
                     <Modal hide={() => setShowShortcuts(false)}>
                         <Shortcuts shortcuts={props.shortcuts} />
@@ -41,7 +40,7 @@ const Page = (props: {path: string; component: React.ReactNode; exact?: boolean;
                         {props.component}
                     </React.Fragment>
                 </Route>
-            </ThemeDiv>
+            </div>
         </ConfigProvider>
     );
 };
@@ -77,31 +76,29 @@ const App = () => {
     };
 
     return (
-        <ThemeProvider>
-            {namespace && (
-                <NamespaceContext.Provider value={{namespace, availableNamespaces}}>
-                    <KeybindingProvider>
-                        <Router history={history}>
-                            <Switch>
-                                <Page
-                                    exact
-                                    path='/:namespace?'
-                                    component={<RolloutsList />}
-                                    shortcuts={[
-                                        {key: '/', description: 'Search'},
-                                        {key: 'TAB', description: 'Search, navigate search items'},
-                                        {key: ['fa-arrow-left', 'fa-arrow-right', 'fa-arrow-up', 'fa-arrow-down'], description: 'Navigate rollouts list', icon: true},
-                                        {key: ['SHIFT', 'H'], description: 'Show help menu', combo: true},
-                                    ]}
-                                    changeNamespace={changeNamespace}
-                                />
-                                <Page path='/rollout/:namespace?/:name' component={<Rollout />} changeNamespace={changeNamespace} />
-                            </Switch>
-                        </Router>
-                    </KeybindingProvider>
-                </NamespaceContext.Provider>
-            )}
-        </ThemeProvider>
+        namespace && (
+            <NamespaceContext.Provider value={{namespace, availableNamespaces}}>
+                <KeybindingProvider>
+                    <Router history={history}>
+                        <Switch>
+                            <Page
+                                exact
+                                path='/:namespace?'
+                                component={<RolloutsList />}
+                                shortcuts={[
+                                    {key: '/', description: 'Search'},
+                                    {key: 'TAB', description: 'Search, navigate search items'},
+                                    {key: ['fa-arrow-left', 'fa-arrow-right', 'fa-arrow-up', 'fa-arrow-down'], description: 'Navigate rollouts list', icon: true},
+                                    {key: ['SHIFT', 'H'], description: 'Show help menu', combo: true},
+                                ]}
+                                changeNamespace={changeNamespace}
+                            />
+                            <Page path='/rollout/:namespace?/:name' component={<Rollout />} changeNamespace={changeNamespace} />
+                        </Switch>
+                    </Router>
+                </KeybindingProvider>
+            </NamespaceContext.Provider>
+        )
     );
 };
 

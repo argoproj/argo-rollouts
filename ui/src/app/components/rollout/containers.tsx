@@ -1,4 +1,3 @@
-import {ThemeDiv} from 'argo-ui/v2';
 import * as React from 'react';
 import {RolloutContainerInfo} from '../../../models/rollout/generated';
 import {ImageInfo, ReactStatePair} from './rollout';
@@ -29,9 +28,9 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
     return (
         <React.Fragment>
             <div style={{display: 'flex', alignItems: 'center', height: '2em'}}>
-                <ThemeDiv className='info__title' style={{marginBottom: '0'}}>
+                <div className='info__title' style={{marginBottom: '0'}}>
                     Containers
-                </ThemeDiv>
+                </div>
 
                 {interactive &&
                     (interactive?.editState[0] ? (
@@ -88,11 +87,11 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
                 />
             ))}
             {containers.length < 2 && (
-                <ThemeDiv className='containers__few'>
+                <div className='containers__few'>
                     <span style={{marginRight: '5px'}}>
                         <i className='fa fa-boxes' />
                     </span>
-                </ThemeDiv>
+                </div>
             )}
         </React.Fragment>
     );

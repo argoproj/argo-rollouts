@@ -1,4 +1,3 @@
-import {ThemeDiv, WaitFor, InfoItem} from 'argo-ui/v2';
 import * as React from 'react';
 import * as moment from 'moment';
 import {Duration, Ticker} from 'argo-ui';
@@ -9,6 +8,7 @@ import {Dropdown, MenuProps, Tooltip} from 'antd';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {IconDefinition, faCheck, faCircleNotch, faClipboard, faExclamationTriangle, faQuestionCircle, faTimes} from '@fortawesome/free-solid-svg-icons';
 import {EllipsisMiddle} from '../ellipsis-middle/ellipsis-middle';
+import {InfoItem} from '../info-item/info-item';
 
 export enum PodStatus {
     Pending = 'pending',
@@ -64,58 +64,56 @@ export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRe
 export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boolean}) => {
     const rsName = props.rs.objectMeta.name;
     return (
-        <ThemeDiv className='pods'>
+        <div className='pods'>
             {rsName && (
-                <ThemeDiv className='pods__header'>
-                    <div style={{width: '250px', display: 'flex', alignItems: 'center'}}>
-                        <span style={{marginRight: '5px', maxWidth: '100%'}}>
-                            <EllipsisMiddle suffixCount={10}>{rsName}</EllipsisMiddle>
-                        </span>
+                <Tooltip title={rsName}>
+                    <div className='pods__header'>
+                        <EllipsisMiddle suffixCount={10} style={{marginRight: '5px', flexShrink: 1, width: props.showRevision ? '250px' : '100%'}}>
+                            {rsName}
+                        </EllipsisMiddle>
                         <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
+                        {props.showRevision && <div style={{marginLeft: 'auto', flexShrink: 0}}>Revision {props.rs.revision}</div>}
+                        {props.rs.scaleDownDeadline && (
+                            <div style={{marginLeft: 'auto'}}>
+                                <Ticker>
+                                    {(now) => {
+                                        const time = moment(props.rs.scaleDownDeadline).diff(now.toDate(), 'second');
+                                        return time <= 0 ? null : (
+                                            <Tooltip
+                                                title={
+                                                    <span>
+                                                        Scaledown in <Duration durationMs={time} />
+                                                    </span>
+                                                }>
+                                                <InfoItem content={(<Duration durationMs={time} />) as any} icon='fa fa-clock'></InfoItem>
+                                            </Tooltip>
+                                        );
+                                    }}
+                                </Ticker>
+                            </div>
+                        )}
                     </div>
-                    {props.showRevision && <div style={{marginLeft: 'auto'}}>Revision {props.rs.revision}</div>}
-                    {props.rs.scaleDownDeadline && (
-                        <div style={{marginLeft: 'auto'}}>
-                            <Ticker>
-                                {(now) => {
-                                    const time = moment(props.rs.scaleDownDeadline).diff(now.toDate(), 'second');
-                                    return time <= 0 ? null : (
-                                        <Tooltip
-                                            title={
-                                                <span>
-                                                    Scaledown in <Duration durationMs={time} />
-                                                </span>
-                                            }>
-                                            <InfoItem content={(<Duration durationMs={time} />) as any} icon='fa fa-clock'></InfoItem>
-                                        </Tooltip>
-                                    );
-                                }}
-                            </Ticker>
-                        </div>
-                    )}
-                </ThemeDiv>
+                </Tooltip>
             )}
 
             {props.rs.pods && props.rs.pods.length > 0 && (
-                <ThemeDiv className='pods__container'>
-                    <WaitFor loading={(props.rs.pods || []).length < 1}>
-                        {props.rs.pods.map((pod, i) => (
-                            <PodWidget
-                                key={pod.objectMeta?.uid}
-                                name={pod.objectMeta?.name}
-                                status={pod.status}
-                                tooltip={
-                                    <div>
-                                        <div>Status: {pod.status}</div>
-                                        <div>{pod.objectMeta?.name}</div>
-                                    </div>
-                                }
-                            />
-                        ))}
-                    </WaitFor>
-                </ThemeDiv>
+                <div className='pods__container'>
+                    {(props.rs?.pods || []).map((pod, i) => (
+                        <PodWidget
+                            key={pod.objectMeta?.uid}
+                            name={pod.objectMeta?.name}
+                            status={pod.status}
+                            tooltip={
+                                <div>
+                                    <div>Status: {pod.status}</div>
+                                    <div>{pod.objectMeta?.name}</div>
+                                </div>
+                            }
+                        />
+                    ))}
+                </div>
             )}
-        </ThemeDiv>
+        </div>
     );
 };
 

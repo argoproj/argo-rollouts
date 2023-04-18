@@ -1,4 +1,3 @@
-import {InfoItemKind, InfoItemRow, Spinner, ThemeDiv, WaitFor} from 'argo-ui/v2';
 import * as React from 'react';
 import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import {Link, useHistory} from 'react-router-dom';
@@ -13,6 +12,7 @@ import './rollouts-list.scss';
 import {AutoComplete, Tooltip} from 'antd';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faCircleNotch, faRedoAlt} from '@fortawesome/free-solid-svg-icons';
+import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 
 const useRolloutNames = (rollouts: RolloutInfo[]) => {
     const parseNames = (rl: RolloutInfo[]) =>
@@ -107,32 +107,35 @@ export const RolloutsList = () => {
 
     return (
         <div className='rollouts-list'>
-            <WaitFor loading={loading}>
-                {(rollouts || []).length > 0 ? (
-                    <React.Fragment>
-                        <ThemeDiv className='rollouts-list__toolbar'>
-                            <div className='rollouts-list__search-container'>
-                                <AutoComplete
-                                    placeholder='Filter...'
-                                    className='rollouts-list__search'
-                                    onSelect={(val) => history.push(`/rollout/${namespaceCtx.namespace}/${val}`)}
-                                    options={rolloutNames}
-                                    onChange={(val) => setSearchString(val)}
-                                    value={searchString}
-                                    ref={searchRef}
-                                />
-                            </div>
-                        </ThemeDiv>
-                        <div className='rollouts-list__rollouts-container'>
-                            {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
-                                <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} deselect={() => reset()} />
-                            ))}
+            {loading ? (
+                <div style={{fontSize: '20px', padding: '20px', margin: '0 auto'}}>
+                    <FontAwesomeIcon icon={faCircleNotch} spin={true} style={{marginRight: '5px'}} />
+                    Loading...
+                </div>
+            ) : (rollouts || []).length > 0 ? (
+                <React.Fragment>
+                    <div className='rollouts-list__toolbar'>
+                        <div className='rollouts-list__search-container'>
+                            <AutoComplete
+                                placeholder='Filter...'
+                                className='rollouts-list__search'
+                                onSelect={(val) => history.push(`/rollout/${namespaceCtx.namespace}/${val}`)}
+                                options={rolloutNames}
+                                onChange={(val) => setSearchString(val)}
+                                value={searchString}
+                                ref={searchRef}
+                            />
                         </div>
-                    </React.Fragment>
-                ) : (
-                    <EmptyMessage namespace={namespaceCtx.namespace} />
-                )}
-            </WaitFor>
+                    </div>
+                    <div className='rollouts-list__rollouts-container'>
+                        {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
+                            <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} deselect={() => reset()} />
+                        ))}
+                    </div>
+                </React.Fragment>
+            ) : (
+                <EmptyMessage namespace={namespaceCtx.namespace} />
+            )}
         </div>
     );
 };
@@ -142,7 +145,7 @@ const EmptyMessage = (props: {namespace: string}) => {
         return <pre onClick={() => navigator.clipboard.writeText(props.children)}>{props.children}</pre>;
     };
     return (
-        <ThemeDiv className='rollouts-list__empty-message'>
+        <div className='rollouts-list__empty-message'>
             <h1>No Rollouts to display!</h1>
             <div style={{textAlign: 'center', marginBottom: '1em'}}>
                 <div>Make sure you are running the API server in the correct namespace. Your current namespace is: </div>
@@ -160,7 +163,7 @@ const EmptyMessage = (props: {namespace: string}) => {
                 </a>
                 .
             </div>
-        </ThemeDiv>
+        </div>
     );
 };
 
@@ -208,16 +211,15 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; deselect: () => void
                     }, 1000);
                 }}
             />
-            <ThemeDiv className='rollouts-list__widget__body'>
+            <div className='rollouts-list__widget__body'>
                 <InfoItemRow
                     label={'Strategy'}
                     items={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? 'fa-palette' : 'fa-dove', kind: rollout.strategy.toLowerCase() as InfoItemKind}}
                 />
                 {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: 'fa-weight'}} />}
-            </ThemeDiv>
-            <WaitFor loading={(rollout.replicaSets || []).length < 1} loader={<Spinner />}>
-                <ReplicaSets replicaSets={rollout.replicaSets} showRevisions />
-            </WaitFor>
+            </div>
+            {(rollout.replicaSets || []).length < 1 && <ReplicaSets replicaSets={rollout.replicaSets} showRevisions />}
+
             <div className='rollouts-list__widget__actions'>
                 <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
                 <RolloutActionButton action={RolloutAction.Promote} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
