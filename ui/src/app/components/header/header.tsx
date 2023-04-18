@@ -1,6 +1,5 @@
 import * as React from 'react';
 
-import {Theme, ThemeContext, ThemeDiv} from 'argo-ui/v2';
 import {useParams} from 'react-router';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 
@@ -8,14 +7,7 @@ import './header.scss';
 import {Link, useHistory} from 'react-router-dom';
 import {AutoComplete, Button, Input, Tooltip} from 'antd';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faBook, faKeyboard, faMoon, faSun} from '@fortawesome/free-solid-svg-icons';
-
-export const ThemeToggle = () => {
-    const dmCtx = React.useContext(ThemeContext);
-    const isDark = dmCtx.theme === Theme.Dark;
-    const icon = isDark ? faSun : faMoon;
-    return <Button onClick={() => dmCtx.set(isDark ? Theme.Light : Theme.Dark)} icon={<FontAwesomeIcon icon={icon} />} />;
-};
+import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
 
 const Logo = () => <img src='assets/images/argo-icon-color-square.png' style={{width: '37px', height: '37px', margin: '0 12px'}} alt='Argo Logo' />;
 
@@ -61,12 +53,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                         <Button icon={<FontAwesomeIcon icon={faBook} />} style={{marginRight: '10px'}} />
                     </a>
                 </Tooltip>
-                <span style={{marginRight: '7px'}}>
-                    <Tooltip title='Toggle Dark Mode'>
-                        <ThemeToggle />
-                    </Tooltip>
-                </span>
-                <ThemeDiv className='rollouts-header__namespace'>
+                <div className='rollouts-header__namespace'>
                     <div className='rollouts-header__label'>NAMESPACE</div>
                     {(namespaceInfo.availableNamespaces || []).length == 0 ? (
                         <Input value={namespaceInfo.namespace} disabled={true} style={{color: 'black', cursor: 'default', backgroundColor: 'white'}} />
@@ -85,7 +72,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                             value={nsInput}
                         />
                     )}
-                </ThemeDiv>
+                </div>
             </div>
         </header>
     );
