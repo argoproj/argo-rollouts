@@ -50,13 +50,17 @@ message ALBTrafficRouting {
   // RootService references the service in the ingress to the controller should add the action to
   optional string rootService = 3;
 
-  // AdditionalForwardConfig allows to specify further settings on the ForwaredConfig
-  // +optional
-  optional StickinessConfig stickinessConfig = 5;
-
   // AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller
   // +optional
   optional string annotationPrefix = 4;
+
+  // StickinessConfig refers to the duration-based stickiness of the target groups associated with an `Ingress`
+  // +optional
+  optional StickinessConfig stickinessConfig = 5;
+
+  // Ingresses refers to the name of an `Ingress` resource in the same namespace as the `Rollout` in a multi ingress scenario
+  // +optional
+  repeated string ingresses = 6;
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
