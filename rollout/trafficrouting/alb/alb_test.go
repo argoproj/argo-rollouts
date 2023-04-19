@@ -704,7 +704,6 @@ func TestErrorPatchingMultiIngress(t *testing.T) {
 
 type fakeAWSClient struct {
 	targetGroups             []aws.TargetGroupMeta
-	loadBalancer             *elbv2types.LoadBalancer
 	loadBalancers            []*elbv2types.LoadBalancer
 	targetHealthDescriptions []elbv2types.TargetHealthDescription
 }
