@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
-	"github.com/argoproj/argo-rollouts/test/cmd/sample-trafficrouter-plugin/internal/plugin"
+	"github.com/argoproj/argo-rollouts/test/cmd/trafficrouter-plugin-sample/internal/plugin"
 	goPlugin "github.com/hashicorp/go-plugin"
 	log "github.com/sirupsen/logrus"
 )
