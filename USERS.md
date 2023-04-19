@@ -11,6 +11,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Calm](https://www.calm.com/)
 1. [Codefresh](https://codefresh.io/)
 1. [Credit Karma](https://creditkarma.com/)
+1. [DaoCloud](https://daocloud.io)
 1. [Databricks](https://github.com/databricks)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
 1. [Farfetch](https://www.farfetch.com/)
@@ -44,4 +45,3 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Ubie](https://ubie.life/)
 1. [VISITS Technologies](https://visits.world/en)
 1. [Yotpo](https://www.yotpo.com/)
-1. [DaoCloud](https://daocloud.io)
