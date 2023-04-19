@@ -529,6 +529,7 @@ func TestServiceInheritPortsFromRS(t *testing.T) {
 	assert.NotNil(t, exCtx.templateServices["bar"])
 	assert.Equal(t, exCtx.templateServices["bar"].Name, "foo-bar")
 	assert.Equal(t, exCtx.templateServices["bar"].Spec.Ports[0].Port, int32(80))
+	assert.Equal(t, exCtx.templateServices["bar"].Spec.Ports[0].Name, "testport")
 }
 
 func TestServiceNameSet(t *testing.T) {
