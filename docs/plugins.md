@@ -151,5 +151,5 @@ for the plugin to use. This will probably affect traffic router plugins more tha
 
 There are two sample plugins within the argo-rollouts repo that you can use as a reference for creating your own plugin.
 
-* [Sample Metrics Plugin](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/sample-metrics-plugin)
-* [Sample Traffic Router Plugin](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/sample-trafficrouter-plugin)
+* [Metrics Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/metrics-plugin-sample)
+* [Traffic Router Plugin Sample](https://github.com/argoproj/argo-rollouts/tree/master/test/cmd/trafficrouter-plugin-sample)
