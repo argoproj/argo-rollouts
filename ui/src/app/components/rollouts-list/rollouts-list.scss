@@ -16,6 +16,11 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
         margin: 0 auto;
     }
 
+    &__search {
+        width: 100%;
+        font-size: 15px;
+    }
+
     &__rollouts-container {
         padding: 20px;
         display: flex;
@@ -89,7 +94,7 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
 
     &__toolbar {
         width: 100%;
-        padding-top: 1.5em;
+        padding: 1em 0;
         background-color: white;
         border-bottom: 1px solid white;
 
@@ -111,48 +116,30 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
         flex-shrink: 0;
         margin-bottom: 1.5em;
         border-radius: 5px;
+        background-color: white;
+        box-shadow: 1px 2px 2px rgba(0, 0, 0, 0.05);
+        border: 1px solid $argo-color-gray-4;
+        z-index: 0;
+
+        &:hover,
+        &--selected {
+            border-color: $argo-running-color;
+        }
 
         &__pods {
             margin-bottom: 1em;
         }
 
-        &__background {
-            background-color: white;
-            box-shadow: 1px 2px 2px rgba(0, 0, 0, 0.05);
-            border: 1px solid $argo-color-gray-4;
-
-            border-radius: 5px;
-            &--dark {
-                border-color: $silver-lining;
-                box-shadow: 1px 2px 3px 1px $space;
-                background: none;
-            }
-        }
-
-        &:hover > &__background,
-        &--selected > &__background {
-            transform: scale(1.01);
-            border-color: $sherbert;
-        }
-
-        &--dark:hover > &__background,
-        &--dark#{&}--selected > &__background {
-            border-color: $spray-tan;
-        }
-
         &--dark {
             color: $dull-shine;
-        }
-
-        &__container {
-            position: relative;
-            display: block;
-            z-index: 2;
+            border-color: $silver-lining;
+            box-shadow: 1px 2px 3px 1px $space;
+            background: none;
         }
 
         &__refresh {
             &:hover {
-                color: $sherbert;
+                color: $argo-running-color;
             }
         }
 
@@ -169,10 +156,8 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
             color: $argo-color-gray-8;
             display: flex;
             align-items: center;
-            font-weight: 500;
-            font-size: 18px;
-            border-bottom: 1px solid $argo-color-gray-4;
-            padding-bottom: 1em;
+            font-weight: 600;
+            font-size: 20px;
             margin-bottom: 1em;
         }
 
@@ -181,9 +166,11 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
             border-bottom: 1px solid $silver-lining;
         }
         &__actions {
+            position: relative;
             display: flex;
             align-items: center;
             margin-top: 1.5em;
+            z-index: 10 !important;
         }
     }
 }

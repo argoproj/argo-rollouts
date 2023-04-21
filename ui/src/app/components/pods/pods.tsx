@@ -1,10 +1,14 @@
-import {Menu, ThemeDiv, Tooltip, WaitFor, InfoItem} from 'argo-ui/v2';
 import * as React from 'react';
 import * as moment from 'moment';
 import {Duration, Ticker} from 'argo-ui';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
 import './pods.scss';
+import {Dropdown, MenuProps, Tooltip} from 'antd';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {IconDefinition, faCheck, faCircleNotch, faClipboard, faExclamationTriangle, faQuestionCircle, faTimes} from '@fortawesome/free-solid-svg-icons';
+import {EllipsisMiddle} from '../ellipsis-middle/ellipsis-middle';
+import {InfoItem} from '../info-item/info-item';
 
 export enum PodStatus {
     Pending = 'pending',
@@ -36,52 +40,6 @@ export const ParsePodStatus = (status: string): PodStatus => {
     }
 };
 
-export const PodIcon = (props: {status: string; customIcon?: string}) => {
-    const {status, customIcon} = props;
-    let icon;
-    let spin = false;
-    if (status.startsWith('Init:')) {
-        icon = 'fa-circle-notch';
-        spin = true;
-    }
-    if (status.startsWith('Signal:') || status.startsWith('ExitCode:')) {
-        icon = 'fa-times';
-    }
-    if (status.endsWith('Error') || status.startsWith('Err')) {
-        icon = 'fa-exclamation-triangle';
-    }
-
-    const className = ParsePodStatus(status);
-
-    if (customIcon) icon = customIcon;
-    else
-        switch (className) {
-            case PodStatus.Pending:
-                icon = 'fa-circle-notch';
-                spin = true;
-                break;
-            case PodStatus.Success:
-                icon = 'fa-check';
-                break;
-            case PodStatus.Failed:
-                icon = 'fa-times';
-                break;
-            case PodStatus.Warning:
-                icon = 'fa-exclamation-triangle';
-                break;
-            default:
-                spin = false;
-                icon = 'fa-question-circle';
-                break;
-        }
-
-    return (
-        <ThemeDiv className={`pod-icon pod-icon--${className}`}>
-            <i className={`fa ${icon} ${spin ? 'fa-spin' : ''}`} />
-        </ThemeDiv>
-    );
-};
-
 export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRevisions?: boolean}) => {
     const {replicaSets} = props;
     if (!replicaSets || replicaSets.length < 1) {
@@ -106,60 +64,119 @@ export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRe
 export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boolean}) => {
     const rsName = props.rs.objectMeta.name;
     return (
-        <ThemeDiv className='pods'>
+        <div className='pods'>
             {rsName && (
-                <ThemeDiv className='pods__header'>
-                    <span style={{marginRight: '5px'}}>{rsName}</span> <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
-                    {props.showRevision && <div style={{marginLeft: 'auto'}}>Revision {props.rs.revision}</div>}
-                    {props.rs.scaleDownDeadline && (
-                        <div style={{marginLeft: 'auto'}}>
-                            <Ticker>
-                                {(now) => {
-                                    const time = moment(props.rs.scaleDownDeadline).diff(now.toDate(), 'second');
-                                    return time <= 0 ? null : (
-                                        <Tooltip
-                                            content={
-                                                <span>
-                                                    Scaledown in <Duration durationMs={time} />
-                                                </span>
-                                            }>
-                                            <InfoItem content={(<Duration durationMs={time} />) as any} icon='fa fa-clock'></InfoItem>
-                                        </Tooltip>
-                                    );
-                                }}
-                            </Ticker>
-                        </div>
-                    )}
-                </ThemeDiv>
+                <Tooltip title={rsName}>
+                    <div className='pods__header'>
+                        <EllipsisMiddle suffixCount={10} style={{marginRight: '5px', flexShrink: 1, width: props.showRevision ? '250px' : '100%'}}>
+                            {rsName}
+                        </EllipsisMiddle>
+                        <ReplicaSetStatusIcon status={props.rs.status as ReplicaSetStatus} />
+                        {props.showRevision && <div style={{marginLeft: 'auto', flexShrink: 0}}>Revision {props.rs.revision}</div>}
+                        {props.rs.scaleDownDeadline && (
+                            <div style={{marginLeft: 'auto'}}>
+                                <Ticker>
+                                    {(now) => {
+                                        const time = moment(props.rs.scaleDownDeadline).diff(now.toDate(), 'second');
+                                        return time <= 0 ? null : (
+                                            <Tooltip
+                                                title={
+                                                    <span>
+                                                        Scaledown in <Duration durationMs={time} />
+                                                    </span>
+                                                }>
+                                                <InfoItem content={(<Duration durationMs={time} />) as any} icon='fa fa-clock'></InfoItem>
+                                            </Tooltip>
+                                        );
+                                    }}
+                                </Ticker>
+                            </div>
+                        )}
+                    </div>
+                </Tooltip>
             )}
 
             {props.rs.pods && props.rs.pods.length > 0 && (
-                <ThemeDiv className='pods__container'>
-                    <WaitFor loading={(props.rs.pods || []).length < 1}>
-                        {props.rs.pods.map((pod, i) => (
-                            <PodWidget
-                                key={pod.objectMeta?.uid}
-                                name={pod.objectMeta?.name}
-                                status={pod.status}
-                                tooltip={
-                                    <div>
-                                        <div>Status: {pod.status}</div>
-                                        <div>{pod.objectMeta?.name}</div>
-                                    </div>
-                                }
-                            />
-                        ))}
-                    </WaitFor>
-                </ThemeDiv>
+                <div className='pods__container'>
+                    {(props.rs?.pods || []).map((pod, i) => (
+                        <PodWidget
+                            key={pod.objectMeta?.uid}
+                            name={pod.objectMeta?.name}
+                            status={pod.status}
+                            tooltip={
+                                <div>
+                                    <div>Status: {pod.status}</div>
+                                    <div>{pod.objectMeta?.name}</div>
+                                </div>
+                            }
+                        />
+                    ))}
+                </div>
             )}
-        </ThemeDiv>
+        </div>
     );
 };
 
-export const PodWidget = ({name, status, tooltip, customIcon}: {name: string; status: string; tooltip: React.ReactNode; customIcon?: string}) => (
-    <Menu items={[{label: 'Copy Name', action: () => navigator.clipboard.writeText(name), icon: 'fa-clipboard'}]}>
-        <Tooltip content={tooltip}>
-            <PodIcon status={status} customIcon={customIcon} />
-        </Tooltip>
-    </Menu>
-);
+const CopyMenu = (name: string): MenuProps['items'] => {
+    return [
+        {
+            key: 1,
+            label: (
+                <div onClick={() => navigator.clipboard.writeText(name)}>
+                    <FontAwesomeIcon icon={faClipboard} style={{marginRight: '5px'}} /> Copy Name
+                </div>
+            ),
+        },
+    ];
+};
+
+export const PodWidget = ({name, status, tooltip, customIcon}: {name: string; status: string; tooltip: React.ReactNode; customIcon?: IconDefinition}) => {
+    let icon: IconDefinition;
+    let spin = false;
+    if (status.startsWith('Init:')) {
+        icon = faCircleNotch;
+        spin = true;
+    }
+    if (status.startsWith('Signal:') || status.startsWith('ExitCode:')) {
+        icon = faTimes;
+    }
+    if (status.endsWith('Error') || status.startsWith('Err')) {
+        icon = faExclamationTriangle;
+    }
+
+    const className = ParsePodStatus(status);
+
+    if (customIcon) {
+        icon = customIcon;
+    } else {
+        switch (className) {
+            case PodStatus.Pending:
+                icon = faCircleNotch;
+                spin = true;
+                break;
+            case PodStatus.Success:
+                icon = faCheck;
+                break;
+            case PodStatus.Failed:
+                icon = faTimes;
+                break;
+            case PodStatus.Warning:
+                icon = faExclamationTriangle;
+                break;
+            default:
+                spin = false;
+                icon = faQuestionCircle;
+                break;
+        }
+    }
+
+    return (
+        <Dropdown menu={{items: CopyMenu(name)}} trigger={['click']}>
+            <Tooltip title={tooltip}>
+                <div className={`pod-icon pod-icon--${className}`}>
+                    <FontAwesomeIcon icon={icon} spin={spin} />
+                </div>
+            </Tooltip>
+        </Dropdown>
+    );
+};

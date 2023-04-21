@@ -1,6 +1,6 @@
-import {Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
 import './status-icon.scss';
+import {Tooltip} from 'antd';
 
 export enum RolloutStatus {
     Progressing = 'Progressing',
@@ -40,7 +40,11 @@ export const StatusIcon = (props: {status: RolloutStatus}): JSX.Element => {
             className = 'unknown';
         }
     }
-    return <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />;
+    return (
+        <Tooltip title={status}>
+            <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />
+        </Tooltip>
+    );
 };
 
 export enum ReplicaSetStatus {
@@ -84,7 +88,7 @@ export const ReplicaSetStatusIcon = (props: {status: ReplicaSetStatus}) => {
         }
     }
     return (
-        <Tooltip content={status}>
+        <Tooltip title={status}>
             <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />
         </Tooltip>
     );

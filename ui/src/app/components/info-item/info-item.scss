@@ -1,0 +1,80 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+.info-item {
+    background-color: $argo-color-gray-4;
+    border-radius: 3px;
+    border: 1px solid $argo-color-gray-5;
+    padding: 5px 7px;
+    margin-right: 5px;
+    color: $argo-color-gray-8;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+
+    &--lightweight {
+        border: none;
+        background: none;
+        font-weight: 500;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    &--dark {
+        background-color: $fog;
+        border: 1px solid $silver-lining;
+        color: $dull-shine;
+    }
+
+    &--colored {
+        background-color: $sherbert;
+        border: 1px solid $sherbert;
+        color: white;
+    }
+
+    &--dark#{&}--colored {
+        background-color: $spray-tan;
+        border: 1px solid $sherbert;
+        color: white;
+    }
+
+    &--canary {
+        background-color: $canary;
+        border: 1px solid $canary;
+        color: $space;
+    }
+
+    &--bluegreen {
+        background-color: $sea;
+        border: 1px solid $sea;
+        color: white;
+    }
+
+    &--monospace {
+        font-family: ui-monospace, Menlo, Monaco, 'Cascadia Mono', 'Segoe UI Mono', 'Roboto Mono', 'Oxygen Mono', 'Ubuntu Monospace', 'Source Code Pro', 'Fira Mono',
+            'Droid Sans Mono', 'Courier New', monospace;
+        font-size: 14px;
+    }
+
+    &--row {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+        label {
+            margin-right: auto;
+            padding-right: 5px;
+        }
+        .info-item {
+            margin: 0.25em 0;
+            margin-left: 5px;
+        }
+
+        &__container {
+            margin-left: auto;
+            display: flex;
+            min-width: 0;
+            padding-left: 25px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+    }
+}
