@@ -37,7 +37,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
                 <Logo />
                 <div>
                     <div className='rollouts-header__title'>
-                        <img src='/assets/images/argologo.svg' alt='Argo Text Logo' style={{filter: 'invert(100%)', height: '1em'}} />
+                        <img src='assets/images/argologo.svg' alt='Argo Text Logo' style={{filter: 'invert(100%)', height: '1em'}} />
                     </div>
                     <div className='rollouts-header__label'>Rollouts {version}</div>
                 </div>
