@@ -357,8 +357,8 @@ func (s *AWSSuite) TestAlbHeaderRouteMultiIngress() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			assertAlbActionDoesNotExistMultiIngress(t, s, "header-route")
-			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "canary-service", 0)
-			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "stable-service", 100)
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "canary-multi-ingress-service", 0)
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "stable-multi-ingress-service", 100)
 		}).
 		When().
 		UpdateSpec().
@@ -367,8 +367,8 @@ func (s *AWSSuite) TestAlbHeaderRouteMultiIngress() {
 		Then().
 		Assert(func(t *fixtures.Then) {
 			assertAlbActionDoesNotExistMultiIngress(t, s, "header-route")
-			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "canary-service", 20)
-			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "stable-service", 80)
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "canary-multi-ingress-service", 20)
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "stable-multi-ingress-service", 80)
 		}).
 		When().
 		PromoteRollout().
@@ -376,9 +376,9 @@ func (s *AWSSuite) TestAlbHeaderRouteMultiIngress() {
 		Sleep(5 * time.Second).
 		Then().
 		Assert(func(t *fixtures.Then) {
-			assertAlbActionServiceWeightMultiIngress(t, s, "header-route", "canary-service", 100)
-			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "canary-service", 20)
-			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "stable-service", 80)
+			assertAlbActionServiceWeightMultiIngress(t, s, "header-route", "canary-multi-ingress-service", 100)
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "canary-multi-ingress-service", 20)
+			assertAlbActionServiceWeightMultiIngress(t, s, "action1", "stable-multi-ingress-service", 80)
 		}).
 		When().
 		PromoteRollout().

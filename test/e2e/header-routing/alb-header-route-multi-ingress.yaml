@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: canary-service
+  name: canary-multi-ingress-service
 spec:
   type: NodePort
   ports:
@@ -10,12 +10,12 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: alb-rollout
+    app: alb-multi-ingress-rollout
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: stable-service
+  name: stable-multi-ingress-service
 spec:
   type: NodePort
   ports:
@@ -24,7 +24,7 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: alb-rollout
+    app: alb-multi-ingress-rollout
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -70,14 +70,14 @@ spec:
   replicas: 5
   selector:
     matchLabels:
-      app: alb-rollout
+      app: alb-multi-ingress-rollout
   template:
     metadata:
       labels:
-        app: alb-rollout
+        app: alb-multi-ingress-rollout
     spec:
       containers:
-        - name: alb-rollout
+        - name: alb-multi-ingress-rollout
           image: "argoproj/rollouts-demo:yellow"
           ports:
             - name: http
@@ -86,8 +86,8 @@ spec:
   strategy:
     canary:
       scaleDownDelaySeconds: 5
-      stableService: stable-service
-      canaryService: canary-service
+      stableService: stable-multi-ingress-service
+      canaryService: canary-multi-ingress-service
       trafficRouting:
         managedRoutes:
           - name: header-route
