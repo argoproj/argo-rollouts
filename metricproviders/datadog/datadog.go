@@ -164,13 +164,12 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 
 	value, status, err := p.parseResponse(metric, response, apiVersion)
-	if status != v1alpha1.AnalysisPhaseFailed && err != nil {
+	if status == v1alpha1.AnalysisPhaseError && err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
+	} else if err != nil {
+		metricutil.MarkMeasurementMessage(measurement, err)
 	}
 
-	if status == v1alpha1.AnalysisPhaseFailed {
-		measurement.Message = err.Error()
-	}
 	measurement.Value = value
 	measurement.Phase = status
 	finishedTime := timeutil.MetaNow()
