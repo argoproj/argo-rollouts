@@ -1,4 +1,3 @@
-import {ActionButton, EffectDiv, formatTimestamp, InfoItemProps, InfoItemRow, ThemeDiv, Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
 import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {IconForTag} from '../../shared/utils/utils';
@@ -6,6 +5,21 @@ import {PodWidget, ReplicaSets} from '../pods/pods';
 import {ImageInfo, parseImages} from './rollout';
 import './rollout.scss';
 import '../pods/pods.scss';
+import {ConfirmButton} from '../confirm-button/confirm-button';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faChartBar, faChevronCircleDown, faChevronCircleUp, faUndoAlt} from '@fortawesome/free-solid-svg-icons';
+import {Button, Tooltip} from 'antd';
+import moment = require('moment');
+import {InfoItemProps, InfoItemRow} from '../info-item/info-item';
+
+function formatTimestamp(ts: string): string {
+    const inputFormat = 'YYYY-MM-DD HH:mm:ss Z z';
+    const m = moment(ts, inputFormat);
+    if (!ts || !m.isValid()) {
+        return 'Never';
+    }
+    return m.format('MMM D YYYY [at] hh:mm:ss');
+}
 
 export interface Revision {
     number: string;
@@ -24,7 +38,7 @@ const ImageItems = (props: {images: ImageInfo[]}) => {
                 if (imageItems.length === 0) {
                     imageItems = [];
                 }
-                return <InfoItemRow key={img.image} label={<ThemeDiv className={`image image--${img.color || 'unknown'}`}>{img.image}</ThemeDiv>} items={imageItems} />;
+                return <InfoItemRow key={img.image} label={<div className={`image image--${img.color || 'unknown'}`}>{img.image}</div>} items={imageItems} />;
             })}
         </div>
     );
@@ -41,31 +55,29 @@ interface RevisionWidgetProps {
 export const RevisionWidget = (props: RevisionWidgetProps) => {
     const {revision, initCollapsed} = props;
     const [collapsed, setCollapsed] = React.useState(initCollapsed);
-    const icon = collapsed ? 'fa-chevron-circle-down' : 'fa-chevron-circle-up';
+    const icon = collapsed ? faChevronCircleDown : faChevronCircleUp;
     const images = parseImages(revision.replicaSets);
+    const hasPods = (revision.replicaSets || []).some((rs) => rs.pods?.length > 0);
     return (
-        <EffectDiv key={revision.number} className='revision'>
-            <ThemeDiv className='revision__header'>
+        <div key={revision.number} className='revision'>
+            <div className='revision__header'>
                 Revision {revision.number}
                 <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
                     {!props.current && props.rollback && (
-                        <ActionButton
-                            action={() => props.rollback(Number(revision.number))}
-                            label='ROLLBACK'
-                            icon='fa-undo-alt'
-                            style={{fontSize: '13px'}}
-                            indicateLoading
-                            shouldConfirm
-                        />
+                        <ConfirmButton
+                            onClick={() => props.rollback(Number(revision.number))}
+                            type='default'
+                            icon={<FontAwesomeIcon icon={faUndoAlt} style={{marginRight: '5px'}} />}
+                            style={{fontSize: '13px', marginRight: '10px'}}>
+                            Rollback
+                        </ConfirmButton>
                     )}
-                    <ThemeDiv className='revision__header__button' onClick={() => setCollapsed(!collapsed)}>
-                        <i className={`fa ${icon}`} />
-                    </ThemeDiv>
+                    {hasPods && <FontAwesomeIcon icon={icon} className='revision__header__button' onClick={() => setCollapsed(!collapsed)} />}
                 </div>
-            </ThemeDiv>
-            <ThemeDiv className='revision__images'>
+            </div>
+            <div className='revision__images'>
                 <ImageItems images={images} />
-            </ThemeDiv>
+            </div>
 
             {!collapsed && (
                 <React.Fragment>
@@ -79,7 +91,7 @@ export const RevisionWidget = (props: RevisionWidgetProps) => {
                     )}
                 </React.Fragment>
             )}
-        </EffectDiv>
+        </div>
     );
 };
 
@@ -88,7 +100,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
     const [selection, setSelection] = React.useState<RolloutAnalysisRunInfo>(null);
 
     return (
-        <ThemeDiv className='analysis'>
+        <div className='analysis'>
             <div className='analysis-header'>Analysis Runs</div>
             <div className='analysis__runs'>
                 {analysisRuns.map((ar) => {
@@ -97,7 +109,7 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                     return (
                         <Tooltip
                             key={ar.objectMeta?.name}
-                            content={
+                            title={
                                 <React.Fragment>
                                     <div>
                                         <b>Name:</b> {ar.objectMeta.name}
@@ -116,10 +128,9 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                 className={`analysis__runs-action ${
                                     ar.status === 'Running' ? 'analysis--pending' : ar.status === 'Successful' ? 'analysis--success' : 'analysis--failure'
                                 }`}>
-                                <ActionButton
-                                    action={() => (selection?.objectMeta.name === ar.objectMeta.name ? setSelection(null) : setSelection(ar))}
-                                    label={`Analysis ${temp[len - 2] + '-' + temp[len - 1]}`}
-                                />
+                                <Button onClick={() => (selection?.objectMeta.name === ar.objectMeta.name ? setSelection(null) : setSelection(ar))}>
+                                    {`Analysis ${temp[len - 2] + '-' + temp[len - 1]}`}
+                                </Button>
                             </div>
                         </Tooltip>
                     );
@@ -149,13 +160,13 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                                     <div>MetricName: {job.metricName}</div>
                                                 </div>
                                             }
-                                            customIcon='fa-chart-bar'
+                                            customIcon={faChartBar}
                                         />
                                     );
                                 })}
                             </div>
                             <Tooltip
-                                content={selection?.metrics
+                                title={selection?.metrics
                                     .filter((metric) => metric.name === selection.jobs[0].metricName)
                                     .map((metric) => {
                                         return (
@@ -212,13 +223,13 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                                                     <div>MetricName: {nonJob.metricName}</div>
                                                 </div>
                                             }
-                                            customIcon='fa-chart-bar'
+                                            customIcon={faChartBar}
                                         />
                                     );
                                 })}
                             </div>
                             <Tooltip
-                                content={selection?.metrics
+                                title={selection?.metrics
                                     .filter((metric) => metric.name === selection.nonJobInfo[0].metricName)
                                     .map((metric) => {
                                         return (
@@ -260,6 +271,6 @@ const AnalysisRunWidget = (props: {analysisRuns: RolloutAnalysisRunInfo[]}) => {
                     )}
                 </React.Fragment>
             )}
-        </ThemeDiv>
+        </div>
     );
 };
