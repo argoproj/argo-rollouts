@@ -11208,6 +11208,17 @@ spec:
                         x-kubernetes-int-or-string: true
                       postPromotionAnalysis:
                         properties:
+                          analysisRunMetadata:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                            type: object
                           args:
                             items:
                               properties:
@@ -11265,6 +11276,17 @@ spec:
                         type: object
                       prePromotionAnalysis:
                         properties:
+                          analysisRunMetadata:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                            type: object
                           args:
                             items:
                               properties:
@@ -11352,6 +11374,17 @@ spec:
                         type: integer
                       analysis:
                         properties:
+                          analysisRunMetadata:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                            type: object
                           args:
                             items:
                               properties:
@@ -11485,6 +11518,17 @@ spec:
                           properties:
                             analysis:
                               properties:
+                                analysisRunMetadata:
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
                                 args:
                                   items:
                                     properties:

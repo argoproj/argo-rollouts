@@ -457,8 +457,14 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 		return nil, err
 	}
 	run.Labels = labels
+	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
+		run.Labels[k] = v
+	}
 	run.Annotations = map[string]string{
 		annotations.RevisionAnnotation: revision,
+	}
+	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
+		run.Annotations[k] = v
 	}
 	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(c.rollout, controllerKind)}
 	return run, nil

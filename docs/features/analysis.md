@@ -804,6 +804,26 @@ spec:
         limit: 20
 ```
 
+### Define custom Labels/Annotations for AnalysisRun
+
+If you would like to annotate/label the `AnalysisRun` with the custom labels your can do it by specifying 
+`analysisRunMetadata` field.
+
+```yaml hl_lines="9 10 11"
+kind: Rollout
+spec:
+...
+  steps:
+  - analysis:
+      templates:
+      - templateName: my-template
+      analysisRunMetadata:
+        labels:
+          my-custom-label: label-value
+        annotations:
+          my-custom-annotation: annotation-value
+```
+
 ### Measurements Retention for Experiments
 
 If an experiment wants to retain more results of its analysis metrics, it simply needs to specify the 

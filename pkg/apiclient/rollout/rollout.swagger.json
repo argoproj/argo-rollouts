@@ -568,6 +568,26 @@
       },
       "title": "AnalysisRunArgument argument to add to analysisRun"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunMetadata": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Labels Additional labels to add to the AnalysisRun\n+optional"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Annotations additional annotations to add to the AnalysisRun\n+optional"
+        }
+      },
+      "title": "AnalysisRunMetadata extra labels to add to the AnalysisRun"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStrategy": {
       "type": "object",
       "properties": {
@@ -1225,6 +1245,10 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MeasurementRetention"
           },
           "title": "MeasurementRetention object contains the settings for retaining the number of measurements during the analysis\n+patchMergeKey=metricName\n+patchStrategy=merge\n+optional"
+        },
+        "analysisRunMetadata": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunMetadata",
+          "title": "AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns\n+optional"
         }
       },
       "title": "RolloutAnalysis defines a template that is used to create a analysisRun"
