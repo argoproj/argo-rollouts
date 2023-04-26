@@ -424,6 +424,10 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	if roCtx.newRollout != nil {
 		c.writeBackToInformer(roCtx.newRollout)
 	}
+	roCtx.recorder.Eventf(r, record.EventOptions{
+		EventType:   "Normal",
+		EventReason: "RolloutReconciled",
+	}, "Rollout reconciled: %s/%s", roCtx.rollout.Namespace, roCtx.rollout.Name)
 	return nil
 }
 
