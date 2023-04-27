@@ -1,26 +1,13 @@
-@import 'node_modules/argo-ui/v2/styles/colors';
+@import "node_modules/argo-ui/v2/styles/colors";
 
 .revision {
     padding: 15px;
     margin-bottom: 1em;
     background: none;
 
-    &__background {
-        background: $argo-color-gray-2;
-        border: 1px solid $argo-color-gray-4;
-        border-radius: 5px;
-    }
-
-    &--dark > &__background {
-        border: none;
-        background: $slate;
-    }
-
-    &:hover > &__background {
-        transform: scale(1.02);
-        box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
-    }
-
+    background: $argo-color-gray-1;
+    border-radius: 5px;
+    
     &__header {
         display: flex;
         align-items: center;
@@ -40,39 +27,36 @@
 }
 
 .steps {
-    width: 250px;
+    width: 300px;
     flex-shrink: 0;
-    max-height: 500px;
     overflow-y: auto;
 
     &__step {
         padding: 15px 18px;
 
-        &__background {
-            border-radius: 10px;
-            border: 1px solid $argo-color-gray-4;
-            &--dark {
-                border: 1px solid $silver-lining;
-            }
+        border-radius: 10px;
+        border: 1px solid $argo-color-gray-4;
+        &--dark {
+            border: 1px solid $silver-lining;
         }
 
-        &:hover > &__background {
+        &:hover {
             border: 1px solid $sherbert;
         }
 
-        &--complete > &__background {
+        &--complete {
             border: 2px solid $argo-success-color;
         }
 
-        &--complete:hover > &__background {
+        &--complete:hover {
             border: 2px solid $argo-success-color;
         }
 
-        &--current > &__background {
+        &--current {
             border: 2px solid $sherbert;
         }
 
-        &--current:hover > &__background {
+        &--current:hover {
             border: 2px solid $sherbert;
         }
 
@@ -105,6 +89,7 @@
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                font-weight: 600;
             }
 
             &-title {
@@ -112,20 +97,6 @@
                 padding-bottom: 4px;
                 font-size: 14px;
             }
-
-            &-value {
-                font-weight: 600;
-                padding-bottom: 4px;
-                border-bottom: 1px solid $argo-color-gray-4;
-                &:last-child {
-                    padding-bottom: -8px;
-                    border-bottom: none;
-                }
-            }
-        }
-
-        &:hover > &__background {
-            transform: scale(1.02);
         }
     }
 
@@ -163,9 +134,8 @@
 }
 
 .info {
-    border: 1px solid $argo-color-gray-4;
     border-radius: 5px;
-    padding: 20px;
+    padding: 15px;
     background-color: white;
     height: max-content;
     box-sizing: border-box;
@@ -217,27 +187,23 @@
             }
 
             .action-button {
-                font-size: '10px';
+                font-size: "10px";
                 line-height: 1;
-                border: '1px solid';
-                padding: '8px 8px 8px 10px';
-                border-radius: '12px';
-                color: 'white';
+                border: "1px solid";
+                padding: "8px 8px 8px 10px";
+                border-radius: "12px";
+                color: "white";
                 margin-top: 4px;
             }
 
             &.analysis--success .action-button:hover {
-                .action-button__background {
-                    background-color: seagreen;
-                    border-color: seagreen;
-                }
+                background-color: seagreen;
+                border-color: seagreen;
             }
 
             &.analysis--failure .action-button:hover {
-                .action-button__background {
-                    background-color: red;
-                    border-color: red;
-                }
+                background-color: red;
+                border-color: red;
             }
         }
     }
@@ -362,6 +328,7 @@
     &__toolbar {
         box-sizing: border-box;
         font-size: 14px;
+        font-weight: 600;
         display: flex;
         align-items: center;
         padding: 0 10px;
@@ -386,7 +353,7 @@
     }
 
     &__revisions {
-        width: 550px;
+        width: 100%;
     }
 
     &__body {

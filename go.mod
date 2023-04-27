@@ -6,10 +6,10 @@ require (
 	github.com/antonmedv/expr v1.12.5
 	github.com/argoproj/notifications-engine v0.4.0
 	github.com/argoproj/pkg v0.13.6
-	github.com/aws/aws-sdk-go-v2 v1.17.8
+	github.com/aws/aws-sdk-go-v2 v1.18.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.21
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.25.9
-	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.19.9
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.19.10
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bombsimon/logrusr/v4 v4.0.0
 	github.com/evanphx/json-patch/v5 v5.6.0
@@ -24,7 +24,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/newrelic/newrelic-client-go v1.1.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/client_golang v1.15.0
 	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/common v0.42.0
 	github.com/prometheus/common/sigv4 v0.1.0
@@ -71,7 +71,7 @@ require (
 	github.com/google/go-github/v41 v41.0.0 // indirect
 	github.com/google/go-github/v45 v45.2.0 // indirect
 	github.com/matryer/is v1.4.0 // indirect
-	github.com/russross/blackfriday v1.5.2 // indirect
+	github.com/russross/blackfriday v1.6.0 // indirect
 )
 
 require (
@@ -84,8 +84,8 @@ require (
 	github.com/aws/aws-sdk-go v1.44.116 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.20 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.2 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.32 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.26 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.33 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.27 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.33 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.26 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.12.8 // indirect
@@ -114,7 +114,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-cmp v0.5.9
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -157,7 +157,7 @@ require (
 	github.com/opsgenie/opsgenie-go-sdk-v2 v1.2.13 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/slack-go/slack v0.12.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect

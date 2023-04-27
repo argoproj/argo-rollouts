@@ -40,7 +40,7 @@ kind: Secret
 metadata:
   name: datadog
 type: Opaque
-data:
+stringData:
   address: https://api.datadoghq.com
   api-key: <datadog-api-key>
   app-key: <datadog-app-key>

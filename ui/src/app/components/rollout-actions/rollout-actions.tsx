@@ -2,8 +2,11 @@ import * as React from 'react';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 import {formatTimestamp} from '../../shared/utils/utils';
-import {ActionButton, ActionButtonProps} from 'argo-ui/v2';
 import {RolloutStatus} from '../status-icon/status-icon';
+import {ConfirmButton} from '../confirm-button/confirm-button';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faArrowCircleUp, faChevronCircleUp, faExclamationCircle, faRedoAlt, faSync} from '@fortawesome/free-solid-svg-icons';
+import {IconProp} from '@fortawesome/fontawesome-svg-core';
 
 export enum RolloutAction {
     Restart = 'Restart',
@@ -13,19 +16,28 @@ export enum RolloutAction {
     PromoteFull = 'PromoteFull',
 }
 
+interface ActionData {
+    label: string;
+    icon: IconProp;
+    action: (body: any, namespace: string, name: string) => Promise<any>;
+    tooltip?: string;
+    disabled?: boolean;
+    shouldConfirm?: boolean;
+}
+
 export const RolloutActionButton = (props: {action: RolloutAction; rollout: RolloutInfo; callback?: Function; indicateLoading: boolean; disabled?: boolean}) => {
     const api = React.useContext(RolloutAPIContext);
     const namespaceCtx = React.useContext(NamespaceContext);
 
     const restartedAt = formatTimestamp(props.rollout.restartedAt || '');
-    const isDeploying = props.rollout.status === RolloutStatus.Progressing || props.rollout.status === RolloutStatus.Paused
+    const isDeploying = props.rollout.status === RolloutStatus.Progressing || props.rollout.status === RolloutStatus.Paused;
 
-    const actionMap = new Map<RolloutAction, ActionButtonProps & {body?: any}>([
+    const actionMap = new Map<RolloutAction, ActionData & {body?: any}>([
         [
             RolloutAction.Restart,
             {
                 label: 'RESTART',
-                icon: 'fa-sync',
+                icon: faSync,
                 action: api.rolloutServiceRestartRollout,
                 tooltip: restartedAt === 'Never' ? 'Never restarted' : `Last restarted ${restartedAt}`,
                 shouldConfirm: true,
@@ -35,7 +47,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             RolloutAction.Retry,
             {
                 label: 'RETRY',
-                icon: 'fa-redo-alt',
+                icon: faRedoAlt,
                 action: api.rolloutServiceRetryRollout,
                 disabled: props.rollout.status !== RolloutStatus.Degraded,
                 shouldConfirm: true,
@@ -45,7 +57,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             RolloutAction.Abort,
             {
                 label: 'ABORT',
-                icon: 'fa-exclamation-circle',
+                icon: faExclamationCircle,
                 action: api.rolloutServiceAbortRollout,
                 disabled: !isDeploying,
                 shouldConfirm: true,
@@ -55,7 +67,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             RolloutAction.Promote,
             {
                 label: 'PROMOTE',
-                icon: 'fa-chevron-circle-up',
+                icon: faChevronCircleUp,
                 action: api.rolloutServicePromoteRollout,
                 body: {full: false},
                 disabled: !isDeploying,
@@ -66,7 +78,7 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             RolloutAction.PromoteFull,
             {
                 label: 'PROMOTE-FULL',
-                icon: 'fa-arrow-circle-up',
+                icon: faArrowCircleUp,
                 action: api.rolloutServicePromoteRollout,
                 body: {full: true},
                 disabled: !isDeploying,
@@ -77,17 +89,27 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
 
     const ap = actionMap.get(props.action);
 
+    const [loading, setLoading] = React.useState(false);
+
     return (
-        <ActionButton
-            {...ap}
-            action={() => {
-                ap.action(ap.body || {}, namespaceCtx.namespace, props.rollout.objectMeta?.name || '');
+        <ConfirmButton
+            style={{margin: '0 5px'}}
+            skipconfirm={!ap.shouldConfirm}
+            type='primary'
+            onClick={async (e) => {
+                setLoading(true);
+                await ap.action(ap.body || {}, namespaceCtx.namespace, props.rollout.objectMeta?.name || '');
                 if (props.callback) {
-                    props.callback();
+                    await props.callback();
                 }
+                setLoading(false);
             }}
-            indicateLoading={props.indicateLoading}
-        />
+            disabled={ap.disabled}
+            loading={loading}
+            tooltip={ap.tooltip}
+            icon={<FontAwesomeIcon icon={ap.icon} style={{marginRight: '5px'}} />}>
+            {props.action}
+        </ConfirmButton>
     );
 };
 

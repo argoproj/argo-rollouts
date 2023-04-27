@@ -225,7 +225,7 @@ test-e2e: install-devtools-local
 
 .PHONY: test-unit
  test-unit: install-devtools-local
-	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v ./test/cmd/sample-metrics-plugin`
+	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v ./test/cmd/metrics-plugin-sample`
 
 
 .PHONY: coverage
@@ -284,9 +284,9 @@ checksums:
 # https://www.jetbrains.com/help/go/attach-to-running-go-processes-with-debugger.html
 .PHONY: build-sample-metric-plugin-debug
 build-sample-metric-plugin-debug:
-	go build -gcflags="all=-N -l" -o metric-plugin test/cmd/sample-metrics-plugin/main.go
+	go build -gcflags="all=-N -l" -o metric-plugin test/cmd/metrics-plugin-sample/main.go
 
 .PHONY: build-sample-traffic-plugin-debug
 build-sample-traffic-plugin-debug:
-	go build -gcflags="all=-N -l" -o traffic-plugin test/cmd/sample-trafficrouter-plugin/main.go
+	go build -gcflags="all=-N -l" -o traffic-plugin test/cmd/trafficrouter-plugin-sample/main.go
 

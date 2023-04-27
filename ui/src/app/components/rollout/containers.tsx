@@ -1,7 +1,10 @@
-import {ActionButton, Autocomplete, InfoItem, ThemeDiv, useInput} from 'argo-ui/v2';
 import * as React from 'react';
 import {RolloutContainerInfo} from '../../../models/rollout/generated';
 import {ImageInfo, ReactStatePair} from './rollout';
+import {AutoComplete, Button, Input} from 'antd';
+import {ConfirmButton} from '../confirm-button/confirm-button';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faExclamationCircle, faPencilAlt, faSave, faTimes} from '@fortawesome/free-solid-svg-icons';
 
 interface ContainersWidgetProps {
     containers: RolloutContainerInfo[];
@@ -25,25 +28,28 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
     return (
         <React.Fragment>
             <div style={{display: 'flex', alignItems: 'center', height: '2em'}}>
-                <ThemeDiv className='info__title' style={{marginBottom: '0'}}>
+                <div className='info__title' style={{marginBottom: '0'}}>
                     Containers
-                </ThemeDiv>
+                </div>
 
                 {interactive &&
                     (interactive?.editState[0] ? (
                         <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
-                            <ActionButton
-                                icon='fa-times'
-                                action={() => {
+                            <Button
+                                style={{marginRight: '10px'}}
+                                danger
+                                icon={<FontAwesomeIcon icon={faTimes} />}
+                                onClick={() => {
                                     setEditing(false);
                                     setError(false);
                                 }}
                             />
-                            <ActionButton
-                                label={error ? 'ERROR' : 'SAVE'}
+                            <ConfirmButton
                                 style={{marginRight: 0}}
-                                icon={error ? 'fa-exclamation-circle' : 'fa-save'}
-                                action={() => {
+                                type='primary'
+                                icon={<FontAwesomeIcon icon={error ? faExclamationCircle : faSave} style={{marginRight: '5px'}} />}
+                                danger={error}
+                                onClick={() => {
                                     for (const container of Object.keys(inputs)) {
                                         const split = inputs[container].split(':');
                                         if (split.length > 1) {
@@ -57,13 +63,14 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
                                             setError(true);
                                         }
                                     }
-                                }}
-                                shouldConfirm
-                                indicateLoading={!error}
-                            />
+                                }}>
+                                {error ? 'ERROR' : 'SAVE'}
+                            </ConfirmButton>
                         </div>
                     ) : (
-                        <i className='fa fa-pencil-alt' onClick={() => setEditing(true)} style={{cursor: 'pointer', marginLeft: 'auto'}} />
+                        <Button onClick={() => setEditing(true)} style={{marginLeft: 'auto'}} icon={<FontAwesomeIcon icon={faPencilAlt} style={{marginRight: '5px'}} />}>
+                            Edit
+                        </Button>
                     ))}
             </div>
             {containers.map((c, i) => (
@@ -80,12 +87,11 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
                 />
             ))}
             {containers.length < 2 && (
-                <ThemeDiv className='containers__few'>
+                <div className='containers__few'>
                     <span style={{marginRight: '5px'}}>
                         <i className='fa fa-boxes' />
                     </span>
-                    Add more containers to fill this space!
-                </ThemeDiv>
+                </div>
             )}
         </React.Fragment>
     );
@@ -93,16 +99,31 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
 
 const ContainerWidget = (props: {container: RolloutContainerInfo; images: ImageInfo[]; setInput: (image: string) => void; editing: boolean}) => {
     const {container, editing} = props;
-    const [, , newImageInput] = useInput(container.image, (val) => props.setInput(val));
+    const [input, setInput] = React.useState(container.image);
+
+    const update = (val: string) => {
+        setInput(val);
+        props.setInput(val);
+    };
 
     return (
-        <div style={{margin: '1em 0', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap'}}>
-            <div style={{paddingRight: '20px'}}>{container.name}</div>
-            <div style={{width: '100%', display: 'flex', alignItems: 'center', height: '2em', minWidth: 0}}>
+        <div style={{margin: '1em 0', whiteSpace: 'nowrap'}}>
+            <div style={{marginBottom: '0.5em', fontWeight: 600, fontSize: '14px'}}>{container.name}</div>
+            <div style={{width: '100%', height: '2em', minWidth: 0}}>
                 {!editing ? (
-                    <InfoItem content={container.image} truncate={true} />
+                    <Input value={container.image} style={{width: '100%', cursor: 'default', color: 'black'}} disabled={true} />
                 ) : (
-                    <Autocomplete items={props.images.map((img) => img.image)} placeholder='New Image' {...newImageInput} />
+                    <AutoComplete
+                        allowClear={true}
+                        style={{width: '100%'}}
+                        options={props.images.map((img) => {
+                            return {label: img.image, value: img.image};
+                        })}
+                        placeholder='New Image'
+                        value={input}
+                        onSelect={update}
+                        onChange={update}
+                    />
                 )}
             </div>
         </div>
