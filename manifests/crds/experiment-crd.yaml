@@ -1720,6 +1720,8 @@ spec:
                               type: boolean
                             hostPID:
                               type: boolean
+                            hostUsers:
+                              type: boolean
                             hostname:
                               type: string
                             imagePullSecrets:
@@ -2467,12 +2469,21 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                  matchLabelKeys:
+                                    items:
+                                      type: string
+                                    type: array
+                                    x-kubernetes-list-type: atomic
                                   maxSkew:
                                     format: int32
                                     type: integer
                                   minDomains:
                                     format: int32
                                     type: integer
+                                  nodeAffinityPolicy:
+                                    type: string
+                                  nodeTaintsPolicy:
+                                    type: string
                                   topologyKey:
                                     type: string
                                   whenUnsatisfiable:
