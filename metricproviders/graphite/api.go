@@ -77,7 +77,7 @@ func (api APIClient) Query(quer string) ([]dataPoint, error) {
 
 func (api APIClient) trimQuery(q string) string {
 	space := regexp.MustCompile(`\s+`)
-	return space.ReplaceAllString(q, " ")
+	return space.ReplaceAllString(q, "")
 }
 
 type dataPoint struct {
