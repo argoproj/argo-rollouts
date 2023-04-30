@@ -106,7 +106,7 @@ func TestQuery(t *testing.T) {
 						%d
 					]
 				],
-				"target": " sumSeries(app.http.*.*.count)",
+				"target": "sumSeries(app.http.*.*.count)",
 				"tags": {
 					"aggregatedBy": "sum",
 					"name": "sumSeries(app.http.*.*.count)"
