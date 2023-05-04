@@ -321,26 +321,10 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 			//redact secret values from logs
 			logger := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
 
-			resultsLock.Lock()
-			metricResult := analysisutil.GetResult(run, t.metric.Name)
-			resultsLock.Unlock()
-
-			provider, err := c.newProvider(*logger, t.metric)
-			if err != nil {
-				log.Errorf("Error in getting metric provider :%v", err)
-				return err
-			}
-			if metricResult == nil {
-				metricResult = &v1alpha1.MetricResult{
-					Name:     t.metric.Name,
-					Phase:    v1alpha1.AnalysisPhaseRunning,
-					DryRun:   dryRunMetricsMap[t.metric.Name],
-					Metadata: provider.GetMetadata(t.metric),
-				}
-			}
-
 			var newMeasurement v1alpha1.Measurement
-			if err != nil {
+			provider, providerErr := c.newProvider(*logger, t.metric)
+			if providerErr != nil {
+				log.Errorf("Error in getting metric provider :%v", providerErr)
 				if t.incompleteMeasurement != nil {
 					newMeasurement = *t.incompleteMeasurement
 				} else {
@@ -348,7 +332,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 					newMeasurement.StartedAt = &startedAt
 				}
 				newMeasurement.Phase = v1alpha1.AnalysisPhaseError
-				newMeasurement.Message = err.Error()
+				newMeasurement.Message = providerErr.Error()
 			} else {
 				if t.incompleteMeasurement == nil {
 					newMeasurement = provider.Run(run, t.metric)
@@ -366,12 +350,28 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				}
 			}
 
+			resultsLock.Lock()
+			metricResult := analysisutil.GetResult(run, t.metric.Name)
+			resultsLock.Unlock()
+			if metricResult == nil {
+				metricResult = &v1alpha1.MetricResult{
+					Name:   t.metric.Name,
+					Phase:  v1alpha1.AnalysisPhaseRunning,
+					DryRun: dryRunMetricsMap[t.metric.Name],
+				}
+
+				if provider != nil && providerErr == nil {
+					metricResult.Metadata = provider.GetMetadata(t.metric)
+				}
+			}
+
 			if newMeasurement.Phase.Completed() {
 				logger.Infof("Measurement Completed. Result: %s", newMeasurement.Phase)
 				if newMeasurement.FinishedAt == nil {
 					finishedAt := timeutil.MetaNow()
 					newMeasurement.FinishedAt = &finishedAt
 				}
+
 				switch newMeasurement.Phase {
 				case v1alpha1.AnalysisPhaseSuccessful:
 					metricResult.Successful++

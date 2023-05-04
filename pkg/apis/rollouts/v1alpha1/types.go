@@ -578,6 +578,16 @@ type PodTemplateMetadata struct {
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,rep,name=annotations"`
 }
 
+// AnalysisRunMetadata extra labels to add to the AnalysisRun
+type AnalysisRunMetadata struct {
+	// Labels Additional labels to add to the AnalysisRun
+	// +optional
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,1,rep,name=labels"`
+	// Annotations additional annotations to add to the AnalysisRun
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,rep,name=annotations"`
+}
+
 // ReplicaSetSpecRef defines which RS that the experiment's template will use.
 type ReplicaSetSpecRef string
 
@@ -701,6 +711,9 @@ type RolloutAnalysis struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
+	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+	// +optional
+	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
 }
 
 type RolloutAnalysisTemplate struct {

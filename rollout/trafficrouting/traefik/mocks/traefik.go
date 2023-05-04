@@ -97,3 +97,11 @@ func (f *FakeClient) Namespace(string) dynamic.ResourceInterface {
 func (f *FakeDynamicClient) Resource(schema.GroupVersionResource) dynamic.NamespaceableResourceInterface {
 	return &FakeClient{}
 }
+
+func (f *FakeClient) Apply(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	return nil, nil
+}
+
+func (f *FakeClient) ApplyStatus(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions) (*unstructured.Unstructured, error) {
+	return nil, nil
+}

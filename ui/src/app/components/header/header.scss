@@ -2,13 +2,12 @@
 
 .rollouts-header {
     display: flex;
-    background: $slate;
+    background: #0f2733;
     color: white;
     align-items: center;
     padding: 10px 0;
 
     &__brand {
-        color: $shine;
         display: flex;
         align-items: center;
         text-decoration: none;
@@ -16,44 +15,18 @@
         -moz-user-select: none;
         -ms-user-select: none;
         user-select: none;
-    }
-
-    &__welcome {
-        position: absolute;
-        transform-origin: left;
-        display: block;
-        overflow: hidden;
-        width: 174px;
-        white-space: nowrap;
-        transition: transform 1s ease 1s, opacity 1s ease;
+        margin-left: 10px;
     }
 
     &__title {
-        position: absolute;
-        transform: translateX(174px);
-        transition: transform 500ms ease 750ms;
         display: flex;
         align-items: center;
-    }
-
-    h1 {
-        position: relative;
+        color: white !important;
+        font-weight: 600;
         font-size: 22px;
-        font-weight: 400;
-        margin: 0;
-        display: flex;
-        align-items: center;
+        width: 200px;
     }
-
-    h2 {
-        font-size: 18px;
-        color: $sherbert;
-        margin: 0;
-        margin-left: 10px;
-        flex-grow: 1;
-        white-space: nowrap;
-    }
-
+    
     &__info {
         margin-left: auto;
         display: flex;
@@ -61,13 +34,11 @@
     }
     &__label {
         color: $shine;
-        margin: 0 15px;
         margin: auto;
-        padding: 5px;
+        font-size: 10px;
+        font-weight: 600;
     }
     &__namespace {
-        color: black;
-        display: flex;
-        position: relative;
+        margin: 0 20px;
     }
 }

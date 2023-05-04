@@ -153,6 +153,17 @@ spec:
                         x-kubernetes-int-or-string: true
                       postPromotionAnalysis:
                         properties:
+                          analysisRunMetadata:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                            type: object
                           args:
                             items:
                               properties:
@@ -210,6 +221,17 @@ spec:
                         type: object
                       prePromotionAnalysis:
                         properties:
+                          analysisRunMetadata:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                            type: object
                           args:
                             items:
                               properties:
@@ -297,6 +319,17 @@ spec:
                         type: integer
                       analysis:
                         properties:
+                          analysisRunMetadata:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                            type: object
                           args:
                             items:
                               properties:
@@ -430,6 +463,17 @@ spec:
                           properties:
                             analysis:
                               properties:
+                                analysisRunMetadata:
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
                                 args:
                                   items:
                                     properties:
@@ -2456,6 +2500,8 @@ spec:
                         type: boolean
                       hostPID:
                         type: boolean
+                      hostUsers:
+                        type: boolean
                       hostname:
                         type: string
                       imagePullSecrets:
@@ -3203,12 +3249,21 @@ spec:
                                     type: string
                                   type: object
                               type: object
+                            matchLabelKeys:
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
                             maxSkew:
                               format: int32
                               type: integer
                             minDomains:
                               format: int32
                               type: integer
+                            nodeAffinityPolicy:
+                              type: string
+                            nodeTaintsPolicy:
+                              type: string
                             topologyKey:
                               type: string
                             whenUnsatisfiable:

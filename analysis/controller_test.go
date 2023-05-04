@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -315,6 +316,44 @@ func TestNoReconcileForAnalysisRunWithDeletionTimestamp(t *testing.T) {
 	f.objects = append(f.objects, ar)
 
 	f.run(getKey(ar, t))
+}
+
+func TestFailedToCreateProviderError(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	ar := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "metric1",
+					Provider: v1alpha1.MetricProvider{
+						Plugin: map[string]json.RawMessage{"mypluginns/myplugin": []byte(`{"invalid": "json"}`)},
+					},
+				},
+			},
+		},
+	}
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.objects = append(f.objects, ar)
+
+	c, i, k8sI := f.newController(noResyncPeriodFunc)
+	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
+		return nil, fmt.Errorf("failed to create provider")
+	}
+
+	pi := f.expectPatchAnalysisRunAction(ar)
+
+	f.runController(getKey(ar, t), true, false, c, i, k8sI)
+
+	updatedAr := f.getPatchedAnalysisRun(pi)
+
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, updatedAr.Status.MetricResults[0].Measurements[0].Phase)
+	assert.Equal(t, "failed to create provider", updatedAr.Status.MetricResults[0].Measurements[0].Message)
 }
 
 func TestRun(t *testing.T) {
