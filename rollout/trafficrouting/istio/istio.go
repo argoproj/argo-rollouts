@@ -1406,7 +1406,9 @@ func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes
 	for _, route := range httpRoutes {
 		var found bool = false
 		for _, managedRoute := range managedRoutes {
-			if route["name"] == managedRoute.Name {
+			// Not checking the cast success here is ok because it covers the case when the route has no name
+			name, _ := route["name"].(string)
+			if name == managedRoute.Name {
 				httpRoutesWithinManagedRoutes = append(httpRoutesWithinManagedRoutes, route)
 				found = true
 				break
@@ -1440,7 +1442,7 @@ func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1
 		for _, route := range httpRouteI {
 			r := route.(map[string]interface{})
 
-			// No need to check if exist because the empty string returned on cast failure is good for this check
+			// Not checking the cast success here is ok because it covers the case when the route has no name
 			name, _ := r["name"].(string)
 			// The second or clause is for the case when we have a route that has no name set because this field
 			// is optional in istio virtual service if there is only one route
