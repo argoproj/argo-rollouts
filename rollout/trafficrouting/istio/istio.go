@@ -1407,6 +1407,7 @@ func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes
 		var found bool = false
 		for _, managedRoute := range managedRoutes {
 			// Not checking the cast success here is ok because it covers the case when the route has no name
+			// when there is no name the cast return an empty string and will just not match the managed route
 			name, _ := route["name"].(string)
 			if name == managedRoute.Name {
 				httpRoutesWithinManagedRoutes = append(httpRoutesWithinManagedRoutes, route)
