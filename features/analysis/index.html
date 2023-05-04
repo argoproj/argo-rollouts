@@ -17,7 +17,7 @@
         <link rel="next" href="../../analysis/plugins/">
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.1.8">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.9">
     
     
       
@@ -25,10 +25,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ded33207.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.85bb2934.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.a0c5b2b5.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.a6bdf11c.min.css">
       
       
 
@@ -1060,6 +1060,13 @@
           <li class="md-nav__item">
   <a href="#measurements-retention-for-rollouts-analysis" class="md-nav__link">
     Measurements Retention for Rollouts Analysis
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#define-custom-labelsannotations-for-analysisrun" class="md-nav__link">
+    Define custom Labels/Annotations for AnalysisRun
   </a>
   
 </li>
@@ -2572,6 +2579,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#define-custom-labelsannotations-for-analysisrun" class="md-nav__link">
+    Define custom Labels/Annotations for AnalysisRun
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#measurements-retention-for-experiments" class="md-nav__link">
     Measurements Retention for Experiments
   </a>
@@ -3414,6 +3428,22 @@ merged, and their latest twenty measurements get retained instead of the default
 </span><span class="hll"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">metricName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.*</span>
 </span><span class="hll"><span class="w">        </span><span class="nt">limit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
 </span></code></pre></div>
+<h3 id="define-custom-labelsannotations-for-analysisrun">Define custom Labels/Annotations for AnalysisRun<a class="headerlink" href="#define-custom-labelsannotations-for-analysisrun" title="Permanent link">&para;</a></h3>
+<p>If you would like to annotate/label the <code>AnalysisRun</code> with the custom labels your can do it by specifying 
+<code>analysisRunMetadata</code> field.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="nn">...</span>
+<span class="w">  </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">analysis</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">templates</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">templateName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-template</span>
+<span class="w">      </span><span class="nt">analysisRunMetadata</span><span class="p">:</span>
+<span class="hll"><span class="w">        </span><span class="nt">labels</span><span class="p">:</span>
+</span><span class="hll"><span class="w">          </span><span class="nt">my-custom-label</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">label-value</span>
+</span><span class="hll"><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
+</span><span class="w">          </span><span class="nt">my-custom-annotation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">annotation-value</span>
+</code></pre></div>
 <h3 id="measurements-retention-for-experiments">Measurements Retention for Experiments<a class="headerlink" href="#measurements-retention-for-experiments" title="Permanent link">&para;</a></h3>
 <p>If an experiment wants to retain more results of its analysis metrics, it simply needs to specify the 
 <code>measurementRetention</code> field under its specs. In the following example, all the metrics from <code>analyze-job</code> matching the 
@@ -3711,7 +3741,7 @@ to handle these cases accordingly.</p>
     <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.208ed371.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.51198bba.min.js"></script>
+      <script src="../../assets/javascripts/bundle.fac441b0.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
