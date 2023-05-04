@@ -7,9 +7,9 @@ Install:
 
 * [docker](https://docs.docker.com/install/#supported-platforms)
 * [golang](https://golang.org/)
-* [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+* [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
 * [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
-* [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
+* [k3d](https://k3d.io/) recommended
 
 Kustomize is required for unit tests (`make test` is using it), so you [must install it](https://kubectl.docs.kubernetes.io/installation/kustomize/)
 locally if you wish to make code contributions to Argo Rollouts.
@@ -33,7 +33,7 @@ go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 Brew users can quickly install the lot:
 
 ```bash
-brew install go kubectl kustomize golangci-lint protobuf swagger-codegen
+brew install go kubectl kustomize golangci-lint protobuf swagger-codegen k3d
 ```
 
 Set up environment variables (e.g. is `~/.bashrc`):
@@ -85,6 +85,15 @@ running. The rollout controller can be started with the command:
 
 ```
 make start-e2e
+```
+
+Start and prepare your cluster for e2e tests:
+
+```
+k3d cluster create
+kubectl create ns argo-rollouts
+kubectl apply -k manifests/crds
+kubectl apply -f test/e2e/crds
 ```
 
 Then run the e2e tests:

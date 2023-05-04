@@ -35,7 +35,7 @@ kind: Secret
 metadata:
   name: wavefront-api-tokens
 type: Opaque
-data:
+stringData:
   example1.wavefront.com: <token1>
   example2.wavefront.com: <token2>
 ```

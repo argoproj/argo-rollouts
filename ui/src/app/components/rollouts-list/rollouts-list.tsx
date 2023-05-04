@@ -1,4 +1,3 @@
-import {Autocomplete, EffectDiv, InfoItemKind, InfoItemRow, Spinner, ThemeDiv, useAutocomplete, WaitFor} from 'argo-ui/v2';
 import * as React from 'react';
 import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import {Link, useHistory} from 'react-router-dom';
@@ -10,9 +9,20 @@ import {ParsePodStatus, PodStatus, ReplicaSets} from '../pods/pods';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import './rollouts-list.scss';
+import {AutoComplete, Tooltip} from 'antd';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faCircleNotch, faRedoAlt} from '@fortawesome/free-solid-svg-icons';
+import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 
 const useRolloutNames = (rollouts: RolloutInfo[]) => {
-    const parseNames = (rl: RolloutInfo[]) => (rl || []).map((r) => r.objectMeta?.name || '');
+    const parseNames = (rl: RolloutInfo[]) =>
+        (rl || []).map((r) => {
+            const name = r.objectMeta?.name || '';
+            return {
+                label: name,
+                value: name,
+            };
+        });
 
     const [rolloutNames, setRolloutNames] = React.useState(parseNames(rollouts));
     React.useEffect(() => {
@@ -28,26 +38,25 @@ export const RolloutsList = () => {
     const loading = rolloutsList.loading;
     const [filteredRollouts, setFilteredRollouts] = React.useState(rollouts);
     const [pos, nav, reset] = useNav(filteredRollouts.length);
-    const [searchString, setSearchString, searchInput] = useAutocomplete('');
+    const [searchString, setSearchString] = React.useState('');
     const searchParam = new URLSearchParams(window.location.search).get('q');
     React.useEffect(() => {
-      if (searchParam && searchParam != searchString) {
-        setSearchString(searchParam);
-      }
+        if (searchParam && searchParam != searchString) {
+            setSearchString(searchParam);
+        }
     }, []);
 
-    const {useKeybinding, keybindingState} = React.useContext(KeybindingContext);
+    const searchRef = React.useRef(null);
 
-    // ignore H key when typing
-    const hGroup = keybindingState.groupForKey[Key.H];
-    const showHelpMenu = keybindingState.groups[hGroup][Key.H].action;
-    keybindingState.groups[hGroup][Key.H].action = () => {
-        if (searchInput.inputref.current === document.activeElement) {
-            return false;
-        } else {
-            return showHelpMenu();
+    React.useEffect(() => {
+        if (searchRef.current) {
+            // or, if Input component in your ref, then use input property like:
+            // searchRef.current.input.focus();
+            searchRef.current.focus();
         }
-    };
+    }, [searchRef]);
+
+    const {useKeybinding} = React.useContext(KeybindingContext);
 
     useKeybinding(Key.RIGHT, () => nav(1));
     useKeybinding(Key.LEFT, () => nav(-1));
@@ -66,8 +75,8 @@ export const RolloutsList = () => {
 
     useKeybinding(Key.SLASH, () => {
         if (!searchString) {
-            if (searchInput.inputref.current) {
-                searchInput.inputref.current.focus();
+            if (searchRef) {
+                searchRef.current.focus();
             }
             return true;
         }
@@ -88,7 +97,9 @@ export const RolloutsList = () => {
             setFilteredRollouts(filtered);
         }
         if (searchString) {
-          history.replace(`/${namespaceCtx.namespace}?q=${searchString}`);
+            history.replace(`/${namespaceCtx.namespace}?q=${searchString}`);
+        } else {
+            history.replace(`/${namespaceCtx.namespace}`);
         }
     }, [searchString, rollouts]);
 
@@ -96,32 +107,35 @@ export const RolloutsList = () => {
 
     return (
         <div className='rollouts-list'>
-            <WaitFor loading={loading}>
-                {(rollouts || []).length > 0 ? (
-                    <React.Fragment>
-                        <ThemeDiv className='rollouts-list__toolbar'>
-                            <div className='rollouts-list__search-container'>
-                                <Autocomplete
-                                    items={rolloutNames}
-                                    className='rollouts-list__search'
-                                    placeholder='Search...'
-                                    style={{marginBottom: '1.5em'}}
-                                    onItemClick={(item) => history.push(`/rollout/${namespaceCtx.namespace}/${item}`)}
-                                    icon='fa-search'
-                                    {...searchInput}
-                                />
-                            </div>
-                        </ThemeDiv>
-                        <div className='rollouts-list__rollouts-container'>
-                            {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
-                                <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} deselect={() => reset()} />
-                            ))}
+            {loading ? (
+                <div style={{fontSize: '20px', padding: '20px', margin: '0 auto'}}>
+                    <FontAwesomeIcon icon={faCircleNotch} spin={true} style={{marginRight: '5px'}} />
+                    Loading...
+                </div>
+            ) : (rollouts || []).length > 0 ? (
+                <React.Fragment>
+                    <div className='rollouts-list__toolbar'>
+                        <div className='rollouts-list__search-container'>
+                            <AutoComplete
+                                placeholder='Filter...'
+                                className='rollouts-list__search'
+                                onSelect={(val) => history.push(`/rollout/${namespaceCtx.namespace}/${val}`)}
+                                options={rolloutNames}
+                                onChange={(val) => setSearchString(val)}
+                                value={searchString}
+                                ref={searchRef}
+                            />
                         </div>
-                    </React.Fragment>
-                ) : (
-                    <EmptyMessage namespace={namespaceCtx.namespace} />
-                )}
-            </WaitFor>
+                    </div>
+                    <div className='rollouts-list__rollouts-container'>
+                        {(filteredRollouts.sort((a, b) => (a.objectMeta.name < b.objectMeta.name ? -1 : 1)) || []).map((rollout, i) => (
+                            <RolloutWidget key={rollout.objectMeta?.uid} rollout={rollout} selected={i === pos} deselect={() => reset()} />
+                        ))}
+                    </div>
+                </React.Fragment>
+            ) : (
+                <EmptyMessage namespace={namespaceCtx.namespace} />
+            )}
         </div>
     );
 };
@@ -131,7 +145,7 @@ const EmptyMessage = (props: {namespace: string}) => {
         return <pre onClick={() => navigator.clipboard.writeText(props.children)}>{props.children}</pre>;
     };
     return (
-        <ThemeDiv className='rollouts-list__empty-message'>
+        <div className='rollouts-list__empty-message'>
             <h1>No Rollouts to display!</h1>
             <div style={{textAlign: 'center', marginBottom: '1em'}}>
                 <div>Make sure you are running the API server in the correct namespace. Your current namespace is: </div>
@@ -149,7 +163,7 @@ const EmptyMessage = (props: {namespace: string}) => {
                 </a>
                 .
             </div>
-        </ThemeDiv>
+        </div>
     );
 };
 
@@ -184,33 +198,33 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; deselect: () => void
     }, [watching, rollout]);
 
     return (
-        <EffectDiv className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`} innerref={ref}>
-            <Link to={`/rollout/${rollout.objectMeta?.namespace}/${rollout.objectMeta?.name}`} className='rollouts-list__widget__container'>
-                <WidgetHeader
-                    rollout={rollout}
-                    refresh={() => {
-                        subscribe(true);
-                        setTimeout(() => {
-                            subscribe(false);
-                        }, 1000);
-                    }}
+        <Link
+            to={`/rollout/${rollout.objectMeta?.namespace}/${rollout.objectMeta?.name}`}
+            className={`rollouts-list__widget ${props.selected ? 'rollouts-list__widget--selected' : ''}`}
+            ref={ref}>
+            <WidgetHeader
+                rollout={rollout}
+                refresh={() => {
+                    subscribe(true);
+                    setTimeout(() => {
+                        subscribe(false);
+                    }, 1000);
+                }}
+            />
+            <div className='rollouts-list__widget__body'>
+                <InfoItemRow
+                    label={'Strategy'}
+                    items={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? 'fa-palette' : 'fa-dove', kind: rollout.strategy.toLowerCase() as InfoItemKind}}
                 />
-                <ThemeDiv className='rollouts-list__widget__body'>
-                    <InfoItemRow
-                        label={'Strategy'}
-                        items={{content: rollout.strategy, icon: rollout.strategy === 'BlueGreen' ? 'fa-palette' : 'fa-dove', kind: rollout.strategy.toLowerCase() as InfoItemKind}}
-                    />
-                    {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: 'fa-weight'}} />}
-                </ThemeDiv>
-                <WaitFor loading={(rollout.replicaSets || []).length < 1} loader={<Spinner />}>
-                    <ReplicaSets replicaSets={rollout.replicaSets} showRevisions />
-                </WaitFor>
-                <div className='rollouts-list__widget__actions'>
-                    <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
-                    <RolloutActionButton action={RolloutAction.Promote} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
-                </div>
-            </Link>
-        </EffectDiv>
+                {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: 'fa-weight'}} />}
+            </div>
+            {(rollout.replicaSets || []).length < 1 && <ReplicaSets replicaSets={rollout.replicaSets} showRevisions />}
+
+            <div className='rollouts-list__widget__actions'>
+                <RolloutActionButton action={RolloutAction.Restart} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
+                <RolloutActionButton action={RolloutAction.Promote} rollout={rollout} callback={() => subscribe(true)} indicateLoading />
+            </div>
+        </Link>
     );
 };
 
@@ -224,15 +238,19 @@ const WidgetHeader = (props: {rollout: RolloutInfo; refresh: () => void}) => {
         <header>
             {rollout.objectMeta?.name}
             <span style={{marginLeft: 'auto', display: 'flex', alignItems: 'center'}}>
-                <i
-                    className={`rollouts-list__widget__refresh fa ${loading ? 'fa-circle-notch' : 'fa-redo-alt'} ${loading ? 'fa-spin' : ''}`}
-                    style={{marginRight: '10px', fontSize: '14px'}}
-                    onClick={(e) => {
-                        props.refresh();
-                        setLoading(true);
-                        e.preventDefault();
-                    }}
-                />
+                <Tooltip title='Refresh'>
+                    <FontAwesomeIcon
+                        icon={loading ? faCircleNotch : faRedoAlt}
+                        spin={loading}
+                        className={`rollouts-list__widget__refresh`}
+                        style={{marginRight: '10px', fontSize: '14px'}}
+                        onClick={(e) => {
+                            props.refresh();
+                            setLoading(true);
+                            e.preventDefault();
+                        }}
+                    />
+                </Tooltip>
                 <StatusIcon status={rollout.status as RolloutStatus} />
             </span>
         </header>
