@@ -1443,10 +1443,11 @@ func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1
 			r := route.(map[string]interface{})
 
 			// Not checking the cast success here is ok because it covers the case when the route has no name
-			name, _ := r["name"].(string)
+			name, rNameOK := r["name"].(string)
+			routeMapName, RMapNameOK := routeMap["name"].(string)
 			// The second or clause is for the case when we have a route that has no name set because this field
 			// is optional in istio virtual service if there is only one route
-			if name == routeMap["name"] || (name == "" && routeMap["name"] == nil) {
+			if name == routeMapName || (!rNameOK && !RMapNameOK) {
 				orderedInterfaceVSVCHTTPRoutes = append(orderedInterfaceVSVCHTTPRoutes, route)
 			}
 		}
