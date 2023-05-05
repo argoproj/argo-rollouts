@@ -675,6 +675,27 @@ func TestHttpReconcileHeaderRouteWithExtra(t *testing.T) {
 	_, found = r2["corsPolicy"]
 	assert.True(t, found)
 
+	r.RemoveManagedRoutes()
+	iVirtualService, err = client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	routes, found, err = unstructured.NestedSlice(iVirtualService.Object, "spec", "http")
+	assert.NoError(t, err)
+	assert.True(t, found)
+
+	r0 = routes[0].(map[string]interface{})
+	route, found = r0["route"].([]interface{})
+	assert.True(t, found)
+
+	port1 = route[0].(map[string]interface{})["destination"].(map[string]interface{})["port"].(map[string]interface{})["number"]
+	assert.True(t, port1 == float64(8443))
+
+	r2 = routes[1].(map[string]interface{})
+	_, found = r2["retries"]
+	assert.True(t, found)
+	_, found = r2["corsPolicy"]
+	assert.True(t, found)
+
 }
 
 func TestReconcileUpdateHeader(t *testing.T) {
