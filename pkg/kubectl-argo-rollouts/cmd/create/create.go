@@ -10,12 +10,12 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -54,7 +54,7 @@ const (
 	createAnalysisRunExample = `
   	# Create an AnalysisRun from a local AnalysisTemplate file
   	%[1]s create analysisrun --from-file my-analysis-template.yaml
-  
+
   	# Create an AnalysisRun from a AnalysisTemplate in the cluster
   	%[1]s create analysisrun --from my-analysis-template
 

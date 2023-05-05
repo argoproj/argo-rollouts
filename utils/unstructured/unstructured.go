@@ -3,10 +3,10 @@ package unstructured
 import (
 	"regexp"
 
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"

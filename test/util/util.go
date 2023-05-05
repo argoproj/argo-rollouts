@@ -3,11 +3,11 @@ package util
 import (
 	"os"
 
-	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
