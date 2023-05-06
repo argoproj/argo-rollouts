@@ -16,7 +16,7 @@ fi
 
 if [ ! -z "${SET_IMAGE_NAMESPACE}" ] || [ ! -z "${SET_IMAGE_TAG}" ]; then
   (cd ${SRCROOT}/manifests/base && kustomize edit set image quay.io/argoproj/argo-rollouts${SET_IMAGE_NAMESPACE}/argo-rollouts${SET_IMAGE_TAG})
-  (cd ${SRCROOT}/manifests/dashboard-install && kustomize edit set image quay.io/argoproj/kubectl-argo-rollouts${SET_IMAGE_NAMESPACE}${SET_IMAGE_TAG})
+  (cd ${SRCROOT}/manifests/dashboard-install && kustomize edit set image quay.io/argoproj/kubectl-argo-rollouts${SET_IMAGE_NAMESPACE}/kubectl-argo-rollouts${SET_IMAGE_TAG})
 fi
 
 kust_cmd="kustomize build --load-restrictor LoadRestrictionsNone"
