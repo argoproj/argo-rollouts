@@ -348,6 +348,12 @@ spec:
           analyses:
           - name : mann-whitney
             templateName: mann-whitney
+            # Metadata which will be attached to the AnalysisRun.
+            analysisRunMetadata:
+              labels:
+                app.service.io/analysisType: smoke-test
+              annotations:
+                link.argocd.argoproj.io/external-link: http://my-loggin-platform.com/pre-generated-link
 
       # Anti-affinity configuration between desired and previous ReplicaSet.
       # Only one must be specified.

@@ -2336,3 +2336,54 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	newConditions := updateConditionsPatch(*r2, progressingFalseAborted)
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
 }
+
+func TestCreateAnalysisRunWithCustomAnalysisRunMetadata(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+	at := analysisTemplate("bar")
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
+			AnalysisRunMetadata: v1alpha1.AnalysisRunMetadata{
+				Annotations: map[string]string{"testAnnotationKey": "testAnnotationValue"},
+				Labels:      map[string]string{"testLabelKey": "testLabelValue"},
+			},
+		},
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 10, 0, 10, false)
+	_, _ = newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.objects = append(f.objects, r2, at)
+
+	createdIndex := f.expectCreateAnalysisRunAction(ar)
+	f.expectUpdateReplicaSetAction(rs2)
+	_ = f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdAr := f.getCreatedAnalysisRun(createdIndex)
+	expectedArName := fmt.Sprintf("%s-%s-%s", r2.Name, rs2PodHash, "2")
+	assert.Equal(t, expectedArName, createdAr.Name)
+	assert.Equal(t, "testAnnotationValue", createdAr.Annotations["testAnnotationKey"])
+	assert.Equal(t, "testLabelValue", createdAr.Labels["testLabelKey"])
+}

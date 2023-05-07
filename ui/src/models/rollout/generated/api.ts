@@ -180,6 +180,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRun
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata {
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata
+     */
+    labels?: { [key: string]: string; };
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata
+     */
+    annotations?: { [key: string]: string; };
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy {
@@ -1037,6 +1056,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnal
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis
      */
     measurementRetention?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis
+     */
+    analysisRunMetadata?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata;
 }
 /**
  * 

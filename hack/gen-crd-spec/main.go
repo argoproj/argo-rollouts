@@ -13,11 +13,11 @@ import (
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
 	"github.com/blang/semver"
-	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kubeopenapiutil "k8s.io/kube-openapi/pkg/util"
 	spec "k8s.io/kube-openapi/pkg/validation/spec"
+	"sigs.k8s.io/yaml"
 )
 
 const metadataValidation = `properties:

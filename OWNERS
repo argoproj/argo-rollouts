@@ -1,6 +1,7 @@
 owners:
 - alexmt
 - jessesuen
+- zachaller
 
 approvers:
 - alexmt
@@ -8,7 +9,6 @@ approvers:
 - jessesuen
 - khhirani
 - leoluz
-- zachaller
 
 reviewers:
 - agrawroh
