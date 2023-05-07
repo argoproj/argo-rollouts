@@ -8,6 +8,11 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
   - name: test
     provider:
       job:
+        metadata:
+          annotations:
+            foo: bar # annotations defined here will be copied to the Job object
+          labels:
+            foo: bar # labels defined here will be copied to the Job object
         spec:
           backoffLimit: 1
           template:
