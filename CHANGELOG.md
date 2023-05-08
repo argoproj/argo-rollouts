@@ -1,4 +1,24 @@
 
+<a name="v1.5.0"></a>
+## [v1.5.0](https://github.com/argoproj/argo-rollouts/compare/v1.5.0-rc1...v1.5.0) (2023-05-05)
+
+### Chore
+
+* bump k8s deps to v0.25.8 ([#2712](https://github.com/argoproj/argo-rollouts/issues/2712))
+
+### Docs
+
+* fix link to plugins for traffic routers ([#2719](https://github.com/argoproj/argo-rollouts/issues/2719))
+* copy argo cd docs drop down fix ([#2731](https://github.com/argoproj/argo-rollouts/issues/2731))
+
+### Fix
+
+* istio dropping fields during removing of managed routes ([#2692](https://github.com/argoproj/argo-rollouts/issues/2692))
+* change logic of analysis run to better handle errors ([#2695](https://github.com/argoproj/argo-rollouts/issues/2695))
+* **controller:** Fix for rollouts getting stuck in loop ([#2689](https://github.com/argoproj/argo-rollouts/issues/2689))
+* **controller:** Add klog logrus bridge. Fixes [#2707](https://github.com/argoproj/argo-rollouts/issues/2707). ([#2701](https://github.com/argoproj/argo-rollouts/issues/2701))
+
+
 <a name="v1.5.0-rc1"></a>
 ## [v1.5.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.4.1...v1.5.0-rc1) (2023-03-27)
 
