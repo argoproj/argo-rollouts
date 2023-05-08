@@ -46,7 +46,7 @@ export PATH=$PATH:$GOPATH/bin
 Checkout the code:
 
 ```bash
-go get -u github.com/argoproj/argo-rollouts
+go get -u github.com/argoproj/argo-rollouts/...
 cd ~/go/src/github.com/argoproj/argo-rollouts
 ```
 
