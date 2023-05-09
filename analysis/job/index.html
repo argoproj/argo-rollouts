@@ -17,7 +17,7 @@
         <link rel="next" href="../web/">
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.10">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.11">
     
     
       
@@ -2260,6 +2260,11 @@ successful if the Job completes and had an exit code of zero, otherwise it is fa
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test</span>
 <span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">job</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">metadata</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">foo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bar</span><span class="w"> </span><span class="c1"># annotations defined here will be copied to the Job object</span>
+<span class="w">          </span><span class="nt">labels</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">foo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bar</span><span class="w"> </span><span class="c1"># labels defined here will be copied to the Job object</span>
 <span class="w">        </span><span class="nt">spec</span><span class="p">:</span>
 <span class="w">          </span><span class="nt">backoffLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 <span class="w">          </span><span class="nt">template</span><span class="p">:</span>
