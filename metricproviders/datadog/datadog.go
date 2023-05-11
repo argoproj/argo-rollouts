@@ -56,6 +56,10 @@ type datadogQuery struct {
 	QueryType  string                 `json:"type"`
 }
 
+type datadogRequest struct {
+	Data datadogQuery `json:"data"`
+}
+
 type datadogResponseV1 struct {
 	Series []struct {
 		Pointlist [][]float64 `json:"pointlist"`
@@ -182,17 +186,18 @@ func (p *Provider) createRequest(query string, apiVersion string, now int64, int
 
 		return &http.Request{Method: "GET"}, nil
 	} else if apiVersion == "v2" {
-		queryBody, err := json.Marshal(datadogQuery{
-			QueryType: "timeseries_request",
-			Attributes: datadogQueryAttributes{
-				From: now - interval,
-				To:   now,
-				Queries: []map[string]string{{
-					"data_source": "metrics",
-					"query":       query,
-				}},
-			},
-		})
+		queryBody, err := json.Marshal(datadogRequest{
+			Data: datadogQuery{
+				QueryType: "timeseries_request",
+				Attributes: datadogQueryAttributes{
+					From: now - interval,
+					To:   now,
+					Queries: []map[string]string{{
+						"data_source": "metrics",
+						"query":       query,
+					}},
+				},
+			}})
 		if err != nil {
 			return nil, fmt.Errorf("Could not parse your JSON request: %v", err)
 		}

@@ -245,15 +245,15 @@ func TestRunSuiteV2(t *testing.T) {
 					t.Errorf("\nreceived no bytes in request: %v", err)
 				}
 
-				var reqBody datadogQuery
+				var reqBody datadogRequest
 				err = json.Unmarshal(bodyBytes, &reqBody)
 				if err != nil {
 					t.Errorf("\nCould not parse JSON request body: %v", err)
 				}
 
-				actualQuery := reqBody.Attributes.Queries[0]["query"]
-				actualFrom := reqBody.Attributes.From
-				actualTo := reqBody.Attributes.To
+				actualQuery := reqBody.Data.Attributes.Queries[0]["query"]
+				actualFrom := reqBody.Data.Attributes.From
+				actualTo := reqBody.Data.Attributes.To
 
 				if actualQuery != "avg:kubernetes.cpu.user.total{*}" {
 					t.Errorf("\nquery expected avg:kubernetes.cpu.user.total{*} but got %s", actualQuery)
