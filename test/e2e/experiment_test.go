@@ -64,6 +64,11 @@ func (s *ExperimentSuite) TestRolloutWithExperimentAndAnalysis() {
 			assert.Equal(s.T(), rs1Hash, envVars[1].Value)
 			assert.Equal(s.T(), rs2Hash, envVars[0].Value)
 
+			// verify if labels and annotations from AnalysisTemplate's .spec.metrics[0].provider.job.metadata
+			// are added to the Job.metadata
+			assert.Equal(s.T(), "bar", job.GetLabels()["foo"])
+			assert.Equal(s.T(), "bar2", job.GetAnnotations()["foo2"])
+
 			// verify the `templates.XXXXX.podTemplateHash` variables are working
 			expRSCanaryHash := expRSCanary.Spec.Template.Labels[rov1.DefaultRolloutUniqueLabelKey]
 			expRSBaselineHash := expRSBaseline.Spec.Template.Labels[rov1.DefaultRolloutUniqueLabelKey]

@@ -105,6 +105,17 @@ message AnalysisRunList {
   repeated AnalysisRun items = 2;
 }
 
+// AnalysisRunMetadata extra labels to add to the AnalysisRun
+message AnalysisRunMetadata {
+  // Labels Additional labels to add to the AnalysisRun
+  // +optional
+  map<string, string> labels = 1;
+
+  // Annotations additional annotations to add to the AnalysisRun
+  // +optional
+  map<string, string> annotations = 2;
+}
+
 // AnalysisRunSpec is the spec for a AnalysisRun resource
 message AnalysisRunSpec {
   // Metrics contains the list of metrics to query as part of an analysis run
@@ -1158,6 +1169,10 @@ message RolloutAnalysis {
   // +patchStrategy=merge
   // +optional
   repeated MeasurementRetention measurementRetention = 4;
+
+  // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+  // +optional
+  optional AnalysisRunMetadata analysisRunMetadata = 5;
 }
 
 // RolloutAnalysisBackground defines a template that is used to create a background analysisRun

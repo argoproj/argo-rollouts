@@ -27,9 +27,11 @@ type APIClient struct {
 	logCTX log.Entry
 }
 
+var spaceRegex = regexp.MustCompile(`\s+`)
+
 // Query performs a Graphite API query with the query it's passed
 func (api APIClient) Query(quer string) ([]dataPoint, error) {
-	query := api.trimQuery(quer)
+	query := api.sanitizeQuery(quer)
 	u, err := url.Parse(fmt.Sprintf("./render?%s", query))
 	if err != nil {
 		return []dataPoint{}, err
@@ -68,12 +70,15 @@ func (api APIClient) Query(quer string) ([]dataPoint, error) {
 		return []dataPoint{}, err
 	}
 
+	if len(result) == 0 {
+		return []dataPoint{}, nil
+	}
+
 	return result[0].DataPoints, nil
 }
 
-func (api APIClient) trimQuery(q string) string {
-	space := regexp.MustCompile(`\s+`)
-	return space.ReplaceAllString(q, " ")
+func (api APIClient) sanitizeQuery(q string) string {
+	return spaceRegex.ReplaceAllLiteralString(q, "")
 }
 
 type dataPoint struct {

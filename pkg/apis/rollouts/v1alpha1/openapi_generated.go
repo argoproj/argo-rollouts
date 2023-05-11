@@ -36,6 +36,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun":                                     schema_pkg_apis_rollouts_v1alpha1_AnalysisRun(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument":                             schema_pkg_apis_rollouts_v1alpha1_AnalysisRunArgument(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunList":                                 schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata":                             schema_pkg_apis_rollouts_v1alpha1_AnalysisRunMetadata(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunSpec":                                 schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStatus":                               schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunStrategy":                             schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStrategy(ref),
@@ -399,6 +400,51 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunList(ref common.ReferenceCallb
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRun", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunMetadata(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AnalysisRunMetadata extra labels to add to the AnalysisRun",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels Additional labels to add to the AnalysisRun",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"annotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Annotations additional annotations to add to the AnalysisRun",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -3532,11 +3578,18 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysis(ref common.ReferenceCallb
 							},
 						},
 					},
+					"analysisRunMetadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DryRun", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MeasurementRetention", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DryRun", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MeasurementRetention", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate"},
 	}
 }
 
@@ -3621,6 +3674,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 							},
 						},
 					},
+					"analysisRunMetadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata"),
+						},
+					},
 					"startingStep": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StartingStep indicates which step the background analysis should start on If not listed, controller defaults to 0",
@@ -3632,7 +3692,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutAnalysisBackground(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DryRun", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MeasurementRetention", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunArgument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AnalysisRunMetadata", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DryRun", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MeasurementRetention", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RolloutAnalysisTemplate"},
 	}
 }
 
