@@ -190,8 +190,8 @@ func (p *Provider) createRequest(query string, apiVersion string, now int64, int
 			Data: datadogQuery{
 				QueryType: "timeseries_request",
 				Attributes: datadogQueryAttributes{
-					From: now - interval,
-					To:   now,
+					From: (now - interval) * 1000,
+					To:   now * 1000,
 					Queries: []map[string]string{{
 						"data_source": "metrics",
 						"query":       query,

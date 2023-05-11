@@ -259,14 +259,14 @@ func TestRunSuiteV2(t *testing.T) {
 					t.Errorf("\nquery expected avg:kubernetes.cpu.user.total{*} but got %s", actualQuery)
 				}
 
-				if actualFrom != unixNow()-test.expectedIntervalSeconds {
-					t.Errorf("\nfrom %d expected be equal to %d", actualFrom, unixNow()-test.expectedIntervalSeconds)
+				if actualFrom != (unixNow()-test.expectedIntervalSeconds)*1000 {
+					t.Errorf("\nfrom %d expected be equal to %d", actualFrom, (unixNow()-test.expectedIntervalSeconds)*1000)
 				} else if err != nil {
 					t.Errorf("\nfailed to parse from: %v", err)
 				}
 
-				if actualTo != unixNow() {
-					t.Errorf("\nto %d was expected be equal to %d", actualTo, unixNow())
+				if actualTo != unixNow()*1000 {
+					t.Errorf("\nto %d was expected be equal to %d", actualTo, unixNow()*1000)
 				} else if err != nil {
 					t.Errorf("\nfailed to parse to: %v", err)
 				}
