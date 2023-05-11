@@ -127,6 +127,8 @@ const (
 	RolloutAnalysisRunFailedReason = "AnalysisRunFailed"
 	// RolloutAnalysisRunFailedMessage is added in a rollout when the analysisRun owned by a rollout fails or errors out
 	RolloutAnalysisRunFailedMessage = "AnalysisRun '%s' owned by the Rollout '%q' failed."
+	
+	RolloutMetricFailedReason = "MetricFailed"
 
 	// RolloutExperimentFailedReason is added in a rollout when the analysisRun owned by a rollout fails to show any progress
 	RolloutExperimentFailedReason = "ExperimentFailed"
