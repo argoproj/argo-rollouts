@@ -956,9 +956,40 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Prometheus
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         Prometheus
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#utilizing-amazon-managed-prometheus" class="md-nav__link">
+    Utilizing Amazon Managed Prometheus
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -2237,6 +2268,21 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#utilizing-amazon-managed-prometheus" class="md-nav__link">
+    Utilizing Amazon Managed Prometheus
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -2283,6 +2329,19 @@
 <p>The example shows Istio metrics, but you can use any kind of metric available to your prometheus instance. We suggest
 you validate your <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/">PromQL expression</a> using the <a href="https://prometheus.io/docs/introduction/first_steps/#using-the-expression-browser">Prometheus GUI first</a>.</p>
 <p>See the <a href="../../features/analysis">Analysis Overview page</a> for more details on the available options.</p>
+<h2 id="utilizing-amazon-managed-prometheus">Utilizing Amazon Managed Prometheus<a class="headerlink" href="#utilizing-amazon-managed-prometheus" title="Permanent link">&para;</a></h2>
+<p>Amazon Managed Prometheus can be used as the prometheus data source for analysis. In order to do this the namespace where you analysis is running will have to have the appropriate <a href="https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-onboard-ingest-metrics-new-Prometheus.html#AMP-onboard-new-Prometheus-IRSA">IRSA attached</a> to allow for prometheus queries. Once you ensure the proper permissions are in place to access AMP, you can use an AMP workspace url in your <code>provider</code> block:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">provider</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">prometheus</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://aps-workspaces.$REGION.amazonaws.com/workspaces/$WORKSPACEID</span>
+<span class="w">    </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">      </span><span class="no">sum(irate(</span>
+<span class="w">        </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code!~&quot;5.*&quot;}[5m]</span>
+<span class="w">      </span><span class="no">)) /</span>
+<span class="w">      </span><span class="no">sum(irate(</span>
+<span class="w">        </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
+<span class="w">      </span><span class="no">))</span>
+</code></pre></div>
 <h1 id="additional-metadata">Additional Metadata<a class="headerlink" href="#additional-metadata" title="Permanent link">&para;</a></h1>
 <p>Any additional metadata from the Prometheus controller, like the resolved queries after substituting the template's
 arguments, etc. will appear under the <code>Metadata</code> map in the <code>MetricsResult</code> object of <code>AnalysisRun</code>.</p>
