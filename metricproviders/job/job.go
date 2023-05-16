@@ -79,18 +79,24 @@ func getJobIDSuffix(run *v1alpha1.AnalysisRun, metricName string) int {
 }
 
 func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) (*batchv1.Job, error) {
+	jobAnnotations := metric.Provider.Job.Metadata.GetAnnotations()
+	jobLabels := metric.Provider.Job.Metadata.GetLabels()
+	if jobAnnotations == nil {
+		jobAnnotations = make(map[string]string)
+	}
+	if jobLabels == nil {
+		jobLabels = make(map[string]string)
+	}
+	jobLabels[AnalysisRunUIDLabelKey] = string(run.UID)
+	jobAnnotations[AnalysisRunNameAnnotationKey] = run.Name
+	jobAnnotations[AnalysisRunMetricAnnotationKey] = metric.Name
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            newJobName(run, metric),
 			Namespace:       run.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)},
-			Annotations: map[string]string{
-				AnalysisRunNameAnnotationKey:   run.Name,
-				AnalysisRunMetricAnnotationKey: metric.Name,
-			},
-			Labels: map[string]string{
-				AnalysisRunUIDLabelKey: string(run.UID),
-			},
+			Annotations:     jobAnnotations,
+			Labels:          jobLabels,
 		},
 		Spec: metric.Provider.Job.Spec,
 	}

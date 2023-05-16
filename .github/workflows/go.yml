@@ -90,7 +90,7 @@ jobs:
           path: coverage.out
 
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@v3.1.3
+        uses: codecov/codecov-action@v3.1.4
         with:
           file: coverage.out
 

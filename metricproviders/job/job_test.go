@@ -122,6 +122,16 @@ func TestRun(t *testing.T) {
 	metric := run.Spec.Metrics[0]
 	metricsMetadata := p.GetMetadata(metric)
 	assert.Nil(t, metricsMetadata)
+	providerJobMetadataLabels := map[string]string{
+		"foo-label": "bar",
+	}
+	providerJobMetadataAnnotations := map[string]string{
+		"foo-annotation": "bar",
+	}
+	metric.Provider.Job.Metadata = metav1.ObjectMeta{
+		Labels:      providerJobMetadataLabels,
+		Annotations: providerJobMetadataAnnotations,
+	}
 
 	measurement := p.Run(run, metric)
 
@@ -138,6 +148,13 @@ func TestRun(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedName, jobs.Items[0].Name)
 	assert.Equal(t, string(run.UID), jobs.Items[0].ObjectMeta.Labels[AnalysisRunUIDLabelKey])
+	for labelKey, labelVal := range providerJobMetadataLabels {
+		assert.Equal(t, labelVal, jobs.Items[0].ObjectMeta.Labels[labelKey])
+	}
+	for annotationKey, annotationVal := range providerJobMetadataAnnotations {
+		assert.Equal(t, annotationVal, jobs.Items[0].ObjectMeta.Annotations[annotationKey])
+	}
+
 	expectedOwnerRef := []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)}
 	assert.Equal(t, expectedOwnerRef, jobs.Items[0].ObjectMeta.OwnerReferences)
 
