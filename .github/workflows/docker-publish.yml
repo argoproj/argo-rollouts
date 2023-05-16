@@ -31,7 +31,7 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: |
-            quay.io/34fathombelow/argo-rollouts
+            quay.io/argoproj/argo-rollouts
           tags: |
             type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
@@ -41,7 +41,7 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: |
-            quay.io/34fathombelow/kubectl-argo-rollouts
+            quay.io/argoproj/kubectl-argo-rollouts
           tags: |
             type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
