@@ -70,6 +70,8 @@ cd ~/go/src/github.com/argoproj/argo-rollouts
 go run ./cmd/rollouts-controller/main.go
 ```
 
+When running locally it will connect to whatever kubernetes cluster you have configured in your kubeconfig. You will need to make sure to install the Argo Rollout CRDs into your local cluster, and have the `argo-rollouts` namespace.
+
 ## Running Unit Tests
 
 To run unit tests:
