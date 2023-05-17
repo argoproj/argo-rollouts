@@ -2505,6 +2505,7 @@ go<span class="w"> </span>get<span class="w"> </span>-u<span class="w"> </span>g
 <div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>~/go/src/github.com/argoproj/argo-rollouts
 go<span class="w"> </span>run<span class="w"> </span>./cmd/rollouts-controller/main.go
 </code></pre></div>
+<p>When running locally it will connect to whatever kubernetes cluster you have configured in your kubeconfig. You will need to make sure to install the Argo Rollout CRDs into your local cluster, and have the <code>argo-rollouts</code> namespace.</p>
 <h2 id="running-unit-tests">Running Unit Tests<a class="headerlink" href="#running-unit-tests" title="Permanent link">&para;</a></h2>
 <p>To run unit tests:</p>
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span><span class="nb">test</span>
