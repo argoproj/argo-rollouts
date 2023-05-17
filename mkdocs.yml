@@ -129,7 +129,9 @@ nav:
 - Best Practices: best-practices.md
 - Migrating: migrating.md
 - FAQ: FAQ.md
-- Security: security.md
+- Security:
+  - Security Policy: security/security.md
+  - Verify Release Artifacts: security/signed-release-assets.md
 - Roadmap/Release Schedule: roadmap.md
 - Contributing:
   - Contribution Guide: CONTRIBUTING.md
