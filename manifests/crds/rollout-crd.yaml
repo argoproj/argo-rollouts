@@ -3352,6 +3352,8 @@ spec:
                     - fullName
                     - name
                     type: object
+                required:
+                - ingress
                 type: object
               albs:
                 items:
@@ -3364,11 +3366,11 @@ spec:
                           type: string
                         name:
                           type: string
-                      type: object
                       required:
-                        - arn
-                        - fullName
-                        - name
+                      - arn
+                      - fullName
+                      - name
+                      type: object
                     ingress:
                       type: string
                     loadBalancer:
@@ -3379,11 +3381,11 @@ spec:
                           type: string
                         name:
                           type: string
-                      type: object
                       required:
-                        - arn
-                        - fullName
-                        - name
+                      - arn
+                      - fullName
+                      - name
+                      type: object
                     stableTargetGroup:
                       properties:
                         arn:
@@ -3392,11 +3394,13 @@ spec:
                           type: string
                         name:
                           type: string
-                      type: object
                       required:
-                        - arn
-                        - fullName
-                        - name
+                      - arn
+                      - fullName
+                      - name
+                      type: object
+                  required:
+                  - ingress
                   type: object
                 type: array
               availableReplicas:

@@ -101,6 +101,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus
      */
     stableTargetGroup?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus
+     */
+    ingress?: string;
 }
 /**
  * 
@@ -1540,6 +1546,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStat
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
      */
     alb?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutStatus
+     */
+    albs?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ALBStatus>;
 }
 /**
  * 

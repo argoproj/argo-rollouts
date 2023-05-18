@@ -14558,6 +14558,8 @@ spec:
                     - fullName
                     - name
                     type: object
+                  ingress:
+                    type: string
                   loadBalancer:
                     properties:
                       arn:
@@ -14584,7 +14586,57 @@ spec:
                     - fullName
                     - name
                     type: object
+                required:
+                - ingress
                 type: object
+              albs:
+                items:
+                  properties:
+                    canaryTargetGroup:
+                      properties:
+                        arn:
+                          type: string
+                        fullName:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - arn
+                      - fullName
+                      - name
+                      type: object
+                    ingress:
+                      type: string
+                    loadBalancer:
+                      properties:
+                        arn:
+                          type: string
+                        fullName:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - arn
+                      - fullName
+                      - name
+                      type: object
+                    stableTargetGroup:
+                      properties:
+                        arn:
+                          type: string
+                        fullName:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - arn
+                      - fullName
+                      - name
+                      type: object
+                  required:
+                  - ingress
+                  type: object
+                type: array
               availableReplicas:
                 format: int32
                 type: integer

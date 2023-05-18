@@ -2330,6 +2330,11 @@ func (in *RolloutStatus) DeepCopyInto(out *RolloutStatus) {
 		*out = new(ALBStatus)
 		**out = **in
 	}
+	if in.ALBs != nil {
+		in, out := &in.ALBs, &out.ALBs
+		*out = make([]ALBStatus, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

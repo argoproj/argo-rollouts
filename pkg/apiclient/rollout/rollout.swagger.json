@@ -507,6 +507,9 @@
         },
         "stableTargetGroup": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AwsResourceRef"
+        },
+        "ingress": {
+          "type": "string"
         }
       }
     },
@@ -1606,6 +1609,13 @@
         "alb": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBStatus",
           "title": "/ ALB keeps information regarding the ALB and TargetGroups"
+        },
+        "albs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ALBStatus"
+          },
+          "title": "/ ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario"
         }
       },
       "title": "RolloutStatus is the status for a Rollout resource"

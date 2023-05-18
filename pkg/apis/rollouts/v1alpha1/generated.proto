@@ -37,6 +37,8 @@ message ALBStatus {
   optional AwsResourceRef canaryTargetGroup = 2;
 
   optional AwsResourceRef stableTargetGroup = 3;
+
+  optional string ingress = 4;
 }
 
 // ALBTrafficRouting configuration for ALB ingress controller to control traffic routing
@@ -1470,6 +1472,9 @@ message RolloutStatus {
 
   // / ALB keeps information regarding the ALB and TargetGroups
   optional ALBStatus alb = 25;
+
+  // / ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario
+  repeated ALBStatus albs = 26;
 }
 
 // RolloutStrategy defines strategy to apply during next rollout
