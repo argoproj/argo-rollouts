@@ -499,6 +499,7 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		newStatus: v1alpha1.RolloutStatus{
 			RestartedAt: rollout.Status.RestartedAt,
 			ALB:         rollout.Status.ALB,
+			ALBs:        rollout.Status.ALBs,
 		},
 		pauseContext: &pauseContext{
 			rollout: rollout,

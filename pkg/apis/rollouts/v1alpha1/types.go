@@ -935,6 +935,8 @@ type RolloutStatus struct {
 	WorkloadObservedGeneration string `json:"workloadObservedGeneration,omitempty" protobuf:"bytes,24,opt,name=workloadObservedGeneration"`
 	/// ALB keeps information regarding the ALB and TargetGroups
 	ALB *ALBStatus `json:"alb,omitempty" protobuf:"bytes,25,opt,name=alb"`
+	/// ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario
+	ALBs []ALBStatus `json:"albs,omitempty" protobuf:"bytes,26,opt,name=albs"`
 }
 
 // BlueGreenStatus status fields that only pertain to the blueGreen rollout
@@ -1007,6 +1009,7 @@ type ALBStatus struct {
 	LoadBalancer      AwsResourceRef `json:"loadBalancer,omitempty" protobuf:"bytes,1,opt,name=loadBalancer"`
 	CanaryTargetGroup AwsResourceRef `json:"canaryTargetGroup,omitempty" protobuf:"bytes,2,opt,name=canaryTargetGroup"`
 	StableTargetGroup AwsResourceRef `json:"stableTargetGroup,omitempty" protobuf:"bytes,3,opt,name=stableTargetGroup"`
+	Ingress           string         `json:"ingress" protobuf:"bytes,4,opt,name=ingress"`
 }
 
 type AwsResourceRef struct {

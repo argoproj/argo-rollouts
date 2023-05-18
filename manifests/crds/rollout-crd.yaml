@@ -3324,6 +3324,8 @@ spec:
                     - fullName
                     - name
                     type: object
+                  ingress:
+                    type: string
                   loadBalancer:
                     properties:
                       arn:
@@ -3351,6 +3353,52 @@ spec:
                     - name
                     type: object
                 type: object
+              albs:
+                items:
+                  properties:
+                    canaryTargetGroup:
+                      properties:
+                        arn:
+                          type: string
+                        fullName:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                      required:
+                        - arn
+                        - fullName
+                        - name
+                    ingress:
+                      type: string
+                    loadBalancer:
+                      properties:
+                        arn:
+                          type: string
+                        fullName:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                      required:
+                        - arn
+                        - fullName
+                        - name
+                    stableTargetGroup:
+                      properties:
+                        arn:
+                          type: string
+                        fullName:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                      required:
+                        - arn
+                        - fullName
+                        - name
+                  type: object
+                type: array
               availableReplicas:
                 format: int32
                 type: integer

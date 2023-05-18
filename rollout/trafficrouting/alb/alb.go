@@ -205,16 +205,25 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		// installed in the cluster we want to actually run the rest of the function, so we do not return if
 		// r.cfg.Rollout.Status.ALB is nil. However, if we should not verify, and we have already updated the status once
 		// we return early to avoid calling AWS apis.
-		if r.cfg.Rollout.Status.ALB != nil {
-			return nil, nil
+		if r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses != nil {
+			if r.cfg.Rollout.Status.ALBs != nil {
+				return nil, nil
+			}
+		} else {
+			if r.cfg.Rollout.Status.ALB != nil {
+				return nil, nil
+			}
 		}
 	}
 
+	//TODO Move this down
 	if r.cfg.Status.ALB == nil {
 		r.cfg.Status.ALB = &v1alpha1.ALBStatus{}
 	}
 
 	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
+		//TODO: is this the best way? or append() ?
+		r.cfg.Status.ALBs = make([]v1alpha1.ALBStatus, len(ingresses))
 		return r.VerifyWeightPerIngress(desiredWeight, ingresses, additionalDestinations...)
 	} else {
 		return r.VerifyWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress}, additionalDestinations...)
@@ -224,7 +233,23 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []string, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
 	var numVerifiedWeights int
 	numVerifiedWeights = 0
-	for _, ingress := range ingresses {
+
+	var multiIngress bool
+	if len(ingresses) > 1 {
+		multiIngress = true
+	} else {
+		multiIngress = false
+	}
+
+	for i, ingress := range ingresses {
+
+		//TODO
+		//Have 1 boolean at start for if ingresses > 1
+		//ingressIndex++
+		println("index: ", i)
+		println("ingresses: ", len(ingresses))
+		//TODO
+
 		ctx := context.TODO()
 		rollout := r.cfg.Rollout
 		ingressName := ingress
@@ -262,14 +287,31 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 				return pointer.BoolPtr(false), nil
 			}
 
-			r.cfg.Status.ALB.LoadBalancer.Name = *lb.LoadBalancerName
-			r.cfg.Status.ALB.LoadBalancer.ARN = *lb.LoadBalancerArn
-			if lbArnParts := strings.Split(*lb.LoadBalancerArn, "/"); len(lbArnParts) > 2 {
-				r.cfg.Status.ALB.LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
+			//TODO
+			if multiIngress {
+				r.cfg.Status.ALBs[i].Ingress = ingressName
+				r.cfg.Status.ALBs[i].LoadBalancer.Name = *lb.LoadBalancerName
+				r.cfg.Status.ALBs[i].LoadBalancer.ARN = *lb.LoadBalancerArn
 			} else {
-				r.cfg.Status.ALB.LoadBalancer.FullName = ""
+				r.cfg.Status.ALB.Ingress = ingressName
+				r.cfg.Status.ALB.LoadBalancer.Name = *lb.LoadBalancerName
+				r.cfg.Status.ALB.LoadBalancer.ARN = *lb.LoadBalancerArn
+			}
+			if lbArnParts := strings.Split(*lb.LoadBalancerArn, "/"); len(lbArnParts) > 2 {
+				if multiIngress {
+					r.cfg.Status.ALBs[i].LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
+				} else {
+					r.cfg.Status.ALB.LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
+				}
+			} else {
+				if multiIngress {
+					r.cfg.Status.ALBs[i].LoadBalancer.FullName = ""
+				} else {
+					r.cfg.Status.ALB.LoadBalancer.FullName = ""
+				}
 				r.log.Errorf("error parsing load balancer arn: '%s'", *lb.LoadBalancerArn)
 			}
+			//TODO
 
 			lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 			if err != nil {
@@ -279,12 +321,25 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 			logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
 			for _, tg := range lbTargetGroups {
 				if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
-					r.cfg.Status.ALB.CanaryTargetGroup.Name = *tg.TargetGroupName
-					r.cfg.Status.ALB.CanaryTargetGroup.ARN = *tg.TargetGroupArn
-					if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
-						r.cfg.Status.ALB.CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+					if multiIngress {
+						r.cfg.Status.ALBs[i].CanaryTargetGroup.Name = *tg.TargetGroupName
+						r.cfg.Status.ALBs[i].CanaryTargetGroup.ARN = *tg.TargetGroupArn
 					} else {
-						r.cfg.Status.ALB.CanaryTargetGroup.FullName = ""
+						r.cfg.Status.ALB.CanaryTargetGroup.Name = *tg.TargetGroupName
+						r.cfg.Status.ALB.CanaryTargetGroup.ARN = *tg.TargetGroupArn
+					}
+					if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
+						if multiIngress {
+							r.cfg.Status.ALBs[i].CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+						} else {
+							r.cfg.Status.ALB.CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+						}
+					} else {
+						if multiIngress {
+							r.cfg.Status.ALBs[i].CanaryTargetGroup.FullName = ""
+						} else {
+							r.cfg.Status.ALB.CanaryTargetGroup.FullName = ""
+						}
 						r.log.Errorf("error parsing canary target group arn: '%s'", *tg.TargetGroupArn)
 					}
 					if tg.Weight != nil {
@@ -311,12 +366,25 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 						}
 					}
 				} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
-					r.cfg.Status.ALB.StableTargetGroup.Name = *tg.TargetGroupName
-					r.cfg.Status.ALB.StableTargetGroup.ARN = *tg.TargetGroupArn
-					if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
-						r.cfg.Status.ALB.StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+					if multiIngress {
+						r.cfg.Status.ALBs[i].StableTargetGroup.Name = *tg.TargetGroupName
+						r.cfg.Status.ALBs[i].StableTargetGroup.ARN = *tg.TargetGroupArn
 					} else {
-						r.cfg.Status.ALB.StableTargetGroup.FullName = ""
+						r.cfg.Status.ALB.StableTargetGroup.Name = *tg.TargetGroupName
+						r.cfg.Status.ALB.StableTargetGroup.ARN = *tg.TargetGroupArn
+					}
+					if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
+						if multiIngress {
+							r.cfg.Status.ALBs[i].StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+						} else {
+							r.cfg.Status.ALB.StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+						}
+					} else {
+						if multiIngress {
+							r.cfg.Status.ALBs[i].StableTargetGroup.FullName = ""
+						} else {
+							r.cfg.Status.ALB.StableTargetGroup.FullName = ""
+						}
 						r.log.Errorf("error parsing stable target group arn: '%s'", *tg.TargetGroupArn)
 					}
 				}
@@ -536,8 +604,6 @@ func (r *Reconciler) RemoveManagedRoutesPerIngress(ingresses []string) error {
 	for _, ingress := range ingresses {
 		ctx := context.TODO()
 		rollout := r.cfg.Rollout
-		//TODO
-		//ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
 		ingressName := ingress
 
 		ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
