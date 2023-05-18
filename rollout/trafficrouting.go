@@ -233,10 +233,9 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				desiredWeight = 100
 			}
 		}
-
 		// We need to check for Generation > 1 because when we first install the rollout we run step 0 this prevents that.
 		// We could also probably use c.newRS == nil || c.newRS.Status.AvailableReplicas == 0
-		if currentStep != nil && c.rollout.ObjectMeta.Generation > 1 {
+		if currentStep != nil && (c.newRS != nil && c.newRS.Status.AvailableReplicas == c.newRS.Status.Replicas) {
 			if currentStep.SetHeaderRoute != nil {
 				if err = reconciler.SetHeaderRoute(currentStep.SetHeaderRoute); err != nil {
 					return err
