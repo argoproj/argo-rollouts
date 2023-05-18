@@ -210,6 +210,8 @@ type PrometheusMetric struct {
 	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
 	// Query is a raw prometheus query to perform
 	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+	// Sigv4 Region is the aws region to use for Sigv4 signing if using Amazon Managed Prometheus
+	Sigv4Region string `json:"sigv4Region,omitempty" protobuf:"bytes,3,opt,name=sigv4Region"`
 }
 
 // WavefrontMetric defines the wavefront query to perform canary analysis
