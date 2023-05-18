@@ -759,79 +759,6 @@ func (f *fakeAWSClient) getAlbStatus(ingress string) *v1alpha1.ALBStatus {
 	}
 }
 
-// func (f *fakeAWSClient) getAlbStatusMultiIngress() *v1alpha1.ALBStatus {
-// 	LoadBalancerFullName := ""
-// 	if lbArnParts := strings.Split(*f.loadBalancers[1].LoadBalancerArn, "/"); len(lbArnParts) > 2 {
-// 		LoadBalancerFullName = strings.Join(lbArnParts[2:], "/")
-// 	}
-// 	CanaryTargetGroupFullName := ""
-// 	if tgArnParts := strings.Split(*f.targetGroups[1].TargetGroupArn, "/"); len(tgArnParts) > 1 {
-// 		CanaryTargetGroupFullName = strings.Join(tgArnParts[1:], "/")
-// 	}
-// 	StableTargetGroupFullName := ""
-// 	if tgArnParts := strings.Split(*f.targetGroups[len(f.targetGroups)-2].TargetGroupArn, "/"); len(tgArnParts) > 1 {
-// 		StableTargetGroupFullName = strings.Join(tgArnParts[1:], "/")
-// 	}
-// 	return &v1alpha1.ALBStatus{
-// 		LoadBalancer: v1alpha1.AwsResourceRef{
-// 			Name:     *f.loadBalancers[1].LoadBalancerName,
-// 			ARN:      *f.loadBalancers[1].LoadBalancerArn,
-// 			FullName: LoadBalancerFullName,
-// 		},
-// 		CanaryTargetGroup: v1alpha1.AwsResourceRef{
-// 			Name:     *f.targetGroups[1].TargetGroupName,
-// 			ARN:      *f.targetGroups[1].TargetGroupArn,
-// 			FullName: CanaryTargetGroupFullName,
-// 		},
-// 		StableTargetGroup: v1alpha1.AwsResourceRef{
-// 			Name:     *f.targetGroups[len(f.targetGroups)-2].TargetGroupName,
-// 			ARN:      *f.targetGroups[len(f.targetGroups)-2].TargetGroupArn,
-// 			FullName: StableTargetGroupFullName,
-// 		},
-// 	}
-// }
-
-//func (f *fakeAWSClientMultiIngress) getAlbStatusMultiIngress() []v1alpha1.ALBStatus {
-//	var ALBs []v1alpha1.ALBStatus
-//	for i, alb := range f.ALBs {
-//		//println(alb)
-//		LoadBalancerFullName := ""
-//		if lbArnParts := strings.Split(*alb.loadBalancer.LoadBalancerArn, "/"); len(lbArnParts) > 2 {
-//			LoadBalancerFullName = strings.Join(lbArnParts[2:], "/")
-//		}
-//		CanaryTargetGroupFullName := ""
-//		if tgArnParts := strings.Split(*alb.targetGroups[1].TargetGroupArn, "/"); len(tgArnParts) > 1 {
-//			CanaryTargetGroupFullName = strings.Join(tgArnParts[1:], "/")
-//		}
-//		StableTargetGroupFullName := ""
-//		if tgArnParts := strings.Split(*alb.targetGroups[len(f.ALBs[i].targetGroups)-2].TargetGroupArn, "/"); len(tgArnParts) > 1 {
-//			StableTargetGroupFullName = strings.Join(tgArnParts[1:], "/")
-//		}
-//
-//		ALBs = append(ALBs, v1alpha1.ALBStatus{
-//			Ingress: alb.Ingress,
-//			LoadBalancer: v1alpha1.AwsResourceRef{
-//				Name:     *alb.loadBalancers[i].LoadBalancerName,
-//				ARN:      *alb.loadBalancers[i].LoadBalancerArn,
-//				FullName: LoadBalancerFullName,
-//			},
-//			CanaryTargetGroup: v1alpha1.AwsResourceRef{
-//				Name:     *alb.targetGroups[i].TargetGroupName,
-//				ARN:      *alb.targetGroups[i].TargetGroupArn,
-//				FullName: CanaryTargetGroupFullName,
-//			},
-//			StableTargetGroup: v1alpha1.AwsResourceRef{
-//				Name:     *alb.targetGroups[len(f.ALBs[i].targetGroups)-2].TargetGroupName,
-//				ARN:      *alb.targetGroups[len(f.ALBs[i].targetGroups)-2].TargetGroupArn,
-//				FullName: StableTargetGroupFullName,
-//			},
-//		},
-//		)
-//	}
-//
-//	return ALBs
-//}
-
 func (f *fakeAWSClient) getAlbStatusMultiIngress(ingress string, lbIdx int32, tgIdx int32) *v1alpha1.ALBStatus {
 	LoadBalancerFullName := ""
 	if lbArnParts := strings.Split(*f.loadBalancers[lbIdx].LoadBalancerArn, "/"); len(lbArnParts) > 2 {
@@ -939,8 +866,6 @@ func TestVerifyWeight(t *testing.T) {
 	{
 		var status v1alpha1.RolloutStatus
 		r, fakeClient := newFakeReconciler(&status)
-		//fakeClient.loadBalancer = &elbv2types.LoadBalancer{
-		//fakeClient.Ingresses = []string{"ingress"}
 		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
 			{
 				LoadBalancerName: pointer.StringPtr("lb-abc123-name"),
@@ -1269,8 +1194,7 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
 		assert.Equal(t, status.ALBs[0], *fakeClient.getAlbStatusMultiIngress("ingress", 0, 0))
-		assert.Equal(t, status.ALBs[1], *fakeClient.getAlbStatusMultiIngress("ingress", 0, 0))
-		//assert.Equal(t, *status.ALB, *fakeClient.getAlbStatusMultiIngress())
+		assert.Equal(t, status.ALBs[1], *fakeClient.getAlbStatusMultiIngress("multi-ingress", 1, 2))
 	}
 }
 
@@ -1674,6 +1598,16 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+				},
+				Weight: pointer.Int32Ptr(90),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+				},
+			},
+			{
+				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("multi-ingress-canary-tg-abc123-name"),
 					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
 				},
@@ -1692,22 +1626,11 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
 				},
 			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
-				},
-				Weight: pointer.Int32Ptr(90),
-				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
-				},
-			},
 		}
 
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
-		//assert.Equal(t, *status.ALB, *fakeClient.getAlbStatusMultiIngress())
 		assert.Equal(t, status.ALBs[0], *fakeClient.getAlbStatusMultiIngress("ingress", 0, 0))
 	}
 
@@ -1740,12 +1663,32 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 			},
 			{
 				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
+				},
+				Weight: pointer.Int32Ptr(85),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
+				},
+			},
+			{
+				TargetGroup: elbv2types.TargetGroup{
 					TargetGroupName: pointer.StringPtr("multi-ingress-canary-tg-abc123-name"),
 					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/multi-ingress-canary-tg-abc123-name/1234567890123456"),
 				},
 				Weight: pointer.Int32Ptr(10),
 				Tags: map[string]string{
 					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-canary-svc:443",
+				},
+			},
+			{
+				TargetGroup: elbv2types.TargetGroup{
+					TargetGroupName: pointer.StringPtr("multi-ingress-stable-tg-abc123-name"),
+					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-stable-tg-name/1234567890123456"),
+				},
+				Weight: pointer.Int32Ptr(85),
+				Tags: map[string]string{
+					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
 				},
 			},
 			{
@@ -1768,33 +1711,13 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-ex-svc-2:443",
 				},
 			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("multi-ingress-stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/app/multi-ingress-stable-tg-name/1234567890123456"),
-				},
-				Weight: pointer.Int32Ptr(85),
-				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/multi-ingress-stable-svc:443",
-				},
-			},
-			{
-				TargetGroup: elbv2types.TargetGroup{
-					TargetGroupName: pointer.StringPtr("stable-tg-abc123-name"),
-					TargetGroupArn:  pointer.StringPtr("arn:aws:elasticloadbalancing:us-east-2:123456789012:targetgroup/stable-tg-abc123-name/1234567890123456"),
-				},
-				Weight: pointer.Int32Ptr(85),
-				Tags: map[string]string{
-					aws.AWSLoadBalancerV2TagKeyResourceID: "default/ingress-stable-svc:443",
-				},
-			},
 		}
 
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
-		//assert.Equal(t, *status.ALB, *fakeClient.getAlbStatusMultiIngress())
 		assert.Equal(t, status.ALBs[0], *fakeClient.getAlbStatusMultiIngress("ingress", 0, 0))
+		assert.Equal(t, status.ALBs[1], *fakeClient.getAlbStatusMultiIngress("multi-ingress", 1, 2))
 	}
 
 	// LoadBalancer found, with all correct weights
@@ -1880,7 +1803,6 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
 		assert.Equal(t, status.ALBs[0], *fakeClient.getAlbStatusMultiIngress("ingress", 0, 0))
-		//assert.Equal(t, *status.ALB, *fakeClient.getAlbStatusMultiIngress())
 	}
 }
 

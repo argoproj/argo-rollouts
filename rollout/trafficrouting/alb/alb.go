@@ -216,16 +216,15 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		}
 	}
 
-	//TODO Move this down
-	if r.cfg.Status.ALB == nil {
-		r.cfg.Status.ALB = &v1alpha1.ALBStatus{}
-	}
-
 	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
-		//TODO: is this the best way? or append() ?
-		r.cfg.Status.ALBs = make([]v1alpha1.ALBStatus, len(ingresses))
+		if r.cfg.Status.ALBs == nil {
+			r.cfg.Status.ALBs = make([]v1alpha1.ALBStatus, len(ingresses))
+		}
 		return r.VerifyWeightPerIngress(desiredWeight, ingresses, additionalDestinations...)
 	} else {
+		if r.cfg.Status.ALB == nil {
+			r.cfg.Status.ALB = &v1alpha1.ALBStatus{}
+		}
 		return r.VerifyWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress}, additionalDestinations...)
 	}
 }
@@ -242,14 +241,6 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 	}
 
 	for i, ingress := range ingresses {
-
-		//TODO
-		//Have 1 boolean at start for if ingresses > 1
-		//ingressIndex++
-		println("index: ", i)
-		println("ingresses: ", len(ingresses))
-		//TODO
-
 		ctx := context.TODO()
 		rollout := r.cfg.Rollout
 		ingressName := ingress
@@ -287,7 +278,6 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 				return pointer.BoolPtr(false), nil
 			}
 
-			//TODO
 			if multiIngress {
 				r.cfg.Status.ALBs[i].Ingress = ingressName
 				r.cfg.Status.ALBs[i].LoadBalancer.Name = *lb.LoadBalancerName
@@ -311,7 +301,6 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 				}
 				r.log.Errorf("error parsing load balancer arn: '%s'", *lb.LoadBalancerArn)
 			}
-			//TODO
 
 			lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 			if err != nil {
