@@ -72,5 +72,8 @@ responsibility of the Argo Rollouts administrator to define the plugin installat
 * This is just a sample plugin that can be used as a starting point for creating your own plugin.
   It is not meant to be used in production. It is based on the built-in prometheus provider.
 
-#### [rollouts-plugin-trafficrouter-contour](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-contour)
+#### [Contour](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-contour)
 * This is a plugin for support Contour.
+
+#### [Gateway API](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/)
+* Provide support for Gateway API, which includes Kuma, Traefix, cilium, Contour, GloodMesh, HAProxy, and [many others](https://gateway-api.sigs.k8s.io/implementations/#implementation-status). 

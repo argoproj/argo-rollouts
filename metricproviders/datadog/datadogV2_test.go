@@ -245,28 +245,28 @@ func TestRunSuiteV2(t *testing.T) {
 					t.Errorf("\nreceived no bytes in request: %v", err)
 				}
 
-				var reqBody datadogQuery
+				var reqBody datadogRequest
 				err = json.Unmarshal(bodyBytes, &reqBody)
 				if err != nil {
 					t.Errorf("\nCould not parse JSON request body: %v", err)
 				}
 
-				actualQuery := reqBody.Attributes.Queries[0]["query"]
-				actualFrom := reqBody.Attributes.From
-				actualTo := reqBody.Attributes.To
+				actualQuery := reqBody.Data.Attributes.Queries[0]["query"]
+				actualFrom := reqBody.Data.Attributes.From
+				actualTo := reqBody.Data.Attributes.To
 
 				if actualQuery != "avg:kubernetes.cpu.user.total{*}" {
 					t.Errorf("\nquery expected avg:kubernetes.cpu.user.total{*} but got %s", actualQuery)
 				}
 
-				if actualFrom != unixNow()-test.expectedIntervalSeconds {
-					t.Errorf("\nfrom %d expected be equal to %d", actualFrom, unixNow()-test.expectedIntervalSeconds)
+				if actualFrom != (unixNow()-test.expectedIntervalSeconds)*1000 {
+					t.Errorf("\nfrom %d expected be equal to %d", actualFrom, (unixNow()-test.expectedIntervalSeconds)*1000)
 				} else if err != nil {
 					t.Errorf("\nfailed to parse from: %v", err)
 				}
 
-				if actualTo != unixNow() {
-					t.Errorf("\nto %d was expected be equal to %d", actualTo, unixNow())
+				if actualTo != unixNow()*1000 {
+					t.Errorf("\nto %d was expected be equal to %d", actualTo, unixNow()*1000)
 				} else if err != nil {
 					t.Errorf("\nfailed to parse to: %v", err)
 				}
