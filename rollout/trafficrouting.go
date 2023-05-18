@@ -253,6 +253,12 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			}
 		}
 
+		if !replicasetutil.IsReplicaSetAvailable(c.newRS) {
+			c.log.Infof("Delaying reconciler '%s' traffic switch until new RS '%s' is available", reconciler.Type(), canaryHash)
+			c.enqueueRolloutAfter(c.rollout, defaults.GetRolloutVerifyRetryInterval())
+			return nil
+		}
+
 		err = reconciler.UpdateHash(canaryHash, stableHash, weightDestinations...)
 		if err != nil {
 			return err
