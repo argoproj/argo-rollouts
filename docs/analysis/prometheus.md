@@ -36,12 +36,13 @@ See the [Analysis Overview page](../../features/analysis) for more details on th
 
 ## Utilizing Amazon Managed Prometheus
 
-Amazon Managed Prometheus can be used as the prometheus data source for analysis. In order to do this the namespace where you analysis is running will have to have the appropriate [IRSA attached](https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-onboard-ingest-metrics-new-Prometheus.html#AMP-onboard-new-Prometheus-IRSA) to allow for prometheus queries. Once you ensure the proper permissions are in place to access AMP, you can use an AMP workspace url in your ```provider``` block:
+Amazon Managed Prometheus can be used as the prometheus data source for analysis. In order to do this the namespace where your analysis is running will have to have the appropriate [IRSA attached](https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-onboard-ingest-metrics-new-Prometheus.html#AMP-onboard-new-Prometheus-IRSA) to allow for prometheus queries. Once you ensure the proper permissions are in place to access AMP, you can use an AMP workspace url in your ```provider``` block and add an AWS region for Sigv4 signing:
 
 ```yaml
 provider:
   prometheus:
     address: https://aps-workspaces.$REGION.amazonaws.com/workspaces/$WORKSPACEID
+    sigv4Region: us-east-1
     query: |
       sum(irate(
         istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
