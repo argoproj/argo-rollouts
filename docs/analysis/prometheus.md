@@ -42,7 +42,7 @@ Amazon Managed Prometheus can be used as the prometheus data source for analysis
 provider:
   prometheus:
     address: https://aps-workspaces.$REGION.amazonaws.com/workspaces/$WORKSPACEID
-    sigv4Region: us-east-1
+    sigv4Region: $REGION
     query: |
       sum(irate(
         istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
