@@ -233,11 +233,12 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 	var numVerifiedWeights int
 	numVerifiedWeights = 0
 
-	var multiIngress bool
-	if len(ingresses) > 1 {
-		multiIngress = true
+	// Determines if we should update Status.ALBs or Status.ALB
+	var statusALBs bool
+	if r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses != nil {
+		statusALBs = true
 	} else {
-		multiIngress = false
+		statusALBs = false
 	}
 
 	for i, ingress := range ingresses {
@@ -278,7 +279,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 				return pointer.BoolPtr(false), nil
 			}
 
-			if multiIngress {
+			if statusALBs {
 				r.cfg.Status.ALBs[i].Ingress = ingressName
 				r.cfg.Status.ALBs[i].LoadBalancer.Name = *lb.LoadBalancerName
 				r.cfg.Status.ALBs[i].LoadBalancer.ARN = *lb.LoadBalancerArn
@@ -288,13 +289,13 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 				r.cfg.Status.ALB.LoadBalancer.ARN = *lb.LoadBalancerArn
 			}
 			if lbArnParts := strings.Split(*lb.LoadBalancerArn, "/"); len(lbArnParts) > 2 {
-				if multiIngress {
+				if statusALBs {
 					r.cfg.Status.ALBs[i].LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
 				} else {
 					r.cfg.Status.ALB.LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
 				}
 			} else {
-				if multiIngress {
+				if statusALBs {
 					r.cfg.Status.ALBs[i].LoadBalancer.FullName = ""
 				} else {
 					r.cfg.Status.ALB.LoadBalancer.FullName = ""
@@ -310,7 +311,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 			logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
 			for _, tg := range lbTargetGroups {
 				if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
-					if multiIngress {
+					if statusALBs {
 						r.cfg.Status.ALBs[i].CanaryTargetGroup.Name = *tg.TargetGroupName
 						r.cfg.Status.ALBs[i].CanaryTargetGroup.ARN = *tg.TargetGroupArn
 					} else {
@@ -318,13 +319,13 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 						r.cfg.Status.ALB.CanaryTargetGroup.ARN = *tg.TargetGroupArn
 					}
 					if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
-						if multiIngress {
+						if statusALBs {
 							r.cfg.Status.ALBs[i].CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
 						} else {
 							r.cfg.Status.ALB.CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
 						}
 					} else {
-						if multiIngress {
+						if statusALBs {
 							r.cfg.Status.ALBs[i].CanaryTargetGroup.FullName = ""
 						} else {
 							r.cfg.Status.ALB.CanaryTargetGroup.FullName = ""
@@ -355,7 +356,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 						}
 					}
 				} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
-					if multiIngress {
+					if statusALBs {
 						r.cfg.Status.ALBs[i].StableTargetGroup.Name = *tg.TargetGroupName
 						r.cfg.Status.ALBs[i].StableTargetGroup.ARN = *tg.TargetGroupArn
 					} else {
@@ -363,13 +364,13 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 						r.cfg.Status.ALB.StableTargetGroup.ARN = *tg.TargetGroupArn
 					}
 					if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
-						if multiIngress {
+						if statusALBs {
 							r.cfg.Status.ALBs[i].StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
 						} else {
 							r.cfg.Status.ALB.StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
 						}
 					} else {
-						if multiIngress {
+						if statusALBs {
 							r.cfg.Status.ALBs[i].StableTargetGroup.FullName = ""
 						} else {
 							r.cfg.Status.ALB.StableTargetGroup.FullName = ""
