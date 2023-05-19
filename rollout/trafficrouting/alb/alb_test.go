@@ -726,7 +726,7 @@ func (f *fakeAWSClient) GetTargetGroupHealth(ctx context.Context, targetGroupARN
 	return f.targetHealthDescriptions, nil
 }
 
-func (f *fakeAWSClient) getAlbStatus(ingress string) *v1alpha1.ALBStatus {
+func (f *fakeAWSClient) getAlbStatus() *v1alpha1.ALBStatus {
 	LoadBalancerFullName := ""
 	if lbArnParts := strings.Split(*f.loadBalancers[0].LoadBalancerArn, "/"); len(lbArnParts) > 2 {
 		LoadBalancerFullName = strings.Join(lbArnParts[2:], "/")
@@ -740,7 +740,6 @@ func (f *fakeAWSClient) getAlbStatus(ingress string) *v1alpha1.ALBStatus {
 		StableTargetGroupFullName = strings.Join(tgArnParts[1:], "/")
 	}
 	return &v1alpha1.ALBStatus{
-		Ingress: ingress,
 		LoadBalancer: v1alpha1.AwsResourceRef{
 			Name:     *f.loadBalancers[0].LoadBalancerName,
 			ARN:      *f.loadBalancers[0].LoadBalancerArn,
@@ -899,7 +898,7 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
-		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus("ingress"))
+		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 
 	// LoadBalancer found, at weight
@@ -939,7 +938,7 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
-		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus("ingress"))
+		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 
 	// LoadBalancer found, but ARNs are unparsable
@@ -979,7 +978,7 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
-		albStatus := *fakeClient.getAlbStatus("ingress")
+		albStatus := *fakeClient.getAlbStatus()
 		assert.Equal(t, albStatus.LoadBalancer.FullName, "")
 		assert.Equal(t, albStatus.CanaryTargetGroup.FullName, "")
 		assert.Equal(t, albStatus.StableTargetGroup.FullName, "")
@@ -1383,7 +1382,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
-		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus("ingress"))
+		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 
 	// LoadBalancer found, with incorrect weights
@@ -1443,7 +1442,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
-		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus("ingress"))
+		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 
 	// LoadBalancer found, with all correct weights
@@ -1503,7 +1502,7 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10, weightDestinations...)
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
-		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus("ingress"))
+		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus())
 	}
 }
 

@@ -1009,7 +1009,7 @@ type ALBStatus struct {
 	LoadBalancer      AwsResourceRef `json:"loadBalancer,omitempty" protobuf:"bytes,1,opt,name=loadBalancer"`
 	CanaryTargetGroup AwsResourceRef `json:"canaryTargetGroup,omitempty" protobuf:"bytes,2,opt,name=canaryTargetGroup"`
 	StableTargetGroup AwsResourceRef `json:"stableTargetGroup,omitempty" protobuf:"bytes,3,opt,name=stableTargetGroup"`
-	Ingress           string         `json:"ingress" protobuf:"bytes,4,opt,name=ingress"`
+	Ingress           string         `json:"ingress,omitempty" protobuf:"bytes,4,opt,name=ingress"`
 }
 
 type AwsResourceRef struct {

@@ -168,13 +168,11 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBStatus(ref common.ReferenceCallback) c
 					},
 					"ingress": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
-				Required: []string{"ingress"},
 			},
 		},
 		Dependencies: []string{
