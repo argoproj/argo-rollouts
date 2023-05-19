@@ -283,6 +283,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 				r.cfg.Status.ALBs[i].LoadBalancer.Name = *lb.LoadBalancerName
 				r.cfg.Status.ALBs[i].LoadBalancer.ARN = *lb.LoadBalancerArn
 			} else {
+				r.cfg.Status.ALB.Ingress = ingressName
 				r.cfg.Status.ALB.LoadBalancer.Name = *lb.LoadBalancerName
 				r.cfg.Status.ALB.LoadBalancer.ARN = *lb.LoadBalancerArn
 			}
