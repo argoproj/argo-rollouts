@@ -2763,6 +2763,8 @@ spec:
                               type: string
                             query:
                               type: string
+                            sigv4Region:
+                              type: string
                           type: object
                         skywalking:
                           properties:

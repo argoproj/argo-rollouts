@@ -3400,6 +3400,13 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
+					"sigv4Region": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Sigv4 Region is the aws region to use for Sigv4 signing if using Amazon Managed Prometheus",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

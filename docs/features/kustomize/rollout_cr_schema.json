@@ -4261,6 +4261,9 @@
                                                     },
                                                     "query": {
                                                         "type": "string"
+                                                    },
+                                                    "sigv4Region": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "type": "object"
@@ -8632,6 +8635,9 @@
                                                     },
                                                     "query": {
                                                         "type": "string"
+                                                    },
+                                                    "sigv4Region": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "type": "object"
@@ -13002,6 +13008,9 @@
                                                         "type": "string"
                                                     },
                                                     "query": {
+                                                        "type": "string"
+                                                    },
+                                                    "sigv4Region": {
                                                         "type": "string"
                                                     }
                                                 },

@@ -1125,6 +1125,9 @@ message PrometheusMetric {
 
   // Query is a raw prometheus query to perform
   optional string query = 2;
+
+  // Sigv4 Region is the aws region to use for Sigv4 signing if using Amazon Managed Prometheus
+  optional string sigv4Region = 3;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
