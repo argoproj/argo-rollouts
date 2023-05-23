@@ -1,6 +1,6 @@
 # Google Cloud 
 
-With the introduction of the Kubernetes Gateway API it is now possible to use Argo Rollouts with all compliant implementations that support it. The integration is happening with the plugin currently hosted at Argo Labs.
+With the introduction of the Kubernetes Gateway API it is now possible to use Argo Rollouts with all compliant implementations that support it. The integration is available with the [Argo Rollouts Gateway API plugin](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/) currently hosted in Argo Labs.
 
 Useful resources:
 
