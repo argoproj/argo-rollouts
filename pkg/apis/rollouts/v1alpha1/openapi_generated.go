@@ -1099,13 +1099,14 @@ func schema_pkg_apis_rollouts_v1alpha1_AwsResourceRef(ref common.ReferenceCallba
 					},
 					"fullName": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "FullName is the full name of the resource",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
-				Required: []string{"name", "arn", "fullName"},
+				Required: []string{"name", "arn"},
 			},
 		},
 	}
