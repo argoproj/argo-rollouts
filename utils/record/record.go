@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/Masterminds/sprig"
 	"regexp"
 	"strings"
 	"time"
@@ -232,7 +233,7 @@ func NewAPIFactorySettings() api.Settings {
 		ConfigMapName: NotificationConfigMap,
 		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-				return map[string]interface{}{"rollout": obj, "time": timeExprs}
+				return map[string]interface{}{"rollout": obj, "time": timeExprs, "sprig": sprig.GenericFuncMap()}
 			}, nil
 		},
 	}

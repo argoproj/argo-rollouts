@@ -3,6 +3,7 @@ module github.com/argoproj/argo-rollouts
 go 1.19
 
 require (
+	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/antonmedv/expr v1.12.5
 	github.com/argoproj/notifications-engine v0.4.0
 	github.com/argoproj/pkg v0.13.6
@@ -79,7 +80,6 @@ require (
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
-	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20220708192748-b73dcb041214 // indirect
 	github.com/aws/aws-sdk-go v1.44.116 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.24 // indirect
