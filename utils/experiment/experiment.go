@@ -200,7 +200,7 @@ var templateStatusOrder = []v1alpha1.TemplateStatusCode{
 	v1alpha1.TemplateStatusFailed,
 }
 
-// TemplateIsWorse returns whether or not the new template status is a worser condition than the current.
+// TemplateIsWorse returns whether the new template status is a worser condition than the current.
 func TemplateIsWorse(current, new v1alpha1.TemplateStatusCode) bool {
 	currentIndex := 0
 	newIndex := 0

@@ -1322,3 +1322,217 @@ func TestSyncEphemeralPodMetadata(t *testing.T) {
 	}
 
 }
+
+func TestGetReplicasForScaleDown(t *testing.T) {
+	tests := []struct {
+		rs                 *appsv1.ReplicaSet
+		ignoreAvailability bool
+		name               string
+		want               int32
+	}{
+		{
+			name: "test rs is nil",
+			want: 0,
+		},
+		{
+			name: "test expected replicas is less than actual replicas",
+			rs: &appsv1.ReplicaSet{
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: pointer.Int32Ptr(3),
+				},
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 5,
+				},
+			},
+			want: 3,
+		},
+		{
+			name: "test ignore availability",
+			rs: &appsv1.ReplicaSet{
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: pointer.Int32Ptr(3),
+				},
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 2,
+				},
+			},
+			ignoreAvailability: true,
+			want:               3,
+		},
+		{
+			name: "test not ignore availability",
+			rs: &appsv1.ReplicaSet{
+				Spec: appsv1.ReplicaSetSpec{
+					Replicas: pointer.Int32Ptr(3),
+				},
+				Status: appsv1.ReplicaSetStatus{
+					AvailableReplicas: 2,
+				},
+			},
+			ignoreAvailability: false,
+			want:               2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, GetReplicasForScaleDown(tt.rs, tt.ignoreAvailability), "GetReplicasForScaleDown(%v, %v)", tt.rs, tt.ignoreAvailability)
+		})
+	}
+}
+
+func TestGetCanaryReplicasOrWeight(t *testing.T) {
+	tests := []struct {
+		name     string
+		rollout  *v1alpha1.Rollout
+		replicas *int32
+		weight   int32
+	}{
+		{
+			name: "test full promote rollout",
+			rollout: &v1alpha1.Rollout{
+				Status: v1alpha1.RolloutStatus{
+					PromoteFull: true,
+				},
+			},
+			replicas: nil,
+			weight:   100,
+		},
+		{
+			name: "test canary step weight",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							Steps: []v1alpha1.CanaryStep{
+								{
+									SetWeight: pointer.Int32Ptr(10),
+								},
+								{
+									SetCanaryScale: &v1alpha1.SetCanaryScale{
+										Weight: pointer.Int32Ptr(20),
+									},
+								},
+							},
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					CurrentStepIndex: pointer.Int32Ptr(1),
+					StableRS:         "stable-rs",
+				},
+			},
+			replicas: nil,
+			weight:   20,
+		},
+		{
+			name: "test canary step replicas",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							Steps: []v1alpha1.CanaryStep{
+								{
+									SetWeight: pointer.Int32Ptr(10),
+								},
+								{
+									SetCanaryScale: &v1alpha1.SetCanaryScale{
+										Replicas: pointer.Int32Ptr(5),
+									},
+								},
+							},
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					CurrentStepIndex: pointer.Int32Ptr(1),
+					StableRS:         "stable-rs",
+				},
+			},
+			replicas: pointer.Int32(5),
+			weight:   0,
+		},
+		{
+			name: "test get current step weight",
+			rollout: &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						BlueGreen: &v1alpha1.BlueGreenStrategy{},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					Abort: true,
+				},
+			},
+			replicas: nil,
+			weight:   100,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotReplicas, gotWeight := GetCanaryReplicasOrWeight(tt.rollout)
+			assert.Equalf(t, tt.replicas, gotReplicas, "GetCanaryReplicasOrWeight(%v)", tt.rollout)
+			assert.Equalf(t, tt.weight, gotWeight, "GetCanaryReplicasOrWeight(%v)", tt.rollout)
+		})
+	}
+}
+
+func TestParseExistingPodMetadata(t *testing.T) {
+	tests := []struct {
+		name string
+		rs   *appsv1.ReplicaSet
+		want *v1alpha1.PodTemplateMetadata
+	}{
+		{
+			name: "test no metadata",
+			rs:   &appsv1.ReplicaSet{},
+			want: nil,
+		},
+		{
+			name: "test no ephemeral metadata key",
+			rs: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"foo": "bar",
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "test invalid ephemeral metadata",
+			rs: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						EphemeralMetadataAnnotation: "foo",
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "test valid ephemeral metadata",
+			rs: &appsv1.ReplicaSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						EphemeralMetadataAnnotation: `{"labels":{"foo":"bar"},"annotations":{"bar":"baz"}}`,
+					},
+				},
+			},
+			want: &v1alpha1.PodTemplateMetadata{
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+				Annotations: map[string]string{
+					"bar": "baz",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, ParseExistingPodMetadata(tt.rs), "ParseExistingPodMetadata(%v)", tt.rs)
+		})
+	}
+}

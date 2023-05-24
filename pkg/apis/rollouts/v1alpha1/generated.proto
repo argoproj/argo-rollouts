@@ -308,6 +308,8 @@ message AwsResourceRef {
 
   optional string arn = 2;
 
+  // FullName is the full name of the resource
+  // +optional
   optional string fullName = 3;
 }
 

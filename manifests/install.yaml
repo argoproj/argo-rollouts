@@ -14555,7 +14555,6 @@ spec:
                         type: string
                     required:
                     - arn
-                    - fullName
                     - name
                     type: object
                   ingress:
@@ -14570,7 +14569,6 @@ spec:
                         type: string
                     required:
                     - arn
-                    - fullName
                     - name
                     type: object
                   stableTargetGroup:
@@ -14583,7 +14581,6 @@ spec:
                         type: string
                     required:
                     - arn
-                    - fullName
                     - name
                     type: object
                 type: object
