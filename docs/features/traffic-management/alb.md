@@ -333,7 +333,7 @@ include:
 
 ### Zero-Downtime Updates with Ping-Pong feature
 
-AWS TargetGroup Verification is was AWS has recommended to solve zero-downtime rollouts. It uses a [pod readiness gate injection](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/)
+AWS TargetGroup Verification is the AWS recommended approach to solve zero-downtime rollouts. It uses a [pod readiness gate injection](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/)
 when running the AWS LoadBalancer in IP mode. The challenge with that approach is that modifications
 of the Service selector labels (`spec.selector`) do not allow the AWS LoadBalancer controller to mutate the readiness gates.
 The Ping-Pong feature helps to deal with that challenge. At some particular moment, one of the services (e.g. the stable service) is annotated as ping while the canary service is annotated as pong. At the end of the promotion step 100% of traffic is sent
