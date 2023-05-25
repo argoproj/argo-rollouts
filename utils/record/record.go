@@ -5,10 +5,11 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/Masterminds/sprig"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/Masterminds/sprig"
 
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
