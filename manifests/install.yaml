@@ -2768,8 +2768,15 @@ spec:
                               type: string
                             query:
                               type: string
-                            sigv4Region:
-                              type: string
+                            sigv4:
+                              properties:
+                                profile:
+                                  type: string
+                                region:
+                                  type: string
+                                roleArn:
+                                  type: string
+                              type: object
                           type: object
                         skywalking:
                           properties:
@@ -5717,8 +5724,15 @@ spec:
                               type: string
                             query:
                               type: string
-                            sigv4Region:
-                              type: string
+                            sigv4:
+                              properties:
+                                profile:
+                                  type: string
+                                region:
+                                  type: string
+                                roleArn:
+                                  type: string
+                              type: object
                           type: object
                         skywalking:
                           properties:
@@ -8552,8 +8566,15 @@ spec:
                               type: string
                             query:
                               type: string
-                            sigv4Region:
-                              type: string
+                            sigv4:
+                              properties:
+                                profile:
+                                  type: string
+                                region:
+                                  type: string
+                                roleArn:
+                                  type: string
+                              type: object
                           type: object
                         skywalking:
                           properties:

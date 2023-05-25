@@ -4262,8 +4262,19 @@
                                                     "query": {
                                                         "type": "string"
                                                     },
-                                                    "sigv4Region": {
-                                                        "type": "string"
+                                                    "sigv4": {
+                                                        "properties": {
+                                                            "profile": {
+                                                                "type": "string"
+                                                            },
+                                                            "region": {
+                                                                "type": "string"
+                                                            },
+                                                            "roleArn": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     }
                                                 },
                                                 "type": "object"
@@ -8636,8 +8647,19 @@
                                                     "query": {
                                                         "type": "string"
                                                     },
-                                                    "sigv4Region": {
-                                                        "type": "string"
+                                                    "sigv4": {
+                                                        "properties": {
+                                                            "profile": {
+                                                                "type": "string"
+                                                            },
+                                                            "region": {
+                                                                "type": "string"
+                                                            },
+                                                            "roleArn": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     }
                                                 },
                                                 "type": "object"
@@ -13010,8 +13032,19 @@
                                                     "query": {
                                                         "type": "string"
                                                     },
-                                                    "sigv4Region": {
-                                                        "type": "string"
+                                                    "sigv4": {
+                                                        "properties": {
+                                                            "profile": {
+                                                                "type": "string"
+                                                            },
+                                                            "region": {
+                                                                "type": "string"
+                                                            },
+                                                            "roleArn": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     }
                                                 },
                                                 "type": "object"
