@@ -7,7 +7,7 @@
 
 1. To automatically update the stable tag, select `Update stable tag`. (false by default)
 
-[![GitHub Release Action](release-action.png)](release-action.png)
+[![GitHub Release Action](contributing-assets/release-action.png)](contributing-assets/release-action.png)
 
 1. When the action completes, visit the generated draft [Github releases](https://github.com/argoproj/argo-rollouts/releases) and enter the details about the release:
    * Getting started (copy from previous release and new version)

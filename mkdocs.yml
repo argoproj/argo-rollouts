@@ -49,6 +49,7 @@ nav:
   - Ambassador: features/traffic-management/ambassador.md
   - APISIX: features/traffic-management/apisix.md
   - AWS ALB: features/traffic-management/alb.md
+  - Google Cloud: features/traffic-management/google-cloud.md
   - Istio: features/traffic-management/istio.md
   - NGINX: features/traffic-management/nginx.md
   - Plugins: features/traffic-management/plugins.md
@@ -58,7 +59,7 @@ nav:
   - Overview: features/analysis.md
   - Plugins: analysis/plugins.md
   - Prometheus: analysis/prometheus.md
-  - DataDog: analysis/datadog.md
+  - Datadog: analysis/datadog.md
   - NewRelic: analysis/newrelic.md
   - Wavefront: analysis/wavefront.md
   - Job: analysis/job.md
