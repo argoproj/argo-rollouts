@@ -333,14 +333,13 @@ include:
 
 ### Zero-Downtime Updates with Ping-Pong feature
 
-Above there was described the recommended way by AWS to solve zero-downtime issue. Is a use a [pod readiness gate injection](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/)
-when running the AWS LoadBalancer in IP mode. There is a challenge with that approach, modifications
-of the Service selector labels (`spec.selector`) not allowed the AWS LoadBalancer controller to mutate the readiness gates.
-And Ping-Pong feature helps to deal with that challenge. At some particular moment one of the services (e.g. ping) is "wearing a
-hat" of stable service another one (e.g. pong) is "wearing a hat" of canary. At the end of the promotion step all 100% of traffic sending
-to the "canary" (e.g. pong). And then the Rollout swapped the hats of ping and pong services so the pong became a stable one.
+AWS TargetGroup Verification is was AWS has recommended to solve zero-downtime rollouts. It uses a [pod readiness gate injection](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/deploy/pod_readiness_gate/)
+when running the AWS LoadBalancer in IP mode. The challenge with that approach is that modifications
+of the Service selector labels (`spec.selector`) do not allow the AWS LoadBalancer controller to mutate the readiness gates.
+The Ping-Pong feature helps to deal with that challenge. At some particular moment, one of the services (e.g. the stable service) is annotated as ping while the canary service is annotated as pong. At the end of the promotion step 100% of traffic is sent
+to the canary (e.g. pong). Upon completion of the rollout the stable and canary services have the ping and pong annotations swapped so the stable service is annotated as pong and the canary service as ping.
 The Rollout status object holds the value of who is currently the stable ping or pong (`status.canary.currentPingPong`).
-And this way allows the rollout to use pod readiness gate injection as the
+This allows the rollout to use pod readiness gate injection as the
 services are not changing their labels at the end of the rollout progress.
 
 !!! important
