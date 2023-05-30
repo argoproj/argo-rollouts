@@ -2409,7 +2409,9 @@ respectively. In addition, there is a virtual-service named <code>rollout-demo-v
 virtual-router CR named <code>rollout-demo-vrouter</code>. This virtual-router need have at least one route with action to forward
 traffic to the canary and stable virtual-nodes. Initially weight for canary is set to 0% while for stable it is 100%.
 During rollout, controller will modify the weights on route(s) based on the configuraiton defined in
-<code>steps[N].setWeight</code>. </p>
+<code>steps[N].setWeight</code>.</p>
+<p>The canary and stable services are configured to be headless. This is necessary to allow App Mesh to properly handle
+conneciton pooling as pods are reassigned from canary to stable.</p>
 <p>To summarize, run the following commands to deploy a service:</p>
 <ul>
 <li>Two services (stable and canary)</li>
@@ -2419,8 +2421,8 @@ During rollout, controller will modify the weights on route(s) based on the conf
 <li>One App Mesh virtual-service corresponding to VIP service</li>
 <li>A rollout</li>
 </ul>
-<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/appmesh/canary-service.yaml
-kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/appmesh/canary-rollout.yaml
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/examples/appmesh/canary-service.yaml
+kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/argoproj/argo-rollouts/master/examples/appmesh/canary-rollout.yaml
 </code></pre></div>
 <h2 id="2-verify-service">2. Verify service<a class="headerlink" href="#2-verify-service" title="Permanent link">&para;</a></h2>
 <p>First make sure that rollout is stable.</p>
