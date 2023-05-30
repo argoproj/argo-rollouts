@@ -66,8 +66,6 @@ func (r *Reconciler) buildCanaryIngress(stableIngress *networkingv1.Ingress, nam
 	canaryServiceName := r.cfg.Rollout.Spec.Strategy.Canary.CanaryService
 	annotationPrefix := defaults.GetCanaryIngressAnnotationPrefixOrDefault(r.cfg.Rollout)
 
-	// Set up canary ingress resource, we do *not* have to duplicate `spec.tls` in a canary, only
-	// `spec.rules`
 	desiredCanaryIngress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
@@ -76,6 +74,14 @@ func (r *Reconciler) buildCanaryIngress(stableIngress *networkingv1.Ingress, nam
 		Spec: networkingv1.IngressSpec{
 			Rules: make([]networkingv1.IngressRule, 0), // We have no way of knowing yet how many rules there will be
 		},
+	}
+
+	// Preserve TLS from stable ingress
+	if stableIngress.Spec.TLS != nil {
+		desiredCanaryIngress.Spec.TLS = make([]networkingv1.IngressTLS, len(stableIngress.Spec.TLS))
+		for it := 0; it < len(stableIngress.Spec.TLS); it++ {
+			stableIngress.Spec.TLS[it].DeepCopyInto(&desiredCanaryIngress.Spec.TLS[it])
+		}
 	}
 
 	// Preserve ingressClassName from stable ingress
@@ -136,8 +142,6 @@ func (r *Reconciler) buildLegacyCanaryIngress(stableIngress *extensionsv1beta1.I
 	canaryServiceName := r.cfg.Rollout.Spec.Strategy.Canary.CanaryService
 	annotationPrefix := defaults.GetCanaryIngressAnnotationPrefixOrDefault(r.cfg.Rollout)
 
-	// Set up canary ingress resource, we do *not* have to duplicate `spec.tls` in a canary, only
-	// `spec.rules`
 	desiredCanaryIngress := &extensionsv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
@@ -146,6 +150,14 @@ func (r *Reconciler) buildLegacyCanaryIngress(stableIngress *extensionsv1beta1.I
 		Spec: extensionsv1beta1.IngressSpec{
 			Rules: make([]extensionsv1beta1.IngressRule, 0), // We have no way of knowing yet how many rules there will be
 		},
+	}
+
+	// Preserve TLS from stable ingress
+	if stableIngress.Spec.TLS != nil {
+		desiredCanaryIngress.Spec.TLS = make([]extensionsv1beta1.IngressTLS, len(stableIngress.Spec.TLS))
+		for it := 0; it < len(stableIngress.Spec.TLS); it++ {
+			stableIngress.Spec.TLS[it].DeepCopyInto(&desiredCanaryIngress.Spec.TLS[it])
+		}
 	}
 
 	// Preserve ingressClassName from stable ingress
