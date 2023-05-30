@@ -57,7 +57,10 @@ respectively. In addition, there is a virtual-service named `rollout-demo-vsvc` 
 virtual-router CR named `rollout-demo-vrouter`. This virtual-router need have at least one route with action to forward
 traffic to the canary and stable virtual-nodes. Initially weight for canary is set to 0% while for stable it is 100%.
 During rollout, controller will modify the weights on route(s) based on the configuraiton defined in
-`steps[N].setWeight`. 
+`steps[N].setWeight`.
+
+The canary and stable services are configured to be headless. This is necessary to allow App Mesh to properly handle
+conneciton pooling as pods are reassigned from canary to stable.
 
 To summarize, run the following commands to deploy a service:
 
@@ -69,8 +72,8 @@ To summarize, run the following commands to deploy a service:
 * A rollout
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/appmesh/canary-service.yaml
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/appmesh/canary-rollout.yaml
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/examples/appmesh/canary-service.yaml
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/examples/appmesh/canary-rollout.yaml
 ```
 ## 2. Verify service
 
