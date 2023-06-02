@@ -51,6 +51,7 @@ nav:
   - AWS ALB: features/traffic-management/alb.md
   - Google Cloud: features/traffic-management/google-cloud.md
   - Istio: features/traffic-management/istio.md
+  - Kong: features/traffic-management/kong.md
   - NGINX: features/traffic-management/nginx.md
   - Plugins: features/traffic-management/plugins.md
   - SMI: features/traffic-management/smi.md
