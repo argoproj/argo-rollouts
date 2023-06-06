@@ -950,6 +950,20 @@
   
   
     <li class="md-nav__item">
+      <a href="kong/" class="md-nav__link">
+        Kong
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="nginx/" class="md-nav__link">
         NGINX
       </a>
@@ -2459,7 +2473,7 @@
 <p>The core Kubernetes objects do not have fine-grained tools needed to fulfill all the requirements of traffic management. At most, Kubernetes offers native load balancing capabilities through the Service object by offering an endpoint that routes traffic to a grouping of pods based on that Service's selector. Functionality like traffic mirroring or routing by headers is not possible with the default core Service object, and the only way to control the percentage of traffic to different versions of an application is by manipulating replica counts of those versions. </p>
 <p>Service Meshes fill this missing functionality in Kubernetes. They introduce new concepts and functionality to control the data plane through the use of CRDs and other core Kubernetes resources. </p>
 <h2 id="how-does-argo-rollouts-enable-traffic-management">How does Argo Rollouts enable traffic management?<a class="headerlink" href="#how-does-argo-rollouts-enable-traffic-management" title="Permanent link">&para;</a></h2>
-<p>Argo Rollouts enables traffic management by manipulating the Service Mesh resources to match the intent of the Rollout. Argo Rollouts currently supports the following service meshes:</p>
+<p>Argo Rollouts enables traffic management by manipulating the Service Mesh resources to match the intent of the Rollout. Argo Rollouts currently supports the following traffic providers:</p>
 <ul>
 <li><a href="alb/">AWS ALB Ingress Controller</a></li>
 <li><a href="ambassador/">Ambassador Edge Stack</a></li>
@@ -2467,6 +2481,7 @@
 <li><a href="google-cloud/">Google Cloud</a></li>
 <li><a href="plugins/">Gateway API</a></li>
 <li><a href="istio/">Istio</a></li>
+<li><a href="kong/">Kong Ingress</a></li>
 <li><a href="nginx/">Nginx Ingress Controller</a></li>
 <li><a href="smi/">Service Mesh Interface (SMI)</a></li>
 <li><a href="traefik/">Traefik Proxy</a></li>
