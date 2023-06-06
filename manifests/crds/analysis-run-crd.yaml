@@ -2765,17 +2765,20 @@ spec:
                           properties:
                             address:
                               type: string
+                            authentication:
+                              properties:
+                                sigv4:
+                                  properties:
+                                    profile:
+                                      type: string
+                                    region:
+                                      type: string
+                                    roleArn:
+                                      type: string
+                                  type: object
+                              type: object
                             query:
                               type: string
-                            sigv4:
-                              properties:
-                                profile:
-                                  type: string
-                                region:
-                                  type: string
-                                roleArn:
-                                  type: string
-                              type: object
                           type: object
                         skywalking:
                           properties:

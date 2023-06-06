@@ -1121,6 +1121,12 @@ message PreferredDuringSchedulingIgnoredDuringExecution {
 }
 
 // PrometheusMetric defines the prometheus query to perform canary analysis
+message PrometheusAuth {
+  // +optional
+  optional Sigv4Config sigv4 = 3;
+}
+
+// PrometheusMetric defines the prometheus query to perform canary analysis
 message PrometheusMetric {
   // Address is the HTTP address and port of the prometheus server
   optional string address = 1;
@@ -1129,7 +1135,8 @@ message PrometheusMetric {
   optional string query = 2;
 
   // Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
-  optional Sigv4Config sigv4 = 3;
+  // +optional
+  optional PrometheusAuth authentication = 3;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution

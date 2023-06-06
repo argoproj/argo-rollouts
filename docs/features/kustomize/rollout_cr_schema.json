@@ -4259,22 +4259,27 @@
                                                     "address": {
                                                         "type": "string"
                                                     },
-                                                    "query": {
-                                                        "type": "string"
-                                                    },
-                                                    "sigv4": {
+                                                    "authentication": {
                                                         "properties": {
-                                                            "profile": {
-                                                                "type": "string"
-                                                            },
-                                                            "region": {
-                                                                "type": "string"
-                                                            },
-                                                            "roleArn": {
-                                                                "type": "string"
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
                                                             }
                                                         },
                                                         "type": "object"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "type": "object"
@@ -8644,22 +8649,27 @@
                                                     "address": {
                                                         "type": "string"
                                                     },
-                                                    "query": {
-                                                        "type": "string"
-                                                    },
-                                                    "sigv4": {
+                                                    "authentication": {
                                                         "properties": {
-                                                            "profile": {
-                                                                "type": "string"
-                                                            },
-                                                            "region": {
-                                                                "type": "string"
-                                                            },
-                                                            "roleArn": {
-                                                                "type": "string"
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
                                                             }
                                                         },
                                                         "type": "object"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "type": "object"
@@ -13029,22 +13039,27 @@
                                                     "address": {
                                                         "type": "string"
                                                     },
-                                                    "query": {
-                                                        "type": "string"
-                                                    },
-                                                    "sigv4": {
+                                                    "authentication": {
                                                         "properties": {
-                                                            "profile": {
-                                                                "type": "string"
-                                                            },
-                                                            "region": {
-                                                                "type": "string"
-                                                            },
-                                                            "roleArn": {
-                                                                "type": "string"
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
                                                             }
                                                         },
                                                         "type": "object"
+                                                    },
+                                                    "query": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "type": "object"

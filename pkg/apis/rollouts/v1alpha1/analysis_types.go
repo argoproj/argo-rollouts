@@ -211,6 +211,13 @@ type PrometheusMetric struct {
 	// Query is a raw prometheus query to perform
 	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
 	// Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
+	// +optional
+	Authentication PrometheusAuth `json:"authentication,omitempty" protobuf:"bytes,3,opt,name=authentication"`
+}
+
+// PrometheusMetric defines the prometheus query to perform canary analysis
+type PrometheusAuth struct {
+	// +optional
 	Sigv4 Sigv4Config `json:"sigv4,omitempty" protobuf:"bytes,3,opt,name=sigv4"`
 }
 

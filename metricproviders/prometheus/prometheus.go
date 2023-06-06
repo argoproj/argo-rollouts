@@ -172,9 +172,9 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 	//Check if using Amazon Managed Prometheus if true build sigv4 client
 	if strings.Contains(metric.Provider.Prometheus.Address, "aps-workspaces") {
 		cfg := sigv4.SigV4Config{
-			Region:  metric.Provider.Prometheus.Sigv4.Region,
-			Profile: metric.Provider.Prometheus.Sigv4.Profile,
-			RoleARN: metric.Provider.Prometheus.Sigv4.RoleARN,
+			Region:  metric.Provider.Prometheus.Authentication.Sigv4.Region,
+			Profile: metric.Provider.Prometheus.Authentication.Sigv4.Profile,
+			RoleARN: metric.Provider.Prometheus.Authentication.Sigv4.RoleARN,
 		}
 		var next http.RoundTripper
 		sigv4RoundTripper, err := sigv4.NewSigV4RoundTripper(&cfg, next)
