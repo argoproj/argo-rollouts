@@ -49,10 +49,11 @@ provider:
       sum(irate(
         istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
       ))
-    sigv4:
-      region: $REGION
-      profile: $PROFILE
-      roleArn: $ROLEARN
+    authentication:
+      sigv4:
+        region: $REGION
+        profile: $PROFILE
+        roleArn: $ROLEARN
 ```
 
 # Additional Metadata
