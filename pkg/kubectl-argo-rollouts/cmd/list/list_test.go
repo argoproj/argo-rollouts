@@ -25,12 +25,12 @@ func newCanaryRollout() *v1alpha1.Rollout {
 			Namespace: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(5),
+			Replicas: pointer.Int32(5),
 			Strategy: v1alpha1.RolloutStrategy{
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(10),
+							SetWeight: pointer.Int32(10),
 						},
 						{
 							Pause: &v1alpha1.RolloutPause{
@@ -38,14 +38,14 @@ func newCanaryRollout() *v1alpha1.Rollout {
 							},
 						},
 						{
-							SetWeight: pointer.Int32Ptr(20),
+							SetWeight: pointer.Int32(20),
 						},
 					},
 				},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex:  pointer.Int32Ptr(1),
+			CurrentStepIndex:  pointer.Int32(1),
 			Replicas:          4,
 			ReadyReplicas:     1,
 			UpdatedReplicas:   3,
@@ -61,13 +61,13 @@ func newBlueGreenRollout() *v1alpha1.Rollout {
 			Namespace: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(5),
+			Replicas: pointer.Int32(5),
 			Strategy: v1alpha1.RolloutStrategy{
 				BlueGreen: &v1alpha1.BlueGreenStrategy{},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex:  pointer.Int32Ptr(1),
+			CurrentStepIndex:  pointer.Int32(1),
 			Replicas:          4,
 			ReadyReplicas:     1,
 			UpdatedReplicas:   3,

@@ -299,7 +299,7 @@ func TestCreateWithCollisionCounterError(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					UID:        types.UID("fake-uid"),
-					Controller: pointer.BoolPtr(true),
+					Controller: pointer.Bool(true),
 				},
 			},
 		},
@@ -322,7 +322,7 @@ func TestCreateWithCollisionCounterStillRunning(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					UID:        types.UID("fake-uid"),
-					Controller: pointer.BoolPtr(true),
+					Controller: pointer.Bool(true),
 				},
 			},
 		},
@@ -343,7 +343,7 @@ func TestCreateWithCollisionCounter(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					UID:        types.UID("fake-uid"),
-					Controller: pointer.BoolPtr(true),
+					Controller: pointer.Bool(true),
 				},
 			},
 		},
@@ -383,7 +383,7 @@ func TestFlattenTemplates(t *testing.T) {
 		orig := &v1alpha1.AnalysisTemplate{
 			Spec: v1alpha1.AnalysisTemplateSpec{
 				Metrics: []v1alpha1.Metric{metric("foo", "{{args.test}}")},
-				Args:    []v1alpha1.Argument{arg("test", pointer.StringPtr("true"))},
+				Args:    []v1alpha1.Argument{arg("test", pointer.String("true"))},
 			},
 		}
 		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{orig}, []*v1alpha1.ClusterAnalysisTemplate{})
@@ -545,8 +545,8 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Equal(t, err, fmt.Errorf("two Measurement Retention metric rules have the same name 'foo'"))
 	})
 	t.Run("Merge multiple args successfully", func(t *testing.T) {
-		fooArgs := arg("foo", pointer.StringPtr("true"))
-		barArgs := arg("bar", pointer.StringPtr("true"))
+		fooArgs := arg("foo", pointer.String("true"))
+		barArgs := arg("bar", pointer.String("true"))
 		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
 			{
 				Spec: v1alpha1.AnalysisTemplateSpec{
@@ -566,7 +566,7 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Equal(t, barArgs, template.Spec.Args[1])
 	})
 	t.Run(" Merge args with same name but only one has value", func(t *testing.T) {
-		fooArgsValue := arg("foo", pointer.StringPtr("true"))
+		fooArgsValue := arg("foo", pointer.String("true"))
 		fooArgsNoValue := arg("foo", nil)
 		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
 			{
@@ -586,8 +586,8 @@ func TestFlattenTemplates(t *testing.T) {
 		assert.Contains(t, template.Spec.Args, fooArgsValue)
 	})
 	t.Run("Error: merge args with same name and both have values", func(t *testing.T) {
-		fooArgs := arg("foo", pointer.StringPtr("true"))
-		fooArgsWithDiffValue := arg("foo", pointer.StringPtr("false"))
+		fooArgs := arg("foo", pointer.String("true"))
+		fooArgsWithDiffValue := arg("foo", pointer.String("false"))
 		template, err := FlattenTemplates([]*v1alpha1.AnalysisTemplate{
 			{
 				Spec: v1alpha1.AnalysisTemplateSpec{
@@ -633,7 +633,7 @@ func TestNewAnalysisRunFromTemplates(t *testing.T) {
 
 	arg := v1alpha1.Argument{
 		Name:  "my-arg",
-		Value: pointer.StringPtr("my-val"),
+		Value: pointer.String("my-val"),
 	}
 	secretArg := v1alpha1.Argument{
 		Name: "my-secret",
@@ -696,7 +696,7 @@ func TestMergeArgs(t *testing.T) {
 			nil, []v1alpha1.Argument{
 				{
 					Name:  "foo",
-					Value: pointer.StringPtr("bar"),
+					Value: pointer.String("bar"),
 				},
 				{
 					Name: "my-secret",
@@ -721,12 +721,12 @@ func TestMergeArgs(t *testing.T) {
 			[]v1alpha1.Argument{
 				{
 					Name:  "foo",
-					Value: pointer.StringPtr("overwrite"),
+					Value: pointer.String("overwrite"),
 				},
 			}, []v1alpha1.Argument{
 				{
 					Name:  "foo",
-					Value: pointer.StringPtr("bar"),
+					Value: pointer.String("bar"),
 				},
 			})
 		assert.NoError(t, err)
@@ -755,11 +755,11 @@ func TestMergeArgs(t *testing.T) {
 			[]v1alpha1.Argument{
 				{
 					Name:  "foo",
-					Value: pointer.StringPtr("my-value"),
+					Value: pointer.String("my-value"),
 				},
 				{
 					Name:  "extra-arg",
-					Value: pointer.StringPtr("extra-value"),
+					Value: pointer.String("extra-value"),
 				},
 			}, []v1alpha1.Argument{
 				{
@@ -799,11 +799,11 @@ func TestNewAnalysisRunFromUnstructured(t *testing.T) {
 	args := []v1alpha1.Argument{
 		{
 			Name:  "my-arg-1",
-			Value: pointer.StringPtr("my-val-1"),
+			Value: pointer.String("my-val-1"),
 		},
 		{
 			Name:  "my-arg-2",
-			Value: pointer.StringPtr("my-val-2"),
+			Value: pointer.String("my-val-2"),
 		},
 	}
 
@@ -849,7 +849,7 @@ func TestCompatibilityNewAnalysisRunFromTemplate(t *testing.T) {
 	args := []v1alpha1.Argument{
 		{
 			Name:  "my-arg",
-			Value: pointer.StringPtr("my-val"),
+			Value: pointer.String("my-val"),
 		},
 	}
 	analysisTemplates := []*v1alpha1.AnalysisTemplate{&template}
@@ -884,7 +884,7 @@ func TestCompatibilityNewAnalysisRunFromClusterTemplate(t *testing.T) {
 	args := []v1alpha1.Argument{
 		{
 			Name:  "my-arg",
-			Value: pointer.StringPtr("my-val"),
+			Value: pointer.String("my-val"),
 		},
 	}
 	clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{&clusterTemplate}

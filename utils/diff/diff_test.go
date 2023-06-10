@@ -37,7 +37,7 @@ func TestCreateTwoWayMergeInvalidDataStruct(t *testing.T) {
 			Name: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: pointer.Int32(1),
 		},
 	}
 	_, _, err := CreateTwoWayMergePatch(rollout, rollout2, nil)
@@ -55,7 +55,7 @@ func TestCreateTwoWayMergeCreatePatch(t *testing.T) {
 			Name: "test",
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: pointer.Int32(1),
 		},
 	}
 	patch, isPatched, err := CreateTwoWayMergePatch(rollout, rollout2, v1alpha1.Rollout{})

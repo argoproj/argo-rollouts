@@ -319,7 +319,7 @@ func (ec *experimentContext) createTemplateService(template *v1alpha1.TemplateSp
 
 // createReplicaSetForTemplate initializes ReplicaSet with zero replicas for given experiment template
 func (ec *experimentContext) createReplicaSetForTemplate(template v1alpha1.TemplateSpec, templateStatus *v1alpha1.TemplateStatus, logCtx *log.Entry, now metav1.Time) {
-	template.Replicas = pointer.Int32Ptr(0)
+	template.Replicas = pointer.Int32(0)
 	rs, err := ec.createReplicaSet(template, templateStatus.CollisionCount)
 	if err != nil {
 		logCtx.Warnf("Failed to create ReplicaSet: %v", err)

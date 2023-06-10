@@ -527,8 +527,8 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 	t.Run("failure - duplicate metrics", func(t *testing.T) {
 		rollout := getAlbRollout()
 		templates := getAnalysisTemplatesWithType()
-		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: pointer.StringPtr("true")})
-		templates.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
+		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: pointer.String("true")})
+		templates.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.String("true")}
 		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
 		assert.Empty(t, allErrs)
 	})
@@ -594,7 +594,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name:  "service-name",
-				Value: pointer.StringPtr("service-name"),
+				Value: pointer.String("service-name"),
 			},
 		}
 		allErrs := ValidateAnalysisTemplateWithType(rollout, template.AnalysisTemplates[0], nil, template.TemplateType, GetAnalysisTemplateWithTypeFieldPath(template.TemplateType, template.CanaryStepIndex))
@@ -653,7 +653,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 		templates.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
 				Name:  "service-name",
-				Value: pointer.StringPtr("service-name"),
+				Value: pointer.String("service-name"),
 			},
 		}
 		rollout.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -1362,7 +1362,7 @@ func TestValidateAnalysisMetrics(t *testing.T) {
 	})
 
 	t.Run("Error: arg has both Value and ValueFrom", func(t *testing.T) {
-		args[2].Value = pointer.StringPtr("secret-value")
+		args[2].Value = pointer.String("secret-value")
 		_, err := validateAnalysisMetrics(metrics, args)
 		assert.NotNil(t, err)
 		assert.Equal(t, "arg 'secret' has both Value and ValueFrom fields", err.Error())

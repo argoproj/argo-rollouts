@@ -26,7 +26,7 @@ func TestGetReplicasOrDefault(t *testing.T) {
 func TestGetExperimentScaleDownDelaySecondsOrDefault(t *testing.T) {
 	exp := v1alpha1.Experiment{
 		Spec: v1alpha1.ExperimentSpec{
-			ScaleDownDelaySeconds: pointer.Int32Ptr(0),
+			ScaleDownDelaySeconds: pointer.Int32(0),
 		},
 	}
 	// Custom value

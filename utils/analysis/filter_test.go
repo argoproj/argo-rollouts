@@ -278,9 +278,9 @@ func TestSortAnalysisRunByPodHash(t *testing.T) {
 	}
 	ars := []*v1alpha1.AnalysisRun{
 		ar(nil),
-		ar(pointer.StringPtr("ab")),
-		ar(pointer.StringPtr("abc")),
-		ar(pointer.StringPtr("abc")),
+		ar(pointer.String("ab")),
+		ar(pointer.String("abc")),
+		ar(pointer.String("abc")),
 	}
 	arMap := SortAnalysisRunByPodHash(ars)
 	assert.Len(t, arMap, 2)

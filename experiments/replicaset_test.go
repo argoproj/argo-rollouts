@@ -115,7 +115,7 @@ func TestNameCollision(t *testing.T) {
 		templateStatuses := []v1alpha1.TemplateStatus{
 			generateTemplatesStatus("bar", 0, 0, "", nil),
 		}
-		templateStatuses[0].CollisionCount = pointer.Int32Ptr(1)
+		templateStatuses[0].CollisionCount = pointer.Int32(1)
 		validatePatch(t, patch, "", NoChange, templateStatuses, nil)
 	}
 	{
@@ -152,7 +152,7 @@ func TestNameCollisionWithEquivalentPodTemplateAndControllerUID(t *testing.T) {
 		templateStatuses := []v1alpha1.TemplateStatus{
 			generateTemplatesStatus("bar", 0, 0, "", nil),
 		}
-		templateStatuses[0].CollisionCount = pointer.Int32Ptr(1)
+		templateStatuses[0].CollisionCount = pointer.Int32(1)
 		validatePatch(t, patch, "", NoChange, templateStatuses, nil)
 	}
 	{

@@ -161,7 +161,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 			Template:        newRSTemplate,
 		},
 	}
-	newRS.Spec.Replicas = pointer.Int32Ptr(0)
+	newRS.Spec.Replicas = pointer.Int32(0)
 	// Set new replica set's annotation
 	annotations.SetNewReplicaSetAnnotations(c.rollout, newRS, newRevision, false)
 
@@ -554,12 +554,12 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 		conditions.SetRolloutCondition(&newStatus, *updateHealthyCond)
 		// If we ever wanted to emit a healthy event here it would be noisy and somewhat unpredictable for tests and so should probably be skipped
 		// when checking in e2e and unit tests.
-		//c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutHealthyMessage)
+		// c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutHealthyMessage)
 	} else {
 		if completeCond != nil {
 			updateHealthyCond := conditions.NewRolloutCondition(v1alpha1.RolloutHealthy, corev1.ConditionFalse, conditions.RolloutHealthyReason, conditions.RolloutNotHealthyMessage)
 			becameUnhealthy = conditions.SetRolloutCondition(&newStatus, *updateHealthyCond)
-			//c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutNotHealthyMessage)
+			// c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutHealthyReason}, conditions.RolloutNotHealthyMessage)
 		}
 	}
 

@@ -372,7 +372,7 @@ func (c *CreateAnalysisRunOptions) ParseArgFlags() ([]v1alpha1.Argument, error) 
 		}
 		arg := v1alpha1.Argument{
 			Name:  argSplit[0],
-			Value: pointer.StringPtr(argSplit[1]),
+			Value: pointer.String(argSplit[1]),
 		}
 		args = append(args, arg)
 	}

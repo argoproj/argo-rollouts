@@ -37,7 +37,7 @@ func generateRollout(image string) v1alpha1.Rollout {
 			Annotations: make(map[string]string),
 		},
 		Spec: v1alpha1.RolloutSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: pointer.Int32(1),
 			Selector: &metav1.LabelSelector{MatchLabels: podLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -681,12 +681,12 @@ func TestResetCurrentStepIndex(t *testing.T) {
 	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		Steps: []v1alpha1.CanaryStep{
 			{
-				SetWeight: pointer.Int32Ptr(1),
+				SetWeight: pointer.Int32(1),
 			},
 		},
 	}
 	newStepIndex := ResetCurrentStepIndex(&ro)
-	assert.Equal(t, pointer.Int32Ptr(0), newStepIndex)
+	assert.Equal(t, pointer.Int32(0), newStepIndex)
 
 	ro.Spec.Strategy.Canary.Steps = nil
 	newStepIndex = ResetCurrentStepIndex(&ro)
@@ -1277,7 +1277,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: pointer.Int32(1),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     0,
@@ -1289,7 +1289,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: pointer.Int32(1),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     1,
@@ -1301,7 +1301,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(1),
+				Replicas: pointer.Int32(1),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     2,
@@ -1313,7 +1313,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(0),
+				Replicas: pointer.Int32(0),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     0,
@@ -1326,7 +1326,7 @@ func TestIsReplicaSetAvailable(t *testing.T) {
 	{
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(0),
+				Replicas: pointer.Int32(0),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     1,
@@ -1341,7 +1341,7 @@ func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
 	t.Run("No Availability", func(t *testing.T) {
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(2),
+				Replicas: pointer.Int32(2),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     0,
@@ -1353,7 +1353,7 @@ func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
 	t.Run("Partial Availability", func(t *testing.T) {
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(2),
+				Replicas: pointer.Int32(2),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     2,
@@ -1365,7 +1365,7 @@ func TestIsReplicaSetPartiallyAvailable(t *testing.T) {
 	t.Run("Full Availability", func(t *testing.T) {
 		rs := appsv1.ReplicaSet{
 			Spec: appsv1.ReplicaSetSpec{
-				Replicas: pointer.Int32Ptr(2),
+				Replicas: pointer.Int32(2),
 			},
 			Status: appsv1.ReplicaSetStatus{
 				ReadyReplicas:     2,

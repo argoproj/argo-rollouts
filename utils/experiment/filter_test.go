@@ -60,9 +60,9 @@ func TestSortExperimentsByPodHash(t *testing.T) {
 	}
 	exs := []*v1alpha1.Experiment{
 		ex(nil),
-		ex(pointer.StringPtr("ab")),
-		ex(pointer.StringPtr("abc")),
-		ex(pointer.StringPtr("abc")),
+		ex(pointer.String("ab")),
+		ex(pointer.String("abc")),
+		ex(pointer.String("abc")),
 	}
 	exMap := SortExperimentsByPodHash(exs)
 	assert.Len(t, exMap, 2)

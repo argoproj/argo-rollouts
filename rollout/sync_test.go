@@ -353,7 +353,7 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 
 	at := analysisTemplate("bar")
 	r1 := newBlueGreenRollout("foo", 10, nil, "active", "preview")
-	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
+	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.Bool(false)
 	r1.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
 		Templates: []v1alpha1.RolloutAnalysisTemplate{
 			{
