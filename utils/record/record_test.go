@@ -432,6 +432,8 @@ func TestNewAPIFactorySettings(t *testing.T) {
 	rollout := map[string]interface{}{"name": "hello"}
 	vars := getVars(rollout, services.Destination{})
 
+	delete(vars, "sprig") // delete sprig functions because they can not be tested in equality
+
 	assert.Equal(t, map[string]interface{}{"rollout": rollout, "time": timeExprs}, vars)
 }
 

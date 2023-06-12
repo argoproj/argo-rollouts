@@ -326,6 +326,7 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	assert.Equal(t, expectedPatch, patch)
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
+		conditions.RolloutReconciledReason,
 	})
 }
 
@@ -412,6 +413,7 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
 		conditions.RolloutCompletedReason,
+		conditions.RolloutReconciledReason,
 	})
 }
 
@@ -511,6 +513,7 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	f.run(getKey(r2, t))
 	f.assertEvents([]string{
 		conditions.TargetGroupUnverifiedReason,
+		conditions.RolloutReconciledReason,
 	})
 }
 
@@ -611,6 +614,7 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	f.verifyPatchedReplicaSet(scaleDownRSIndex, 30)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
+		conditions.RolloutReconciledReason,
 	})
 }
 
@@ -669,7 +673,7 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
 
 	f.run(getKey(r2, t)) // there should be no api calls
-	f.assertEvents(nil)
+	f.assertEvents([]string{conditions.RolloutReconciledReason})
 }
 
 // TestShouldVerifyTargetGroups returns whether or not we should verify the target group

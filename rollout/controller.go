@@ -426,7 +426,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	}
 	roCtx.recorder.Eventf(r, record.EventOptions{
 		EventType:   "Normal",
-		EventReason: "RolloutReconciled",
+		EventReason: conditions.RolloutReconciledReason,
 	}, "Rollout reconciled: %s/%s", roCtx.rollout.Namespace, roCtx.rollout.Name)
 	return nil
 }
