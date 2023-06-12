@@ -231,7 +231,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		AddFunc: func(obj interface{}) {
 			controller.enqueueRollout(obj)
 			ro := unstructuredutil.ObjectToRollout(obj)
-			cfg.RolloutsInformer.Informer().AddEventHandlerWithResyncPeriod(cache.ResourceEventHandlerFuncs{}, cfg.ResyncPeriod)
 			cfg.Recorder.K8sRecorder().Eventf(ro, corev1.EventTypeNormal, conditions.RolloutAddedToInformerReason, "Rollout resource added to informer: %s/%s", ro.Namespace, ro.Name)
 		},
 		UpdateFunc: func(old, new interface{}) {
