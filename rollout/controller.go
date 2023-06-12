@@ -228,7 +228,12 @@ func NewController(cfg ControllerConfig) *Controller {
 	log.Info("Setting up event handlers")
 	// Set up an event handler for when rollout resources change
 	cfg.RolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueRollout,
+		AddFunc: func(obj interface{}) {
+			controller.enqueueRollout(obj)
+			ro := unstructuredutil.ObjectToRollout(obj)
+			cfg.RolloutsInformer.Informer().AddEventHandlerWithResyncPeriod(cache.ResourceEventHandlerFuncs{}, cfg.ResyncPeriod)
+			cfg.Recorder.K8sRecorder().Eventf(ro, corev1.EventTypeNormal, conditions.RolloutAddedToInformerReason, "Rollout resource added to informer: %s/%s", ro.Namespace, ro.Name)
+		},
 		UpdateFunc: func(old, new interface{}) {
 			oldRollout := unstructuredutil.ObjectToRollout(old)
 			newRollout := unstructuredutil.ObjectToRollout(new)
@@ -424,10 +429,6 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	if roCtx.newRollout != nil {
 		c.writeBackToInformer(roCtx.newRollout)
 	}
-	roCtx.recorder.Eventf(r, record.EventOptions{
-		EventType:   "Normal",
-		EventReason: conditions.RolloutReconciledReason,
-	}, "Rollout reconciled: %s/%s", roCtx.rollout.Namespace, roCtx.rollout.Name)
 	return nil
 }
 

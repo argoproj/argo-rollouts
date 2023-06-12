@@ -175,7 +175,7 @@ const (
 	LoadBalancerNotFoundReason  = "LoadBalancerNotFound"
 	LoadBalancerNotFoundMessage = "Failed to find load balancer: %s"
 
-	RolloutReconciledReason = "RolloutReconciled"
+	RolloutAddedToInformerReason = "RolloutAddedToInformer"
 )
 
 // NewRolloutCondition creates a new rollout condition.
