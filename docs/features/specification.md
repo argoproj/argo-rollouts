@@ -151,6 +151,18 @@ spec:
         requiredDuringSchedulingIgnoredDuringExecution: {}
         preferredDuringSchedulingIgnoredDuringExecution:
           weight: 1 # Between 1 - 100
+          
+      # activeMetadata will be merged and updated in-place into the ReplicaSet's spec.template.metadata
+      # of the active pods. +optional
+      activeMetadata:
+        labels:
+          role: active
+          
+      # Metadata which will be attached to the preview pods only during their preview phase.
+      # +optional
+      previewMetadata:
+        labels:
+          role: preview
 
     # Canary update strategy
     canary:
