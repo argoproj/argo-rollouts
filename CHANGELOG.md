@@ -1,4 +1,17 @@
 
+<a name="v1.5.1"></a>
+## [v1.5.1](https://github.com/argoproj/argo-rollouts/compare/v1.5.0...v1.5.1) (2023-05-24)
+
+### Ci
+
+* use keyless signing for main and release branches ([#2783](https://github.com/argoproj/argo-rollouts/issues/2783))
+
+### Fix
+
+* make new alb fullName field  optional for backward compatability ([#2806](https://github.com/argoproj/argo-rollouts/issues/2806))
+* properly wrap Datadog API v2 request body ([#2771](https://github.com/argoproj/argo-rollouts/issues/2771)) ([#2775](https://github.com/argoproj/argo-rollouts/issues/2775))
+
+
 <a name="v1.5.0"></a>
 ## [v1.5.0](https://github.com/argoproj/argo-rollouts/compare/v1.5.0-rc1...v1.5.0) (2023-05-05)
 

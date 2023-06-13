@@ -17,7 +17,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.3
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/hashicorp/go-plugin v1.4.9
+	github.com/hashicorp/go-plugin v1.4.10
 	github.com/influxdata/influxdb-client-go/v2 v2.12.3
 	github.com/juju/ansiterm v1.0.0
 	github.com/machinebox/graphql v0.2.2
@@ -29,11 +29,11 @@ require (
 	github.com/prometheus/common v0.42.0
 	github.com/prometheus/common/sigv4 v0.1.0
 	github.com/servicemeshinterface/smi-sdk-go v0.5.0
-	github.com/sirupsen/logrus v1.9.1
+	github.com/sirupsen/logrus v1.9.3
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spaceapegames/go-wavefront v1.8.1
 	github.com/spf13/cobra v1.7.0
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	github.com/tj/assert v0.0.3
 	github.com/valyala/fasttemplate v1.2.2
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4

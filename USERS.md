@@ -45,3 +45,4 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Ubie](https://ubie.life/)
 1. [VISITS Technologies](https://visits.world/en)
 1. [Yotpo](https://www.yotpo.com/)
+1. [VGS](https://www.vgs.io)
