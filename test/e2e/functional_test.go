@@ -682,7 +682,7 @@ spec:
 }
 
 // TestBlueGreenUpdate
-func (s *FunctionalSuite) qTestBlueGreenUpdate() {
+func (s *FunctionalSuite) TestBlueGreenUpdate() {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 	s.Given().
