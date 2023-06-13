@@ -4259,6 +4259,25 @@
                                                     "address": {
                                                         "type": "string"
                                                     },
+                                                    "authentication": {
+                                                        "properties": {
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
                                                     "query": {
                                                         "type": "string"
                                                     }
@@ -8630,6 +8649,25 @@
                                                     "address": {
                                                         "type": "string"
                                                     },
+                                                    "authentication": {
+                                                        "properties": {
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
                                                     "query": {
                                                         "type": "string"
                                                     }
@@ -13000,6 +13038,25 @@
                                                 "properties": {
                                                     "address": {
                                                         "type": "string"
+                                                    },
+                                                    "authentication": {
+                                                        "properties": {
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     },
                                                     "query": {
                                                         "type": "string"

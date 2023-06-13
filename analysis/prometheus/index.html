@@ -2358,7 +2358,7 @@
 you validate your <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/">PromQL expression</a> using the <a href="https://prometheus.io/docs/introduction/first_steps/#using-the-expression-browser">Prometheus GUI first</a>.</p>
 <p>See the <a href="../../features/analysis">Analysis Overview page</a> for more details on the available options.</p>
 <h2 id="utilizing-amazon-managed-prometheus">Utilizing Amazon Managed Prometheus<a class="headerlink" href="#utilizing-amazon-managed-prometheus" title="Permanent link">&para;</a></h2>
-<p>Amazon Managed Prometheus can be used as the prometheus data source for analysis. In order to do this the namespace where you analysis is running will have to have the appropriate <a href="https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-onboard-ingest-metrics-new-Prometheus.html#AMP-onboard-new-Prometheus-IRSA">IRSA attached</a> to allow for prometheus queries. Once you ensure the proper permissions are in place to access AMP, you can use an AMP workspace url in your <code>provider</code> block:</p>
+<p>Amazon Managed Prometheus can be used as the prometheus data source for analysis. In order to do this the namespace where your analysis is running will have to have the appropriate <a href="https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-onboard-ingest-metrics-new-Prometheus.html#AMP-onboard-new-Prometheus-IRSA">IRSA attached</a> to allow for prometheus queries. Once you ensure the proper permissions are in place to access AMP, you can use an AMP workspace url in your <code>provider</code> block and add a SigV4 config for Sigv4 signing:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">provider</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">prometheus</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://aps-workspaces.$REGION.amazonaws.com/workspaces/$WORKSPACEID</span>
@@ -2369,6 +2369,11 @@ you validate your <a href="https://prometheus.io/docs/prometheus/latest/querying
 <span class="w">      </span><span class="no">sum(irate(</span>
 <span class="w">        </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
 <span class="w">      </span><span class="no">))</span>
+<span class="w">    </span><span class="nt">authentication</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">sigv4</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$REGION</span>
+<span class="w">        </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$PROFILE</span>
+<span class="w">        </span><span class="nt">roleArn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$ROLEARN</span>
 </code></pre></div>
 <h1 id="additional-metadata">Additional Metadata<a class="headerlink" href="#additional-metadata" title="Permanent link">&para;</a></h1>
 <p>Any additional metadata from the Prometheus controller, like the resolved queries after substituting the template's
