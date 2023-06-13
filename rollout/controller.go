@@ -231,7 +231,11 @@ func NewController(cfg ControllerConfig) *Controller {
 		AddFunc: func(obj interface{}) {
 			controller.enqueueRollout(obj)
 			ro := unstructuredutil.ObjectToRollout(obj)
-			cfg.Recorder.K8sRecorder().Eventf(ro, corev1.EventTypeNormal, conditions.RolloutAddedToInformerReason, "Rollout resource added to informer: %s/%s", ro.Namespace, ro.Name)
+			if ro != nil && cfg.Recorder != nil {
+				cfg.Recorder.K8sRecorder().Eventf(ro, corev1.EventTypeNormal, conditions.RolloutAddedToInformerReason, "Rollout resource added to informer: %s/%s", ro.Namespace, ro.Name)
+			} else {
+				log.Warnf("Malformed rollout resource added to informer")
+			}
 		},
 		UpdateFunc: func(old, new interface{}) {
 			oldRollout := unstructuredutil.ObjectToRollout(old)
