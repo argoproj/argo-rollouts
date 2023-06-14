@@ -302,6 +302,8 @@ message AwsResourceRef {
 
   optional string arn = 2;
 
+  // FullName is the full name of the resource
+  // +optional
   optional string fullName = 3;
 }
 
@@ -1119,12 +1121,22 @@ message PreferredDuringSchedulingIgnoredDuringExecution {
 }
 
 // PrometheusMetric defines the prometheus query to perform canary analysis
+message PrometheusAuth {
+  // +optional
+  optional Sigv4Config sigv4 = 3;
+}
+
+// PrometheusMetric defines the prometheus query to perform canary analysis
 message PrometheusMetric {
   // Address is the HTTP address and port of the prometheus server
   optional string address = 1;
 
   // Query is a raw prometheus query to perform
   optional string query = 2;
+
+  // Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
+  // +optional
+  optional PrometheusAuth authentication = 3;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
@@ -1614,6 +1626,17 @@ message SetMirrorRoute {
   // Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
   // Percentage What percent of the traffic that matched the rules should be mirrored
   optional int32 percentage = 4;
+}
+
+message Sigv4Config {
+  // Region is the AWS Region to sign the SigV4 Request
+  optional string address = 1;
+
+  // Profile is the Credential Profile used to sign the SigV4 Request
+  optional string profile = 2;
+
+  // RoleARN is the IAM role used to sign the SIgV4 Request
+  optional string roleArn = 3;
 }
 
 message SkyWalkingMetric {

@@ -2766,6 +2766,18 @@ spec:
                           properties:
                             address:
                               type: string
+                            authentication:
+                              properties:
+                                sigv4:
+                                  properties:
+                                    profile:
+                                      type: string
+                                    region:
+                                      type: string
+                                    roleArn:
+                                      type: string
+                                  type: object
+                              type: object
                             query:
                               type: string
                           type: object
@@ -5713,6 +5725,18 @@ spec:
                           properties:
                             address:
                               type: string
+                            authentication:
+                              properties:
+                                sigv4:
+                                  properties:
+                                    profile:
+                                      type: string
+                                    region:
+                                      type: string
+                                    roleArn:
+                                      type: string
+                                  type: object
+                              type: object
                             query:
                               type: string
                           type: object
@@ -8546,6 +8570,18 @@ spec:
                           properties:
                             address:
                               type: string
+                            authentication:
+                              properties:
+                                sigv4:
+                                  properties:
+                                    profile:
+                                      type: string
+                                    region:
+                                      type: string
+                                    roleArn:
+                                      type: string
+                                  type: object
+                              type: object
                             query:
                               type: string
                           type: object
@@ -14552,7 +14588,6 @@ spec:
                         type: string
                     required:
                     - arn
-                    - fullName
                     - name
                     type: object
                   loadBalancer:
@@ -14565,7 +14600,6 @@ spec:
                         type: string
                     required:
                     - arn
-                    - fullName
                     - name
                     type: object
                   stableTargetGroup:
@@ -14578,7 +14612,6 @@ spec:
                         type: string
                     required:
                     - arn
-                    - fullName
                     - name
                     type: object
                 type: object

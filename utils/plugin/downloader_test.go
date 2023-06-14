@@ -255,3 +255,23 @@ func TestDownloadFile(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to download file from")
 }
+
+func Test_copyFile(t *testing.T) {
+	t.Run("test copy file that does not exist", func(t *testing.T) {
+		err := copyFile("nonexistentfile", "nonexistentfile")
+		assert.Error(t, err)
+	})
+
+	t.Run("test copy file that does exist", func(t *testing.T) {
+		err := os.WriteFile("test-copy", []byte("test"), 0700)
+		assert.NoError(t, err)
+		err = copyFile("test-copy", "test-copy")
+		defer func() {
+			err = os.Remove("test-copy")
+			assert.NoError(t, err)
+		}()
+
+		assert.NoError(t, err)
+		assert.FileExists(t, "test-copy")
+	})
+}

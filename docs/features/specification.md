@@ -151,6 +151,18 @@ spec:
         requiredDuringSchedulingIgnoredDuringExecution: {}
         preferredDuringSchedulingIgnoredDuringExecution:
           weight: 1 # Between 1 - 100
+          
+      # activeMetadata will be merged and updated in-place into the ReplicaSet's spec.template.metadata
+      # of the active pods. +optional
+      activeMetadata:
+        labels:
+          role: active
+          
+      # Metadata which will be attached to the preview pods only during their preview phase.
+      # +optional
+      previewMetadata:
+        labels:
+          role: preview
 
     # Canary update strategy
     canary:
@@ -276,8 +288,8 @@ spec:
           matchTrafficWeight: true
 
       # Sets header based route with specified header values
-      # Setting header based route will send all 100 traffic to the canary for the requests 
-      # O with a specified header, in this case request header "version":"2"
+      # Setting header based route will send all traffic to the canary for the requests 
+      # with a specified header, in this case request header "version":"2"
       # (supported only with trafficRouting, for Istio only at the moment)
       - setHeaderRoute:
           # Name of the route that will be created by argo rollouts this must also be configured

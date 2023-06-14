@@ -724,7 +724,8 @@
           "type": "string"
         },
         "fullName": {
-          "type": "string"
+          "type": "string",
+          "title": "FullName is the full name of the resource\n+optional"
         }
       }
     },

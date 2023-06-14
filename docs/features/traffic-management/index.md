@@ -16,12 +16,15 @@ Service Meshes fill this missing functionality in Kubernetes. They introduce new
 
 ## How does Argo Rollouts enable traffic management?
 
-Argo Rollouts enables traffic management by manipulating the Service Mesh resources to match the intent of the Rollout. Argo Rollouts currently supports the following service meshes:
+Argo Rollouts enables traffic management by manipulating the Service Mesh resources to match the intent of the Rollout. Argo Rollouts currently supports the following traffic providers:
 
 - [AWS ALB Ingress Controller](alb.md)
 - [Ambassador Edge Stack](ambassador.md)
 - [Apache APISIX](apisix.md)
+- [Google Cloud](google-cloud.md)
+- [Gateway API](plugins.md)
 - [Istio](istio.md)
+- [Kong Ingress](kong.md)
 - [Nginx Ingress Controller](nginx.md)
 - [Service Mesh Interface (SMI)](smi.md)
 - [Traefik Proxy](traefik.md)

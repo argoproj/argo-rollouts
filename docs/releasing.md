@@ -24,7 +24,6 @@ Example:
 Once the script is executed successfully, a GitHub workflow will start
 execution. You can follow its progress under the [Actions](https://github.com/argoproj/argo-rollouts/actions/workflows/release.yaml) tab, the name of the action is `Release`.
 
-
 1. When the action completes, visit the generated draft [Github releases](https://github.com/argoproj/argo-rollouts/releases) and enter the details about the release:
    * Getting started (copy from previous release and new version)
    * Changelog
