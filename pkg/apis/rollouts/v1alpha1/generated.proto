@@ -1159,6 +1159,8 @@ message Rollout {
 // RolloutAnalysis defines a template that is used to create a analysisRun
 message RolloutAnalysis {
   // Templates reference to a list of analysis templates to combine for an AnalysisRun
+  // +patchMergeKey=templateName
+  // +patchStrategy=merge
   repeated RolloutAnalysisTemplate templates = 1;
 
   // Args the arguments that will be added to the AnalysisRuns

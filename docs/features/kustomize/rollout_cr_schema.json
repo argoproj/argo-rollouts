@@ -17124,6 +17124,22 @@
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "metricName",
                                                     "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "templates": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "clusterScope": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "templateName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "templateName",
+                                                    "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
                                             "type": "object"
@@ -17203,6 +17219,22 @@
                                                     },
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "templates": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "clusterScope": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "templateName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "templateName",
                                                     "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
@@ -17291,6 +17323,22 @@
                                                     },
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "templates": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "clusterScope": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "templateName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "templateName",
                                                     "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
