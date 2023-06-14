@@ -1099,33 +1099,6 @@ func TestTrimMeasurementHistory(t *testing.T) {
 		assert.Equal(t, "2", run.Status.MetricResults[1].Measurements[0].Value)
 		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[1].Value)
 	}
-	{
-		run := newRun()
-		run.Spec.Args = append(run.Spec.Args, v1alpha1.Argument{
-			Name:  "port",
-			Value: pointer.String("port"),
-		})
-		run.Spec.Metrics = []v1alpha1.Metric{
-			{
-				Name:     "metric-prom1",
-				Interval: "60s",
-				Provider: v1alpha1.MetricProvider{
-					Prometheus: &v1alpha1.PrometheusMetric{
-						Address: "https://prometheus.kubeaddons:{{args.port}}",
-					},
-				},
-			},
-		}
-		var measurementRetentionMetricsMap = map[string]*v1alpha1.MeasurementRetention{}
-		measurementRetentionMetricsMap["metric2"] = &v1alpha1.MeasurementRetention{MetricName: "metric2", Limit: 2}
-		err := c.garbageCollectMeasurements(run, measurementRetentionMetricsMap, 1)
-		assert.Nil(t, err)
-		assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
-		assert.Equal(t, "1", run.Status.MetricResults[0].Measurements[0].Value)
-		assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
-		assert.Equal(t, "2", run.Status.MetricResults[1].Measurements[0].Value)
-		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[1].Value)
-	}
 }
 
 func TestGarbageCollectArgResolution(t *testing.T) {
