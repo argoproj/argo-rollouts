@@ -2425,11 +2425,11 @@ run next to the Deployment before deleting the Deployment or scaling down the De
 tested before deleting the original Deployment.</p>
 </div>
 <h2 id="reference-deployment-from-rollout">Reference Deployment From Rollout<a class="headerlink" href="#reference-deployment-from-rollout" title="Permanent link">&para;</a></h2>
-<p>Instead of removing Deployment you can scale-down in to zero and reference from the Rollout resource:</p>
+<p>Instead of removing Deployment you can scale it down to zero and reference it from the Rollout resource:</p>
 <ol>
 <li>Create a Rollout resource.</li>
 <li>Reference an existing Deployment using <code>workloadRef</code> field.</li>
-<li>Scale-down existing Deployment by changing <code>replicas</code> field of an existing Deployment to zero.</li>
+<li>Scale-down an existing Deployment by changing <code>replicas</code> field of an existing Deployment to zero.</li>
 <li>To perform an update, the change should be made to the Pod template field of the Deployment.</li>
 </ol>
 <p>Below is an example of a Rollout resource referencing a Deployment.</p>
@@ -2512,8 +2512,9 @@ tested before deleting the original Rollout.</p>
 <h2 id="reference-deployment-from-rollout_1">Reference Deployment From Rollout<a class="headerlink" href="#reference-deployment-from-rollout_1" title="Permanent link">&para;</a></h2>
 <p>When a rollout is referencing to a deployment:</p>
 <ol>
-<li>Scale-up the Deployment by changing <code>replicas</code> field of an existing Rollout to zero.</li>
-<li>Scale-down existing Rollout by changing <code>replicas</code> field of an existing Rollout to zero.</li>
+<li>Scale-up an existing Deployment by changing its <code>replicas</code> field to a desired number of pods.</li>
+<li>Wait for the Deployment pods to become Ready.</li>
+<li>Scale-down an existing Rollout by changing its <code>replicas</code> field to zero.</li>
 </ol>
 <p>Please refer to <a href="#running-rollout-and-deployment-side-by-side">Running Rollout and Deployment side-by-side</a> and <a href="#traffic-management-during-migration">Traffic Management During Migration</a> for caveats.</p>
 
