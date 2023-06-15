@@ -713,7 +713,7 @@ func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, measu
 
 	resolvedArgsMetric, err := getResolvedMetricsWithoutSecrets(run.Spec.Metrics, run.Spec.Args)
 	if err != nil {
-		return fmt.Errorf("failed to resolve metrics during garbage collection: %w", err)
+		return fmt.Errorf("failed to resolve args on metric during garbage collection: %w", err)
 	}
 
 	metricsByName := make(map[string]v1alpha1.Metric)
