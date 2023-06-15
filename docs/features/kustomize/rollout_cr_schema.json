@@ -4259,6 +4259,25 @@
                                                     "address": {
                                                         "type": "string"
                                                     },
+                                                    "authentication": {
+                                                        "properties": {
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
                                                     "query": {
                                                         "type": "string"
                                                     }
@@ -8629,6 +8648,25 @@
                                                 "properties": {
                                                     "address": {
                                                         "type": "string"
+                                                    },
+                                                    "authentication": {
+                                                        "properties": {
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     },
                                                     "query": {
                                                         "type": "string"
@@ -13001,6 +13039,25 @@
                                                     "address": {
                                                         "type": "string"
                                                     },
+                                                    "authentication": {
+                                                        "properties": {
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
                                                     "query": {
                                                         "type": "string"
                                                     }
@@ -17067,6 +17124,22 @@
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "metricName",
                                                     "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "templates": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "clusterScope": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "templateName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "templateName",
+                                                    "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
                                             "type": "object"
@@ -17146,6 +17219,22 @@
                                                     },
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "templates": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "clusterScope": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "templateName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "templateName",
                                                     "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },
@@ -17234,6 +17323,22 @@
                                                     },
                                                     "type": "array",
                                                     "x-kubernetes-patch-merge-key": "metricName",
+                                                    "x-kubernetes-patch-strategy": "merge"
+                                                },
+                                                "templates": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "clusterScope": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "templateName": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array",
+                                                    "x-kubernetes-patch-merge-key": "templateName",
                                                     "x-kubernetes-patch-strategy": "merge"
                                                 }
                                             },

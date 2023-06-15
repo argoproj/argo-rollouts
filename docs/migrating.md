@@ -50,11 +50,11 @@ spec:
 
 ## Reference Deployment From Rollout
 
-Instead of removing Deployment you can scale-down in to zero and reference from the Rollout resource:
+Instead of removing Deployment you can scale it down to zero and reference it from the Rollout resource:
 
 1. Create a Rollout resource.
 1. Reference an existing Deployment using `workloadRef` field.
-1. Scale-down existing Deployment by changing `replicas` field of an existing Deployment to zero.
+1. Scale-down an existing Deployment by changing `replicas` field of an existing Deployment to zero.
 1. To perform an update, the change should be made to the Pod template field of the Deployment.
 
 Below is an example of a Rollout resource referencing a Deployment.
@@ -150,7 +150,8 @@ When converting a Rollout to a Deployment, it involves changing three fields:
 
 When a rollout is referencing to a deployment:
 
-1. Scale-up the Deployment by changing `replicas` field of an existing Rollout to zero.
-1. Scale-down existing Rollout by changing `replicas` field of an existing Rollout to zero.
+1. Scale-up an existing Deployment by changing its `replicas` field to a desired number of pods.
+1. Wait for the Deployment pods to become Ready.
+1. Scale-down an existing Rollout by changing its `replicas` field to zero.
 
 Please refer to [Running Rollout and Deployment side-by-side](#running-rollout-and-deployment-side-by-side) and [Traffic Management During Migration](#traffic-management-during-migration) for caveats.

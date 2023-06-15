@@ -695,8 +695,10 @@ type RolloutAnalysisBackground struct {
 
 // RolloutAnalysis defines a template that is used to create a analysisRun
 type RolloutAnalysis struct {
-	//Templates reference to a list of analysis templates to combine for an AnalysisRun
-	Templates []RolloutAnalysisTemplate `json:"templates,omitempty" protobuf:"bytes,1,rep,name=templates"`
+	// Templates reference to a list of analysis templates to combine for an AnalysisRun
+	// +patchMergeKey=templateName
+	// +patchStrategy=merge
+	Templates []RolloutAnalysisTemplate `json:"templates,omitempty" patchStrategy:"merge" patchMergeKey:"templateName" protobuf:"bytes,1,rep,name=templates"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
