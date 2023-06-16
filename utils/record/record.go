@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/sprig"
-
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
@@ -234,7 +232,7 @@ func NewAPIFactorySettings() api.Settings {
 		ConfigMapName: NotificationConfigMap,
 		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-				return map[string]interface{}{"rollout": obj, "time": timeExprs, "sprig": sprig.GenericFuncMap()}
+				return map[string]interface{}{"rollout": obj, "time": timeExprs}
 			}, nil
 		},
 	}
