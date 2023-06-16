@@ -130,10 +130,10 @@ func TestPromoteCmdSuccesSkipAllSteps(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: pointer.Int32(1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: pointer.Int32(2),
 						},
 					},
 				},
@@ -180,10 +180,10 @@ func TestPromoteCmdSuccesFirstStepWithSkipFirstStep(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: pointer.Int32(1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: pointer.Int32(2),
 						},
 					},
 				},
@@ -230,10 +230,10 @@ func TestPromoteCmdSuccesFirstStep(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: pointer.Int32(1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: pointer.Int32(2),
 						},
 					},
 				},
@@ -280,17 +280,17 @@ func TestPromoteCmdSuccessDoNotGoPastLastStep(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					Steps: []v1alpha1.CanaryStep{
 						{
-							SetWeight: pointer.Int32Ptr(1),
+							SetWeight: pointer.Int32(1),
 						},
 						{
-							SetWeight: pointer.Int32Ptr(2),
+							SetWeight: pointer.Int32(2),
 						},
 					},
 				},
 			},
 		},
 		Status: v1alpha1.RolloutStatus{
-			CurrentStepIndex: pointer.Int32Ptr(2),
+			CurrentStepIndex: pointer.Int32(2),
 		},
 	}
 

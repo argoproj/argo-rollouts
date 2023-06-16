@@ -388,7 +388,7 @@ func TestRolloutHealthy(t *testing.T) {
 		r := rollout(desired, current, updated, available, correctObservedGeneration)
 		steps := []v1alpha1.CanaryStep{}
 		if hasSteps {
-			steps = append(steps, v1alpha1.CanaryStep{SetWeight: pointer.Int32Ptr(30)})
+			steps = append(steps, v1alpha1.CanaryStep{SetWeight: pointer.Int32(30)})
 		}
 		r.Spec.Strategy = v1alpha1.RolloutStrategy{
 			Canary: &v1alpha1.CanaryStrategy{
@@ -433,12 +433,12 @@ func TestRolloutHealthy(t *testing.T) {
 		},
 		{
 			name:     "CanaryWithSteps Completed",
-			r:        canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(1)),
+			r:        canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32(1)),
 			expected: false,
 		},
 		{
 			name:     "CanaryWithSteps Not Completed: Steps left",
-			r:        canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32Ptr(0)),
+			r:        canaryRollout(1, 1, 1, 1, true, "active", true, pointer.Int32(0)),
 			expected: false,
 		},
 		{
@@ -601,7 +601,7 @@ func TestComputeStepHash(t *testing.T) {
 
 	roWithSameSteps := ro.DeepCopy()
 	roWithSameSteps.Status.CurrentPodHash = "Test"
-	roWithSameSteps.Spec.Replicas = pointer.Int32Ptr(1)
+	roWithSameSteps.Spec.Replicas = pointer.Int32(1)
 	roWithSameStepsHash := ComputeStepHash(roWithSameSteps)
 	assert.Equal(t, "6b9b86fbd5", roWithSameStepsHash)
 

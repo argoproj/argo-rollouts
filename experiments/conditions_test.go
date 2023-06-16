@@ -15,7 +15,7 @@ import (
 func TestUpdateProgressingLastUpdateTime(t *testing.T) {
 
 	templates := generateTemplates("bar")
-	templates[0].Replicas = pointer.Int32Ptr(2)
+	templates[0].Replicas = pointer.Int32(2)
 	e := newExperiment("foo", templates, "")
 	e.Status.TemplateStatuses = []v1alpha1.TemplateStatus{{
 		Name: "bar",
@@ -53,7 +53,7 @@ func TestEnterTimeoutDegradedState(t *testing.T) {
 		Name:   "bar",
 		Status: v1alpha1.TemplateStatusProgressing,
 	}}
-	e.Spec.ProgressDeadlineSeconds = pointer.Int32Ptr(30)
+	e.Spec.ProgressDeadlineSeconds = pointer.Int32(30)
 	prevTime := metav1.NewTime(timeutil.Now().Add(-1 * time.Minute).Truncate(time.Second))
 	e.Status.TemplateStatuses[0].LastTransitionTime = &prevTime
 

@@ -207,7 +207,7 @@ func TestCreateAnalysisRunWithArg(t *testing.T) {
 			TemplateName: aTemplates[0].Name,
 			Args: []v1alpha1.Argument{{
 				Name:  "test",
-				Value: pointer.StringPtr("sss"),
+				Value: pointer.String("sss"),
 			}},
 		},
 	}
@@ -239,7 +239,7 @@ func TestCreateAnalysisRunWithClusterTemplate(t *testing.T) {
 			ClusterScope: true,
 			Args: []v1alpha1.Argument{{
 				Name:  "test",
-				Value: pointer.StringPtr("sss"),
+				Value: pointer.String("sss"),
 			}},
 		},
 	}
@@ -271,7 +271,7 @@ func TestAnalysisRunFailToResolveArg(t *testing.T) {
 			Args: []v1alpha1.Argument{{
 
 				Name:  "test",
-				Value: pointer.StringPtr("{{not a real substitution}}"),
+				Value: pointer.String("{{not a real substitution}}"),
 			}},
 		},
 	}
@@ -480,7 +480,7 @@ func TestAssessAnalysisRunStatusesAfterTemplateSuccess(t *testing.T) {
 func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32(0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -493,7 +493,7 @@ func TestFailExperimentWhenAnalysisFails(t *testing.T) {
 	}
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	e.Spec.Duration = "5m"
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32(0)
 	e.Status.AvailableAt = secondsAgo(60)
 	rs := templateToRS(e, templates[0], 1)
 	ar1 := analysisTemplateToRun("success-rate", e, &v1alpha1.AnalysisTemplateSpec{})
@@ -660,7 +660,7 @@ func TestDoNotCompleteExperimentWithRemainingRequiredAnalysisRun(t *testing.T) {
 func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "1m")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32(0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",
@@ -692,7 +692,7 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 	patchIndex := f.expectPatchExperimentAction(e)
 	f.run(getKey(e, t))
 	patchedEx := f.getPatchedExperimentAsObj(patchIndex)
-	//assert.True(t, patchedEx.Spec.Terminate)
+	// assert.True(t, patchedEx.Spec.Terminate)
 	assert.Equal(t, patchedEx.Status.Phase, v1alpha1.AnalysisPhaseSuccessful)
 }
 
@@ -700,7 +700,7 @@ func TestCompleteExperimentWithNoRequiredAnalysis(t *testing.T) {
 func TestTerminateAnalysisRuns(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32(0)
 	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
 		{
 			Name:         "success-rate",

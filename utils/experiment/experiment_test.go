@@ -106,7 +106,7 @@ func TestReplicaSetNameFromExperiment(t *testing.T) {
 
 	newTemplateStatus := v1alpha1.TemplateStatus{
 		Name:           templateName,
-		CollisionCount: pointer.Int32Ptr(1),
+		CollisionCount: pointer.Int32(1),
 	}
 	e.Status.TemplateStatuses = append(e.Status.TemplateStatuses, newTemplateStatus)
 	assert.Equal(t, "foo-template-688c48b575", ReplicasetNameFromExperiment(e, template))
@@ -367,7 +367,7 @@ func TestIsSemanticallyEqual(t *testing.T) {
 	right := left.DeepCopy()
 	right.Terminate = true
 	assert.True(t, IsSemanticallyEqual(*left, *right))
-	right.Templates[0].Replicas = pointer.Int32Ptr(1)
+	right.Templates[0].Replicas = pointer.Int32(1)
 	assert.False(t, IsSemanticallyEqual(*left, *right))
 }
 

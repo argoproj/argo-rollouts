@@ -266,26 +266,26 @@ func TestBlueGreenAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("1.2.3.4"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("5.6.7.8"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(81),         // wrong port
+					Id:   pointer.String("2.4.6.8"), // irrelevant
+					Port: pointer.Int32(81),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("9.8.7.6"), // irrelevant ip
+					Port: pointer.Int32(80),
 				},
 			},
 		},
@@ -351,26 +351,26 @@ func TestBlueGreenAWSVerifyTargetGroupsReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("1.2.3.4"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("5.6.7.8"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("2.4.6.8"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("9.8.7.6"), // irrelevant ip
+					Port: pointer.Int32(80),
 				},
 			},
 		},
@@ -437,26 +437,26 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("1.2.3.4"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("5.6.7.8"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(81),         // wrong port
+					Id:   pointer.String("2.4.6.8"), // irrelevant
+					Port: pointer.Int32(81),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("9.8.7.6"), // irrelevant ip
+					Port: pointer.Int32(80),
 				},
 			},
 		},
@@ -464,8 +464,8 @@ func TestCanaryAWSVerifyTargetGroupsNotYetReady(t *testing.T) {
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
-	}}, pointer.Int32Ptr(0), intstr.FromString("25%"), intstr.FromString("25%"))
+		SetWeight: pointer.Int32(10),
+	}}, pointer.Int32(0), intstr.FromString("25%"), intstr.FromString("25%"))
 
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
@@ -536,26 +536,26 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("1.2.3.4"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("5.6.7.8"),
+					Port: pointer.Int32(80),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(80),         // wrong port
+					Id:   pointer.String("2.4.6.8"), // irrelevant
+					Port: pointer.Int32(80),         // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(80),
+					Id:   pointer.String("9.8.7.6"), // irrelevant ip
+					Port: pointer.Int32(80),
 				},
 			},
 		},
@@ -563,8 +563,8 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 	fakeELB.On("DescribeTargetHealth", mock.Anything, mock.Anything).Return(&thOut, nil)
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
-	}}, pointer.Int32Ptr(0), intstr.FromString("25%"), intstr.FromString("25%"))
+		SetWeight: pointer.Int32(10),
+	}}, pointer.Int32(0), intstr.FromString("25%"), intstr.FromString("25%"))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
@@ -624,8 +624,8 @@ func TestCanaryAWSVerifyTargetGroupsSkip(t *testing.T) {
 	defer f.Close()
 
 	r1 := newCanaryRollout("foo", 3, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
-	}}, pointer.Int32Ptr(0), intstr.FromString("25%"), intstr.FromString("25%"))
+		SetWeight: pointer.Int32(10),
+	}}, pointer.Int32(0), intstr.FromString("25%"), intstr.FromString("25%"))
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 		ALB: &v1alpha1.ALBTrafficRouting{
 			Ingress:     "ingress",
@@ -828,7 +828,7 @@ func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
 	ro1 := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
 	ro1.Spec.Strategy.Canary.CanaryService = "canary"
 	ro1.Spec.Strategy.Canary.StableService = "stable"
-	//Setup services that are already adopted by rollouts
+	// Setup services that are already adopted by rollouts
 	stableSvc := newService("stable", 80, ro1.Spec.Selector.MatchLabels, ro1)
 	ro2 := bumpVersion(ro1)
 	canarySvc := newService("canary", 80, ro1.Spec.Selector.MatchLabels, ro2)

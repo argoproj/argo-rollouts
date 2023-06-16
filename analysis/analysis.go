@@ -135,7 +135,7 @@ func getResolvedMetricsWithoutSecrets(metrics []v1alpha1.Metric, args []v1alpha1
 		newArg := arg.DeepCopy()
 		if newArg.ValueFrom != nil && newArg.ValueFrom.SecretKeyRef != nil {
 			newArg.ValueFrom = nil
-			newArg.Value = pointer.StringPtr("temp-for-secret")
+			newArg.Value = pointer.String("temp-for-secret")
 		}
 		newArgs = append(newArgs, *newArg)
 	}
@@ -253,11 +253,11 @@ func parseMetricInterval(logCtx log.Entry, metricDurationString v1alpha1.Duratio
 // resolveArgs resolves args for metricTasks, including secret references
 // returns resolved metricTasks and secrets for log redaction
 func (c *Controller) resolveArgs(tasks []metricTask, args []v1alpha1.Argument, namespace string) ([]metricTask, []string, error) {
-	//create set of secret values for redaction
+	// create set of secret values for redaction
 	secretSet := map[string]bool{}
 	for i, arg := range args {
-		//if secret specified in valueFrom, replace value with secret value
-		//error if arg has both value and valueFrom
+		// if secret specified in valueFrom, replace value with secret value
+		// error if arg has both value and valueFrom
 		if arg.ValueFrom != nil && arg.ValueFrom.SecretKeyRef != nil {
 			name := arg.ValueFrom.SecretKeyRef.Name
 			secret, err := c.kubeclientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
@@ -318,7 +318,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 
 		go func(t metricTask) error {
 			defer wg.Done()
-			//redact secret values from logs
+			// redact secret values from logs
 			logger := logutil.WithRedactor(*logutil.WithAnalysisRun(run).WithField("metric", t.metric.Name), secrets)
 
 			var newMeasurement v1alpha1.Measurement
@@ -392,7 +392,7 @@ func (c *Controller) runMeasurements(run *v1alpha1.AnalysisRun, tasks []metricTa
 				}
 			}
 
-			//redact secret values from measurement message
+			// redact secret values from measurement message
 			for _, secret := range secrets {
 				if secret != "" {
 					newMeasurement.Message = strings.ReplaceAll(newMeasurement.Message, secret, "*****")

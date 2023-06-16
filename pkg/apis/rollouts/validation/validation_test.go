@@ -81,7 +81,7 @@ func TestValidateRollout(t *testing.T) {
 	t.Run("privileged container", func(t *testing.T) {
 		ro := ro.DeepCopy()
 		ro.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
-			Privileged: pointer.BoolPtr(true),
+			Privileged: pointer.Bool(true),
 		}
 		allErrs := ValidateRollout(ro)
 		assert.Empty(t, allErrs)
@@ -614,7 +614,7 @@ func TestCanaryScaleDownDelaySeconds(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					StableService:         "stable",
 					CanaryService:         "canary",
-					ScaleDownDelaySeconds: pointer.Int32Ptr(60),
+					ScaleDownDelaySeconds: pointer.Int32(60),
 				},
 			},
 			Template: corev1.PodTemplateSpec{
@@ -681,7 +681,7 @@ func TestCanaryDynamicStableScale(t *testing.T) {
 	})
 	t.Run("dynamicStableScale with scaleDownDelaySeconds", func(t *testing.T) {
 		ro := ro.DeepCopy()
-		ro.Spec.Strategy.Canary.ScaleDownDelaySeconds = pointer.Int32Ptr(60)
+		ro.Spec.Strategy.Canary.ScaleDownDelaySeconds = pointer.Int32(60)
 		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			SMI: &v1alpha1.SMITrafficRouting{},
 		}
@@ -745,7 +745,7 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 			Experiment: &v1alpha1.RolloutExperimentStep{
 				Templates: []v1alpha1.RolloutExperimentTemplate{{
 					Name:   "template",
-					Weight: pointer.Int32Ptr(20),
+					Weight: pointer.Int32(20),
 				}},
 			},
 		}},

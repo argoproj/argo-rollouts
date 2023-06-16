@@ -1216,7 +1216,7 @@ func TestRequeueStuckRollout(t *testing.T) {
 	rollout := func(progressingConditionReason string, rolloutCompleted bool, rolloutPaused bool, progressDeadlineSeconds *int32) *v1alpha1.Rollout {
 		r := &v1alpha1.Rollout{
 			Spec: v1alpha1.RolloutSpec{
-				Replicas:                pointer.Int32Ptr(0),
+				Replicas:                pointer.Int32(0),
 				ProgressDeadlineSeconds: progressDeadlineSeconds,
 			},
 		}
@@ -1272,12 +1272,12 @@ func TestRequeueStuckRollout(t *testing.T) {
 		},
 		{
 			name:               "Less than a second",
-			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(10)),
+			rollout:            rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32(10)),
 			requeueImmediately: true,
 		},
 		{
 			name:    "More than a second",
-			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32Ptr(20)),
+			rollout: rollout(conditions.ReplicaSetUpdatedReason, false, false, pointer.Int32(20)),
 		},
 	}
 	for i := range tests {
@@ -1521,7 +1521,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 	rsPodHash := rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r = updateBlueGreenRolloutStatus(r, "", rsPodHash, rsPodHash, 1, 1, 1, 1, false, true, false)
 	// StableRS is set to avoid running the migration code. When .status.canary.stableRS is removed, the line below can be deleted
-	//r.Status.Canary.StableRS = rsPodHash
+	// r.Status.Canary.StableRS = rsPodHash
 	r.Spec.Strategy.BlueGreen = nil
 	r.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
 		Steps: []v1alpha1.CanaryStep{{

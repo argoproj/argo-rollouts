@@ -141,7 +141,7 @@ func generateTemplates(imageNames ...string) []v1alpha1.TemplateSpec {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: selector,
 			},
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: pointer.Int32(1),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: selector,

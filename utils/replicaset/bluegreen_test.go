@@ -49,7 +49,7 @@ func TestReadyForPause(t *testing.T) {
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abcd"},
 		},
 		Spec: appsv1.ReplicaSetSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: pointer.Int32(1),
 		},
 		Status: appsv1.ReplicaSetStatus{
 			AvailableReplicas: 1,
@@ -61,7 +61,7 @@ func TestReadyForPause(t *testing.T) {
 			Labels: map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "abcd"},
 		},
 		Spec: appsv1.ReplicaSetSpec{
-			Replicas: pointer.Int32Ptr(1),
+			Replicas: pointer.Int32(1),
 		},
 		Status: appsv1.ReplicaSetStatus{
 			AvailableReplicas: 0,

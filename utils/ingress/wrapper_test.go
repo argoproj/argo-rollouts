@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	v1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -914,12 +913,12 @@ func getNetworkingIngress() *v1.Ingress {
 			},
 		},
 		Status: v1.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{
+			LoadBalancer: v1.IngressLoadBalancerStatus{
+				Ingress: []v1.IngressLoadBalancerIngress{
 					{
 						IP:       "127.0.0.1",
 						Hostname: "localhost",
-						Ports: []corev1.PortStatus{
+						Ports: []v1.IngressPortStatus{
 							{
 								Port:     8080,
 								Protocol: "http",
@@ -954,12 +953,12 @@ func getExtensionsIngress() *v1beta1.Ingress {
 			},
 		},
 		Status: v1beta1.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{
+			LoadBalancer: v1beta1.IngressLoadBalancerStatus{
+				Ingress: []v1beta1.IngressLoadBalancerIngress{
 					{
 						IP:       "127.0.0.1",
 						Hostname: "localhost",
-						Ports: []corev1.PortStatus{
+						Ports: []v1beta1.IngressPortStatus{
 							{
 								Port:     8080,
 								Protocol: "http",

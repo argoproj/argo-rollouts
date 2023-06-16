@@ -41,8 +41,8 @@ func TestFindLoadBalancerByDNSName(t *testing.T) {
 		fakeELB, c := newFakeClient()
 		// Mock output
 		expectedLB := elbv2types.LoadBalancer{
-			LoadBalancerArn: pointer.StringPtr("lb-abc123"),
-			DNSName:         pointer.StringPtr("find-loadbalancer-test-abc-123.us-west-2.elb.amazonaws.com"),
+			LoadBalancerArn: pointer.String("lb-abc123"),
+			DNSName:         pointer.String("find-loadbalancer-test-abc-123.us-west-2.elb.amazonaws.com"),
 		}
 		lbOut := elbv2.DescribeLoadBalancersOutput{
 			LoadBalancers: []elbv2types.LoadBalancer{
@@ -103,13 +103,13 @@ func TestGetTargetGroupMetadata(t *testing.T) {
 	tgOut := elbv2.DescribeTargetGroupsOutput{
 		TargetGroups: []elbv2types.TargetGroup{
 			{
-				TargetGroupArn: pointer.StringPtr("tg-abc123"),
+				TargetGroupArn: pointer.String("tg-abc123"),
 			},
 			{
-				TargetGroupArn: pointer.StringPtr("tg-def456"),
+				TargetGroupArn: pointer.String("tg-def456"),
 			},
 			{
-				TargetGroupArn: pointer.StringPtr("tg-ghi789"),
+				TargetGroupArn: pointer.String("tg-ghi789"),
 			},
 		},
 	}
@@ -125,11 +125,11 @@ func TestGetTargetGroupMetadata(t *testing.T) {
 		}
 		for _, arn := range tagsIn.ResourceArns {
 			tagsOut.TagDescriptions = append(tagsOut.TagDescriptions, elbv2types.TagDescription{
-				ResourceArn: pointer.StringPtr(arn),
+				ResourceArn: pointer.String(arn),
 				Tags: []elbv2types.Tag{
 					{
-						Key:   pointer.StringPtr("foo"),
-						Value: pointer.StringPtr("bar"),
+						Key:   pointer.String("foo"),
+						Value: pointer.String("bar"),
 					},
 				},
 			})
@@ -141,8 +141,8 @@ func TestGetTargetGroupMetadata(t *testing.T) {
 	listenersOut := elbv2.DescribeListenersOutput{
 		Listeners: []elbv2types.Listener{
 			{
-				ListenerArn:     pointer.StringPtr("lst-abc123"),
-				LoadBalancerArn: pointer.StringPtr("lb-abc123"),
+				ListenerArn:     pointer.String("lst-abc123"),
+				LoadBalancerArn: pointer.String("lb-abc123"),
 			},
 		},
 	}
@@ -156,8 +156,8 @@ func TestGetTargetGroupMetadata(t *testing.T) {
 						ForwardConfig: &elbv2types.ForwardActionConfig{
 							TargetGroups: []elbv2types.TargetGroupTuple{
 								{
-									TargetGroupArn: pointer.StringPtr("tg-abc123"),
-									Weight:         pointer.Int32Ptr(10),
+									TargetGroupArn: pointer.String("tg-abc123"),
+									Weight:         pointer.Int32(10),
 								},
 							},
 						},
@@ -194,7 +194,7 @@ func TestGetTargetGroupHealth(t *testing.T) {
 	expectedHealth := elbv2.DescribeTargetHealthOutput{
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
-				HealthCheckPort: pointer.StringPtr("80"),
+				HealthCheckPort: pointer.String("80"),
 				Target:          &elbv2types.TargetDescription{},
 				TargetHealth: &elbv2types.TargetHealth{
 					State: elbv2types.TargetHealthStateEnumHealthy,
@@ -290,7 +290,7 @@ func TestVerifyTargetGroupBindingIgnoreInstanceMode(t *testing.T) {
 	_, awsClnt := newFakeClient()
 	tgb := TargetGroupBinding{
 		Spec: TargetGroupBindingSpec{
-			TargetType: (*TargetType)(pointer.StringPtr("instance")),
+			TargetType: (*TargetType)(pointer.String("instance")),
 		},
 	}
 	res, err := VerifyTargetGroupBinding(context.TODO(), logCtx, awsClnt, tgb, nil, nil)
@@ -306,7 +306,7 @@ func TestVerifyTargetGroupBinding(t *testing.T) {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: TargetGroupBindingSpec{
-			TargetType:     (*TargetType)(pointer.StringPtr("ip")),
+			TargetType:     (*TargetType)(pointer.String("ip")),
 			TargetGroupARN: "arn::1234",
 			ServiceRef: ServiceReference{
 				Name: "active",
@@ -360,26 +360,26 @@ func TestVerifyTargetGroupBinding(t *testing.T) {
 		TargetHealthDescriptions: []elbv2types.TargetHealthDescription{
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("1.2.3.4"),
-					Port: pointer.Int32Ptr(8080),
+					Id:   pointer.String("1.2.3.4"),
+					Port: pointer.Int32(8080),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("5.6.7.8"),
-					Port: pointer.Int32Ptr(8080),
+					Id:   pointer.String("5.6.7.8"),
+					Port: pointer.Int32(8080),
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("2.4.6.8"), // irrelevant
-					Port: pointer.Int32Ptr(8081),       // wrong port
+					Id:   pointer.String("2.4.6.8"), // irrelevant
+					Port: pointer.Int32(8081),       // wrong port
 				},
 			},
 			{
 				Target: &elbv2types.TargetDescription{
-					Id:   pointer.StringPtr("9.8.7.6"), // irrelevant ip
-					Port: pointer.Int32Ptr(8080),
+					Id:   pointer.String("9.8.7.6"), // irrelevant ip
+					Port: pointer.Int32(8080),
 				},
 			},
 		},

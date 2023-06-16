@@ -196,7 +196,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
 	ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
 	if err != nil {
-		return pointer.BoolPtr(false), err
+		return pointer.Bool(false), err
 	}
 	resourceIDToDest := map[string]v1alpha1.WeightDestination{}
 
@@ -222,11 +222,11 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		lb, err := r.aws.FindLoadBalancerByDNSName(ctx, lbIngress.Hostname)
 		if err != nil {
 			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-			return pointer.BoolPtr(false), err
+			return pointer.Bool(false), err
 		}
 		if lb == nil || lb.LoadBalancerArn == nil {
 			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.LoadBalancerNotFoundReason}, conditions.LoadBalancerNotFoundMessage, lbIngress.Hostname)
-			return pointer.BoolPtr(false), nil
+			return pointer.Bool(false), nil
 		}
 
 		r.cfg.Status.ALB.LoadBalancer.Name = *lb.LoadBalancerName
@@ -241,7 +241,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 		if err != nil {
 			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-			return pointer.BoolPtr(false), err
+			return pointer.Bool(false), err
 		}
 		logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
 		for _, tg := range lbTargetGroups {
@@ -289,7 +289,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 			}
 		}
 	}
-	return pointer.BoolPtr(numVerifiedWeights == 1+len(additionalDestinations)), nil
+	return pointer.Bool(numVerifiedWeights == 1+len(additionalDestinations)), nil
 }
 
 func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (string, error) {

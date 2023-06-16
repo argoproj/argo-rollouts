@@ -310,7 +310,7 @@ func TestReconcileOldReplicaSet(t *testing.T) {
 			oldRS.Annotations = map[string]string{annotations.DesiredReplicasAnnotation: strconv.Itoa(test.oldReplicas)}
 			oldRS.Status.AvailableReplicas = int32(test.readyPodsFromOldRS)
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
-			rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = pointer.Int32Ptr(0)
+			rollout.Spec.Strategy.BlueGreen.ScaleDownDelayRevisionLimit = pointer.Int32(0)
 			rollout.Spec.Selector = &metav1.LabelSelector{MatchLabels: newSelector}
 			f := newFixture(t)
 			defer f.Close()

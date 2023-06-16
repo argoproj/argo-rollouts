@@ -266,7 +266,7 @@ func TestCanaryIngressCreate(t *testing.T) {
 			for _, ing := range test.ingresses {
 
 				stableIngress := extensionsIngress(ing, 80, stableService)
-				stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
+				stableIngress.Spec.IngressClassName = pointer.String("nginx-ext")
 				i := ingressutil.NewLegacyIngress(stableIngress)
 
 				desiredCanaryIngress, err := r.canaryIngress(i, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 10)
@@ -587,7 +587,7 @@ func TestReconciler_canaryIngress(t *testing.T) {
 			}
 			for _, ing := range test.ingresses {
 				stableIngress := networkingIngress(ing, 80, stableService)
-				stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
+				stableIngress.Spec.IngressClassName = pointer.String("nginx-ext")
 				i := ingressutil.NewIngress(stableIngress)
 
 				// when

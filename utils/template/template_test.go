@@ -74,7 +74,7 @@ func TestResolveArgsWithNoSubstitution(t *testing.T) {
 func TestResolveArgsRemoveWhiteSpace(t *testing.T) {
 	args := []v1alpha1.Argument{{
 		Name:  "var",
-		Value: pointer.StringPtr("foo"),
+		Value: pointer.String("foo"),
 	}}
 	query, err := ResolveArgs("test-{{ args.var }}", args)
 	assert.Nil(t, err)
@@ -84,7 +84,7 @@ func TestResolveArgsRemoveWhiteSpace(t *testing.T) {
 func TestResolveArgsWithSubstitution(t *testing.T) {
 	args := []v1alpha1.Argument{{
 		Name:  "var",
-		Value: pointer.StringPtr("foo"),
+		Value: pointer.String("foo"),
 	}}
 	query, err := ResolveArgs("test-{{args.var}}", args)
 	assert.Nil(t, err)
@@ -112,7 +112,7 @@ func TestResolveQuotedArgs(t *testing.T) {
 	args := []v1alpha1.Argument{
 		{
 			Name:  "var",
-			Value: pointer.StringPtr("double quotes\"newline\nand tab\t"),
+			Value: pointer.String("double quotes\"newline\nand tab\t"),
 		},
 	}
 	{

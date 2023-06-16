@@ -129,7 +129,7 @@ func TestAddScaleDownDelayToRS(t *testing.T) {
 func TestRemoveScaleDownDelayFromRS(t *testing.T) {
 	templates := generateTemplates("bar")
 	e := newExperiment("foo", templates, "")
-	e.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	e.Spec.ScaleDownDelaySeconds = pointer.Int32(0)
 	e.Status.AvailableAt = now()
 	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
 	cond := conditions.NewExperimentConditions(v1alpha1.ExperimentProgressing, corev1.ConditionTrue, conditions.NewRSAvailableReason, "Experiment \"foo\" is running.")
@@ -407,7 +407,7 @@ func TestFailAddScaleDownDelay(t *testing.T) {
 	templates := generateTemplates("bar")
 	templates[0].Service = &v1alpha1.TemplateService{}
 	ex := newExperiment("foo", templates, "")
-	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	ex.Spec.ScaleDownDelaySeconds = pointer.Int32(0)
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusFailed, now()),
 	}
@@ -429,7 +429,7 @@ func TestFailAddScaleDownDelay(t *testing.T) {
 func TestFailAddScaleDownDelayIsConflict(t *testing.T) {
 	templates := generateTemplates("bar")
 	ex := newExperiment("foo", templates, "")
-	ex.Spec.ScaleDownDelaySeconds = pointer.Int32Ptr(0)
+	ex.Spec.ScaleDownDelaySeconds = pointer.Int32(0)
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
 	}
@@ -485,7 +485,7 @@ func TestDeleteOutdatedService(t *testing.T) {
 
 func TestDeleteServiceIfServiceFieldNil(t *testing.T) {
 	templates := generateTemplates("bar")
-	templates[0].Replicas = pointer.Int32Ptr(0)
+	templates[0].Replicas = pointer.Int32(0)
 	ex := newExperiment("foo", templates, "")
 	ex.Status.TemplateStatuses = []v1alpha1.TemplateStatus{
 		generateTemplatesStatus("bar", 1, 1, v1alpha1.TemplateStatusRunning, now()),
