@@ -30,32 +30,33 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	appmeshutil "github.com/argoproj/argo-rollouts/utils/appmesh"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	"github.com/argoproj/argo-rollouts/utils/env"
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	smiutil "github.com/argoproj/argo-rollouts/utils/smi"
 )
 
 const (
-	// E2E_INSTANCE_ID is the instance id label attached to objects created by the e2e tests
+	// EnvVarE2EInstanceID E2E_INSTANCE_ID is the instance id label attached to objects created by the e2e tests
 	EnvVarE2EInstanceID = "E2E_INSTANCE_ID"
-	// E2E_WAIT_TIMEOUT is a timeout in seconds when waiting for a test condition (default: 90)
+	// EnvVarE2EWaitTimeout E2E_WAIT_TIMEOUT is a timeout in seconds when waiting for a test condition (default: 90)
 	EnvVarE2EWaitTimeout = "E2E_WAIT_TIMEOUT"
-	// E2E_POD_DELAY slows down pod startup and shutdown by the value in seconds (default: 0)
+	// EnvVarE2EPodDelay E2E_POD_DELAY slows down pod startup and shutdown by the value in seconds (default: 0)
 	// Used humans slow down rollout activity during a test
 	EnvVarE2EPodDelay = "E2E_POD_DELAY"
 	// EnvVarE2EImagePrefix is a prefix that will be prefixed to images used by the e2e tests
 	EnvVarE2EImagePrefix = "E2E_IMAGE_PREFIX"
-	// E2E_DEBUG makes e2e testing easier to debug by not tearing down the suite
+	// EnvVarE2EDebug E2E_DEBUG makes e2e testing easier to debug by not tearing down the suite
 	EnvVarE2EDebug = "E2E_DEBUG"
-	// E2E_ALB_INGESS_ANNOTATIONS is a map of annotations to apply to ingress for AWS Load Balancer Controller
+	// EnvVarE2EALBIngressAnnotations E2E_ALB_INGESS_ANNOTATIONS is a map of annotations to apply to ingress for AWS Load Balancer Controller
 	EnvVarE2EALBIngressAnnotations = "E2E_ALB_INGESS_ANNOTATIONS"
-	// E2E_KLOG_LEVEL controls the kuberntes klog level for e2e tests
+	// EnvVarE2EKLogLevel E2E_KLOG_LEVEL controls the kuberntes klog level for e2e tests
 	EnvVarE2EKLogLevel = "E2E_KLOG_LEVEL"
 )
 
 var (
-	E2EWaitTimeout time.Duration = time.Second * 120
-	E2EPodDelay                  = 0
+	E2EWaitTimeout = time.Second * 120
+	E2EPodDelay    = 0
 
 	E2EALBIngressAnnotations map[string]string
 
@@ -89,6 +90,8 @@ var (
 		Version:  "v1",
 		Resource: "jobs",
 	}
+
+	isCIDebug = env.ParseBoolFromEnv(EnvVarE2EDebug, false)
 )
 
 func init() {
@@ -175,7 +178,7 @@ func (s *E2ESuite) SetupSuite() {
 }
 
 func (s *E2ESuite) TearDownSuite() {
-	if os.Getenv(EnvVarE2EDebug) == "true" {
+	if isCIDebug {
 		s.log.Info("skipping resource cleanup")
 		return
 	}
@@ -209,7 +212,7 @@ func (s *E2ESuite) AfterTest(suiteName, testName string) {
 			s.PrintExperimentEvents(&ex)
 		}
 	}
-	if os.Getenv(EnvVarE2EDebug) == "true" {
+	if isCIDebug {
 		return
 	}
 	s.deleteResources(req, metav1.DeletePropagationBackground)
