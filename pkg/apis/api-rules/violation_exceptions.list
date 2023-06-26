@@ -48,3 +48,4 @@ API rule violation: list_type_missing,github.com/argoproj/argo-rollouts/pkg/apis
 API rule violation: names_match,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,MetricProvider,SkyWalking
 API rule violation: names_match,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,RolloutStatus,ALBs
 API rule violation: names_match,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,RolloutStatus,HPAReplicas
+API rule violation: names_match,github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1,Sigv4Config,RoleARN

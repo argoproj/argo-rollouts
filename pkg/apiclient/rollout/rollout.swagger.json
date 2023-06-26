@@ -1234,7 +1234,7 @@
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutAnalysisTemplate"
           },
-          "title": "Templates reference to a list of analysis templates to combine for an AnalysisRun"
+          "title": "Templates reference to a list of analysis templates to combine for an AnalysisRun\n+patchMergeKey=templateName\n+patchStrategy=merge"
         },
         "args": {
           "type": "array",

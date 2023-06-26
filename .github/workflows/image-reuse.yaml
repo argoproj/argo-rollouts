@@ -69,7 +69,7 @@ jobs:
         if: ${{ github.ref_type != 'tag'}}
 
       - name: Setup Golang
-        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
+        uses: actions/setup-go@v4.0.1 # v3.5.0
         with:
           go-version: ${{ inputs.go-version }}
 
@@ -130,7 +130,7 @@ jobs:
 
       - name: Build and push container image
         id: image
-        uses: docker/build-push-action@44ea916f6c540f9302d50c2b1e5a8dc071f15cdf #v4.1.0
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 #v4.1.1
         with:
           context: .
           platforms: ${{ inputs.platforms }}
