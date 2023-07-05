@@ -17,7 +17,7 @@
         <link rel="next" href="../getting-started/setup/">
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.17">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
     
     
       
@@ -2552,6 +2552,9 @@ kubectl apply -f test/e2e/crds
 <p>Then run the e2e tests:</p>
 <div class="highlight"><pre><span></span><code>make test-e2e
 </code></pre></div>
+<p>To run a subset of e2e tests, you need to specify the suite with <code>-run</code>, and the specific test regex with <code>-testify.m</code>.</p>
+<div class="highlight"><pre><span></span><code>E2E_TEST_OPTIONS=&quot;-run &#39;TestCanarySuite&#39; -testify.m &#39;TestCanaryScaleDownOnAbortNoTrafficRouting&#39;&quot; make test-e2e
+</code></pre></div>
 <h2 id="controller-architecture">Controller architecture<a class="headerlink" href="#controller-architecture" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts is actually a collection of individual controllers
 that handle a specific aspect of Progressive Delivery.</p>
@@ -2675,10 +2678,10 @@ associated repos have to pinned to the correct version specified by the kubernet
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.208ed371.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.b425cdc4.min.js"></script>
+      <script src="../assets/javascripts/bundle.220ee61c.min.js"></script>
       
         
           <script src="../assets/versions.js"></script>
