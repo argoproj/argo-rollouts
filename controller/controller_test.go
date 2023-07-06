@@ -120,7 +120,7 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 	cm.dynamicInformerFactory = dynamicInformerFactory
 	cm.clusterDynamicInformerFactory = dynamicInformerFactory
 	cm.kubeInformerFactory = k8sI
-	cm.controllerNamespaceInformerFactory = k8sI
+	cm.controllerClusterInformerFactory = k8sI
 	cm.jobInformerFactory = k8sI
 	cm.istioPrimaryDynamicClient = dynamicClient
 	cm.istioDynamicInformerFactory = dynamicInformerFactory

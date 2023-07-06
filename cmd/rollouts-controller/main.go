@@ -151,12 +151,16 @@ func newCommand() *cobra.Command {
 			}
 			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(istioPrimaryDynamicClient, resyncDuration, namespace, nil)
 
-			controllerNamespaceInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+			controllerClusterInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
 				resyncDuration,
-				kubeinformers.WithNamespace(defaults.Namespace()))
-			configMapInformer := controllerNamespaceInformerFactory.Core().V1().ConfigMaps()
-			secretInformer := controllerNamespaceInformerFactory.Core().V1().Secrets()
+				//kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
+				//	options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
+				//	options.FieldSelector = "metadata.name==" + namespace
+				//}),
+			)
+			configMapInformer := controllerClusterInformerFactory.Core().V1().ConfigMaps()
+			secretInformer := controllerClusterInformerFactory.Core().V1().Secrets()
 
 			mode, err := ingressutil.DetermineIngressMode(ingressVersion, kubeClient.DiscoveryClient)
 			checkError(err)
@@ -196,7 +200,7 @@ func newCommand() *cobra.Command {
 				istioDynamicInformerFactory,
 				namespaced,
 				kubeInformerFactory,
-				controllerNamespaceInformerFactory,
+				controllerClusterInformerFactory,
 				jobInformerFactory)
 
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
