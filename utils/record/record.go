@@ -207,7 +207,7 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 			e.RolloutEventCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
 
-		apis, err := e.apiFactory.GetAPIsWithNamespace(namespace)
+		apis, err := e.apiFactory.GetAPIsFromNamespace(namespace)
 		if err != nil {
 			logCtx.Errorf("notifications failed to get apis for eventReason %s with error: %s", opts.EventReason, err)
 			e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
