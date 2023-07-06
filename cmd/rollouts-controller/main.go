@@ -154,10 +154,6 @@ func newCommand() *cobra.Command {
 			controllerClusterInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
 				resyncDuration,
-				//kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
-				//	options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
-				//	options.FieldSelector = "metadata.name==" + namespace
-				//}),
 			)
 			configMapInformer := controllerClusterInformerFactory.Core().V1().ConfigMaps()
 			secretInformer := controllerClusterInformerFactory.Core().V1().Secrets()
