@@ -211,7 +211,8 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 		if err != nil {
 			logCtx.Errorf("notifications failed to get apis for eventReason %s with error: %s", opts.EventReason, err)
 			e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
-		} else {
+		}
+		if len(apis) > 0 {
 			for _, api := range apis {
 				err := e.sendNotifications(api, object, opts)
 				if err != nil {
