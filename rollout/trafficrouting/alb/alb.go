@@ -24,6 +24,7 @@ import (
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 )
 
 const (
@@ -232,22 +233,13 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []string, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
 	var numVerifiedWeights int
 	numVerifiedWeights = 0
-
-	// Determines if we should update Status.ALBs or Status.ALB
-	var statusALBs bool
-	if r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses != nil {
-		statusALBs = true
-	} else {
-		statusALBs = false
-	}
-
 	for i, ingress := range ingresses {
 		ctx := context.TODO()
 		rollout := r.cfg.Rollout
 		ingressName := ingress
 		ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
 		if err != nil {
-			return pointer.BoolPtr(false), err
+			return pointer.Bool(false), err
 		}
 		resourceIDToDest := map[string]v1alpha1.WeightDestination{}
 
@@ -272,67 +264,29 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 			lb, err := r.aws.FindLoadBalancerByDNSName(ctx, lbIngress.Hostname)
 			if err != nil {
 				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-				return pointer.BoolPtr(false), err
+				return pointer.Bool(false), err
 			}
 			if lb == nil || lb.LoadBalancerArn == nil {
 				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.LoadBalancerNotFoundReason}, conditions.LoadBalancerNotFoundMessage, lbIngress.Hostname)
-				return pointer.BoolPtr(false), nil
+				return pointer.Bool(false), nil
 			}
 
-			if statusALBs {
-				r.cfg.Status.ALBs[i].Ingress = ingressName
-				r.cfg.Status.ALBs[i].LoadBalancer.Name = *lb.LoadBalancerName
-				r.cfg.Status.ALBs[i].LoadBalancer.ARN = *lb.LoadBalancerArn
-			} else {
-				r.cfg.Status.ALB.Ingress = ingressName
-				r.cfg.Status.ALB.LoadBalancer.Name = *lb.LoadBalancerName
-				r.cfg.Status.ALB.LoadBalancer.ARN = *lb.LoadBalancerArn
-			}
-			if lbArnParts := strings.Split(*lb.LoadBalancerArn, "/"); len(lbArnParts) > 2 {
-				if statusALBs {
-					r.cfg.Status.ALBs[i].LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
-				} else {
-					r.cfg.Status.ALB.LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
-				}
-			} else {
-				if statusALBs {
-					r.cfg.Status.ALBs[i].LoadBalancer.FullName = ""
-				} else {
-					r.cfg.Status.ALB.LoadBalancer.FullName = ""
-				}
-				r.log.Errorf("error parsing load balancer arn: '%s'", *lb.LoadBalancerArn)
-			}
+			r.cfg.Status.ALBs[i].Ingress = ingressName
+			r.cfg.Status.ALB.Ingress = ingressName
+			updateLoadBalancerStatus(&r.cfg.Status.ALBs[i], lb, r.log)
+			updateLoadBalancerStatus(r.cfg.Status.ALB, lb, r.log)
 
 			lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
 			if err != nil {
 				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-				return pointer.BoolPtr(false), err
+				return pointer.Bool(false), err
 			}
 			logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
 			for _, tg := range lbTargetGroups {
-				if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
-					if statusALBs {
-						r.cfg.Status.ALBs[i].CanaryTargetGroup.Name = *tg.TargetGroupName
-						r.cfg.Status.ALBs[i].CanaryTargetGroup.ARN = *tg.TargetGroupArn
-					} else {
-						r.cfg.Status.ALB.CanaryTargetGroup.Name = *tg.TargetGroupName
-						r.cfg.Status.ALB.CanaryTargetGroup.ARN = *tg.TargetGroupArn
-					}
-					if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
-						if statusALBs {
-							r.cfg.Status.ALBs[i].CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
-						} else {
-							r.cfg.Status.ALB.CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
-						}
-					} else {
-						if statusALBs {
-							r.cfg.Status.ALBs[i].CanaryTargetGroup.FullName = ""
-						} else {
-							r.cfg.Status.ALB.CanaryTargetGroup.FullName = ""
-						}
-						r.log.Errorf("error parsing canary target group arn: '%s'", *tg.TargetGroupArn)
-					}
-					if tg.Weight != nil {
+				updateTargetGroupStatus(&r.cfg.Status.ALBs[i], &tg, canaryResourceID, stableResourceID, r.log)
+				updateTargetGroupStatus(r.cfg.Status.ALB, &tg, canaryResourceID, stableResourceID, r.log)
+				if tg.Weight != nil {
+					if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
 						logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 						logCtx.Infof("canary weight of %s (desired: %d, current: %d)", canaryResourceID, desiredWeight, *tg.Weight)
 						verified := *tg.Weight == desiredWeight
@@ -342,9 +296,7 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 						} else {
 							r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight, *tg.Weight)
 						}
-					}
-				} else if dest, ok := resourceIDToDest[tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID]]; ok {
-					if tg.Weight != nil {
+					} else if dest, ok := resourceIDToDest[tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID]]; ok {
 						logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
 						logCtx.Infof("%s weight of %s (desired: %d, current: %d)", dest.ServiceName, tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID], dest.Weight, *tg.Weight)
 						verified := *tg.Weight == dest.Weight
@@ -355,33 +307,44 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 							r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, dest.ServiceName, *tg.TargetGroupArn, dest.Weight, *tg.Weight)
 						}
 					}
-				} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
-					if statusALBs {
-						r.cfg.Status.ALBs[i].StableTargetGroup.Name = *tg.TargetGroupName
-						r.cfg.Status.ALBs[i].StableTargetGroup.ARN = *tg.TargetGroupArn
-					} else {
-						r.cfg.Status.ALB.StableTargetGroup.Name = *tg.TargetGroupName
-						r.cfg.Status.ALB.StableTargetGroup.ARN = *tg.TargetGroupArn
-					}
-					if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
-						if statusALBs {
-							r.cfg.Status.ALBs[i].StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
-						} else {
-							r.cfg.Status.ALB.StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
-						}
-					} else {
-						if statusALBs {
-							r.cfg.Status.ALBs[i].StableTargetGroup.FullName = ""
-						} else {
-							r.cfg.Status.ALB.StableTargetGroup.FullName = ""
-						}
-						r.log.Errorf("error parsing stable target group arn: '%s'", *tg.TargetGroupArn)
-					}
 				}
 			}
 		}
 	}
-	return pointer.BoolPtr(numVerifiedWeights == len(ingresses)+len(additionalDestinations)), nil
+	return pointer.Bool(numVerifiedWeights == len(ingresses)+len(additionalDestinations)), nil
+}
+
+func updateLoadBalancerStatus(status *v1alpha1.ALBStatus, lb *elbv2types.LoadBalancer, log *logrus.Entry) {
+	status.LoadBalancer.Name = *lb.LoadBalancerName
+	status.LoadBalancer.ARN = *lb.LoadBalancerArn
+	if lbArnParts := strings.Split(*lb.LoadBalancerArn, "/"); len(lbArnParts) > 2 {
+		status.LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
+	} else {
+		status.LoadBalancer.FullName = ""
+		log.Errorf("error parsing load balancer arn: '%s'", *lb.LoadBalancerArn)
+	}
+}
+
+func updateTargetGroupStatus(status *v1alpha1.ALBStatus, tg *aws.TargetGroupMeta, canaryResourceID string, stableResourceID string, log *logrus.Entry) {
+	if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
+		status.CanaryTargetGroup.Name = *tg.TargetGroupName
+		status.CanaryTargetGroup.ARN = *tg.TargetGroupArn
+		if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
+			status.CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+		} else {
+			status.CanaryTargetGroup.FullName = ""
+			log.Errorf("error parsing canary target group arn: '%s'", *tg.TargetGroupArn)
+		}
+	} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
+		status.StableTargetGroup.Name = *tg.TargetGroupName
+		status.StableTargetGroup.ARN = *tg.TargetGroupArn
+		if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
+			status.StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+		} else {
+			status.StableTargetGroup.FullName = ""
+			log.Errorf("error parsing stable target group arn: '%s'", *tg.TargetGroupArn)
+		}
+	}
 }
 
 func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (string, error) {
