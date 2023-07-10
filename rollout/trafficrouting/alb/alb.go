@@ -198,6 +198,7 @@ func (r *Reconciler) getShouldVerifyWeightCfg() bool {
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
 	if !r.getShouldVerifyWeightCfg() {
 		r.cfg.Status.ALB = nil
+		r.cfg.Status.ALBs = nil
 		return nil, nil
 	}
 
@@ -206,25 +207,23 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		// installed in the cluster we want to actually run the rest of the function, so we do not return if
 		// r.cfg.Rollout.Status.ALB is nil. However, if we should not verify, and we have already updated the status once
 		// we return early to avoid calling AWS apis.
-		if r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses != nil {
-			if r.cfg.Rollout.Status.ALBs != nil {
-				return nil, nil
-			}
-		} else {
-			if r.cfg.Rollout.Status.ALB != nil {
-				return nil, nil
-			}
+		if r.cfg.Rollout.Status.ALBs != nil || r.cfg.Rollout.Status.ALB != nil {
+			return nil, nil
 		}
 	}
 
-	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
-		if r.cfg.Status.ALBs == nil {
+	if r.cfg.Status.ALB == nil {
+		r.cfg.Status.ALB = &v1alpha1.ALBStatus{}
+	}
+	albsCount := len(r.cfg.Status.ALBs)
+	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; len(ingresses) > 0 {
+		if albsCount == 0 || albsCount != len(ingresses) {
 			r.cfg.Status.ALBs = make([]v1alpha1.ALBStatus, len(ingresses))
 		}
 		return r.VerifyWeightPerIngress(desiredWeight, ingresses, additionalDestinations...)
 	} else {
-		if r.cfg.Status.ALB == nil {
-			r.cfg.Status.ALB = &v1alpha1.ALBStatus{}
+		if albsCount == 0 || albsCount != 1 {
+			r.cfg.Status.ALBs = make([]v1alpha1.ALBStatus, 1)
 		}
 		return r.VerifyWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress}, additionalDestinations...)
 	}
