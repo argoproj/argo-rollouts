@@ -837,6 +837,8 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
+		assert.NotNil(t, status.ALB)
+		assert.Len(t, status.ALBs, 1)
 	}
 
 	// VerifyWeight not needed
@@ -848,6 +850,8 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
+		assert.NotNil(t, status.ALB)
+		assert.Len(t, status.ALBs, 1)
 	}
 
 	// VerifyWeight that we do not need to verify weight and status.ALB is already set
@@ -899,6 +903,7 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
+		assert.Equal(t, status.ALBs[0], *status.ALB)
 		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus("ingress"))
 	}
 
@@ -939,6 +944,7 @@ func TestVerifyWeight(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.True(t, *weightVerified)
+		assert.Equal(t, status.ALBs[0], *status.ALB)
 		assert.Equal(t, *status.ALB, *fakeClient.getAlbStatus("ingress"))
 	}
 
@@ -1040,6 +1046,8 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
+		assert.NotNil(t, status.ALB)
+		assert.Len(t, status.ALBs, 2)
 	}
 
 	// VerifyWeight not needed
@@ -1051,6 +1059,8 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.False(t, *weightVerified)
+		assert.NotNil(t, status.ALB)
+		assert.Len(t, status.ALBs, 2)
 	}
 
 	// VerifyWeight that we do not need to verify weight and status.ALB is already set
@@ -1063,6 +1073,17 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		weightVerified, err := r.VerifyWeight(10)
 		assert.NoError(t, err)
 		assert.Nil(t, weightVerified)
+	}
+
+	// status.ALBs already set, len not match
+	{
+		var status v1alpha1.RolloutStatus
+		r, _ := newFakeReconciler(&status)
+		r.cfg.Status.ALBs = []v1alpha1.ALBStatus{{}}
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.False(t, *weightVerified)
+		assert.Len(t, status.ALBs, 2)
 	}
 
 	// LoadBalancer found, not at weight
