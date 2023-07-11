@@ -257,6 +257,15 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 	if err != nil {
 		return err
 	}
+
+	if c.pauseContext != nil && c.pauseContext.IsAborted() && c.rollout.Spec.Strategy.Canary.TrafficRouting == nil {
+		err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
 	err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.newRS, true)
 	if err != nil {
 		return err

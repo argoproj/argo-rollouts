@@ -27,7 +27,7 @@ func (m *K8sRequestsCountProvider) IncKubernetesRequest(resourceInfo kubeclientm
 	namespace := resourceInfo.Namespace
 	kind := resourceInfo.Kind
 	statusCode := strconv.Itoa(resourceInfo.StatusCode)
-	if resourceInfo.Verb == kubeclientmetrics.List {
+	if resourceInfo.Verb == kubeclientmetrics.List || kind == "events" || kind == "replicasets" {
 		name = "N/A"
 	}
 	if resourceInfo.Verb == kubeclientmetrics.Unknown {
