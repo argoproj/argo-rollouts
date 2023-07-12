@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -257,6 +258,10 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 		e.NotificationSendPerformance.WithLabelValues(namespace, name).Observe(duration.Seconds())
 		logCtx.WithField("time_ms", duration.Seconds()*1e3).Debug("Notification sent")
 	}()
+
+	if notificationsAPI == nil {
+		return fmt.Errorf("notificationsAPI is nil")
+	}
 
 	cfg := notificationsAPI.GetConfig()
 	destByTrigger := cfg.GetGlobalDestinations(object.(metav1.Object).GetLabels())
