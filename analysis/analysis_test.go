@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/metric"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -1097,6 +1099,102 @@ func TestTrimMeasurementHistory(t *testing.T) {
 		assert.Equal(t, "2", run.Status.MetricResults[1].Measurements[0].Value)
 		assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[1].Value)
 	}
+}
+
+func TestGarbageCollectArgResolution(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	c.newProvider = func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error) {
+		assert.Equal(t, "https://prometheus.kubeaddons:8080", metric.Provider.Prometheus.Address)
+		return f.provider, nil
+	}
+
+	f.provider.On("GarbageCollect", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "metric1",
+					Interval: "60s",
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{
+							Address: "https://prometheus.kubeaddons:{{args.port}}",
+						},
+					},
+				},
+				{
+					Name:     "metric2",
+					Interval: "60s",
+					Provider: v1alpha1.MetricProvider{
+						Prometheus: &v1alpha1.PrometheusMetric{
+							Address: "https://prometheus.kubeaddons:{{args.port}}",
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseRunning,
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:  "metric1",
+					Phase: v1alpha1.AnalysisPhaseRunning,
+					Measurements: []v1alpha1.Measurement{
+						{
+							Value:      "1",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+						{
+							Value:      "2",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+					},
+				},
+				{
+					Name: "metric2",
+					Measurements: []v1alpha1.Measurement{
+						{
+							Value:      "2",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						},
+						{
+							Value:      "3",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+						},
+						{
+							Value:      "4",
+							Phase:      v1alpha1.AnalysisPhaseSuccessful,
+							StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+							FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-30 * time.Second))),
+						},
+					},
+				},
+			},
+		},
+	}
+	run.Spec.Args = append(run.Spec.Args, v1alpha1.Argument{
+		Name:  "port",
+		Value: pointer.String("8080"),
+	})
+	var measurementRetentionMetricsMap = map[string]*v1alpha1.MeasurementRetention{}
+	measurementRetentionMetricsMap["metric2"] = &v1alpha1.MeasurementRetention{MetricName: "metric2", Limit: 2}
+	err := c.garbageCollectMeasurements(run, measurementRetentionMetricsMap, 1)
+	assert.Nil(t, err)
+	assert.Len(t, run.Status.MetricResults[0].Measurements, 1)
+	assert.Equal(t, "2", run.Status.MetricResults[0].Measurements[0].Value)
+	assert.Len(t, run.Status.MetricResults[1].Measurements, 2)
+	assert.Equal(t, "3", run.Status.MetricResults[1].Measurements[0].Value)
+	assert.Equal(t, "4", run.Status.MetricResults[1].Measurements[1].Value)
 }
 
 func TestResolveMetricArgsUnableToSubstitute(t *testing.T) {
