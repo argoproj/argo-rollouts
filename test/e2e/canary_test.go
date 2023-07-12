@@ -443,7 +443,7 @@ spec:
             port: 80
           periodSeconds: 30
   strategy:
-    canary: 
+    canary:
       steps:
       - setWeight: 20
       - pause: {}
@@ -539,7 +539,24 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 		AbortRollout().
 		WaitForRolloutStatus("Degraded").
 		Then().
-		//Expect that the canary service selector has been moved back to stable
+		// Expect that the canary service selector has been moved back to stable
+		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "66597877b7"}, false).
+		When().
+		Sleep(3*time.Second).
+		Then().
+		ExpectRevisionPodCount("2", 0)
+}
+
+func (s *CanarySuite) TestCanaryScaleDownOnAbortNoTrafficRouting() {
+	s.Given().
+		HealthyRollout(`@functional/canary-scaledownonabortnotrafficrouting.yaml`).
+		When().
+		UpdateSpec(). // update to revision 2
+		WaitForRolloutStatus("Paused").
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		Then().
+		// Expect that the canary service selector has been moved back to stable
 		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "66597877b7"}, false).
 		When().
 		Sleep(3*time.Second).
@@ -590,7 +607,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		WaitForRevisionPodCount("2", 1).
 		Then().
 		ExpectRevisionPodCount("1", 4).
-		//Assert that the canary service selector is still not set to stable rs because of dynamic stable scale still in progress
+		// Assert that the canary service selector is still not set to stable rs because of dynamic stable scale still in progress
 		Assert(func(t *fixtures.Then) {
 			canarySvc, stableSvc := t.GetServices()
 			assert.NotEqual(s.T(), canarySvc.Spec.Selector["rollouts-pod-template-hash"], stableSvc.Spec.Selector["rollouts-pod-template-hash"])
@@ -599,7 +616,7 @@ func (s *CanarySuite) TestCanaryDynamicStableScale() {
 		MarkPodsReady("1", 1). // mark last remaining stable pod as ready (4/4 stable are ready)
 		WaitForRevisionPodCount("2", 0).
 		Then().
-		//Expect that the canary service selector is now set to stable because of dynamic stable scale is over and we have all pods up on stable rs
+		// Expect that the canary service selector is now set to stable because of dynamic stable scale is over and we have all pods up on stable rs
 		ExpectServiceSelector("dynamic-stable-scale-canary", map[string]string{"app": "dynamic-stable-scale", "rollouts-pod-template-hash": "868d98995b"}, false).
 		ExpectRevisionPodCount("1", 4)
 }
