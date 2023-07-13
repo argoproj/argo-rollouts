@@ -168,12 +168,6 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBStatus(ref common.ReferenceCallback) c
 							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AwsResourceRef"),
 						},
 					},
-					"ingress": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 				},
 			},
 		},
@@ -192,6 +186,7 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 					"ingress": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -211,6 +206,12 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
+					"stickinessConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdditionalForwardConfig allows to specify further settings on the ForwaredConfig",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StickinessConfig"),
+						},
+					},
 					"annotationPrefix": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AnnotationPrefix has to match the configured annotation prefix on the alb ingress controller",
@@ -218,29 +219,8 @@ func schema_pkg_apis_rollouts_v1alpha1_ALBTrafficRouting(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
-					"stickinessConfig": {
-						SchemaProps: spec.SchemaProps{
-							Description: "StickinessConfig refers to the duration-based stickiness of the target groups associated with an `Ingress`",
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.StickinessConfig"),
-						},
-					},
-					"ingresses": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Ingresses refers to the name of an `Ingress` resource in the same namespace as the `Rollout` in a multi ingress scenario",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
 				},
-				Required: []string{"servicePort"},
+				Required: []string{"ingress", "servicePort"},
 			},
 		},
 		Dependencies: []string{
@@ -4424,20 +4404,6 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutStatus(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "/ ALB keeps information regarding the ALB and TargetGroups",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBStatus"),
-						},
-					},
-					"albs": {
-						SchemaProps: spec.SchemaProps{
-							Description: "/ ALBs keeps information regarding multiple ALBs and TargetGroups in a multi ingress scenario",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBStatus"),
-									},
-								},
-							},
 						},
 					},
 				},
