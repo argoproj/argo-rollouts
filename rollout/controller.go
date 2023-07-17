@@ -231,13 +231,15 @@ func NewController(cfg ControllerConfig) *Controller {
 		AddFunc: func(obj interface{}) {
 			controller.enqueueRollout(obj)
 			ro := unstructuredutil.ObjectToRollout(obj)
-			if ro != nil && cfg.Recorder != nil {
-				cfg.Recorder.Eventf(ro, record.EventOptions{
-					EventType:   corev1.EventTypeNormal,
-					EventReason: conditions.RolloutAddedToInformerReason,
-				}, "Rollout resource added to informer: %s/%s", ro.Namespace, ro.Name)
-			} else {
-				log.Warnf("Malformed rollout resource added to informer")
+			if ro != nil {
+				if cfg.Recorder != nil {
+					cfg.Recorder.Eventf(ro, record.EventOptions{
+						EventType:   corev1.EventTypeNormal,
+						EventReason: conditions.RolloutAddedToInformerReason,
+					}, "Rollout resource added to informer: %s/%s", ro.Namespace, ro.Name)
+				} else {
+					log.Warnf("Recorder is not configured")
+				}
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
