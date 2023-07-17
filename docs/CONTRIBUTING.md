@@ -104,6 +104,12 @@ Then run the e2e tests:
 make test-e2e
 ```
 
+To run a subset of e2e tests, you need to specify the suite with `-run`, and the specific test regex with `-testify.m`.
+
+```
+E2E_TEST_OPTIONS="-run 'TestCanarySuite' -testify.m 'TestCanaryScaleDownOnAbortNoTrafficRouting'" make test-e2e
+```
+
 ## Controller architecture
 
 Argo Rollouts is actually a collection of individual controllers

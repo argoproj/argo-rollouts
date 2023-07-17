@@ -711,8 +711,13 @@ func calculateNextReconcileTime(run *v1alpha1.AnalysisRun, metrics []v1alpha1.Me
 func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, measurementRetentionMetricNamesMap map[string]*v1alpha1.MeasurementRetention, limit int) error {
 	var errors []error
 
+	resolvedArgsMetric, err := getResolvedMetricsWithoutSecrets(run.Spec.Metrics, run.Spec.Args)
+	if err != nil {
+		return fmt.Errorf("failed to resolve args on metrics during garbage collection: %w", err)
+	}
+
 	metricsByName := make(map[string]v1alpha1.Metric)
-	for _, metric := range run.Spec.Metrics {
+	for _, metric := range resolvedArgsMetric {
 		metricsByName[metric.Name] = metric
 	}
 

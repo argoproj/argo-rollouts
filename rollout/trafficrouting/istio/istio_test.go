@@ -2857,3 +2857,46 @@ func AssertReconcileUpdateMirror(t *testing.T, vsvc string, ro *v1alpha1.Rollout
 	assert.Equal(t, "update", actions[0].GetVerb())
 	return client
 }
+
+func TestReconcileHeaderRouteAvoidDuplicates(t *testing.T) {
+	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
+	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	const headerName = "test-header-route"
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+		Name: headerName,
+	},
+	}...)
+
+	var setHeader = &v1alpha1.SetHeaderRoute{
+		Name: headerName,
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName: "browser",
+				HeaderValue: &v1alpha1.StringMatch{
+					Prefix: "Firefox",
+				},
+			},
+		},
+	}
+
+	err := r.SetHeaderRoute(setHeader)
+	assert.Nil(t, err)
+
+	err = r.SetHeaderRoute(setHeader)
+	assert.Nil(t, err)
+
+	iVirtualService, err := client.Resource(istioutil.GetIstioVirtualServiceGVR()).Namespace(r.rollout.Namespace).Get(context.TODO(), ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	// HTTP Routes
+	httpRoutes := extractHttpRoutes(t, iVirtualService)
+
+	// Assertions
+	assert.Equal(t, httpRoutes[0].Name, headerName)
+	assert.Equal(t, httpRoutes[1].Name, "primary")
+	assert.Equal(t, httpRoutes[2].Name, "secondary")
+}
