@@ -228,7 +228,20 @@ func NewController(cfg ControllerConfig) *Controller {
 	log.Info("Setting up event handlers")
 	// Set up an event handler for when rollout resources change
 	cfg.RolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueRollout,
+		AddFunc: func(obj interface{}) {
+			controller.enqueueRollout(obj)
+			ro := unstructuredutil.ObjectToRollout(obj)
+			if ro != nil {
+				if cfg.Recorder != nil {
+					cfg.Recorder.Eventf(ro, record.EventOptions{
+						EventType:   corev1.EventTypeNormal,
+						EventReason: conditions.RolloutAddedToInformerReason,
+					}, "Rollout resource added to informer: %s/%s", ro.Namespace, ro.Name)
+				} else {
+					log.Warnf("Recorder is not configured")
+				}
+			}
+		},
 		UpdateFunc: func(old, new interface{}) {
 			oldRollout := unstructuredutil.ObjectToRollout(old)
 			newRollout := unstructuredutil.ObjectToRollout(new)

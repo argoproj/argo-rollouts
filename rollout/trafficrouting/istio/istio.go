@@ -712,11 +712,6 @@ func (r *Reconciler) getVirtualService(namespace string, vsvcName string, client
 }
 
 func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(virtualService v1alpha1.IstioVirtualService, obj *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute) error {
-	// HTTP Routes
-	httpRoutesI, err := GetHttpRoutesI(obj)
-	if err != nil {
-		return err
-	}
 	destRuleHost, err := r.getDestinationRuleHost()
 	if err != nil {
 		return err
@@ -744,6 +739,12 @@ func (r *Reconciler) reconcileVirtualServiceHeaderRoutes(virtualService v1alpha1
 	err = removeRoute(obj, headerRouting.Name)
 	if err != nil {
 		return fmt.Errorf("[reconcileVirtualServiceHeaderRoutes] failed to remove http route from virtual service: %w", err)
+	}
+
+	// HTTP Routes
+	httpRoutesI, err := GetHttpRoutesI(obj)
+	if err != nil {
+		return err
 	}
 
 	httpRoutesI = append(httpRoutesI, createHeaderRoute(virtualService, obj, headerRouting, canarySvc, canarySubset))

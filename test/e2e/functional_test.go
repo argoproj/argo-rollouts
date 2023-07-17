@@ -90,11 +90,12 @@ spec:
 		ExpectRevisionPodCount("1", 0).
 		ExpectRevisionPodCount("2", 1).
 		ExpectRolloutEvents([]string{
-			"RolloutNotCompleted",  // Rollout not completed, started update to revision 0 (7fd9b5545c)
-			"RolloutUpdated",       // Rollout updated to revision 1
-			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-698fbfb9dc (revision 1)
-			"ScalingReplicaSet",    // Scaled up ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) from 0 to 1
-			"RolloutCompleted",     // Rollout completed update to revision 1 (698fbfb9dc): Initial deploy
+			"RolloutAddedToInformer", // Rollout added to informer cache
+			"RolloutNotCompleted",    // Rollout not completed, started update to revision 0 (7fd9b5545c)
+			"RolloutUpdated",         // Rollout updated to revision 1
+			"NewReplicaSetCreated",   // Created ReplicaSet abort-retry-promote-698fbfb9dc (revision 1)
+			"ScalingReplicaSet",      // Scaled up ReplicaSet abort-retry-promote-698fbfb9dc (revision 1) from 0 to 1
+			"RolloutCompleted",       // Rollout completed update to revision 1 (698fbfb9dc): Initial deploy
 			"RolloutNotCompleted",
 			"RolloutUpdated",       // Rollout updated to revision 2
 			"NewReplicaSetCreated", // Created ReplicaSet abort-retry-promote-75dcb5ddd6 (revision 2)
@@ -701,17 +702,18 @@ func (s *FunctionalSuite) TestBlueGreenUpdate() {
 		Then().
 		ExpectReplicaCounts(3, 6, 3, 3, 3).
 		ExpectRolloutEvents([]string{
-			"RolloutUpdated",       // Rollout updated to revision 1
-			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-7dcd8f8869 (revision 1)
-			"ScalingReplicaSet",    // Scaled up ReplicaSet bluegreen-7dcd8f8869 (revision 1) from 0 to 3
-			"RolloutCompleted",     // Rollout completed update to revision 1 (7dcd8f8869): Initial deploy
-			"SwitchService",        // Switched selector for service 'bluegreen' from '' to '7dcd8f8869'
-			"RolloutUpdated",       // Rollout updated to revision 2
-			"NewReplicaSetCreated", // Created ReplicaSet bluegreen-5498785cd6 (revision 2)
-			"RolloutNotCompleted",  // Rollout went to not completed state started update to revision 2 (85c6899)
-			"ScalingReplicaSet",    // Scaled up ReplicaSet bluegreen-5498785cd6 (revision 2) from 0 to 3
-			"SwitchService",        // Switched selector for service 'bluegreen' from '7dcd8f8869' to '6c779b88b6'
-			"RolloutCompleted",     // Rollout completed update to revision 2 (6c779b88b6): Completed blue-green update
+			"RolloutAddedToInformer", // Rollout added to informer cache
+			"RolloutUpdated",         // Rollout updated to revision 1
+			"NewReplicaSetCreated",   // Created ReplicaSet bluegreen-7dcd8f8869 (revision 1)
+			"ScalingReplicaSet",      // Scaled up ReplicaSet bluegreen-7dcd8f8869 (revision 1) from 0 to 3
+			"RolloutCompleted",       // Rollout completed update to revision 1 (7dcd8f8869): Initial deploy
+			"SwitchService",          // Switched selector for service 'bluegreen' from '' to '7dcd8f8869'
+			"RolloutUpdated",         // Rollout updated to revision 2
+			"NewReplicaSetCreated",   // Created ReplicaSet bluegreen-5498785cd6 (revision 2)
+			"RolloutNotCompleted",    // Rollout went to not completed state started update to revision 2 (85c6899)
+			"ScalingReplicaSet",      // Scaled up ReplicaSet bluegreen-5498785cd6 (revision 2) from 0 to 3
+			"SwitchService",          // Switched selector for service 'bluegreen' from '7dcd8f8869' to '6c779b88b6'
+			"RolloutCompleted",       // Rollout completed update to revision 2 (6c779b88b6): Completed blue-green update
 		})
 }
 
