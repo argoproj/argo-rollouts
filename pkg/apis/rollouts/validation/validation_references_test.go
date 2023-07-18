@@ -250,7 +250,7 @@ func getAnalysisTemplatesWithType() AnalysisTemplatesWithType {
 	}
 }
 
-func getAlbRollout() *v1alpha1.Rollout {
+func getAlbRollout(ingress string) *v1alpha1.Rollout {
 	return &v1alpha1.Rollout{
 		Spec: v1alpha1.RolloutSpec{
 			Strategy: v1alpha1.RolloutStrategy{
@@ -258,7 +258,24 @@ func getAlbRollout() *v1alpha1.Rollout {
 					StableService: "stable-service-name",
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 						ALB: &v1alpha1.ALBTrafficRouting{
-							Ingress: "alb-ingress",
+							Ingress: ingress,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func getAlbRolloutMultiIngress(ingressNames []string) *v1alpha1.Rollout {
+	return &v1alpha1.Rollout{
+		Spec: v1alpha1.RolloutSpec{
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					StableService: "stable-service-name",
+					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						ALB: &v1alpha1.ALBTrafficRouting{
+							Ingresses: ingressNames,
 						},
 					},
 				},
@@ -374,7 +391,7 @@ func TestValidateRolloutReferencedResources(t *testing.T) {
 		ServiceWithType:           []ServiceWithType{getServiceWithType()},
 		VirtualServices:           nil,
 	}
-	allErrs := ValidateRolloutReferencedResources(getAlbRollout(), refResources)
+	allErrs := ValidateRolloutReferencedResources(getAlbRollout("alb-ingress"), refResources)
 	assert.Empty(t, allErrs)
 }
 
@@ -504,9 +521,139 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 	}
 }
 
+func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
+	stableService := "stable-service"
+	wrongService := "wrong-stable-service"
+	stableIngressKey := "spec.strategy.canary.trafficRouting.alb.ingress"
+	stableIngressesKey := "spec.strategy.canary.trafficRouting.alb.ingresses"
+	tests := []struct {
+		name              string
+		multipleIngresses bool
+		ingresses         []string
+		services          []string
+		expectedErrors    [][]string
+	}{
+		{
+			"Validate single ALB Ingress -- success",
+			false,
+			[]string{StableIngress},
+			[]string{stableService},
+			[][]string{},
+		},
+		{
+			"Validate single ALB Ingress -- failure",
+			false,
+			[]string{StableIngress},
+			[]string{wrongService},
+			[][]string{{stableIngressKey, StableIngress}},
+		},
+		{
+			"Validate multiple ALB Ingresses successfully",
+			true,
+			[]string{
+				StableIngress,
+				AddStableIngress1,
+				AddStableIngress2,
+			},
+			[]string{
+				stableService,
+				stableService,
+				stableService,
+			},
+			[][]string{},
+		},
+		{
+			"Validate multiple ALB Ingresses -- primary fails",
+			true,
+			[]string{
+				StableIngress,
+				AddStableIngress1,
+				AddStableIngress2,
+			},
+			[]string{
+				wrongService,
+				stableService,
+				stableService,
+			},
+			[][]string{{stableIngressesKey, StableIngress}},
+		},
+		{
+			"Validate multiple ALB Ingresses -- additional ingress fails",
+			true,
+			[]string{
+				StableIngress,
+				AddStableIngress1,
+				AddStableIngress2,
+			},
+			[]string{
+				stableService,
+				wrongService,
+				stableService,
+			},
+			[][]string{{stableIngressesKey, AddStableIngress1}},
+		},
+		{
+			"Validate multiple ALB Ingresses -- all ingresses fail fails",
+			true,
+			[]string{
+				StableIngress,
+				AddStableIngress1,
+				AddStableIngress2,
+			},
+			[]string{
+				wrongService,
+				wrongService,
+				wrongService,
+			},
+			[][]string{
+				{stableIngressesKey, StableIngress},
+				{stableIngressesKey, AddStableIngress1},
+				{stableIngressesKey, AddStableIngress2},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			var ingresses []ingressutil.Ingress
+			for i, service := range test.services {
+				ingress := extensionsIngress(test.ingresses[i], 80, service)
+				legacyIngress := ingressutil.NewLegacyIngress(ingress)
+				ingresses = append(ingresses, *legacyIngress)
+			}
+			refResources := ReferencedResources{
+				AnalysisTemplatesWithType: []AnalysisTemplatesWithType{getAnalysisTemplatesWithType()},
+				Ingresses:                 ingresses,
+				ServiceWithType:           []ServiceWithType{getServiceWithType()},
+				VirtualServices:           nil,
+			}
+
+			var allErrs field.ErrorList
+			if test.multipleIngresses {
+				allErrs = ValidateRolloutReferencedResources(getAlbRolloutMultiIngress([]string{StableIngress, AddStableIngress1, AddStableIngress2}), refResources)
+			} else {
+				allErrs = ValidateRolloutReferencedResources(getAlbRollout(StableIngress), refResources)
+			}
+
+			if len(test.expectedErrors) > 0 {
+				assert.Len(t, allErrs, len(test.expectedErrors), "Errors should be present.")
+				for i, e := range test.expectedErrors {
+					assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[i].Type, "Should be bad service name for ingress")
+					assert.Equal(t, e[0], allErrs[i].Field, "Bad service name for ingress")
+					assert.Equal(t, e[1], allErrs[i].BadValue, "Bad service name for ingress")
+				}
+			} else {
+				assert.Empty(t, allErrs)
+			}
+		})
+	}
+}
+
 func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 	t.Run("failure - invalid argument", func(t *testing.T) {
-		rollout := getAlbRollout()
+		rollout := getAlbRollout("alb-ingress")
 		templates := getAnalysisTemplatesWithType()
 		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "invalid"})
 		allErrs := ValidateAnalysisTemplatesWithType(rollout, templates)
@@ -516,7 +663,7 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		rollout := getAlbRollout()
+		rollout := getAlbRollout("alb-ingress")
 		templates := getAnalysisTemplatesWithType()
 		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "valid"})
 		templates.Args = []v1alpha1.AnalysisRunArgument{{Name: "valid", Value: "true"}}
@@ -525,7 +672,7 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 	})
 
 	t.Run("failure - duplicate metrics", func(t *testing.T) {
-		rollout := getAlbRollout()
+		rollout := getAlbRollout("alb-ingress")
 		templates := getAnalysisTemplatesWithType()
 		templates.AnalysisTemplates[0].Spec.Args = append(templates.AnalysisTemplates[0].Spec.Args, v1alpha1.Argument{Name: "metric1-name", Value: pointer.StringPtr("true")})
 		templates.AnalysisTemplates[0].Spec.Args[0] = v1alpha1.Argument{Name: "valid", Value: pointer.StringPtr("true")}
@@ -534,7 +681,7 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 	})
 
 	t.Run("failure - duplicate MeasurementRetention", func(t *testing.T) {
-		rollout := getAlbRollout()
+		rollout := getAlbRollout("alb-ingress")
 		rollout.Spec.Strategy.Canary.Steps = append(rollout.Spec.Strategy.Canary.Steps, v1alpha1.CanaryStep{
 			Analysis: &v1alpha1.RolloutAnalysis{
 				Templates: []v1alpha1.RolloutAnalysisTemplate{
@@ -570,14 +717,14 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 
 func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	t.Run("validate analysisTemplate - success", func(t *testing.T) {
-		rollout := getAlbRollout()
+		rollout := getAlbRollout("alb-ingress")
 		templates := getAnalysisTemplatesWithType()
 		allErrs := ValidateAnalysisTemplateWithType(rollout, templates.AnalysisTemplates[0], nil, templates.TemplateType, GetAnalysisTemplateWithTypeFieldPath(templates.TemplateType, templates.CanaryStepIndex))
 		assert.Empty(t, allErrs)
 	})
 
 	t.Run("validate inline clusterAnalysisTemplate - failure", func(t *testing.T) {
-		rollout := getAlbRollout()
+		rollout := getAlbRollout("alb-ingress")
 		count := intstr.FromInt(0)
 		template := getAnalysisTemplatesWithType()
 		template.ClusterAnalysisTemplates[0].Spec.Metrics[0].Count = &count
@@ -589,7 +736,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	})
 
 	t.Run("validate inline analysisTemplate argument - success", func(t *testing.T) {
-		rollout := getAlbRollout()
+		rollout := getAlbRollout("alb-ingress")
 		template := getAnalysisTemplatesWithType()
 		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
 			{
@@ -602,7 +749,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 	})
 
 	t.Run("validate background analysisTemplate - failure", func(t *testing.T) {
-		rollout := getAlbRollout()
+		rollout := getAlbRollout("alb-ingress")
 		template := getAnalysisTemplatesWithType()
 		template.TemplateType = BackgroundAnalysis
 		template.AnalysisTemplates[0].Spec.Args = []v1alpha1.Argument{
@@ -632,7 +779,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 	// verify background analysis matches the arguments in rollout spec
 	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
-		rollout := getAlbRollout()
+		rollout := getAlbRollout("alb-ingress")
 
 		templates := getAnalysisTemplatesWithType()
 		templates.TemplateType = BackgroundAnalysis
@@ -671,7 +818,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 
 	// verify background analysis does not care about a metric that runs indefinitely
 	t.Run("validate background analysisTemplate - success", func(t *testing.T) {
-		rollout := getAlbRollout()
+		rollout := getAlbRollout("alb-ingress")
 		count := intstr.FromInt(0)
 		templates := getAnalysisTemplatesWithType()
 		templates.TemplateType = BackgroundAnalysis
@@ -685,7 +832,7 @@ func TestValidateAnalysisTemplateWithType(t *testing.T) {
 func TestValidateAlbIngress(t *testing.T) {
 	t.Run("validate alb ingress - success", func(t *testing.T) {
 		ingress := ingressutil.NewLegacyIngress(getIngress())
-		allErrs := ValidateIngress(getAlbRollout(), ingress)
+		allErrs := ValidateIngress(getAlbRollout("alb-ingress"), ingress)
 		assert.Empty(t, allErrs)
 	})
 
@@ -693,7 +840,7 @@ func TestValidateAlbIngress(t *testing.T) {
 		ingress := getIngress()
 		ingress.Spec.Rules[0].HTTP.Paths[0].Backend.ServiceName = "not-stable-service"
 		i := ingressutil.NewLegacyIngress(ingress)
-		allErrs := ValidateIngress(getAlbRollout(), i)
+		allErrs := ValidateIngress(getAlbRollout("alb-ingress"), i)
 		expectedErr := field.Invalid(field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb", "ingress"), ingress.Name, "ingress `alb-ingress` has no rules using service stable-service-name backend")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
 	})
@@ -762,17 +909,80 @@ func TestValidateRolloutNginxIngressesConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRolloutAlbIngressesConfig(t *testing.T) {
+	var emptyIngress string
+	var emptyIngresses []string
+	stableIngress := "stable-ingress"
+	stableIngresses := []string{"stable-ingress", "additional-stable-ingress"}
+	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb")
+	failureCase1 := field.InternalError(fldPath, fmt.Errorf("Either Ingress or Ingresses must be configured. Neither are configured."))
+	failureCase2 := field.InternalError(fldPath, fmt.Errorf("Either Ingress or Ingresses must be configured. Both are configured."))
+
+	tests := []struct {
+		name      string
+		Ingress   string
+		Ingresses []string
+		expected  error
+	}{
+		{
+			"No ingress configured",
+			emptyIngress,
+			emptyIngresses,
+			failureCase1,
+		},
+		{
+			"Both ingresses configured",
+			stableIngress,
+			stableIngresses,
+			failureCase2,
+		},
+		{
+			"Just Ingress configured",
+			stableIngress,
+			emptyIngresses,
+			nil,
+		},
+		{
+			"Just Ingresses configured",
+			emptyIngress,
+			stableIngresses,
+			nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ro := &v1alpha1.Rollout{
+				Spec: v1alpha1.RolloutSpec{
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								ALB: &v1alpha1.ALBTrafficRouting{
+									Ingress:   test.Ingress,
+									Ingresses: test.Ingresses,
+								},
+							},
+						},
+					},
+				},
+			}
+
+			assert.Equal(t, test.expected, ValidateRolloutAlbIngressesConfig(ro))
+		})
+	}
+}
+
 func TestValidateService(t *testing.T) {
 	t.Run("validate service - success", func(t *testing.T) {
 		svc := getServiceWithType()
-		allErrs := ValidateService(svc, getAlbRollout())
+		allErrs := ValidateService(svc, getAlbRollout("alb-ingress"))
 		assert.Empty(t, allErrs)
 	})
 
 	t.Run("validate service - failure", func(t *testing.T) {
 		svc := getServiceWithType()
 		svc.Service.Annotations = map[string]string{v1alpha1.ManagedByRolloutsKey: "not-rollout-name"}
-		allErrs := ValidateService(svc, getAlbRollout())
+		allErrs := ValidateService(svc, getAlbRollout("alb-ingress"))
 		assert.Len(t, allErrs, 1)
 		expectedErr := field.Invalid(GetServiceWithTypeFieldPath(svc.Type), svc.Service.Name, "Service \"stable-service-name\" is managed by another Rollout")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
@@ -781,7 +991,7 @@ func TestValidateService(t *testing.T) {
 	t.Run("validate service with unmatch label - failure", func(t *testing.T) {
 		svc := getServiceWithType()
 		svc.Service.Spec.Selector = map[string]string{"app": "unmatch-rollout-label"}
-		allErrs := ValidateService(svc, getAlbRollout())
+		allErrs := ValidateService(svc, getAlbRollout("alb-ingress"))
 		assert.Len(t, allErrs, 1)
 		expectedErr := field.Invalid(GetServiceWithTypeFieldPath(svc.Type), svc.Service.Name, "Service \"stable-service-name\" has unmatch label \"app\" in rollout")
 		assert.Equal(t, expectedErr.Error(), allErrs[0].Error())
@@ -790,7 +1000,7 @@ func TestValidateService(t *testing.T) {
 	t.Run("validate service with Rollout label - success", func(t *testing.T) {
 		svc := getServiceWithType()
 		svc.Service.Spec.Selector = map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "123-456"}
-		allErrs := ValidateService(svc, getAlbRollout())
+		allErrs := ValidateService(svc, getAlbRollout("alb-ingress"))
 		assert.Empty(t, allErrs)
 	})
 }
@@ -1135,7 +1345,7 @@ spec:
 		refResources := ReferencedResources{
 			AppMeshResources: []k8sunstructured.Unstructured{*obj},
 		}
-		errList := ValidateRolloutReferencedResources(getAlbRollout(), refResources)
+		errList := ValidateRolloutReferencedResources(getAlbRollout("alb-ingress"), refResources)
 		assert.NotNil(t, errList)
 		assert.Len(t, errList, 1)
 		assert.Equal(t, errList[0].Detail, "Expected object kind to be VirtualRouter but is VirtualService")

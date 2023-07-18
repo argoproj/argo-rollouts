@@ -732,6 +732,10 @@ spec:
                                 type: string
                               ingress:
                                 type: string
+                              ingresses:
+                                items:
+                                  type: string
+                                type: array
                               rootService:
                                 type: string
                               servicePort:
@@ -749,7 +753,6 @@ spec:
                                 - enabled
                                 type: object
                             required:
-                            - ingress
                             - servicePort
                             type: object
                           ambassador:
@@ -3320,6 +3323,8 @@ spec:
                     - arn
                     - name
                     type: object
+                  ingress:
+                    type: string
                   loadBalancer:
                     properties:
                       arn:
@@ -3345,6 +3350,49 @@ spec:
                     - name
                     type: object
                 type: object
+              albs:
+                items:
+                  properties:
+                    canaryTargetGroup:
+                      properties:
+                        arn:
+                          type: string
+                        fullName:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - arn
+                      - name
+                      type: object
+                    ingress:
+                      type: string
+                    loadBalancer:
+                      properties:
+                        arn:
+                          type: string
+                        fullName:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - arn
+                      - name
+                      type: object
+                    stableTargetGroup:
+                      properties:
+                        arn:
+                          type: string
+                        fullName:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - arn
+                      - name
+                      type: object
+                  type: object
+                type: array
               availableReplicas:
                 format: int32
                 type: integer

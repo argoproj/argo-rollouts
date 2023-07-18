@@ -24,6 +24,7 @@ import (
 	jsonutil "github.com/argoproj/argo-rollouts/utils/json"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
+	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 )
 
 const (
@@ -75,43 +76,54 @@ func (r *Reconciler) Type() string {
 
 // SetWeight modifies ALB Ingress resources to reach desired state
 func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-	ctx := context.TODO()
-	rollout := r.cfg.Rollout
-	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
-	ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
-	if err != nil {
-		return err
+	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
+		return r.SetWeightPerIngress(desiredWeight, ingresses, additionalDestinations...)
+	} else {
+		return r.SetWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress}, additionalDestinations...)
 	}
-	actionService := rollout.Spec.Strategy.Canary.StableService
-	if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
-		actionService = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
-	}
-	port := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
-	if !ingressutil.HasRuleWithService(ingress, actionService) {
-		return fmt.Errorf("ingress does not have service `%s` in rules", actionService)
-	}
+}
 
-	desiredAnnotations, err := getDesiredAnnotations(ingress, rollout, port, desiredWeight, additionalDestinations...)
-	if err != nil {
-		return err
-	}
-	desiredIngress := ingressutil.NewIngressWithAnnotations(ingress.Mode(), desiredAnnotations)
-	patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations())
-	if err != nil {
-		return nil
-	}
-	if !modified {
-		r.log.Info("no changes to the ALB Ingress")
-		return nil
-	}
-	r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
-	r.log.WithField("desiredWeight", desiredWeight).Info("updating ALB Ingress")
-	r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", ingressName, desiredWeight)
+// SetWeightPerIngress modifies each ALB Ingress resource to reach desired state in the scenario of a rollout
+func (r *Reconciler) SetWeightPerIngress(desiredWeight int32, ingresses []string, additionalDestinations ...v1alpha1.WeightDestination) error {
+	for _, ingress := range ingresses {
+		ctx := context.TODO()
+		rollout := r.cfg.Rollout
+		ingressName := ingress
+		ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
+		if err != nil {
+			return err
+		}
+		actionService := rollout.Spec.Strategy.Canary.StableService
+		if rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService != "" {
+			actionService = rollout.Spec.Strategy.Canary.TrafficRouting.ALB.RootService
+		}
+		port := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
+		if !ingressutil.HasRuleWithService(ingress, actionService) {
+			return fmt.Errorf("ingress does not have service `%s` in rules", actionService)
+		}
 
-	_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		r.log.WithField("err", err.Error()).Error("error patching alb ingress")
-		return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
+		desiredAnnotations, err := getDesiredAnnotations(ingress, rollout, port, desiredWeight, additionalDestinations...)
+		if err != nil {
+			return err
+		}
+		desiredIngress := ingressutil.NewIngressWithAnnotations(ingress.Mode(), desiredAnnotations)
+		patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations())
+		if err != nil {
+			return nil
+		}
+		if !modified {
+			r.log.Info("no changes to the ALB Ingress")
+			return nil
+		}
+		r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
+		r.log.WithField("desiredWeight", desiredWeight).Info("updating ALB Ingress")
+		r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to desiredWeight '%d'", ingressName, desiredWeight)
+
+		_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			r.log.WithField("err", err.Error()).Error("error patching alb ingress")
+			return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
+		}
 	}
 	return nil
 }
@@ -120,45 +132,57 @@ func (r *Reconciler) SetHeaderRoute(headerRoute *v1alpha1.SetHeaderRoute) error 
 	if headerRoute == nil {
 		return nil
 	}
-	ctx := context.TODO()
-	rollout := r.cfg.Rollout
-	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
-	action := headerRoute.Name
-	port := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
 
-	ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
-	if err != nil {
-		return err
+	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
+		return r.SetHeaderRoutePerIngress(headerRoute, ingresses)
+	} else {
+		return r.SetHeaderRoutePerIngress(headerRoute, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress})
 	}
 
-	desiredAnnotations, err := getDesiredHeaderAnnotations(ingress, rollout, port, headerRoute)
-	if err != nil {
-		return err
-	}
-	desiredIngress := ingressutil.NewIngressWithSpecAndAnnotations(ingress, desiredAnnotations)
-	hasRule := ingressutil.HasRuleWithService(ingress, action)
-	if hasRule && headerRoute.Match == nil {
-		desiredIngress.RemovePathByServiceName(action)
-	}
-	if !hasRule && headerRoute.Match != nil {
-		desiredIngress.CreateAnnotationBasedPath(action)
-	}
-	desiredIngress.SortHttpPaths(rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes)
-	patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations(), ingressutil.WithSpec())
-	if err != nil {
-		return nil
-	}
-	if !modified {
-		r.log.Info("no changes to the ALB Ingress for header routing")
-		return nil
-	}
-	r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
-	r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to headerRoute '%d'", ingressName, headerRoute)
+}
 
-	_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		r.log.WithField("err", err.Error()).Error("error patching alb ingress")
-		return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
+func (r *Reconciler) SetHeaderRoutePerIngress(headerRoute *v1alpha1.SetHeaderRoute, ingresses []string) error {
+	for _, ingress := range ingresses {
+		ctx := context.TODO()
+		rollout := r.cfg.Rollout
+		ingressName := ingress
+		action := headerRoute.Name
+		port := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort
+
+		ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
+		if err != nil {
+			return err
+		}
+
+		desiredAnnotations, err := getDesiredHeaderAnnotations(ingress, rollout, port, headerRoute)
+		if err != nil {
+			return err
+		}
+		desiredIngress := ingressutil.NewIngressWithSpecAndAnnotations(ingress, desiredAnnotations)
+		hasRule := ingressutil.HasRuleWithService(ingress, action)
+		if hasRule && headerRoute.Match == nil {
+			desiredIngress.RemovePathByServiceName(action)
+		}
+		if !hasRule && headerRoute.Match != nil {
+			desiredIngress.CreateAnnotationBasedPath(action)
+		}
+		desiredIngress.SortHttpPaths(rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes)
+		patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations(), ingressutil.WithSpec())
+		if err != nil {
+			return nil
+		}
+		if !modified {
+			r.log.Info("no changes to the ALB Ingress for header routing")
+			return nil
+		}
+		r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
+		r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` to headerRoute '%d'", ingressName, headerRoute)
+
+		_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			r.log.WithField("err", err.Error()).Error("error patching alb ingress")
+			return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
+		}
 	}
 	return nil
 }
@@ -174,6 +198,7 @@ func (r *Reconciler) getShouldVerifyWeightCfg() bool {
 func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
 	if !r.getShouldVerifyWeightCfg() {
 		r.cfg.Status.ALB = nil
+		r.cfg.Status.ALBs = nil
 		return nil, nil
 	}
 
@@ -182,7 +207,7 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 		// installed in the cluster we want to actually run the rest of the function, so we do not return if
 		// r.cfg.Rollout.Status.ALB is nil. However, if we should not verify, and we have already updated the status once
 		// we return early to avoid calling AWS apis.
-		if r.cfg.Rollout.Status.ALB != nil {
+		if r.cfg.Rollout.Status.ALBs != nil || r.cfg.Rollout.Status.ALB != nil {
 			return nil, nil
 		}
 	}
@@ -190,106 +215,135 @@ func (r *Reconciler) VerifyWeight(desiredWeight int32, additionalDestinations ..
 	if r.cfg.Status.ALB == nil {
 		r.cfg.Status.ALB = &v1alpha1.ALBStatus{}
 	}
-
-	ctx := context.TODO()
-	rollout := r.cfg.Rollout
-	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
-	ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
-	if err != nil {
-		return pointer.BoolPtr(false), err
-	}
-	resourceIDToDest := map[string]v1alpha1.WeightDestination{}
-
-	stableService, canaryService := trafficrouting.GetStableAndCanaryServices(rollout)
-	canaryResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
-	stableResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), stableService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
-
-	for _, dest := range additionalDestinations {
-		resourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), dest.ServiceName, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
-		resourceIDToDest[resourceID] = dest
-	}
-
-	loadBalancerStatus := ingress.GetLoadBalancerStatus()
-	if len(loadBalancerStatus.Ingress) == 0 {
-		r.log.Infof("LoadBalancer not yet allocated")
-	}
-
-	numVerifiedWeights := 0
-	for _, lbIngress := range loadBalancerStatus.Ingress {
-		if lbIngress.Hostname == "" {
-			continue
+	albsCount := len(r.cfg.Status.ALBs)
+	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; len(ingresses) > 0 {
+		if albsCount == 0 || albsCount != len(ingresses) {
+			r.cfg.Status.ALBs = make([]v1alpha1.ALBStatus, len(ingresses))
 		}
-		lb, err := r.aws.FindLoadBalancerByDNSName(ctx, lbIngress.Hostname)
+		return r.VerifyWeightPerIngress(desiredWeight, ingresses, additionalDestinations...)
+	} else {
+		if albsCount == 0 || albsCount != 1 {
+			r.cfg.Status.ALBs = make([]v1alpha1.ALBStatus, 1)
+		}
+		return r.VerifyWeightPerIngress(desiredWeight, []string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress}, additionalDestinations...)
+	}
+}
+
+func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []string, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
+	var numVerifiedWeights int
+	numVerifiedWeights = 0
+	for i, ingress := range ingresses {
+		ctx := context.TODO()
+		rollout := r.cfg.Rollout
+		ingressName := ingress
+		ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
 		if err != nil {
-			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-			return pointer.BoolPtr(false), err
+			return pointer.Bool(false), err
 		}
-		if lb == nil || lb.LoadBalancerArn == nil {
-			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.LoadBalancerNotFoundReason}, conditions.LoadBalancerNotFoundMessage, lbIngress.Hostname)
-			return pointer.BoolPtr(false), nil
+		resourceIDToDest := map[string]v1alpha1.WeightDestination{}
+
+		stableService, canaryService := trafficrouting.GetStableAndCanaryServices(rollout)
+		canaryResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), canaryService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+		stableResourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), stableService, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+
+		for _, dest := range additionalDestinations {
+			resourceID := aws.BuildTargetGroupResourceID(rollout.Namespace, ingress.GetName(), dest.ServiceName, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.ServicePort)
+			resourceIDToDest[resourceID] = dest
 		}
 
-		r.cfg.Status.ALB.LoadBalancer.Name = *lb.LoadBalancerName
-		r.cfg.Status.ALB.LoadBalancer.ARN = *lb.LoadBalancerArn
-		if lbArnParts := strings.Split(*lb.LoadBalancerArn, "/"); len(lbArnParts) > 2 {
-			r.cfg.Status.ALB.LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
-		} else {
-			r.cfg.Status.ALB.LoadBalancer.FullName = ""
-			r.log.Errorf("error parsing load balancer arn: '%s'", *lb.LoadBalancerArn)
+		loadBalancerStatus := ingress.GetLoadBalancerStatus()
+		if len(loadBalancerStatus.Ingress) == 0 {
+			r.log.Infof("LoadBalancer not yet allocated")
 		}
 
-		lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
-		if err != nil {
-			r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
-			return pointer.BoolPtr(false), err
-		}
-		logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
-		for _, tg := range lbTargetGroups {
-			if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
-				r.cfg.Status.ALB.CanaryTargetGroup.Name = *tg.TargetGroupName
-				r.cfg.Status.ALB.CanaryTargetGroup.ARN = *tg.TargetGroupArn
-				if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
-					r.cfg.Status.ALB.CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
-				} else {
-					r.cfg.Status.ALB.CanaryTargetGroup.FullName = ""
-					r.log.Errorf("error parsing canary target group arn: '%s'", *tg.TargetGroupArn)
-				}
+		for _, lbIngress := range loadBalancerStatus.Ingress {
+			if lbIngress.Hostname == "" {
+				continue
+			}
+			lb, err := r.aws.FindLoadBalancerByDNSName(ctx, lbIngress.Hostname)
+			if err != nil {
+				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
+				return pointer.Bool(false), err
+			}
+			if lb == nil || lb.LoadBalancerArn == nil {
+				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.LoadBalancerNotFoundReason}, conditions.LoadBalancerNotFoundMessage, lbIngress.Hostname)
+				return pointer.Bool(false), nil
+			}
+
+			r.cfg.Status.ALBs[i].Ingress = ingressName
+			r.cfg.Status.ALB.Ingress = ingressName
+			updateLoadBalancerStatus(&r.cfg.Status.ALBs[i], lb, r.log)
+			updateLoadBalancerStatus(r.cfg.Status.ALB, lb, r.log)
+
+			lbTargetGroups, err := r.aws.GetTargetGroupMetadata(ctx, *lb.LoadBalancerArn)
+			if err != nil {
+				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
+				return pointer.Bool(false), err
+			}
+			logCtx := r.log.WithField("lb", *lb.LoadBalancerArn)
+			for _, tg := range lbTargetGroups {
+				updateTargetGroupStatus(&r.cfg.Status.ALBs[i], &tg, canaryResourceID, stableResourceID, r.log)
+				updateTargetGroupStatus(r.cfg.Status.ALB, &tg, canaryResourceID, stableResourceID, r.log)
 				if tg.Weight != nil {
-					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
-					logCtx.Infof("canary weight of %s (desired: %d, current: %d)", canaryResourceID, desiredWeight, *tg.Weight)
-					verified := *tg.Weight == desiredWeight
-					if verified {
-						numVerifiedWeights += 1
-						r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight)
-					} else {
-						r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight, *tg.Weight)
+					if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
+						logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
+						logCtx.Infof("canary weight of %s (desired: %d, current: %d)", canaryResourceID, desiredWeight, *tg.Weight)
+						verified := *tg.Weight == desiredWeight
+						if verified {
+							numVerifiedWeights += 1
+							r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight)
+						} else {
+							r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, canaryService, *tg.TargetGroupArn, desiredWeight, *tg.Weight)
+						}
+					} else if dest, ok := resourceIDToDest[tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID]]; ok {
+						logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
+						logCtx.Infof("%s weight of %s (desired: %d, current: %d)", dest.ServiceName, tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID], dest.Weight, *tg.Weight)
+						verified := *tg.Weight == dest.Weight
+						if verified {
+							numVerifiedWeights += 1
+							r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedWeightsMessage, dest.ServiceName, *tg.TargetGroupArn, dest.Weight)
+						} else {
+							r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, dest.ServiceName, *tg.TargetGroupArn, dest.Weight, *tg.Weight)
+						}
 					}
-				}
-			} else if dest, ok := resourceIDToDest[tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID]]; ok {
-				if tg.Weight != nil {
-					logCtx := logCtx.WithField("tg", *tg.TargetGroupArn)
-					logCtx.Infof("%s weight of %s (desired: %d, current: %d)", dest.ServiceName, tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID], dest.Weight, *tg.Weight)
-					verified := *tg.Weight == dest.Weight
-					if verified {
-						numVerifiedWeights += 1
-						r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedWeightsMessage, dest.ServiceName, *tg.TargetGroupArn, dest.Weight)
-					} else {
-						r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupUnverifiedReason}, conditions.TargetGroupUnverifiedWeightsMessage, dest.ServiceName, *tg.TargetGroupArn, dest.Weight, *tg.Weight)
-					}
-				}
-			} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
-				r.cfg.Status.ALB.StableTargetGroup.Name = *tg.TargetGroupName
-				r.cfg.Status.ALB.StableTargetGroup.ARN = *tg.TargetGroupArn
-				if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
-					r.cfg.Status.ALB.StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
-				} else {
-					r.cfg.Status.ALB.StableTargetGroup.FullName = ""
-					r.log.Errorf("error parsing stable target group arn: '%s'", *tg.TargetGroupArn)
 				}
 			}
 		}
 	}
-	return pointer.BoolPtr(numVerifiedWeights == 1+len(additionalDestinations)), nil
+	return pointer.Bool(numVerifiedWeights == len(ingresses)+len(additionalDestinations)), nil
+}
+
+func updateLoadBalancerStatus(status *v1alpha1.ALBStatus, lb *elbv2types.LoadBalancer, log *logrus.Entry) {
+	status.LoadBalancer.Name = *lb.LoadBalancerName
+	status.LoadBalancer.ARN = *lb.LoadBalancerArn
+	if lbArnParts := strings.Split(*lb.LoadBalancerArn, "/"); len(lbArnParts) > 2 {
+		status.LoadBalancer.FullName = strings.Join(lbArnParts[2:], "/")
+	} else {
+		status.LoadBalancer.FullName = ""
+		log.Errorf("error parsing load balancer arn: '%s'", *lb.LoadBalancerArn)
+	}
+}
+
+func updateTargetGroupStatus(status *v1alpha1.ALBStatus, tg *aws.TargetGroupMeta, canaryResourceID string, stableResourceID string, log *logrus.Entry) {
+	if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == canaryResourceID {
+		status.CanaryTargetGroup.Name = *tg.TargetGroupName
+		status.CanaryTargetGroup.ARN = *tg.TargetGroupArn
+		if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
+			status.CanaryTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+		} else {
+			status.CanaryTargetGroup.FullName = ""
+			log.Errorf("error parsing canary target group arn: '%s'", *tg.TargetGroupArn)
+		}
+	} else if tg.Tags[aws.AWSLoadBalancerV2TagKeyResourceID] == stableResourceID {
+		status.StableTargetGroup.Name = *tg.TargetGroupName
+		status.StableTargetGroup.ARN = *tg.TargetGroupArn
+		if tgArnParts := strings.Split(*tg.TargetGroupArn, "/"); len(tgArnParts) > 1 {
+			status.StableTargetGroup.FullName = strings.Join(tgArnParts[1:], "/")
+		} else {
+			status.StableTargetGroup.FullName = ""
+			log.Errorf("error parsing stable target group arn: '%s'", *tg.TargetGroupArn)
+		}
+	}
 }
 
 func getForwardActionString(r *v1alpha1.Rollout, port int32, desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (string, error) {
@@ -490,50 +544,61 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 	if len(r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes) == 0 {
 		return nil
 	}
-	ctx := context.TODO()
-	rollout := r.cfg.Rollout
-	ingressName := rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress
 
-	ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
-	if err != nil {
-		return err
+	if ingresses := r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses; ingresses != nil {
+		return r.RemoveManagedRoutesPerIngress(ingresses)
+	} else {
+		return r.RemoveManagedRoutesPerIngress([]string{r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress})
 	}
+}
 
-	desiredAnnotations := ingress.DeepCopy().GetAnnotations()
-	var actionKeys []string
-	for _, managedRoute := range rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
-		actionKey := ingressutil.ALBHeaderBasedActionAnnotationKey(rollout, managedRoute.Name)
-		conditionKey := ingressutil.ALBHeaderBasedConditionAnnotationKey(rollout, managedRoute.Name)
-		delete(desiredAnnotations, actionKey)
-		delete(desiredAnnotations, conditionKey)
-		actionKeys = append(actionKeys, actionKey, conditionKey)
-	}
-	desiredAnnotations, err = modifyManagedAnnotation(desiredAnnotations, rollout.Name, false, actionKeys...)
-	if err != nil {
-		return err
-	}
+func (r *Reconciler) RemoveManagedRoutesPerIngress(ingresses []string) error {
+	for _, ingress := range ingresses {
+		ctx := context.TODO()
+		rollout := r.cfg.Rollout
+		ingressName := ingress
 
-	desiredIngress := ingressutil.NewIngressWithSpecAndAnnotations(ingress, desiredAnnotations)
+		ingress, err := r.cfg.IngressWrapper.GetCached(rollout.Namespace, ingressName)
+		if err != nil {
+			return err
+		}
 
-	for _, managedRoute := range rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
-		desiredIngress.RemovePathByServiceName(managedRoute.Name)
-	}
+		desiredAnnotations := ingress.DeepCopy().GetAnnotations()
+		var actionKeys []string
+		for _, managedRoute := range rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
+			actionKey := ingressutil.ALBHeaderBasedActionAnnotationKey(rollout, managedRoute.Name)
+			conditionKey := ingressutil.ALBHeaderBasedConditionAnnotationKey(rollout, managedRoute.Name)
+			delete(desiredAnnotations, actionKey)
+			delete(desiredAnnotations, conditionKey)
+			actionKeys = append(actionKeys, actionKey, conditionKey)
+		}
+		desiredAnnotations, err = modifyManagedAnnotation(desiredAnnotations, rollout.Name, false, actionKeys...)
+		if err != nil {
+			return err
+		}
 
-	patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations(), ingressutil.WithSpec())
-	if err != nil {
-		return nil
-	}
-	if !modified {
-		r.log.Info("no changes to the ALB Ingress for header routing")
-		return nil
-	}
-	r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
-	r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` removing managed routes", ingressName)
+		desiredIngress := ingressutil.NewIngressWithSpecAndAnnotations(ingress, desiredAnnotations)
 
-	_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		r.log.WithField("err", err.Error()).Error("error patching alb ingress")
-		return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
+		for _, managedRoute := range rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes {
+			desiredIngress.RemovePathByServiceName(managedRoute.Name)
+		}
+
+		patch, modified, err := ingressutil.BuildIngressPatch(ingress.Mode(), ingress, desiredIngress, ingressutil.WithAnnotations(), ingressutil.WithSpec())
+		if err != nil {
+			return nil
+		}
+		if !modified {
+			r.log.Info("no changes to the ALB Ingress for header routing")
+			return nil
+		}
+		r.log.WithField("patch", string(patch)).Debug("applying ALB Ingress patch")
+		r.cfg.Recorder.Eventf(rollout, record.EventOptions{EventReason: "PatchingALBIngress"}, "Updating Ingress `%s` removing managed routes", ingressName)
+
+		_, err = r.cfg.IngressWrapper.Patch(ctx, ingress.GetNamespace(), ingress.GetName(), types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			r.log.WithField("err", err.Error()).Error("error patching alb ingress")
+			return fmt.Errorf("error patching alb ingress `%s`: %v", ingressName, err)
+		}
 	}
 	return nil
 }
