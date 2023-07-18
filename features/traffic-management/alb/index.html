@@ -17,7 +17,7 @@
         <link rel="next" href="../google-cloud/">
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.19">
     
     
       
@@ -25,7 +25,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.26e3688c.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.eebd395e.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.ecc896b0.min.css">
@@ -2638,6 +2638,11 @@ services during updates, the Rollout should be configured with the following fie
 <span class="w">          </span><span class="c1"># the AWS Load Balancer Controller to split traffic between the canary and stable</span>
 <span class="w">          </span><span class="c1"># Service, according to the desired traffic weight (required).</span>
 <span class="w">          </span><span class="nt">ingress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress</span>
+<span class="w">          </span><span class="c1"># If you want to controll multiple ingress resources you can use the ingresses field, if ingresses is specified</span>
+<span class="w">          </span><span class="c1"># the ingress field will need to be omitted.</span>
+<span class="w">          </span><span class="nt">ingresses</span><span class="p">:</span><span class="w"> </span>
+<span class="w">           </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress-1</span>
+<span class="w">           </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress-2</span>
 <span class="w">          </span><span class="c1"># Reference to a Service that the Ingress must target in one of the rules (optional).</span>
 <span class="w">          </span><span class="c1"># If omitted, uses canary.stableService.</span>
 <span class="w">          </span><span class="nt">rootService</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">root-service</span>
