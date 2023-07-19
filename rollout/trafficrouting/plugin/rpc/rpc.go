@@ -21,6 +21,7 @@ type UpdateHashArgs struct {
 type SetWeightAndVerifyWeightArgs struct {
 	Rollout                v1alpha1.Rollout
 	DesiredWeight          int32
+	WeightTotal            int32
 	AdditionalDestinations []v1alpha1.WeightDestination
 }
 
@@ -201,7 +202,7 @@ func (s *TrafficRouterRPCServer) SetWeight(args interface{}, resp *types.RpcErro
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
 	}
-	*resp = s.Impl.SetWeight(&setWeigthArgs.Rollout, setWeigthArgs.DesiredWeight, setWeigthArgs.AdditionalDestinations)
+	*resp = s.Impl.SetWeight(&setWeigthArgs.Rollout, setWeigthArgs.DesiredWeight, setWeigthArgs.WeightTotal, setWeigthArgs.AdditionalDestinations)
 	return nil
 }
 

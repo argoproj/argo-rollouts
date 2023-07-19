@@ -220,7 +220,7 @@ func (r *RpcPlugin) canaryIngress(ro *v1alpha1.Rollout, stableIngress *ingressut
 }
 
 // SetWeight modifies Nginx Ingress resources to reach desired state
-func (r *RpcPlugin) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
+func (r *RpcPlugin) SetWeight(ro *v1alpha1.Rollout, desiredWeight int32, weightTotal int32, additionalDestinations []v1alpha1.WeightDestination) pluginTypes.RpcError {
 	ctx := context.TODO()
 
 	s := v1alpha1.NginxTrafficRouting{}

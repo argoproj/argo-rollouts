@@ -622,6 +622,9 @@ type CanaryStep struct {
 	// SetMirrorRoutes Mirrors traffic that matches rules to a particular destination
 	// +optional
 	SetMirrorRoute *SetMirrorRoute `json:"setMirrorRoute,omitempty" protobuf:"bytes,8,opt,name=setMirrorRoute"`
+
+	// MaxWeight sets what is the max weight of the traffic, the newRS will receive SetWeight/MaxWeight traffic
+	MaxWeight *int32 `json:"maxWeight,omitempty" protobuf:"varint,9,opt,name=maxWeight"`
 }
 
 type SetMirrorRoute struct {

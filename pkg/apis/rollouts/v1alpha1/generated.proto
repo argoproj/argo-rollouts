@@ -446,6 +446,9 @@ message CanaryStep {
   // SetMirrorRoutes Mirrors traffic that matches rules to a particular destination
   // +optional
   optional SetMirrorRoute setMirrorRoute = 8;
+
+  // MaxWeight sets what is the max weight of the traffic, the newRS will receive SetWeight/MaxWeight traffic
+  optional int32 maxWeight = 9;
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary

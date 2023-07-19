@@ -71,7 +71,7 @@ type RpcTrafficRoutingReconciler interface {
 	// UpdateHash informs a traffic routing reconciler about new canary, stable, and additionalDestination(s) pod hashes
 	UpdateHash(rollout *v1alpha1.Rollout, canaryHash, stableHash string, additionalDestinations []v1alpha1.WeightDestination) RpcError
 	// SetWeight sets the canary weight to the desired weight
-	SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, additionalDestinations []v1alpha1.WeightDestination) RpcError
+	SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, weightTotal int32, additionalDestinations []v1alpha1.WeightDestination) RpcError
 	// SetHeaderRoute sets the header routing step
 	SetHeaderRoute(rollout *v1alpha1.Rollout, setHeaderRoute *v1alpha1.SetHeaderRoute) RpcError
 	// SetMirrorRoute sets up the traffic router to mirror traffic to a service

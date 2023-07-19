@@ -97,7 +97,7 @@ func TestPlugin(t *testing.T) {
 	err = plugin.SetHeaderRoute(&ro, &v1alpha1.SetHeaderRoute{})
 	assert.Equal(t, "", err.Error())
 
-	err = plugin.SetWeight(&ro, 0, []v1alpha1.WeightDestination{})
+	err = plugin.SetWeight(&ro, 0, 100, []v1alpha1.WeightDestination{})
 	assert.Equal(t, "", err.Error())
 
 	b, err := plugin.VerifyWeight(&ro, 0, []v1alpha1.WeightDestination{})
@@ -136,7 +136,7 @@ func TestPluginClosedConnection(t *testing.T) {
 	err = plugin.SetHeaderRoute(&v1alpha1.Rollout{}, &v1alpha1.SetHeaderRoute{})
 	assert.Contains(t, err.Error(), expectedError)
 
-	err = plugin.SetWeight(&v1alpha1.Rollout{}, 0, []v1alpha1.WeightDestination{})
+	err = plugin.SetWeight(&v1alpha1.Rollout{}, 0, 100, []v1alpha1.WeightDestination{})
 	assert.Contains(t, err.Error(), expectedError)
 
 	_, err = plugin.VerifyWeight(&v1alpha1.Rollout{}, 0, []v1alpha1.WeightDestination{})
