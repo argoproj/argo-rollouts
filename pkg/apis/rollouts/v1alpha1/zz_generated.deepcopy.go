@@ -1651,7 +1651,7 @@ func (in *MetricProvider) DeepCopyInto(out *MetricProvider) {
 	if in.Prometheus != nil {
 		in, out := &in.Prometheus, &out.Prometheus
 		*out = new(PrometheusMetric)
-		**out = **in
+		(*in).DeepCopyInto(*out)
 	}
 	if in.Kayenta != nil {
 		in, out := &in.Kayenta, &out.Kayenta
@@ -1921,6 +1921,11 @@ func (in *PrometheusAuth) DeepCopy() *PrometheusAuth {
 func (in *PrometheusMetric) DeepCopyInto(out *PrometheusMetric) {
 	*out = *in
 	out.Authentication = in.Authentication
+	if in.Timeout != nil {
+		in, out := &in.Timeout, &out.Timeout
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 

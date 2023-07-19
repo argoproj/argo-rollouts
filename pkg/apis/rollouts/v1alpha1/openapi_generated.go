@@ -3451,6 +3451,13 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusAuth"),
 						},
 					},
+					"timeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},

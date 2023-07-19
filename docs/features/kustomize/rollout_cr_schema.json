@@ -4280,6 +4280,9 @@
                                                     },
                                                     "query": {
                                                         "type": "string"
+                                                    },
+                                                    "timeout": {
+                                                        "type": "integer"
                                                     }
                                                 },
                                                 "type": "object"
@@ -8670,6 +8673,9 @@
                                                     },
                                                     "query": {
                                                         "type": "string"
+                                                    },
+                                                    "timeout": {
+                                                        "type": "integer"
                                                     }
                                                 },
                                                 "type": "object"
@@ -13060,6 +13066,9 @@
                                                     },
                                                     "query": {
                                                         "type": "string"
+                                                    },
+                                                    "timeout": {
+                                                        "type": "integer"
                                                     }
                                                 },
                                                 "type": "object"

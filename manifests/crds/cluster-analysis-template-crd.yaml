@@ -2775,6 +2775,8 @@ spec:
                               type: object
                             query:
                               type: string
+                            timeout:
+                              type: integer
                           type: object
                         skywalking:
                           properties:

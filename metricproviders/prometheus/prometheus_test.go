@@ -31,7 +31,7 @@ func TestType(t *testing.T) {
 	mock := mockAPI{
 		value: newScalar(10),
 	}
-	timeout := 5
+	timeout := int64(5)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -46,7 +46,7 @@ func TestType(t *testing.T) {
 	p, err := NewPrometheusProvider(mock, e, metric)
 	assert.NoError(t, err)
 	assert.Equal(t, ProviderType, p.Type())
-	assert.Equal(t, p.Timeout, time.Duration(timeout*int(time.Second)))
+	assert.Equal(t, p.Timeout, time.Duration(timeout*int64(time.Second)))
 }
 
 func TestRunSuccessfully(t *testing.T) {

@@ -156,7 +156,7 @@ func NewPrometheusProvider(api v1.API, logCtx log.Entry, metric v1alpha1.Metric)
 		return nil, errors.New("prometheus timeout should not be negative")
 	}
 
-	provider.Timeout = time.Duration(*metricTimeout * int(time.Second))
+	provider.Timeout = time.Duration(*metricTimeout * int64(time.Second))
 	return provider, nil
 }
 
