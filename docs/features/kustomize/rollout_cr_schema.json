@@ -4282,6 +4282,7 @@
                                                         "type": "string"
                                                     },
                                                     "timeout": {
+                                                        "format": "int64",
                                                         "type": "integer"
                                                     }
                                                 },
@@ -8675,6 +8676,7 @@
                                                         "type": "string"
                                                     },
                                                     "timeout": {
+                                                        "format": "int64",
                                                         "type": "integer"
                                                     }
                                                 },
@@ -13068,6 +13070,7 @@
                                                         "type": "string"
                                                     },
                                                     "timeout": {
+                                                        "format": "int64",
                                                         "type": "integer"
                                                     }
                                                 },

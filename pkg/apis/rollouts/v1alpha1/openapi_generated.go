@@ -3455,7 +3455,7 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Description: "Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.",
 							Type:        []string{"integer"},
-							Format:      "int32",
+							Format:      "int64",
 						},
 					},
 				},

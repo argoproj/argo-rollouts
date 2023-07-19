@@ -493,3 +493,23 @@ func TestNewPrometheusAddressNotConfigured(t *testing.T) {
 	assert.NotNil(t, err)
 	log.Infof("api:%v", api)
 }
+
+func TestNewPrometheusNegativeTimeout(t *testing.T) {
+	e := log.Entry{}
+	mock := mockAPI{
+		value: newScalar(10),
+	}
+	timeout := int64(-20)
+	metric := v1alpha1.Metric{
+		Name: "foo",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query:   "test",
+				Timeout: &timeout,
+			},
+		},
+	}
+	p, err := NewPrometheusProvider(mock, e, metric)
+	assert.NotNil(t, err)
+	assert.Nil(t, p)
+}

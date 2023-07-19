@@ -2781,6 +2781,7 @@ spec:
                             query:
                               type: string
                             timeout:
+                              format: int64
                               type: integer
                           type: object
                         skywalking:
@@ -5742,6 +5743,7 @@ spec:
                             query:
                               type: string
                             timeout:
+                              format: int64
                               type: integer
                           type: object
                         skywalking:
@@ -8589,6 +8591,7 @@ spec:
                             query:
                               type: string
                             timeout:
+                              format: int64
                               type: integer
                           type: object
                         skywalking:
