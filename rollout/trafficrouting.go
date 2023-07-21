@@ -2,10 +2,11 @@ package rollout
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin"
 
