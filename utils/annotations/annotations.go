@@ -51,7 +51,7 @@ func GetWorkloadGenerationAnnotation(ro *v1alpha1.Rollout) (int32, bool) {
 	return int32(intValue), true
 }
 
-// GetRevisionAnnotation returns generation of rollout
+// GetRevisionAnnotation returns revision of rollout
 func GetRevisionAnnotation(ro *v1alpha1.Rollout) (int32, bool) {
 	if ro == nil {
 		return 0, false
