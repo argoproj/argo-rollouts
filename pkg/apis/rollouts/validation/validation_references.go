@@ -249,14 +249,27 @@ func validateNginxIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.
 }
 
 func validateAlbIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.Ingress, fldPath *field.Path) field.ErrorList {
-	fldPath = fldPath.Child("alb").Child("ingress")
-	ingressName := canary.TrafficRouting.ALB.Ingress
-	serviceName := canary.StableService
-	if canary.TrafficRouting.ALB.RootService != "" {
-		serviceName = canary.TrafficRouting.ALB.RootService
+	ingresses := canary.TrafficRouting.ALB.Ingresses
+	allErrs := field.ErrorList{}
+	// If there are multiple ALB ingresses, and one of them is being validated,
+	// use that ingress name.
+	if ingresses != nil && slices.Contains(ingresses, ingress.GetName()) {
+		fldPath = fldPath.Child("alb").Child("ingresses")
+		serviceName := canary.StableService
+		ingressName := ingress.GetName()
+		if canary.TrafficRouting.ALB.RootService != "" {
+			serviceName = canary.TrafficRouting.ALB.RootService
+		}
+		return reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
+	} else {
+		fldPath = fldPath.Child("alb").Child("ingress")
+		serviceName := canary.StableService
+		ingressName := canary.TrafficRouting.ALB.Ingress
+		if canary.TrafficRouting.ALB.RootService != "" {
+			serviceName = canary.TrafficRouting.ALB.RootService
+		}
+		return reportErrors(ingress, serviceName, ingressName, fldPath, allErrs)
 	}
-
-	return reportErrors(ingress, serviceName, ingressName, fldPath, field.ErrorList{})
 }
 
 func reportErrors(ingress *ingressutil.Ingress, serviceName, ingressName string, fldPath *field.Path, allErrs field.ErrorList) field.ErrorList {
@@ -287,6 +300,31 @@ func ValidateRolloutNginxIngressesConfig(r *v1alpha1.Rollout) error {
 		err = field.InternalError(fldPath, fmt.Errorf("Either StableIngress or StableIngresses must be configured. Both are configured."))
 	} else if !(ingressutil.MultipleNginxIngressesConfigured(r) || ingressutil.SingleNginxIngressConfigured(r)) {
 		err = field.InternalError(fldPath, fmt.Errorf("Either StableIngress or StableIngresses must be configured. Neither are configured."))
+	}
+
+	return err
+}
+
+// ValidateRolloutAlbIngressesConfig checks that only one or the other of the two fields
+// (Ingress, Ingresses) is defined on the ALB struct
+func ValidateRolloutAlbIngressesConfig(r *v1alpha1.Rollout) error {
+	fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting", "alb")
+	var err error
+
+	// If the traffic strategy isn't canary -> ALB, no need to validate
+	// fields on ALB struct.
+	if r.Spec.Strategy.Canary == nil ||
+		r.Spec.Strategy.Canary.TrafficRouting == nil ||
+		r.Spec.Strategy.Canary.TrafficRouting.ALB == nil {
+		return nil
+	}
+
+	// If both Ingress and Ingresses are configured or if neither are configured,
+	// that's an error. It must be one or the other.
+	if ingressutil.MultipleAlbIngressesConfigured(r) && ingressutil.SingleAlbIngressConfigured(r) {
+		err = field.InternalError(fldPath, fmt.Errorf("Either Ingress or Ingresses must be configured. Both are configured."))
+	} else if !(ingressutil.MultipleAlbIngressesConfigured(r) || ingressutil.SingleAlbIngressConfigured(r)) {
+		err = field.InternalError(fldPath, fmt.Errorf("Either Ingress or Ingresses must be configured. Neither are configured."))
 	}
 
 	return err

@@ -536,6 +536,18 @@ func (c *Common) GetALBIngress() *networkingv1.Ingress {
 	return ingress
 }
 
+func (c *Common) GetALBIngresses() []*networkingv1.Ingress {
+	ro := c.Rollout()
+	names := ro.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses
+	ingresses := []*networkingv1.Ingress{}
+	for _, name := range names {
+		ingress, err := c.kubeClient.NetworkingV1().Ingresses(c.namespace).Get(c.Context, name, metav1.GetOptions{})
+		c.CheckError(err)
+		ingresses = append(ingresses, ingress)
+	}
+	return ingresses
+}
+
 func (c *Common) GetNginxIngressStable() *networkingv1.Ingress {
 	ro := c.Rollout()
 	name := ro.Spec.Strategy.Canary.TrafficRouting.Nginx.StableIngress

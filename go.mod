@@ -3,12 +3,12 @@ module github.com/argoproj/argo-rollouts
 go 1.19
 
 require (
-	github.com/antonmedv/expr v1.12.6
+	github.com/antonmedv/expr v1.12.7
 	github.com/argoproj/notifications-engine v0.4.1-0.20230712163936-39dfcb66f902
 	github.com/argoproj/pkg v0.13.6
 	github.com/aws/aws-sdk-go-v2 v1.19.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.28
-	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.26.2
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.26.3
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.19.14
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bombsimon/logrusr/v4 v4.0.0

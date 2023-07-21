@@ -56,6 +56,11 @@ func (in *ALBTrafficRouting) DeepCopyInto(out *ALBTrafficRouting) {
 		*out = new(StickinessConfig)
 		**out = **in
 	}
+	if in.Ingresses != nil {
+		in, out := &in.Ingresses, &out.Ingresses
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -2342,6 +2347,11 @@ func (in *RolloutStatus) DeepCopyInto(out *RolloutStatus) {
 		in, out := &in.ALB, &out.ALB
 		*out = new(ALBStatus)
 		**out = **in
+	}
+	if in.ALBs != nil {
+		in, out := &in.ALBs, &out.ALBs
+		*out = make([]ALBStatus, len(*in))
+		copy(*out, *in)
 	}
 	return
 }
