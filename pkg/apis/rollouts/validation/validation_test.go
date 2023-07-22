@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -302,6 +303,42 @@ func TestValidateRolloutStrategyCanarySetHeaderRoute(t *testing.T) {
 		}}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
 		assert.Equal(t, InvalidSetHeaderRouteTrafficPolicy, allErrs[0].Detail)
+	})
+}
+
+func TestValidateRolloutStrategyCanarySetHeaderRoutePlugins(t *testing.T) {
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		CanaryService: "canary",
+		StableService: "stable",
+	}
+
+	t.Run("using SetHeaderRoute step with plugins", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		routeName := "test"
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: routeName,
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName:  "agent",
+						HeaderValue: &v1alpha1.StringMatch{Exact: "chrome"},
+					},
+				},
+			},
+		}}
+		invalidRo.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			ManagedRoutes: []v1alpha1.MangedRoutes{
+				{
+					Name: routeName,
+				},
+			},
+			Plugins: map[string]json.RawMessage{
+				"anyplugin": []byte(`{"key": "value"}`),
+			},
+		}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, 0, len(allErrs))
 	})
 }
 
