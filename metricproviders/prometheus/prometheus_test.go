@@ -46,7 +46,7 @@ func TestType(t *testing.T) {
 	p, err := NewPrometheusProvider(mock, e, metric)
 	assert.NoError(t, err)
 	assert.Equal(t, ProviderType, p.Type())
-	assert.Equal(t, p.Timeout, time.Duration(timeout*int64(time.Second)))
+	assert.Equal(t, p.timeout, time.Duration(timeout*int64(time.Second)))
 }
 
 func TestRunSuccessfully(t *testing.T) {
