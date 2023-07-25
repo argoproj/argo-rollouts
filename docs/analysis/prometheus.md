@@ -20,6 +20,8 @@ spec:
     provider:
       prometheus:
         address: http://prometheus.example.com:9090
+        # timeout is expressed in seconds
+        timeout: 40
         query: |
           sum(irate(
             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
