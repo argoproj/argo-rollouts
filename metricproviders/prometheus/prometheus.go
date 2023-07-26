@@ -33,8 +33,9 @@ const (
 
 // Provider contains all the required components to run a prometheus query
 type Provider struct {
-	api    v1.API
-	logCtx log.Entry
+	api     v1.API
+	logCtx  log.Entry
+	timeout time.Duration
 }
 
 // Type indicates provider is a prometheus provider
@@ -59,7 +60,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	}
 
 	//TODO(dthomson) make timeout configurable
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
 	defer cancel()
 
 	response, warnings, err := p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
@@ -138,11 +139,25 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 }
 
 // NewPrometheusProvider Creates a new Prometheus client
-func NewPrometheusProvider(api v1.API, logCtx log.Entry) *Provider {
-	return &Provider{
+func NewPrometheusProvider(api v1.API, logCtx log.Entry, metric v1alpha1.Metric) (*Provider, error) {
+	provider := &Provider{
 		logCtx: logCtx,
 		api:    api,
 	}
+
+	if metric.Provider.Prometheus == nil || metric.Provider.Prometheus.Timeout == nil {
+		provider.timeout = 30 * time.Second
+		return provider, nil
+	}
+
+	metricTimeout := metric.Provider.Prometheus.Timeout
+
+	if *metricTimeout < 0 {
+		return nil, errors.New("prometheus timeout should not be negative")
+	}
+
+	provider.timeout = time.Duration(*metricTimeout * int64(time.Second))
+	return provider, nil
 }
 
 // NewPrometheusAPI generates a prometheus API from the metric configuration

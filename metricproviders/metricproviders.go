@@ -41,7 +41,7 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		if err != nil {
 			return nil, err
 		}
-		return prometheus.NewPrometheusProvider(api, logCtx), nil
+		return prometheus.NewPrometheusProvider(api, logCtx, metric)
 	case job.ProviderType:
 		return job.NewJobProvider(logCtx, f.KubeClient, f.JobLister), nil
 	case kayenta.ProviderType:

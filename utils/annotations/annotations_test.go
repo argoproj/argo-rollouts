@@ -444,3 +444,43 @@ func TestReplicasAnnotationsNeedUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRevisionAnnotation(t *testing.T) {
+	rev, found := GetRevisionAnnotation(&v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+			Annotations: map[string]string{
+				RevisionAnnotation: "1",
+			},
+		},
+	})
+	assert.True(t, found)
+	assert.Equal(t, int32(1), rev)
+
+	rev, found = GetRevisionAnnotation(&v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "foo",
+			Namespace:   metav1.NamespaceDefault,
+			Annotations: map[string]string{},
+		},
+	})
+	assert.False(t, found)
+	assert.Equal(t, int32(0), rev)
+
+	rev, found = GetRevisionAnnotation(nil)
+	assert.False(t, found)
+	assert.Equal(t, int32(0), rev)
+
+	rev, found = GetRevisionAnnotation(&v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: metav1.NamespaceDefault,
+			Annotations: map[string]string{
+				RevisionAnnotation: "abc",
+			},
+		},
+	})
+	assert.False(t, found)
+	assert.Equal(t, int32(0), rev)
+}
