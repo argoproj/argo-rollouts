@@ -17,7 +17,7 @@
         <link rel="next" href="../rollback/">
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.19">
+      <meta name="generator" content="mkdocs-1.5.0, mkdocs-material-9.1.20">
     
     
       
@@ -2337,60 +2337,60 @@ is scaled down in 30 seconds on abort by default.</p>
 <table>
 <thead>
 <tr>
-<th align="right">strategy</th>
-<th align="center">v1.0 behavior</th>
-<th align="center">abortScaleDownDelaySeconds</th>
-<th align="center">v1.1 behavior</th>
+<th style="text-align: right;">strategy</th>
+<th style="text-align: center;">v1.0 behavior</th>
+<th style="text-align: center;">abortScaleDownDelaySeconds</th>
+<th style="text-align: center;">v1.1 behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td align="right">blue-green</td>
-<td align="center">does not scale down</td>
-<td align="center">nil</td>
-<td align="center">scales down after 30 seconds</td>
+<td style="text-align: right;">blue-green</td>
+<td style="text-align: center;">does not scale down</td>
+<td style="text-align: center;">nil</td>
+<td style="text-align: center;">scales down after 30 seconds</td>
 </tr>
 <tr>
-<td align="right">blue-green</td>
-<td align="center">does not scale down</td>
-<td align="center">0</td>
-<td align="center">does not scale down</td>
+<td style="text-align: right;">blue-green</td>
+<td style="text-align: center;">does not scale down</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">does not scale down</td>
 </tr>
 <tr>
-<td align="right">blue-green</td>
-<td align="center">does not scale down</td>
-<td align="center">N</td>
-<td align="center">scales down after N seconds</td>
+<td style="text-align: right;">blue-green</td>
+<td style="text-align: center;">does not scale down</td>
+<td style="text-align: center;">N</td>
+<td style="text-align: center;">scales down after N seconds</td>
 </tr>
 <tr>
-<td align="right">basic canary</td>
-<td align="center">rolling update back to stable</td>
-<td align="center">N/A</td>
-<td align="center">rolling update back to stable</td>
+<td style="text-align: right;">basic canary</td>
+<td style="text-align: center;">rolling update back to stable</td>
+<td style="text-align: center;">N/A</td>
+<td style="text-align: center;">rolling update back to stable</td>
 </tr>
 <tr>
-<td align="right">canary w/ traffic routing</td>
-<td align="center">scales down immediately</td>
-<td align="center">nil</td>
-<td align="center">scales down after 30 seconds</td>
+<td style="text-align: right;">canary w/ traffic routing</td>
+<td style="text-align: center;">scales down immediately</td>
+<td style="text-align: center;">nil</td>
+<td style="text-align: center;">scales down after 30 seconds</td>
 </tr>
 <tr>
-<td align="right">canary w/ traffic routing</td>
-<td align="center">scales down immediately</td>
-<td align="center">0</td>
-<td align="center">does not scale down</td>
+<td style="text-align: right;">canary w/ traffic routing</td>
+<td style="text-align: center;">scales down immediately</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">does not scale down</td>
 </tr>
 <tr>
-<td align="right">canary w/ traffic routing</td>
-<td align="center">scales down immediately</td>
-<td align="center">N</td>
-<td align="center">scales down after N seconds</td>
+<td style="text-align: right;">canary w/ traffic routing</td>
+<td style="text-align: center;">scales down immediately</td>
+<td style="text-align: center;">N</td>
+<td style="text-align: center;">scales down after N seconds</td>
 </tr>
 <tr>
-<td align="right">canary w/ traffic routing  + setCanaryScale</td>
-<td align="center">does not scale down (bug)</td>
-<td align="center">*</td>
-<td align="center">should behave like  canary w/ traffic routing</td>
+<td style="text-align: right;">canary w/ traffic routing  + setCanaryScale</td>
+<td style="text-align: center;">does not scale down (bug)</td>
+<td style="text-align: center;">*</td>
+<td style="text-align: center;">should behave like  canary w/ traffic routing</td>
 </tr>
 </tbody>
 </table>
