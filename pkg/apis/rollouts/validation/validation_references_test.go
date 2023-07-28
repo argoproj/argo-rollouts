@@ -524,7 +524,7 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 
 // TODO: remove govet ignore rules
 func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
-	stableService := "stable-service"
+	stableService := "stable-service-name"
 	wrongService := "wrong-stable-service"
 	stableIngressKey := "spec.strategy.canary.trafficRouting.alb.ingress"
 	stableIngressesKey := "spec.strategy.canary.trafficRouting.alb.ingresses"
@@ -617,11 +617,9 @@ func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			var ingresses []ingressutil.Ingress
-			for i, service := range test.services { //nolint:govet
-				ingress := extensionsIngress(test.ingresses[i], 80, service) //nolint:govet
+			for i, service := range test.services {
+				ingress := extensionsIngress(test.ingresses[i], 80, service)
 				legacyIngress := ingressutil.NewLegacyIngress(ingress)
 				ingresses = append(ingresses, *legacyIngress)
 			}
@@ -633,15 +631,15 @@ func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 			}
 
 			var allErrs field.ErrorList
-			if test.multipleIngresses { //nolint:govet
+			if test.multipleIngresses {
 				allErrs = ValidateRolloutReferencedResources(getAlbRolloutMultiIngress([]string{StableIngress, AddStableIngress1, AddStableIngress2}), refResources)
 			} else {
 				allErrs = ValidateRolloutReferencedResources(getAlbRollout(StableIngress), refResources)
 			}
 
-			if len(test.expectedErrors) > 0 { //nolint:govet
-				assert.Len(t, allErrs, len(test.expectedErrors), "Errors should be present.") //nolint:govet
-				for i, e := range test.expectedErrors {                                       //nolint:govet
+			if len(test.expectedErrors) > 0 {
+				assert.Len(t, allErrs, len(test.expectedErrors), "Errors should be present.")
+				for i, e := range test.expectedErrors {
 					assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[i].Type, "Should be bad service name for ingress")
 					assert.Equal(t, e[0], allErrs[i].Field, "Bad service name for ingress")
 					assert.Equal(t, e[1], allErrs[i].BadValue, "Bad service name for ingress")
