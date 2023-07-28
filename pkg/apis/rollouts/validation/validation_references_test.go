@@ -519,7 +519,6 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 	}
 }
 
-// TODO: remove govet ignore rules
 func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 	stableService := "stable-service-name"
 	wrongService := "wrong-stable-service"
@@ -1368,9 +1367,7 @@ spec:
 
 	routeTypes := []string{"httpRoute", "tcpRoute", "grpcRoute", "http2Route"}
 	for _, routeType := range routeTypes {
-		singleRouteType := routeType
 		t.Run(fmt.Sprintf("will succeed with valid appmesh virtual-router with %s", routeType), func(t *testing.T) {
-			t.Parallel()
 			manifest := fmt.Sprintf(`
 apiVersion: appmesh.k8s.aws/v1beta2
 kind: VirtualRouter
@@ -1389,7 +1386,7 @@ spec:
             - virtualNodeRef:
                 name: mysvc-stable-vn
               weight: 100
-`, singleRouteType)
+`, routeType)
 			obj := toUnstructured(t, manifest)
 			errList := ValidateAppMeshResource(*obj)
 			assert.NotNil(t, errList)
