@@ -484,7 +484,9 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			var ingresses []ingressutil.Ingress
 			for i, service := range test.services {
 				ingress := extensionsIngress(test.ingresses[i], 80, service)
@@ -612,7 +614,9 @@ func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			var ingresses []ingressutil.Ingress
 			for i, service := range test.services {
 				ingress := extensionsIngress(test.ingresses[i], 80, service)

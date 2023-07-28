@@ -577,7 +577,9 @@ func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
 func TestReconciler_canaryIngress(t *testing.T) {
 	tests := generateMultiIngressTestData()
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			// given
 			r := Reconciler{
 				cfg: ReconcilerConfig{
