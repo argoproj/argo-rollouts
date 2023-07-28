@@ -95,3 +95,21 @@ It is possible to use a POST or PUT requests, by specifying the `method` and eit
             key3: "{{ args.service-name }}"
         jsonPath: "{$.data.ok}"
 ```
+
+### Skip TLS verification
+
+You can skip the TLS verification of the web host provided by setting the options `insecure: true`.
+
+```yaml
+  metrics:
+  - name: webmetric
+    successCondition: "result.ok && result.successPercent >= 0.90"
+    provider:
+      web:
+        url: "https://my-server.com/api/v1/measurement?service={{ args.service-name }}"
+        insecure: true
+        headers:
+          - key: Authorization
+            value: "Bearer {{ args.api-token }}"
+        jsonPath: "{$.data}"
+```

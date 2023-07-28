@@ -2810,6 +2810,8 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            insecure:
+                              type: boolean
                             query:
                               type: string
                             timeout:
@@ -5804,6 +5806,8 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            insecure:
+                              type: boolean
                             query:
                               type: string
                             timeout:
@@ -8684,6 +8688,8 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            insecure:
+                              type: boolean
                             query:
                               type: string
                             timeout:

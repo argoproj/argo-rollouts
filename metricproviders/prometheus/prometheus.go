@@ -2,8 +2,10 @@ package prometheus
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -183,7 +185,17 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 
 	prometheusApiConfig := api.Config{
 		Address: metric.Provider.Prometheus.Address,
+		RoundTripper: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			TLSHandshakeTimeout: 10 * time.Second,
+			TLSClientConfig:     &tls.Config{InsecureSkipVerify: metric.Provider.Prometheus.Insecure},
+		},
 	}
+
 	//Check if using Amazon Managed Prometheus if true build sigv4 client
 	if strings.Contains(metric.Provider.Prometheus.Address, "aps-workspaces") {
 		cfg := sigv4.SigV4Config{
