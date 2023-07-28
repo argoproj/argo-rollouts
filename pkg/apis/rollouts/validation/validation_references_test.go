@@ -522,6 +522,7 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 	}
 }
 
+// TODO: remove govet ignore rules
 func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 	stableService := "stable-service"
 	wrongService := "wrong-stable-service"
@@ -615,13 +616,12 @@ func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		singleTest := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
 			var ingresses []ingressutil.Ingress
-			for i, service := range singleTest.services {
-				ingress := extensionsIngress(singleTest.ingresses[i], 80, service)
+			for i, service := range test.services { //nolint:govet
+				ingress := extensionsIngress(test.ingresses[i], 80, service) //nolint:govet
 				legacyIngress := ingressutil.NewLegacyIngress(ingress)
 				ingresses = append(ingresses, *legacyIngress)
 			}
@@ -633,15 +633,15 @@ func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 			}
 
 			var allErrs field.ErrorList
-			if singleTest.multipleIngresses {
+			if test.multipleIngresses { //nolint:govet
 				allErrs = ValidateRolloutReferencedResources(getAlbRolloutMultiIngress([]string{StableIngress, AddStableIngress1, AddStableIngress2}), refResources)
 			} else {
 				allErrs = ValidateRolloutReferencedResources(getAlbRollout(StableIngress), refResources)
 			}
 
-			if len(singleTest.expectedErrors) > 0 {
-				assert.Len(t, allErrs, len(singleTest.expectedErrors), "Errors should be present.")
-				for i, e := range singleTest.expectedErrors {
+			if len(test.expectedErrors) > 0 { //nolint:govet
+				assert.Len(t, allErrs, len(test.expectedErrors), "Errors should be present.") //nolint:govet
+				for i, e := range test.expectedErrors {                                       //nolint:govet
 					assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[i].Type, "Should be bad service name for ingress")
 					assert.Equal(t, e[0], allErrs[i].Field, "Bad service name for ingress")
 					assert.Equal(t, e[1], allErrs[i].BadValue, "Bad service name for ingress")
