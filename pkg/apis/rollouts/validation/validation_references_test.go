@@ -484,9 +484,9 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-
 			var ingresses []ingressutil.Ingress
 			for i, service := range test.services {
 				ingress := extensionsIngress(test.ingresses[i], 80, service)
@@ -522,7 +522,7 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 }
 
 func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
-	stableService := "stable-service"
+	stableService := "stable-service-name"
 	wrongService := "wrong-stable-service"
 	stableIngressKey := "spec.strategy.canary.trafficRouting.alb.ingress"
 	stableIngressesKey := "spec.strategy.canary.trafficRouting.alb.ingresses"
@@ -614,9 +614,9 @@ func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-
 			var ingresses []ingressutil.Ingress
 			for i, service := range test.services {
 				ingress := extensionsIngress(test.ingresses[i], 80, service)
@@ -1371,6 +1371,7 @@ spec:
 
 	routeTypes := []string{"httpRoute", "tcpRoute", "grpcRoute", "http2Route"}
 	for _, routeType := range routeTypes {
+		routeType := routeType
 		t.Run(fmt.Sprintf("will succeed with valid appmesh virtual-router with %s", routeType), func(t *testing.T) {
 			t.Parallel()
 			manifest := fmt.Sprintf(`
