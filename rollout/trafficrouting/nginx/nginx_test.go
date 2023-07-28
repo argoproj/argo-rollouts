@@ -577,15 +577,16 @@ func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
 func TestReconciler_canaryIngress(t *testing.T) {
 	tests := generateMultiIngressTestData()
 	for _, test := range tests {
+		singleTest := test
 		t.Run(test.name, func(t *testing.T) {
 			// given
 			t.Parallel()
 			r := Reconciler{
 				cfg: ReconcilerConfig{
-					Rollout: fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress),
+					Rollout: fakeRollout(stableService, canaryService, singleTest.singleIngress, singleTest.multiIngress),
 				},
 			}
-			for _, ing := range test.ingresses {
+			for _, ing := range singleTest.ingresses {
 				stableIngress := networkingIngress(ing, 80, stableService)
 				stableIngress.Spec.IngressClassName = pointer.StringPtr("nginx-ext")
 				i := ingressutil.NewIngress(stableIngress)

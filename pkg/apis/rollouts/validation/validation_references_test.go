@@ -484,12 +484,13 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		singeTest := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
 			var ingresses []ingressutil.Ingress
-			for i, service := range test.services {
-				ingress := extensionsIngress(test.ingresses[i], 80, service)
+			for i, service := range singeTest.services {
+				ingress := extensionsIngress(singeTest.ingresses[i], 80, service)
 				legacyIngress := ingressutil.NewLegacyIngress(ingress)
 				ingresses = append(ingresses, *legacyIngress)
 			}
@@ -501,15 +502,15 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 			}
 
 			var allErrs field.ErrorList
-			if test.multipleIngresses {
+			if singeTest.multipleIngresses {
 				allErrs = ValidateRolloutReferencedResources(getRolloutMultiIngress([]string{StableIngress, AddStableIngress1, AddStableIngress2}), refResources)
 			} else {
 				allErrs = ValidateRolloutReferencedResources(getRolloutSingleIngress(StableIngress), refResources)
 			}
 
-			if len(test.expectedErrors) > 0 {
-				assert.Len(t, allErrs, len(test.expectedErrors), "Errors should be present.")
-				for i, e := range test.expectedErrors {
+			if len(singeTest.expectedErrors) > 0 {
+				assert.Len(t, allErrs, len(singeTest.expectedErrors), "Errors should be present.")
+				for i, e := range singeTest.expectedErrors {
 					assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[i].Type, "Should be bad service name for ingress")
 					assert.Equal(t, e[0], allErrs[i].Field, "Bad service name for ingress")
 					assert.Equal(t, e[1], allErrs[i].BadValue, "Bad service name for ingress")
@@ -614,12 +615,13 @@ func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		singleTest := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
 			var ingresses []ingressutil.Ingress
-			for i, service := range test.services {
-				ingress := extensionsIngress(test.ingresses[i], 80, service)
+			for i, service := range singleTest.services {
+				ingress := extensionsIngress(singleTest.ingresses[i], 80, service)
 				legacyIngress := ingressutil.NewLegacyIngress(ingress)
 				ingresses = append(ingresses, *legacyIngress)
 			}
@@ -631,15 +633,15 @@ func TestValidateRolloutReferencedResourcesAlbIngress(t *testing.T) {
 			}
 
 			var allErrs field.ErrorList
-			if test.multipleIngresses {
+			if singleTest.multipleIngresses {
 				allErrs = ValidateRolloutReferencedResources(getAlbRolloutMultiIngress([]string{StableIngress, AddStableIngress1, AddStableIngress2}), refResources)
 			} else {
 				allErrs = ValidateRolloutReferencedResources(getAlbRollout(StableIngress), refResources)
 			}
 
-			if len(test.expectedErrors) > 0 {
-				assert.Len(t, allErrs, len(test.expectedErrors), "Errors should be present.")
-				for i, e := range test.expectedErrors {
+			if len(singleTest.expectedErrors) > 0 {
+				assert.Len(t, allErrs, len(singleTest.expectedErrors), "Errors should be present.")
+				for i, e := range singleTest.expectedErrors {
 					assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[i].Type, "Should be bad service name for ingress")
 					assert.Equal(t, e[0], allErrs[i].Field, "Bad service name for ingress")
 					assert.Equal(t, e[1], allErrs[i].BadValue, "Bad service name for ingress")
@@ -1371,6 +1373,7 @@ spec:
 
 	routeTypes := []string{"httpRoute", "tcpRoute", "grpcRoute", "http2Route"}
 	for _, routeType := range routeTypes {
+		singleRouteType := routeType
 		t.Run(fmt.Sprintf("will succeed with valid appmesh virtual-router with %s", routeType), func(t *testing.T) {
 			t.Parallel()
 			manifest := fmt.Sprintf(`
@@ -1391,7 +1394,7 @@ spec:
             - virtualNodeRef:
                 name: mysvc-stable-vn
               weight: 100
-`, routeType)
+`, singleRouteType)
 			obj := toUnstructured(t, manifest)
 			errList := ValidateAppMeshResource(*obj)
 			assert.NotNil(t, errList)
