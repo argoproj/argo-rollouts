@@ -484,8 +484,8 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		singeTest := test
 		t.Run(test.name, func(t *testing.T) {
+			singeTest := test
 			t.Parallel()
 
 			var ingresses []ingressutil.Ingress
