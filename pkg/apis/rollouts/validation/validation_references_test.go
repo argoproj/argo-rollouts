@@ -1371,7 +1371,9 @@ spec:
 
 	routeTypes := []string{"httpRoute", "tcpRoute", "grpcRoute", "http2Route"}
 	for _, routeType := range routeTypes {
+		routeType := routeType
 		t.Run(fmt.Sprintf("will succeed with valid appmesh virtual-router with %s", routeType), func(t *testing.T) {
+			t.Parallel()
 			manifest := fmt.Sprintf(`
 apiVersion: appmesh.k8s.aws/v1beta2
 kind: VirtualRouter
