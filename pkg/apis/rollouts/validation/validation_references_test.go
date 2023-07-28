@@ -485,12 +485,9 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			singeTest := test
-			t.Parallel()
-
 			var ingresses []ingressutil.Ingress
-			for i, service := range singeTest.services {
-				ingress := extensionsIngress(singeTest.ingresses[i], 80, service)
+			for i, service := range test.services {
+				ingress := extensionsIngress(test.ingresses[i], 80, service)
 				legacyIngress := ingressutil.NewLegacyIngress(ingress)
 				ingresses = append(ingresses, *legacyIngress)
 			}
@@ -502,15 +499,15 @@ func TestValidateRolloutReferencedResourcesNginxIngress(t *testing.T) {
 			}
 
 			var allErrs field.ErrorList
-			if singeTest.multipleIngresses {
+			if test.multipleIngresses {
 				allErrs = ValidateRolloutReferencedResources(getRolloutMultiIngress([]string{StableIngress, AddStableIngress1, AddStableIngress2}), refResources)
 			} else {
 				allErrs = ValidateRolloutReferencedResources(getRolloutSingleIngress(StableIngress), refResources)
 			}
 
-			if len(singeTest.expectedErrors) > 0 {
-				assert.Len(t, allErrs, len(singeTest.expectedErrors), "Errors should be present.")
-				for i, e := range singeTest.expectedErrors {
+			if len(test.expectedErrors) > 0 {
+				assert.Len(t, allErrs, len(test.expectedErrors), "Errors should be present.")
+				for i, e := range test.expectedErrors {
 					assert.Equal(t, field.ErrorType("FieldValueInvalid"), allErrs[i].Type, "Should be bad service name for ingress")
 					assert.Equal(t, e[0], allErrs[i].Field, "Bad service name for ingress")
 					assert.Equal(t, e[1], allErrs[i].BadValue, "Bad service name for ingress")
