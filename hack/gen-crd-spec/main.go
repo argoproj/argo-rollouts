@@ -80,8 +80,7 @@ func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
 		"controller-gen",
 		"paths=./pkg/apis/rollouts/...",
-		"crd:crdVersions=v1",
-		"crd:maxDescLen=0",
+		"crd:crdVersions=v1,maxDescLen=0",
 		"output:crd:stdout",
 	).Output()
 	if err != nil {
