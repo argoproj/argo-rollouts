@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/record"
+
 	"github.com/argoproj/pkg/kubeclientmetrics"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -44,31 +46,32 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
-		clientConfig         clientcmd.ClientConfig
-		rolloutResyncPeriod  int64
-		logLevel             string
-		logFormat            string
-		klogLevel            int
-		metricsPort          int
-		healthzPort          int
-		instanceID           string
-		qps                  float32
-		burst                int
-		rolloutThreads       int
-		experimentThreads    int
-		analysisThreads      int
-		serviceThreads       int
-		ingressThreads       int
-		istioVersion         string
-		trafficSplitVersion  string
-		ambassadorVersion    string
-		ingressVersion       string
-		appmeshCRDVersion    string
-		albIngressClasses    []string
-		nginxIngressClasses  []string
-		awsVerifyTargetGroup bool
-		namespaced           bool
-		printVersion         bool
+		clientConfig                   clientcmd.ClientConfig
+		rolloutResyncPeriod            int64
+		logLevel                       string
+		logFormat                      string
+		klogLevel                      int
+		metricsPort                    int
+		healthzPort                    int
+		instanceID                     string
+		qps                            float32
+		burst                          int
+		rolloutThreads                 int
+		experimentThreads              int
+		analysisThreads                int
+		serviceThreads                 int
+		ingressThreads                 int
+		istioVersion                   string
+		trafficSplitVersion            string
+		ambassadorVersion              string
+		ingressVersion                 string
+		appmeshCRDVersion              string
+		albIngressClasses              []string
+		nginxIngressClasses            []string
+		awsVerifyTargetGroup           bool
+		namespaced                     bool
+		printVersion                   bool
+		selfServiceNotificationEnabled bool
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -151,12 +154,31 @@ func newCommand() *cobra.Command {
 			}
 			istioDynamicInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(istioPrimaryDynamicClient, resyncDuration, namespace, nil)
 
-			controllerClusterInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+			var notificationConfigNamespace string
+			if selfServiceNotificationEnabled {
+				notificationConfigNamespace = metav1.NamespaceAll
+			} else {
+				notificationConfigNamespace = defaults.Namespace()
+			}
+			notificationSecretInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
 				resyncDuration,
+				kubeinformers.WithNamespace(notificationConfigNamespace),
+				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
+					options.Kind = "Secrete"
+					options.FieldSelector = fmt.Sprintf("metadata.name=%s", record.NotificationSecret)
+				}),
 			)
-			configMapInformer := controllerClusterInformerFactory.Core().V1().ConfigMaps()
-			secretInformer := controllerClusterInformerFactory.Core().V1().Secrets()
+
+			notificationConfigMapInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+				kubeClient,
+				resyncDuration,
+				kubeinformers.WithNamespace(notificationConfigNamespace),
+				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
+					options.Kind = "ConfigMap"
+					options.FieldSelector = fmt.Sprintf("metadata.name=%s", record.NotificationConfigMap)
+				}),
+			)
 
 			mode, err := ingressutil.DetermineIngressMode(ingressVersion, kubeClient.DiscoveryClient)
 			checkError(err)
@@ -182,8 +204,8 @@ func newCommand() *cobra.Command {
 				istioPrimaryDynamicClient,
 				istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
 				istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
-				configMapInformer,
-				secretInformer,
+				notificationConfigMapInformerFactory,
+				notificationSecretInformerFactory,
 				resyncDuration,
 				instanceID,
 				metricsPort,
@@ -196,7 +218,6 @@ func newCommand() *cobra.Command {
 				istioDynamicInformerFactory,
 				namespaced,
 				kubeInformerFactory,
-				controllerClusterInformerFactory,
 				jobInformerFactory)
 
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
@@ -240,6 +261,7 @@ func newCommand() *cobra.Command {
 	command.Flags().DurationVar(&electOpts.LeaderElectionLeaseDuration, "leader-election-lease-duration", controller.DefaultLeaderElectionLeaseDuration, "The duration that non-leader candidates will wait after observing a leadership renewal until attempting to acquire leadership of a led but unrenewed leader slot. This is effectively the maximum duration that a leader can be stopped before it is replaced by another candidate. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRenewDeadline, "leader-election-renew-deadline", controller.DefaultLeaderElectionRenewDeadline, "The interval between attempts by the acting master to renew a leadership slot before it stops leading. This must be less than or equal to the lease duration. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
+	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
 	return &command
 }
 
