@@ -60,7 +60,7 @@ person who can configure notifications in that namespace generally. However, in 
 for their Rollout resources. For example, the end-user can configure notifications for their Rollouts in the namespace where they have access to and their rollout is running in.
 
 To use this feature all you need to do is create the same configmap named `argo-rollouts-notification-configmap` and possibly 
-a secrete `argo-rollouts-notification-secret` in the namespace where the rollout object lives. When it is configured this way the controller
+a secret `argo-rollouts-notification-secret` in the namespace where the rollout object lives. When it is configured this way the controller
 will send notifications using both the controller level configuration aka the configmap located in the same namespaces as the controller
 as well as the namespace level configuration where the rollout object is at.
 
