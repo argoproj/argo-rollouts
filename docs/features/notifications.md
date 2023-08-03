@@ -61,8 +61,8 @@ for their Rollout resources. For example, the end-user can configure notificatio
 
 To use this feature all you need to do is create the same configmap named `argo-rollouts-notification-configmap` and possibly 
 a secret `argo-rollouts-notification-secret` in the namespace where the rollout object lives. When it is configured this way the controller
-will send notifications using both the controller level configuration aka the configmap located in the same namespaces as the controller
-as well as the namespace level configuration where the rollout object is at.
+will send notifications using both the controller level configuration (the configmap located in the same namespaces as the controller) as well as 
+the configmap located in the same namespaces where the rollout object is at.
 
 To enable you need to add a flag to the controller `--self-service-notification-enabled`
 
