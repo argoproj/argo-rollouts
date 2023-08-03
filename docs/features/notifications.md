@@ -64,6 +64,8 @@ a secrete `argo-rollouts-notification-secret` in the namespace where the rollout
 will send notifications using both the controller level configuration aka the configmap located in the same namespaces as the controller
 as well as the namespace level configuration where the rollout object is at.
 
+To enable you need to add a flag to the controller `--self-service-notification-enabled`
+
 ## Default Trigger templates
 
 Currently the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
