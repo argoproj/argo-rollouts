@@ -303,6 +303,17 @@ message ArgumentValueFrom {
   optional FieldRef fieldRef = 2;
 }
 
+// Authentication method
+message Authentication {
+  // Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
+  // +optional
+  optional Sigv4Config sigv4 = 1;
+
+  // OAuth2 config
+  // +optional
+  optional OAuth2Config oauth2 = 2;
+}
+
 message AwsResourceRef {
   optional string name = 1;
 
@@ -1081,6 +1092,21 @@ message NginxTrafficRouting {
   repeated string stableIngresses = 4;
 }
 
+message OAuth2Config {
+  // OAuth2 provider token URL
+  optional string tokenUrl = 1;
+
+  // OAuth2 client ID
+  optional string clientId = 2;
+
+  // OAuth2 client secret
+  optional string clientSecret = 3;
+
+  // OAuth2 scopes
+  // +optional
+  repeated string scopes = 4;
+}
+
 // ObjectRef holds a references to the Kubernetes object
 message ObjectRef {
   // API Version of the referent
@@ -1127,12 +1153,6 @@ message PreferredDuringSchedulingIgnoredDuringExecution {
 }
 
 // PrometheusMetric defines the prometheus query to perform canary analysis
-message PrometheusAuth {
-  // +optional
-  optional Sigv4Config sigv4 = 3;
-}
-
-// PrometheusMetric defines the prometheus query to perform canary analysis
 message PrometheusMetric {
   // Address is the HTTP address and port of the prometheus server
   optional string address = 1;
@@ -1140,9 +1160,9 @@ message PrometheusMetric {
   // Query is a raw prometheus query to perform
   optional string query = 2;
 
-  // Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
+  // Authentication details
   // +optional
-  optional PrometheusAuth authentication = 3;
+  optional Authentication authentication = 3;
 
   // Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
   // +optional
@@ -1847,6 +1867,10 @@ message WebMetric {
   // +kubebuilder:validation:Type=object
   // JSONBody is the body of the web metric in a json format (method must be POST/PUT)
   optional bytes jsonBody = 8;
+
+  // Authentication details
+  // +optional
+  optional Authentication authentication = 9;
 }
 
 message WebMetricHeader {
