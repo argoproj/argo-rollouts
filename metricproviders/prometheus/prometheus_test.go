@@ -453,6 +453,7 @@ func TestNewPrometheusAPI(t *testing.T) {
 	log.Infof("api:%v", api)
 
 	metric.Provider.Prometheus.Address = "https://www.example.com"
+	metric.Provider.Prometheus.Insecure = true
 	_, err = NewPrometheusAPI(metric)
 	assert.Nil(t, err)
 }

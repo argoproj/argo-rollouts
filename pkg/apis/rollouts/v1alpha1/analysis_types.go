@@ -216,6 +216,8 @@ type PrometheusMetric struct {
 	// Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
+	// Insecure skips host TLS verification
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
 }
 
 // PrometheusMetric defines the prometheus query to perform canary analysis

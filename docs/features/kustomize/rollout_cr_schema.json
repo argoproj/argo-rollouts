@@ -4310,6 +4310,9 @@
                                                         },
                                                         "type": "object"
                                                     },
+                                                    "insecure": {
+                                                        "type": "boolean"
+                                                    },
                                                     "query": {
                                                         "type": "string"
                                                     },
@@ -8736,6 +8739,9 @@
                                                         },
                                                         "type": "object"
                                                     },
+                                                    "insecure": {
+                                                        "type": "boolean"
+                                                    },
                                                     "query": {
                                                         "type": "string"
                                                     },
@@ -13161,6 +13167,9 @@
                                                             }
                                                         },
                                                         "type": "object"
+                                                    },
+                                                    "insecure": {
+                                                        "type": "boolean"
                                                     },
                                                     "query": {
                                                         "type": "string"

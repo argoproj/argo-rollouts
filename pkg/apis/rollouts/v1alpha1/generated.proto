@@ -1147,6 +1147,9 @@ message PrometheusMetric {
   // Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
   // +optional
   optional int64 timeout = 4;
+
+  // Insecure skips host TLS verification
+  optional bool insecure = 5;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
