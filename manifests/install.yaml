@@ -15172,6 +15172,7 @@ rules:
   - get
   - list
   - watch
+  - update
   - patch
 - apiGroups:
   - batch
