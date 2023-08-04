@@ -1015,6 +1015,20 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#additional-metadata" class="md-nav__link">
+    Additional Metadata
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#skip-tls-verification" class="md-nav__link">
+    Skip TLS verification
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2357,6 +2371,20 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#additional-metadata" class="md-nav__link">
+    Additional Metadata
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#skip-tls-verification" class="md-nav__link">
+    Skip TLS verification
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2425,9 +2453,23 @@ you validate your <a href="https://prometheus.io/docs/prometheus/latest/querying
 <span class="w">        </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$PROFILE</span>
 <span class="w">        </span><span class="nt">roleArn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$ROLEARN</span>
 </code></pre></div>
-<h1 id="additional-metadata">Additional Metadata<a class="headerlink" href="#additional-metadata" title="Permanent link">&para;</a></h1>
+<h2 id="additional-metadata">Additional Metadata<a class="headerlink" href="#additional-metadata" title="Permanent link">&para;</a></h2>
 <p>Any additional metadata from the Prometheus controller, like the resolved queries after substituting the template's
 arguments, etc. will appear under the <code>Metadata</code> map in the <code>MetricsResult</code> object of <code>AnalysisRun</code>.</p>
+<h2 id="skip-tls-verification">Skip TLS verification<a class="headerlink" href="#skip-tls-verification" title="Permanent link">&para;</a></h2>
+<p>You can skip the TLS verification of the prometheus host provided by setting the options <code>insecure: true</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">provider</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">prometheus</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://prometheus.example.com</span>
+<span class="w">    </span><span class="nt">insecure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">      </span><span class="no">sum(irate(</span>
+<span class="w">        </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code!~&quot;5.*&quot;}[5m]</span>
+<span class="w">      </span><span class="no">)) /</span>
+<span class="w">      </span><span class="no">sum(irate(</span>
+<span class="w">        </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
+<span class="w">      </span><span class="no">))</span>
+</code></pre></div>
 
 
   
