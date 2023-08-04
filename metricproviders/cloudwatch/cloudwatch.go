@@ -154,9 +154,11 @@ func convertType(data []v1alpha1.CloudWatchMetricDataQuery) []types.MetricDataQu
 			if v.MetricStat.Metric.Dimensions != nil {
 				metricStat.Metric.Dimensions = make([]types.Dimension, len(v.MetricStat.Metric.Dimensions))
 				for j, d := range v.MetricStat.Metric.Dimensions {
+					name := d.Name
+					value := d.Value
 					metricStat.Metric.Dimensions[j] = types.Dimension{
-						Name:  &d.Name,
-						Value: &d.Value,
+						Name:  &name,
+						Value: &value,
 					}
 				}
 			}

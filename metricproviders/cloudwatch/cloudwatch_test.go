@@ -382,6 +382,92 @@ func TestConvertType(t *testing.T) {
 				},
 			},
 		},
+		{
+			query: []v1alpha1.CloudWatchMetricDataQuery{
+				{
+					Id:         "rate",
+					Expression: pointer.StringPtr("errors / requests"),
+				},
+				{
+					Id: "errors",
+					MetricStat: &v1alpha1.CloudWatchMetricStat{
+						Metric: v1alpha1.CloudWatchMetricStatMetric{
+							Dimensions: []v1alpha1.CloudWatchMetricStatMetricDimension{
+								{
+									Name:  "hoge",
+									Value: "fuga",
+								},
+								{
+									Name:  "poge",
+									Value: "doge",
+								},
+							},
+							Namespace:  pointer.StringPtr("app1"),
+							MetricName: "errors",
+						},
+						Period: period,
+						Stat:   "Max",
+						Unit:   "Count",
+					},
+					ReturnData: pointer.BoolPtr(false),
+				},
+				{
+					Id: "requests",
+					MetricStat: &v1alpha1.CloudWatchMetricStat{
+						Metric: v1alpha1.CloudWatchMetricStatMetric{
+							Namespace:  pointer.StringPtr("app2"),
+							MetricName: "requests",
+						},
+						Period: period,
+						Stat:   "Sum",
+						Unit:   "Bytes/Second",
+					},
+					ReturnData: pointer.BoolPtr(true),
+				},
+			},
+			expected: []types.MetricDataQuery{
+				{
+					Id:         pointer.StringPtr("rate"),
+					Expression: pointer.StringPtr("errors / requests"),
+				},
+				{
+					Id: pointer.StringPtr("errors"),
+					MetricStat: &types.MetricStat{
+						Metric: &types.Metric{
+							Namespace:  pointer.StringPtr("app1"),
+							MetricName: pointer.StringPtr("errors"),
+							Dimensions: []types.Dimension{
+								{
+									Name:  pointer.StringPtr("hoge"),
+									Value: pointer.StringPtr("fuga"),
+								},
+								{
+									Name:  pointer.StringPtr("poge"),
+									Value: pointer.StringPtr("doge"),
+								},
+							},
+						},
+						Period: pointer.Int32Ptr(300),
+						Stat:   pointer.StringPtr("Max"),
+						Unit:   types.StandardUnitCount,
+					},
+					ReturnData: pointer.BoolPtr(false),
+				},
+				{
+					Id: pointer.StringPtr("requests"),
+					MetricStat: &types.MetricStat{
+						Metric: &types.Metric{
+							Namespace:  pointer.StringPtr("app2"),
+							MetricName: pointer.StringPtr("requests"),
+						},
+						Period: pointer.Int32Ptr(300),
+						Stat:   pointer.StringPtr("Sum"),
+						Unit:   types.StandardUnitBytesSecond,
+					},
+					ReturnData: pointer.BoolPtr(true),
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
