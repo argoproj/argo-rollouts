@@ -217,7 +217,7 @@ type PrometheusMetric struct {
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
 	// Insecure skips host TLS verification
-	Insecure bool `json:"insecure,omitempty" protobuf:"varint,7,opt,name=insecure"`
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
 }
 
 // PrometheusMetric defines the prometheus query to perform canary analysis

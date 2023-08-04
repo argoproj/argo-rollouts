@@ -1149,7 +1149,7 @@ message PrometheusMetric {
   optional int64 timeout = 4;
 
   // Insecure skips host TLS verification
-  optional bool insecure = 7;
+  optional bool insecure = 5;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
