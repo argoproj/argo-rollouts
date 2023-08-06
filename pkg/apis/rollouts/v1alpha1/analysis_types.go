@@ -218,9 +218,11 @@ type PrometheusMetric struct {
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
 	// Insecure skips host TLS verification
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
-	// Headers is the custom HTTP headers that would be attached to every request sent to Prometheus server.
+	// Headers are optional HTTP headers to use in the request
 	// +optional
-	Headers map[string]string `json:"headers,omitempty" protobuf:"bytes,6,opt,name=headers"`
+	// +patchMergeKey=key
+	// +patchStrategy=merge
+	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,6,opt,name=headers"`
 }
 
 // PrometheusMetric defines the prometheus query to perform canary analysis

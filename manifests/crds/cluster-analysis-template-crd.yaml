@@ -2806,9 +2806,17 @@ spec:
                                   type: object
                               type: object
                             headers:
-                              additionalProperties:
-                                type: string
-                              type: object
+                              items:
+                                properties:
+                                  key:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                - key
+                                - value
+                                type: object
+                              type: array
                             insecure:
                               type: boolean
                             query:
