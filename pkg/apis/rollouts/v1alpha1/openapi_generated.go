@@ -3458,13 +3458,6 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 							Format:      "int64",
 						},
 					},
-					"insecure": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Insecure skips host TLS verification",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 				},
 			},
 		},

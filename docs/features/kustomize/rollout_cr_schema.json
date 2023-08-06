@@ -4310,6 +4310,12 @@
                                                         },
                                                         "type": "object"
                                                     },
+                                                    "headers": {
+                                                        "additionalProperties": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "object"
+                                                    },
                                                     "insecure": {
                                                         "type": "boolean"
                                                     },
@@ -8739,6 +8745,12 @@
                                                         },
                                                         "type": "object"
                                                     },
+                                                    "headers": {
+                                                        "additionalProperties": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "object"
+                                                    },
                                                     "insecure": {
                                                         "type": "boolean"
                                                     },
@@ -13165,6 +13177,12 @@
                                                                 },
                                                                 "type": "object"
                                                             }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "headers": {
+                                                        "additionalProperties": {
+                                                            "type": "string"
                                                         },
                                                         "type": "object"
                                                     },

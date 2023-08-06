@@ -2810,6 +2810,10 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            headers:
+                              additionalProperties:
+                                type: string
+                              type: object
                             insecure:
                               type: boolean
                             query:
@@ -5806,6 +5810,10 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            headers:
+                              additionalProperties:
+                                type: string
+                              type: object
                             insecure:
                               type: boolean
                             query:
@@ -8687,6 +8695,10 @@ spec:
                                     roleArn:
                                       type: string
                                   type: object
+                              type: object
+                            headers:
+                              additionalProperties:
+                                type: string
                               type: object
                             insecure:
                               type: boolean

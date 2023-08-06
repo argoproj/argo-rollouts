@@ -61,7 +61,6 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	//TODO(dthomson) make timeout configurable
 	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
 	defer cancel()
 
@@ -183,17 +182,30 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		return nil, errors.New("prometheus address is not configured")
 	}
 
+	var roundTripper http.RoundTripper
+
+	roundTripper = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: metric.Provider.Prometheus.Insecure},
+	}
+
+	// attach custom headers to api requests, if specified
+	customHeaders := metric.Provider.Prometheus.Headers
+	if len(customHeaders) > 0 {
+		roundTripper = httpHeadersRoundTripper{
+			headers:      customHeaders,
+			roundTripper: roundTripper,
+		}
+	}
+
 	prometheusApiConfig := api.Config{
-		Address: metric.Provider.Prometheus.Address,
-		RoundTripper: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).DialContext,
-			TLSHandshakeTimeout: 10 * time.Second,
-			TLSClientConfig:     &tls.Config{InsecureSkipVerify: metric.Provider.Prometheus.Insecure},
-		},
+		Address:      metric.Provider.Prometheus.Address,
+		RoundTripper: roundTripper,
 	}
 
 	//Check if using Amazon Managed Prometheus if true build sigv4 client

@@ -1150,6 +1150,10 @@ message PrometheusMetric {
 
   // Insecure skips host TLS verification
   optional bool insecure = 5;
+
+  // Headers is the custom HTTP headers that would be attached to every request sent to Prometheus server.
+  // +optional
+  map<string, string> headers = 6;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution
