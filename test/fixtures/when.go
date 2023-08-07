@@ -335,11 +335,11 @@ func (w *When) WatchRolloutStatus(expectedStatus string, timeouts ...time.Durati
 
 	controller := viewcontroller.NewRolloutViewController(w.namespace, w.rollout.GetName(), w.kubeClient, w.rolloutClient)
 	ctx, cancel := context.WithCancel(w.Context)
-	defer cancel()
+	//defer cancel()
 	controller.Start(ctx)
 
 	rolloutUpdates := make(chan *rollout.RolloutInfo)
-	defer close(rolloutUpdates)
+	//defer close(rolloutUpdates)
 	controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
 		rolloutUpdates <- roInfo
 	})
@@ -353,6 +353,8 @@ func (w *When) WatchRolloutStatus(expectedStatus string, timeouts ...time.Durati
 		w.t.Fatalf("unexpected status %s", finalStatus)
 	}
 
+	cancel()
+	close(rolloutUpdates)
 	return w
 }
 
