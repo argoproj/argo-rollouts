@@ -2337,7 +2337,7 @@ func TestAbortRolloutOnErrorPostPromotionAnalysis(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, newConditions, conditions.RolloutAbortedReason, progressingFalseAborted.Message)), patch)
 }
 
-func TestCreateAnalysisRunWithCustomAnalysisRunMetadata(t *testing.T) {
+func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -2346,6 +2346,8 @@ func TestCreateAnalysisRunWithCustomAnalysisRunMetadata(t *testing.T) {
 	}}
 	at := analysisTemplate("bar")
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r1.ObjectMeta.Labels = make(map[string]string)
+	r1.ObjectMeta.Labels["my-label"] = "1234"
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
@@ -2386,4 +2388,5 @@ func TestCreateAnalysisRunWithCustomAnalysisRunMetadata(t *testing.T) {
 	assert.Equal(t, expectedArName, createdAr.Name)
 	assert.Equal(t, "testAnnotationValue", createdAr.Annotations["testAnnotationKey"])
 	assert.Equal(t, "testLabelValue", createdAr.Labels["testLabelKey"])
+	assert.Equal(t, "1234", createdAr.Labels["my-label"])
 }
