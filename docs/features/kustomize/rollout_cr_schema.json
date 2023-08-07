@@ -4310,6 +4310,24 @@
                                                         },
                                                         "type": "object"
                                                     },
+                                                    "headers": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "key": {
+                                                                    "type": "string"
+                                                                },
+                                                                "value": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "key",
+                                                                "value"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array"
+                                                    },
                                                     "insecure": {
                                                         "type": "boolean"
                                                     },
@@ -8739,6 +8757,24 @@
                                                         },
                                                         "type": "object"
                                                     },
+                                                    "headers": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "key": {
+                                                                    "type": "string"
+                                                                },
+                                                                "value": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "key",
+                                                                "value"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array"
+                                                    },
                                                     "insecure": {
                                                         "type": "boolean"
                                                     },
@@ -13167,6 +13203,24 @@
                                                             }
                                                         },
                                                         "type": "object"
+                                                    },
+                                                    "headers": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "key": {
+                                                                    "type": "string"
+                                                                },
+                                                                "value": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "key",
+                                                                "value"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array"
                                                     },
                                                     "insecure": {
                                                         "type": "boolean"

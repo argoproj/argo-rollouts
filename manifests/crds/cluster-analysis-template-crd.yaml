@@ -2805,6 +2805,18 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            headers:
+                              items:
+                                properties:
+                                  key:
+                                    type: string
+                                  value:
+                                    type: string
+                                required:
+                                - key
+                                - value
+                                type: object
+                              type: array
                             insecure:
                               type: boolean
                             query:

@@ -1926,6 +1926,11 @@ func (in *PrometheusMetric) DeepCopyInto(out *PrometheusMetric) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.Headers != nil {
+		in, out := &in.Headers, &out.Headers
+		*out = make([]WebMetricHeader, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
