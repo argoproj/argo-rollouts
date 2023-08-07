@@ -22,6 +22,9 @@ spec:
         address: http://prometheus.example.com:9090
         # timeout is expressed in seconds
         timeout: 40
+        headers:
+        - name: X-Scope-Org-ID
+          value: tenant_a
         query: |
           sum(irate(
             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
