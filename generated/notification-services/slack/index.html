@@ -1362,6 +1362,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../pagerduty_v2/" class="md-nav__link">
+        PagerDuty V2
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pushover/" class="md-nav__link">
         Pushover
       </a>
@@ -2455,7 +2469,7 @@
 <span class="w">      </span><span class="no">token: $slack-token</span>
 </code></pre></div>
 <ol>
-<li>Add annotation in application yaml file to enable notifications for specific argocd app</li>
+<li>Add annotation in application yaml file to enable notifications for specific argocd app.  The following example uses the <a href="../catalog.md#triggers">on-sync-succeeded trigger</a>:</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
@@ -2464,7 +2478,7 @@
 <span class="w">      </span><span class="nt">notifications.argoproj.io/subscribe.on-sync-succeeded.slack</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_channel</span>
 </code></pre></div>
 <ol>
-<li>Annotation with more than one trigger multiple of destinations and recipients</li>
+<li>Annotation with more than one <a href="../catalog.md#triggers">trigger</a>, with multiple destinations and recipients</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
@@ -2483,7 +2497,7 @@
 <span class="w">              </span><span class="no">recipients: [my-channel-21, my-channel-22]</span>
 </code></pre></div>
 <h2 id="templates">Templates<a class="headerlink" href="#templates" title="Permanent link">&para;</a></h2>
-<p>Notification templates can be customized to leverage slack message blocks and attachments
+<p><a href="../templates.md">Notification templates</a> can be customized to leverage slack message blocks and attachments
 <a href="https://api.slack.com/messaging/composing/layouts">feature</a>.</p>
 <p><img alt="" src="https://user-images.githubusercontent.com/426437/72776856-6dcef880-3bc8-11ea-8e3b-c72df16ee8e6.png" /></p>
 <p>The message blocks and attachments can be specified in <code>blocks</code> and <code>attachments</code> string fields under <code>slack</code> field:</p>

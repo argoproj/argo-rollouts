@@ -1220,6 +1220,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#namespace-based-configuration" class="md-nav__link">
+    Namespace based configuration
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#default-trigger-templates" class="md-nav__link">
     Default Trigger templates
   </a>
@@ -1437,6 +1444,20 @@
     <li class="md-nav__item">
       <a href="../../generated/notification-services/pagerduty/" class="md-nav__link">
         Pagerduty
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../generated/notification-services/pagerduty_v2/" class="md-nav__link">
+        PagerDuty V2
       </a>
     </li>
   
@@ -2406,6 +2427,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#namespace-based-configuration" class="md-nav__link">
+    Namespace based configuration
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#default-trigger-templates" class="md-nav__link">
     Default Trigger templates
   </a>
@@ -2513,6 +2541,19 @@ with the required notifications service such as Slack or MS Teams. An example be
 <span class="w">  </span><span class="nt">slack-token</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;my-slack-token&gt;</span>
 </code></pre></div>
 <p>Learn more about supported services and configuration settings in services <a href="../../generated/notification-services/overview/">documentation</a>.</p>
+<h2 id="namespace-based-configuration">Namespace based configuration<a class="headerlink" href="#namespace-based-configuration" title="Permanent link">&para;</a></h2>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+</div>
+<p>Available since v1.6</p>
+<p>A common installation method for Argo Rollouts is to install it in a dedicated namespace to manage a whole cluster. In this case, the administrator is the only
+person who can configure notifications in that namespace generally. However, in some cases, it is required to allow end-users to configure notifications
+for their Rollout resources. For example, the end-user can configure notifications for their Rollouts in the namespace where they have access to and their rollout is running in.</p>
+<p>To use this feature all you need to do is create the same configmap named <code>argo-rollouts-notification-configmap</code> and possibly 
+a secret <code>argo-rollouts-notification-secret</code> in the namespace where the rollout object lives. When it is configured this way the controller
+will send notifications using both the controller level configuration (the configmap located in the same namespaces as the controller) as well as 
+the configmap located in the same namespaces where the rollout object is at.</p>
+<p>To enable you need to add a flag to the controller <code>--self-service-notification-enabled</code></p>
 <h2 id="default-trigger-templates">Default Trigger templates<a class="headerlink" href="#default-trigger-templates" title="Permanent link">&para;</a></h2>
 <p>Currently the following triggers have <a href="https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications">built-in templates</a>.</p>
 <ul>

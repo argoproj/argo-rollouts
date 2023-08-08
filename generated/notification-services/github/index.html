@@ -1417,6 +1417,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../pagerduty_v2/" class="md-nav__link">
+        PagerDuty V2
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pushover/" class="md-nav__link">
         Pushover
       </a>
@@ -2417,7 +2431,7 @@
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Create a GitHub Apps using https://github.com/settings/apps/new</li>
-<li>Change repository permissions to enable write commit statuses
+<li>Change repository permissions to enable write commit statuses and/or deployments
 <img alt="2" src="https://user-images.githubusercontent.com/18019529/108397381-3ca57980-725b-11eb-8d17-5b8992dc009e.png" /></li>
 <li>Generate a private key, and download it automatically
 <img alt="3" src="https://user-images.githubusercontent.com/18019529/108397926-d4a36300-725b-11eb-83fe-74795c8c3e03.png" /></li>
@@ -2466,6 +2480,12 @@ in <code>argocd-notifications-cm</code> ConfigMap</li>
 <span class="w">      </span><span class="no">state: success</span>
 <span class="w">      </span><span class="no">label: &quot;continuous-delivery/{{.app.metadata.name}}&quot;</span>
 <span class="w">      </span><span class="no">targetURL: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true&quot;</span>
+<span class="w">    </span><span class="no">deployment:</span>
+<span class="w">      </span><span class="no">state: success</span>
+<span class="w">      </span><span class="no">environment: production</span>
+<span class="w">      </span><span class="no">environmentURL: &quot;https://{{.app.metadata.name}}.example.com&quot;</span>
+<span class="w">      </span><span class="no">logURL: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true&quot;</span>
+<span class="w">      </span><span class="no">requiredContexts: []</span>
 </code></pre></div>
 <p><strong>Notes</strong>:
 - If the message is set to 140 characters or more, it will be truncated.

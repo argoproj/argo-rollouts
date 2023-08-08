@@ -491,6 +491,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/pagerduty_v2/</loc>
+         <lastmod>2023-08-08</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/pushover/</loc>
          <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
