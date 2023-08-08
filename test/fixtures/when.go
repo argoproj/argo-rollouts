@@ -345,14 +345,15 @@ func (w *When) WatchRolloutStatus(expectedStatus string, timeouts ...time.Durati
 	go controller.Run(ctx)
 	finalStatus := statusOptions.WatchStatus(ctx.Done(), rolloutUpdates)
 
+	cancel()
+	close(rolloutUpdates)
+
 	if finalStatus == expectedStatus {
 		w.log.Infof("expected status %s", finalStatus)
 	} else {
 		w.t.Fatalf("unexpected status %s", finalStatus)
 	}
 
-	cancel()
-	close(rolloutUpdates)
 	return w
 }
 
