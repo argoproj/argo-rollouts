@@ -50,6 +50,22 @@ stringData:
 
 Learn more about supported services and configuration settings in services [documentation](../generated/notification-services/overview.md).
 
+## Namespace based configuration
+
+!!! important
+Available since v1.6
+
+A common installation method for Argo Rollouts is to install it in a dedicated namespace to manage a whole cluster. In this case, the administrator is the only
+person who can configure notifications in that namespace generally. However, in some cases, it is required to allow end-users to configure notifications
+for their Rollout resources. For example, the end-user can configure notifications for their Rollouts in the namespace where they have access to and their rollout is running in.
+
+To use this feature all you need to do is create the same configmap named `argo-rollouts-notification-configmap` and possibly 
+a secret `argo-rollouts-notification-secret` in the namespace where the rollout object lives. When it is configured this way the controller
+will send notifications using both the controller level configuration (the configmap located in the same namespaces as the controller) as well as 
+the configmap located in the same namespaces where the rollout object is at.
+
+To enable you need to add a flag to the controller `--self-service-notification-enabled`
+
 ## Default Trigger templates
 
 Currently the following triggers have [built-in templates](https://github.com/argoproj/argo-rollouts/tree/master/manifests/notifications).
