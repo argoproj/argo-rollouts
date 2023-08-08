@@ -345,6 +345,8 @@ func (w *When) WatchRolloutStatus(expectedStatus string, timeouts ...time.Durati
 	go controller.Run(ctx)
 	finalStatus := statusOptions.WatchStatus(ctx.Done(), rolloutUpdates)
 
+	controller.DeregisterCallbacks()
+
 	cancel()
 	close(rolloutUpdates)
 
