@@ -627,14 +627,14 @@ type CanaryStep struct {
 type SetMirrorRoute struct {
 	// Name this is the name of the route to use for the mirroring of traffic this also needs
 	// to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field
-	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Name string `json:"name" protobuf:"string,1,name=name"`
 	// Match Contains a list of rules that if mated will mirror the traffic to the services
 	// +optional
 	Match []RouteMatch `json:"match,omitempty" protobuf:"bytes,2,opt,name=match"`
-
 	// Services The list of services to mirror the traffic to if the method, path, headers match
 	//Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
 	// Percentage What percent of the traffic that matched the rules should be mirrored
+	// +optional
 	Percentage *int32 `json:"percentage,omitempty" protobuf:"varint,4,opt,name=percentage"`
 }
 

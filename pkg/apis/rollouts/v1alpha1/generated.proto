@@ -1649,6 +1649,7 @@ message SetMirrorRoute {
   // Services The list of services to mirror the traffic to if the method, path, headers match
   // Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
   // Percentage What percent of the traffic that matched the rules should be mirrored
+  // +optional
   optional int32 percentage = 4;
 }
 

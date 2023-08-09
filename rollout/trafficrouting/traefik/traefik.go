@@ -21,6 +21,7 @@ import (
 const Type = "Traefik"
 
 const traefikServices = "traefikservices"
+
 const TraefikServiceUpdateError = "TraefikServiceUpdateError"
 
 var (
@@ -169,9 +170,61 @@ func (r *Reconciler) Type() string {
 }
 
 func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) error {
-	return nil
+	ctx := context.TODO()
+	traefikServiceName := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.WeightedTraefikServiceName
+	mirrorTraefikServiceName := getMirrorTraefikServiceName(traefikServiceName)
+	mirrorConfig := map[string]interface{}{
+		"name":    setMirrorRoute.Name,
+		"kind":    "TraefikService",
+		"percent": int64(*(setMirrorRoute.Percentage)),
+	}
+	mirrorTraefikService, err := r.Client.Get(ctx, mirrorTraefikServiceName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	mirrorList, isFound, err := unstructured.NestedSlice(mirrorTraefikService.Object, "spec", "mirroring", "mirrors")
+	if err != nil {
+		return err
+	}
+	if !isFound {
+		return errors.New("mirrors field was not found in mirror traefik service")
+	}
+	mirrorList = append(mirrorList, mirrorConfig)
+	err = unstructured.SetNestedSlice(mirrorTraefikService.Object, mirrorList, "spec", "mirroring", "mirrors")
+	if err != nil {
+		return err
+	}
+	_, err = r.Client.Update(ctx, mirrorTraefikService, metav1.UpdateOptions{})
+	if err != nil {
+		msg := fmt.Sprintf("Error setting mirror for mirror traefik service %q: %s", mirrorTraefikService.GetName(), err)
+		r.sendWarningEvent(TraefikServiceUpdateError, msg)
+	}
+	return err
 }
 
 func (r *Reconciler) RemoveManagedRoutes() error {
-	return nil
+	ctx := context.TODO()
+	traefikServiceName := r.Rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.WeightedTraefikServiceName
+	mirrorTraefikServiceName := getMirrorTraefikServiceName(traefikServiceName)
+	mirrorTraefikService, err := r.Client.Get(ctx, mirrorTraefikServiceName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	err = unstructured.SetNestedSlice(mirrorTraefikService.Object, []interface{}{}, "spec", "mirroring", "mirrors")
+	if err != nil {
+		return err
+	}
+	_, err = r.Client.Update(ctx, mirrorTraefikService, metav1.UpdateOptions{})
+	if err != nil {
+		msg := fmt.Sprintf("Error deleting mirrors for mirror traefik service %q: %s", mirrorTraefikService.GetName(), err)
+		r.sendWarningEvent(TraefikServiceUpdateError, msg)
+	}
+	return err
+}
+
+func getMirrorTraefikServiceName(traefikServiceName string) string {
+	stringBuilder := strings.Builder{}
+	stringBuilder.WriteString("argo-mirror-")
+	stringBuilder.WriteString(traefikServiceName)
+	return stringBuilder.String()
 }

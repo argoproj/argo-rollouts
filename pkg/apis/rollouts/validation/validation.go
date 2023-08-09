@@ -322,7 +322,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		if step.SetMirrorRoute != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
-			if trafficRouting == nil || trafficRouting.Istio == nil {
+			if trafficRouting == nil || !isTrafficMirrorSupportedForSelectedProvider(trafficRouting) {
 				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setMirrorRoute"), step.SetMirrorRoute, "SetMirrorRoute requires TrafficRouting, supports Istio only"))
 			}
 			if step.SetMirrorRoute.Match != nil && len(step.SetMirrorRoute.Match) > 0 {
@@ -395,6 +395,10 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	}
 	allErrs = append(allErrs, ValidateRolloutStrategyAntiAffinity(canary.AntiAffinity, fldPath.Child("antiAffinity"))...)
 	return allErrs
+}
+
+func isTrafficMirrorSupportedForSelectedProvider(trafficRouting *v1alpha1.RolloutTrafficRouting) bool {
+	return trafficRouting.Istio != nil || trafficRouting.Traefik != nil
 }
 
 func ValidateStepRouteFoundInManagedRoute(stepFldPath *field.Path, stepRoutName string, roManagedRoutes []v1alpha1.MangedRoutes) field.ErrorList {

@@ -1775,7 +1775,7 @@
         "percentage": {
           "type": "integer",
           "format": "int32",
-          "title": "Services The list of services to mirror the traffic to if the method, path, headers match\nService string `json:\"service\" protobuf:\"bytes,3,opt,name=service\"`\nPercentage What percent of the traffic that matched the rules should be mirrored"
+          "title": "Services The list of services to mirror the traffic to if the method, path, headers match\nService string `json:\"service\" protobuf:\"bytes,3,opt,name=service\"`\nPercentage What percent of the traffic that matched the rules should be mirrored\n+optional"
         }
       }
     },
