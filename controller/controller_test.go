@@ -67,27 +67,29 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
 
 	cm := &Manager{
-		wg:                            &sync.WaitGroup{},
-		healthzServer:                 NewHealthzServer(fmt.Sprintf(listenAddr, 8080)),
-		rolloutSynced:                 alwaysReady,
-		experimentSynced:              alwaysReady,
-		analysisRunSynced:             alwaysReady,
-		analysisTemplateSynced:        alwaysReady,
-		clusterAnalysisTemplateSynced: alwaysReady,
-		serviceSynced:                 alwaysReady,
-		ingressSynced:                 alwaysReady,
-		jobSynced:                     alwaysReady,
-		replicasSetSynced:             alwaysReady,
-		configMapSynced:               alwaysReady,
-		secretSynced:                  alwaysReady,
-		rolloutWorkqueue:              rolloutWorkqueue,
-		serviceWorkqueue:              serviceWorkqueue,
-		ingressWorkqueue:              ingressWorkqueue,
-		experimentWorkqueue:           experimentWorkqueue,
-		analysisRunWorkqueue:          analysisRunWorkqueue,
-		kubeClientSet:                 f.kubeclient,
-		namespace:                     "",
-		namespaced:                    false,
+		wg:                                   &sync.WaitGroup{},
+		healthzServer:                        NewHealthzServer(fmt.Sprintf(listenAddr, 8080)),
+		rolloutSynced:                        alwaysReady,
+		experimentSynced:                     alwaysReady,
+		analysisRunSynced:                    alwaysReady,
+		analysisTemplateSynced:               alwaysReady,
+		clusterAnalysisTemplateSynced:        alwaysReady,
+		serviceSynced:                        alwaysReady,
+		ingressSynced:                        alwaysReady,
+		jobSynced:                            alwaysReady,
+		replicasSetSynced:                    alwaysReady,
+		configMapSynced:                      alwaysReady,
+		secretSynced:                         alwaysReady,
+		rolloutWorkqueue:                     rolloutWorkqueue,
+		serviceWorkqueue:                     serviceWorkqueue,
+		ingressWorkqueue:                     ingressWorkqueue,
+		experimentWorkqueue:                  experimentWorkqueue,
+		analysisRunWorkqueue:                 analysisRunWorkqueue,
+		kubeClientSet:                        f.kubeclient,
+		namespace:                            "",
+		namespaced:                           false,
+		notificationSecretInformerFactory:    kubeinformers.NewSharedInformerFactoryWithOptions(f.kubeclient, noResyncPeriodFunc()),
+		notificationConfigMapInformerFactory: kubeinformers.NewSharedInformerFactoryWithOptions(f.kubeclient, noResyncPeriodFunc()),
 	}
 
 	metricsAddr := fmt.Sprintf(listenAddr, 8090)
@@ -120,7 +122,6 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 	cm.dynamicInformerFactory = dynamicInformerFactory
 	cm.clusterDynamicInformerFactory = dynamicInformerFactory
 	cm.kubeInformerFactory = k8sI
-	cm.controllerNamespaceInformerFactory = k8sI
 	cm.jobInformerFactory = k8sI
 	cm.istioPrimaryDynamicClient = dynamicClient
 	cm.istioDynamicInformerFactory = dynamicInformerFactory
@@ -253,8 +254,8 @@ func TestNewManager(t *testing.T) {
 		dynamicClient,
 		istioVirtualServiceInformer,
 		istioDestinationRuleInformer,
-		k8sI.Core().V1().ConfigMaps(),
-		k8sI.Core().V1().Secrets(),
+		k8sI,
+		k8sI,
 		noResyncPeriodFunc(),
 		"test",
 		8090,
@@ -266,7 +267,6 @@ func TestNewManager(t *testing.T) {
 		nil,
 		nil,
 		false,
-		nil,
 		nil,
 		nil,
 	)

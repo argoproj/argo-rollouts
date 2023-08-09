@@ -154,14 +154,15 @@ type Manager struct {
 
 	namespace string
 
-	dynamicInformerFactory             dynamicinformer.DynamicSharedInformerFactory
-	clusterDynamicInformerFactory      dynamicinformer.DynamicSharedInformerFactory
-	istioDynamicInformerFactory        dynamicinformer.DynamicSharedInformerFactory
-	namespaced                         bool
-	kubeInformerFactory                kubeinformers.SharedInformerFactory
-	controllerNamespaceInformerFactory kubeinformers.SharedInformerFactory
-	jobInformerFactory                 kubeinformers.SharedInformerFactory
-	istioPrimaryDynamicClient          dynamic.Interface
+	dynamicInformerFactory               dynamicinformer.DynamicSharedInformerFactory
+	clusterDynamicInformerFactory        dynamicinformer.DynamicSharedInformerFactory
+	istioDynamicInformerFactory          dynamicinformer.DynamicSharedInformerFactory
+	namespaced                           bool
+	kubeInformerFactory                  kubeinformers.SharedInformerFactory
+	notificationConfigMapInformerFactory kubeinformers.SharedInformerFactory
+	notificationSecretInformerFactory    kubeinformers.SharedInformerFactory
+	jobInformerFactory                   kubeinformers.SharedInformerFactory
+	istioPrimaryDynamicClient            dynamic.Interface
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -184,8 +185,8 @@ func NewManager(
 	istioPrimaryDynamicClient dynamic.Interface,
 	istioVirtualServiceInformer cache.SharedIndexInformer,
 	istioDestinationRuleInformer cache.SharedIndexInformer,
-	configMapInformer coreinformers.ConfigMapInformer,
-	secretInformer coreinformers.SecretInformer,
+	notificationConfigMapInformerFactory kubeinformers.SharedInformerFactory,
+	notificationSecretInformerFactory kubeinformers.SharedInformerFactory,
 	resyncPeriod time.Duration,
 	instanceID string,
 	metricsPort int,
@@ -198,10 +199,8 @@ func NewManager(
 	istioDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
 	namespaced bool,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	controllerNamespaceInformerFactory kubeinformers.SharedInformerFactory,
 	jobInformerFactory kubeinformers.SharedInformerFactory,
 ) *Manager {
-
 	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
 
@@ -224,9 +223,9 @@ func NewManager(
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
 	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, argoprojclientset, rolloutsInformer.Informer())
-	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(), defaults.Namespace(), secretInformer.Informer(), configMapInformer.Informer())
+	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(), defaults.Namespace(), notificationSecretInformerFactory.Core().V1().Secrets().Informer(), notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer())
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, apiFactory)
-	notificationsController := notificationcontroller.NewController(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory,
+	notificationsController := notificationcontroller.NewControllerWithNamespaceSupport(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory,
 		notificationcontroller.WithToUnstructured(func(obj metav1.Object) (*unstructured.Unstructured, error) {
 			data, err := json.Marshal(obj)
 			if err != nil {
@@ -320,42 +319,43 @@ func NewManager(
 	})
 
 	cm := &Manager{
-		wg:                                 &sync.WaitGroup{},
-		metricsServer:                      metricsServer,
-		healthzServer:                      healthzServer,
-		rolloutSynced:                      rolloutsInformer.Informer().HasSynced,
-		serviceSynced:                      servicesInformer.Informer().HasSynced,
-		ingressSynced:                      ingressWrap.HasSynced,
-		jobSynced:                          jobInformer.Informer().HasSynced,
-		experimentSynced:                   experimentsInformer.Informer().HasSynced,
-		analysisRunSynced:                  analysisRunInformer.Informer().HasSynced,
-		analysisTemplateSynced:             analysisTemplateInformer.Informer().HasSynced,
-		clusterAnalysisTemplateSynced:      clusterAnalysisTemplateInformer.Informer().HasSynced,
-		replicasSetSynced:                  replicaSetInformer.Informer().HasSynced,
-		configMapSynced:                    configMapInformer.Informer().HasSynced,
-		secretSynced:                       secretInformer.Informer().HasSynced,
-		rolloutWorkqueue:                   rolloutWorkqueue,
-		experimentWorkqueue:                experimentWorkqueue,
-		analysisRunWorkqueue:               analysisRunWorkqueue,
-		serviceWorkqueue:                   serviceWorkqueue,
-		ingressWorkqueue:                   ingressWorkqueue,
-		rolloutController:                  rolloutController,
-		serviceController:                  serviceController,
-		ingressController:                  ingressController,
-		experimentController:               experimentController,
-		analysisController:                 analysisController,
-		notificationsController:            notificationsController,
-		refResolver:                        refResolver,
-		namespace:                          namespace,
-		kubeClientSet:                      kubeclientset,
-		dynamicInformerFactory:             dynamicInformerFactory,
-		clusterDynamicInformerFactory:      clusterDynamicInformerFactory,
-		istioDynamicInformerFactory:        istioDynamicInformerFactory,
-		namespaced:                         namespaced,
-		kubeInformerFactory:                kubeInformerFactory,
-		controllerNamespaceInformerFactory: controllerNamespaceInformerFactory,
-		jobInformerFactory:                 jobInformerFactory,
-		istioPrimaryDynamicClient:          istioPrimaryDynamicClient,
+		wg:                                   &sync.WaitGroup{},
+		metricsServer:                        metricsServer,
+		healthzServer:                        healthzServer,
+		rolloutSynced:                        rolloutsInformer.Informer().HasSynced,
+		serviceSynced:                        servicesInformer.Informer().HasSynced,
+		ingressSynced:                        ingressWrap.HasSynced,
+		jobSynced:                            jobInformer.Informer().HasSynced,
+		experimentSynced:                     experimentsInformer.Informer().HasSynced,
+		analysisRunSynced:                    analysisRunInformer.Informer().HasSynced,
+		analysisTemplateSynced:               analysisTemplateInformer.Informer().HasSynced,
+		clusterAnalysisTemplateSynced:        clusterAnalysisTemplateInformer.Informer().HasSynced,
+		replicasSetSynced:                    replicaSetInformer.Informer().HasSynced,
+		configMapSynced:                      notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer().HasSynced,
+		secretSynced:                         notificationSecretInformerFactory.Core().V1().Secrets().Informer().HasSynced,
+		rolloutWorkqueue:                     rolloutWorkqueue,
+		experimentWorkqueue:                  experimentWorkqueue,
+		analysisRunWorkqueue:                 analysisRunWorkqueue,
+		serviceWorkqueue:                     serviceWorkqueue,
+		ingressWorkqueue:                     ingressWorkqueue,
+		rolloutController:                    rolloutController,
+		serviceController:                    serviceController,
+		ingressController:                    ingressController,
+		experimentController:                 experimentController,
+		analysisController:                   analysisController,
+		notificationsController:              notificationsController,
+		refResolver:                          refResolver,
+		namespace:                            namespace,
+		kubeClientSet:                        kubeclientset,
+		dynamicInformerFactory:               dynamicInformerFactory,
+		clusterDynamicInformerFactory:        clusterDynamicInformerFactory,
+		istioDynamicInformerFactory:          istioDynamicInformerFactory,
+		namespaced:                           namespaced,
+		kubeInformerFactory:                  kubeInformerFactory,
+		jobInformerFactory:                   jobInformerFactory,
+		istioPrimaryDynamicClient:            istioPrimaryDynamicClient,
+		notificationConfigMapInformerFactory: notificationConfigMapInformerFactory,
+		notificationSecretInformerFactory:    notificationSecretInformerFactory,
 	}
 
 	_, err := rolloutsConfig.InitializeConfig(kubeclientset, defaults.DefaultRolloutsConfigMapName)
@@ -470,7 +470,10 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 		c.clusterDynamicInformerFactory.Start(ctx.Done())
 	}
 	c.kubeInformerFactory.Start(ctx.Done())
-	c.controllerNamespaceInformerFactory.Start(ctx.Done())
+
+	c.notificationConfigMapInformerFactory.Start(ctx.Done())
+	c.notificationSecretInformerFactory.Start(ctx.Done())
+
 	c.jobInformerFactory.Start(ctx.Done())
 
 	// Check if Istio installed on cluster before starting dynamicInformerFactory

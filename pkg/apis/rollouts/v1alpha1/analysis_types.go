@@ -213,6 +213,16 @@ type PrometheusMetric struct {
 	// Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
 	// +optional
 	Authentication PrometheusAuth `json:"authentication,omitempty" protobuf:"bytes,3,opt,name=authentication"`
+	// Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
+	// +optional
+	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
+	// Insecure skips host TLS verification
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// Headers are optional HTTP headers to use in the request
+	// +optional
+	// +patchMergeKey=key
+	// +patchStrategy=merge
+	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,6,opt,name=headers"`
 }
 
 // PrometheusMetric defines the prometheus query to perform canary analysis

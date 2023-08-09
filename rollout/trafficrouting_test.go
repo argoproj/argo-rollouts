@@ -1051,3 +1051,105 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAbortedAnd
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.run(getKey(r1, t))
 }
+
+func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualServiceSHeaderRoute(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetCanaryScale: &v1alpha1.SetCanaryScale{
+				Replicas: pointer.Int32(1),
+			},
+		},
+		{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: "test-header",
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "test",
+						HeaderValue: &v1alpha1.StringMatch{
+							Prefix: "test",
+						},
+					},
+				},
+			},
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: &v1alpha1.IstioVirtualService{
+				Name: "test",
+				Routes: []string{
+					"primary",
+				},
+			},
+			DestinationRule: &v1alpha1.IstioDestinationRule{
+				Name:             "test",
+				StableSubsetName: "stable",
+				CanarySubsetName: "canary",
+			},
+		},
+		ManagedRoutes: []v1alpha1.MangedRoutes{
+			{
+				Name: "test-header",
+			},
+		},
+	}
+	r1.Spec.WorkloadRef = &v1alpha1.ObjectRef{
+		Name:       "test",
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+	}
+	r1.Spec.SelectorResolvedFromRef = true
+	r1.Spec.TemplateResolvedFromRef = true
+	r2 := bumpVersion(r1)
+
+	// if set WorkloadRef it does not change the generation
+	r2.ObjectMeta.Generation = r2.ObjectMeta.Generation - 1
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r1)
+	stableSvc := newService("stable", 80, stableSelector, r1)
+	r2.Status.StableRS = rs1PodHash
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			Weight:          0,
+			ServiceName:     "canary",
+			PodTemplateHash: rs2PodHash,
+		},
+		Stable: v1alpha1.WeightDestination{
+			Weight:          100,
+			ServiceName:     "stable",
+			PodTemplateHash: rs1PodHash,
+		},
+	}
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.expectPatchRolloutAction(r2)
+	f.expectPatchReplicaSetAction(rs1)
+	f.expectPatchReplicaSetAction(rs2)
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("SetHeaderRoute", &v1alpha1.SetHeaderRoute{
+		Name: "test-header",
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName: "test",
+				HeaderValue: &v1alpha1.StringMatch{
+					Prefix: "test",
+				},
+			},
+		},
+	}).Once().Return(nil)
+	f.run(getKey(r1, t))
+}

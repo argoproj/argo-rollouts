@@ -51,6 +51,23 @@ func GetWorkloadGenerationAnnotation(ro *v1alpha1.Rollout) (int32, bool) {
 	return int32(intValue), true
 }
 
+// GetRevisionAnnotation returns revision of rollout
+func GetRevisionAnnotation(ro *v1alpha1.Rollout) (int32, bool) {
+	if ro == nil {
+		return 0, false
+	}
+	annotationValue, ok := ro.Annotations[RevisionAnnotation]
+	if !ok {
+		return int32(0), false
+	}
+	intValue, err := strconv.ParseInt(annotationValue, 10, 32)
+	if err != nil {
+		log.Warnf("Cannot convert the value %q with annotation key %q for the replica set %q", annotationValue, RevisionAnnotation, ro.Name)
+		return int32(0), false
+	}
+	return int32(intValue), true
+}
+
 func getIntFromAnnotation(rs *appsv1.ReplicaSet, annotationKey string) (int32, bool) {
 	if rs == nil {
 		return 0, false

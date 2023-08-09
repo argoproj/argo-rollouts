@@ -2,8 +2,10 @@ package prometheus
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -33,8 +35,9 @@ const (
 
 // Provider contains all the required components to run a prometheus query
 type Provider struct {
-	api    v1.API
-	logCtx log.Entry
+	api     v1.API
+	logCtx  log.Entry
+	timeout time.Duration
 }
 
 // Type indicates provider is a prometheus provider
@@ -58,8 +61,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		StartedAt: &startTime,
 	}
 
-	//TODO(dthomson) make timeout configurable
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
 	defer cancel()
 
 	response, warnings, err := p.api.Query(ctx, metric.Provider.Prometheus.Query, time.Now())
@@ -138,11 +140,25 @@ func (p *Provider) processResponse(metric v1alpha1.Metric, response model.Value)
 }
 
 // NewPrometheusProvider Creates a new Prometheus client
-func NewPrometheusProvider(api v1.API, logCtx log.Entry) *Provider {
-	return &Provider{
+func NewPrometheusProvider(api v1.API, logCtx log.Entry, metric v1alpha1.Metric) (*Provider, error) {
+	provider := &Provider{
 		logCtx: logCtx,
 		api:    api,
 	}
+
+	if metric.Provider.Prometheus == nil || metric.Provider.Prometheus.Timeout == nil {
+		provider.timeout = 30 * time.Second
+		return provider, nil
+	}
+
+	metricTimeout := metric.Provider.Prometheus.Timeout
+
+	if *metricTimeout < 0 {
+		return nil, errors.New("prometheus timeout should not be negative")
+	}
+
+	provider.timeout = time.Duration(*metricTimeout * int64(time.Second))
+	return provider, nil
 }
 
 // NewPrometheusAPI generates a prometheus API from the metric configuration
@@ -166,9 +182,32 @@ func NewPrometheusAPI(metric v1alpha1.Metric) (v1.API, error) {
 		return nil, errors.New("prometheus address is not configured")
 	}
 
-	prometheusApiConfig := api.Config{
-		Address: metric.Provider.Prometheus.Address,
+	var roundTripper http.RoundTripper
+
+	roundTripper = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: metric.Provider.Prometheus.Insecure},
 	}
+
+	// attach custom headers to api requests, if specified
+	customHeaders := metric.Provider.Prometheus.Headers
+	if len(customHeaders) > 0 {
+		roundTripper = httpHeadersRoundTripper{
+			headers:      customHeaders,
+			roundTripper: roundTripper,
+		}
+	}
+
+	prometheusApiConfig := api.Config{
+		Address:      metric.Provider.Prometheus.Address,
+		RoundTripper: roundTripper,
+	}
+
 	//Check if using Amazon Managed Prometheus if true build sigv4 client
 	if strings.Contains(metric.Provider.Prometheus.Address, "aps-workspaces") {
 		cfg := sigv4.SigV4Config{

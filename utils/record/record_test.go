@@ -112,7 +112,7 @@ func TestSendNotifications(t *testing.T) {
 	rec := NewFakeEventRecorder()
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 	//ch := make(chan prometheus.HistogramVec, 1)
-	err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
+	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
 	assert.NoError(t, err)
 }
 
@@ -139,7 +139,7 @@ func TestSendNotificationsWhenCondition(t *testing.T) {
 	rec := NewFakeEventRecorder()
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 	//ch := make(chan prometheus.HistogramVec, 1)
-	err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
+	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
 	assert.NoError(t, err)
 }
 
@@ -339,7 +339,7 @@ func TestSendNotificationsFails(t *testing.T) {
 		rec := NewFakeEventRecorder()
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
-		err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
+		err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
 		assert.Error(t, err)
 	})
 
@@ -348,7 +348,7 @@ func TestSendNotificationsFails(t *testing.T) {
 		rec := NewFakeEventRecorder()
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
-		err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
+		err := rec.sendNotifications(nil, &r, EventOptions{EventReason: "FooReason"})
 		assert.Error(t, err)
 	})
 
@@ -379,7 +379,7 @@ func TestSendNotificationsFailsWithRunTriggerError(t *testing.T) {
 		rec := NewFakeEventRecorder()
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
-		err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
+		err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
 		assert.Error(t, err)
 	})
 
@@ -388,7 +388,7 @@ func TestSendNotificationsFailsWithRunTriggerError(t *testing.T) {
 		rec := NewFakeEventRecorder()
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
-		err := rec.sendNotifications(&r, EventOptions{EventReason: "FooReason"})
+		err := rec.sendNotifications(nil, &r, EventOptions{EventReason: "FooReason"})
 		assert.Error(t, err)
 	})
 
@@ -418,7 +418,7 @@ func TestSendNotificationsNoTrigger(t *testing.T) {
 	rec := NewFakeEventRecorder()
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 
-	err := rec.sendNotifications(&r, EventOptions{EventReason: "MissingReason"})
+	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "MissingReason"})
 	assert.Error(t, err)
 }
 

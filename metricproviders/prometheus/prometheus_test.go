@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -30,8 +31,22 @@ func TestType(t *testing.T) {
 	mock := mockAPI{
 		value: newScalar(10),
 	}
-	p := NewPrometheusProvider(mock, e)
+	timeout := int64(5)
+	metric := v1alpha1.Metric{
+		Name:             "foo",
+		SuccessCondition: "result == 10",
+		FailureCondition: "result != 10",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query:   "test",
+				Timeout: &timeout,
+			},
+		},
+	}
+	p, err := NewPrometheusProvider(mock, e, metric)
+	assert.NoError(t, err)
 	assert.Equal(t, ProviderType, p.Type())
+	assert.Equal(t, p.timeout, time.Duration(timeout*int64(time.Second)))
 }
 
 func TestRunSuccessfully(t *testing.T) {
@@ -39,7 +54,6 @@ func TestRunSuccessfully(t *testing.T) {
 	mock := mockAPI{
 		value: newScalar(10),
 	}
-	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -50,8 +64,11 @@ func TestRunSuccessfully(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, e, metric)
+
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
@@ -64,7 +81,6 @@ func TestRunSuccessfullyWithEnv(t *testing.T) {
 	}
 	address := "http://127.0.0.1:9090"
 	os.Setenv(EnvVarArgoRolloutsPrometheusAddress, address)
-	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -75,8 +91,10 @@ func TestRunSuccessfullyWithEnv(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, measurement.Phase)
@@ -88,7 +106,6 @@ func TestRunSuccessfullyWithWarning(t *testing.T) {
 		value:    newScalar(10),
 		warnings: v1.Warnings([]string{"warning", "warning2"}),
 	}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -99,8 +116,10 @@ func TestRunSuccessfullyWithWarning(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, *e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, `"warning", "warning2"`, measurement.Metadata["warnings"])
@@ -113,7 +132,6 @@ func TestRunSuccessfullyWithWarningWithEnv(t *testing.T) {
 		value:    newScalar(10),
 		warnings: v1.Warnings([]string{"warning", "warning2"}),
 	}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -124,8 +142,10 @@ func TestRunSuccessfullyWithWarningWithEnv(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, *e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.NotNil(t, measurement.StartedAt)
+	assert.NoError(t, err)
 	assert.Equal(t, "10", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
 	assert.Equal(t, `"warning", "warning2"`, measurement.Metadata["warnings"])
@@ -138,7 +158,6 @@ func TestRunWithQueryError(t *testing.T) {
 	mock := mockAPI{
 		err: expectedErr,
 	}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -149,8 +168,10 @@ func TestRunWithQueryError(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, *e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
+	assert.NoError(t, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -163,7 +184,6 @@ func TestRunWithResolveArgsError(t *testing.T) {
 	mock := mockAPI{
 		err: expectedErr,
 	}
-	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name: "foo",
 		Provider: v1alpha1.MetricProvider{
@@ -172,8 +192,10 @@ func TestRunWithResolveArgsError(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, expectedErr.Error(), measurement.Message)
+	assert.NoError(t, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -183,7 +205,6 @@ func TestRunWithResolveArgsError(t *testing.T) {
 func TestGetStatusReturnsResolvedQuery(t *testing.T) {
 	e := log.Entry{}
 	mock := mockAPI{}
-	p := NewPrometheusProvider(mock, e)
 	metric := v1alpha1.Metric{
 		Name: "foo",
 		Provider: v1alpha1.MetricProvider{
@@ -192,15 +213,16 @@ func TestGetStatusReturnsResolvedQuery(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, e, metric)
 	metricsMetadata := p.GetMetadata(metric)
 	assert.NotNil(t, metricsMetadata)
+	assert.NoError(t, err)
 	assert.Equal(t, "resolved-query", metricsMetadata["ResolvedPrometheusQuery"])
 }
 
 func TestRunWithEvaluationError(t *testing.T) {
 	e := log.WithField("", "")
 	mock := mockAPI{}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -211,8 +233,10 @@ func TestRunWithEvaluationError(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, *e, metric)
 	measurement := p.Run(newAnalysisRun(), metric)
 	assert.Equal(t, "Prometheus metric type not supported", measurement.Message)
+	assert.NoError(t, err)
 	assert.NotNil(t, measurement.StartedAt)
 	assert.Equal(t, "", measurement.Value)
 	assert.NotNil(t, measurement.FinishedAt)
@@ -222,7 +246,6 @@ func TestRunWithEvaluationError(t *testing.T) {
 func TestResume(t *testing.T) {
 	e := log.WithField("", "")
 	mock := mockAPI{}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{
 		Name:             "foo",
 		SuccessCondition: "result == 10",
@@ -233,6 +256,8 @@ func TestResume(t *testing.T) {
 			},
 		},
 	}
+	p, err := NewPrometheusProvider(mock, *e, metric)
+	assert.NoError(t, err)
 	now := metav1.Now()
 	previousMeasurement := v1alpha1.Measurement{
 		StartedAt: &now,
@@ -245,8 +270,9 @@ func TestResume(t *testing.T) {
 func TestTerminate(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := mockAPI{}
-	p := NewPrometheusProvider(mock, *e)
 	metric := v1alpha1.Metric{}
+	p, err := NewPrometheusProvider(mock, *e, metric)
+	assert.NoError(t, err)
 	now := metav1.Now()
 	previousMeasurement := v1alpha1.Measurement{
 		StartedAt: &now,
@@ -259,8 +285,10 @@ func TestTerminate(t *testing.T) {
 func TestGarbageCollect(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := mockAPI{}
-	p := NewPrometheusProvider(mock, *e)
-	err := p.GarbageCollect(nil, v1alpha1.Metric{}, 0)
+	metric := v1alpha1.Metric{}
+	p, err := NewPrometheusProvider(mock, *e, metric)
+	assert.NoError(t, err)
+	err = p.GarbageCollect(nil, v1alpha1.Metric{}, 0)
 	assert.NoError(t, err)
 }
 
@@ -425,6 +453,7 @@ func TestNewPrometheusAPI(t *testing.T) {
 	log.Infof("api:%v", api)
 
 	metric.Provider.Prometheus.Address = "https://www.example.com"
+	metric.Provider.Prometheus.Insecure = true
 	_, err = NewPrometheusAPI(metric)
 	assert.Nil(t, err)
 }
@@ -464,4 +493,24 @@ func TestNewPrometheusAddressNotConfigured(t *testing.T) {
 	api, err := NewPrometheusAPI(metric)
 	assert.NotNil(t, err)
 	log.Infof("api:%v", api)
+}
+
+func TestNewPrometheusNegativeTimeout(t *testing.T) {
+	e := log.Entry{}
+	mock := mockAPI{
+		value: newScalar(10),
+	}
+	timeout := int64(-20)
+	metric := v1alpha1.Metric{
+		Name: "foo",
+		Provider: v1alpha1.MetricProvider{
+			Prometheus: &v1alpha1.PrometheusMetric{
+				Query:   "test",
+				Timeout: &timeout,
+			},
+		},
+	}
+	p, err := NewPrometheusProvider(mock, e, metric)
+	assert.NotNil(t, err)
+	assert.Nil(t, p)
 }

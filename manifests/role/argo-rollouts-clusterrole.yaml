@@ -135,6 +135,7 @@ rules:
   - get
   - list
   - watch
+  - update
   - patch
 # job access needed for analysis template job metrics
 - apiGroups:

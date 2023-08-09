@@ -1143,6 +1143,19 @@ message PrometheusMetric {
   // Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
   // +optional
   optional PrometheusAuth authentication = 3;
+
+  // Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
+  // +optional
+  optional int64 timeout = 4;
+
+  // Insecure skips host TLS verification
+  optional bool insecure = 5;
+
+  // Headers are optional HTTP headers to use in the request
+  // +optional
+  // +patchMergeKey=key
+  // +patchStrategy=merge
+  repeated WebMetricHeader headers = 6;
 }
 
 // RequiredDuringSchedulingIgnoredDuringExecution defines inter-pod scheduling rule to be RequiredDuringSchedulingIgnoredDuringExecution

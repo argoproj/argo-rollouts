@@ -20,6 +20,11 @@ spec:
     provider:
       prometheus:
         address: http://prometheus.example.com:9090
+        # timeout is expressed in seconds
+        timeout: 40
+        headers:
+        - name: X-Scope-Org-ID
+          value: tenant_a
         query: |
           sum(irate(
             istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
@@ -56,9 +61,27 @@ provider:
         roleArn: $ROLEARN
 ```
 
-# Additional Metadata
+## Additional Metadata
 
 Any additional metadata from the Prometheus controller, like the resolved queries after substituting the template's
 arguments, etc. will appear under the `Metadata` map in the `MetricsResult` object of `AnalysisRun`.
 
 
+
+## Skip TLS verification
+
+You can skip the TLS verification of the prometheus host provided by setting the options `insecure: true`.
+
+```yaml
+provider:
+  prometheus:
+    address: https://prometheus.example.com
+    insecure: true
+    query: |
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+      )) /
+      sum(irate(
+        istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+      ))
+```
