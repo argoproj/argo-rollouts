@@ -323,7 +323,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if step.SetMirrorRoute != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
 			if trafficRouting == nil || !isTrafficMirrorSupportedForSelectedProvider(trafficRouting) {
-				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setMirrorRoute"), step.SetMirrorRoute, "SetMirrorRoute requires TrafficRouting, supports Istio only"))
+				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setMirrorRoute"), step.SetMirrorRoute, "SetMirrorRoute requires TrafficRouting, supports Traefik and Istio only"))
 			}
 			if step.SetMirrorRoute.Match != nil && len(step.SetMirrorRoute.Match) > 0 {
 				for j, match := range step.SetMirrorRoute.Match {
