@@ -335,17 +335,20 @@ func (w *When) WatchRolloutStatus(expectedStatus string, timeouts ...time.Durati
 
 	controller := viewcontroller.NewRolloutViewController(w.namespace, w.rollout.GetName(), w.kubeClient, w.rolloutClient)
 	ctx, cancel := context.WithCancel(w.Context)
-	defer cancel()
 	controller.Start(ctx)
 
 	rolloutUpdates := make(chan *rollout.RolloutInfo)
-	defer close(rolloutUpdates)
 	controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
 		rolloutUpdates <- roInfo
 	})
 
 	go controller.Run(ctx)
 	finalStatus := statusOptions.WatchStatus(ctx.Done(), rolloutUpdates)
+
+	controller.DeregisterCallbacks()
+
+	cancel()
+	close(rolloutUpdates)
 
 	if finalStatus == expectedStatus {
 		w.log.Infof("expected status %s", finalStatus)
