@@ -2347,7 +2347,7 @@ func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testin
 	at := analysisTemplate("bar")
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
 	r1.ObjectMeta.Labels = make(map[string]string)
-	r1.ObjectMeta.Labels["my-label"] = "1234"
+	r1.Spec.Selector.MatchLabels["my-label"] = "1234"
 	r2 := bumpVersion(r1)
 	ar := analysisRun(at, v1alpha1.RolloutTypeBackgroundRunLabel, r2)
 	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{

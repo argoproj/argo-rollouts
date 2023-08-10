@@ -461,7 +461,7 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 		run.Labels[k] = v
 	}
 
-	for k, v := range c.rollout.ObjectMeta.Labels {
+	for k, v := range c.rollout.Spec.Selector.MatchLabels {
 		run.Labels[k] = v
 	}
 
