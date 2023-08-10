@@ -2576,12 +2576,8 @@ command line.</p>
 <div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>quay.io/argoproj/kubectl-argo-rollouts:master<span class="w"> </span>version
 </code></pre></div>
 <h2 id="supported-versions">Supported versions<a class="headerlink" href="#supported-versions" title="Permanent link">&para;</a></h2>
-<p>At any point in time the officially supported version of Argo Rollouts is the latest released one, on Kubernetes versions N and N-1 (as supported by the Kubernetes project itself).</p>
-<p>For example if the latest minor version of Argo Rollouts is 1.2.1 and supported Kubernetes versions are 1.24, 1.23 and 1.22 then the following combinations are supported:</p>
-<ul>
-<li>Argo Rollouts 1.2.1 on Kubernetes 1.24</li>
-<li>Argo Rollouts 1.2.1 on Kubernetes 1.23</li>
-</ul>
+<p>Check <a href="https://github.com/argoproj/argo-rollouts/blob/master/.github/workflows/e2e.yaml#L40-L44">e2e testing file</a> to see what the Kubernetes version is being fully tested.</p>
+<p>You can switch to different tags to see what relevant Kubernetes versions were being tested for the respective version.</p>
 <h2 id="upgrading-argo-rollouts">Upgrading Argo Rollouts<a class="headerlink" href="#upgrading-argo-rollouts" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts is a Kubernetes controller that doesn't hold any external state. It is active
 only when deployments are actually happening.</p>
