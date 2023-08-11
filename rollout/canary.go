@@ -365,8 +365,7 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "SkipSteps"}, "Rollback to stable ReplicaSets")
 				newStatus.CurrentStepIndex = &stepCount
 			} else if c.isRollbackWithinWindow() && replicasetutil.IsActive(c.newRS) {
-				// Else if we get here we detected that we are within the rollback window
-				// we can skip steps and move back to the active ReplicaSet
+				// Else if we get here we detected that we are within the rollback window we can skip steps and move back to the active ReplicaSet
 				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "SkipSteps"}, "Rollback to active ReplicaSets within RollbackWindow")
 				newStatus.CurrentStepIndex = &stepCount
 			}

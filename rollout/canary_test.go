@@ -854,50 +854,45 @@ func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
 		SetWeight: int32Ptr(10),
 	}}
 
-	r1 := newCanaryRollout("foo", 10, int32Ptr(1), steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
-	r1.Spec.RollbackWindow = &v1alpha1.RollbackWindowSpec{
-		Revisions: 1,
-	}
-
-	rs1 := newReplicaSetWithStatus(r1, 10, 10)
-	rs1.CreationTimestamp = metav1.Time{Time: time.Now().Add(-10 * time.Minute)}
+	r1 := newCanaryRollout("foo", 1, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
-	rs2 := newReplicaSetWithStatus(r2, 10, 10)
-	rs2.CreationTimestamp = metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
 
-	r2.Spec.Template = r1.Spec.Template
+	// For the fast rollback to work, we need to:
+	// 1. Have the previous revision be active (i.e. not scaled down)
+	// 2. Be in rollback window (within window revisions and previous creation timestamp)
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	r2.Spec.RollbackWindow = &v1alpha1.RollbackWindowSpec{Revisions: 1}
+	rs1.CreationTimestamp = timeutil.MetaTime(time.Now().Add(-1 * time.Hour))
+	rs2.CreationTimestamp = timeutil.MetaNow()
 
-	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.serviceLister = append(f.serviceLister)
 
-	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 10, 10, 10, false)
+	// Switch back to version 1
+	r2.Spec.Template = r1.Spec.Template
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	// Since old replicaset is still active, expect twice the number of replicas
+	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 2, 2, 2, false)
 
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
 	f.expectUpdateReplicaSetAction(rs1)
-	patchIndex := f.expectPatchRolloutAction(r2)
+	f.expectUpdateReplicaSetAction(rs1)
+	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
-	expectedRS1 := rs1.DeepCopy()
-	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
-	expectedRS1.Annotations[annotations.RevisionHistoryAnnotation] = "1"
-	firstUpdatedRS1 := f.getUpdatedReplicaSet(updatedRSIndex)
-	assert.Equal(t, expectedRS1, firstUpdatedRS1)
+	expectedStepIndex := len(steps)
+	patch := f.getPatchedRolloutWithoutConditions(rolloutPatchIndex)
 
-	expectedPatchWithoutSub := `{
-		"status":{
-			"currentPodHash": "%s",
-			"currentStepIndex":1,
-			"conditions": %s
-		}
-	}`
-	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
-	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions)
-	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	// Assert current pod hash is the old replicaset and steps were skipped
+	assert.Regexp(t, fmt.Sprintf(`"currentPodHash":"%s"`, rs1PodHash), patch)
+	assert.Regexp(t, fmt.Sprintf(`"currentStepIndex":%d`, expectedStepIndex), patch)
 }
 
 func TestGradualShiftToNewStable(t *testing.T) {
