@@ -187,7 +187,7 @@ func (r *Reconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetMirrorRoute) err
 		return err
 	}
 	if !isFound {
-		return errors.New("mirrors field was not found in mirror traefik service")
+		mirrorList = []interface{}{}
 	}
 	mirrorList = append(mirrorList, mirrorConfig)
 	err = unstructured.SetNestedSlice(mirrorTraefikService.Object, mirrorList, "spec", "mirroring", "mirrors")
@@ -210,7 +210,19 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 	if err != nil {
 		return err
 	}
-	err = unstructured.SetNestedSlice(mirrorTraefikService.Object, []interface{}{}, "spec", "mirroring", "mirrors")
+	managedRouteList := r.Rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes
+	mirrorList, isFound, err := unstructured.NestedSlice(mirrorTraefikService.Object, "spec", "mirroring", "mirrors")
+	if err != nil {
+		return err
+	}
+	if !isFound {
+		return errors.New("mirrors field was not found in mirror traefik service")
+	}
+	updatedMirrorList, err := removeMirrors(mirrorList, managedRouteList)
+	if err != nil {
+		return err
+	}
+	err = unstructured.SetNestedSlice(mirrorTraefikService.Object, updatedMirrorList, "spec", "mirroring", "mirrors")
 	if err != nil {
 		return err
 	}
@@ -222,9 +234,41 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 	return err
 }
 
+func removeMirrors(mirrorList []interface{}, managedRouteList []v1alpha1.MangedRoutes) ([]interface{}, error) {
+	updatedMirrorList := []interface{}{}
+	for _, mirror := range mirrorList {
+		typedMirror, ok := mirror.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("Failed type assertion of mirrors element")
+		}
+		mirrorName, ok := typedMirror["name"].(string)
+		if !ok {
+			return nil, errors.New("Failed type assertion of mirror name")
+		}
+		mirrorKind, ok := typedMirror["kind"].(string)
+		if !ok {
+			return nil, errors.New("Failed type assertion of mirror kind")
+		}
+		if containsManagedRouteName(managedRouteList, mirrorName) && mirrorKind == "TraefikService" {
+			continue
+		}
+		updatedMirrorList = append(updatedMirrorList, mirror)
+	}
+	return updatedMirrorList, nil
+}
+
 func getMirrorTraefikServiceName(traefikServiceName string) string {
 	stringBuilder := strings.Builder{}
 	stringBuilder.WriteString("argo-mirror-")
 	stringBuilder.WriteString(traefikServiceName)
 	return stringBuilder.String()
+}
+
+func containsManagedRouteName(managedRouteList []v1alpha1.MangedRoutes, name string) bool {
+	for _, managedRoute := range managedRouteList {
+		if managedRoute.Name == name {
+			return true
+		}
+	}
+	return false
 }
