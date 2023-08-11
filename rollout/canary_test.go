@@ -846,6 +846,60 @@ func TestRollBackToStable(t *testing.T) {
 	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
 }
 
+func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{{
+		SetWeight: int32Ptr(10),
+	}}
+
+	r1 := newCanaryRollout("foo", 10, int32Ptr(1), steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+	r1.Spec.RollbackWindow = &v1alpha1.RollbackWindowSpec{
+		Revisions: 1,
+	}
+
+	rs1 := newReplicaSetWithStatus(r1, 10, 10)
+	rs1.CreationTimestamp = metav1.Time{Time: time.Now().Add(-10 * time.Minute)}
+	r2 := bumpVersion(r1)
+	rs2 := newReplicaSetWithStatus(r2, 10, 10)
+	rs2.CreationTimestamp = metav1.Time{Time: time.Now().Add(-1 * time.Minute)}
+
+	r2.Spec.Template = r1.Spec.Template
+
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 10, 10, 10, false)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs1)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	f.run(getKey(r2, t))
+
+	expectedRS1 := rs1.DeepCopy()
+	expectedRS1.Annotations[annotations.RevisionAnnotation] = "3"
+	expectedRS1.Annotations[annotations.RevisionHistoryAnnotation] = "1"
+	firstUpdatedRS1 := f.getUpdatedReplicaSet(updatedRSIndex)
+	assert.Equal(t, expectedRS1, firstUpdatedRS1)
+
+	expectedPatchWithoutSub := `{
+		"status":{
+			"currentPodHash": "%s",
+			"currentStepIndex":1,
+			"conditions": %s
+		}
+	}`
+	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
+	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions)
+	patch := f.getPatchedRollout(patchIndex)
+	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+}
+
 func TestGradualShiftToNewStable(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
