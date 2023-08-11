@@ -359,13 +359,19 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
 		c.resetRolloutStatus(&newStatus)
-		if c.newRS != nil && c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS) {
-			if stepCount > 0 {
+		if c.newRS != nil && stepCount > 0 {
+			if c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS) {
 				// If we get here, we detected that we've moved back to the stable ReplicaSet
-				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "SkipSteps"}, "Rollback to stable")
+				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "SkipSteps"}, "Rollback to stable ReplicaSets")
+				newStatus.CurrentStepIndex = &stepCount
+			} else if c.isRollbackWithinWindow() && replicasetutil.IsActive(c.newRS) {
+				// Else if we get here we detected that we are within the rollback window
+				// we can skip steps and move back to the active ReplicaSet
+				c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: "SkipSteps"}, "Rollback to active ReplicaSets within RollbackWindow")
 				newStatus.CurrentStepIndex = &stepCount
 			}
 		}
+
 		newStatus = c.calculateRolloutConditions(newStatus)
 		return c.persistRolloutStatus(&newStatus)
 	}
