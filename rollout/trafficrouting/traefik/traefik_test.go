@@ -26,6 +26,8 @@ spec:
     mirrors:
       - name: canary-rollout
         kind: TraefikService
+      - name: test-rollout
+        kind: TraefikService
 `
 
 	errorMirrorTraefikService = `
@@ -87,6 +89,33 @@ metadata:
 
 var (
 	client *mocks.FakeClient = &mocks.FakeClient{}
+
+	managedRouteList []v1alpha1.MangedRoutes = []v1alpha1.MangedRoutes{
+		{
+			Name: "test-rollout",
+		},
+	}
+	mirrorList []interface{} = []interface{}{
+		map[string]interface{}{
+			"name": "canary-rollout",
+			"kind": "TraefikService",
+		},
+	}
+	mirrorListWithFailedMirrorTypeAssertion []interface{} = []interface{}{
+		"error-mirror",
+	}
+	mirrorListWithFailedMirrorNameTypeAssertion []interface{} = []interface{}{
+		map[string]interface{}{
+			"name": 12,
+			"kind": "TraefikService",
+		},
+	}
+	mirrorListWithFailedMirrorKindTypeAssertion []interface{} = []interface{}{
+		map[string]interface{}{
+			"name": "canary-rollout",
+			"kind": 12,
+		},
+	}
 )
 
 const (
@@ -455,7 +484,6 @@ func TestRemoveManagedRoutes(t *testing.T) {
 		// Then
 		assert.Error(t, err)
 	})
-
 	t.Run("SetMirrorRouteUpdateError", func(t *testing.T) {
 		// Given
 		t.Parallel()
@@ -471,6 +499,49 @@ func TestRemoveManagedRoutes(t *testing.T) {
 
 		// When
 		err := r.RemoveManagedRoutes()
+
+		// Then
+		assert.Error(t, err)
+	})
+}
+
+func TestRemoveMirrors(t *testing.T) {
+	t.Run("RemoveMirrors", func(t *testing.T) {
+		// Given
+		t.Parallel()
+
+		// When
+		_, err := removeMirrors(mirrorList, managedRouteList)
+
+		// Then
+		assert.Nil(t, err)
+	})
+	t.Run("RemoveMirrorsFailedMirrorTypeAssertion", func(t *testing.T) {
+		// Given
+		t.Parallel()
+
+		// When
+		_, err := removeMirrors(mirrorListWithFailedMirrorTypeAssertion, managedRouteList)
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("RemoveMirrorsFailedMirrorNameTypeAssertion", func(t *testing.T) {
+		// Given
+		t.Parallel()
+
+		// When
+		_, err := removeMirrors(mirrorListWithFailedMirrorNameTypeAssertion, managedRouteList)
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("RemoveMirrorsFailedMirrorKindTypeAssertion", func(t *testing.T) {
+		// Given
+		t.Parallel()
+
+		// When
+		_, err := removeMirrors(mirrorListWithFailedMirrorKindTypeAssertion, managedRouteList)
 
 		// Then
 		assert.Error(t, err)
