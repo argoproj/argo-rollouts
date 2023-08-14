@@ -19,10 +19,15 @@ import (
 type FakeDynamicClient struct{}
 
 type FakeClient struct {
-	IsGetError             bool
-	IsGetErrorManifest     bool
-	IsMirrorTraefikService bool
-	UpdateError            bool
+	IsClientGetTraefikServiceError   bool
+	IsGetErrorTraefikServiceManifest bool
+
+	IsGetMirrorTraefikService                  bool
+	IsClientGetErrorMirrorTraefikService       bool
+	IsGetErrorMirrorTraefikServiceManifest     bool
+	IsGetMirrorTraefikServiceWithNotFoundField bool
+
+	IsClientUpdateError bool
 }
 
 type FakeService struct {
@@ -32,9 +37,12 @@ type FakeService struct {
 type FakeRecorder struct{}
 
 var (
-	MirrorTraefikServiceObj *unstructured.Unstructured
-	TraefikServiceObj       *unstructured.Unstructured
-	ErrorTraefikServiceObj  *unstructured.Unstructured
+	TraefikServiceObj      *unstructured.Unstructured
+	ErrorTraefikServiceObj *unstructured.Unstructured
+
+	MirrorTraefikServiceObj               *unstructured.Unstructured
+	ErrorMirrorTraefikServiceObj          *unstructured.Unstructured
+	MirrorTraefikServiceWithNotFoundField *unstructured.Unstructured
 )
 
 func (f *FakeRecorder) Eventf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...interface{}) {
@@ -52,23 +60,33 @@ func (f *FakeClient) Create(ctx context.Context, obj *unstructured.Unstructured,
 }
 
 func (f *FakeClient) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	if f.IsMirrorTraefikService {
+	if f.IsGetMirrorTraefikService {
 		if MirrorTraefikServiceObj.GetName() == name {
 			return MirrorTraefikServiceObj, nil
 		}
 		return nil, errors.New("Mirror traefik service not found")
 	}
-	if f.IsGetError {
+	if f.IsClientGetErrorMirrorTraefikService {
+		return nil, errors.New("Error get mirror traefik service")
+	}
+	if f.IsGetErrorMirrorTraefikServiceManifest {
+		return ErrorMirrorTraefikServiceObj, nil
+	}
+	if f.IsGetMirrorTraefikServiceWithNotFoundField {
+		return MirrorTraefikServiceWithNotFoundField, nil
+	}
+
+	if f.IsClientGetTraefikServiceError {
 		return TraefikServiceObj, errors.New("Traefik get error")
 	}
-	if f.IsGetErrorManifest {
+	if f.IsGetErrorTraefikServiceManifest {
 		return ErrorTraefikServiceObj, nil
 	}
 	return TraefikServiceObj, nil
 }
 
 func (f *FakeClient) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
-	if f.UpdateError {
+	if f.IsClientUpdateError {
 		return obj, errors.New("Traefik update error")
 	}
 	return obj, nil
