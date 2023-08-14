@@ -11,7 +11,24 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 )
 
-const traefikService = `
+const (
+	mirrorTraefikService = `
+apiVersion: mocks.containo.us/v1alpha1
+kind: TraefikService
+metadata:
+  labels:
+    service: argo-mocks
+  name: argo-mirror-mocks-service
+spec:
+  mirroring:
+    name: mocks-service
+    kind: TraefikService
+    mirrors:
+      - name: canary-rollout
+        kind: TraefikService
+`
+
+	traefikService = `
 apiVersion: mocks.containo.us/v1alpha1
 kind: TraefikService
 metadata:
@@ -29,7 +46,7 @@ spec:
         port: 80
 `
 
-const errorTraefikService = `
+	errorTraefikService = `
 apiVersion: mocks.containo.us/v1alpha1
 kind: TraefikService
 metadata:
@@ -37,6 +54,7 @@ metadata:
     service: argo-mocks
   name: mocks-service
 `
+)
 
 var (
 	client *mocks.FakeClient = &mocks.FakeClient{}
@@ -219,35 +237,52 @@ func TestSetHeaderRoute(t *testing.T) {
 
 		// Then
 		assert.NoError(t, err)
-
-		err = r.RemoveManagedRoutes()
-		assert.Nil(t, err)
 	})
 }
 
 func TestSetMirrorRoute(t *testing.T) {
+	mocks.MirrorTraefikServiceObj = toUnstructured(t, mirrorTraefikService)
 	t.Run("SetMirrorRoute", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Client: &mocks.FakeClient{
+				IsMirrorTraefikService: true,
+			},
 		}
 		r := NewReconciler(&cfg)
 
 		// When
+		var percentage int32 = 50
 		err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
-			Name: "mirror-route",
-			Match: []v1alpha1.RouteMatch{{
-				Method: &v1alpha1.StringMatch{Exact: "GET"},
-			}},
+			Name: "canary-rollout",
+			Percentage: &percentage,
 		})
 
 		// Then
 		assert.NoError(t, err)
+	})
+}
 
-		err = r.RemoveManagedRoutes()
-		assert.Nil(t, err)
+func TestRemoveManagedRoutes(t *testing.T) {
+	mocks.MirrorTraefikServiceObj = toUnstructured(t, mirrorTraefikService)
+	t.Run("RemoveManagedRoute", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			Client: &mocks.FakeClient{
+				IsMirrorTraefikService: true,
+			},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.RemoveManagedRoutes()
+
+		// Then
+		assert.NoError(t, err)
 	})
 }
 
@@ -373,6 +408,11 @@ func newRollout(stableSvc, canarySvc, traefikServiceName string) *v1alpha1.Rollo
 					StableService: stableSvc,
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						ManagedRoutes: []v1alpha1.MangedRoutes{
+							{
+								Name: "canary-rollout",
+							},
+						},
 						Traefik: &v1alpha1.TraefikTrafficRouting{
 							WeightedTraefikServiceName: traefikServiceName,
 						},

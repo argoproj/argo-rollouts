@@ -36,7 +36,7 @@ const (
 	// InvalidSetHeaderRouteTrafficPolicy indicates that TrafficRouting required for SetHeaderRoute is missing
 	InvalidSetHeaderRouteTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio and ALB and Apisix"
 	// InvalidSetMirrorRouteTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
-	InvalidSetMirrorRouteTrafficPolicy = "SetMirrorRoute requires TrafficRouting, supports Istio only"
+	InvalidSetMirrorRouteTrafficPolicy = "SetMirrorRoute requires TrafficRouting, supports Traefik and Istio only"
 	// InvalidStringMatchMultipleValuePolicy indicates that SetCanaryScale, has multiple values set
 	InvalidStringMatchMultipleValuePolicy = "StringMatch match value must have exactly one of the following: exact, regex, prefix"
 	// InvalidStringMatchMissedValuePolicy indicates that SetCanaryScale, has multiple values set
@@ -323,7 +323,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 		if step.SetMirrorRoute != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
 			if trafficRouting == nil || !isTrafficMirrorSupportedForSelectedProvider(trafficRouting) {
-				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setMirrorRoute"), step.SetMirrorRoute, "SetMirrorRoute requires TrafficRouting, supports Traefik and Istio only"))
+				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setMirrorRoute"), step.SetMirrorRoute, InvalidSetMirrorRouteTrafficPolicy))
 			}
 			if step.SetMirrorRoute.Match != nil && len(step.SetMirrorRoute.Match) > 0 {
 				for j, match := range step.SetMirrorRoute.Match {
