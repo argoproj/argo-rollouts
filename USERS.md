@@ -20,6 +20,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [Gllue](https://gllue.com)
 1. [Ibotta](https://home.ibotta.com/)
 1. [Intuit](https://www.intuit.com/)
+1. [Lattice](https://www.lattice.com/)
 1. [New Relic](https://newrelic.com/)
 1. [Nitro](https://www.gonitro.com)
 1. [Nozzle](https://nozzle.io)
