@@ -6,7 +6,7 @@ require (
 	github.com/antonmedv/expr v1.13.0
 	github.com/argoproj/notifications-engine v0.4.1-0.20230712163936-39dfcb66f902
 	github.com/argoproj/pkg v0.13.6
-	github.com/aws/aws-sdk-go-v2 v1.20.1
+	github.com/aws/aws-sdk-go-v2 v1.20.2
 	github.com/aws/aws-sdk-go-v2/config v1.18.33
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.27.2
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.21.0
