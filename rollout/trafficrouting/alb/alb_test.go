@@ -1911,9 +1911,6 @@ func TestSetHeaderRouteWithDifferentHeaderNames(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, client.Actions(), 1)
 
-	// assert that the ingress has the correct annotation with one header match condition and two header values
-	// routes := ingressWrapper.
-
 	// no managed routes, no changes expected
 	err = r.RemoveManagedRoutes()
 	assert.Nil(t, err)
