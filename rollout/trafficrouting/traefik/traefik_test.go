@@ -12,6 +12,14 @@ import (
 )
 
 const (
+	stableServiceName     string = "stable-rollout"
+	fakeStableServiceName string = "fake-stable-rollout"
+	canaryServiceName     string = "canary-rollout"
+	fakeCanaryServiceName string = "fake-canary-rollout"
+	traefikServiceName    string = "mocks-service"
+)
+
+const (
 	mirrorTraefikService = `
 apiVersion: mocks.containo.us/v1alpha1
 kind: TraefikService
@@ -97,7 +105,7 @@ var (
 	}
 	mirrorList []interface{} = []interface{}{
 		map[string]interface{}{
-			"name": "canary-rollout",
+			"name": canaryServiceName,
 			"kind": "TraefikService",
 		},
 	}
@@ -112,18 +120,10 @@ var (
 	}
 	mirrorListWithFailedMirrorKindTypeAssertion []interface{} = []interface{}{
 		map[string]interface{}{
-			"name": "canary-rollout",
+			"name": canaryServiceName,
 			"kind": 12,
 		},
 	}
-)
-
-const (
-	stableServiceName     string = "stable-rollout"
-	fakeStableServiceName string = "fake-stable-rollout"
-	canaryServiceName     string = "canary-rollout"
-	fakeCanaryServiceName string = "fake-canary-rollout"
-	traefikServiceName    string = "mocks-service"
 )
 
 func TestNewDynamicClient(t *testing.T) {
