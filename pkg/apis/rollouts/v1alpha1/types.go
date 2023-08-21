@@ -374,7 +374,7 @@ type RolloutTrafficRouting struct {
 	Traefik *TraefikTrafficRouting `json:"traefik,omitempty" protobuf:"bytes,7,opt,name=traefik"`
 	// ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
 	// traffic router.
-	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
+	ManagedRoutes []ManagedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
 	// Apisix holds specific configuration to use Apisix to route traffic
 	Apisix *ApisixTrafficRouting `json:"apisix,omitempty" protobuf:"bytes,9,opt,name=apisix"`
 	// +kubebuilder:validation:Schemaless
@@ -384,7 +384,7 @@ type RolloutTrafficRouting struct {
 	Plugins map[string]json.RawMessage `json:"plugins,omitempty" protobuf:"bytes,10,opt,name=plugins"`
 }
 
-type MangedRoutes struct {
+type ManagedRoutes struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	//Possibly name for future use
 	//canaryRoute bool

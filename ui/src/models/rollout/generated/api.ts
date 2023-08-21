@@ -838,13 +838,13 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtua
 /**
  * 
  * @export
- * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ManagedRoutes
  */
-export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes {
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ManagedRoutes {
     /**
      * 
      * @type {string}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ManagedRoutes
      */
     name?: string;
 }
@@ -1622,10 +1622,10 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTraf
     traefik?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting;
     /**
      * ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream traffic router.
-     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes>}
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ManagedRoutes>}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutTrafficRouting
      */
-    managedRoutes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes>;
+    managedRoutes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ManagedRoutes>;
     /**
      * 
      * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ApisixTrafficRouting}

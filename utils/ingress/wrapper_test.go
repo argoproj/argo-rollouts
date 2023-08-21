@@ -398,7 +398,7 @@ func TestRemoveAnnotationBasedPath(t *testing.T) {
 }
 
 func TestSortHttpPaths(t *testing.T) {
-	managedRoutes := []v1alpha1.MangedRoutes{{Name: "route1"}, {Name: "route2"}, {Name: "route3"}}
+	managedRoutes := []v1alpha1.ManagedRoutes{{Name: "route1"}, {Name: "route2"}, {Name: "route3"}}
 	t.Run("v1 ingress, sort path", func(t *testing.T) {
 		ing := networkingIngressWithPath("action1", "route3", "route1", "route2")
 		ing.SortHttpPaths(managedRoutes)

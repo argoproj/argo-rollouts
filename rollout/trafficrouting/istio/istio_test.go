@@ -704,7 +704,7 @@ func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
 	client.ClearActions()
 
 	const headerName = "test-header-route"
-	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.ManagedRoutes{{
 		Name: headerName,
 	},
 	}...)
@@ -779,7 +779,7 @@ spec:
 	client.ClearActions()
 
 	const headerName = "test-header-route"
-	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.ManagedRoutes{{
 		Name: headerName,
 	},
 	}...)
@@ -820,7 +820,7 @@ func TestHttpReconcileHeaderRouteWithExtra(t *testing.T) {
 	client.ClearActions()
 
 	const headerName = "test-header-route"
-	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.ManagedRoutes{{
 		Name: headerName,
 	},
 	}...)
@@ -908,7 +908,7 @@ func TestHttpReconcileHeaderRouteWithExtra(t *testing.T) {
 
 func TestReconcileUpdateHeader(t *testing.T) {
 	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
-	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.MangedRoutes{
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.ManagedRoutes{
 		Name: "test-mirror-1",
 	})
 	AssertReconcileUpdateHeader(t, regularVsvc, ro)
@@ -2423,7 +2423,7 @@ func TestHttpReconcileMirrorRoute(t *testing.T) {
 		}},
 		Percentage: &percentage,
 	}
-	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.ManagedRoutes{{
 		Name: "test-mirror-1",
 	}, {
 		Name: "test-mirror-2",
@@ -2529,7 +2529,7 @@ func TestHttpReconcileMirrorRouteWithExtraFields(t *testing.T) {
 			},
 		}},
 	}
-	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.ManagedRoutes{{
 		Name: "test-mirror-1",
 	},
 	}...)
@@ -2599,7 +2599,7 @@ func TestHttpReconcileMirrorRouteOrder(t *testing.T) {
 		}},
 		Percentage: &percentage,
 	}
-	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.ManagedRoutes{{
 		Name: "test-mirror-2",
 	}, {
 		Name: "test-mirror-3",
@@ -2687,7 +2687,7 @@ func TestHttpReconcileMirrorRouteOrderSingleRouteNoName(t *testing.T) {
 		}},
 		Percentage: &percentage,
 	}
-	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.ManagedRoutes{{
 		Name: "test-mirror-2",
 	}, {
 		Name: "test-mirror-3",
@@ -2789,7 +2789,7 @@ spec:
 			},
 		}},
 	}
-	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.ManagedRoutes{{
 		Name: "test-mirror-1",
 	},
 	}...)
@@ -2829,7 +2829,7 @@ spec:
 
 func TestReconcileUpdateMirror(t *testing.T) {
 	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
-	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.MangedRoutes{
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.ManagedRoutes{
 		Name: "test-mirror-1",
 	})
 	AssertReconcileUpdateMirror(t, regularVsvc, ro)
@@ -2867,7 +2867,7 @@ func TestReconcileHeaderRouteAvoidDuplicates(t *testing.T) {
 	client.ClearActions()
 
 	const headerName = "test-header-route"
-	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.MangedRoutes{{
+	r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(r.rollout.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, []v1alpha1.ManagedRoutes{{
 		Name: headerName,
 	},
 	}...)

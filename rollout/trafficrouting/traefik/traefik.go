@@ -234,7 +234,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 	return err
 }
 
-func removeMirrors(mirrorList []interface{}, managedRouteList []v1alpha1.MangedRoutes) ([]interface{}, error) {
+func removeMirrors(mirrorList []interface{}, managedRouteList []v1alpha1.ManagedRoutes) ([]interface{}, error) {
 	updatedMirrorList := []interface{}{}
 	for _, mirror := range mirrorList {
 		typedMirror, ok := mirror.(map[string]interface{})
@@ -264,7 +264,7 @@ func getMirrorTraefikServiceName(traefikServiceName string) string {
 	return stringBuilder.String()
 }
 
-func containsManagedRouteName(managedRouteList []v1alpha1.MangedRoutes, name string) bool {
+func containsManagedRouteName(managedRouteList []v1alpha1.ManagedRoutes, name string) bool {
 	for _, managedRoute := range managedRouteList {
 		if managedRoute.Name == name {
 			return true

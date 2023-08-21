@@ -90,7 +90,7 @@ metadata:
 var (
 	client *mocks.FakeClient = &mocks.FakeClient{}
 
-	managedRouteList []v1alpha1.MangedRoutes = []v1alpha1.MangedRoutes{
+	managedRouteList []v1alpha1.ManagedRoutes = []v1alpha1.ManagedRoutes{
 		{
 			Name: "test-rollout",
 		},
@@ -365,7 +365,6 @@ func TestSetMirrorRoute(t *testing.T) {
 		// Then
 		assert.Error(t, err)
 	})
-
 	t.Run("SetMirrorRouteWithNotFoundField", func(t *testing.T) {
 		// Given
 		t.Parallel()
@@ -670,7 +669,7 @@ func newRollout(stableSvc, canarySvc, traefikServiceName string) *v1alpha1.Rollo
 					StableService: stableSvc,
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
-						ManagedRoutes: []v1alpha1.MangedRoutes{
+						ManagedRoutes: []v1alpha1.ManagedRoutes{
 							{
 								Name: canaryServiceName,
 							},

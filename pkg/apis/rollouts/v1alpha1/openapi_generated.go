@@ -85,7 +85,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaMetric":                                   schema_pkg_apis_rollouts_v1alpha1_KayentaMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaScope":                                    schema_pkg_apis_rollouts_v1alpha1_KayentaScope(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.KayentaThreshold":                                schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MangedRoutes":                                    schema_pkg_apis_rollouts_v1alpha1_MangedRoutes(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ManagedRoutes":                                   schema_pkg_apis_rollouts_v1alpha1_ManagedRoutes(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Measurement":                                     schema_pkg_apis_rollouts_v1alpha1_Measurement(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MeasurementRetention":                            schema_pkg_apis_rollouts_v1alpha1_MeasurementRetention(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric":                                          schema_pkg_apis_rollouts_v1alpha1_Metric(ref),
@@ -2737,7 +2737,7 @@ func schema_pkg_apis_rollouts_v1alpha1_KayentaThreshold(ref common.ReferenceCall
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_MangedRoutes(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_rollouts_v1alpha1_ManagedRoutes(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -4564,7 +4564,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MangedRoutes"),
+										Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ManagedRoutes"),
 									},
 								},
 							},
@@ -4595,7 +4595,7 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MangedRoutes", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TraefikTrafficRouting"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ALBTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AmbassadorTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ApisixTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.IstioTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ManagedRoutes", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.SMITrafficRouting", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TraefikTrafficRouting"},
 	}
 }
 

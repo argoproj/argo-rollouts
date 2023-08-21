@@ -884,7 +884,7 @@ message KayentaThreshold {
   optional int64 marginal = 2;
 }
 
-message MangedRoutes {
+message ManagedRoutes {
   optional string name = 1;
 }
 
@@ -1538,7 +1538,7 @@ message RolloutTrafficRouting {
 
   // ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
   // traffic router.
-  repeated MangedRoutes managedRoutes = 8;
+  repeated ManagedRoutes managedRoutes = 8;
 
   // Apisix holds specific configuration to use Apisix to route traffic
   optional ApisixTrafficRouting apisix = 9;

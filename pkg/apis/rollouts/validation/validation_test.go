@@ -363,7 +363,7 @@ func TestValidateRolloutStrategyCanarySetHeaderRouteIstio(t *testing.T) {
 				},
 			},
 		}}
-		invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.MangedRoutes{
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.ManagedRoutes{
 			Name: "not-in-steps",
 		})
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
@@ -532,7 +532,7 @@ func TestValidateRolloutStrategyCanarySetMirrorRouteIstio(t *testing.T) {
 				Percentage: nil,
 			},
 		}}
-		invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.MangedRoutes{
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.ManagedRoutes{
 			Name: "not-in-steps",
 		})
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
@@ -555,7 +555,7 @@ func TestValidateRolloutStrategyCanarySetMirrorRouteIstio(t *testing.T) {
 				Percentage: nil,
 			},
 		}}
-		invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.MangedRoutes{
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.ManagedRoutes{
 			Name: "test-mirror-1",
 		})
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))

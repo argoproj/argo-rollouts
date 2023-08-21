@@ -401,7 +401,7 @@ func isTrafficMirrorSupportedForSelectedProvider(trafficRouting *v1alpha1.Rollou
 	return trafficRouting.Istio != nil || trafficRouting.Traefik != nil
 }
 
-func ValidateStepRouteFoundInManagedRoute(stepFldPath *field.Path, stepRoutName string, roManagedRoutes []v1alpha1.MangedRoutes) field.ErrorList {
+func ValidateStepRouteFoundInManagedRoute(stepFldPath *field.Path, stepRoutName string, roManagedRoutes []v1alpha1.ManagedRoutes) field.ErrorList {
 	allErrs := field.ErrorList{}
 	found := false
 	for _, managedRoute := range roManagedRoutes {
