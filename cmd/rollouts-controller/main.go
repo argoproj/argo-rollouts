@@ -165,7 +165,7 @@ func newCommand() *cobra.Command {
 				resyncDuration,
 				kubeinformers.WithNamespace(notificationConfigNamespace),
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
-					options.Kind = "Secrete"
+					options.Kind = "Secret"
 					options.FieldSelector = fmt.Sprintf("metadata.name=%s", record.NotificationSecret)
 				}),
 			)
