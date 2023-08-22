@@ -57,6 +57,7 @@ For these reasons, in large scale high-volume production environments, a rolling
 | Nginx Ingress Controller          | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |
 | SMI                               | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :x:                        |
 | Traefik                           | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        |
+| Contour                           | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        |
 
 :white_check_mark: = Supported
 
