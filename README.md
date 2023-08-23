@@ -48,20 +48,22 @@ For these reasons, in large scale high-volume production environments, a rolling
 * Metric provider integration: Prometheus, Wavefront, Kayenta, Web, Kubernetes Jobs, Datadog, New Relic, InfluxDB
 
 ## Supported Traffic Shaping Integrations
-| Traffic Shaping Integration       | SetWeight                    | SetWeightExperiments        | SetMirror                  | SetHeader                  |
-|-----------------------------------|------------------------------|-----------------------------|----------------------------|----------------------------|
-| ALB Ingress Controller            | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :white_check_mark: (alpha) |
-| Ambassador                        | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |
-| Apache APISIX Ingress Controller  | :white_check_mark: (alpha)   | :x:                         | :x:                        | :white_check_mark: (alpha)                        |
-| Istio                             | :white_check_mark: (stable)  | :white_check_mark: (stable) | :white_check_mark: (alpha) | :white_check_mark: (alpha) |
-| Nginx Ingress Controller          | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |
-| SMI                               | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :x:                        |
-| Traefik                           | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        |
-| Contour                           | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        |
+| Traffic Shaping Integration       | SetWeight                    | SetWeightExperiments        | SetMirror                  | SetHeader                  | Implemented As Plugin       |
+|-----------------------------------|------------------------------|-----------------------------|----------------------------|----------------------------|-----------------------------|
+| ALB Ingress Controller            | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :white_check_mark: (alpha) |                             |
+| Ambassador                        | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |                             |
+| Apache APISIX Ingress Controller  | :white_check_mark: (alpha)   | :x:                         | :x:                        | :white_check_mark: (alpha) |                             |
+| Istio                             | :white_check_mark: (stable)  | :white_check_mark: (stable) | :white_check_mark: (alpha) | :white_check_mark: (alpha) |                             |
+| Nginx Ingress Controller          | :white_check_mark: (stable)  | :x:                         | :x:                        | :x:                        |                             |
+| SMI                               | :white_check_mark: (stable)  | :white_check_mark: (stable) | :x:                        | :x:                        |                             |
+| Traefik                           | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        |                             |
+| Contour                           | :white_check_mark: (beta)    | :x:                         | :x:                        | :x:                        | :heavy_check_mark:          |
 
 :white_check_mark: = Supported
 
 :x: = Not Supported
+
+:heavy_check_mark: = Yes
 
 ## Documentation
 
