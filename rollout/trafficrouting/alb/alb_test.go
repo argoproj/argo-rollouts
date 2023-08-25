@@ -1866,6 +1866,108 @@ func TestSetHeaderRoute(t *testing.T) {
 	assert.Len(t, client.Actions(), 1)
 }
 
+func TestSetHeaderRouteWithDifferentHeaderNames(t *testing.T) {
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
+
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	client := fake.NewSimpleClientset(i)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName: "origin",
+				HeaderValue: &v1alpha1.StringMatch{
+					Exact: "https://www.fake-origin1.com",
+				},
+			},
+			{
+				HeaderName: "Agent",
+				HeaderValue: &v1alpha1.StringMatch{
+					Exact: "Chrome",
+				},
+			},
+		},
+	})
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+
+	// no managed routes, no changes expected
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+}
+
+func TestSetHeaderRouteWithDuplicateHeaderNameMatches(t *testing.T) {
+	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+		{Name: "header-route"},
+	}
+
+	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
+	client := fake.NewSimpleClientset(i)
+	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
+	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := NewReconciler(ReconcilerConfig{
+		Rollout:        ro,
+		Client:         client,
+		Recorder:       record.NewFakeEventRecorder(),
+		ControllerKind: schema.GroupVersionKind{Group: "foo", Version: "v1", Kind: "Bar"},
+		IngressWrapper: ingressWrapper,
+	})
+	assert.NoError(t, err)
+
+	err = r.SetHeaderRoute(&v1alpha1.SetHeaderRoute{
+		Name: "header-route",
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName: "origin",
+				HeaderValue: &v1alpha1.StringMatch{
+					Exact: "https://www.fake-origin1.com",
+				},
+			},
+			{
+				HeaderName: "origin",
+				HeaderValue: &v1alpha1.StringMatch{
+					Exact: "https://www.fake-origin2.com",
+				},
+			},
+		},
+	})
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+
+	// no managed routes, no changes expected
+	err = r.RemoveManagedRoutes()
+	assert.Nil(t, err)
+	assert.Len(t, client.Actions(), 1)
+}
+
 func TestSetHeaderRouteMultiIngress(t *testing.T) {
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
 	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{

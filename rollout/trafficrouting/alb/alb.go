@@ -515,17 +515,28 @@ func getTrafficForwardActionString(r *v1alpha1.Rollout, port int32) (string, err
 	return string(bytes), nil
 }
 
+// Two exact matches with the same header name should be merged into the values array of the same condition
+func upsertCondition(res []ingressutil.ALBCondition, match v1alpha1.HeaderRoutingMatch) []ingressutil.ALBCondition {
+	for i, condition := range res {
+		if condition.HttpHeaderConfig.HttpHeaderName == match.HeaderName {
+			res[i].HttpHeaderConfig.Values = append(res[i].HttpHeaderConfig.Values, match.HeaderValue.Exact)
+			return res
+		}
+	}
+	condition := ingressutil.ALBCondition{
+		Field: "http-header",
+		HttpHeaderConfig: ingressutil.HttpHeaderConfig{
+			HttpHeaderName: match.HeaderName,
+			Values:         []string{match.HeaderValue.Exact},
+		},
+	}
+	return append(res, condition)
+}
+
 func getTrafficForwardConditionString(headerRoute *v1alpha1.SetHeaderRoute) (string, error) {
 	var res []ingressutil.ALBCondition
 	for _, match := range headerRoute.Match {
-		condition := ingressutil.ALBCondition{
-			Field: "http-header",
-			HttpHeaderConfig: ingressutil.HttpHeaderConfig{
-				HttpHeaderName: match.HeaderName,
-				Values:         []string{match.HeaderValue.Exact},
-			},
-		}
-		res = append(res, condition)
+		res = upsertCondition(res, match)
 	}
 	bytes := jsonutil.MustMarshal(res)
 	return string(bytes), nil
