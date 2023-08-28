@@ -52,7 +52,7 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 
 	if t.pluginClient[pluginName] == nil || t.pluginClient[pluginName].Exited() {
 
-		pluginPath, err := plugin.GetPluginLocation(pluginName)
+		pluginPath, args, err := plugin.GetPluginInfo(pluginName)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
@@ -60,7 +60,7 @@ func (t *trafficPlugin) startPlugin(pluginName string) (rpc.TrafficRouterPlugin,
 		t.pluginClient[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
 			HandshakeConfig: handshakeConfig,
 			Plugins:         pluginMap,
-			Cmd:             exec.Command(pluginPath),
+			Cmd:             exec.Command(pluginPath, args...),
 			Managed:         true,
 		})
 
