@@ -1868,7 +1868,7 @@ func TestSetHeaderRoute(t *testing.T) {
 
 func TestSetHeaderRouteWithDifferentHeaderNames(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
-	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.ManagedRoutes{
 		{Name: "header-route"},
 	}
 
@@ -1919,7 +1919,7 @@ func TestSetHeaderRouteWithDifferentHeaderNames(t *testing.T) {
 
 func TestSetHeaderRouteWithDuplicateHeaderNameMatches(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
-	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.ManagedRoutes{
 		{Name: "header-route"},
 	}
 

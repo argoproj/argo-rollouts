@@ -101,7 +101,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 			ClientSet: traefik.ClientSet{
 				TraefikServiceClient: traefik.NewDynamicClient(c.dynamicclientset, traefik.TraefikServices, resourceNamespace),
 				IngressRouteClient:   traefik.NewDynamicClient(c.dynamicclientset, traefik.IngressRoutes, resourceNamespace),
-				ServiceClient: c.kubeclientset.CoreV1().Services(resourceNamespace),
+				ServiceClient:        c.kubeclientset.CoreV1().Services(resourceNamespace),
 			},
 			Recorder: c.recorder,
 		}))

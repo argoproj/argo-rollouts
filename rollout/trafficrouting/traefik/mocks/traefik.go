@@ -109,7 +109,6 @@ func (f *FakeIngressRouteClient) Update(ctx context.Context, obj *unstructured.U
 	return nil, nil
 }
 
-
 func (f *FakeTraefikServiceClient) UpdateStatus(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions) (*unstructured.Unstructured, error) {
 	return nil, nil
 }

@@ -100,33 +100,6 @@ var (
 		IngressRouteClient:   &mocks.FakeIngressRouteClient{},
 		ServiceClient:        &mocks.FakeServiceClient{},
 	}
-
-	managedRouteList []v1alpha1.ManagedRoutes = []v1alpha1.ManagedRoutes{
-		{
-			Name: "test-rollout",
-		},
-	}
-	mirrorList []interface{} = []interface{}{
-		map[string]interface{}{
-			"name": canaryServiceName,
-			"kind": "TraefikService",
-		},
-	}
-	mirrorListWithFailedMirrorTypeAssertion []interface{} = []interface{}{
-		"error-mirror",
-	}
-	mirrorListWithFailedMirrorNameTypeAssertion []interface{} = []interface{}{
-		map[string]interface{}{
-			"name": 12,
-			"kind": "TraefikService",
-		},
-	}
-	mirrorListWithFailedMirrorKindTypeAssertion []interface{} = []interface{}{
-		map[string]interface{}{
-			"name": canaryServiceName,
-			"kind": 12,
-		},
-	}
 )
 
 func TestNewDynamicClient(t *testing.T) {
