@@ -1002,6 +1002,16 @@
         }
       }
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IngressRoute": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name field refers to the IngressRoute name"
+        }
+      },
+      "title": "IngressRoute struct holds the info about IngressRoute"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IstioDestinationRule": {
       "type": "object",
       "properties": {
@@ -1852,7 +1862,18 @@
       "properties": {
         "weightedTraefikServiceName": {
           "type": "string",
-          "title": "TraefikServiceName refer to the name of the Traefik service used to route traffic to the service"
+          "title": "TraefikServiceName field refers to the name of the Traefik service used to route traffic to the service"
+        },
+        "ingressRoutes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IngressRoute"
+          },
+          "title": "IngressRoutes field refers to the IngressRoute names that are used to detect the highest priority in the cluster\n+patchMergeKey=name\n+patchStrategy=merge\n+optional"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace field refers to the namespace where Argo Rollouts works with Traefik resources\n+optional"
         }
       },
       "title": "TraefikTrafficRouting defines the configuration required to use Traefik as traffic router"

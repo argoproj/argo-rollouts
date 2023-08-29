@@ -757,6 +757,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRouti
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IngressRoute
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IngressRoute {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IngressRoute
+     */
+    name?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioDestinationRule {
@@ -1853,6 +1866,18 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTraf
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting
      */
     weightedTraefikServiceName?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IngressRoute>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting
+     */
+    ingressRoutes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IngressRoute>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TraefikTrafficRouting
+     */
+    namespace?: string;
 }
 /**
  * 

@@ -392,8 +392,22 @@ type ManagedRoutes struct {
 
 // TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
 type TraefikTrafficRouting struct {
-	// TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
+	// TraefikServiceName field refers to the name of the Traefik service used to route traffic to the service
 	WeightedTraefikServiceName string `json:"weightedTraefikServiceName" protobuf:"bytes,1,name=weightedTraefikServiceName"`
+	// IngressRoutes field refers to the IngressRoute names that are used to detect the highest priority in the cluster
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	// +optional
+	IngressRoutes []IngressRoute `json:"ingressRoutes,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,2,rep,name=ingressRoutes"`
+	// Namespace field refers to the namespace where Argo Rollouts works with Traefik resources
+	// +optional
+	Namespace string `json:"namespace,omitempty" protobuf:"string,3,opt,name=namespace"`
+}
+
+// IngressRoute struct holds the info about IngressRoute
+type IngressRoute struct {
+	// Name field refers to the IngressRoute name
+	Name string `json:"name" protobuf:"bytes,1,name=name"`
 }
 
 // ApisixTrafficRouting defines the configuration required to use APISIX as traffic router
