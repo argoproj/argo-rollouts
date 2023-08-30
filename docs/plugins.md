@@ -46,14 +46,20 @@ data:
   metricProviderPlugins: |-
     - name: "argoproj-labs/metrics"
       location: "file:///tmp/argo-rollouts/metric-plugin"
+      args:
+        - "--log-level"
+        - "debug"
   trafficRouterPlugins: |-
     - name: "argoproj-labs/nginx"
       location: "file:///tmp/argo-rollouts/traffic-plugin"
+      args:
+        - "--log-level"
+        - "debug"
 ```
 
 As you can see there is a field called `name:` under both `metrics` or `trafficrouters` this is the first place where your
-end users will need to configure the name of the plugin. The second location is either in the rollout object or the analysis
-template which you can see the examples below.
+end users will need to configure the name of the plugin. The second `location` is either in the rollout object or the analysis
+template which you can see the examples below. The third `args` holds the command line arguments of the plugin.
 
 #### AnalysisTemplate Example
 ```yaml
