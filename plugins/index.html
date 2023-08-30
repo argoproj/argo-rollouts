@@ -3312,13 +3312,19 @@ It looks like this below.</p>
 <span class="w">  </span><span class="nt">metricProviderPlugins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|-</span>
 <span class="w">    </span><span class="no">- name: &quot;argoproj-labs/metrics&quot;</span>
 <span class="w">      </span><span class="no">location: &quot;file:///tmp/argo-rollouts/metric-plugin&quot;</span>
+<span class="w">      </span><span class="no">args:</span>
+<span class="w">        </span><span class="no">- &quot;--log-level&quot;</span>
+<span class="w">        </span><span class="no">- &quot;debug&quot;</span>
 <span class="w">  </span><span class="nt">trafficRouterPlugins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|-</span>
 <span class="w">    </span><span class="no">- name: &quot;argoproj-labs/nginx&quot;</span>
 <span class="w">      </span><span class="no">location: &quot;file:///tmp/argo-rollouts/traffic-plugin&quot;</span>
+<span class="w">      </span><span class="no">args:</span>
+<span class="w">        </span><span class="no">- &quot;--log-level&quot;</span>
+<span class="w">        </span><span class="no">- &quot;debug&quot;</span>
 </code></pre></div>
 <p>As you can see there is a field called <code>name:</code> under both <code>metrics</code> or <code>trafficrouters</code> this is the first place where your
-end users will need to configure the name of the plugin. The second location is either in the rollout object or the analysis
-template which you can see the examples below.</p>
+end users will need to configure the name of the plugin. The second <code>location</code> is either in the rollout object or the analysis
+template which you can see the examples below. The third <code>args</code> holds the command line arguments of the plugin.</p>
 <h4 id="analysistemplate-example">AnalysisTemplate Example<a class="headerlink" href="#analysistemplate-example" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
