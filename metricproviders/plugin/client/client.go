@@ -54,7 +54,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricProv
 	// There should only ever be one plugin defined in metric.Provider.Plugin per analysis template this gets checked
 	// during validation
 	for pluginName := range metric.Provider.Plugin {
-		pluginPath, err := plugin.GetPluginLocation(pluginName)
+		pluginPath, args, err := plugin.GetPluginInfo(pluginName)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find plugin (%s): %w", pluginName, err)
 		}
@@ -64,7 +64,7 @@ func (m *metricPlugin) startPluginSystem(metric v1alpha1.Metric) (rpc.MetricProv
 			m.pluginClient[pluginName] = goPlugin.NewClient(&goPlugin.ClientConfig{
 				HandshakeConfig: handshakeConfig,
 				Plugins:         pluginMap,
-				Cmd:             exec.Command(pluginPath),
+				Cmd:             exec.Command(pluginPath, args...),
 				Managed:         true,
 			})
 
