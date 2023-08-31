@@ -13,3 +13,8 @@ var Now = time.Now
 var MetaNow = func() metav1.Time {
 	return metav1.Time{Time: Now()}
 }
+
+// MetaTime is a wrapper around metav1.Time and used to override behavior in tests.
+var MetaTime = func(time time.Time) metav1.Time {
+	return metav1.Time{Time: time}
+}
