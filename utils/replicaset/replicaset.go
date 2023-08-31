@@ -341,6 +341,15 @@ func FindActiveOrLatest(newRS *appsv1.ReplicaSet, oldRSs []*appsv1.ReplicaSet) *
 	}
 }
 
+// IsActive returns if replica set is active (has, or at least ought to have pods).
+func IsActive(rs *appsv1.ReplicaSet) bool {
+	if rs == nil {
+		return false
+	}
+
+	return len(controller.FilterActiveReplicaSets([]*appsv1.ReplicaSet{rs})) > 0
+}
+
 // GetReplicaCountForReplicaSets returns the sum of Replicas of the given replica sets.
 func GetReplicaCountForReplicaSets(replicaSets []*appsv1.ReplicaSet) int32 {
 	totalReplicas := int32(0)

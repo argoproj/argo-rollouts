@@ -153,6 +153,18 @@ func TestFindOldReplicaSets(t *testing.T) {
 	}
 }
 
+func TestIsActive(t *testing.T) {
+	rs1 := generateRS(generateRollout("foo"))
+	*(rs1.Spec.Replicas) = 1
+
+	rs2 := generateRS(generateRollout("foo"))
+	*(rs2.Spec.Replicas) = 0
+
+	assert.False(t, IsActive(nil))
+	assert.True(t, IsActive(&rs1))
+	assert.False(t, IsActive(&rs2))
+}
+
 func TestGetReplicaCountForReplicaSets(t *testing.T) {
 	rs1 := generateRS(generateRollout("foo"))
 	*(rs1.Spec.Replicas) = 1
