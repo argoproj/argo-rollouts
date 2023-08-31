@@ -2,7 +2,7 @@
 
 Argo Rollouts provides several ways to perform analysis to drive progressive delivery.
 This document describes how to achieve various forms of progressive delivery, varying the point in
-time analysis is performed, it's frequency, and occurrence.
+time analysis is performed, its frequency, and occurrence.
 
 ## Custom Resource Definitions
 
