@@ -48,7 +48,7 @@ func NewAnalysisTemplateLister(indexer cache.Indexer) AnalysisTemplateLister {
 
 // List lists all AnalysisTemplates in the indexer.
 func (s *analysisTemplateLister) List(selector labels.Selector) (ret []*v1alpha1.AnalysisTemplate, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m any) {
+	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.AnalysisTemplate))
 	})
 	return ret, err
@@ -80,7 +80,7 @@ type analysisTemplateNamespaceLister struct {
 
 // List lists all AnalysisTemplates in the indexer for a given namespace.
 func (s analysisTemplateNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.AnalysisTemplate, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m any) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.AnalysisTemplate))
 	})
 	return ret, err

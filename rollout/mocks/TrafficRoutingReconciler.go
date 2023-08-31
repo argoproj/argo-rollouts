@@ -57,11 +57,11 @@ func (_m *TrafficRoutingReconciler) SetMirrorRoute(setMirrorRoute *v1alpha1.SetM
 
 // SetWeight provides a mock function with given fields: desiredWeight, additionalDestinations
 func (_m *TrafficRoutingReconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
-	_va := make([]any, len(additionalDestinations))
+	_va := make([]interface{}, len(additionalDestinations))
 	for _i := range additionalDestinations {
 		_va[_i] = additionalDestinations[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, desiredWeight)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -92,11 +92,11 @@ func (_m *TrafficRoutingReconciler) Type() string {
 
 // UpdateHash provides a mock function with given fields: canaryHash, stableHash, additionalDestinations
 func (_m *TrafficRoutingReconciler) UpdateHash(canaryHash string, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
-	_va := make([]any, len(additionalDestinations))
+	_va := make([]interface{}, len(additionalDestinations))
 	for _i := range additionalDestinations {
 		_va[_i] = additionalDestinations[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, canaryHash, stableHash)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -113,11 +113,11 @@ func (_m *TrafficRoutingReconciler) UpdateHash(canaryHash string, stableHash str
 
 // VerifyWeight provides a mock function with given fields: desiredWeight, additionalDestinations
 func (_m *TrafficRoutingReconciler) VerifyWeight(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) (*bool, error) {
-	_va := make([]any, len(additionalDestinations))
+	_va := make([]interface{}, len(additionalDestinations))
 	for _i := range additionalDestinations {
 		_va[_i] = additionalDestinations[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, desiredWeight)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)

@@ -48,7 +48,7 @@ func NewRolloutLister(indexer cache.Indexer) RolloutLister {
 
 // List lists all Rollouts in the indexer.
 func (s *rolloutLister) List(selector labels.Selector) (ret []*v1alpha1.Rollout, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m any) {
+	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.Rollout))
 	})
 	return ret, err
@@ -80,7 +80,7 @@ type rolloutNamespaceLister struct {
 
 // List lists all Rollouts in the indexer for a given namespace.
 func (s rolloutNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.Rollout, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m any) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.Rollout))
 	})
 	return ret, err

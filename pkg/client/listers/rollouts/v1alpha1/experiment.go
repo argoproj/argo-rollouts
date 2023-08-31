@@ -48,7 +48,7 @@ func NewExperimentLister(indexer cache.Indexer) ExperimentLister {
 
 // List lists all Experiments in the indexer.
 func (s *experimentLister) List(selector labels.Selector) (ret []*v1alpha1.Experiment, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m any) {
+	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.Experiment))
 	})
 	return ret, err
@@ -80,7 +80,7 @@ type experimentNamespaceLister struct {
 
 // List lists all Experiments in the indexer for a given namespace.
 func (s experimentNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.Experiment, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m any) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.Experiment))
 	})
 	return ret, err

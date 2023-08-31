@@ -48,7 +48,7 @@ func NewAnalysisRunLister(indexer cache.Indexer) AnalysisRunLister {
 
 // List lists all AnalysisRuns in the indexer.
 func (s *analysisRunLister) List(selector labels.Selector) (ret []*v1alpha1.AnalysisRun, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m any) {
+	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.AnalysisRun))
 	})
 	return ret, err
@@ -80,7 +80,7 @@ type analysisRunNamespaceLister struct {
 
 // List lists all AnalysisRuns in the indexer for a given namespace.
 func (s analysisRunNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.AnalysisRun, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m any) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.AnalysisRun))
 	})
 	return ret, err

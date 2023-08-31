@@ -14196,7 +14196,7 @@ func (this *WeightDestination) String() string {
 	}, "")
 	return s
 }
-func valueToStringGenerated(v any) string {
+func valueToStringGenerated(v interface{}) string {
 	rv := reflect.ValueOf(v)
 	if rv.IsNil() {
 		return "nil"

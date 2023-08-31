@@ -49,7 +49,7 @@ func NewClusterAnalysisTemplateLister(indexer cache.Indexer) ClusterAnalysisTemp
 
 // List lists all ClusterAnalysisTemplates in the indexer.
 func (s *clusterAnalysisTemplateLister) List(selector labels.Selector) (ret []*v1alpha1.ClusterAnalysisTemplate, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m any) {
+	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
 		ret = append(ret, m.(*v1alpha1.ClusterAnalysisTemplate))
 	})
 	return ret, err

@@ -16,11 +16,11 @@ type ELBv2APIClient struct {
 
 // DescribeListeners provides a mock function with given fields: _a0, _a1, _a2
 func (_m *ELBv2APIClient) DescribeListeners(_a0 context.Context, _a1 *elasticloadbalancingv2.DescribeListenersInput, _a2 ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeListenersOutput, error) {
-	_va := make([]any, len(_a2))
+	_va := make([]interface{}, len(_a2))
 	for _i := range _a2 {
 		_va[_i] = _a2[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, _a0, _a1)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -49,11 +49,11 @@ func (_m *ELBv2APIClient) DescribeListeners(_a0 context.Context, _a1 *elasticloa
 
 // DescribeLoadBalancers provides a mock function with given fields: _a0, _a1, _a2
 func (_m *ELBv2APIClient) DescribeLoadBalancers(_a0 context.Context, _a1 *elasticloadbalancingv2.DescribeLoadBalancersInput, _a2 ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeLoadBalancersOutput, error) {
-	_va := make([]any, len(_a2))
+	_va := make([]interface{}, len(_a2))
 	for _i := range _a2 {
 		_va[_i] = _a2[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, _a0, _a1)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -82,11 +82,11 @@ func (_m *ELBv2APIClient) DescribeLoadBalancers(_a0 context.Context, _a1 *elasti
 
 // DescribeRules provides a mock function with given fields: ctx, params, optFns
 func (_m *ELBv2APIClient) DescribeRules(ctx context.Context, params *elasticloadbalancingv2.DescribeRulesInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeRulesOutput, error) {
-	_va := make([]any, len(optFns))
+	_va := make([]interface{}, len(optFns))
 	for _i := range optFns {
 		_va[_i] = optFns[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, params)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -115,11 +115,11 @@ func (_m *ELBv2APIClient) DescribeRules(ctx context.Context, params *elasticload
 
 // DescribeTags provides a mock function with given fields: ctx, params, optFns
 func (_m *ELBv2APIClient) DescribeTags(ctx context.Context, params *elasticloadbalancingv2.DescribeTagsInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeTagsOutput, error) {
-	_va := make([]any, len(optFns))
+	_va := make([]interface{}, len(optFns))
 	for _i := range optFns {
 		_va[_i] = optFns[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, params)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -148,11 +148,11 @@ func (_m *ELBv2APIClient) DescribeTags(ctx context.Context, params *elasticloadb
 
 // DescribeTargetGroups provides a mock function with given fields: _a0, _a1, _a2
 func (_m *ELBv2APIClient) DescribeTargetGroups(_a0 context.Context, _a1 *elasticloadbalancingv2.DescribeTargetGroupsInput, _a2 ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeTargetGroupsOutput, error) {
-	_va := make([]any, len(_a2))
+	_va := make([]interface{}, len(_a2))
 	for _i := range _a2 {
 		_va[_i] = _a2[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, _a0, _a1)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -181,11 +181,11 @@ func (_m *ELBv2APIClient) DescribeTargetGroups(_a0 context.Context, _a1 *elastic
 
 // DescribeTargetHealth provides a mock function with given fields: ctx, params, optFns
 func (_m *ELBv2APIClient) DescribeTargetHealth(ctx context.Context, params *elasticloadbalancingv2.DescribeTargetHealthInput, optFns ...func(*elasticloadbalancingv2.Options)) (*elasticloadbalancingv2.DescribeTargetHealthOutput, error) {
-	_va := make([]any, len(optFns))
+	_va := make([]interface{}, len(optFns))
 	for _i := range optFns {
 		_va[_i] = optFns[_i]
 	}
-	var _ca []any
+	var _ca []interface{}
 	_ca = append(_ca, ctx, params)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
