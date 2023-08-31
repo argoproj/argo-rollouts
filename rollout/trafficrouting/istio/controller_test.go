@@ -45,7 +45,7 @@ func NewFakeIstioController(objs ...runtime.Object) *IstioController {
 	c := NewIstioController(IstioControllerConfig{
 		ArgoprojClientSet:       rolloutClient,
 		DynamicClientSet:        dynamicClientSet,
-		EnqueueRollout:          func(ro interface{}) {},
+		EnqueueRollout:          func(ro any) {},
 		RolloutsInformer:        rolloutInformerFactory.Argoproj().V1alpha1().Rollouts(),
 		VirtualServiceInformer:  virtualServiceInformer,
 		DestinationRuleInformer: destinationRuleInformer,
@@ -178,7 +178,7 @@ spec:
 		key, err := cache.MetaNamespaceKeyFunc(destRule)
 		assert.NoError(t, err)
 		enqueueCalled := false
-		c.EnqueueRollout = func(obj interface{}) {
+		c.EnqueueRollout = func(obj any) {
 			enqueueCalled = true
 		}
 
@@ -199,7 +199,7 @@ spec:
 		key, err := cache.MetaNamespaceKeyFunc(destRule)
 		assert.NoError(t, err)
 		enqueueCalled := false
-		c.EnqueueRollout = func(obj interface{}) {
+		c.EnqueueRollout = func(obj any) {
 			enqueueCalled = true
 		}
 
@@ -219,7 +219,7 @@ spec:
 		key, err := cache.MetaNamespaceKeyFunc(destRule)
 		assert.NoError(t, err)
 		enqueueCalled := false
-		c.EnqueueRollout = func(obj interface{}) {
+		c.EnqueueRollout = func(obj any) {
 			enqueueCalled = true
 		}
 

@@ -35,10 +35,10 @@ var (
 	ErrorTraefikServiceObj *unstructured.Unstructured
 )
 
-func (f *FakeRecorder) Eventf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...interface{}) {
+func (f *FakeRecorder) Eventf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...any) {
 }
 
-func (f *FakeRecorder) Warnf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...interface{}) {
+func (f *FakeRecorder) Warnf(object runtime.Object, opts argoRecord.EventOptions, messageFmt string, args ...any) {
 }
 
 func (f *FakeRecorder) K8sRecorder() record.EventRecorder {

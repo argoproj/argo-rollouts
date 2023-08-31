@@ -62,7 +62,7 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 		serviceLister,
 		record.NewFakeEventRecorder(),
 		noResyncPeriodFunc(),
-		func(obj interface{}, duration time.Duration) {},
+		func(obj any, duration time.Duration) {},
 	)
 }
 
@@ -302,7 +302,7 @@ func TestDontRequeueWithoutDuration(t *testing.T) {
 	fakeClient := exCtx.kubeclientset.(*k8sfake.Clientset)
 	fakeClient.Tracker().Add(rs1)
 	enqueueCalled := false
-	exCtx.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
+	exCtx.enqueueExperimentAfter = func(obj any, duration time.Duration) {
 		enqueueCalled = true
 	}
 	newStatus := exCtx.reconcile()
@@ -325,7 +325,7 @@ func TestRequeueAfterDuration(t *testing.T) {
 		"bar": rs1,
 	}
 	enqueueCalled := false
-	exCtx.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
+	exCtx.enqueueExperimentAfter = func(obj any, duration time.Duration) {
 		enqueueCalled = true
 		// ensures we are enqueued around ~20 seconds
 		twentySeconds := time.Second * time.Duration(20)
@@ -352,7 +352,7 @@ func TestRequeueAfterProgressDeadlineSeconds(t *testing.T) {
 		"bar": rs1,
 	}
 	enqueueCalled := false
-	exCtx.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
+	exCtx.enqueueExperimentAfter = func(obj any, duration time.Duration) {
 		enqueueCalled = true
 		// ensures we are enqueued around 10 minutes
 		tenMinutes := time.Second * time.Duration(600)

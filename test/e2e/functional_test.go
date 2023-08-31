@@ -1313,7 +1313,7 @@ spec:
 			if err != nil {
 				return err
 			}
-			containers[0] = map[string]interface{}{
+			containers[0] = map[string]any{
 				"name":  "rollouts-demo",
 				"image": "argoproj/rollouts-demo:error",
 			}
@@ -1333,7 +1333,7 @@ spec:
 			if err != nil {
 				return err
 			}
-			containers[0] = map[string]interface{}{
+			containers[0] = map[string]any{
 				"name":  "rollouts-demo",
 				"image": "argoproj/rollouts-demo:blue",
 			}

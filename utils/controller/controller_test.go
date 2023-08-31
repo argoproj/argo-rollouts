@@ -169,7 +169,7 @@ func TestEnqueueParentObjectInvalidObject(t *testing.T) {
 		errorMessages = append(errorMessages, err)
 	})
 	invalidObject := "invalid-object"
-	enqueueFunc := func(obj interface{}) {}
+	enqueueFunc := func(obj any) {}
 	EnqueueParentObject(invalidObject, register.RolloutKind, enqueueFunc)
 	assert.Len(t, errorMessages, 1)
 	assert.Error(t, errorMessages[0], "error decoding object, invalid type")
@@ -182,7 +182,7 @@ func TestEnqueueParentObjectInvalidTombstoneObject(t *testing.T) {
 	})
 
 	invalidObject := cache.DeletedFinalStateUnknown{}
-	enqueueFunc := func(obj interface{}) {}
+	enqueueFunc := func(obj any) {}
 	EnqueueParentObject(invalidObject, register.RolloutKind, enqueueFunc)
 	assert.Len(t, errorMessages, 1)
 	assert.Equal(t, "error decoding object tombstone, invalid type", errorMessages[0])
@@ -199,8 +199,8 @@ func TestEnqueueParentObjectNoOwner(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	EnqueueParentObject(rs, register.RolloutKind, enqueueFunc)
@@ -228,8 +228,8 @@ func TestEnqueueParentObjectDifferentOwnerKind(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, experimentKind)},
 		},
 	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	EnqueueParentObject(rs, register.RolloutKind, enqueueFunc)
@@ -257,8 +257,8 @@ func TestEnqueueParentObjectOtherOwnerTypes(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(deployment, deploymentKind)},
 		},
 	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	EnqueueParentObject(rs, "Deployment", enqueueFunc)
@@ -286,8 +286,8 @@ func TestEnqueueParentObjectEnqueueExperiment(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(experiment, experimentKind)},
 		},
 	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	client := fake.NewSimpleClientset(experiment)
@@ -319,8 +319,8 @@ func TestEnqueueParentObjectEnqueueRollout(t *testing.T) {
 			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(rollout, rolloutKind)},
 		},
 	}
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	client := fake.NewSimpleClientset(rollout)
@@ -356,8 +356,8 @@ func TestEnqueueParentObjectRecoverTombstoneObject(t *testing.T) {
 		Obj: rs,
 	}
 
-	enqueuedObjs := make([]interface{}, 0)
-	enqueueFunc := func(obj interface{}) {
+	enqueuedObjs := make([]any, 0)
+	enqueueFunc := func(obj any) {
 		enqueuedObjs = append(enqueuedObjs, obj)
 	}
 	client := fake.NewSimpleClientset(experiment)
@@ -388,10 +388,10 @@ func TestInstanceIDRequirement(t *testing.T) {
 }
 
 func newObj(name, kind, apiVersion string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	obj["apiVersion"] = apiVersion
 	obj["kind"] = kind
-	obj["metadata"] = map[string]interface{}{
+	obj["metadata"] = map[string]any{
 		"name":      name,
 		"namespace": metav1.NamespaceDefault,
 	}
@@ -437,7 +437,7 @@ func TestProcessNextWatchObj(t *testing.T) {
 	dInformer := dynamicinformers.NewDynamicSharedInformerFactory(client, func() time.Duration { return 0 }())
 	indexer := dInformer.ForResource(gvk).Informer().GetIndexer()
 	indexer.AddIndexers(cache.Indexers{
-		"testIndexer": func(obj interface{}) (strings []string, e error) {
+		"testIndexer": func(obj any) (strings []string, e error) {
 			return []string{"default/foo"}, nil
 		},
 	})

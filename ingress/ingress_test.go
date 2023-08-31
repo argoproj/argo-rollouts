@@ -148,7 +148,7 @@ func underlyingControllerBuilder(t *testing.T, ing []*extensionsv1beta1.Ingress,
 	})
 	enqueuedObjects := map[string]int{}
 	var enqueuedObjectsLock sync.Mutex
-	c.enqueueRollout = func(obj interface{}) {
+	c.enqueueRollout = func(obj any) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {

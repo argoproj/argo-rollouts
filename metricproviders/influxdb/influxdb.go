@@ -87,7 +87,7 @@ func (p *Provider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.Met
 }
 
 func (p *Provider) processResponse(metric v1alpha1.Metric, result *influxapi.QueryTableResult) (string, v1alpha1.AnalysisPhase, error) {
-	var res []interface{}
+	var res []any
 	if result == nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("no QueryTableResult returned from flux query")
 	}

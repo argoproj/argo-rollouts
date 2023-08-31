@@ -18,12 +18,12 @@ limitations under the License.
 
 package v1alpha1
 
-type AnalysisRunExpansion interface{}
+type AnalysisRunExpansion any
 
-type AnalysisTemplateExpansion interface{}
+type AnalysisTemplateExpansion any
 
-type ClusterAnalysisTemplateExpansion interface{}
+type ClusterAnalysisTemplateExpansion any
 
-type ExperimentExpansion interface{}
+type ExperimentExpansion any
 
-type RolloutExpansion interface{}
+type RolloutExpansion any

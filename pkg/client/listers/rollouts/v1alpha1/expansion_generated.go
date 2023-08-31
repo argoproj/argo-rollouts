@@ -20,36 +20,36 @@ package v1alpha1
 
 // AnalysisRunListerExpansion allows custom methods to be added to
 // AnalysisRunLister.
-type AnalysisRunListerExpansion interface{}
+type AnalysisRunListerExpansion any
 
 // AnalysisRunNamespaceListerExpansion allows custom methods to be added to
 // AnalysisRunNamespaceLister.
-type AnalysisRunNamespaceListerExpansion interface{}
+type AnalysisRunNamespaceListerExpansion any
 
 // AnalysisTemplateListerExpansion allows custom methods to be added to
 // AnalysisTemplateLister.
-type AnalysisTemplateListerExpansion interface{}
+type AnalysisTemplateListerExpansion any
 
 // AnalysisTemplateNamespaceListerExpansion allows custom methods to be added to
 // AnalysisTemplateNamespaceLister.
-type AnalysisTemplateNamespaceListerExpansion interface{}
+type AnalysisTemplateNamespaceListerExpansion any
 
 // ClusterAnalysisTemplateListerExpansion allows custom methods to be added to
 // ClusterAnalysisTemplateLister.
-type ClusterAnalysisTemplateListerExpansion interface{}
+type ClusterAnalysisTemplateListerExpansion any
 
 // ExperimentListerExpansion allows custom methods to be added to
 // ExperimentLister.
-type ExperimentListerExpansion interface{}
+type ExperimentListerExpansion any
 
 // ExperimentNamespaceListerExpansion allows custom methods to be added to
 // ExperimentNamespaceLister.
-type ExperimentNamespaceListerExpansion interface{}
+type ExperimentNamespaceListerExpansion any
 
 // RolloutListerExpansion allows custom methods to be added to
 // RolloutLister.
-type RolloutListerExpansion interface{}
+type RolloutListerExpansion any
 
 // RolloutNamespaceListerExpansion allows custom methods to be added to
 // RolloutNamespaceLister.
-type RolloutNamespaceListerExpansion interface{}
+type RolloutNamespaceListerExpansion any

@@ -2048,7 +2048,7 @@ func RegisterRolloutServiceServer(s *grpc.Server, srv RolloutServiceServer) {
 	s.RegisterService(&_RolloutService_serviceDesc, srv)
 }
 
-func _RolloutService_GetRolloutInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_GetRolloutInfo_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(RolloutInfoQuery)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2060,13 +2060,13 @@ func _RolloutService_GetRolloutInfo_Handler(srv interface{}, ctx context.Context
 		Server:     srv,
 		FullMethod: "/rollout.RolloutService/GetRolloutInfo",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RolloutServiceServer).GetRolloutInfo(ctx, req.(*RolloutInfoQuery))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RolloutService_WatchRolloutInfo_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _RolloutService_WatchRolloutInfo_Handler(srv any, stream grpc.ServerStream) error {
 	m := new(RolloutInfoQuery)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
@@ -2087,7 +2087,7 @@ func (x *rolloutServiceWatchRolloutInfoServer) Send(m *RolloutInfo) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _RolloutService_ListRolloutInfos_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_ListRolloutInfos_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(RolloutInfoListQuery)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2099,13 +2099,13 @@ func _RolloutService_ListRolloutInfos_Handler(srv interface{}, ctx context.Conte
 		Server:     srv,
 		FullMethod: "/rollout.RolloutService/ListRolloutInfos",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RolloutServiceServer).ListRolloutInfos(ctx, req.(*RolloutInfoListQuery))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RolloutService_WatchRolloutInfos_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _RolloutService_WatchRolloutInfos_Handler(srv any, stream grpc.ServerStream) error {
 	m := new(RolloutInfoListQuery)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
@@ -2126,7 +2126,7 @@ func (x *rolloutServiceWatchRolloutInfosServer) Send(m *RolloutWatchEvent) error
 	return x.ServerStream.SendMsg(m)
 }
 
-func _RolloutService_GetNamespace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_GetNamespace_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2138,13 +2138,13 @@ func _RolloutService_GetNamespace_Handler(srv interface{}, ctx context.Context, 
 		Server:     srv,
 		FullMethod: "/rollout.RolloutService/GetNamespace",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RolloutServiceServer).GetNamespace(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RolloutService_RestartRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_RestartRollout_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(RestartRolloutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2156,13 +2156,13 @@ func _RolloutService_RestartRollout_Handler(srv interface{}, ctx context.Context
 		Server:     srv,
 		FullMethod: "/rollout.RolloutService/RestartRollout",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RolloutServiceServer).RestartRollout(ctx, req.(*RestartRolloutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RolloutService_PromoteRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_PromoteRollout_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(PromoteRolloutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2174,13 +2174,13 @@ func _RolloutService_PromoteRollout_Handler(srv interface{}, ctx context.Context
 		Server:     srv,
 		FullMethod: "/rollout.RolloutService/PromoteRollout",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RolloutServiceServer).PromoteRollout(ctx, req.(*PromoteRolloutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RolloutService_AbortRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_AbortRollout_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(AbortRolloutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2192,13 +2192,13 @@ func _RolloutService_AbortRollout_Handler(srv interface{}, ctx context.Context, 
 		Server:     srv,
 		FullMethod: "/rollout.RolloutService/AbortRollout",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RolloutServiceServer).AbortRollout(ctx, req.(*AbortRolloutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RolloutService_SetRolloutImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_SetRolloutImage_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(SetImageRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2210,13 +2210,13 @@ func _RolloutService_SetRolloutImage_Handler(srv interface{}, ctx context.Contex
 		Server:     srv,
 		FullMethod: "/rollout.RolloutService/SetRolloutImage",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RolloutServiceServer).SetRolloutImage(ctx, req.(*SetImageRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RolloutService_UndoRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_UndoRollout_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(UndoRolloutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2228,13 +2228,13 @@ func _RolloutService_UndoRollout_Handler(srv interface{}, ctx context.Context, d
 		Server:     srv,
 		FullMethod: "/rollout.RolloutService/UndoRollout",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RolloutServiceServer).UndoRollout(ctx, req.(*UndoRolloutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RolloutService_RetryRollout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_RetryRollout_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(RetryRolloutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2246,13 +2246,13 @@ func _RolloutService_RetryRollout_Handler(srv interface{}, ctx context.Context, 
 		Server:     srv,
 		FullMethod: "/rollout.RolloutService/RetryRollout",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RolloutServiceServer).RetryRollout(ctx, req.(*RetryRolloutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RolloutService_Version_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RolloutService_Version_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2264,7 +2264,7 @@ func _RolloutService_Version_Handler(srv interface{}, ctx context.Context, dec f
 		Server:     srv,
 		FullMethod: "/rollout.RolloutService/Version",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RolloutServiceServer).Version(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)

@@ -429,10 +429,10 @@ func TestNewAPIFactorySettings(t *testing.T) {
 	getVars, err := settings.InitGetVars(nil, nil, nil)
 	assert.NoError(t, err)
 
-	rollout := map[string]interface{}{"name": "hello"}
+	rollout := map[string]any{"name": "hello"}
 	vars := getVars(rollout, services.Destination{})
 
-	assert.Equal(t, map[string]interface{}{"rollout": rollout, "time": timeExprs}, vars)
+	assert.Equal(t, map[string]any{"rollout": rollout, "time": timeExprs}, vars)
 }
 
 func TestWorkloadRefObjectMap(t *testing.T) {
