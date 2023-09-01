@@ -1829,7 +1829,7 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 
 func TestSetHeaderRoute(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
-	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.ManagedRoutes{
 		{Name: "header-route"},
 	}
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
@@ -1868,7 +1868,7 @@ func TestSetHeaderRoute(t *testing.T) {
 
 func TestSetHeaderRouteWithDifferentHeaderNames(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
-	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.ManagedRoutes{
 		{Name: "header-route"},
 	}
 
@@ -1919,7 +1919,7 @@ func TestSetHeaderRouteWithDifferentHeaderNames(t *testing.T) {
 
 func TestSetHeaderRouteWithDuplicateHeaderNameMatches(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
-	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.ManagedRoutes{
 		{Name: "header-route"},
 	}
 
@@ -1970,7 +1970,7 @@ func TestSetHeaderRouteWithDuplicateHeaderNameMatches(t *testing.T) {
 
 func TestSetHeaderRouteMultiIngress(t *testing.T) {
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
-	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.ManagedRoutes{
 		{Name: "header-route"},
 	}
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
@@ -2011,7 +2011,7 @@ func TestSetHeaderRouteMultiIngress(t *testing.T) {
 
 func TestRemoveManagedRoutes(t *testing.T) {
 	ro := fakeRollout(STABLE_SVC, CANARY_SVC, nil, "ingress", 443)
-	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.ManagedRoutes{
 		{Name: "header-route"},
 	}
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
@@ -2085,7 +2085,7 @@ func TestRemoveManagedRoutes(t *testing.T) {
 
 func TestRemoveManagedRoutesMultiIngress(t *testing.T) {
 	ro := fakeRolloutWithMultiIngress(STABLE_SVC, CANARY_SVC, nil, []string{"ingress", "multi-ingress"}, 443)
-	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.MangedRoutes{
+	ro.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = []v1alpha1.ManagedRoutes{
 		{Name: "header-route"},
 	}
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)

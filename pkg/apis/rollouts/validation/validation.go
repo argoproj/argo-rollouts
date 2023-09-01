@@ -36,7 +36,7 @@ const (
 	// InvalidSetHeaderRouteTrafficPolicy indicates that TrafficRouting required for SetHeaderRoute is missing
 	InvalidSetHeaderRouteTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio and ALB and Apisix"
 	// InvalidSetMirrorRouteTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
-	InvalidSetMirrorRouteTrafficPolicy = "SetMirrorRoute requires TrafficRouting, supports Istio only"
+	InvalidSetMirrorRouteTrafficPolicy = "SetMirrorRoute requires TrafficRouting, supports Traefik and Istio only"
 	// InvalidStringMatchMultipleValuePolicy indicates that SetCanaryScale, has multiple values set
 	InvalidStringMatchMultipleValuePolicy = "StringMatch match value must have exactly one of the following: exact, regex, prefix"
 	// InvalidStringMatchMissedValuePolicy indicates that SetCanaryScale, has multiple values set
@@ -322,8 +322,8 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		if step.SetMirrorRoute != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
-			if trafficRouting == nil || trafficRouting.Istio == nil {
-				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setMirrorRoute"), step.SetMirrorRoute, "SetMirrorRoute requires TrafficRouting, supports Istio only"))
+			if trafficRouting == nil || !isTrafficMirrorSupportedForSelectedProvider(trafficRouting) {
+				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setMirrorRoute"), step.SetMirrorRoute, InvalidSetMirrorRouteTrafficPolicy))
 			}
 			if step.SetMirrorRoute.Match != nil && len(step.SetMirrorRoute.Match) > 0 {
 				for j, match := range step.SetMirrorRoute.Match {
@@ -397,7 +397,11 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 	return allErrs
 }
 
-func ValidateStepRouteFoundInManagedRoute(stepFldPath *field.Path, stepRoutName string, roManagedRoutes []v1alpha1.MangedRoutes) field.ErrorList {
+func isTrafficMirrorSupportedForSelectedProvider(trafficRouting *v1alpha1.RolloutTrafficRouting) bool {
+	return trafficRouting.Istio != nil || trafficRouting.Traefik != nil
+}
+
+func ValidateStepRouteFoundInManagedRoute(stepFldPath *field.Path, stepRoutName string, roManagedRoutes []v1alpha1.ManagedRoutes) field.ErrorList {
 	allErrs := field.ErrorList{}
 	found := false
 	for _, managedRoute := range roManagedRoutes {

@@ -92,10 +92,17 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 		}))
 	}
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Traefik != nil {
-		dynamicClient := traefik.NewDynamicClient(c.dynamicclientset, rollout.GetNamespace())
+		resourceNamespace := "default"
+		if rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.Namespace != "" {
+			resourceNamespace = rollout.Spec.Strategy.Canary.TrafficRouting.Traefik.Namespace
+		}
 		trafficReconcilers = append(trafficReconcilers, traefik.NewReconciler(&traefik.ReconcilerConfig{
-			Rollout:  rollout,
-			Client:   dynamicClient,
+			Rollout: rollout,
+			ClientSet: traefik.ClientSet{
+				TraefikServiceClient: traefik.NewDynamicClient(c.dynamicclientset, traefik.TraefikServices, resourceNamespace),
+				IngressRouteClient:   traefik.NewDynamicClient(c.dynamicclientset, traefik.IngressRoutes, resourceNamespace),
+				ServiceClient:        c.kubeclientset.CoreV1().Services(resourceNamespace),
+			},
 			Recorder: c.recorder,
 		}))
 	}

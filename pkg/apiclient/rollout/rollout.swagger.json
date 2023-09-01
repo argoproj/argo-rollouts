@@ -1002,6 +1002,16 @@
         }
       }
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IngressRoute": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name field refers to the IngressRoute name"
+        }
+      },
+      "title": "IngressRoute struct holds the info about IngressRoute"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IstioDestinationRule": {
       "type": "object",
       "properties": {
@@ -1072,7 +1082,7 @@
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
     },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MangedRoutes": {
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ManagedRoutes": {
       "type": "object",
       "properties": {
         "name": {
@@ -1669,7 +1679,7 @@
         "managedRoutes": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MangedRoutes"
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ManagedRoutes"
           },
           "description": "ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream\ntraffic router."
         },
@@ -1775,7 +1785,7 @@
         "percentage": {
           "type": "integer",
           "format": "int32",
-          "title": "Services The list of services to mirror the traffic to if the method, path, headers match\nService string `json:\"service\" protobuf:\"bytes,3,opt,name=service\"`\nPercentage What percent of the traffic that matched the rules should be mirrored"
+          "title": "Services The list of services to mirror the traffic to if the method, path, headers match\nService string `json:\"service\" protobuf:\"bytes,3,opt,name=service\"`\nPercentage What percent of the traffic that matched the rules should be mirrored\n+optional"
         }
       }
     },
@@ -1852,7 +1862,18 @@
       "properties": {
         "weightedTraefikServiceName": {
           "type": "string",
-          "title": "TraefikServiceName refer to the name of the Traefik service used to route traffic to the service"
+          "title": "TraefikServiceName field refers to the name of the Traefik service used to route traffic to the service"
+        },
+        "ingressRoutes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IngressRoute"
+          },
+          "title": "IngressRoutes field refers to the IngressRoute names that are used to detect the highest priority in the cluster\n+patchMergeKey=name\n+patchStrategy=merge\n+optional"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace field refers to the namespace where Argo Rollouts works with Traefik resources\n+optional"
         }
       },
       "title": "TraefikTrafficRouting defines the configuration required to use Traefik as traffic router"

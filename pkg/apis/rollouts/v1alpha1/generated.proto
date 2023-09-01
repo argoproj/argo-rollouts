@@ -806,6 +806,12 @@ message InfluxdbMetric {
   optional string query = 2;
 }
 
+// IngressRoute struct holds the info about IngressRoute
+message IngressRoute {
+  // Name field refers to the IngressRoute name
+  optional string name = 1;
+}
+
 // IstioDestinationRule is a reference to an Istio DestinationRule to modify and shape traffic
 message IstioDestinationRule {
   // Name holds the name of the DestinationRule
@@ -884,7 +890,7 @@ message KayentaThreshold {
   optional int64 marginal = 2;
 }
 
-message MangedRoutes {
+message ManagedRoutes {
   optional string name = 1;
 }
 
@@ -1538,7 +1544,7 @@ message RolloutTrafficRouting {
 
   // ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
   // traffic router.
-  repeated MangedRoutes managedRoutes = 8;
+  repeated ManagedRoutes managedRoutes = 8;
 
   // Apisix holds specific configuration to use Apisix to route traffic
   optional ApisixTrafficRouting apisix = 9;
@@ -1649,6 +1655,7 @@ message SetMirrorRoute {
   // Services The list of services to mirror the traffic to if the method, path, headers match
   // Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
   // Percentage What percent of the traffic that matched the rules should be mirrored
+  // +optional
   optional int32 percentage = 4;
 }
 
@@ -1778,8 +1785,18 @@ message TemplateStatus {
 
 // TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
 message TraefikTrafficRouting {
-  // TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
+  // TraefikServiceName field refers to the name of the Traefik service used to route traffic to the service
   optional string weightedTraefikServiceName = 1;
+
+  // IngressRoutes field refers to the IngressRoute names that are used to detect the highest priority in the cluster
+  // +patchMergeKey=name
+  // +patchStrategy=merge
+  // +optional
+  repeated IngressRoute ingressRoutes = 2;
+
+  // Namespace field refers to the namespace where Argo Rollouts works with Traefik resources
+  // +optional
+  optional string namespace = 3;
 }
 
 // TrafficWeights describes the current status of how traffic has been split

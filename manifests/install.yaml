@@ -12379,6 +12379,17 @@ spec:
                             type: object
                           traefik:
                             properties:
+                              ingressRoutes:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                              namespace:
+                                type: string
                               weightedTraefikServiceName:
                                 type: string
                             required:

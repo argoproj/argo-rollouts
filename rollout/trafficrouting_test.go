@@ -1093,7 +1093,7 @@ func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualS
 				CanarySubsetName: "canary",
 			},
 		},
-		ManagedRoutes: []v1alpha1.MangedRoutes{
+		ManagedRoutes: []v1alpha1.ManagedRoutes{
 			{
 				Name: "test-header",
 			},

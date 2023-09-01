@@ -374,7 +374,7 @@ type RolloutTrafficRouting struct {
 	Traefik *TraefikTrafficRouting `json:"traefik,omitempty" protobuf:"bytes,7,opt,name=traefik"`
 	// ManagedRoutes A list of HTTP routes that Argo Rollouts manages, the order of this array also becomes the precedence in the upstream
 	// traffic router.
-	ManagedRoutes []MangedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
+	ManagedRoutes []ManagedRoutes `json:"managedRoutes,omitempty" protobuf:"bytes,8,rep,name=managedRoutes"`
 	// Apisix holds specific configuration to use Apisix to route traffic
 	Apisix *ApisixTrafficRouting `json:"apisix,omitempty" protobuf:"bytes,9,opt,name=apisix"`
 	// +kubebuilder:validation:Schemaless
@@ -384,7 +384,7 @@ type RolloutTrafficRouting struct {
 	Plugins map[string]json.RawMessage `json:"plugins,omitempty" protobuf:"bytes,10,opt,name=plugins"`
 }
 
-type MangedRoutes struct {
+type ManagedRoutes struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	//Possibly name for future use
 	//canaryRoute bool
@@ -392,8 +392,22 @@ type MangedRoutes struct {
 
 // TraefikTrafficRouting defines the configuration required to use Traefik as traffic router
 type TraefikTrafficRouting struct {
-	// TraefikServiceName refer to the name of the Traefik service used to route traffic to the service
+	// TraefikServiceName field refers to the name of the Traefik service used to route traffic to the service
 	WeightedTraefikServiceName string `json:"weightedTraefikServiceName" protobuf:"bytes,1,name=weightedTraefikServiceName"`
+	// IngressRoutes field refers to the IngressRoute names that are used to detect the highest priority in the cluster
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	// +optional
+	IngressRoutes []IngressRoute `json:"ingressRoutes,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,2,rep,name=ingressRoutes"`
+	// Namespace field refers to the namespace where Argo Rollouts works with Traefik resources
+	// +optional
+	Namespace string `json:"namespace,omitempty" protobuf:"string,3,opt,name=namespace"`
+}
+
+// IngressRoute struct holds the info about IngressRoute
+type IngressRoute struct {
+	// Name field refers to the IngressRoute name
+	Name string `json:"name" protobuf:"bytes,1,name=name"`
 }
 
 // ApisixTrafficRouting defines the configuration required to use APISIX as traffic router
@@ -627,14 +641,14 @@ type CanaryStep struct {
 type SetMirrorRoute struct {
 	// Name this is the name of the route to use for the mirroring of traffic this also needs
 	// to be included in the `spec.strategy.canary.trafficRouting.managedRoutes` field
-	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Name string `json:"name" protobuf:"string,1,name=name"`
 	// Match Contains a list of rules that if mated will mirror the traffic to the services
 	// +optional
 	Match []RouteMatch `json:"match,omitempty" protobuf:"bytes,2,opt,name=match"`
-
 	// Services The list of services to mirror the traffic to if the method, path, headers match
 	//Service string `json:"service" protobuf:"bytes,3,opt,name=service"`
 	// Percentage What percent of the traffic that matched the rules should be mirrored
+	// +optional
 	Percentage *int32 `json:"percentage,omitempty" protobuf:"varint,4,opt,name=percentage"`
 }
 

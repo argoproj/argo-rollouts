@@ -17546,6 +17546,35 @@
                                                 }
                                             },
                                             "type": "object"
+                                        },
+                                        "trafficRouting": {
+                                            "properties": {
+                                                "traefik": {
+                                                    "properties": {
+                                                        "ingressRoutes": {
+                                                            "items": {
+                                                                "properties": {
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "name"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "type": "array",
+                                                            "x-kubernetes-patch-merge-key": "name",
+                                                            "x-kubernetes-patch-strategy": "merge"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "weightedTraefikServiceName"
+                                                    ],
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
                                         }
                                     },
                                     "type": "object"

@@ -939,7 +939,7 @@ func newRollout(stableSvc, canarySvc, apisixRouteRef string) *v1alpha1.Rollout {
 								Name: apisixRouteRef,
 							},
 						},
-						ManagedRoutes: []v1alpha1.MangedRoutes{
+						ManagedRoutes: []v1alpha1.ManagedRoutes{
 							{
 								Name: SetHeaderRouteName,
 							},

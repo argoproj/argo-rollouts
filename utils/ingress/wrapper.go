@@ -237,7 +237,7 @@ func (i *Ingress) RemovePathByServiceName(actionName string) {
 	}
 }
 
-func (i *Ingress) SortHttpPaths(routes []v1alpha1.MangedRoutes) {
+func (i *Ingress) SortHttpPaths(routes []v1alpha1.ManagedRoutes) {
 	var routeWeight = make(map[string]int) // map of route name for ordering
 	for j, route := range routes {
 		routeWeight[route.Name] = j

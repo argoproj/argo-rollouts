@@ -8,10 +8,65 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 )
 
-const traefikService = `
+const (
+	stableServiceName     string = "stable-rollout"
+	fakeStableServiceName string = "fake-stable-rollout"
+	canaryServiceName     string = "canary-rollout"
+	fakeCanaryServiceName string = "fake-canary-rollout"
+	traefikServiceName    string = "mocks-service"
+)
+
+const (
+	mirrorTraefikService = `
+apiVersion: mocks.containo.us/v1alpha1
+kind: TraefikService
+metadata:
+  labels:
+    service: argo-mocks
+  name: argo-mirror-mocks-service
+spec:
+  mirroring:
+    name: mocks-service
+    kind: TraefikService
+    mirrors:
+      - name: canary-rollout
+        kind: TraefikService
+      - name: test-rollout
+        kind: TraefikService
+`
+
+	errorMirrorTraefikService = `
+apiVersion: mocks.containo.us/v1alpha1
+kind: TraefikService
+metadata:
+  labels:
+    service: argo-mocks
+  name: argo-mirror-mocks-service
+spec:
+  mirroring:
+    name: mocks-service
+    kind: TraefikService
+    mirrors:
+      name: canary-rollout
+      kind: TraefikService
+`
+
+	mirrorTraefikServiceWithNotFoundField = `
+apiVersion: mocks.containo.us/v1alpha1
+kind: TraefikService
+metadata:
+  labels:
+    service: argo-mocks
+  name: argo-mirror-mocks-service
+spec:
+  mirroring:
+    name: mocks-service
+    kind: TraefikService
+`
+
+	traefikService = `
 apiVersion: mocks.containo.us/v1alpha1
 kind: TraefikService
 metadata:
@@ -29,7 +84,7 @@ spec:
         port: 80
 `
 
-const errorTraefikService = `
+	errorTraefikService = `
 apiVersion: mocks.containo.us/v1alpha1
 kind: TraefikService
 metadata:
@@ -37,17 +92,14 @@ metadata:
     service: argo-mocks
   name: mocks-service
 `
-
-var (
-	client *mocks.FakeClient = &mocks.FakeClient{}
 )
 
-const (
-	stableServiceName     string = "stable-rollout"
-	fakeStableServiceName string = "fake-stable-rollout"
-	canaryServiceName     string = "canary-rollout"
-	fakeCanaryServiceName string = "fake-canary-rollout"
-	traefikServiceName    string = "mocks-service"
+var (
+	clientSet = ClientSet{
+		TraefikServiceClient: &mocks.FakeTraefikServiceClient{},
+		IngressRouteClient:   &mocks.FakeIngressRouteClient{},
+		ServiceClient:        &mocks.FakeServiceClient{},
+	}
 )
 
 func TestNewDynamicClient(t *testing.T) {
@@ -57,7 +109,7 @@ func TestNewDynamicClient(t *testing.T) {
 		fakeDynamicClient := &mocks.FakeDynamicClient{}
 
 		// When
-		NewDynamicClient(fakeDynamicClient, "default")
+		NewDynamicClient(fakeDynamicClient, "test", "default")
 	})
 }
 
@@ -66,8 +118,8 @@ func TestUpdateHash(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Rollout:   newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: clientSet,
 		}
 		r := NewReconciler(&cfg)
 
@@ -80,14 +132,17 @@ func TestUpdateHash(t *testing.T) {
 }
 
 func TestSetWeight(t *testing.T) {
-	mocks.TraefikServiceObj = toUnstructured(t, traefikService)
-	mocks.ErrorTraefikServiceObj = toUnstructured(t, errorTraefikService)
+	var err error
+	mocks.TraefikServiceObj, err = toUnstructured(traefikService)
+	assert.NoError(t, err)
+	mocks.ErrorTraefikServiceObj, err = toUnstructured(errorTraefikService)
+	assert.NoError(t, err)
 	t.Run("SetWeight", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Rollout:   newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: clientSet,
 		}
 		r := NewReconciler(&cfg)
 
@@ -117,8 +172,12 @@ func TestSetWeight(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client: &mocks.FakeClient{
-				IsGetError: true,
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsClientGetTraefikServiceError: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
 			},
 		}
 		r := NewReconciler(&cfg)
@@ -134,8 +193,12 @@ func TestSetWeight(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client: &mocks.FakeClient{
-				IsGetErrorManifest: true,
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsGetErrorTraefikServiceManifest: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
 			},
 		}
 		r := NewReconciler(&cfg)
@@ -150,8 +213,8 @@ func TestSetWeight(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(fakeStableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Rollout:   newRollout(fakeStableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: clientSet,
 		}
 		r := NewReconciler(&cfg)
 
@@ -165,8 +228,8 @@ func TestSetWeight(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, fakeCanaryServiceName, traefikServiceName),
-			Client:  client,
+			Rollout:   newRollout(stableServiceName, fakeCanaryServiceName, traefikServiceName),
+			ClientSet: clientSet,
 		}
 		r := NewReconciler(&cfg)
 
@@ -181,8 +244,12 @@ func TestSetWeight(t *testing.T) {
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client: &mocks.FakeClient{
-				UpdateError: true,
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsClientUpdateError: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
 			},
 			Recorder: &mocks.FakeRecorder{},
 		}
@@ -201,8 +268,8 @@ func TestSetHeaderRoute(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Rollout:   newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: clientSet,
 		}
 		r := NewReconciler(&cfg)
 
@@ -219,48 +286,262 @@ func TestSetHeaderRoute(t *testing.T) {
 
 		// Then
 		assert.NoError(t, err)
-
-		err = r.RemoveManagedRoutes()
-		assert.Nil(t, err)
 	})
 }
 
 func TestSetMirrorRoute(t *testing.T) {
+	var err error
+	mocks.MirrorTraefikServiceObj, err = toUnstructured(mirrorTraefikService)
+	assert.NoError(t, err)
+	mocks.ErrorMirrorTraefikServiceObj, err = toUnstructured(errorMirrorTraefikService)
+	assert.NoError(t, err)
+	mocks.MirrorTraefikServiceWithNotFoundField, err = toUnstructured(mirrorTraefikServiceWithNotFoundField)
+	assert.NoError(t, err)
 	t.Run("SetMirrorRoute", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
 			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsGetMirrorTraefikService: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
+			},
 		}
 		r := NewReconciler(&cfg)
 
 		// When
+		var percentage int32 = 50
 		err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
-			Name: "mirror-route",
-			Match: []v1alpha1.RouteMatch{{
-				Method: &v1alpha1.StringMatch{Exact: "GET"},
-			}},
+			Name:       canaryServiceName,
+			Percentage: &percentage,
 		})
 
 		// Then
 		assert.NoError(t, err)
+	})
+	t.Run("SetMirrorRouteWithClientGetError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsClientGetErrorMirrorTraefikService: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
+			},
+		}
+		r := NewReconciler(&cfg)
 
-		err = r.RemoveManagedRoutes()
-		assert.Nil(t, err)
+		// When
+		var percentage int32 = 50
+		err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+			Name:       canaryServiceName,
+			Percentage: &percentage,
+		})
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("SetMirrorRouteWithManifestError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsGetErrorMirrorTraefikServiceManifest: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
+			},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		var percentage int32 = 50
+		err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+			Name:       canaryServiceName,
+			Percentage: &percentage,
+		})
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("SetMirrorRouteWithNotFoundField", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsGetMirrorTraefikServiceWithNotFoundField: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
+			},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		var percentage int32 = 50
+		err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+			Name:       canaryServiceName,
+			Percentage: &percentage,
+		})
+
+		// Then
+		assert.NoError(t, err)
+	})
+	t.Run("SetMirrorRouteUpdateError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsClientUpdateError:       true,
+					IsGetMirrorTraefikService: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
+			},
+			Recorder: &mocks.FakeRecorder{},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		var percentage int32 = 50
+		err := r.SetMirrorRoute(&v1alpha1.SetMirrorRoute{
+			Name:       canaryServiceName,
+			Percentage: &percentage,
+		})
+
+		// Then
+		assert.Error(t, err)
 	})
 }
 
-func toUnstructured(t *testing.T, manifest string) *unstructured.Unstructured {
-	t.Helper()
-	obj := &unstructured.Unstructured{}
+func TestRemoveManagedRoutes(t *testing.T) {
+	var err error
+	mocks.MirrorTraefikServiceObj, err = toUnstructured(mirrorTraefikService)
+	assert.NoError(t, err)
+	mocks.ErrorMirrorTraefikServiceObj, err = toUnstructured(errorMirrorTraefikService)
+	assert.NoError(t, err)
+	mocks.MirrorTraefikServiceWithNotFoundField, err = toUnstructured(mirrorTraefikServiceWithNotFoundField)
+	assert.NoError(t, err)
 
-	dec := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	_, _, err := dec.Decode([]byte(manifest), nil, obj)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return obj
+	t.Run("RemoveManagedRoutes", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsGetMirrorTraefikService: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
+			},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.RemoveManagedRoutes()
+
+		// Then
+		assert.NoError(t, err)
+	})
+	t.Run("RemoveManagedRoutesWithClientError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsClientGetErrorMirrorTraefikService: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
+			},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.RemoveManagedRoutes()
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("RemoveManagedRoutesWithManifestError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsGetErrorMirrorTraefikServiceManifest: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
+			},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.RemoveManagedRoutes()
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("RemoveManagedRoutesWithNotFoundField", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsGetMirrorTraefikServiceWithNotFoundField: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
+			},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.RemoveManagedRoutes()
+
+		// Then
+		assert.Error(t, err)
+	})
+	t.Run("SetMirrorRouteUpdateError", func(t *testing.T) {
+		// Given
+		t.Parallel()
+		cfg := ReconcilerConfig{
+			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: ClientSet{
+				TraefikServiceClient: &mocks.FakeTraefikServiceClient{
+					IsClientUpdateError:       true,
+					IsGetMirrorTraefikService: true,
+				},
+				IngressRouteClient: &mocks.FakeIngressRouteClient{},
+				ServiceClient:      &mocks.FakeServiceClient{},
+			},
+			Recorder: &mocks.FakeRecorder{},
+		}
+		r := NewReconciler(&cfg)
+
+		// When
+		err := r.RemoveManagedRoutes()
+
+		// Then
+		assert.Error(t, err)
+	})
 }
 
 func TestVerifyWeight(t *testing.T) {
@@ -268,8 +549,8 @@ func TestVerifyWeight(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Rollout:   newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: clientSet,
 		}
 		r := NewReconciler(&cfg)
 
@@ -283,13 +564,15 @@ func TestVerifyWeight(t *testing.T) {
 }
 
 func TestType(t *testing.T) {
-	mocks.TraefikServiceObj = toUnstructured(t, traefikService)
+	var err error
+	mocks.TraefikServiceObj, err = toUnstructured(traefikService)
+	assert.NoError(t, err)
 	t.Run("Type", func(t *testing.T) {
 		// Given
 		t.Parallel()
 		cfg := ReconcilerConfig{
-			Rollout: newRollout(stableServiceName, canaryServiceName, traefikServiceName),
-			Client:  client,
+			Rollout:   newRollout(stableServiceName, canaryServiceName, traefikServiceName),
+			ClientSet: clientSet,
 		}
 		r := NewReconciler(&cfg)
 
@@ -373,6 +656,11 @@ func newRollout(stableSvc, canarySvc, traefikServiceName string) *v1alpha1.Rollo
 					StableService: stableSvc,
 					CanaryService: canarySvc,
 					TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+						ManagedRoutes: []v1alpha1.ManagedRoutes{
+							{
+								Name: canaryServiceName,
+							},
+						},
 						Traefik: &v1alpha1.TraefikTrafficRouting{
 							WeightedTraefikServiceName: traefikServiceName,
 						},
