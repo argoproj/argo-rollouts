@@ -176,7 +176,7 @@ func TestProcessMultipleTimeseriesResponse(t *testing.T) {
 		logCtx: *logCtx,
 	}
 	metric := v1alpha1.Metric{
-		SuccessCondition: "10 in result",
+		SuccessCondition: "float(10) in result",
 		FailureCondition: "len(result) != 2",
 	}
 

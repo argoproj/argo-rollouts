@@ -144,7 +144,7 @@ func TestEvaluateArray(t *testing.T) {
 
 func TestEvaluateInOperator(t *testing.T) {
 	floats := []float64{float64(2), float64(2)}
-	b, err := EvalCondition(floats, "2 in result")
+	b, err := EvalCondition(floats, "float(2) in result")
 	assert.Nil(t, err)
 	assert.True(t, b)
 }
