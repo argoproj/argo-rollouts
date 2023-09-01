@@ -53,7 +53,7 @@ spec:
           ingress: ingress
           # If you want to controll multiple ingress resources you can use the ingresses field, if ingresses is specified
           # the ingress field will need to be omitted.
-          ingresses: 
+          ingresses:
            - ingress-1
            - ingress-2
           # Reference to a Service that the Ingress must target in one of the rules (optional).
@@ -66,7 +66,7 @@ spec:
 The referenced Ingress should be deployed with an ingress rule that matches the Rollout service:
 
 ```yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress
@@ -76,14 +76,17 @@ spec:
   rules:
   - http:
       paths:
-      - path: /*
+      - path: /
+        pathType: Prefix
         backend:
-          # serviceName must match either: canary.trafficRouting.alb.rootService (if specified),
-          # or canary.stableService (if rootService is omitted)
-          serviceName: root-service
-          # servicePort must be the value: use-annotation
-          # This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic
-          servicePort: use-annotation
+          service:
+            # serviceName must match either: canary.trafficRouting.alb.rootService (if specified),
+            # or canary.stableService (if rootService is omitted)
+            name: root-service
+            # servicePort must be the value: use-annotation
+            # This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic
+            port:
+              name: use-annotation
 ```
 
 During an update, the rollout controller injects the `alb.ingress.kubernetes.io/actions.<SERVICE-NAME>`
@@ -95,7 +98,7 @@ annotation that splits traffic between the canary-service and stable-service, wi
 of 10 and 90 respectively:
 
 ```yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress
@@ -123,10 +126,13 @@ spec:
   rules:
   - http:
       paths:
-      - path: /*
+      - path: /
+        pathType: Prefix
         backend:
-          serviceName: root-service
-          servicePort: use-annotation
+          service:
+            name: root-service
+            port:
+              name: use-annotation
 ```
 
 !!! note
@@ -411,7 +417,7 @@ spec:
 By default, Argo Rollout will operate on Ingresses with the annotation:
 
 ```yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
@@ -420,7 +426,7 @@ metadata:
 
 Or with the `ingressClassName`:
 ```yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 spec:
   ingressClassName: alb
