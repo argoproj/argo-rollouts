@@ -8,8 +8,8 @@ bases:
 resources:
 - argo-rollouts-rolebinding.yaml
 
-patchesStrategicMerge:
-- add-namespaced-flag.yaml
+patches:
+- path: add-namespaced-flag.yaml
 
 patchesJson6902:
 - path: clusterrole-to-role.yaml
