@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.6">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.7">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.0e669242.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.046329b4.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.85d0ee34.min.css">
@@ -3187,7 +3187,7 @@
 
 <h1 id="getting-started-aws-load-balancer-controller">Getting Started - AWS Load Balancer Controller<a class="headerlink" href="#getting-started-aws-load-balancer-controller" title="Permanent link">&para;</a></h1>
 <p>This guide covers how Argo Rollouts integrates with the
-<a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/">AWS Load Balancer Controller</a> 
+<a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/">AWS Load Balancer Controller</a>
 for traffic shaping. This guide builds upon the concepts of the <a href="../">basic getting started guide</a>.</p>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <ul>
@@ -3228,7 +3228,7 @@ following fields:</p>
 <p>The Ingress referenced by the Rollout must have a rule which matches one of Rollout services.
 This should be <code>canary.trafficRouting.alb.rootService</code> (if specified), otherwise the rollout will
 use <code>canary.stableService</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span>
 <span class="nt">metadata</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-ingress</span>
@@ -3238,19 +3238,22 @@ use <code>canary.stableService</code>.</p>
 <span class="w">  </span><span class="nt">rules</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">http</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">paths</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/*</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/</span>
+<span class="w">        </span><span class="nt">pathType</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Prefix</span>
 <span class="w">        </span><span class="nt">backend</span><span class="p">:</span>
-<span class="w">          </span><span class="c1"># serviceName must match either: canary.trafficRouting.alb.rootService (if specified),</span>
-<span class="w">          </span><span class="c1"># or canary.stableService (if rootService is omitted)</span>
-<span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-root</span>
-<span class="w">          </span><span class="c1"># servicePort must be the value: use-annotation</span>
-<span class="w">          </span><span class="c1"># This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic</span>
-<span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
+<span class="w">          </span><span class="nt">service</span><span class="p">:</span>
+<span class="w">            </span><span class="c1"># serviceName must match either: canary.trafficRouting.alb.rootService (if specified),</span>
+<span class="w">            </span><span class="c1"># or canary.stableService (if rootService is omitted)</span>
+<span class="w">            </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollouts-demo-root</span>
+<span class="w">            </span><span class="c1"># servicePort must be the value: use-annotation</span>
+<span class="w">            </span><span class="c1"># This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic</span>
+<span class="w">            </span><span class="nt">port</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">use-annotation</span>
 </code></pre></div>
 <p>During an update, the Ingress will be injected with a
 <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#actions">custom action annotation</a>,
 which directs the ALB to splits traffic between the stable and canary Services referenced by the Rollout.
-In this example, those Services are named: <code>rollouts-demo-stable</code> and <code>rollouts-demo-canary</code> 
+In this example, those Services are named: <code>rollouts-demo-stable</code> and <code>rollouts-demo-canary</code>
 respectively.</p>
 <p>Run the following commands to deploy:</p>
 <ul>
@@ -3287,12 +3290,12 @@ kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="
 </code></pre></div>
 <p><img alt="Rollout ALB Paused" src="paused-rollout-alb.png" /></p>
 <p>At this point, both the canary and stable version of the Rollout are running, with 5% of the
-traffic directed to the canary. To understand how this works, inspect the listener rules for 
-the ALB. When looking at the listener rules, we see that the forward action weights 
+traffic directed to the canary. To understand how this works, inspect the listener rules for
+the ALB. When looking at the listener rules, we see that the forward action weights
 have been modified by the controller to reflect the current weight of the canary.</p>
 <p><img alt="ALB Listener_Rules" src="alb-listener-rules.png" /></p>
-<p>The controller has added <code>rollouts-pod-template-hash</code> selector to the Services and 
-attached the same label to the Pods. Therefore, you can split the traffic by simply 
+<p>The controller has added <code>rollouts-pod-template-hash</code> selector to the Services and
+attached the same label to the Pods. Therefore, you can split the traffic by simply
 forwarding the requests to the Services according to the weights.</p>
 <p>As the Rollout progresses through steps, the forward action weights will be adjusted to
 match the current setWeight of the steps.</p>
@@ -3338,7 +3341,7 @@ match the current setWeight of the steps.</p>
     <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.dfff1995.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.78eede0e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.dff1b7c8.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
