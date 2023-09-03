@@ -1,7 +1,7 @@
 # Getting Started - NGINX Ingress
 
 This guide covers how Argo Rollouts integrates with the
-[NGINX Ingress Controller](https://github.com/kubernetes/ingress-nginx) for traffic shaping. 
+[NGINX Ingress Controller](https://github.com/kubernetes/ingress-nginx) for traffic shaping.
 This guide builds upon the concepts of the [basic getting started guide](../../getting-started.md).
 
 ## Requirements
@@ -41,7 +41,7 @@ rule which has a backend targeting the Service referenced under `canary.stableSe
 In our example, that stable Service is named: `rollouts-demo-stable`:
 
 ```yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: rollouts-demo-stable
@@ -53,10 +53,13 @@ spec:
     http:
       paths:
       - path: /
+        pathType: Prefix
         backend:
-          # Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field
-          serviceName: rollouts-demo-stable
-          servicePort: 80
+          service:
+            # Reference to a Service name, also specified in the Rollout spec.strategy.canary.stableService field
+            name: rollouts-demo-stable
+            port:
+              number: 80
 ```
 
 Run the following commands to deploy:

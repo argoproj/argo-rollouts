@@ -19,7 +19,7 @@ to the ingress rules so that it is possible to specifically reach to the desired
 pods or stable pods.
 
 ```yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: guestbook
@@ -29,25 +29,36 @@ spec:
   - host: guestbook-desired.argoproj.io
     http:
       paths:
-      - backend:
-          serviceName: guestbook-desired
-          servicePort: 443
-        path: /*
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: guestbook-desired
+            port:
+              number: 443
+
   # host rule to only reach the stable pods
   - host: guestbook-stable.argoproj.io
     http:
       paths:
-      - backend:
-          serviceName: guestbook-stable
-          servicePort: 443
-        path: /*
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: guestbook-stable
+            port:
+              number: 443
+
   # default rule which omits host, and will split traffic between desired vs. stable
   - http:
       paths:
-      - backend:
-          serviceName: guestbook-root
-          servicePort: 443
-        path: /*
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: guestbook-root
+            port:
+            number: 443
 ```
 
 The above technique has the a benefit in that it would not incur additional cost of allocating

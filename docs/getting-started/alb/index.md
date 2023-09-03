@@ -1,7 +1,7 @@
 # Getting Started - AWS Load Balancer Controller
 
 This guide covers how Argo Rollouts integrates with the
-[AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/) 
+[AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/)
 for traffic shaping. This guide builds upon the concepts of the [basic getting started guide](../../getting-started.md).
 
 ## Requirements
@@ -48,7 +48,7 @@ This should be `canary.trafficRouting.alb.rootService` (if specified), otherwise
 use `canary.stableService`.
 
 ```yaml
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: rollouts-demo-ingress
@@ -58,20 +58,23 @@ spec:
   rules:
   - http:
       paths:
-      - path: /*
+      - path: /
+        pathType: Prefix
         backend:
-          # serviceName must match either: canary.trafficRouting.alb.rootService (if specified),
-          # or canary.stableService (if rootService is omitted)
-          serviceName: rollouts-demo-root
-          # servicePort must be the value: use-annotation
-          # This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic
-          servicePort: use-annotation
+          service:
+            # serviceName must match either: canary.trafficRouting.alb.rootService (if specified),
+            # or canary.stableService (if rootService is omitted)
+            name: rollouts-demo-root
+            # servicePort must be the value: use-annotation
+            # This instructs AWS Load Balancer Controller to look to annotations on how to direct traffic
+            port:
+              name: use-annotation
 ```
 
 During an update, the Ingress will be injected with a
 [custom action annotation](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/#actions),
 which directs the ALB to splits traffic between the stable and canary Services referenced by the Rollout.
-In this example, those Services are named: `rollouts-demo-stable` and `rollouts-demo-canary` 
+In this example, those Services are named: `rollouts-demo-stable` and `rollouts-demo-canary`
 respectively.
 
 Run the following commands to deploy:
@@ -123,15 +126,15 @@ kubectl argo rollouts get rollout rollouts-demo
 ![Rollout ALB Paused](paused-rollout-alb.png)
 
 At this point, both the canary and stable version of the Rollout are running, with 5% of the
-traffic directed to the canary. To understand how this works, inspect the listener rules for 
-the ALB. When looking at the listener rules, we see that the forward action weights 
+traffic directed to the canary. To understand how this works, inspect the listener rules for
+the ALB. When looking at the listener rules, we see that the forward action weights
 have been modified by the controller to reflect the current weight of the canary.
 
 ![ALB Listener_Rules](alb-listener-rules.png)
 
-The controller has added `rollouts-pod-template-hash` selector to the Services and 
-attached the same label to the Pods. Therefore, you can split the traffic by simply 
+The controller has added `rollouts-pod-template-hash` selector to the Services and
+attached the same label to the Pods. Therefore, you can split the traffic by simply
 forwarding the requests to the Services according to the weights.
- 
+
 As the Rollout progresses through steps, the forward action weights will be adjusted to
 match the current setWeight of the steps.
