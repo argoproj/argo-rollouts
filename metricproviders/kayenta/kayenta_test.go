@@ -157,12 +157,12 @@ func TestRunSuccessfully(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			bodyI := map[string]interface{}{}
+			bodyI := map[string]any{}
 			err = json.Unmarshal(body, &bodyI)
 			if err != nil {
 				panic(err)
 			}
-			expectedBodyI := map[string]interface{}{}
+			expectedBodyI := map[string]any{}
 			err = json.Unmarshal([]byte(expectedBody), &expectedBodyI)
 			if err != nil {
 				panic(err)

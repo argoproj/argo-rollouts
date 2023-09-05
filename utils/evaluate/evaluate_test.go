@@ -126,11 +126,11 @@ func TestErrorWithInvalidReference(t *testing.T) {
 }
 
 func TestEvaluateArray(t *testing.T) {
-	floats := map[string]interface{}{
-		"service_apdex": map[string]interface{}{
+	floats := map[string]any{
+		"service_apdex": map[string]any{
 			"label": nil,
-			"values": map[string]interface{}{
-				"values": []interface{}{float64(2), float64(2)},
+			"values": map[string]any{
+				"values": []any{float64(2), float64(2)},
 			},
 		},
 	}
@@ -169,7 +169,7 @@ func TestEvaluateAsIntPanic(t *testing.T) {
 
 func TestEvaluateAsInt(t *testing.T) {
 	tests := []struct {
-		input       interface{}
+		input       any
 		expression  string
 		expectation bool
 	}{
@@ -186,7 +186,7 @@ func TestEvaluateAsInt(t *testing.T) {
 
 func TestEvaluateAsFloatError(t *testing.T) {
 	tests := []struct {
-		input      interface{}
+		input      any
 		expression string
 		errRegexp  string
 	}{
@@ -203,7 +203,7 @@ func TestEvaluateAsFloatError(t *testing.T) {
 
 func TestEvaluateAsFloat(t *testing.T) {
 	tests := []struct {
-		input       interface{}
+		input       any
 		expression  string
 		expectation bool
 	}{

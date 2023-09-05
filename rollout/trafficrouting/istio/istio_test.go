@@ -866,18 +866,18 @@ func TestHttpReconcileHeaderRouteWithExtra(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, found)
 
-	r0 := routes[0].(map[string]interface{})
-	route, found := r0["route"].([]interface{})
+	r0 := routes[0].(map[string]any)
+	route, found := r0["route"].([]any)
 	assert.True(t, found)
 
-	port1 := route[0].(map[string]interface{})["destination"].(map[string]interface{})["port"].(map[string]interface{})["number"]
+	port1 := route[0].(map[string]any)["destination"].(map[string]any)["port"].(map[string]any)["number"]
 	assert.True(t, port1 == int64(8443))
 
-	r1 := routes[1].(map[string]interface{})
+	r1 := routes[1].(map[string]any)
 	_, found = r1["retries"]
 	assert.True(t, found)
 
-	r2 := routes[2].(map[string]interface{})
+	r2 := routes[2].(map[string]any)
 	_, found = r2["retries"]
 	assert.True(t, found)
 	_, found = r2["corsPolicy"]
@@ -891,14 +891,14 @@ func TestHttpReconcileHeaderRouteWithExtra(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, found)
 
-	r0 = routes[0].(map[string]interface{})
-	route, found = r0["route"].([]interface{})
+	r0 = routes[0].(map[string]any)
+	route, found = r0["route"].([]any)
 	assert.True(t, found)
 
-	port1 = route[0].(map[string]interface{})["destination"].(map[string]interface{})["port"].(map[string]interface{})["number"]
+	port1 = route[0].(map[string]any)["destination"].(map[string]any)["port"].(map[string]any)["number"]
 	assert.True(t, port1 == float64(8443))
 
-	r2 = routes[1].(map[string]interface{})
+	r2 = routes[1].(map[string]any)
 	_, found = r2["retries"]
 	assert.True(t, found)
 	_, found = r2["corsPolicy"]
@@ -1498,34 +1498,34 @@ func TestInvalidPatches(t *testing.T) {
 		weight:           10,
 	}}
 	{
-		invalidHTTPRoute := make([]interface{}, 1)
-		invalidTlsRoute := make([]interface{}, 1)
-		invalidTcpRoute := make([]interface{}, 1)
+		invalidHTTPRoute := make([]any, 1)
+		invalidTlsRoute := make([]any, 1)
+		invalidTcpRoute := make([]any, 1)
 		invalidHTTPRoute[0] = "not a map"
 		err := patches.patchVirtualService(invalidHTTPRoute, invalidTlsRoute, invalidTcpRoute)
 		assert.Error(t, err, invalidCasting, "http[]", "map[string]interface")
 	}
 	{
-		invalidHTTPRoute := []interface{}{
-			map[string]interface{}{
+		invalidHTTPRoute := []any{
+			map[string]any{
 				"route": "not a []interface",
 			},
 		}
-		invalidTlsRoute := make([]interface{}, 1)
-		invalidTcpRoute := make([]interface{}, 1)
+		invalidTlsRoute := make([]any, 1)
+		invalidTcpRoute := make([]any, 1)
 		err := patches.patchVirtualService(invalidHTTPRoute, invalidTlsRoute, invalidTcpRoute)
 		assert.Error(t, err, invalidCasting, "http[].route", "[]interface")
 	}
 	{
-		invalidHTTPRoute := []interface{}{
-			map[string]interface{}{
-				"route": []interface{}{
+		invalidHTTPRoute := []any{
+			map[string]any{
+				"route": []any{
 					"destination",
 				},
 			},
 		}
-		invalidTlsRoute := make([]interface{}, 1)
-		invalidTCPRoute := make([]interface{}, 1)
+		invalidTlsRoute := make([]any, 1)
+		invalidTCPRoute := make([]any, 1)
 		err := patches.patchVirtualService(invalidHTTPRoute, invalidTlsRoute, invalidTCPRoute)
 		assert.Error(t, err, invalidCasting, "http[].route[].destination", "map[string]interface")
 	}
@@ -2543,20 +2543,20 @@ func TestHttpReconcileMirrorRouteWithExtraFields(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, found)
 
-	r0 := routes[0].(map[string]interface{})
-	mirrorRoute, found := r0["route"].([]interface{})
+	r0 := routes[0].(map[string]any)
+	mirrorRoute, found := r0["route"].([]any)
 	assert.True(t, found)
 
-	port1 := mirrorRoute[0].(map[string]interface{})["destination"].(map[string]interface{})["port"].(map[string]interface{})["number"]
-	port2 := mirrorRoute[1].(map[string]interface{})["destination"].(map[string]interface{})["port"].(map[string]interface{})["number"]
+	port1 := mirrorRoute[0].(map[string]any)["destination"].(map[string]any)["port"].(map[string]any)["number"]
+	port2 := mirrorRoute[1].(map[string]any)["destination"].(map[string]any)["port"].(map[string]any)["number"]
 	assert.True(t, port1 == float64(8443))
 	assert.True(t, port2 == float64(8443))
 
-	r1 := routes[1].(map[string]interface{})
+	r1 := routes[1].(map[string]any)
 	_, found = r1["retries"]
 	assert.True(t, found)
 
-	r2 := routes[2].(map[string]interface{})
+	r2 := routes[2].(map[string]any)
 	_, found = r2["retries"]
 	assert.True(t, found)
 	_, found = r2["corsPolicy"]

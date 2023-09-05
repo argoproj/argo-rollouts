@@ -243,7 +243,7 @@ func ValidateMetric(metric v1alpha1.Metric) error {
 
 func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
 	j, _ := json.Marshal(r)
-	m := interface{}(nil)
+	m := any(nil)
 	json.Unmarshal(j, &m)
 	sections := regexp.MustCompile("[\\.\\[\\]]+").Split(path, -1)
 	for _, section := range sections {
@@ -251,7 +251,7 @@ func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
 			continue // if path ends with a separator char, Split returns an empty last section
 		}
 
-		if asArray, ok := m.([]interface{}); ok {
+		if asArray, ok := m.([]any); ok {
 			if i, err := strconv.Atoi(section); err != nil {
 				return "", fmt.Errorf("invalid index '%s'", section)
 			} else if i >= len(asArray) {
@@ -259,7 +259,7 @@ func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
 			} else {
 				m = asArray[i]
 			}
-		} else if asMap, ok := m.(map[string]interface{}); ok {
+		} else if asMap, ok := m.(map[string]any); ok {
 			m = asMap[section]
 		} else {
 			return "", fmt.Errorf("invalid path %s in rollout", path)
@@ -271,8 +271,8 @@ func extractValueFromRollout(r *v1alpha1.Rollout, path string) (string, error) {
 	}
 
 	var isArray, isMap bool
-	_, isArray = m.([]interface{})
-	_, isMap = m.(map[string]interface{})
+	_, isArray = m.([]any)
+	_, isMap = m.(map[string]any)
 	if isArray || isMap {
 		return "", fmt.Errorf("path %s in rollout must terminate in a primitive value", path)
 	}

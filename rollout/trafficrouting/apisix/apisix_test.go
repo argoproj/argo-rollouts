@@ -172,7 +172,7 @@ func TestSetWeight(t *testing.T) {
 		backends, err := GetBackends(apisixHttpRouteObj)
 		assert.NoError(t, err)
 		for _, backend := range backends {
-			typedBackend, ok := backend.(map[string]interface{})
+			typedBackend, ok := backend.(map[string]any)
 			assert.Equal(t, ok, true)
 			nameOfCurrentBackend, isFound, err := unstructured.NestedString(typedBackend, "serviceName")
 			assert.NoError(t, err)
@@ -279,7 +279,7 @@ func TestSetWeight(t *testing.T) {
 
 func TestGetHttpRouteError(t *testing.T) {
 	type testcase struct {
-		routes []interface{}
+		routes []any
 		ref    string
 	}
 	testcases := []testcase{
@@ -288,28 +288,28 @@ func TestGetHttpRouteError(t *testing.T) {
 			ref:    "nil",
 		},
 		{
-			routes: []interface{}{""},
+			routes: []any{""},
 			ref:    "Failed type",
 		},
 		{
-			routes: []interface{}{
-				map[string]interface{}{
+			routes: []any{
+				map[string]any{
 					"x": nil,
 				},
 			},
 			ref: "noname",
 		},
 		{
-			routes: []interface{}{
-				map[string]interface{}{
+			routes: []any{
+				map[string]any{
 					"name": 123,
 				},
 			},
 			ref: "name type error",
 		},
 		{
-			routes: []interface{}{
-				map[string]interface{}{
+			routes: []any{
+				map[string]any{
 					"name": "123",
 				},
 			},
@@ -324,11 +324,11 @@ func TestGetHttpRouteError(t *testing.T) {
 }
 
 func TestGetBackendsError(t *testing.T) {
-	testcases := []interface{}{
+	testcases := []any{
 		nil,
 		123,
-		map[string]interface{}{},
-		map[string]interface{}{
+		map[string]any{},
+		map[string]any{
 			"backends": "123",
 		},
 	}
@@ -342,26 +342,26 @@ func TestGetBackendsError(t *testing.T) {
 func TestSetBackendWeightError(t *testing.T) {
 	type testcase struct {
 		backendName string
-		backends    []interface{}
+		backends    []any
 		weight      int64
 	}
 	testcases := []testcase{
 		{},
 		{
-			backends: []interface{}{
+			backends: []any{
 				"",
 			},
 		},
 		{
-			backends: []interface{}{
-				map[string]interface{}{
+			backends: []any{
+				map[string]any{
 					"abc": 123,
 				},
 			},
 		},
 		{
-			backends: []interface{}{
-				map[string]interface{}{
+			backends: []any{
+				map[string]any{
 					"serviceName": 123,
 				},
 			},
@@ -512,7 +512,7 @@ func TestSetHeaderRoute(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, true, ok)
 
-		rule, ok := rules[0].(map[string]interface{})
+		rule, ok := rules[0].(map[string]any)
 		assert.Equal(t, true, ok)
 		priority, ok, err := unstructured.NestedInt64(rule, "priority")
 		assert.NoError(t, err)
@@ -548,7 +548,7 @@ func TestSetHeaderRoute(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, true, ok)
 
-		rule, ok := rules[0].(map[string]interface{})
+		rule, ok := rules[0].(map[string]any)
 		assert.Equal(t, true, ok)
 		priority, ok, err := unstructured.NestedInt64(rule, "priority")
 		assert.NoError(t, err)
@@ -597,7 +597,7 @@ func TestSetHeaderRoute(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, true, ok)
 
-		rule, ok := rules[0].(map[string]interface{})
+		rule, ok := rules[0].(map[string]any)
 		assert.Equal(t, true, ok)
 		exprs, ok, err := unstructured.NestedSlice(rule, "match", "exprs")
 		assert.NoError(t, err)
@@ -652,7 +652,7 @@ func TestSetHeaderRoute(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, true, ok)
 
-		rule, ok := rules[0].(map[string]interface{})
+		rule, ok := rules[0].(map[string]any)
 		assert.Equal(t, true, ok)
 		exprs, ok, err := unstructured.NestedSlice(rule, "match", "exprs")
 		assert.NoError(t, err)
@@ -765,11 +765,11 @@ func TestSetHeaderRoute(t *testing.T) {
 	})
 }
 
-func assertExpr(t *testing.T, expr interface{}, op, name, scope, value string) {
+func assertExpr(t *testing.T, expr any, op, name, scope, value string) {
 	if expr == nil {
 		assert.Error(t, errors.New("expr is nil"))
 	}
-	typedExpr, ok := expr.(map[string]interface{})
+	typedExpr, ok := expr.(map[string]any)
 	assert.Equal(t, true, ok)
 
 	opAct, ok, err := unstructured.NestedString(typedExpr, "op")

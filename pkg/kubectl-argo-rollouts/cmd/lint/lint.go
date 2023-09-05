@@ -65,7 +65,7 @@ func NewCmdLint(o *options.ArgoRolloutsOptions) *cobra.Command {
 	return cmd
 }
 
-func unmarshal(fileBytes []byte, obj interface{}) error {
+func unmarshal(fileBytes []byte, obj any) error {
 	return yaml.UnmarshalStrict(fileBytes, &obj, yaml.DisallowUnknownFields)
 }
 
@@ -81,7 +81,7 @@ func (l *LintOptions) lintResource(path string) error {
 
 	decoder := goyaml.NewDecoder(bytes.NewReader(fileBytes))
 	for {
-		var value interface{}
+		var value any
 		if err := decoder.Decode(&value); err != nil {
 			if err != io.EOF {
 				return err
