@@ -302,12 +302,12 @@ func generateRSName(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec) str
 }
 
 func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.TemplateStatus, condition *v1alpha1.ExperimentCondition) string {
-	patchMap := make(map[string]interface{})
+	patchMap := make(map[string]any)
 	err := json.Unmarshal([]byte(patch), &patchMap)
 	if err != nil {
 		panic(err)
 	}
-	newStatus := patchMap["status"].(map[string]interface{})
+	newStatus := patchMap["status"].(map[string]any)
 	if templates != nil {
 		newStatus["templateStatuses"] = templates
 		patchMap["status"] = newStatus
@@ -334,7 +334,7 @@ func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.
 	newEx := &v1alpha1.Experiment{}
 	json.Unmarshal(newBytes, newEx)
 
-	newPatch := make(map[string]interface{})
+	newPatch := make(map[string]any)
 	json.Unmarshal(patchBytes, &newPatch)
 	newPatchBytes, _ := json.Marshal(newPatch)
 	return string(newPatchBytes)
@@ -380,7 +380,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	})
 
 	var enqueuedObjectsLock sync.Mutex
-	c.enqueueExperiment = func(obj interface{}) {
+	c.enqueueExperiment = func(obj any) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -396,7 +396,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		f.enqueuedObjects[key] = count
 		c.experimentWorkqueue.Add(obj)
 	}
-	c.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
+	c.enqueueExperimentAfter = func(obj any, duration time.Duration) {
 		c.enqueueExperiment(obj)
 	}
 

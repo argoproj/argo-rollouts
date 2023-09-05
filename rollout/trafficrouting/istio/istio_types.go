@@ -108,5 +108,5 @@ type Subset struct {
 	Name   string            `json:"name,omitempty"`
 	Labels map[string]string `json:"labels,omitempty"`
 	// TrafficPolicy *json.RawMessage  `json:"trafficPolicy,omitempty"`
-	Extra map[string]interface{} `json:",omitempty"`
+	Extra map[string]any `json:",omitempty"`
 }

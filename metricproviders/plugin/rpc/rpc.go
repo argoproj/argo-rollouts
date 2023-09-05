@@ -56,7 +56,7 @@ type MetricsPluginRPC struct{ client *rpc.Client }
 // server side function.
 func (g *MetricsPluginRPC) InitPlugin() types.RpcError {
 	var resp types.RpcError
-	err := g.client.Call("Plugin.InitPlugin", new(interface{}), &resp)
+	err := g.client.Call("Plugin.InitPlugin", new(any), &resp)
 	if err != nil {
 		return types.RpcError{ErrorString: fmt.Sprintf("InitPlugin rpc call error: %s", err)}
 	}
@@ -66,7 +66,7 @@ func (g *MetricsPluginRPC) InitPlugin() types.RpcError {
 // Run is the client side function that is wrapped by a local provider this makes an rpc call to the server side function.
 func (g *MetricsPluginRPC) Run(analysisRun *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
 	var resp v1alpha1.Measurement
-	var args interface{} = RunArgs{
+	var args any = RunArgs{
 		AnalysisRun: analysisRun,
 		Metric:      metric,
 	}
@@ -83,7 +83,7 @@ func (g *MetricsPluginRPC) Run(analysisRun *v1alpha1.AnalysisRun, metric v1alpha
 // Resume is the client side function that is wrapped by a local provider this makes an rpc call to the server side function.
 func (g *MetricsPluginRPC) Resume(analysisRun *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	var resp v1alpha1.Measurement
-	var args interface{} = TerminateAndResumeArgs{
+	var args any = TerminateAndResumeArgs{
 		AnalysisRun: analysisRun,
 		Metric:      metric,
 		Measurement: measurement,
@@ -101,7 +101,7 @@ func (g *MetricsPluginRPC) Resume(analysisRun *v1alpha1.AnalysisRun, metric v1al
 // Terminate is the client side function that is wrapped by a local provider this makes an rpc call to the server side function.
 func (g *MetricsPluginRPC) Terminate(analysisRun *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
 	var resp v1alpha1.Measurement
-	var args interface{} = TerminateAndResumeArgs{
+	var args any = TerminateAndResumeArgs{
 		AnalysisRun: analysisRun,
 		Metric:      metric,
 		Measurement: measurement,
@@ -119,7 +119,7 @@ func (g *MetricsPluginRPC) Terminate(analysisRun *v1alpha1.AnalysisRun, metric v
 // GarbageCollect is the client side function that is wrapped by a local provider this makes an rpc call to the server side function.
 func (g *MetricsPluginRPC) GarbageCollect(analysisRun *v1alpha1.AnalysisRun, metric v1alpha1.Metric, limit int) types.RpcError {
 	var resp types.RpcError
-	var args interface{} = GarbageCollectArgs{
+	var args any = GarbageCollectArgs{
 		AnalysisRun: analysisRun,
 		Metric:      metric,
 		Limit:       limit,
@@ -134,7 +134,7 @@ func (g *MetricsPluginRPC) GarbageCollect(analysisRun *v1alpha1.AnalysisRun, met
 // Type is the client side function that is wrapped by a local provider this makes an rpc call to the server side function.
 func (g *MetricsPluginRPC) Type() string {
 	var resp string
-	err := g.client.Call("Plugin.Type", new(interface{}), &resp)
+	err := g.client.Call("Plugin.Type", new(any), &resp)
 	if err != nil {
 		return fmt.Sprintf("Type rpc call error: %s", err)
 	}
@@ -144,7 +144,7 @@ func (g *MetricsPluginRPC) Type() string {
 // GetMetadata is the client side function that is wrapped by a local provider this makes an rpc call to the server side function.
 func (g *MetricsPluginRPC) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	var resp map[string]string
-	var args interface{} = GetMetadataArgs{
+	var args any = GetMetadataArgs{
 		Metric: metric,
 	}
 	err := g.client.Call("Plugin.GetMetadata", &args, &resp)
@@ -166,14 +166,14 @@ type MetricsRPCServer struct {
 
 // InitPlugin is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
-func (s *MetricsRPCServer) InitPlugin(args interface{}, resp *types.RpcError) error {
+func (s *MetricsRPCServer) InitPlugin(args any, resp *types.RpcError) error {
 	*resp = s.Impl.InitPlugin()
 	return nil
 }
 
 // Run is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
-func (s *MetricsRPCServer) Run(args interface{}, resp *v1alpha1.Measurement) error {
+func (s *MetricsRPCServer) Run(args any, resp *v1alpha1.Measurement) error {
 	runArgs, ok := args.(*RunArgs)
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
@@ -184,7 +184,7 @@ func (s *MetricsRPCServer) Run(args interface{}, resp *v1alpha1.Measurement) err
 
 // Resume is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
-func (s *MetricsRPCServer) Resume(args interface{}, resp *v1alpha1.Measurement) error {
+func (s *MetricsRPCServer) Resume(args any, resp *v1alpha1.Measurement) error {
 	resumeArgs, ok := args.(*TerminateAndResumeArgs)
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
@@ -195,7 +195,7 @@ func (s *MetricsRPCServer) Resume(args interface{}, resp *v1alpha1.Measurement) 
 
 // Terminate is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
-func (s *MetricsRPCServer) Terminate(args interface{}, resp *v1alpha1.Measurement) error {
+func (s *MetricsRPCServer) Terminate(args any, resp *v1alpha1.Measurement) error {
 	resumeArgs, ok := args.(*TerminateAndResumeArgs)
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
@@ -206,7 +206,7 @@ func (s *MetricsRPCServer) Terminate(args interface{}, resp *v1alpha1.Measuremen
 
 // GarbageCollect is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
-func (s *MetricsRPCServer) GarbageCollect(args interface{}, resp *types.RpcError) error {
+func (s *MetricsRPCServer) GarbageCollect(args any, resp *types.RpcError) error {
 	gcArgs, ok := args.(*GarbageCollectArgs)
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
@@ -217,14 +217,14 @@ func (s *MetricsRPCServer) GarbageCollect(args interface{}, resp *types.RpcError
 
 // Type is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
-func (s *MetricsRPCServer) Type(args interface{}, resp *string) error {
+func (s *MetricsRPCServer) Type(args any, resp *string) error {
 	*resp = s.Impl.Type()
 	return nil
 }
 
 // GetMetadata is the receiving end of the RPC call running in the plugin executable process (the server), and it calls the
 // implementation of the plugin.
-func (s *MetricsRPCServer) GetMetadata(args interface{}, resp *map[string]string) error {
+func (s *MetricsRPCServer) GetMetadata(args any, resp *map[string]string) error {
 	getMetadataArgs, ok := args.(*GetMetadataArgs)
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
@@ -248,10 +248,10 @@ type RpcMetricProviderPlugin struct {
 	Impl MetricProviderPlugin
 }
 
-func (p *RpcMetricProviderPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
+func (p *RpcMetricProviderPlugin) Server(*plugin.MuxBroker) (any, error) {
 	return &MetricsRPCServer{Impl: p.Impl}, nil
 }
 
-func (RpcMetricProviderPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (RpcMetricProviderPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (any, error) {
 	return &MetricsPluginRPC{client: c}, nil
 }

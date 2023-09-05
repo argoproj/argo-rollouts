@@ -78,7 +78,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	return newMeasurement
 }
 
-func toJSONString(v interface{}) (string, error) {
+func toJSONString(v any) (string, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return "", err

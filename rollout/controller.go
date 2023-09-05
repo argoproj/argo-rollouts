@@ -144,8 +144,8 @@ type reconcilerBase struct {
 	podRestarter RolloutPodRestarter
 
 	// used for unit testing
-	enqueueRollout              func(obj interface{})                                                          //nolint:structcheck
-	enqueueRolloutAfter         func(obj interface{}, duration time.Duration)                                  //nolint:structcheck
+	enqueueRollout              func(obj any)                                                                  //nolint:structcheck
+	enqueueRolloutAfter         func(obj any, duration time.Duration)                                          //nolint:structcheck
 	newTrafficRoutingReconciler func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) //nolint:structcheck
 
 	// recorder is an event recorder for recording Event resources to the Kubernetes API.
@@ -171,7 +171,7 @@ func NewController(cfg ControllerConfig) *Controller {
 	podRestarter := RolloutPodRestarter{
 		client:       cfg.KubeClientSet,
 		resyncPeriod: cfg.ResyncPeriod,
-		enqueueAfter: func(obj interface{}, duration time.Duration) {
+		enqueueAfter: func(obj any, duration time.Duration) {
 			controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 		},
 	}
@@ -208,10 +208,10 @@ func NewController(cfg ControllerConfig) *Controller {
 		ingressWorkqueue:  cfg.IngressWorkQueue,
 		metricsServer:     cfg.MetricsServer,
 	}
-	controller.enqueueRollout = func(obj interface{}) {
+	controller.enqueueRollout = func(obj any) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
 	}
-	controller.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
+	controller.enqueueRolloutAfter = func(obj any, duration time.Duration) {
 		controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 	}
 
@@ -228,7 +228,7 @@ func NewController(cfg ControllerConfig) *Controller {
 	log.Info("Setting up event handlers")
 	// Set up an event handler for when rollout resources change
 	cfg.RolloutsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controller.enqueueRollout(obj)
 			ro := unstructuredutil.ObjectToRollout(obj)
 			if ro != nil {
@@ -242,7 +242,7 @@ func NewController(cfg ControllerConfig) *Controller {
 				}
 			}
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			oldRollout := unstructuredutil.ObjectToRollout(old)
 			newRollout := unstructuredutil.ObjectToRollout(new)
 			if oldRollout != nil && newRollout != nil {
@@ -258,7 +258,7 @@ func NewController(cfg ControllerConfig) *Controller {
 			}
 			controller.enqueueRollout(new)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				logCtx := logutil.WithRollout(ro)
 				logCtx.Info("rollout deleted")
@@ -277,10 +277,10 @@ func NewController(cfg ControllerConfig) *Controller {
 	})
 
 	cfg.ReplicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			newRS := new.(*appsv1.ReplicaSet)
 			oldRS := old.(*appsv1.ReplicaSet)
 			if newRS.ResourceVersion == oldRS.ResourceVersion {
@@ -290,16 +290,16 @@ func NewController(cfg ControllerConfig) *Controller {
 			}
 			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.enqueueRollout)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
 	})
 
 	cfg.AnalysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			oldAR := unstructuredutil.ObjectToAnalysisRun(old)
 			newAR := unstructuredutil.ObjectToAnalysisRun(new)
 			if oldAR == nil || newAR == nil {
@@ -311,7 +311,7 @@ func NewController(cfg ControllerConfig) *Controller {
 			}
 			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.enqueueRollout)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
 	})
@@ -884,7 +884,7 @@ func (c *rolloutContext) getReferencedALBIngresses(canary *v1alpha1.CanaryStrate
 	return &ingresses, nil
 }
 
-func handleCacheError(name string, childFields []string, value interface{}, err error) (*[]ingressutil.Ingress, error) {
+func handleCacheError(name string, childFields []string, value any, err error) (*[]ingressutil.Ingress, error) {
 	if k8serrors.IsNotFound(err) {
 		fldPath := field.NewPath("spec", "strategy", "canary", "trafficRouting")
 		return nil, field.Invalid(fldPath.Child(name, childFields...), value, err.Error())

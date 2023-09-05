@@ -300,7 +300,7 @@ func GetTargetGroupBindingsByService(ctx context.Context, dynamicClient dynamic.
 	return tgbs, nil
 }
 
-func toTargetGroupBinding(obj map[string]interface{}) (*TargetGroupBinding, error) {
+func toTargetGroupBinding(obj map[string]any) (*TargetGroupBinding, error) {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
@@ -368,7 +368,7 @@ func VerifyTargetGroupBinding(ctx context.Context, logCtx *log.Entry, awsClnt Cl
 		logCtx.Warn("Unable to match TargetGroupBinding spec.serviceRef.port to Service spec.ports")
 		return nil, nil
 	}
-	logCtx = logCtx.WithFields(map[string]interface{}{
+	logCtx = logCtx.WithFields(map[string]any{
 		"service":            svc.Name,
 		"targetgroupbinding": tgb.Name,
 		"tg":                 tgb.Spec.TargetGroupARN,

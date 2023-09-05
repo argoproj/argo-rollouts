@@ -14,7 +14,7 @@ import (
 // convertObject converts a runtime.Object into the supplied concrete typed object
 // typedObj should be a pointer to a typed object which is desired to be filled in.
 // This is a best effort conversion which ignores unmarshalling errors.
-func convertObject(object runtime.Object, typedObj interface{}) error {
+func convertObject(object runtime.Object, typedObj any) error {
 	un, ok := object.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("malformed object: expected \"*unstructured.Unstructured\", got \"%s\"", reflect.TypeOf(object).Name())
@@ -35,7 +35,7 @@ func convertObject(object runtime.Object, typedObj interface{}) error {
 	return nil
 }
 
-func fromUnstructuredViaJSON(u map[string]interface{}, obj interface{}) error {
+func fromUnstructuredViaJSON(u map[string]any, obj any) error {
 	data, err := json.Marshal(u)
 	if err != nil {
 		return err

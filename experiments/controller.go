@@ -63,8 +63,8 @@ type Controller struct {
 	metricsServer *metrics.MetricsServer
 
 	// used for unit testing
-	enqueueExperiment      func(obj interface{})
-	enqueueExperimentAfter func(obj interface{}, duration time.Duration)
+	enqueueExperiment      func(obj any)
+	enqueueExperimentAfter func(obj any, duration time.Duration)
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -127,10 +127,10 @@ func NewController(cfg ControllerConfig) *Controller {
 		resyncPeriod:                  cfg.ResyncPeriod,
 	}
 
-	controller.enqueueExperiment = func(obj interface{}) {
+	controller.enqueueExperiment = func(obj any) {
 		controllerutil.Enqueue(obj, cfg.ExperimentWorkQueue)
 	}
-	controller.enqueueExperimentAfter = func(obj interface{}, duration time.Duration) {
+	controller.enqueueExperimentAfter = func(obj any, duration time.Duration) {
 		controllerutil.EnqueueAfter(obj, duration, cfg.ExperimentWorkQueue)
 	}
 
@@ -138,20 +138,20 @@ func NewController(cfg ControllerConfig) *Controller {
 	// Set up an event handler for when experiment resources change
 	cfg.ExperimentsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueExperiment,
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			controller.enqueueExperiment(new)
 		},
 		DeleteFunc: controller.enqueueExperiment,
 	})
 
 	cfg.ExperimentsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			enqueueRollout := func(obj interface{}) {
+		AddFunc: func(obj any) {
+			enqueueRollout := func(obj any) {
 				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			oldAcc, err := meta.Accessor(old)
 			if err != nil {
 				return
@@ -165,13 +165,13 @@ func NewController(cfg ControllerConfig) *Controller {
 				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
-			enqueueRollout := func(obj interface{}) {
+			enqueueRollout := func(obj any) {
 				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(new, register.RolloutKind, enqueueRollout)
 		},
-		DeleteFunc: func(obj interface{}) {
-			enqueueRollout := func(obj interface{}) {
+		DeleteFunc: func(obj any) {
+			enqueueRollout := func(obj any) {
 				controllerutil.Enqueue(obj, cfg.RolloutWorkQueue)
 			}
 			controllerutil.EnqueueParentObject(obj, register.RolloutKind, enqueueRollout)
@@ -184,10 +184,10 @@ func NewController(cfg ControllerConfig) *Controller {
 	})
 
 	cfg.ReplicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.enqueueExperiment)
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			newRS := new.(*appsv1.ReplicaSet)
 			oldRS := old.(*appsv1.ReplicaSet)
 			if newRS.ResourceVersion == oldRS.ResourceVersion {
@@ -204,19 +204,19 @@ func NewController(cfg ControllerConfig) *Controller {
 			}
 			controllerutil.EnqueueParentObject(new, register.ExperimentKind, controller.enqueueExperiment)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controllerutil.EnqueueParentObject(obj, register.ExperimentKind, controller.enqueueExperiment)
 		},
 	})
 
 	cfg.AnalysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controller.enqueueIfCompleted(obj)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			controller.enqueueIfCompleted(newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controller.enqueueIfCompleted(obj)
 		},
 	})
@@ -346,7 +346,7 @@ func (ec *Controller) persistExperimentStatus(orig *v1alpha1.Experiment, newStat
 }
 
 // enqueueIfCompleted conditionally enqueues the AnalysisRun's Experiment if the run is complete
-func (ec *Controller) enqueueIfCompleted(obj interface{}) {
+func (ec *Controller) enqueueIfCompleted(obj any) {
 	run := unstructuredutil.ObjectToAnalysisRun(obj)
 	if run == nil {
 		return

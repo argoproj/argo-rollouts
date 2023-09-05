@@ -290,15 +290,15 @@ func (s *ArgoRolloutsServer) WatchRolloutInfos(q *rollout.RolloutInfoListQuery, 
 	rolloutUpdateChan := make(chan *v1alpha1.Rollout)
 
 	rolloutInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			rolloutUpdateChan <- obj.(*v1alpha1.Rollout)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			rolloutUpdateChan <- newObj.(*v1alpha1.Rollout)
 		},
 	})
 	podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			podUpdated(obj.(*corev1.Pod), rsLister, rolloutsLister, rolloutUpdateChan)
 		},
 	})

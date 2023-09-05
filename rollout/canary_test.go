@@ -1467,7 +1467,7 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(rollout)
 	f.run(getKey(rollout, t))
 
-	patch := make(map[string]interface{})
+	patch := make(map[string]any)
 	patchData := f.getPatchedRollout(patchIndex)
 	err := json.Unmarshal([]byte(patchData), &patch)
 	assert.NoError(t, err)
@@ -1477,7 +1477,7 @@ func TestCanaryRolloutWithInvalidCanaryServiceName(t *testing.T) {
 	assert.True(t, ok)
 	assert.Len(t, c, 2)
 
-	condition, ok := c[1].(map[string]interface{})
+	condition, ok := c[1].(map[string]any)
 	assert.True(t, ok)
 	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
 	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.canaryService: Invalid value: \"invalid-canary\": service \"invalid-canary\" not found", condition["message"])
@@ -1519,7 +1519,7 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(rollout)
 	f.run(getKey(rollout, t))
 
-	patch := make(map[string]interface{})
+	patch := make(map[string]any)
 	patchData := f.getPatchedRollout(patchIndex)
 	err := json.Unmarshal([]byte(patchData), &patch)
 	assert.NoError(t, err)
@@ -1529,7 +1529,7 @@ func TestCanaryRolloutWithInvalidStableServiceName(t *testing.T) {
 	assert.True(t, ok)
 	assert.Len(t, c, 2)
 
-	condition, ok := c[1].(map[string]interface{})
+	condition, ok := c[1].(map[string]any)
 	assert.True(t, ok)
 	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
 	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.stableService: Invalid value: \"invalid-stable\": service \"invalid-stable\" not found", condition["message"])
@@ -1570,7 +1570,7 @@ func TestCanaryRolloutWithInvalidPingServiceName(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
-	patch := make(map[string]interface{})
+	patch := make(map[string]any)
 	patchData := f.getPatchedRollout(patchIndex)
 	err := json.Unmarshal([]byte(patchData), &patch)
 	assert.NoError(t, err)
@@ -1580,7 +1580,7 @@ func TestCanaryRolloutWithInvalidPingServiceName(t *testing.T) {
 	assert.True(t, ok)
 	assert.Len(t, c, 2)
 
-	condition, ok := c[1].(map[string]interface{})
+	condition, ok := c[1].(map[string]any)
 	assert.True(t, ok)
 	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
 	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.pingPong.pingService: Invalid value: \"ping-service\": service \"ping-service\" not found", condition["message"])
@@ -1602,7 +1602,7 @@ func TestCanaryRolloutWithInvalidPongServiceName(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
 
-	patch := make(map[string]interface{})
+	patch := make(map[string]any)
 	patchData := f.getPatchedRollout(patchIndex)
 	err := json.Unmarshal([]byte(patchData), &patch)
 	assert.NoError(t, err)
@@ -1612,7 +1612,7 @@ func TestCanaryRolloutWithInvalidPongServiceName(t *testing.T) {
 	assert.True(t, ok)
 	assert.Len(t, c, 2)
 
-	condition, ok := c[1].(map[string]interface{})
+	condition, ok := c[1].(map[string]any)
 	assert.True(t, ok)
 	assert.Equal(t, conditions.InvalidSpecReason, condition["reason"])
 	assert.Equal(t, "The Rollout \"foo\" is invalid: spec.strategy.canary.pingPong.pongService: Invalid value: \"pong-service\": service \"pong-service\" not found", condition["message"])
@@ -1698,11 +1698,11 @@ func TestResumeRolloutAfterPauseDuration(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
-	var patchObj map[string]interface{}
+	var patchObj map[string]any
 	err := json.Unmarshal([]byte(patch), &patchObj)
 	assert.NoError(t, err)
 
-	status := patchObj["status"].(map[string]interface{})
+	status := patchObj["status"].(map[string]any)
 	assert.Equal(t, float64(2), status["currentStepIndex"])
 	controllerPause, ok := status["controllerPause"]
 	assert.True(t, ok)
