@@ -34,7 +34,7 @@ const (
 	// InvalidSetCanaryScaleTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetCanaryScaleTrafficPolicy = "SetCanaryScale requires TrafficRouting to be set"
 	// InvalidSetHeaderRouteTrafficPolicy indicates that TrafficRouting required for SetHeaderRoute is missing
-	InvalidSetHeaderRouteTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio and ALB and Apisix"
+	InvalidSetHeaderRouteTrafficPolicy = "SetHeaderRoute requires TrafficRouting, supports Istio and ALB and Apisix and argoproj-labs/contour"
 	// InvalidSetMirrorRouteTrafficPolicy indicates that TrafficRouting, required for SetCanaryScale, is missing
 	InvalidSetMirrorRouteTrafficPolicy = "SetMirrorRoute requires TrafficRouting, supports Istio only"
 	// InvalidStringMatchMultipleValuePolicy indicates that SetCanaryScale, has multiple values set
@@ -238,6 +238,22 @@ func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {
 	return true
 }
 
+// pluginContour is the name given to the plugin for contour
+const pluginContour = "argoproj-labs/contour"
+
+func headerRouteEnabled(trafficRouting *v1alpha1.RolloutTrafficRouting) bool {
+	if trafficRouting == nil {
+		return false
+	}
+
+	if trafficRouting.Plugins == nil {
+		return trafficRouting.Istio != nil || trafficRouting.ALB != nil || trafficRouting.Apisix != nil
+	}
+
+	_, ok := trafficRouting.Plugins[pluginContour]
+	return ok
+
+}
 func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {
 	canary := rollout.Spec.Strategy.Canary
 	allErrs := field.ErrorList{}
@@ -305,7 +321,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		if step.SetHeaderRoute != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
-			if trafficRouting == nil || (trafficRouting.Istio == nil && trafficRouting.ALB == nil && trafficRouting.Apisix == nil) {
+			if !headerRouteEnabled(trafficRouting) {
 				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRoute"), step.SetHeaderRoute, InvalidSetHeaderRouteTrafficPolicy))
 			} else if step.SetHeaderRoute.Match != nil && len(step.SetHeaderRoute.Match) > 0 {
 				for j, match := range step.SetHeaderRoute.Match {

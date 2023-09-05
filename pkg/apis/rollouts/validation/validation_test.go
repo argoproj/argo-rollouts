@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -313,6 +314,75 @@ func TestValidateRolloutStrategyCanarySetHeaderRouteIstio(t *testing.T) {
 		TrafficRouting: &v1alpha1.RolloutTrafficRouting{
 			Istio: &v1alpha1.IstioTrafficRouting{
 				VirtualService: &v1alpha1.IstioVirtualService{Name: "virtual-service"},
+			},
+		},
+	}
+
+	t.Run("using SetHeaderRoute step with multiple values", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "agent",
+						HeaderValue: &v1alpha1.StringMatch{
+							Exact: "chrome",
+							Regex: "chrome(.*)",
+						},
+					},
+				},
+			},
+		}}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidStringMatchMultipleValuePolicy, allErrs[0].Detail)
+	})
+
+	t.Run("using SetHeaderRoute step with missed values", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "agent",
+					},
+				},
+			},
+		}}
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalidStringMatchMissedValuePolicy, allErrs[0].Detail)
+	})
+
+	t.Run("using SetHeaderRoute step without managedRoutes defined but missing route", func(t *testing.T) {
+		invalidRo := ro.DeepCopy()
+		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName:  "agent",
+						HeaderValue: &v1alpha1.StringMatch{Exact: "exact"},
+					},
+				},
+			},
+		}}
+		invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.MangedRoutes{
+			Name: "not-in-steps",
+		})
+		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
+		assert.Equal(t, InvalideStepRouteNameNotFoundInManagedRoutes, allErrs[0].Detail)
+	})
+}
+
+func TestValidateRolloutStrategyCanarySetHeaderRouteContour(t *testing.T) {
+	ro := &v1alpha1.Rollout{}
+	ro.Spec.Strategy.Canary = &v1alpha1.CanaryStrategy{
+		CanaryService: "canary",
+		StableService: "stable",
+		TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+			Plugins: map[string]json.RawMessage{
+				pluginContour: []byte(`
+httpProxies:
+- header-route-test
+namespace: default`),
 			},
 		},
 	}
