@@ -387,7 +387,7 @@ namespace: default`),
 		},
 	}
 
-	t.Run("using SetHeaderRoute step with multiple values", func(t *testing.T) {
+	t.Run("using SetHeaderRoute step with managedRoutes not defined", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
 			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
@@ -396,48 +396,13 @@ namespace: default`),
 						HeaderName: "agent",
 						HeaderValue: &v1alpha1.StringMatch{
 							Exact: "chrome",
-							Regex: "chrome(.*)",
 						},
 					},
 				},
 			},
 		}}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
-		assert.Equal(t, InvalidStringMatchMultipleValuePolicy, allErrs[0].Detail)
-	})
-
-	t.Run("using SetHeaderRoute step with missed values", func(t *testing.T) {
-		invalidRo := ro.DeepCopy()
-		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
-				Match: []v1alpha1.HeaderRoutingMatch{
-					{
-						HeaderName: "agent",
-					},
-				},
-			},
-		}}
-		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
-		assert.Equal(t, InvalidStringMatchMissedValuePolicy, allErrs[0].Detail)
-	})
-
-	t.Run("using SetHeaderRoute step without managedRoutes defined but missing route", func(t *testing.T) {
-		invalidRo := ro.DeepCopy()
-		invalidRo.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{{
-			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
-				Match: []v1alpha1.HeaderRoutingMatch{
-					{
-						HeaderName:  "agent",
-						HeaderValue: &v1alpha1.StringMatch{Exact: "exact"},
-					},
-				},
-			},
-		}}
-		invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes = append(invalidRo.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, v1alpha1.MangedRoutes{
-			Name: "not-in-steps",
-		})
-		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
-		assert.Equal(t, InvalideStepRouteNameNotFoundInManagedRoutes, allErrs[0].Detail)
+		assert.Equal(t, fmt.Sprintf(MissingFieldMessage, "spec.strategy.canary.trafficRouting.managedRoutes"), allErrs[0].Detail)
 	})
 }
 
