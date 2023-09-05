@@ -45,9 +45,9 @@ type viewController struct {
 	cacheSyncs []cache.InformerSynced
 
 	workqueue workqueue.RateLimitingInterface
-	prevObj   interface{}
-	getObj    func() (interface{}, error)
-	callbacks []func(interface{})
+	prevObj   any
+	getObj    func() (any, error)
+	callbacks []func(any)
 }
 
 type RolloutViewController struct {
@@ -71,7 +71,7 @@ func NewRolloutViewController(namespace string, name string, kubeClient kubernet
 	rvc := RolloutViewController{
 		viewController: vc,
 	}
-	vc.getObj = func() (interface{}, error) {
+	vc.getObj = func() (any, error) {
 		return rvc.GetRolloutInfo()
 	}
 	return &rvc
@@ -82,7 +82,7 @@ func NewExperimentViewController(namespace string, name string, kubeClient kuber
 	evc := ExperimentViewController{
 		viewController: vc,
 	}
-	vc.getObj = func() (interface{}, error) {
+	vc.getObj = func() (any, error) {
 		return evc.GetExperimentInfo()
 	}
 	return &evc
@@ -114,13 +114,13 @@ func newViewController(namespace string, name string, kubeClient kubernetes.Inte
 	)
 
 	enqueueRolloutHandlerFuncs := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controller.workqueue.Add(controller.name)
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			controller.workqueue.Add(controller.name)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controller.workqueue.Add(controller.name)
 		},
 	}
@@ -215,7 +215,7 @@ func (c *RolloutViewController) GetRolloutInfo() (*rollout.RolloutInfo, error) {
 }
 
 func (c *RolloutViewController) RegisterCallback(callback RolloutInfoCallback) {
-	cb := func(i interface{}) {
+	cb := func(i any) {
 		callback(i.(*rollout.RolloutInfo))
 	}
 	c.callbacks = append(c.callbacks, cb)
@@ -243,7 +243,7 @@ func (c *ExperimentViewController) GetExperimentInfo() (*rollout.ExperimentInfo,
 }
 
 func (c *ExperimentViewController) RegisterCallback(callback ExperimentInfoCallback) {
-	cb := func(i interface{}) {
+	cb := func(i any) {
 		callback(i.(*rollout.ExperimentInfo))
 	}
 	c.callbacks = append(c.callbacks, cb)

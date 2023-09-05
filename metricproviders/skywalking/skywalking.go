@@ -29,7 +29,7 @@ const (
 )
 
 type SkyWalkingClientAPI interface {
-	Query(query string) (interface{}, error)
+	Query(query string) (any, error)
 }
 
 type SkyWalkingClient struct {
@@ -38,7 +38,7 @@ type SkyWalkingClient struct {
 }
 
 // Query executes a GraphQL query against the given SkyWalking backend
-func (n SkyWalkingClient) Query(query string) (interface{}, error) {
+func (n SkyWalkingClient) Query(query string) (any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
 	defer cancel()
 
@@ -48,7 +48,7 @@ func (n SkyWalkingClient) Query(query string) (interface{}, error) {
 		End:   time.Now().Format("2006-01-02 1504"),
 		Step:  "MINUTE",
 	})
-	var results interface{}
+	var results any
 	err := n.Run(ctx, req, &results)
 	return results, err
 }
@@ -82,7 +82,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	return newMeasurement
 }
 
-func toJSONString(v interface{}) (string, error) {
+func toJSONString(v any) (string, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return "", err
@@ -90,7 +90,7 @@ func toJSONString(v interface{}) (string, error) {
 	return string(b), nil
 }
 
-func (p *Provider) processResponse(metric v1alpha1.Metric, result interface{}) (string, v1alpha1.AnalysisPhase, error) {
+func (p *Provider) processResponse(metric v1alpha1.Metric, result any) (string, v1alpha1.AnalysisPhase, error) {
 	if result == nil {
 		return "", v1alpha1.AnalysisPhaseFailed, fmt.Errorf("no results returned from SkyWalking query")
 	}

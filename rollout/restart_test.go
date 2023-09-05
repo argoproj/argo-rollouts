@@ -94,7 +94,7 @@ func TestRestartCheckEnqueueRollout(t *testing.T) {
 			log:     logrus.WithField("", ""),
 		}
 		p := RolloutPodRestarter{
-			enqueueAfter: func(obj interface{}, duration time.Duration) {
+			enqueueAfter: func(obj any, duration time.Duration) {
 				assert.Fail(t, "Should not enqueue rollout")
 			},
 		}
@@ -108,7 +108,7 @@ func TestRestartCheckEnqueueRollout(t *testing.T) {
 		}
 		p := RolloutPodRestarter{
 			resyncPeriod: 10 * time.Minute,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {
+			enqueueAfter: func(obj any, duration time.Duration) {
 				assert.Fail(t, "Should not enqueue rollout")
 			},
 		}
@@ -123,7 +123,7 @@ func TestRestartCheckEnqueueRollout(t *testing.T) {
 		}
 		p := RolloutPodRestarter{
 			resyncPeriod: 10 * time.Minute,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {
+			enqueueAfter: func(obj any, duration time.Duration) {
 				enqueued = true
 			},
 		}
@@ -139,7 +139,7 @@ func TestRestartCheckEnqueueRollout(t *testing.T) {
 		}
 		p := RolloutPodRestarter{
 			resyncPeriod: 2 * time.Minute,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {
+			enqueueAfter: func(obj any, duration time.Duration) {
 				enqueued = true
 			},
 		}
@@ -182,7 +182,7 @@ func TestRestartReconcile(t *testing.T) {
 		r := RolloutPodRestarter{
 			client:       client,
 			resyncPeriod: 2 * time.Minute,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {},
+			enqueueAfter: func(obj any, duration time.Duration) {},
 		}
 		err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
@@ -203,7 +203,7 @@ func TestRestartReconcile(t *testing.T) {
 		})
 		r := RolloutPodRestarter{
 			client:       client,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {},
+			enqueueAfter: func(obj any, duration time.Duration) {},
 		}
 		err := r.Reconcile(roCtx)
 		assert.Errorf(t, err, expectedErrMsg)
@@ -217,7 +217,7 @@ func TestRestartReconcile(t *testing.T) {
 		}
 		r := RolloutPodRestarter{
 			client:       client,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {},
+			enqueueAfter: func(obj any, duration time.Duration) {},
 		}
 		err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
@@ -235,7 +235,7 @@ func TestRestartReconcile(t *testing.T) {
 		}
 		r := RolloutPodRestarter{
 			client:       client,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {},
+			enqueueAfter: func(obj any, duration time.Duration) {},
 		}
 		err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
@@ -252,7 +252,7 @@ func TestRestartReconcile(t *testing.T) {
 		}
 		r := RolloutPodRestarter{
 			client:       client,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {},
+			enqueueAfter: func(obj any, duration time.Duration) {},
 		}
 		err := r.Reconcile(roCtx)
 		assert.Nil(t, err)
@@ -469,7 +469,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 		enqueued := false
 		r := RolloutPodRestarter{
 			client: client,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {
+			enqueueAfter: func(obj any, duration time.Duration) {
 				enqueued = true
 			},
 		}
@@ -497,7 +497,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 		enqueued := false
 		r := RolloutPodRestarter{
 			client: client,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {
+			enqueueAfter: func(obj any, duration time.Duration) {
 				enqueued = true
 			},
 		}
@@ -525,7 +525,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 		enqueued := false
 		r := RolloutPodRestarter{
 			client: client,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {
+			enqueueAfter: func(obj any, duration time.Duration) {
 				enqueued = true
 			},
 		}
@@ -558,7 +558,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 		enqueued := false
 		r := RolloutPodRestarter{
 			client: client,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {
+			enqueueAfter: func(obj any, duration time.Duration) {
 				enqueued = true
 			},
 		}
@@ -592,7 +592,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 		enqueued := false
 		r := RolloutPodRestarter{
 			client: client,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {
+			enqueueAfter: func(obj any, duration time.Duration) {
 				enqueued = true
 			},
 		}
@@ -618,7 +618,7 @@ func TestRestartMaxUnavailable(t *testing.T) {
 		enqueued := false
 		r := RolloutPodRestarter{
 			client: client,
-			enqueueAfter: func(obj interface{}, duration time.Duration) {
+			enqueueAfter: func(obj any, duration time.Duration) {
 				enqueued = true
 			},
 		}
@@ -650,7 +650,7 @@ func TestRestartRespectPodDisruptionBudget(t *testing.T) {
 	enqueueCalled := false
 	r := RolloutPodRestarter{
 		client: client,
-		enqueueAfter: func(obj interface{}, duration time.Duration) {
+		enqueueAfter: func(obj any, duration time.Duration) {
 			enqueueCalled = true
 		},
 	}

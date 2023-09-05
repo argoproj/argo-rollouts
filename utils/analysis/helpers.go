@@ -541,9 +541,9 @@ func NewAnalysisRunFromUnstructured(obj *unstructured.Unstructured, templateArgs
 	}
 
 	// Set args
-	newArgVals := []interface{}{}
+	newArgVals := []any{}
 	for i := 0; i < len(newArgs); i++ {
-		var newArgInterface map[string]interface{}
+		var newArgInterface map[string]any
 		newArgBytes, err := json.Marshal(newArgs[i])
 		if err != nil {
 			return nil, err

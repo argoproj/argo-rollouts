@@ -91,7 +91,7 @@ func (r *Reconciler) SetWeight(desiredWeight int32, additionalDestinations ...v1
 	return err
 }
 
-func (r *Reconciler) processSetWeightRoutes(desiredWeight int32, apisixRoute *unstructured.Unstructured, rollout *v1alpha1.Rollout, apisixRouteName string) ([]interface{}, error) {
+func (r *Reconciler) processSetWeightRoutes(desiredWeight int32, apisixRoute *unstructured.Unstructured, rollout *v1alpha1.Rollout, apisixRouteName string) ([]any, error) {
 	httpRoutes, isFound, err := unstructured.NestedSlice(apisixRoute.Object, "spec", "http")
 	if err != nil {
 		return nil, err
@@ -129,9 +129,9 @@ func (r *Reconciler) processSetWeightRoutes(desiredWeight int32, apisixRoute *un
 	return httpRoutes, nil
 }
 
-func GetHttpRoute(routes []interface{}, ref string) (interface{}, error) {
+func GetHttpRoute(routes []any, ref string) (any, error) {
 	for _, route := range routes {
-		typedRoute, ok := route.(map[string]interface{})
+		typedRoute, ok := route.(map[string]any)
 		if !ok {
 			return nil, errors.New(failedToTypeAssertion)
 		}
@@ -151,8 +151,8 @@ func GetHttpRoute(routes []interface{}, ref string) (interface{}, error) {
 	return nil, errors.New(fmt.Sprintf("Apisix http route rule %s not found", ref))
 }
 
-func GetBackends(httpRoute interface{}) ([]interface{}, error) {
-	typedHttpRoute, ok := httpRoute.(map[string]interface{})
+func GetBackends(httpRoute any) ([]any, error) {
+	typedHttpRoute, ok := httpRoute.(map[string]any)
 	if !ok {
 		return nil, errors.New(failedToTypeAssertion)
 	}
@@ -160,17 +160,17 @@ func GetBackends(httpRoute interface{}) ([]interface{}, error) {
 	if !ok {
 		return nil, errors.New("Apisix http route backends not found")
 	}
-	backends, ok := rawBackends.([]interface{})
+	backends, ok := rawBackends.([]any)
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("%s backends", failedToTypeAssertion))
 	}
 	return backends, nil
 }
 
-func setBackendWeight(backendName string, backends []interface{}, weight int64) error {
+func setBackendWeight(backendName string, backends []any, weight int64) error {
 	found := false
 	for _, backend := range backends {
-		typedBackend, ok := backend.(map[string]interface{})
+		typedBackend, ok := backend.(map[string]any)
 		if !ok {
 			return errors.New(fmt.Sprintf("%s backends", failedToTypeAssertion))
 		}
@@ -323,14 +323,14 @@ func (r *Reconciler) makeSetHeaderRoute(ctx context.Context, headerRouting *v1al
 	return setHeaderApisixRoute, isNew, nil
 }
 
-func removeBackend(route interface{}, backendName string, backends []interface{}) error {
-	typedRoute, ok := route.(map[string]interface{})
+func removeBackend(route any, backendName string, backends []any) error {
+	typedRoute, ok := route.(map[string]any)
 	if !ok {
 		return errors.New("Failed type assertion for Apisix http route")
 	}
-	result := []interface{}{}
+	result := []any{}
 	for _, backend := range backends {
-		typedBackend, ok := backend.(map[string]interface{})
+		typedBackend, ok := backend.(map[string]any)
 		if !ok {
 			return errors.New("Failed type assertion for Apisix http route backend")
 		}
@@ -348,8 +348,8 @@ func removeBackend(route interface{}, backendName string, backends []interface{}
 	return unstructured.SetNestedSlice(typedRoute, result, "backends")
 }
 
-func processRulePriority(route interface{}) error {
-	typedRoute, ok := route.(map[string]interface{})
+func processRulePriority(route any) error {
+	typedRoute, ok := route.(map[string]any)
 	if !ok {
 		return errors.New("Failed type assertion for Apisix http route")
 	}
@@ -366,40 +366,40 @@ func processRulePriority(route interface{}) error {
 	return nil
 }
 
-func setApisixRuleMatch(route interface{}, headerRouting *v1alpha1.SetHeaderRoute) error {
-	typedRoute, ok := route.(map[string]interface{})
+func setApisixRuleMatch(route any, headerRouting *v1alpha1.SetHeaderRoute) error {
+	typedRoute, ok := route.(map[string]any)
 	if !ok {
 		return errors.New("Failed type assertion for Apisix http route")
 	}
-	exprs := []interface{}{}
+	exprs := []any{}
 	for _, match := range headerRouting.Match {
 		exprs = append(exprs, apisixExprs(match.HeaderName, match.HeaderValue.Exact, match.HeaderValue.Regex, match.HeaderValue.Prefix)...)
 	}
 	return unstructured.SetNestedSlice(typedRoute, exprs, "match", "exprs")
 }
 
-func apisixExprs(header, exact, regex, prefix string) []interface{} {
-	subject := map[string]interface{}{
+func apisixExprs(header, exact, regex, prefix string) []any {
+	subject := map[string]any{
 		"scope": "Header",
 		"name":  header,
 	}
-	exprs := []interface{}{}
+	exprs := []any{}
 	if exact != "" {
-		exprs = append(exprs, map[string]interface{}{
+		exprs = append(exprs, map[string]any{
 			"subject": subject,
 			"op":      "Equal",
 			"value":   exact,
 		})
 	}
 	if regex != "" {
-		exprs = append(exprs, map[string]interface{}{
+		exprs = append(exprs, map[string]any{
 			"subject": subject,
 			"op":      "RegexMatch",
 			"value":   regex,
 		})
 	}
 	if prefix != "" {
-		exprs = append(exprs, map[string]interface{}{
+		exprs = append(exprs, map[string]any{
 			"subject": subject,
 			"op":      "RegexMatch",
 			"value":   fmt.Sprintf("^%s.*", prefix),

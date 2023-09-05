@@ -31,7 +31,7 @@ func TestType(t *testing.T) {
 func TestRunSuccessfully(t *testing.T) {
 	e := log.Entry{}
 	mock := &mockAPI{
-		response: []nrdb.NRDBResult{map[string]interface{}{"count": 10}},
+		response: []nrdb.NRDBResult{map[string]any{"count": 10}},
 	}
 	p := NewNewRelicProvider(mock, e)
 	metric := v1alpha1.Metric{
@@ -58,9 +58,9 @@ func TestRunWithTimeseries(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := &mockAPI{
 		response: []nrdb.NRDBResult{
-			map[string]interface{}{"count": 10},
-			map[string]interface{}{"count": 20},
-			map[string]interface{}{"count": 30}},
+			map[string]any{"count": 10},
+			map[string]any{"count": 20},
+			map[string]any{"count": 30}},
 	}
 	p := NewNewRelicProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -86,7 +86,7 @@ func TestRunWithTimeseries(t *testing.T) {
 func TestRunWithFacet(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := &mockAPI{
-		response: []nrdb.NRDBResult{map[string]interface{}{"count": 10, "average.duration": 12.34}},
+		response: []nrdb.NRDBResult{map[string]any{"count": 10, "average.duration": 12.34}},
 	}
 	p := NewNewRelicProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -112,7 +112,7 @@ func TestRunWithFacet(t *testing.T) {
 func TestRunWithMultipleSelectTerms(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := &mockAPI{
-		response: []nrdb.NRDBResult{map[string]interface{}{"count": 10}},
+		response: []nrdb.NRDBResult{map[string]any{"count": 10}},
 	}
 	p := NewNewRelicProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -139,7 +139,7 @@ func TestRunWithEmptyResult(t *testing.T) {
 	e := log.NewEntry(log.New())
 	expectedErr := fmt.Errorf("no results returned from NRQL query")
 	mock := &mockAPI{
-		response: []nrdb.NRDBResult{make(map[string]interface{})},
+		response: []nrdb.NRDBResult{make(map[string]any)},
 	}
 	p := NewNewRelicProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -245,7 +245,7 @@ func TestRunWithInvalidJSON(t *testing.T) {
 	}
 	t.Run("with a single result map", func(t *testing.T) {
 		mock := &mockAPI{
-			response: []nrdb.NRDBResult{map[string]interface{}{"func": func() {}}},
+			response: []nrdb.NRDBResult{map[string]any{"func": func() {}}},
 		}
 		p := NewNewRelicProvider(mock, *e)
 		measurement := p.Run(newAnalysisRun(), metric)
@@ -258,7 +258,7 @@ func TestRunWithInvalidJSON(t *testing.T) {
 	t.Run("with multiple results", func(t *testing.T) {
 		// cover branch where results slice is longer than 1
 		mock := &mockAPI{
-			response: []nrdb.NRDBResult{map[string]interface{}{"key": "value"}, map[string]interface{}{"func": func() {}}},
+			response: []nrdb.NRDBResult{map[string]any{"key": "value"}, map[string]any{"func": func() {}}},
 		}
 		p := NewNewRelicProvider(mock, *e)
 		measurement := p.Run(newAnalysisRun(), metric)

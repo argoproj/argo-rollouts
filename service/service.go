@@ -82,7 +82,7 @@ type Controller struct {
 	resyncPeriod      time.Duration
 
 	metricServer   *metrics.MetricsServer
-	enqueueRollout func(obj interface{})
+	enqueueRollout func(obj any)
 }
 
 // NewController returns a new service controller
@@ -103,7 +103,7 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		serviceIndexName: func(obj interface{}) (strings []string, e error) {
+		serviceIndexName: func(obj any) (strings []string, e error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return serviceutil.GetRolloutServiceKeys(ro), nil
 			}
@@ -112,17 +112,17 @@ func NewController(cfg ControllerConfig) *Controller {
 	}))
 
 	cfg.ServicesInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controllerutil.Enqueue(obj, cfg.ServiceWorkqueue)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			controllerutil.Enqueue(newObj, cfg.ServiceWorkqueue)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controllerutil.Enqueue(obj, cfg.ServiceWorkqueue)
 		},
 	})
-	controller.enqueueRollout = func(obj interface{}) {
+	controller.enqueueRollout = func(obj any) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkqueue)
 	}
 
