@@ -1,4 +1,23 @@
 
+<a name="v1.6.0"></a>
+## [v1.6.0](https://github.com/argoproj/argo-rollouts/compare/v1.6.0-rc1...v1.6.0) (2023-09-05)
+
+### Chore
+
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.20.2 to 1.21.0 ([#2950](https://github.com/argoproj/argo-rollouts/issues/2950))
+* **deps:** bump github.com/antonmedv/expr from 1.12.7 to 1.13.0 ([#2951](https://github.com/argoproj/argo-rollouts/issues/2951))
+
+### Docs
+
+* update supported k8s version ([#2949](https://github.com/argoproj/argo-rollouts/issues/2949))
+
+### Fix
+
+* analysis step should be ignored after promote ([#3016](https://github.com/argoproj/argo-rollouts/issues/3016))
+* **controller:** rollback should skip all steps to active rs within RollbackWindow ([#2953](https://github.com/argoproj/argo-rollouts/issues/2953))
+* **controller:** typo fix ("Secrete" -> "Secret") in secret informer ([#2965](https://github.com/argoproj/argo-rollouts/issues/2965))
+
+
 <a name="v1.6.0-rc1"></a>
 ## [v1.6.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.5.1...v1.6.0-rc1) (2023-08-10)
 
