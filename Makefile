@@ -111,7 +111,7 @@ gen-proto: k8s-proto api-proto ui-proto
 # generates the .proto files affected by changes to types.go
 .PHONY: k8s-proto
 k8s-proto: go-mod-vendor $(TYPES) ## generate kubernetes protobuf files
-	PATH=${DIST_DIR}:$$PATH go-to-protobuf \
+	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} go-to-protobuf \
 		--go-header-file=./hack/custom-boilerplate.go.txt \
 		--packages=github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
 		--apimachinery-packages=${APIMACHINERY_PKGS} \
