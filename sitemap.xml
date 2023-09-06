@@ -2,582 +2,582 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://argo-rollouts.readthedocs.io/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/CONTRIBUTING/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/FAQ/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/architecture/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/best-practices/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/concepts/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/dashboard/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/getting-started/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/installation/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/migrating/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/plugins/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/releasing/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/roadmap/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/cloudwatch/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/datadog/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/graphite/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/influxdb/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/job/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/kayenta/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/newrelic/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/plugins/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/prometheus/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/skywalking/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/wavefront/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/analysis/web/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/analysis/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/bluegreen/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/canary/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/controller-metrics/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/ephemeral-metadata/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/experiment/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/helm/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/hpa-support/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/kubectl-plugin/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/kustomize/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/notifications/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/restart/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/rollback/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/scaledown-aborted-rs/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/specification/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/vpa-support/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/anti-affinity/anti-affinity/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/alb/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/ambassador/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/apisix/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/google-cloud/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/istio/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/kong/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/mixed/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/nginx/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/plugins/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/smi/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/features/traffic-management/traefik/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_abort/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_create_analysisrun/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_dashboard/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_experiment/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_get_rollout/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_lint/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_experiments/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_list_rollouts/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_get/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_template_notify/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_get/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_notifications_trigger_run/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_pause/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_promote/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_restart/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_experiment/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_retry_rollout/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_set_image/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_status/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_analysisrun/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_terminate_experiment/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_undo/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/kubectl-argo-rollouts/kubectl-argo-rollouts_version/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/alertmanager/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/email/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/github/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/googlechat/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/grafana/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/mattermost/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/newrelic/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/opsgenie/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/overview/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/pagerduty/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/pagerduty_v2/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/pushover/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/rocketchat/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/slack/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/teams/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/telegram/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/webex/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/webhook/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/getting-started/alb/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/getting-started/ambassador/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/getting-started/appmesh/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/getting-started/istio/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/getting-started/mixed/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/getting-started/nginx/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/getting-started/setup/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/getting-started/smi/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/security/security/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://argo-rollouts.readthedocs.io/security/signed-release-assets/</loc>
-         <lastmod>2023-09-05</lastmod>
+         <lastmod>2023-09-06</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>
