@@ -43,7 +43,7 @@ const (
 type IstioControllerConfig struct {
 	ArgoprojClientSet       roclientset.Interface
 	DynamicClientSet        dynamic.Interface
-	EnqueueRollout          func(ro interface{})
+	EnqueueRollout          func(ro any)
 	RolloutsInformer        informers.RolloutInformer
 	VirtualServiceInformer  cache.SharedIndexInformer
 	DestinationRuleInformer cache.SharedIndexInformer
@@ -67,7 +67,7 @@ func NewIstioController(cfg IstioControllerConfig) *IstioController {
 
 	// Add a Rollout index against referenced VirtualServices and DestinationRules
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		virtualServiceIndexName: func(obj interface{}) (strings []string, e error) {
+		virtualServiceIndexName: func(obj any) (strings []string, e error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return istioutil.GetRolloutVirtualServiceKeys(ro), nil
 			}
@@ -75,7 +75,7 @@ func NewIstioController(cfg IstioControllerConfig) *IstioController {
 		},
 	}))
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		destinationRuleIndexName: func(obj interface{}) (strings []string, e error) {
+		destinationRuleIndexName: func(obj any) (strings []string, e error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return istioutil.GetRolloutDesinationRuleKeys(ro), nil
 			}
@@ -85,27 +85,27 @@ func NewIstioController(cfg IstioControllerConfig) *IstioController {
 
 	// When a VirtualService changes, simply enqueue the referencing rollout
 	c.VirtualServiceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.EnqueueRolloutFromIstioVirtualService(obj)
 		},
 		// TODO: DeepEquals on httpRoutes
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			c.EnqueueRolloutFromIstioVirtualService(new)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.EnqueueRolloutFromIstioVirtualService(obj)
 		},
 	})
 
 	// When a DestinationRule changes, enqueue the DestinationRule for processing
 	c.DestinationRuleInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.EnqueueDestinationRule(obj)
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			c.EnqueueDestinationRule(new)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.EnqueueDestinationRule(obj)
 		},
 	})
@@ -158,13 +158,13 @@ func (c *IstioController) Run(ctx context.Context) {
 
 // EnqueueDestinationRule examines a VirtualService, finds the Rollout referencing
 // that VirtualService, and enqueues the corresponding Rollout for reconciliation
-func (c *IstioController) EnqueueDestinationRule(obj interface{}) {
+func (c *IstioController) EnqueueDestinationRule(obj any) {
 	controllerutil.EnqueueRateLimited(obj, c.destinationRuleWorkqueue)
 }
 
 // EnqueueRolloutFromIstioVirtualService examines a VirtualService, finds the Rollout referencing
 // that VirtualService, and enqueues the corresponding Rollout for reconciliation
-func (c *IstioController) EnqueueRolloutFromIstioVirtualService(vsvc interface{}) {
+func (c *IstioController) EnqueueRolloutFromIstioVirtualService(vsvc any) {
 	acc, err := meta.Accessor(vsvc)
 	if err != nil {
 		log.Errorf("Error processing istio VirtualService from watch: %v: %v", err, vsvc)

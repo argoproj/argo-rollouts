@@ -16,7 +16,7 @@ import (
 
 // ObjectFromYAML returns a runtime.Object from a yaml string
 func ObjectFromYAML(yamlStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(yamlStr), &obj)
 	if err != nil {
 		panic(err)

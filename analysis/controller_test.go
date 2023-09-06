@@ -113,7 +113,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		Recorder:             record.NewFakeEventRecorder(),
 	})
 
-	c.enqueueAnalysis = func(obj interface{}) {
+	c.enqueueAnalysis = func(obj any) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -127,7 +127,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		f.enqueuedObjects[key] = count
 		c.analysisRunWorkQueue.Add(obj)
 	}
-	c.enqueueAnalysisAfter = func(obj interface{}, duration time.Duration) {
+	c.enqueueAnalysisAfter = func(obj any, duration time.Duration) {
 		c.enqueueAnalysis(obj)
 	}
 	f.provider = &mocks.Provider{}

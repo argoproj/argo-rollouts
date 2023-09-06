@@ -87,7 +87,7 @@ type dataPoint struct {
 }
 
 func (gdp *dataPoint) UnmarshalJSON(data []byte) error {
-	var v []interface{}
+	var v []any
 	if err := json.Unmarshal(data, &v); err != nil {
 		return err
 	}

@@ -146,7 +146,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	if err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
-	var dat map[string]interface{}
+	var dat map[string]any
 	if err := json.Unmarshal(data, &dat); err != nil {
 		return metricutil.MarkMeasurementError(newMeasurement, err)
 	}
@@ -185,7 +185,7 @@ func (p *Provider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, mea
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	patch := make(map[string]interface{})
+	patch := make(map[string]any)
 
 	err = json.Unmarshal(data, &patch)
 	if err != nil {

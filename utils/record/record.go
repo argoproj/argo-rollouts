@@ -58,8 +58,8 @@ type EventOptions struct {
 }
 
 type EventRecorder interface {
-	Eventf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{})
-	Warnf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{})
+	Eventf(object runtime.Object, opts EventOptions, messageFmt string, args ...any)
+	Warnf(object runtime.Object, opts EventOptions, messageFmt string, args ...any)
 	K8sRecorder() record.EventRecorder
 }
 
@@ -75,7 +75,7 @@ type EventRecorderAdapter struct {
 	NotificationSuccessCounter  *prometheus.CounterVec
 	NotificationSendPerformance *prometheus.HistogramVec
 
-	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{})
+	eventf func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any)
 	// apiFactory is a notifications engine API factory
 	apiFactory api.Factory
 }
@@ -110,8 +110,8 @@ type FakeEventRecorder struct {
 func NewFakeApiFactory() api.Factory {
 	var (
 		settings = api.Settings{ConfigMapName: "my-config-map", SecretName: "my-secret", InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
-			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-				return map[string]interface{}{"obj": obj}
+			return func(obj map[string]any, dest services.Destination) map[string]any {
+				return map[string]any{"obj": obj}
 			}, nil
 		}}
 	)
@@ -173,7 +173,7 @@ func NewFakeEventRecorder() *FakeEventRecorder {
 	).(*EventRecorderAdapter)
 	recorder.Recorder = record.NewFakeRecorder(1000)
 	fakeRecorder := &FakeEventRecorder{}
-	recorder.eventf = func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{}) {
+	recorder.eventf = func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any) {
 		recorder.defaultEventf(object, warn, opts, messageFmt, args...)
 		fakeRecorder.Events = append(fakeRecorder.Events, opts.EventReason)
 	}
@@ -181,21 +181,21 @@ func NewFakeEventRecorder() *FakeEventRecorder {
 	return fakeRecorder
 }
 
-func (e *EventRecorderAdapter) Eventf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{}) {
+func (e *EventRecorderAdapter) Eventf(object runtime.Object, opts EventOptions, messageFmt string, args ...any) {
 	if opts.EventType == "" {
 		opts.EventType = corev1.EventTypeNormal
 	}
 	e.eventf(object, opts.EventType == corev1.EventTypeWarning, opts, messageFmt, args...)
 }
 
-func (e *EventRecorderAdapter) Warnf(object runtime.Object, opts EventOptions, messageFmt string, args ...interface{}) {
+func (e *EventRecorderAdapter) Warnf(object runtime.Object, opts EventOptions, messageFmt string, args ...any) {
 	opts.EventType = corev1.EventTypeWarning
 	e.eventf(object, true, opts, messageFmt, args...)
 }
 
 // defaultEventf is the default implementation of eventf, which is able to be overwritten for
 // test purposes
-func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...interface{}) {
+func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any) {
 	logCtx := logutil.WithObject(object)
 
 	if opts.EventReason != "" {
@@ -240,8 +240,8 @@ func NewAPIFactorySettings() api.Settings {
 		SecretName:    NotificationSecret,
 		ConfigMapName: NotificationConfigMap,
 		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
-			return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-				return map[string]interface{}{"rollout": obj, "time": timeExprs}
+			return func(obj map[string]any, dest services.Destination) map[string]any {
+				return map[string]any{"rollout": obj, "time": timeExprs}
 			}, nil
 		},
 	}
@@ -319,12 +319,12 @@ func hash(input string) string {
 }
 
 // toObjectMap converts an object to a map for the purposes of sending to the notification engine
-func toObjectMap(object interface{}) (map[string]interface{}, error) {
+func toObjectMap(object any) (map[string]any, error) {
 	objBytes, err := json.Marshal(object)
 	if err != nil {
 		return nil, err
 	}
-	var objMap map[string]interface{}
+	var objMap map[string]any
 	err = json.Unmarshal(objBytes, &objMap)
 	if err != nil {
 		return nil, err
@@ -338,7 +338,7 @@ func toObjectMap(object interface{}) (map[string]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		var templateMap map[string]interface{}
+		var templateMap map[string]any
 		err = json.Unmarshal(templateBytes, &templateMap)
 		if err != nil {
 			return nil, err
@@ -352,7 +352,7 @@ func toObjectMap(object interface{}) (map[string]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		var selectorMap map[string]interface{}
+		var selectorMap map[string]any
 		err = json.Unmarshal(selectorBytes, &selectorMap)
 		if err != nil {
 			return nil, err
@@ -373,7 +373,7 @@ func translateReasonToTrigger(reason string) string {
 	return "on-" + strings.ToLower(trigger)
 }
 
-var timeExprs = map[string]interface{}{
+var timeExprs = map[string]any{
 	"Parse": parse,
 	"Now":   now,
 }

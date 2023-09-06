@@ -54,7 +54,7 @@ func (t *Then) ExpectRolloutStatus(expectedStatus string) *Then {
 	return t
 }
 
-func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available interface{}) *Then {
+func (t *Then) ExpectReplicaCounts(desired, current, updated, ready, available any) *Then {
 	ro, err := t.rolloutClient.ArgoprojV1alpha1().Rollouts(t.namespace).Get(t.Context, t.rollout.GetName(), metav1.GetOptions{})
 	t.CheckError(err)
 	if desired != nil && desired.(int) != int(defaults.GetReplicasOrDefault(ro.Spec.Replicas)) {

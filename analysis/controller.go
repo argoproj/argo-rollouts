@@ -49,8 +49,8 @@ type Controller struct {
 	newProvider func(logCtx log.Entry, metric v1alpha1.Metric) (metric.Provider, error)
 
 	// used for unit testing
-	enqueueAnalysis      func(obj interface{})
-	enqueueAnalysisAfter func(obj interface{}, duration time.Duration)
+	enqueueAnalysis      func(obj any)
+	enqueueAnalysisAfter func(obj any, duration time.Duration)
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -91,10 +91,10 @@ func NewController(cfg ControllerConfig) *Controller {
 		resyncPeriod:         cfg.ResyncPeriod,
 	}
 
-	controller.enqueueAnalysis = func(obj interface{}) {
+	controller.enqueueAnalysis = func(obj any) {
 		controllerutil.Enqueue(obj, cfg.AnalysisRunWorkQueue)
 	}
-	controller.enqueueAnalysisAfter = func(obj interface{}, duration time.Duration) {
+	controller.enqueueAnalysisAfter = func(obj any, duration time.Duration) {
 		controllerutil.EnqueueAfter(obj, duration, cfg.AnalysisRunWorkQueue)
 	}
 
@@ -105,13 +105,13 @@ func NewController(cfg ControllerConfig) *Controller {
 	controller.newProvider = providerFactory.NewProvider
 
 	cfg.JobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controller.enqueueIfCompleted(obj)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			controller.enqueueIfCompleted(newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controller.enqueueIfCompleted(obj)
 		},
 	})
@@ -120,10 +120,10 @@ func NewController(cfg ControllerConfig) *Controller {
 	// Set up an event handler for when analysis resources change
 	cfg.AnalysisRunInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueAnalysis,
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			controller.enqueueAnalysis(new)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controller.enqueueAnalysis(obj)
 			if ar := unstructuredutil.ObjectToAnalysisRun(obj); ar != nil {
 				logCtx := logutil.WithAnalysisRun(ar)
@@ -186,7 +186,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	return c.persistAnalysisRunStatus(run, newRun.Status)
 }
 
-func (c *Controller) enqueueIfCompleted(obj interface{}) {
+func (c *Controller) enqueueIfCompleted(obj any) {
 	job, ok := obj.(*batchv1.Job)
 	if !ok {
 		return
