@@ -72,6 +72,7 @@ responsibility of the Argo Rollouts administrator to define the plugin installat
 #### [rollouts-plugin-trafficrouter-sample-nginx](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-sample-nginx)
 * This is just a sample plugin that can be used as a starting point for creating your own plugin.
   It is not meant to be used in production. It is based on the built-in prometheus provider.
+#### [rollouts-plugin-trafficrouter-gatewayapi](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi)
 
 #### [Contour](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-contour)
 * This is a plugin that allows argo-rollouts to work with contour's resource: HTTPProxy. It enables traffic shaping patterns such as canary releases and more.
