@@ -35,7 +35,6 @@ const (
 	DatadogApiKey           = "api-key"
 	DatadogAppKey           = "app-key"
 	DatadogAddress          = "address"
-	DefaultApiVersion       = "v1"
 )
 
 // Provider contains all the required components to run a Datadog query
@@ -212,10 +211,8 @@ func (p *Provider) createRequest(query string, apiVersion string, now int64, int
 func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response, apiVersion string) (string, v1alpha1.AnalysisPhase, error) {
 	if apiVersion == "v1" {
 		return p.parseResponseV1(metric, response)
-	} else if apiVersion == "v2" {
-		return p.parseResponseV2(metric, response)
 	}
-	return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Invalid API version: %s", apiVersion)
+	return p.parseResponseV2(metric, response)
 }
 
 func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
