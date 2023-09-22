@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// This is done so we can explicitly override it in the unit test
 var unixNow = func() int64 { return timeutil.Now().Unix() }
 
 const (
@@ -45,9 +46,10 @@ type Provider struct {
 }
 
 type datadogQueryAttributes struct {
-	From    int64               `json:"from"`
-	To      int64               `json:"to"`
-	Queries []map[string]string `json:"queries"`
+	From     int64               `json:"from"`
+	To       int64               `json:"to"`
+	Queries  []map[string]string `json:"queries"`
+	Formulas []map[string]string `json:"formulas"`
 }
 
 type datadogQuery struct {
@@ -105,7 +107,7 @@ func (p *Provider) buildEndpointUrl(apiVersion string) (*url.URL, error) {
 
 	route := "/api/v1/query"
 	if apiVersion == "v2" {
-		route = "/api/v2/query/timeseries"
+		route = "/api/v2/query/scalar"
 	}
 
 	// Add endpoint after getting the API version
@@ -176,37 +178,73 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	return measurement
 }
 
-func (p *Provider) createRequest(query string, apiVersion string, now int64, interval int64, url *url.URL) (*http.Request, error) {
-	if apiVersion == "v1" {
-		q := url.Query()
-		q.Set("query", query)
-		q.Set("from", strconv.FormatInt(now-interval, 10))
-		q.Set("to", strconv.FormatInt(now, 10))
-		url.RawQuery = q.Encode()
-
-		return &http.Request{Method: "GET"}, nil
-	} else if apiVersion == "v2" {
-		queryBody, err := json.Marshal(datadogRequest{
-			Data: datadogQuery{
-				QueryType: "timeseries_request",
-				Attributes: datadogQueryAttributes{
-					From: (now - interval) * 1000,
-					To:   now * 1000,
-					Queries: []map[string]string{{
-						"data_source": "metrics",
-						"query":       query,
-					}},
-				},
-			}})
-		if err != nil {
-			return nil, fmt.Errorf("Could not parse your JSON request: %v", err)
-		}
-		request := &http.Request{Method: "POST"}
-		request.Body = io.NopCloser(bytes.NewReader(queryBody))
-		return request, nil
+func (p *Provider) createRequest(dd *v1alpha1.DatadogMetric, now int64, interval int64, url *url.URL) (*http.Request, error) {
+	if dd.ApiVersion == "v1" {
+		return p.createRequestV1(dd.Query, now, interval, url)
 	}
 
-	return nil, fmt.Errorf("Invalid API version: %s", apiVersion)
+	// we know dd.Query and dd.Queries are mutually exclusive.
+	if dd.Query != "" {
+		dd.Queries = map[string]string{"query": dd.Query}
+	}
+
+	return p.createRequestV2(dd.Queries, dd.Formula, now, interval, url)
+}
+
+func (p *Provider) createRequestV1(query string, now int64, interval int64, url *url.URL) (*http.Request, error) {
+	q := url.Query()
+	q.Set("query", query)
+	q.Set("from", strconv.FormatInt(now-interval, 10))
+	q.Set("to", strconv.FormatInt(now, 10))
+	url.RawQuery = q.Encode()
+
+	return &http.Request{Method: "GET"}, nil
+}
+
+func buildQueriesPayload(queries map[string]string) []map[string]string {
+	qp := make([]map[string]string, 0, len(queries))
+	for k, v := range queries {
+		p := map[string]string{
+			"aggregator":  "last",
+			"data_source": "metrics",
+			"name":        k,
+			"query":       v,
+		}
+		qp = append(qp, p)
+	}
+	return qp
+}
+
+func (p *Provider) createRequestV2(queries map[string]string, formula string, now int64, interval int64, url *url.URL) (*http.Request, error) {
+	formulas := []map[string]string{}
+	// ddAPI supports multiple formulas but doesn't make sense in our context
+	// can't have a 'blank' formula, so have to guard
+	if formula != "" {
+		formulas = []map[string]string{{
+			"formula": formula,
+		}}
+	}
+
+	attribs := datadogQueryAttributes{
+		// Datadog requires milliseconds for v2 api
+		From:     (now - interval) * 1000,
+		To:       now * 1000,
+		Queries:  buildQueriesPayload(queries),
+		Formulas: formulas,
+	}
+
+	queryBody, err := json.Marshal(datadogRequest{
+		Data: datadogQuery{
+			QueryType:  "scalar_request",
+			Attributes: attribs,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Could not parse your JSON request: %v", err)
+	}
+	request := &http.Request{Method: "POST"}
+	request.Body = io.NopCloser(bytes.NewReader(queryBody))
+	return request, nil
 }
 
 func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response, apiVersion string) (string, v1alpha1.AnalysisPhase, error) {
