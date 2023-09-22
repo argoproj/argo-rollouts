@@ -91,32 +91,16 @@ func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	return nil
 }
 
-func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
-	startTime := timeutil.MetaNow()
-
-	// Measurement to pass back
-	measurement := v1alpha1.Measurement{
-		StartedAt: &startTime,
-	}
-
+func (p *Provider) buildEndpointUrl(apiVersion string) (*url.URL, error) {
 	endpoint := "https://api.datadoghq.com"
 	if p.config.Address != "" {
 		endpoint = p.config.Address
 	}
 
-	// Check if the URL is valid first before adding the endpoint
+	// Check if the user provided URL is valid first before adding the endpoint
 	url, err := url.Parse(endpoint)
 	if err != nil {
-		return metricutil.MarkMeasurementError(measurement, err)
-	}
-
-	apiVersion := DefaultApiVersion
-	if metric.Provider.Datadog.ApiVersion != "" {
-		apiVersion = metric.Provider.Datadog.ApiVersion
-	}
-
-	if apiVersion == "v1" {
-		p.logCtx.Warn("Datadog will soon deprecate their API v1. Please consider switching to v2 soon.")
+		return nil, err
 	}
 
 	route := "/api/v1/query"
@@ -126,6 +110,26 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 
 	// Add endpoint after getting the API version
 	url, err = url.Parse(endpoint + route)
+	if err != nil {
+		return nil, err
+	}
+	return url, err
+}
+
+func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
+	startTime := timeutil.MetaNow()
+	dd := metric.Provider.Datadog
+
+	if dd.ApiVersion == "v1" {
+		p.logCtx.Warn("Datadog will soon deprecate their API v1. Please consider switching to v2 soon.")
+	}
+
+	// Measurement to pass back
+	measurement := v1alpha1.Measurement{
+		StartedAt: &startTime,
+	}
+
+	url, err := p.buildEndpointUrl(dd.ApiVersion)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
