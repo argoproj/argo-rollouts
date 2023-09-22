@@ -70,8 +70,9 @@ type datadogResponseV1 struct {
 type datadogResponseV2 struct {
 	Data struct {
 		Attributes struct {
-			Values [][]float64
-			Times  []int64
+			Columns []struct {
+				Values []float64
+			}
 		}
 		Errors string
 	}
@@ -160,12 +161,11 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		Timeout: time.Duration(10) * time.Second,
 	}
 	response, err := httpClient.Do(request)
-
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	value, status, err := p.parseResponse(metric, response, apiVersion)
+	value, status, err := p.parseResponse(metric, response, dd.ApiVersion)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
@@ -255,9 +255,7 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 }
 
 func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
-
 	bodyBytes, err := io.ReadAll(response.Body)
-
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
 	}
@@ -299,9 +297,7 @@ func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Respon
 }
 
 func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
-
 	bodyBytes, err := io.ReadAll(response.Body)
-
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
 	}
@@ -324,26 +320,30 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 	}
 
 	// Handle an empty query result
-	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Values) == 0 || len(res.Data.Attributes.Times) == 0 {
+	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Columns) == 0 || len(res.Data.Attributes.Columns[0].Values) == 0 {
 		var nilFloat64 *float64
 		status, err := evaluate.EvaluateResult(nilFloat64, metric, p.logCtx)
-		attributesBytes, jsonErr := json.Marshal(res.Data.Attributes)
+
+		var attributesBytes []byte
+		var jsonErr error
+		// Should be impossible for this to not be true, based on dd openapi spec.
+		// But in this case, better safe than sorry
+		if len(res.Data.Attributes.Columns) == 1 {
+			attributesBytes, jsonErr = json.Marshal(res.Data.Attributes.Columns[0].Values)
+		} else {
+			attributesBytes, jsonErr = json.Marshal(res.Data.Attributes)
+		}
+
 		if jsonErr != nil {
-			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Failed to marshall JSON empty series: %v", jsonErr)
+			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Failed to marshall JSON empty Values: %v", jsonErr)
 		}
 
 		return string(attributesBytes), status, err
 	}
 
 	// Handle a populated query result
-	attributes := res.Data.Attributes
-	datapoint := attributes.Values[0]
-	timepoint := attributes.Times[len(attributes.Times)-1]
-	if timepoint == 0 {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datapoint does not have a corresponding time value")
-	}
-
-	value := datapoint[len(datapoint)-1]
+	column := res.Data.Attributes.Columns[0]
+	value := column.Values[0]
 	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
 	return strconv.FormatFloat(value, 'f', -1, 64), status, err
 }
