@@ -143,7 +143,7 @@ func TestRunSuite(t *testing.T) {
 		// Expect error with no default() and no data
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
+			webServerResponse: `{"status":"ok","series":[]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "result < 0.05",
@@ -158,14 +158,14 @@ func TestRunSuite(t *testing.T) {
 		// Expect success with default() and no data
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
+			webServerResponse: `{"status":"ok","series":[]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "default(result, 0) < 0.05",
 				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
-			expectedValue:           `[{"pointlist":[]}]`,
+			expectedValue:           `[]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseSuccessful,
 			useEnvVarForKeys:        false,
 		},
@@ -173,14 +173,14 @@ func TestRunSuite(t *testing.T) {
 		// Expect failure with bad default() and no data
 		{
 			webServerStatus:   200,
-			webServerResponse: `{"status":"ok","series":[{"pointlist":[]}]}`,
+			webServerResponse: `{"status":"ok","series":[]}`,
 			metric: v1alpha1.Metric{
 				Name:             "foo",
 				SuccessCondition: "default(result, 1) < 0.05",
 				Provider:         ddProviderIntervalDefault,
 			},
 			expectedIntervalSeconds: 300,
-			expectedValue:           `[{"pointlist":[]}]`,
+			expectedValue:           `[]`,
 			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
 			useEnvVarForKeys:        false,
 		},
