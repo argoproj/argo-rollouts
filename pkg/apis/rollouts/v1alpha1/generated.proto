@@ -606,12 +606,23 @@ message ClusterAnalysisTemplateList {
 }
 
 message DatadogMetric {
+  // +kubebuilder:default="5m"
+  // Interval refers to the Interval time window in Datadog (default: 5m). Not to be confused with the polling rate for the metric.
   optional string interval = 1;
 
   optional string query = 2;
 
+  // Queries is a map of query_name_as_key: query. You can then use query_name_as_key inside Formula.Used for v2
+  // +kubebuilder:validation:Type=object
+  map<string, string> queries = 3;
+
+  // Formula refers to the Formula made up of the queries. Only useful with Queries. Used for v2
+  optional string formula = 4;
+
   // ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.
-  optional string apiVersion = 3;
+  // +kubebuilder:validation:Enum=v1;v2
+  // +kubebuilder:default=v1
+  optional string apiVersion = 5;
 }
 
 // DryRun defines the settings for running the analysis in Dry-Run mode.

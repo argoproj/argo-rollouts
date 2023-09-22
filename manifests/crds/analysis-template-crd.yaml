@@ -175,13 +175,22 @@ spec:
                         datadog:
                           properties:
                             apiVersion:
+                              default: v1
+                              enum:
+                              - v1
+                              - v2
+                              type: string
+                            formula:
                               type: string
                             interval:
+                              default: 5m
                               type: string
+                            queries:
+                              additionalProperties:
+                                type: string
+                              type: object
                             query:
                               type: string
-                          required:
-                          - query
                           type: object
                         graphite:
                           properties:
