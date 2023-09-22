@@ -134,18 +134,15 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	now := unixNow()
-	var interval int64 = 300
-	if metric.Provider.Datadog.Interval != "" {
-		expDuration, err := metric.Provider.Datadog.Interval.Duration()
-		if err != nil {
-			return metricutil.MarkMeasurementError(measurement, err)
-		}
-		// Convert to seconds as DataDog expects unix timestamp
-		interval = int64(expDuration.Seconds())
+	// Interval default is in the spec. bigger things would need to fail to get here without an dd.Interval
+	expDuration, err := dd.Interval.Duration()
+	if err != nil {
+		return metricutil.MarkMeasurementError(measurement, err)
 	}
+	// Convert to seconds as DataDog expects unix timestamp
+	interval := int64(expDuration.Seconds())
 
-	request, err := p.createRequest(metric.Provider.Datadog.Query, apiVersion, now, interval, url)
+	request, err := p.createRequest(dd, unixNow(), interval, url)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
