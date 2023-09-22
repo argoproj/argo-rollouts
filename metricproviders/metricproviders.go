@@ -55,7 +55,7 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		}
 		return webmetric.NewWebMetricProvider(logCtx, c, p), nil
 	case datadog.ProviderType:
-		return datadog.NewDatadogProvider(logCtx, f.KubeClient)
+		return datadog.NewDatadogProvider(logCtx, f.KubeClient, metric)
 	case wavefront.ProviderType:
 		client, err := wavefront.NewWavefrontAPI(metric, f.KubeClient)
 		if err != nil {

@@ -82,7 +82,7 @@ type datadogConfig struct {
 	AppKey  string `yaml:"app-key,omitempty"`
 }
 
-// Type incidates provider is a Datadog provider
+// Type indicates provider is a Datadog provider
 func (p *Provider) Type() string {
 	return ProviderType
 }
@@ -341,7 +341,44 @@ func lookupKeysInEnv(keys []string) map[string]string {
 	return valuesByKey
 }
 
-func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*Provider, error) {
+// The current gen tooling we are using can't generate CRD with all the validations we need.
+// This is unfortunate, user has more ways to deliver an invalid Analysis Template vs
+// being rejected on delivery by k8s (and allowing for a validation step if desired in CI/CD).
+// So we run through all the checks here. If the situation changes (eg: being able to use oneOf with required)
+// in the CRD spec, please update.
+func validateIncomingProps(dd *v1alpha1.DatadogMetric) error {
+	// check that we have the required field
+	if dd.Query == "" && len(dd.Queries) == 0 {
+		return errors.New("Must have either a query or queries. Please review the Analysis Template.")
+	}
+
+	// check that we have ONE OF query/queries
+	if dd.Query != "" && len(dd.Queries) > 0 {
+		return errors.New("Cannot have both a query and queries. Please review the Analysis Template.")
+	}
+
+	// check that query is set for apiversion v1
+	if dd.ApiVersion == "v1" && dd.Query == "" {
+		return errors.New("Query is empty. API Version v1 only supports using the query parameter in your Analysis Template.")
+	}
+
+	// formula <3 queries. won't go anywhere without them
+	if dd.Formula != "" && len(dd.Queries) == 0 {
+		return errors.New("Formula are only valid when queries are set. Please review the Analysis Template.")
+	}
+
+	// Reject queries with more than 1 when NO formula provided. While this would technically work
+	// DD will return 2 columns of data, and there is no guarantee what order they would be in, so
+	// there is no way to guess at intention of user. Since this is about metrics and monitoring, we should
+	// avoid ambiguity.
+	if dd.Formula == "" && len(dd.Queries) > 1 {
+		return errors.New("When multiple queries are provided you must include a formula.")
+	}
+
+	return nil
+}
+
+func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, metric v1alpha1.Metric) (*Provider, error) {
 	ns := defaults.Namespace()
 
 	apiKey := ""
@@ -366,6 +403,12 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*
 	}
 
 	if apiKey != "" && appKey != "" {
+
+		err := validateIncomingProps(metric.Provider.Datadog)
+		if err != nil {
+			return nil, err
+		}
+
 		return &Provider{
 			logCtx: logCtx,
 			config: datadogConfig{
@@ -377,5 +420,4 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*
 	} else {
 		return nil, errors.New("API or App token not found")
 	}
-
 }
