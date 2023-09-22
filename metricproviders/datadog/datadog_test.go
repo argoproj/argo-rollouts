@@ -43,7 +43,6 @@ func TestDatadogSpecDefaults(t *testing.T) {
 
 	t.Run("apiVersion: Validate enum exists to restrict apiVersion to 2 options", func(t *testing.T) {
 		versionEnums := ddSpec.Properties["apiVersion"].Enum
-
 		assert.Equal(t, 2, len(versionEnums), "Expecting 2 enum options")
 		assert.Equal(t, "\"v1\"", string(versionEnums[0].Raw), "\"v1\" expected, got %s", string(versionEnums[0].Raw))
 		assert.Equal(t, "\"v2\"", string(versionEnums[1].Raw), "\"v2\" is missing, got %s", string(versionEnums[1].Raw))
@@ -51,7 +50,7 @@ func TestDatadogSpecDefaults(t *testing.T) {
 
 	t.Run("interval: Validate default is 5m", func(t *testing.T) {
 		defaultInterval := string(ddSpec.Properties["interval"].Default.Raw)
-		assert.Equal(t, "\"5m\"", defaultInterval, "Default version should be v1")
+		assert.Equal(t, "\"5m\"", defaultInterval, "Default interval should be "\"5m\" ")
 	})
 }
 
