@@ -323,48 +323,6 @@ func (c *rolloutContext) isScalingEvent() (bool, error) {
 	return false, nil
 }
 
-func (c *rolloutContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, newScale int32) (bool, *appsv1.ReplicaSet, error) {
-	// No need to scale
-	if *(rs.Spec.Replicas) == newScale && !annotations.ReplicasAnnotationsNeedUpdate(rs, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)) {
-		return false, rs, nil
-	}
-	var scalingOperation string
-	if *(rs.Spec.Replicas) < newScale {
-		scalingOperation = "up"
-	} else {
-		scalingOperation = "down"
-	}
-	scaled, newRS, err := c.scaleReplicaSet(rs, newScale, c.rollout, scalingOperation)
-	return scaled, newRS, err
-}
-
-func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, rollout *v1alpha1.Rollout, scalingOperation string) (bool, *appsv1.ReplicaSet, error) {
-	ctx := context.TODO()
-	sizeNeedsUpdate := *(rs.Spec.Replicas) != newScale
-	fullScaleDown := newScale == int32(0)
-	rolloutReplicas := defaults.GetReplicasOrDefault(rollout.Spec.Replicas)
-	annotationsNeedUpdate := annotations.ReplicasAnnotationsNeedUpdate(rs, rolloutReplicas)
-
-	scaled := false
-	var err error
-	if sizeNeedsUpdate || annotationsNeedUpdate {
-		rsCopy := rs.DeepCopy()
-		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
-		*(rsCopy.Spec.Replicas) = newScale
-		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
-		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
-			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
-		}
-		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
-		if err == nil && sizeNeedsUpdate {
-			scaled = true
-			revision, _ := replicasetutil.Revision(rs)
-			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, conditions.ScalingReplicaSetMessage, scalingOperation, rs.Name, revision, oldScale, newScale)
-		}
-	}
-	return scaled, rs, err
-}
-
 // calculateStatus calculates the common fields for all rollouts by looking into the provided replica sets.
 func (c *rolloutContext) calculateBaseStatus() v1alpha1.RolloutStatus {
 	prevStatus := c.rollout.Status
