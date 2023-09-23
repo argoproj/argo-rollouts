@@ -68,7 +68,7 @@ func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 
 func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
 
-	configIdLookupURL := fmt.Sprintf(configIdLookupURLFormat, metric.Provider.Kayenta.Address, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.StorageAccountName)
+	configIdLookupURL := fmt.Sprintf(configIdLookupURLFormat, metric.Provider.Kayenta.Address, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.ConfigurationAccountName)
 
 	response, err := p.client.Get(configIdLookupURL)
 	if err != nil || response.Body == nil || response.StatusCode != 200 {
