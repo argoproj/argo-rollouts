@@ -942,6 +942,8 @@ spec:
                 properties:
                   metadata:
                     properties:
+                      name:
+                        type: string
                       annotations:
                         additionalProperties:
                           type: string
