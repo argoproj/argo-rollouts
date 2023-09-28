@@ -24,9 +24,9 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/newrelic/newrelic-client-go v1.1.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.16.0
-	github.com/prometheus/client_model v0.3.0
-	github.com/prometheus/common v0.42.0
+	github.com/prometheus/client_golang v1.17.0
+	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16
+	github.com/prometheus/common v0.44.0
 	github.com/prometheus/common/sigv4 v0.1.0
 	github.com/servicemeshinterface/smi-sdk-go v0.5.0
 	github.com/sirupsen/logrus v1.9.3
@@ -159,7 +159,7 @@ require (
 	github.com/opsgenie/opsgenie-go-sdk-v2 v1.2.13 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/procfs v0.10.1 // indirect
+	github.com/prometheus/procfs v0.11.1 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/slack-go/slack v0.12.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
@@ -175,7 +175,7 @@ require (
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
 	golang.org/x/oauth2 v0.10.0 // indirect
-	golang.org/x/sys v0.10.0 // indirect
+	golang.org/x/sys v0.11.0 // indirect
 	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
