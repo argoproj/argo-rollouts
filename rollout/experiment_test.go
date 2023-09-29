@@ -69,7 +69,7 @@ func TestRolloutCreateExperiment(t *testing.T) {
 		}
 	}`
 	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
 func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
@@ -126,7 +126,7 @@ func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 		}
 	}`
 	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
 func TestCreateExperimentWithCollision(t *testing.T) {
@@ -178,7 +178,7 @@ func TestCreateExperimentWithCollision(t *testing.T) {
 		}
 	}`
 	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, createdEx.Name, conds)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, createdEx.Name, conds)), patch)
 }
 
 func TestCreateExperimentWithCollisionAndSemanticEquality(t *testing.T) {
@@ -229,7 +229,7 @@ func TestCreateExperimentWithCollisionAndSemanticEquality(t *testing.T) {
 		}
 	}`
 	conds := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, ex.Name, conds)), patch)
 }
 
 func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
@@ -267,7 +267,7 @@ func TestRolloutExperimentProcessingDoNothing(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 
 }
 
@@ -314,7 +314,7 @@ func TestAbortRolloutAfterFailedExperiment(t *testing.T) {
 	}`
 	now := timeutil.Now().UTC().Format(time.RFC3339)
 	generatedConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, now, generatedConditions, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))), patch)
 }
 
 func TestPauseRolloutAfterInconclusiveExperiment(t *testing.T) {
@@ -481,7 +481,7 @@ func TestRolloutExperimentFinishedIncrementStep(t *testing.T) {
 	}`
 	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", false)
 
-	assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, generatedConditions)), patch)
+	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, generatedConditions)), patch)
 }
 
 func TestRolloutDoNotCreateExperimentWithoutStableRS(t *testing.T) {

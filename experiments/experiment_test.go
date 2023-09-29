@@ -282,7 +282,7 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 			"phase": "Successful"
 		}
 	}`, templateStatuses, cond)
-	assert.Equal(t, expectedPatch, patch)
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 // TestDontRequeueWithoutDuration verifies we don't requeue if an experiment does not have
