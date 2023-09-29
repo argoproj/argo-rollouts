@@ -42,7 +42,7 @@ func TestCreateMultipleRS(t *testing.T) {
 		"status":{
 		}
 	}`, templateStatus, cond)
-	assert.Equal(t, expectedPatch, patch)
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 func TestCreateMissingRS(t *testing.T) {
@@ -72,7 +72,7 @@ func TestCreateMissingRS(t *testing.T) {
 		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 		generateTemplatesStatus("baz", 0, 0, v1alpha1.TemplateStatusProgressing, now()),
 	}
-	assert.Equal(t, calculatePatch(e, expectedPatch, templateStatuses, cond), patch)
+	assert.JSONEq(t, calculatePatch(e, expectedPatch, templateStatuses, cond), patch)
 }
 
 func TestTemplateHasMultipleRS(t *testing.T) {
