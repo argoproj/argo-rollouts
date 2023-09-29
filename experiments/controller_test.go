@@ -805,7 +805,7 @@ func TestAddInvalidSpec(t *testing.T) {
 		"status":{
 		}
 	}`, nil, cond)
-	assert.Equal(t, expectedPatch, patch)
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 func TestKeepInvalidSpec(t *testing.T) {
@@ -852,7 +852,7 @@ func TestUpdateInvalidSpec(t *testing.T) {
 		"status":{
 		}
 	}`, nil, cond)
-	assert.Equal(t, expectedPatch, patch)
+	assert.JSONEq(t, expectedPatch, patch)
 
 }
 
@@ -892,7 +892,7 @@ func TestRemoveInvalidSpec(t *testing.T) {
 		"status":{
 		}
 	}`, templateStatus, cond)
-	assert.Equal(t, expectedPatch, patch)
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 func TestRun(t *testing.T) {
