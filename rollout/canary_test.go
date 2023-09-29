@@ -182,7 +182,7 @@ func TestCanaryRolloutEnterPauseState(t *testing.T) {
 	now := timeutil.MetaNow().UTC().Format(time.RFC3339)
 	expectedPatchWithoutObservedGen := fmt.Sprintf(expectedPatchTemplate, v1alpha1.PauseReasonCanaryPauseStep, now, conditions, v1alpha1.PauseReasonCanaryPauseStep)
 	expectedPatch := calculatePatch(r2, expectedPatchWithoutObservedGen)
-	assert.Equal(t, expectedPatch, patch)
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 func TestCanaryRolloutNoProgressWhilePaused(t *testing.T) {
@@ -257,7 +257,7 @@ func TestCanaryRolloutUpdatePauseConditionWhilePaused(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRollout(addPausedConditionPatch)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
 func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
@@ -300,7 +300,7 @@ func TestCanaryRolloutResetProgressDeadlineOnRetry(t *testing.T) {
 			"message": "more replicas need to be updated"
 		}
 	}`, retryCondition)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
@@ -342,7 +342,7 @@ func TestCanaryRolloutIncrementStepAfterUnPaused(t *testing.T) {
 }`
 	generatedConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", false)
 	expectedPatch := calculatePatch(r2, fmt.Sprintf(expectedPatchTemplate, generatedConditions))
-	assert.Equal(t, expectedPatch, patch)
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
@@ -383,7 +383,7 @@ func TestCanaryRolloutUpdateStatusWhenAtEndOfSteps(t *testing.T) {
 	}`
 
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutStableRS, expectedStableRS, generateConditionsPatchWithCompleted(true, conditions.ReplicaSetUpdatedReason, rs2, false, "", true))
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
@@ -426,8 +426,7 @@ func TestResetCurrentStepIndexOnStepChange(t *testing.T) {
 	}`
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, expectedCurrentStepHash, newConditions)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
-
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
@@ -468,8 +467,7 @@ func TestResetCurrentStepIndexOnPodSpecChange(t *testing.T) {
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutPodHash, expectedCurrentPodHash, newConditions)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
-
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
@@ -507,7 +505,7 @@ func TestCanaryRolloutCreateFirstReplicasetNoSteps(t *testing.T) {
 
 	newConditions := generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true)
 
-	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, newConditions)), patch)
+	assert.JSONEq(t, calculatePatch(r, fmt.Sprintf(expectedPatch, newConditions)), patch)
 }
 
 func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
@@ -547,7 +545,7 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	}`
 	expectedPatch := fmt.Sprintf(expectedPatchWithSub, generateConditionsPatchWithCompleted(false, conditions.ReplicaSetUpdatedReason, rs, false, "", true))
 
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
@@ -846,7 +844,7 @@ func TestRollBackToStable(t *testing.T) {
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, hash.ComputePodTemplateHash(&r2.Spec.Template, r2.Status.CollisionCount), newConditions)
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestGradualShiftToNewStable(t *testing.T) {
@@ -889,7 +887,7 @@ func TestGradualShiftToNewStable(t *testing.T) {
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r2, false, "", false)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newConditions)
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestRollBackToStableAndStepChange(t *testing.T) {
@@ -937,7 +935,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs1, false, "", true)
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, newPodHash, newStepHash, newConditions)
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
@@ -973,7 +971,7 @@ func TestCanaryRolloutIncrementStepIfSetWeightsAreCorrect(t *testing.T) {
 		}
 	}`
 	newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, rs3, false, "", false)
-	assert.Equal(t, calculatePatch(r3, fmt.Sprintf(expectedPatch, newConditions)), patch)
+	assert.JSONEq(t, calculatePatch(r3, fmt.Sprintf(expectedPatch, newConditions)), patch)
 }
 
 func TestSyncRolloutWaitAddToQueue(t *testing.T) {
@@ -1126,7 +1124,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 			"currentStepIndex":2
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
@@ -1170,7 +1168,7 @@ func TestCanaryRolloutStatusHPAStatusFields(t *testing.T) {
 	f.run(getKey(r2, t))
 
 	patch := f.getPatchedRolloutWithoutConditions(index)
-	assert.Equal(t, calculatePatch(r2, expectedPatchWithSub), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatchWithSub), patch)
 }
 
 func TestCanaryRolloutWithCanaryService(t *testing.T) {
@@ -1491,7 +1489,7 @@ func TestCanaryRolloutScaleWhilePaused(t *testing.T) {
 
 	patch := f.getPatchedRolloutWithoutConditions(patchIndex)
 	expectedPatch := calculatePatch(r2, OnlyObservedGenerationPatch)
-	assert.Equal(t, expectedPatch, patch)
+	assert.JSONEq(t, expectedPatch, patch)
 }
 
 func TestResumeRolloutAfterPauseDuration(t *testing.T) {
@@ -1591,7 +1589,7 @@ func TestNoResumeAfterPauseDurationIfUserPaused(t *testing.T) {
 			"message": "manually paused"
 		}
 	}`
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
@@ -1638,7 +1636,7 @@ func TestHandleNilNewRSOnScaleAndImageChange(t *testing.T) {
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 }
 
 func TestHandleCanaryAbort(t *testing.T) {
@@ -1685,10 +1683,10 @@ func TestHandleCanaryAbort(t *testing.T) {
 		}`
 		errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 2)
 		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r2, false, "", false)
-		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, conditions.RolloutAbortedReason, errmsg)), patch)
+		assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, newConditions, conditions.RolloutAbortedReason, errmsg)), patch)
 	})
 
-	t.Run("Do not reset currentStepCount if newRS is stableRS", func(t *testing.T) {
+	t.Run("Do not reset currentStepCount and reset abort if newRS is stableRS", func(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
 
@@ -1716,13 +1714,12 @@ func TestHandleCanaryAbort(t *testing.T) {
 		patch := f.getPatchedRollout(patchIndex)
 		expectedPatch := `{
 			"status":{
-				"conditions": %s,
-				"phase": "Degraded",
-				"message": "%s: %s"
+				"abort": null,
+				"abortedAt": null,
+				"conditions": %s
 			}
 		}`
-		errmsg := fmt.Sprintf(conditions.RolloutAbortedMessage, 1)
-		newConditions := generateConditionsPatch(true, conditions.RolloutAbortedReason, r1, false, "", true)
-		assert.Equal(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions, conditions.RolloutAbortedReason, errmsg)), patch)
+		newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r1, false, "", true)
+		assert.JSONEq(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions)), patch)
 	})
 }

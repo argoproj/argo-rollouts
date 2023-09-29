@@ -56,6 +56,7 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
@@ -505,6 +506,10 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 			log:     logCtx,
 		},
 		reconcilerBase: c.reconcilerBase,
+	}
+	if rolloututil.IsFullyPromoted(rollout) && roCtx.pauseContext.IsAborted() {
+		logCtx.Warnf("Removing abort condition from fully promoted rollout")
+		roCtx.pauseContext.RemoveAbort()
 	}
 	// carry over existing recorded weights
 	roCtx.newStatus.Canary.Weights = rollout.Status.Canary.Weights
