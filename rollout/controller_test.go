@@ -1346,7 +1346,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
 // TestPodTemplateHashEquivalence verifies the hash is computed consistently when there are slight
@@ -1549,7 +1549,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 				"selector": "foo=bar"
 			}
 		}`, addedConditions, conditions.ComputeStepHash(r))
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
