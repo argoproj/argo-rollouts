@@ -28,9 +28,9 @@ var (
 
 		// Colors for canary/stable/preview tags
 		info.InfoTagCanary:  FgYellow,
-		info.InfoTagStable:  FgGreen,
-		info.InfoTagActive:  FgGreen,
-		info.InfoTagPreview: FgHiBlue,
+		info.InfoTagPreview: FgGreen,
+		info.InfoTagStable:  FgHiBlue,
+		info.InfoTagActive:  FgHiBlue,
 		info.InfoTagPing:    FgHiBlue,
 		info.InfoTagPong:    FgHiBlue,
 
