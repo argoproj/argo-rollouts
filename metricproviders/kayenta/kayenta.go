@@ -67,26 +67,20 @@ func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 }
 
 func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
-
 	configIdLookupURL := fmt.Sprintf(configIdLookupURLFormat, metric.Provider.Kayenta.Address, metric.Provider.Kayenta.Application, metric.Provider.Kayenta.StorageAccountName)
 
 	response, err := p.client.Get(configIdLookupURL)
-	if err != nil || response.Body == nil || response.StatusCode != 200 {
-		if err == nil {
-			err = errors.New("Invalid Response")
-		}
-		return "", err
-	}
-
-	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		return "", fmt.Errorf("Invalid Response: HTTP %d", response.StatusCode)
 	}
 
 	var cc []canaryConfig
-
-	err = json.Unmarshal(data, &cc)
-	if err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&cc); err != nil {
 		return "", err
 	}
 
@@ -96,7 +90,7 @@ func getCanaryConfigId(metric v1alpha1.Metric, p *Provider) (string, error) {
 		}
 	}
 
-	return "", err
+	return "", errors.New("Canary config not found")
 }
 
 // Run queries kayentd for the metric
