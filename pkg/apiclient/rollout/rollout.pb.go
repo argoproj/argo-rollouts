@@ -1438,7 +1438,7 @@ func (m *SpecAndStatus) GetStatus() *v1alpha1.AnalysisRunStatus {
 type AnalysisRunInfo struct {
 	ObjectMeta *v1.ObjectMeta `protobuf:"bytes,1,opt,name=objectMeta,proto3" json:"objectMeta,omitempty"`
 	//
-	//field type from 161 -178 will be deprecated in future.
+	//field type from 161 -170 will be deprecated in future.
 	Icon         string        `protobuf:"bytes,2,opt,name=icon,proto3" json:"icon,omitempty"`
 	Revision     int64         `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
 	Status       string        `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
