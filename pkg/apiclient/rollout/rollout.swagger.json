@@ -598,6 +598,77 @@
       },
       "title": "AnalysisRunMetadata extra labels to add to the AnalysisRun"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunSpec": {
+      "type": "object",
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Metric"
+          },
+          "title": "Metrics contains the list of metrics to query as part of an analysis run\n+patchMergeKey=name\n+patchStrategy=merge"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Argument"
+          },
+          "title": "Args are the list of arguments used in this run\n+optional\n+patchMergeKey=name\n+patchStrategy=merge"
+        },
+        "terminate": {
+          "type": "boolean",
+          "title": "Terminate is used to prematurely stop the run (e.g. rollout completed and analysis is no longer desired)"
+        },
+        "dryRun": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DryRun"
+          },
+          "title": "DryRun object contains the settings for running the analysis in Dry-Run mode\n+patchMergeKey=metricName\n+patchStrategy=merge\n+optional"
+        },
+        "measurementRetention": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MeasurementRetention"
+          },
+          "title": "MeasurementRetention object contains the settings for retaining the number of measurements during the analysis\n+patchMergeKey=metricName\n+patchStrategy=merge\n+optional"
+        }
+      },
+      "title": "AnalysisRunSpec is the spec for a AnalysisRun resource"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStatus": {
+      "type": "object",
+      "properties": {
+        "phase": {
+          "type": "string",
+          "title": "Phase is the status of the analysis run"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message is a message explaining current status"
+        },
+        "metricResults": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MetricResult"
+          },
+          "title": "MetricResults contains the metrics collected during the run"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "StartedAt indicates when the analysisRun first started"
+        },
+        "runSummary": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RunSummary",
+          "title": "RunSummary contains the final results from the metric executions"
+        },
+        "dryRunSummary": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RunSummary",
+          "title": "DryRunSummary contains the final results from the metric executions in the dry-run mode"
+        }
+      },
+      "title": "AnalysisRunStatus is the status for a AnalysisRun resource"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStrategy": {
       "type": "object",
       "properties": {
@@ -709,6 +780,24 @@
         }
       },
       "title": "AppMeshVirtualService holds information on the virtual service the rollout needs to modify"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Argument": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the argument"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the value of the argument\n+optional"
+        },
+        "valueFrom": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ValueFrom",
+          "title": "ValueFrom is a reference to where a secret is stored. This field is one of the fields with valueFrom\n+optional"
+        }
+      },
+      "title": "Argument is an argument to an AnalysisRun"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ArgumentValueFrom": {
       "type": "object",
@@ -970,6 +1059,105 @@
       },
       "title": "CanaryStrategy defines parameters for a Replica Based Canary"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CloudWatchMetric": {
+      "type": "object",
+      "properties": {
+        "interval": {
+          "type": "string"
+        },
+        "metricDataQueries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CloudWatchMetricDataQuery"
+          }
+        }
+      },
+      "title": "CloudWatchMetric defines the cloudwatch query to perform canary analysis"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CloudWatchMetricDataQuery": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "expression": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "metricStat": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CloudWatchMetricStat"
+        },
+        "period": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.util.intstr.IntOrString"
+        },
+        "returnData": {
+          "type": "boolean"
+        }
+      },
+      "title": "CloudWatchMetricDataQuery defines the cloudwatch query"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CloudWatchMetricStat": {
+      "type": "object",
+      "properties": {
+        "metric": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CloudWatchMetricStatMetric"
+        },
+        "period": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.util.intstr.IntOrString"
+        },
+        "stat": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CloudWatchMetricStatMetric": {
+      "type": "object",
+      "properties": {
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CloudWatchMetricStatMetricDimension"
+          }
+        },
+        "metricName": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CloudWatchMetricStatMetricDimension": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DatadogMetric": {
+      "type": "object",
+      "properties": {
+        "interval": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "apiVersion": {
+          "type": "string",
+          "description": "ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated."
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DryRun": {
       "type": "object",
       "properties": {
@@ -989,6 +1177,20 @@
         }
       }
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GraphiteMetric": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "title": "Address is the HTTP address and port of the Graphite server"
+        },
+        "query": {
+          "type": "string",
+          "title": "Query is a raw Graphite query to perform"
+        }
+      },
+      "title": "GraphiteMetric defines the Graphite query to perform canary analysis"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.HeaderRoutingMatch": {
       "type": "object",
       "properties": {
@@ -1001,6 +1203,20 @@
           "title": "HeaderValue the value of the header"
         }
       }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.InfluxdbMetric": {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "type": "string",
+          "title": "Profile is the name of the secret holding InfluxDB account configuration"
+        },
+        "query": {
+          "type": "string",
+          "title": "Query is a raw InfluxDB flux query to perform"
+        }
+      },
+      "title": "InfluxdbMetric defines the InfluxDB Flux query to perform canary analysis"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.IstioDestinationRule": {
       "type": "object",
@@ -1072,6 +1288,77 @@
       },
       "title": "IstioVirtualService holds information on the virtual service the rollout needs to modify"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.JobMetric": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+        },
+        "spec": {
+          "$ref": "#/definitions/k8s.io.api.batch.v1.JobSpec"
+        }
+      },
+      "title": "JobMetric defines a job to run which acts as a metric"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.KayentaMetric": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "application": {
+          "type": "string"
+        },
+        "canaryConfigName": {
+          "type": "string"
+        },
+        "metricsAccountName": {
+          "type": "string"
+        },
+        "configurationAccountName": {
+          "type": "string"
+        },
+        "storageAccountName": {
+          "type": "string"
+        },
+        "threshold": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.KayentaThreshold"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.KayentaScope"
+          }
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.KayentaScope": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "controlScope": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ScopeDetail"
+        },
+        "experimentScope": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ScopeDetail"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.KayentaThreshold": {
+      "type": "object",
+      "properties": {
+        "pass": {
+          "type": "string",
+          "format": "int64"
+        },
+        "marginal": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MangedRoutes": {
       "type": "object",
       "properties": {
@@ -1079,6 +1366,43 @@
           "type": "string"
         }
       }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Measurement": {
+      "type": "object",
+      "properties": {
+        "phase": {
+          "type": "string",
+          "title": "Phase is the status of this single measurement"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains a message describing current condition (e.g. error messages)"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "StartedAt is the timestamp in which this measurement started to be measured"
+        },
+        "finishedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "FinishedAt is the timestamp in which this measurement completed and value was collected"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the measured value of the metric"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Metadata stores additional metadata about this metric result, used by the different providers\n(e.g. kayenta run ID, job name)"
+        },
+        "resumeAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "ResumeAt is the  timestamp when the analysisRun should try to resume the measurement"
+        }
+      },
+      "title": "Measurement is a point in time result value of a single metric, and the time it was measured"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MeasurementRetention": {
       "type": "object",
@@ -1094,6 +1418,190 @@
         }
       },
       "description": "MeasurementRetention defines the settings for retaining the number of measurements during the analysis."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Metric": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the metric"
+        },
+        "interval": {
+          "type": "string",
+          "title": "Interval defines an interval string (e.g. 30s, 5m, 1h) between each measurement.\nIf omitted, will perform a single measurement"
+        },
+        "initialDelay": {
+          "type": "string",
+          "title": "InitialDelay how long the AnalysisRun should wait before starting this metric"
+        },
+        "count": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.util.intstr.IntOrString",
+          "description": "Count is the number of times to run the measurement. If both interval and count are omitted,\nthe effective count is 1. If only interval is specified, metric runs indefinitely.\nIf count \u003e 1, interval must be specified."
+        },
+        "successCondition": {
+          "type": "string",
+          "title": "SuccessCondition is an expression which determines if a measurement is considered successful\nExpression is a goevaluate expression. The keyword `result` is a variable reference to the\nvalue of measurement. Results can be both structured data or primitive.\nExamples:\n  result \u003e 10\n  (result.requests_made * result.requests_succeeded / 100) \u003e= 90"
+        },
+        "failureCondition": {
+          "type": "string",
+          "title": "FailureCondition is an expression which determines if a measurement is considered failed\nIf both success and failure conditions are specified, and the measurement does not fall into\neither condition, the measurement is considered Inconclusive"
+        },
+        "failureLimit": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.util.intstr.IntOrString",
+          "title": "FailureLimit is the maximum number of times the measurement is allowed to fail, before the\nentire metric is considered Failed (default: 0)"
+        },
+        "inconclusiveLimit": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.util.intstr.IntOrString",
+          "title": "InconclusiveLimit is the maximum number of times the measurement is allowed to measure\nInconclusive, before the entire metric is considered Inconclusive (default: 0)"
+        },
+        "consecutiveErrorLimit": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.util.intstr.IntOrString",
+          "title": "ConsecutiveErrorLimit is the maximum number of times the measurement is allowed to error in\nsuccession, before the metric is considered error (default: 4)"
+        },
+        "provider": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MetricProvider",
+          "title": "Provider configuration to the external system to use to verify the analysis"
+        }
+      },
+      "title": "Metric defines a metric in which to perform analysis"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MetricProvider": {
+      "type": "object",
+      "properties": {
+        "prometheus": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusMetric",
+          "title": "Prometheus specifies the prometheus metric to query"
+        },
+        "kayenta": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.KayentaMetric",
+          "title": "Kayenta specifies a Kayenta metric"
+        },
+        "web": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WebMetric",
+          "title": "Web specifies a generic HTTP web metric"
+        },
+        "datadog": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DatadogMetric",
+          "title": "Datadog specifies a datadog metric to query"
+        },
+        "wavefront": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WavefrontMetric",
+          "title": "Wavefront specifies the wavefront metric to query"
+        },
+        "newRelic": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.NewRelicMetric",
+          "title": "NewRelic specifies the newrelic metric to query"
+        },
+        "job": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.JobMetric",
+          "title": "Job specifies the job metric run"
+        },
+        "cloudWatch": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CloudWatchMetric",
+          "title": "CloudWatch specifies the cloudWatch metric to query"
+        },
+        "graphite": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.GraphiteMetric",
+          "title": "Graphite specifies the Graphite metric to query"
+        },
+        "influxdb": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.InfluxdbMetric",
+          "title": "Influxdb specifies the influxdb metric to query"
+        },
+        "skywalking": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SkyWalkingMetric",
+          "title": "SkyWalking specifies the skywalking metric to query"
+        },
+        "plugin": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "byte"
+          },
+          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nPlugin specifies the hashicorp go-plugin metric to query"
+        }
+      },
+      "title": "MetricProvider which external system to use to verify the analysis\nOnly one of the fields in this struct should be non-nil"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.MetricResult": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the metric"
+        },
+        "phase": {
+          "type": "string",
+          "title": "Phase is the overall aggregate status of the metric"
+        },
+        "measurements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Measurement"
+          },
+          "title": "Measurements holds the most recent measurements collected for the metric"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains a message describing current condition (e.g. error messages)"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Count is the number of times the metric was measured without Error\nThis is equal to the sum of Successful, Failed, Inconclusive"
+        },
+        "successful": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Successful is the number of times the metric was measured Successful"
+        },
+        "failed": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Failed is the number of times the metric was measured Failed"
+        },
+        "inconclusive": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Inconclusive is the number of times the metric was measured Inconclusive"
+        },
+        "error": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Error is the number of times an error was encountered during measurement"
+        },
+        "consecutiveError": {
+          "type": "integer",
+          "format": "int32",
+          "title": "ConsecutiveError is the number of times an error was encountered during measurement in succession\nResets to zero when non-errors are encountered"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "title": "DryRun indicates whether this metric is running in a dry-run mode or not"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Metadata stores additional metadata about this metric. It is used by different providers to store\nthe final state which gets used while taking measurements. For example, Prometheus uses this field\nto store the final resolved query after substituting the template arguments."
+        }
+      },
+      "title": "MetricResult contain a list of the most recent measurements for a single metric along with\ncounters on how often the measurement"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.NewRelicMetric": {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "type": "string",
+          "title": "Profile is the name of the secret holding NR account configuration"
+        },
+        "query": {
+          "type": "string",
+          "title": "Query is a raw newrelic NRQL query to perform"
+        }
+      },
+      "title": "NewRelicMetric defines the newrelic query to perform canary analysis"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.NginxTrafficRouting": {
       "type": "object",
@@ -1197,6 +1705,50 @@
         }
       },
       "title": "PreferredDuringSchedulingIgnoredDuringExecution defines the weight of the anti-affinity injection"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusAuth": {
+      "type": "object",
+      "properties": {
+        "sigv4": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Sigv4Config",
+          "title": "+optional"
+        }
+      },
+      "title": "PrometheusMetric defines the prometheus query to perform canary analysis"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusMetric": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "title": "Address is the HTTP address and port of the prometheus server"
+        },
+        "query": {
+          "type": "string",
+          "title": "Query is a raw prometheus query to perform"
+        },
+        "authentication": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusAuth",
+          "title": "Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus\n+optional"
+        },
+        "timeout": {
+          "type": "string",
+          "format": "int64",
+          "title": "Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.\n+optional"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Insecure skips host TLS verification"
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WebMetricHeader"
+          },
+          "title": "Headers are optional HTTP headers to use in the request\n+optional\n+patchMergeKey=key\n+patchStrategy=merge"
+        }
+      },
+      "title": "PrometheusMetric defines the prometheus query to perform canary analysis"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution": {
       "type": "object",
@@ -1708,6 +2260,37 @@
         }
       }
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RunSummary": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "integer",
+          "format": "int32",
+          "title": "This is equal to the sum of Successful, Failed, Inconclusive"
+        },
+        "successful": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Successful is the number of times the metric was measured Successful"
+        },
+        "failed": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Failed is the number of times the metric was measured Failed"
+        },
+        "inconclusive": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Inconclusive is the number of times the metric was measured Inconclusive"
+        },
+        "error": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Error is the number of times an error was encountered during measurement"
+        }
+      },
+      "title": "RunSummary contains the final results from the metric executions"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SMITrafficRouting": {
       "type": "object",
       "properties": {
@@ -1721,6 +2304,40 @@
         }
       },
       "title": "SMITrafficRouting configuration for TrafficSplit Custom Resource to control traffic routing"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ScopeDetail": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "step": {
+          "type": "string",
+          "format": "int64"
+        },
+        "start": {
+          "type": "string"
+        },
+        "end": {
+          "type": "string"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SecretKeyRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the secret"
+        },
+        "key": {
+          "type": "string",
+          "description": "Key is the key of the secret to select from."
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetCanaryScale": {
       "type": "object",
@@ -1776,6 +2393,37 @@
           "type": "integer",
           "format": "int32",
           "title": "Services The list of services to mirror the traffic to if the method, path, headers match\nService string `json:\"service\" protobuf:\"bytes,3,opt,name=service\"`\nPercentage What percent of the traffic that matched the rules should be mirrored"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Sigv4Config": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "title": "Region is the AWS Region to sign the SigV4 Request"
+        },
+        "profile": {
+          "type": "string",
+          "title": "Profile is the Credential Profile used to sign the SigV4 Request"
+        },
+        "roleArn": {
+          "type": "string",
+          "title": "RoleARN is the IAM role used to sign the SIgV4 Request"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SkyWalkingMetric": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "interval": {
+          "type": "string"
         }
       }
     },
@@ -1882,6 +2530,86 @@
       },
       "title": "TrafficWeights describes the current status of how traffic has been split"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ValueFrom": {
+      "type": "object",
+      "properties": {
+        "secretKeyRef": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SecretKeyRef",
+          "title": "Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom\n+optional"
+        },
+        "fieldRef": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.FieldRef",
+          "title": "FieldRef is a reference to the fields in metadata which we are referencing. This field is one of the fields with\nvalueFrom\n+optional"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WavefrontMetric": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "title": "Address is the HTTP address and port of the wavefront server"
+        },
+        "query": {
+          "type": "string",
+          "title": "Query is a raw wavefront query to perform"
+        }
+      },
+      "title": "WavefrontMetric defines the wavefront query to perform canary analysis"
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WebMetric": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "title": "Method is the method of the web metric (empty defaults to GET)"
+        },
+        "url": {
+          "type": "string",
+          "title": "URL is the address of the web metric"
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WebMetricHeader"
+          },
+          "title": "+patchMergeKey=key\n+patchStrategy=merge\nHeaders are optional HTTP headers to use in the request"
+        },
+        "body": {
+          "type": "string",
+          "title": "Body is the body of the web metric (must be POST/PUT)"
+        },
+        "timeoutSeconds": {
+          "type": "string",
+          "format": "int64",
+          "title": "TimeoutSeconds is the timeout for the request in seconds (default: 10)"
+        },
+        "jsonPath": {
+          "type": "string",
+          "title": "JSONPath is a JSON Path to use as the result variable (default: \"{$}\")"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Insecure skips host TLS verification"
+        },
+        "jsonBody": {
+          "type": "string",
+          "format": "byte",
+          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nJSONBody is the body of the web metric in a json format (method must be POST/PUT)"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WebMetricHeader": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WeightDestination": {
       "type": "object",
       "properties": {
@@ -1957,6 +2685,131 @@
           }
         }
       }
+    },
+    "k8s.io.api.batch.v1.JobSpec": {
+      "type": "object",
+      "properties": {
+        "parallelism": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Specifies the maximum desired number of pods the job should\nrun at any given time. The actual number of pods running in steady state will\nbe less than this number when ((.spec.completions - .status.successful) \u003c .spec.parallelism),\ni.e. when the work left to do is less than max parallelism.\nMore info: https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/\n+optional"
+        },
+        "completions": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Specifies the desired number of successfully finished pods the\njob should be run with.  Setting to nil means that the success of any\npod signals the success of all pods, and allows parallelism to have any positive\nvalue.  Setting to 1 means that parallelism is limited to 1 and the success of that\npod signals the success of the job.\nMore info: https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/\n+optional"
+        },
+        "activeDeadlineSeconds": {
+          "type": "string",
+          "format": "int64",
+          "title": "Specifies the duration in seconds relative to the startTime that the job\nmay be continuously active before the system tries to terminate it; value\nmust be positive integer. If a Job is suspended (at creation or through an\nupdate), this timer will effectively be stopped and reset when the Job is\nresumed again.\n+optional"
+        },
+        "podFailurePolicy": {
+          "$ref": "#/definitions/k8s.io.api.batch.v1.PodFailurePolicy",
+          "description": "Specifies the policy of handling failed pods. In particular, it allows to\nspecify the set of actions and conditions which need to be\nsatisfied to take the associated action.\nIf empty, the default behaviour applies - the counter of failed pods,\nrepresented by the jobs's .status.failed field, is incremented and it is\nchecked against the backoffLimit. This field cannot be used in combination\nwith restartPolicy=OnFailure.\n\nThis field is alpha-level. To use this field, you must enable the\n`JobPodFailurePolicy` feature gate (disabled by default).\n+optional"
+        },
+        "backoffLimit": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Specifies the number of retries before marking this job failed.\nDefaults to 6\n+optional"
+        },
+        "selector": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector",
+          "title": "A label query over pods that should match the pod count.\nNormally, the system sets this field for you.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors\n+optional"
+        },
+        "manualSelector": {
+          "type": "boolean",
+          "title": "manualSelector controls generation of pod labels and pod selectors.\nLeave `manualSelector` unset unless you are certain what you are doing.\nWhen false or unset, the system pick labels unique to this job\nand appends those labels to the pod template.  When true,\nthe user is responsible for picking unique labels and specifying\nthe selector.  Failure to pick a unique label may cause this\nand other jobs to not function correctly.  However, You may see\n`manualSelector=true` in jobs that were created with the old `extensions/v1beta1`\nAPI.\nMore info: https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/#specifying-your-own-pod-selector\n+optional"
+        },
+        "template": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.PodTemplateSpec",
+          "title": "Describes the pod that will be created when executing a job.\nMore info: https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/"
+        },
+        "ttlSecondsAfterFinished": {
+          "type": "integer",
+          "format": "int32",
+          "title": "ttlSecondsAfterFinished limits the lifetime of a Job that has finished\nexecution (either Complete or Failed). If this field is set,\nttlSecondsAfterFinished after the Job finishes, it is eligible to be\nautomatically deleted. When the Job is being deleted, its lifecycle\nguarantees (e.g. finalizers) will be honored. If this field is unset,\nthe Job won't be automatically deleted. If this field is set to zero,\nthe Job becomes eligible to be deleted immediately after it finishes.\n+optional"
+        },
+        "completionMode": {
+          "type": "string",
+          "description": "CompletionMode specifies how Pod completions are tracked. It can be\n`NonIndexed` (default) or `Indexed`.\n\n`NonIndexed` means that the Job is considered complete when there have\nbeen .spec.completions successfully completed Pods. Each Pod completion is\nhomologous to each other.\n\n`Indexed` means that the Pods of a\nJob get an associated completion index from 0 to (.spec.completions - 1),\navailable in the annotation batch.kubernetes.io/job-completion-index.\nThe Job is considered complete when there is one successfully completed Pod\nfor each index.\nWhen value is `Indexed`, .spec.completions must be specified and\n`.spec.parallelism` must be less than or equal to 10^5.\nIn addition, The Pod name takes the form\n`$(job-name)-$(index)-$(random-string)`,\nthe Pod hostname takes the form `$(job-name)-$(index)`.\n\nMore completion modes can be added in the future.\nIf the Job controller observes a mode that it doesn't recognize, which\nis possible during upgrades due to version skew, the controller\nskips updates for the Job.\n+optional"
+        },
+        "suspend": {
+          "type": "boolean",
+          "description": "Suspend specifies whether the Job controller should create Pods or not. If\na Job is created with suspend set to true, no Pods are created by the Job\ncontroller. If a Job is suspended after creation (i.e. the flag goes from\nfalse to true), the Job controller will delete all active Pods associated\nwith this Job. Users must design their workload to gracefully handle this.\nSuspending a Job will reset the StartTime field of the Job, effectively\nresetting the ActiveDeadlineSeconds timer too. Defaults to false.\n\n+optional"
+        }
+      },
+      "description": "JobSpec describes how the job execution will look like."
+    },
+    "k8s.io.api.batch.v1.PodFailurePolicy": {
+      "type": "object",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/k8s.io.api.batch.v1.PodFailurePolicyRule"
+          },
+          "title": "A list of pod failure policy rules. The rules are evaluated in order.\nOnce a rule matches a Pod failure, the remaining of the rules are ignored.\nWhen no rule matches the Pod failure, the default handling applies - the\ncounter of pod failures is incremented and it is checked against\nthe backoffLimit. At most 20 elements are allowed.\n+listType=atomic"
+        }
+      },
+      "description": "PodFailurePolicy describes how failed pods influence the backoffLimit."
+    },
+    "k8s.io.api.batch.v1.PodFailurePolicyOnExitCodesRequirement": {
+      "type": "object",
+      "properties": {
+        "containerName": {
+          "type": "string",
+          "title": "Restricts the check for exit codes to the container with the\nspecified name. When null, the rule applies to all containers.\nWhen specified, it should match one the container or initContainer\nnames in the pod template.\n+optional"
+        },
+        "operator": {
+          "type": "string",
+          "description": "Represents the relationship between the container exit code(s) and the\nspecified values. Containers completed with success (exit code 0) are\nexcluded from the requirement check. Possible values are:\n- In: the requirement is satisfied if at least one container exit code\n  (might be multiple if there are multiple containers not restricted\n  by the 'containerName' field) is in the set of specified values.\n- NotIn: the requirement is satisfied if at least one container exit code\n  (might be multiple if there are multiple containers not restricted\n  by the 'containerName' field) is not in the set of specified values.\nAdditional values are considered to be added in the future. Clients should\nreact to an unknown operator by assuming the requirement is not satisfied."
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": "Specifies the set of values. Each returned container exit code (might be\nmultiple in case of multiple containers) is checked against this set of\nvalues with respect to the operator. The list of values must be ordered\nand must not contain duplicates. Value '0' cannot be used for the In operator.\nAt least one element is required. At most 255 elements are allowed.\n+listType=set"
+        }
+      },
+      "description": "PodFailurePolicyOnExitCodesRequirement describes the requirement for handling\na failed pod based on its container exit codes. In particular, it lookups the\n.state.terminated.exitCode for each app container and init container status,\nrepresented by the .status.containerStatuses and .status.initContainerStatuses\nfields in the Pod status, respectively. Containers completed with success\n(exit code 0) are excluded from the requirement check."
+    },
+    "k8s.io.api.batch.v1.PodFailurePolicyOnPodConditionsPattern": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Specifies the required Pod condition type. To match a pod condition\nit is required that specified type equals the pod condition type."
+        },
+        "status": {
+          "type": "string",
+          "description": "Specifies the required Pod condition status. To match a pod condition\nit is required that the specified status equals the pod condition status.\nDefaults to True."
+        }
+      },
+      "description": "PodFailurePolicyOnPodConditionsPattern describes a pattern for matching\nan actual pod condition type."
+    },
+    "k8s.io.api.batch.v1.PodFailurePolicyRule": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "description": "Specifies the action taken on a pod failure when the requirements are satisfied.\nPossible values are:\n- FailJob: indicates that the pod's job is marked as Failed and all\n  running pods are terminated.\n- Ignore: indicates that the counter towards the .backoffLimit is not\n  incremented and a replacement pod is created.\n- Count: indicates that the pod is handled in the default way - the\n  counter towards the .backoffLimit is incremented.\nAdditional values are considered to be added in the future. Clients should\nreact to an unknown action by skipping the rule."
+        },
+        "onExitCodes": {
+          "$ref": "#/definitions/k8s.io.api.batch.v1.PodFailurePolicyOnExitCodesRequirement",
+          "title": "Represents the requirement on the container exit codes.\n+optional"
+        },
+        "onPodConditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/k8s.io.api.batch.v1.PodFailurePolicyOnPodConditionsPattern"
+          },
+          "title": "Represents the requirement on the pod conditions. The requirement is represented\nas a list of pod condition patterns. The requirement is satisfied if at\nleast one pattern matches an actual pod condition. At most 20 elements are allowed.\n+listType=atomic"
+        }
+      },
+      "description": "PodFailurePolicyRule describes how a pod failure is handled when the requirements are met.\nOne of OnExitCodes and onPodConditions, but not both, can be used in each rule."
     },
     "k8s.io.api.core.v1.AWSElasticBlockStoreVolumeSource": {
       "type": "object",
@@ -4677,7 +5530,8 @@
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta"
         },
         "icon": {
-          "type": "string"
+          "type": "string",
+          "description": "field type from 161 -178 will be deprecated in future."
         },
         "revision": {
           "type": "string",
@@ -4719,6 +5573,10 @@
           "items": {
             "$ref": "#/definitions/rollout.Metrics"
           }
+        },
+        "specAndStatus": {
+          "$ref": "#/definitions/rollout.SpecAndStatus",
+          "description": "The new API changes should use SpecAndStatus field type."
         }
       }
     },
@@ -5083,6 +5941,17 @@
         },
         "namespace": {
           "type": "string"
+        }
+      }
+    },
+    "rollout.SpecAndStatus": {
+      "type": "object",
+      "properties": {
+        "spec": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStatus"
         }
       }
     },
