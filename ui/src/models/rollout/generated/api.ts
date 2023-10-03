@@ -6685,7 +6685,7 @@ export interface RolloutAnalysisRunInfo {
      */
     objectMeta?: K8sIoApimachineryPkgApisMetaV1ObjectMeta;
     /**
-     * field type from 161 -178 will be deprecated in future.
+     * field type from 161 -170 will be deprecated in future.
      * @type {string}
      * @memberof RolloutAnalysisRunInfo
      */

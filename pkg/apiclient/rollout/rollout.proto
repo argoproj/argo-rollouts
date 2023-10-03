@@ -156,7 +156,7 @@ message SpecAndStatus {
 message AnalysisRunInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
   /*
-   field type from 161 -178 will be deprecated in future.
+   field type from 161 -170 will be deprecated in future.
   */
   string icon = 2;
   int64 revision = 3;
