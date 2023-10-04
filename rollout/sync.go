@@ -281,10 +281,11 @@ func (c *rolloutContext) syncReplicasOnly() error {
 	if err != nil {
 		return err
 	}
+	newStatus := c.rollout.Status.DeepCopy()
 
 	// NOTE: it is possible for newRS to be nil (e.g. when template and replicas changed at same time)
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
-		previewSvc, activeSvc, err := c.getPreviewAndActiveServices()
+		_, activeSvc, err := c.getPreviewAndActiveServices()
 		if err != nil {
 			return nil
 		}
@@ -293,7 +294,15 @@ func (c *rolloutContext) syncReplicasOnly() error {
 			// so we can abort this resync
 			return err
 		}
-		return c.syncRolloutStatusBlueGreen(previewSvc, activeSvc)
+		activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.allRSs, newStatus.BlueGreen.ActiveSelector)
+		if activeRS != nil {
+			newStatus.HPAReplicas = activeRS.Status.Replicas
+			newStatus.AvailableReplicas = activeRS.Status.AvailableReplicas
+		} else {
+			// when we do not have an active replicaset, accounting is done on the default rollout selector
+			newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
+			newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
+		}
 	}
 	// The controller wants to use the rolloutCanary method to reconcile the rollout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
@@ -303,9 +312,10 @@ func (c *rolloutContext) syncReplicasOnly() error {
 			// so we can abort this resync
 			return err
 		}
-		return c.syncRolloutStatusCanary()
+		newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
+		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	}
-	return fmt.Errorf("no rollout strategy provided")
+	return c.persistRolloutStatus(newStatus)
 }
 
 // isScalingEvent checks whether the provided rollout has been updated with a scaling event
