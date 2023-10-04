@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 )
 
 func (c *rolloutContext) rolloutCanary() error {
@@ -180,10 +181,9 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 
 	annotationedRSs := int32(0)
 	for _, targetRS := range oldRSs {
-		if replicasetutil.IsStillReferenced(c.rollout.Status, targetRS) {
-			// We should technically never get here because we shouldn't be passing a replicaset list
-			// which includes referenced ReplicaSets. But we check just in case
-			c.log.Warnf("Prevented inadvertent scaleDown of RS '%s'", targetRS.Name)
+		if c.isReplicaSetReferenced(targetRS) {
+			// We might get here if user interrupted an an update in order to move back to stable.
+			c.log.Infof("Skip scale down of older RS '%s': still referenced", targetRS.Name)
 			continue
 		}
 		if maxScaleDown <= 0 {
@@ -220,15 +220,8 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 				// and doesn't yet have scale down deadline. This happens when a user changes their
 				// mind in the middle of an V1 -> V2 update, and then applies a V3. We are deciding
 				// what to do with the defunct, intermediate V2 ReplicaSet right now.
-				if !c.replicaSetReferencedByCanaryTraffic(targetRS) {
-					// It is safe to scale the intermediate RS down, if no traffic is directed to it.
-					c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
-				} else {
-					c.log.Infof("Skip scaling down intermediate RS '%s': still referenced by service", targetRS.Name)
-					// This ReplicaSet is still referenced by the service. It is not safe to scale
-					// this down.
-					continue
-				}
+				// It is safe to scale the intermediate RS down, since no traffic is directed to it.
+				c.log.Infof("scaling down intermediate RS '%s'", targetRS.Name)
 			}
 		}
 		if *targetRS.Spec.Replicas == desiredReplicaCount {
@@ -248,19 +241,59 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 	return totalScaledDown, nil
 }
 
-func (c *rolloutContext) replicaSetReferencedByCanaryTraffic(rs *appsv1.ReplicaSet) bool {
+// isReplicaSetReferenced returns if the given ReplicaSet is still being referenced by any of
+// the current, stable, blue-green active services. Used to determine if the ReplicaSet can
+// safely be scaled to zero, or deleted.
+func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
 	rsPodHash := replicasetutil.GetPodTemplateHash(rs)
 	ro := c.rollout
-
-	if ro.Status.Canary.Weights == nil {
-		return false
-	}
-
-	if ro.Status.Canary.Weights.Canary.PodTemplateHash == rsPodHash || ro.Status.Canary.Weights.Stable.PodTemplateHash == rsPodHash {
+	if rsPodHash != "" && (rsPodHash == ro.Status.StableRS || rsPodHash == ro.Status.CurrentPodHash || rsPodHash == ro.Status.BlueGreen.ActiveSelector) {
 		return true
 	}
-
+	var servicesToCheck []string
+	if ro.Spec.Strategy.Canary != nil {
+		servicesToCheck = []string{ro.Spec.Strategy.Canary.CanaryService, ro.Spec.Strategy.Canary.StableService}
+	} else {
+		servicesToCheck = []string{ro.Spec.Strategy.BlueGreen.ActiveService, ro.Spec.Strategy.BlueGreen.PreviewService}
+	}
+	for _, svcName := range servicesToCheck {
+		if svcName == "" {
+			continue
+		}
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(svcName)
+		if err != nil {
+			return true
+		}
+		if serviceutil.GetRolloutSelectorLabel(svc) == rsPodHash {
+			return true
+		}
+	}
+	if ro.Status.Canary.Weights != nil && (ro.Status.Canary.Weights.Canary.PodTemplateHash == rsPodHash || ro.Status.Canary.Weights.Stable.PodTemplateHash == rsPodHash) {
+		return true
+	}
 	return false
+}
+
+// isDynamicallyRollingBackToStable returns true if we were in the middle of an canary update with
+// dynamic stable scaling, but was interrupted and are now rolling back to stable RS. This is similar
+// to, but different than aborting. With abort, desired hash != stable hash and so we know the
+// two hashes to balance traffic against. But with dynamically rolling back to stable, the
+// desired hash == stable hash, and so we must use the *previous* desired hash and balance traffic
+// between previous desired vs. stable hash, in order to safely shift traffic back to stable.
+// This function also returns the previous desired hash (where we are weighted to)
+func (c *rolloutContext) isDynamicallyRollingBackToStable() (bool, string) {
+	if rolloututil.IsFullyPromoted(c.rollout) && c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+		if c.rollout.Status.Canary.Weights != nil {
+			currSelector := c.rollout.Status.Canary.Weights.Canary.PodTemplateHash
+			desiredSelector := replicasetutil.GetPodTemplateHash(c.newRS)
+			if currSelector != desiredSelector {
+				if c.newRS.Status.AvailableReplicas < *c.rollout.Spec.Replicas {
+					return true, currSelector
+				}
+			}
+		}
+	}
+	return false, ""
 }
 
 // canProceedWithScaleDownAnnotation returns whether or not it is safe to proceed with annotating

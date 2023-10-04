@@ -752,8 +752,8 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	defer f.Close()
 
 	r1 := newCanaryRollout("foo", 1, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
-	}}, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
+		SetWeight: pointer.Int32(10),
+	}}, pointer.Int32(0), intstr.FromInt(1), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.CanaryService = "canary"
 	r1.Spec.Strategy.Canary.StableService = "stable"
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
@@ -765,6 +765,7 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 2, 1, 2, false)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.CurrentStepIndex = pointer.Int32(1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	completedCondition, _ := newCompletedCondition(true)

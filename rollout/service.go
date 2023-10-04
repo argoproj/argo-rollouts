@@ -147,7 +147,7 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 		return nil
 	}
 
-	c.targetsVerified = pointer.BoolPtr(false)
+	c.targetsVerified = pointer.Bool(false)
 
 	// get endpoints of service
 	endpoints, err := c.kubeclientset.CoreV1().Endpoints(svc.Namespace).Get(ctx, svc.Name, metav1.GetOptions{})
@@ -177,7 +177,7 @@ func (c *rolloutContext) awsVerifyTargetGroups(svc *corev1.Service) error {
 		}
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifiedReason}, conditions.TargetGroupVerifiedRegistrationMessage, svc.Name, tgb.Spec.TargetGroupARN, verifyRes.EndpointsRegistered)
 	}
-	c.targetsVerified = pointer.BoolPtr(true)
+	c.targetsVerified = pointer.Bool(true)
 	return nil
 }
 
@@ -263,6 +263,17 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		if err != nil {
 			return err
 		}
+		return nil
+	}
+
+	if dynamicallyRollingBackToStable, currSelector := c.isDynamicallyRollingBackToStable(); dynamicallyRollingBackToStable {
+		// User may have interrupted an update in order go back to stableRS, and is using dynamic
+		// stable scaling. If that is the case, the stableRS might be undersized and if we blindly
+		// switch service selector we could overwhelm stableRS pods.
+		// If we get here, we detected that the canary service needs to be pointed back to
+		// stable, but stable is not fully available. Skip the service switch for now.
+		c.log.Infof("delaying fully promoted service switch of '%s' from %s to %s: ReplicaSet '%s' not fully available",
+			c.rollout.Spec.Strategy.Canary.CanaryService, currSelector, replicasetutil.GetPodTemplateHash(c.newRS), c.newRS.Name)
 		return nil
 	}
 

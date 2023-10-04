@@ -163,25 +163,20 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			canaryHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		}
 
-		if rolloututil.IsFullyPromoted(c.rollout) {
-			// when we are fully promoted. desired canary weight should be 0
+		if dynamicallyRollingBackToStable, prevDesiredHash := c.isDynamicallyRollingBackToStable(); dynamicallyRollingBackToStable {
+			desiredWeight = c.calculateDesiredWeightOnAbortOrStableRollback()
+			// Since stableRS == desiredRS, we must balance traffic between the
+			// *previous desired* vs. stable (as opposed to current desired vs. stable).
+			// The previous desired is remembered in Status.Canary.Weights.Canary.PodTemplateHash.
+			// See: https://github.com/argoproj/argo-rollouts/issues/3020
+			canaryHash = prevDesiredHash
+		} else if rolloututil.IsFullyPromoted(c.rollout) {
 			err := reconciler.RemoveManagedRoutes()
 			if err != nil {
 				return err
 			}
 		} else if c.pauseContext.IsAborted() {
-			// when aborted, desired canary weight should immediately be 0 (100% to stable), *unless*
-			// we are using dynamic stable scaling. In that case, we are dynamically decreasing the
-			// weight to the canary according to the availability of the stable (whatever it can support).
-			if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-				desiredWeight = 100 - ((100 * c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas)
-				if c.rollout.Status.Canary.Weights != nil {
-					// This ensures that if we are already at a lower weight, then we will not
-					// increase the weight because stable availability is flapping (e.g. pod restarts)
-					desiredWeight = minInt(desiredWeight, c.rollout.Status.Canary.Weights.Canary.Weight)
-				}
-			}
-
+			desiredWeight = c.calculateDesiredWeightOnAbortOrStableRollback()
 			if (c.rollout.Spec.Strategy.Canary.DynamicStableScale && desiredWeight == 0) || !c.rollout.Spec.Strategy.Canary.DynamicStableScale {
 				// If we are using dynamic stable scale we need to also make sure that desiredWeight=0 aka we are completely
 				// done with aborting before resetting the canary service selectors back to stable
@@ -293,6 +288,26 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		}
 	}
 	return nil
+}
+
+// calculateDesiredWeightOnAbortOrStableRollback returns the desired weight to use when we are either
+// aborting, or rolling back to stable RS.
+func (c *rolloutContext) calculateDesiredWeightOnAbortOrStableRollback() int32 {
+	if !c.rollout.Spec.Strategy.Canary.DynamicStableScale {
+		// When aborting or rolling back to stable RS and dynamicStableScaling is disabled,
+		// then desired canary weight should immediately be 0 (100% to stable) since we can trust
+		// that it is fully scaled up
+		return 0
+	}
+	// When using dynamic stable scaling, we must dynamically decreasing the weight to the canary
+	// according to the availability of the stable (whatever it can support).
+	desiredWeight := 100 - ((100 * c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas)
+	if c.rollout.Status.Canary.Weights != nil {
+		// This ensures that if we are already at a lower weight, then we will not
+		// increase the weight because stable availability is flapping (e.g. pod restarts)
+		desiredWeight = minInt(desiredWeight, c.rollout.Status.Canary.Weights.Canary.Weight)
+	}
+	return desiredWeight
 }
 
 // trafficWeightUpdatedMessage returns a message we emit for the kubernetes event whenever we adjust traffic weights

@@ -1890,3 +1890,45 @@ func TestHandleCanaryAbort(t *testing.T) {
 		assert.JSONEq(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions)), patch)
 	})
 }
+
+// func TestIsStillReferenced(t *testing.T) {
+// 	newRSWithPodTemplateHash := func(hash string) *appsv1.ReplicaSet {
+// 		return &appsv1.ReplicaSet{
+// 			ObjectMeta: metav1.ObjectMeta{
+// 				Labels: map[string]string{
+// 					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+// 				},
+// 			},
+// 		}
+// 	}
+// 	{
+// 		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
+// 		rs := &appsv1.ReplicaSet{}
+// 		assert.False(t, IsStillReferenced(status, rs))
+// 	}
+// 	{
+// 		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
+// 		rs := newRSWithPodTemplateHash("")
+// 		assert.False(t, IsStillReferenced(status, rs))
+// 	}
+// 	{
+// 		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
+// 		rs := newRSWithPodTemplateHash("abc123")
+// 		assert.True(t, IsStillReferenced(status, rs))
+// 	}
+// 	{
+// 		status := v1alpha1.RolloutStatus{CurrentPodHash: "abc123"}
+// 		rs := newRSWithPodTemplateHash("abc123")
+// 		assert.True(t, IsStillReferenced(status, rs))
+// 	}
+// 	{
+// 		status := v1alpha1.RolloutStatus{BlueGreen: v1alpha1.BlueGreenStatus{ActiveSelector: "abc123"}}
+// 		rs := newRSWithPodTemplateHash("abc123")
+// 		assert.True(t, IsStillReferenced(status, rs))
+// 	}
+// 	{
+// 		status := v1alpha1.RolloutStatus{StableRS: "abc123"}
+// 		rs := newRSWithPodTemplateHash("def456")
+// 		assert.False(t, IsStillReferenced(status, rs))
+// 	}
+// }
