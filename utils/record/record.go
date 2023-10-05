@@ -315,8 +315,10 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 			}
 		}
 	}
-
-	return nil
+	if len(errors) == 0 {
+		return nil
+	}
+	return errors
 }
 
 // This function is copied over from notification engine to make sure we honour emptyCondition
