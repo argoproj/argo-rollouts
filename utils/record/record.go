@@ -218,9 +218,7 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 			err := e.sendNotifications(api, object, opts)
 			if err != nil {
 				logCtx.Errorf("notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
-				e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Add(float64(len(err)))
 			}
-			e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
 	}
 
@@ -299,17 +297,21 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 				if err != nil {
 					log.Errorf("failed to execute the sending of notification on not empty condition, trigger: %s, destination: %s, namespace config: %s : %v",
 						trigger, destination, notificationsAPI.GetConfig().Namespace, err)
+					e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 					errors = append(errors, err)
 					continue
 				}
+				e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 			} else if s == emptyCondition {
 				err = notificationsAPI.Send(objMap, c.Templates, destination)
 				if err != nil {
 					log.Errorf("failed to execute the sending of notification on empty condition, trigger: %s, destination: %s, namespace config: %s : %v",
 						trigger, destination, notificationsAPI.GetConfig().Namespace, err)
+					e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 					errors = append(errors, err)
 					continue
 				}
+				e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 			}
 		}
 	}
