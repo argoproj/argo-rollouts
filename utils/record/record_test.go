@@ -340,7 +340,7 @@ func TestSendNotificationsFails(t *testing.T) {
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
 		err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
-		assert.Nil(t, err)
+		assert.Len(t, err, 1)
 	})
 
 	t.Run("GetAPIError", func(t *testing.T) {
@@ -380,7 +380,7 @@ func TestSendNotificationsFailsWithRunTriggerError(t *testing.T) {
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
 		err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
-		assert.Nil(t, err)
+		assert.Len(t, err, 1)
 	})
 
 	t.Run("GetAPIError", func(t *testing.T) {
@@ -419,7 +419,7 @@ func TestSendNotificationsNoTrigger(t *testing.T) {
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 
 	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "MissingReason"})
-	assert.Nil(t, err)
+	assert.Len(t, err, 1)
 }
 
 func TestNewAPIFactorySettings(t *testing.T) {
