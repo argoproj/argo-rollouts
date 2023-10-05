@@ -463,6 +463,12 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	// Start the informer factories to begin populating the informer caches
 	log.Info("Starting Controllers")
 
+	c.notificationConfigMapInformerFactory.Start(ctx.Done())
+	c.notificationSecretInformerFactory.Start(ctx.Done())
+	if ok := cache.WaitForCacheSync(ctx.Done(), c.configMapSynced, c.secretSynced); !ok {
+		log.Fatalf("failed to wait for configmap/secret caches to sync, exiting")
+	}
+
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 	c.dynamicInformerFactory.Start(ctx.Done())
@@ -470,9 +476,6 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 		c.clusterDynamicInformerFactory.Start(ctx.Done())
 	}
 	c.kubeInformerFactory.Start(ctx.Done())
-
-	c.notificationConfigMapInformerFactory.Start(ctx.Done())
-	c.notificationSecretInformerFactory.Start(ctx.Done())
 
 	c.jobInformerFactory.Start(ctx.Done())
 
