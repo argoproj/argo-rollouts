@@ -217,8 +217,8 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 		for _, api := range apis {
 			err := e.sendNotifications(api, object, opts)
 			if err != nil {
-				logCtx.Errorf("Notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
-				e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
+				logCtx.Errorf("notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
+				e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Add(float64(len(err)))
 			}
 			e.NotificationSuccessCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
@@ -248,7 +248,7 @@ func NewAPIFactorySettings() api.Settings {
 }
 
 // Send notifications for triggered event if user is subscribed
-func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, object runtime.Object, opts EventOptions) error {
+func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, object runtime.Object, opts EventOptions) []error {
 	logCtx := logutil.WithObject(object)
 	_, namespace, name := logutil.KindNamespaceName(logCtx)
 	startTime := timeutil.Now()
@@ -259,7 +259,7 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 	}()
 
 	if notificationsAPI == nil {
-		return fmt.Errorf("notificationsAPI is nil")
+		return []error{fmt.Errorf("notificationsAPI is nil")}
 	}
 
 	cfg := notificationsAPI.GetConfig()
@@ -274,17 +274,19 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 
 	objMap, err := toObjectMap(object)
 	if err != nil {
-		return err
+		return []error{err}
 	}
 
 	emptyCondition := hash("")
 
 	// We should not return in these loops because we want other configured notifications to still send if they can.
+	errors := []error{}
 	for _, destination := range destinations {
 		res, err := notificationsAPI.RunTrigger(trigger, objMap)
 		if err != nil {
 			log.Errorf("failed to run trigger, trigger: %s, destination: %s, namespace config: %s : %v",
 				trigger, destination, notificationsAPI.GetConfig().Namespace, err)
+			errors = append(errors, err)
 			continue
 		}
 		log.Infof("trigger %s result: %v", trigger, res)
@@ -297,6 +299,7 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 				if err != nil {
 					log.Errorf("failed to execute the sending of notification on not empty condition, trigger: %s, destination: %s, namespace config: %s : %v",
 						trigger, destination, notificationsAPI.GetConfig().Namespace, err)
+					errors = append(errors, err)
 					continue
 				}
 			} else if s == emptyCondition {
@@ -304,6 +307,7 @@ func (e *EventRecorderAdapter) sendNotifications(notificationsAPI api.API, objec
 				if err != nil {
 					log.Errorf("failed to execute the sending of notification on empty condition, trigger: %s, destination: %s, namespace config: %s : %v",
 						trigger, destination, notificationsAPI.GetConfig().Namespace, err)
+					errors = append(errors, err)
 					continue
 				}
 			}
