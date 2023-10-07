@@ -3,7 +3,7 @@ import * as React from 'react';
 import {Button, Popconfirm, Tooltip} from 'antd';
 import {ButtonProps} from 'antd/es/button/button';
 import {useState} from 'react';
-import { TooltipPlacement } from 'antd/es/tooltip';
+import {TooltipPlacement} from 'antd/es/tooltip';
 
 interface ConfirmButtonProps extends ButtonProps {
     skipconfirm?: boolean;
@@ -51,7 +51,8 @@ export const ConfirmButton = (props: ConfirmButtonProps) => {
             onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-            }}>
+            }}
+        >
             <Popconfirm
                 title='Are you sure?'
                 open={open && !props.disabled}
@@ -60,7 +61,8 @@ export const ConfirmButton = (props: ConfirmButtonProps) => {
                 okText='Yes'
                 cancelText='No'
                 onOpenChange={handleOpenChange}
-                placement={props.placement || 'bottom'}>
+                placement={props.placement || 'bottom'}
+            >
                 <div>
                     <Tooltip title={props.tooltip}>
                         <Button {...buttonProps}>{props.children}</Button>

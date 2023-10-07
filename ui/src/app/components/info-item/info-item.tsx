@@ -1,6 +1,6 @@
 import * as React from 'react';
 import './info-item.scss';
-import { Tooltip } from 'antd';
+import {Tooltip} from 'antd';
 
 export enum InfoItemKind {
     Default = 'default',
