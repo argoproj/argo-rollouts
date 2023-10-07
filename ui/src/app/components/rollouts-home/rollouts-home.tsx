@@ -52,14 +52,6 @@ export const RolloutsHome = () => {
 
     const filteredRollouts = React.useMemo(() => {
         console.log('filteredRollouts', filters);
-        let nameFilterRegex: RegExp = null;
-        if (filters.name) {
-            try {
-                nameFilterRegex = new RegExp(filters.name, 'i');
-            } catch (e) {
-                console.error(e);
-            }
-        }
 
         return rollouts.filter((r) => {
             if (filters.showFavorites && !favorites[r.objectMeta.name]) {
@@ -71,12 +63,24 @@ export const RolloutsHome = () => {
             if (Object.values(filters.status).some((value) => value === true) && !filters.status[r.status]) {
                 return false;
             }
-            if (nameFilterRegex && !nameFilterRegex.test(r.objectMeta.name)) {
-                return false;
+            let nameMatches = false;
+            for (let term of filters.name.split(',').map(t => t.trim())) {
+                if (term === '') continue;  // Skip empty terms
+                if (term.startsWith('!')) {
+                    if (!r.objectMeta.name.includes(term.substring(1))) {
+                        nameMatches = true;
+                        break;
+                    }
+                } else if (r.objectMeta.name.includes(term)) {
+                    nameMatches = true;
+                    break;
+                }
             }
+            
+            if (!nameMatches) return false;
             return true;
         });
-    }, [rollouts, filters]);
+    }, [rollouts, filters, favorites]);
 
     return (
         <div className='rollouts-home'>
