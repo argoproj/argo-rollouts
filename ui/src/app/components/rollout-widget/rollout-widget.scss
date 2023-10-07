@@ -172,5 +172,10 @@ $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
             margin-top: 1.5em;
             z-index: 10 !important;
         }
+        &__actions {
+            color: $argo-color-gray-7;
+            font-size: 14px;
+            margin-top: 0.5em;
+        }
     }
 }
