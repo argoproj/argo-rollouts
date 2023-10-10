@@ -2017,7 +2017,7 @@ func TestIsReplicaSetReferenced(t *testing.T) {
 			expectedResult: true,
 		},
 		{
-			name: "preview service still referenced",
+			name: "service not found",
 			status: v1alpha1.RolloutStatus{
 				CurrentPodHash: "abc123",
 				StableRS:       "abc123",
@@ -2025,7 +2025,7 @@ func TestIsReplicaSetReferenced(t *testing.T) {
 			activeService:  "mysvc",
 			previewService: "mysvc2",
 			rsHash:         "def456",
-			expectedResult: true,
+			expectedResult: false,
 		},
 	}
 	for _, tc := range testCases {
