@@ -163,7 +163,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			canaryHash = c.newRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 		}
 
-		if dynamicallyRollingBackToStable, prevDesiredHash := c.isDynamicallyRollingBackToStable(); dynamicallyRollingBackToStable {
+		if dynamicallyRollingBackToStable, prevDesiredHash := isDynamicallyRollingBackToStable(c.rollout, c.newRS); dynamicallyRollingBackToStable {
 			desiredWeight = c.calculateDesiredWeightOnAbortOrStableRollback()
 			// Since stableRS == desiredRS, we must balance traffic between the
 			// *previous desired* vs. stable (as opposed to current desired vs. stable).
