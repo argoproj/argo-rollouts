@@ -87,7 +87,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
 		rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout revision")
+			c.log.WithError(err).Error("Error: updating replicaset revision")
 			return nil, err
 		}
 		c.log.Infof("Synced revision on ReplicaSet '%s' to '%s'", rs.Name, newRevision)
