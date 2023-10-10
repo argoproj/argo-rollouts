@@ -199,7 +199,6 @@ require (
 )
 
 replace (
-	github.com/antonmedv/expr => github.com/expr-lang/expr v0.0.0-20230912141041-709c5dd55aa7
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	k8s.io/api v0.0.0 => k8s.io/api v0.25.8
 	k8s.io/apiextensions-apiserver v0.0.0 => k8s.io/apiextensions-apiserver v0.25.8
