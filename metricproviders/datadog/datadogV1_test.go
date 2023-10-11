@@ -156,6 +156,22 @@ func TestRunSuite(t *testing.T) {
 			useEnvVarForKeys:        false,
 		},
 
+		// Failed message contains failure reason
+		{
+			webServerStatus:   200,
+			webServerResponse: `{"status":"ok","series":[{"pointlist":[[1598867910000,0.0020008318672513122],[1598867925000,0.0003332881882246533]]}]}`,
+			metric: v1alpha1.Metric{
+				Name:             "foo",
+				SuccessCondition: "result > 0.05",
+				Provider:         ddProviderIntervalDefault,
+			},
+			expectedIntervalSeconds: 300,
+			expectedPhase:           v1alpha1.AnalysisPhaseFailed,
+			expectedErrorMessage:    `Result (0.0003332881882246533) did not pass condition (result > 0.05)`,
+			useEnvVarForKeys:        false,
+			expectedValue:           "0.0003332881882246533",
+		},
+
 		// Expect success with default() and no data
 		{
 			webServerStatus:   200,

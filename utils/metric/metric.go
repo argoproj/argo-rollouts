@@ -5,6 +5,12 @@ import (
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
+// MarkMeasurementMessage sets an error message on a measurement
+func MarkMeasurementMessage(m v1alpha1.Measurement, err error) v1alpha1.Measurement {
+	m.Message = err.Error()
+	return m
+}
+
 // MarkMeasurementError sets an error message on a measurement along with finish time
 func MarkMeasurementError(m v1alpha1.Measurement, err error) v1alpha1.Measurement {
 	m.Phase = v1alpha1.AnalysisPhaseError
