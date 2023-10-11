@@ -66,7 +66,6 @@ export const RolloutWidget = (props: {rollout: RolloutInfo; deselect: () => void
                 />
                 {(rollout.strategy || '').toLocaleLowerCase() === 'canary' && <InfoItemRow label={'Weight'} items={{content: rollout.setWeight, icon: 'fa-weight'}} />}
             </div>
-            {/* {(rollout.replicaSets || []).length < 1 && <ReplicaSets replicaSets={rollout.replicaSets} showRevisions />} */}
             <ReplicaSets replicaSets={rollout.replicaSets} showRevisions />
             <div className='rollouts-list__widget__message'>{rollout.message !== 'CanaryPauseStep' && rollout.message}</div>
             <div className='rollouts-list__widget__actions'>
