@@ -25,7 +25,6 @@ interface ActionData {
     shouldConfirm?: boolean;
 }
 
-// export const RolloutActionButton = (props: {action: RolloutAction; rollout: RolloutInfo; callback?: Function; indicateLoading: boolean; disabled?: boolean}) => {
 export const RolloutActionButton = React.memo(
     ({action, rollout, callback, indicateLoading, disabled}: {action: RolloutAction; rollout: RolloutInfo; callback?: Function; indicateLoading: boolean; disabled?: boolean}) => {
         const [loading, setLoading] = React.useState(false);
@@ -91,8 +90,6 @@ export const RolloutActionButton = React.memo(
         ]);
 
         const ap = actionMap.get(action);
-
-        // const [loading, setLoading] = React.useState(false);
 
         return (
             <ConfirmButton
