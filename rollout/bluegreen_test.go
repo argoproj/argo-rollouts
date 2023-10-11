@@ -290,7 +290,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		f.run(getKey(r2, t))
 
 		patch := f.getPatchedRollout(patchRolloutIndex)
-		assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+		assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 	})
 	t.Run("AddPause", func(t *testing.T) {
 		f := newFixture(t)
@@ -334,7 +334,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			}
 		}`
 		now := timeutil.Now().UTC().Format(time.RFC3339)
-		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, v1alpha1.PauseReasonBlueGreenPause, now)), patch)
+		assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, v1alpha1.PauseReasonBlueGreenPause, now)), patch)
 
 	})
 
@@ -376,7 +376,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 			}
 		}`
 		addedConditions := generateConditionsPatchWithPause(true, conditions.RolloutPausedReason, rs2, true, "", true, false)
-		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, addedConditions)), patch)
+		assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, addedConditions)), patch)
 	})
 
 	t.Run("NoActionsAfterPausing", func(t *testing.T) {
@@ -417,7 +417,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 		f.run(getKey(r2, t))
 		patch := f.getPatchedRollout(patchIndex)
-		assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+		assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 	})
 
 	t.Run("NoActionsAfterPausedOnInconclusiveRun", func(t *testing.T) {
@@ -468,7 +468,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 		f.run(getKey(r2, t))
 		patch := f.getPatchedRollout(patchIndex)
-		assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+		assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 	})
 
 	t.Run("NoAutoPromoteBeforeDelayTimePasses", func(t *testing.T) {
@@ -509,7 +509,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		patchIndex := f.expectPatchRolloutActionWithPatch(r2, OnlyObservedGenerationPatch)
 		f.run(getKey(r2, t))
 		patch := f.getPatchedRollout(patchIndex)
-		assert.Equal(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
+		assert.JSONEq(t, calculatePatch(r2, OnlyObservedGenerationPatch), patch)
 	})
 
 	t.Run("AutoPromoteAfterDelayTimePasses", func(t *testing.T) {
@@ -813,7 +813,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 				"conditions": %s
 			}
 		}`
-		assert.Equal(t, calculatePatch(r2, fmt.Sprintf(expectedUnpausePatch, unpauseConditions)), unpausePatch)
+		assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedUnpausePatch, unpauseConditions)), unpausePatch)
 
 		generatedConditions := generateConditionsPatchWithCompleted(true, conditions.ReplicaSetUpdatedReason, rs2, true, "", true)
 		expected2ndPatchWithoutSubs := `{
@@ -1453,7 +1453,7 @@ func TestBlueGreenAbort(t *testing.T) {
 		}	
 	}`, rs1PodHash, expectedConditions, rs1PodHash, conditions.RolloutAbortedReason, fmt.Sprintf(conditions.RolloutAbortedMessage, 2))
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r2, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
 }
 
 func TestBlueGreenHandlePauseAutoPromoteWithConditions(t *testing.T) {
