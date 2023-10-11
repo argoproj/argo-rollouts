@@ -88,11 +88,11 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
 			c.log.WithError(err).Error("Error: updating replicaset revision")
-			return nil, err
+			return nil, fmt.Errorf("error updating replicaset revision: %v", err)
 		}
 		c.log.Infof("Synced revision on ReplicaSet '%s' to '%s'", rs.Name, newRevision)
 		c.replicaSetInformer.GetIndexer().Update(rs)
-		return rs, err
+		return rs, nil
 	}
 
 	// Should use the revision in existingNewRS's annotation, since it set by before
