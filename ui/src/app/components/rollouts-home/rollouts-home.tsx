@@ -51,8 +51,6 @@ export const RolloutsHome = () => {
     };
 
     const filteredRollouts = React.useMemo(() => {
-        console.log('filteredRollouts', filters);
-
         return rollouts.filter((r) => {
             if (filters.showFavorites && !favorites[r.objectMeta.name]) {
                 return false;
@@ -64,8 +62,8 @@ export const RolloutsHome = () => {
                 return false;
             }
             let nameMatches = false;
-            for (let term of filters.name.split(',').map(t => t.trim())) {
-                if (term === '') continue;  // Skip empty terms
+            for (let term of filters.name.split(',').map((t) => t.trim())) {
+                if (term === '') continue; // Skip empty terms
                 if (term.startsWith('!')) {
                     if (!r.objectMeta.name.includes(term.substring(1))) {
                         nameMatches = true;
@@ -76,8 +74,7 @@ export const RolloutsHome = () => {
                     break;
                 }
             }
-            
-            if (!nameMatches) return false;
+            if (filters.name != '' && !nameMatches) return false;
             return true;
         });
     }, [rollouts, filters, favorites]);
