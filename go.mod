@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.21.1
 	github.com/aws/aws-sdk-go-v2/config v1.18.43
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.27.8
-	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.21.4
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.21.5
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bombsimon/logrusr/v4 v4.0.0
 	github.com/evanphx/json-patch/v5 v5.7.0
