@@ -3213,8 +3213,8 @@ all 16 pods. The resulting distribution of pods across nodes is shown here:
 <p>To reduce the chance of this behavior, a rollout can inject anti-affinity into the ReplicaSet. This prevents new pods from running on nodes which have the previous version's pods.</p>
 <p>You can learn more about anti-affinity <a href="https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#inter-pod-affinity-and-anti-affinity">here</a>.</p>
 <p>Repeating the above example with anti-affinity enabled, here is what happens when the <code>.spec.template</code> of the Rollout changes. Due to anti-affinity, the new pods cannot be scheduled on nodes which run the old ReplicaSet's pods.
-As a result, the cluster auto-scaler must create 2 nodes to host the new ReplicaSet's pods. In this case, pods won't be started since the scaled-down nodes are guaranteed to not have the new pods.
-<img alt=" Original Rollout is running, spread across two nodes" src="../images/solution.png" /></p>
+As a result, the cluster auto-scaler must create 2 nodes to host the new ReplicaSet's pods. In this case, pods won't be started since the scaled-down nodes are guaranteed to not have the new pods.</p>
+<p><img alt=" Original Rollout is running, spread across two nodes" src="../images/solution.png" /></p>
 <h2 id="enabling-anti-affinity-in-rollouts">Enabling Anti-Affinity in Rollouts<a class="headerlink" href="#enabling-anti-affinity-in-rollouts" title="Permanent link">&para;</a></h2>
 <p>Anti-affinity is enabled by adding the anti-affinity struct to the Blue-Green or Canary strategy. When the anti-affinity struct is set, controller injects a PodAntiAffinity struct into the ReplicaSet's Affinity.
 This feature will not modify any of the ReplicaSet's pre-existing affinity rules. </p>
