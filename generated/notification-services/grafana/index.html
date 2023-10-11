@@ -1608,6 +1608,26 @@
   
   
     <li class="md-nav__item">
+      <a href="../awssqs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AWS SQS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../email/" class="md-nav__link">
         
   
@@ -3132,14 +3152,22 @@
 <h1 id="grafana">Grafana<a class="headerlink" href="#grafana" title="Permanent link">&para;</a></h1>
 <p>To be able to create Grafana annotation with argocd-notifications you have to create an <a href="https://grafana.com/docs/grafana/latest/http_api/auth/#create-api-key">API Key</a> inside your <a href="https://grafana.com">Grafana</a>.</p>
 <p><img alt="sample" src="https://user-images.githubusercontent.com/18019529/112024976-0f106080-8b78-11eb-9658-7663305899be.png" /></p>
-<ol>
-<li>Login to your Grafana instance as <code>admin</code></li>
+<p>Available parameters :</p>
+<ul>
+<li><code>apiURL</code> - the server url, e.g. https://grafana.example.com</li>
+<li><code>apiKey</code> - the API key for the serviceaccount</li>
+<li>
+<p><code>insecureSkipVerify</code> - optional bool, true or false</p>
+</li>
+<li>
+<p>Login to your Grafana instance as <code>admin</code></p>
+</li>
 <li>On the left menu, go to Configuration / API Keys</li>
 <li>Click "Add API Key" </li>
 <li>Fill the Key with name <code>ArgoCD Notification</code>, role <code>Editor</code> and Time to Live <code>10y</code> (for example)</li>
 <li>Click on Add button</li>
 <li>Store apiKey in <code>argocd-notifications-secret</code> Secret and Copy your API Key and define it in <code>argocd-notifications-cm</code> ConfigMap</li>
-</ol>
+</ul>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>

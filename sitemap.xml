@@ -446,6 +446,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/awssqs/</loc>
+         <lastmod>2023-10-11</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://argo-rollouts.readthedocs.io/generated/notification-services/email/</loc>
          <lastmod>2023-10-11</lastmod>
          <changefreq>daily</changefreq>

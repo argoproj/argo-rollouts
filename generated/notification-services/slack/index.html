@@ -1608,6 +1608,26 @@
   
   
     <li class="md-nav__item">
+      <a href="../awssqs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AWS SQS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../email/" class="md-nav__link">
         
   
@@ -3238,8 +3258,8 @@
 <p>Create a public or private channel, for this example <code>my_channel</code></p>
 </li>
 <li>Invite your slack bot to this channel <strong>otherwise slack bot won't be able to deliver notifications to this channel</strong></li>
-<li>Store Oauth access token in <code>argocd-notifications-secret</code> secret</li>
-</ol>
+<li>
+<p>Store Oauth access token in <code>argocd-notifications-secret</code> secret</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
 <span class="w">  </span><span class="nt">metadata</span><span class="p">:</span>
@@ -3247,9 +3267,9 @@
 <span class="w">  </span><span class="nt">stringData</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">slack-token</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;Oauth-access-token&gt;</span>
 </code></pre></div>
-<ol>
-<li>Define service type slack in data section of <code>argocd-notifications-cm</code> configmap:</li>
-</ol>
+</li>
+<li>
+<p>Define service type slack in data section of <code>argocd-notifications-cm</code> configmap:</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="w">  </span><span class="nt">metadata</span><span class="p">:</span>
@@ -3258,18 +3278,18 @@
 <span class="w">    </span><span class="nt">service.slack</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <span class="w">      </span><span class="no">token: $slack-token</span>
 </code></pre></div>
-<ol>
-<li>Add annotation in application yaml file to enable notifications for specific argocd app.  The following example uses the <a href="../catalog.md#triggers">on-sync-succeeded trigger</a>:</li>
-</ol>
+</li>
+<li>
+<p>Add annotation in application yaml file to enable notifications for specific argocd app.  The following example uses the <a href="../catalog.md#triggers">on-sync-succeeded trigger</a>:</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="w">  </span><span class="nt">metadata</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">annotations</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">notifications.argoproj.io/subscribe.on-sync-succeeded.slack</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_channel</span>
 </code></pre></div>
-<ol>
-<li>Annotation with more than one <a href="../catalog.md#triggers">trigger</a>, with multiple destinations and recipients</li>
-</ol>
+</li>
+<li>
+<p>Annotation with more than one <a href="../catalog.md#triggers">trigger</a>, with multiple destinations and recipients</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
 <span class="w">  </span><span class="nt">metadata</span><span class="p">:</span>
@@ -3286,6 +3306,8 @@
 <span class="w">            </span><span class="no">- service: slack</span>
 <span class="w">              </span><span class="no">recipients: [my-channel-21, my-channel-22]</span>
 </code></pre></div>
+</li>
+</ol>
 <h2 id="templates">Templates<a class="headerlink" href="#templates" title="Permanent link">&para;</a></h2>
 <p><a href="../templates.md">Notification templates</a> can be customized to leverage slack message blocks and attachments
 <a href="https://api.slack.com/messaging/composing/layouts">feature</a>.</p>

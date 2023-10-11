@@ -1608,6 +1608,26 @@
   
   
     <li class="md-nav__item">
+      <a href="../awssqs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AWS SQS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../email/" class="md-nav__link">
         
   
@@ -3221,7 +3241,7 @@
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Create a GitHub Apps using https://github.com/settings/apps/new</li>
-<li>Change repository permissions to enable write commit statuses and/or deployments
+<li>Change repository permissions to enable write commit statuses and/or deployments and/or pull requests comments
 <img alt="2" src="https://user-images.githubusercontent.com/18019529/108397381-3ca57980-725b-11eb-8d17-5b8992dc009e.png" /></li>
 <li>Generate a private key, and download it automatically
 <img alt="3" src="https://user-images.githubusercontent.com/18019529/108397926-d4a36300-725b-11eb-83fe-74795c8c3e03.png" /></li>
@@ -3276,10 +3296,19 @@ in <code>argocd-notifications-cm</code> ConfigMap</li>
 <span class="w">      </span><span class="no">environmentURL: &quot;https://{{.app.metadata.name}}.example.com&quot;</span>
 <span class="w">      </span><span class="no">logURL: &quot;{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true&quot;</span>
 <span class="w">      </span><span class="no">requiredContexts: []</span>
+<span class="w">      </span><span class="no">autoMerge: true</span>
+<span class="w">    </span><span class="no">pullRequestComment:</span>
+<span class="w">      </span><span class="no">content: |</span>
+<span class="w">        </span><span class="no">Application {{.app.metadata.name}} is now running new version of deployments manifests.</span>
+<span class="w">        </span><span class="no">See more here: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true</span>
 </code></pre></div>
 <p><strong>Notes</strong>:
 - If the message is set to 140 characters or more, it will be truncated.
-- If <code>github.repoURLPath</code> and <code>github.revisionPath</code> are same as above, they can be omitted.</p>
+- If <code>github.repoURLPath</code> and <code>github.revisionPath</code> are same as above, they can be omitted.
+- Automerge is optional and <code>true</code> by default for github deployments to ensure the requested ref is up to date with the default branch.
+  Setting this option to <code>false</code> is required if you would like to deploy older refs in your default branch.
+  For more information see the <a href="https://docs.github.com/en/rest/deployments/deployments?apiVersion=2022-11-28#create-a-deployment">Github Deployment API Docs</a>.
+- If <code>github.pullRequestComment.content</code> is set to 65536 characters or more, it will be truncated.</p>
 
 
   
