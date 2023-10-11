@@ -5,10 +5,9 @@ import {faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 
 import {NamespaceContext} from '../../shared/context/api';
 import {useWatchRollouts} from '../../shared/services/rollout';
-import {RolloutsToolbar, defaultDisplayMode} from '../rollouts-toolbar/rollouts-toolbar';
+import {RolloutsToolbar, defaultDisplayMode, Filters} from '../rollouts-toolbar/rollouts-toolbar';
 import {RolloutsTable} from '../rollouts-table/rollouts-table';
 import {RolloutsGrid} from '../rollouts-grid/rollouts-grid';
-import {Filters} from '../rollouts-toolbar/rollouts-toolbar';
 import './rollouts-home.scss';
 
 export const RolloutsHome = () => {
@@ -49,7 +48,7 @@ export const RolloutsHome = () => {
         setFavorites(newFavorites);
         localStorage.setItem('rolloutsFavorites', JSON.stringify(newFavorites));
     };
-
+    
     const filteredRollouts = React.useMemo(() => {
         return rollouts.filter((r) => {
             if (filters.showFavorites && !favorites[r.objectMeta.name]) {
