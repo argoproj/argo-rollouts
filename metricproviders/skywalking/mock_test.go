@@ -2,10 +2,10 @@ package skywalking
 
 type mockAPI struct {
 	err     error
-	results interface{}
+	results any
 }
 
-func (m mockAPI) Query(query string) (interface{}, error) {
+func (m mockAPI) Query(query string) (any, error) {
 	if m.err != nil {
 		return m.results, m.err
 	}

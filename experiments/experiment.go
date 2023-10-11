@@ -46,7 +46,7 @@ type experimentContext struct {
 	replicaSetLister              appslisters.ReplicaSetLister
 	serviceLister                 v1.ServiceLister
 	recorder                      record.EventRecorder
-	enqueueExperimentAfter        func(obj interface{}, duration time.Duration)
+	enqueueExperimentAfter        func(obj any, duration time.Duration)
 	resyncPeriod                  time.Duration
 
 	// calculated values during reconciliation
@@ -70,7 +70,7 @@ func newExperimentContext(
 	serviceLister v1.ServiceLister,
 	recorder record.EventRecorder,
 	resyncPeriod time.Duration,
-	enqueueExperimentAfter func(obj interface{}, duration time.Duration),
+	enqueueExperimentAfter func(obj any, duration time.Duration),
 ) *experimentContext {
 
 	exCtx := experimentContext{

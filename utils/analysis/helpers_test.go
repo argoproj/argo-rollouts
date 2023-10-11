@@ -822,7 +822,7 @@ func TestNewAnalysisRunFromUnstructured(t *testing.T) {
 	assert.Equal(t, len(args), len(arArgs))
 
 	for i, arg := range arArgs {
-		argnv := arg.(map[string]interface{})
+		argnv := arg.(map[string]any)
 		assert.Equal(t, *args[i].Value, argnv["value"])
 	}
 }

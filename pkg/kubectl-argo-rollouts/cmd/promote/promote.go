@@ -34,6 +34,7 @@ const (
 	setCurrentStepIndex                         = `{"status":{"currentStepIndex":%d}}`
 	unpausePatch                                = `{"spec":{"paused":false}}`
 	clearPauseConditionsPatch                   = `{"status":{"pauseConditions":null}}`
+	clearPauseConditionsAndControllerPausePatch = `{"status":{"pauseConditions":null, "controllerPause":false, "currentStepIndex":%d}}`
 	unpauseAndClearPauseConditionsPatch         = `{"spec":{"paused":false},"status":{"pauseConditions":null}}`
 	promoteFullPatch                            = `{"status":{"promoteFull":true}}`
 	clearPauseConditionsPatchWithStep           = `{"status":{"pauseConditions":null, "currentStepIndex":%d}}`
@@ -133,6 +134,10 @@ func PromoteRollout(rolloutIf clientset.RolloutInterface, name string, skipCurre
 	return ro, nil
 }
 
+func isInconclusive(rollout *v1alpha1.Rollout) bool {
+	return rollout.Spec.Strategy.Canary != nil && rollout.Status.Canary.CurrentStepAnalysisRunStatus != nil && rollout.Status.Canary.CurrentStepAnalysisRunStatus.Status == v1alpha1.AnalysisPhaseInconclusive
+}
+
 func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bool) ([]byte, []byte, []byte) {
 	var specPatch, statusPatch, unifiedPatch []byte
 	switch {
@@ -160,7 +165,18 @@ func getPatches(rollout *v1alpha1.Rollout, skipCurrentStep, skipAllStep, full bo
 		if rollout.Spec.Paused {
 			specPatch = []byte(unpausePatch)
 		}
-		if len(rollout.Status.PauseConditions) > 0 {
+		// in case if canary rollout in inconclusive state, we want to unset controller pause , clean pause conditions and increment step index
+		// so that rollout can proceed to next step
+		// without such patch, rollout will be stuck in inconclusive state in case if next step is pause step
+		if isInconclusive(rollout) && len(rollout.Status.PauseConditions) > 0 && rollout.Status.ControllerPause {
+			_, index := replicasetutil.GetCurrentCanaryStep(rollout)
+			if index != nil {
+				if *index < int32(len(rollout.Spec.Strategy.Canary.Steps)) {
+					*index++
+				}
+				statusPatch = []byte(fmt.Sprintf(clearPauseConditionsAndControllerPausePatch, *index))
+			}
+		} else if len(rollout.Status.PauseConditions) > 0 {
 			statusPatch = []byte(clearPauseConditionsPatch)
 		} else if rollout.Spec.Strategy.Canary != nil {
 			// we only want to clear pause conditions, or increment step index (never both)

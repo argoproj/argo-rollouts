@@ -44,7 +44,7 @@ func (g *Given) SetSteps(text string) *Given {
 	steps := make([]rov1.CanaryStep, 0)
 	err := yaml.Unmarshal([]byte(text), &steps)
 	g.CheckError(err)
-	var stepsUn []interface{}
+	var stepsUn []any
 	for _, step := range steps {
 		stepUn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&step)
 		g.CheckError(err)

@@ -99,7 +99,7 @@ func (o *ListOptions) PrintExperimentTable(expList *v1alpha1.ExperimentList) err
 				}
 			}
 		}
-		var cols []interface{}
+		var cols []any
 		if o.allNamespaces {
 			cols = append(cols, exp.Namespace)
 		}

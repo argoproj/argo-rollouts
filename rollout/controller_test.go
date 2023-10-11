@@ -494,12 +494,12 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 	json.Unmarshal(newBytes, newRO)
 	newObservedGen := strconv.Itoa(int(newRO.Generation))
 
-	newPatch := make(map[string]interface{})
+	newPatch := make(map[string]any)
 	err = json.Unmarshal([]byte(patch), &newPatch)
 	if err != nil {
 		panic(err)
 	}
-	newStatus := newPatch["status"].(map[string]interface{})
+	newStatus := newPatch["status"].(map[string]any)
 	newStatus["observedGeneration"] = newObservedGen
 	newPatch["status"] = newStatus
 	newPatchBytes, _ := json.Marshal(newPatch)
@@ -507,7 +507,7 @@ func calculatePatch(ro *v1alpha1.Rollout, patch string) string {
 }
 
 func cleanPatch(expectedPatch string) string {
-	patch := make(map[string]interface{})
+	patch := make(map[string]any)
 	err := json.Unmarshal([]byte(expectedPatch), &patch)
 	if err != nil {
 		panic(err)
@@ -599,7 +599,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 	})
 
 	var enqueuedObjectsLock sync.Mutex
-	c.enqueueRollout = func(obj interface{}) {
+	c.enqueueRollout = func(obj any) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
@@ -615,7 +615,7 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		f.enqueuedObjects[key] = count
 		c.rolloutWorkqueue.Add(obj)
 	}
-	c.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {
+	c.enqueueRolloutAfter = func(obj any, duration time.Duration) {
 		c.enqueueRollout(obj)
 	}
 	c.newTrafficRoutingReconciler = func(roCtx *rolloutContext) ([]trafficrouting.TrafficRoutingReconciler, error) {
@@ -1078,7 +1078,7 @@ func (f *fixture) getPatchedRolloutWithoutConditions(index int) string {
 	if !ok {
 		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
 	}
-	ro := make(map[string]interface{})
+	ro := make(map[string]any)
 	err := json.Unmarshal(patchAction.GetPatch(), &ro)
 	if err != nil {
 		f.t.Fatalf("Unable to unmarshal Patch")
@@ -1346,7 +1346,7 @@ func TestSwitchInvalidSpecMessage(t *testing.T) {
 	expectedPatch := fmt.Sprintf(expectedPatchWithoutSub, progressingCond, string(invalidSpecBytes), conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))
 
 	patch := f.getPatchedRollout(patchIndex)
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
 // TestPodTemplateHashEquivalence verifies the hash is computed consistently when there are slight
@@ -1549,7 +1549,7 @@ func TestSwitchBlueGreenToCanary(t *testing.T) {
 				"selector": "foo=bar"
 			}
 		}`, addedConditions, conditions.ComputeStepHash(r))
-	assert.Equal(t, calculatePatch(r, expectedPatch), patch)
+	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
 func newInvalidSpecCondition(reason string, resourceObj runtime.Object, optionalMessage string) (v1alpha1.RolloutCondition, string) {
