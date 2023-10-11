@@ -305,7 +305,7 @@ func TestGetService(t *testing.T) {
 	t.Run("ErrorGetServiceFromStruct ", func(t *testing.T) {
 		// Given
 		t.Parallel()
-		services := []interface{}{
+		services := []any{
 			mocks.FakeService{Weight: 12},
 		}
 
@@ -319,12 +319,12 @@ func TestGetService(t *testing.T) {
 	t.Run("ErrorGetServiceFromMap", func(t *testing.T) {
 		// Given
 		t.Parallel()
-		services := map[string]interface{}{
+		services := map[string]any{
 			"weight": 100,
 		}
 
 		// When
-		selectedServices, err := getService("default", []interface{}{services})
+		selectedServices, err := getService("default", []any{services})
 
 		// Then
 		assert.Nil(t, selectedServices)
@@ -334,12 +334,12 @@ func TestGetService(t *testing.T) {
 		// Given
 		t.Parallel()
 		const serviceName string = "default"
-		services := map[string]interface{}{
+		services := map[string]any{
 			"name": serviceName,
 		}
 
 		// When
-		selectedServices, err := getService(serviceName, []interface{}{services})
+		selectedServices, err := getService(serviceName, []any{services})
 
 		// Then
 		assert.NotNil(t, selectedServices)
@@ -348,12 +348,12 @@ func TestGetService(t *testing.T) {
 	t.Run("ErrorGetServiceFromNil", func(t *testing.T) {
 		// Given
 		t.Parallel()
-		services := map[string]interface{}{
+		services := map[string]any{
 			"name": nil,
 		}
 
 		// When
-		selectedServices, err := getService("default", []interface{}{services})
+		selectedServices, err := getService("default", []any{services})
 
 		// Then
 		assert.Nil(t, selectedServices)

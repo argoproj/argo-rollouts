@@ -474,7 +474,7 @@ func ValidateAppMeshVirtualRouter(vrouter *unstructured.Unstructured) *field.Err
 	}
 	for idx, routeI := range allRoutesI {
 		routeFldPath := routesFldPath.Index(idx)
-		route, ok := routeI.(map[string]interface{})
+		route, ok := routeI.(map[string]any)
 		if !ok {
 			msg := fmt.Sprintf("Invalid route was found for AppMesh virtual-router %s at index %d", vrouter.GetName(), idx)
 			return field.Invalid(routeFldPath, vrouter.GetName(), msg)

@@ -176,8 +176,8 @@ func rolloutRevision(ro *unstructured.Unstructured, c kubernetes.Interface, toRe
 }
 
 func getRolloutPatch(podTemplate *corev1.PodTemplateSpec, annotations map[string]string) (types.PatchType, []byte, error) {
-	patch, err := json.Marshal([]interface{}{
-		map[string]interface{}{
+	patch, err := json.Marshal([]any{
+		map[string]any{
 			"op":    "replace",
 			"path":  "/spec/template",
 			"value": podTemplate,
@@ -235,12 +235,12 @@ func listReplicaSets(ro *unstructured.Unstructured, getRSList rsListFunc) ([]*ap
 	return owned, nil
 }
 
-func extractLabelSelector(v map[string]interface{}) (*metav1.LabelSelector, error) {
+func extractLabelSelector(v map[string]any) (*metav1.LabelSelector, error) {
 	labels, _, _ := unstructured.NestedStringMap(v, "spec", "selector", "matchLabels")
 	items, _, _ := unstructured.NestedSlice(v, "spec", "selector", "matchExpressions")
 	matchExpressions := []metav1.LabelSelectorRequirement{}
 	for _, item := range items {
-		m, ok := item.(map[string]interface{})
+		m, ok := item.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("unable to retrieve matchExpressions for object, item %v is not a map", item)
 		}

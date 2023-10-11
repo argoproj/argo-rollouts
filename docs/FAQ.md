@@ -41,6 +41,10 @@ solution that does not follow the GitOps approach.
 
 Yes. A k8s cluster can run multiple replicas of Argo-rollouts controllers to achieve HA. To enable this feature, run the controller with `--leader-elect` flag and increase the number of replicas in the controller's deployment manifest. The implementation is based on the [k8s client-go's leaderelection package](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#section-documentation). This implementation is tolerant to *arbitrary clock skew* among replicas. The level of tolerance to skew rate can be configured by setting `--leader-election-lease-duration` and `--leader-election-renew-deadline` appropriately. Please refer to the [package documentation](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection#pkg-overview) for details.
 
+### Can we install Argo Rollouts centrally in a cluster and manage Rollout resources in external clusters? 
+
+No you cannot do that (even though Argo CD can work that way). This is by design because the Rollout is a custom resource unknown to vanilla Kubernetes. You need the Rollout CRD as well as the controller in the deployment cluster (every cluster that will use workloads with Rollouts).
+
 ## Rollouts
 
 ### Which deployment strategies does Argo Rollouts support?

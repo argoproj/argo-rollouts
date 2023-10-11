@@ -74,7 +74,7 @@ func WithObject(obj runtime.Object) *log.Entry {
 // This is an optimization that callers can use to avoid inferring this again from a runtime.Object
 func KindNamespaceName(logCtx *log.Entry) (string, string, string) {
 	var kind string
-	var nameIf interface{}
+	var nameIf any
 	var ok bool
 	if nameIf, ok = logCtx.Data["rollout"]; ok {
 		kind = "Rollout"
@@ -118,7 +118,7 @@ func WithRedactor(entry log.Entry, secrets []string) *log.Entry {
 }
 
 func WithVersionFields(entry *log.Entry, r *v1alpha1.Rollout) *log.Entry {
-	return entry.WithFields(map[string]interface{}{
+	return entry.WithFields(map[string]any{
 		"resourceVersion": r.ResourceVersion,
 		"generation":      r.Generation,
 	})

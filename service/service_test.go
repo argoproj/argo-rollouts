@@ -86,7 +86,7 @@ func newFakeServiceController(svc *corev1.Service, rollout *v1alpha1.Rollout) (*
 		MetricsServer:     metricsServer,
 	})
 	enqueuedObjects := map[string]int{}
-	c.enqueueRollout = func(obj interface{}) {
+	c.enqueueRollout = func(obj any) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {

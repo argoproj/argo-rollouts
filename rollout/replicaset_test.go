@@ -210,7 +210,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 					rollout: rollout,
 				},
 			}
-			roCtx.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {}
+			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
 			if test.abortScaleDownDelaySeconds > 0 {
 				rollout.Status.Abort = true
 				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{

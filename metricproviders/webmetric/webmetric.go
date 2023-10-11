@@ -119,7 +119,7 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 }
 
 func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
-	var data interface{}
+	var data any
 
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -145,7 +145,7 @@ func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response
 	return valString, status, err
 }
 
-func getValue(fullResults [][]reflect.Value) (interface{}, string, error) {
+func getValue(fullResults [][]reflect.Value) (any, string, error) {
 	for _, results := range fullResults {
 		for _, r := range results {
 			val := r.Interface()

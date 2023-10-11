@@ -144,7 +144,7 @@ func TestActiveServiceNotFound(t *testing.T) {
 			}
 		}`
 	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedActiveSvc, errmsg)
-	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
+	assert.JSONEq(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
 }
 
 func TestPreviewServiceNotFound(t *testing.T) {
@@ -173,7 +173,7 @@ func TestPreviewServiceNotFound(t *testing.T) {
 			}
 		}`
 	_, pausedCondition := newInvalidSpecCondition(conditions.InvalidSpecReason, notUsedPreviewSvc, errmsg)
-	assert.Equal(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
+	assert.JSONEq(t, calculatePatch(r, fmt.Sprintf(expectedPatch, pausedCondition, conditions.InvalidSpecReason, strings.ReplaceAll(errmsg, "\"", "\\\""))), patch)
 
 }
 
