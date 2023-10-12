@@ -132,6 +132,7 @@ type reconcilerBase struct {
 	replicaSetSynced              cache.InformerSynced
 	rolloutsInformer              cache.SharedIndexInformer
 	rolloutsLister                listers.RolloutLister
+	replicaSetInformer            cache.SharedIndexInformer
 	rolloutsSynced                cache.InformerSynced
 	rolloutsIndexer               cache.Indexer
 	servicesLister                v1.ServiceLister
@@ -176,7 +177,6 @@ func NewController(cfg ControllerConfig) *Controller {
 			controllerutil.EnqueueAfter(obj, duration, cfg.RolloutWorkQueue)
 		},
 	}
-
 	base := reconcilerBase{
 		kubeclientset:                 cfg.KubeClientSet,
 		argoprojclientset:             cfg.ArgoProjClientset,
@@ -185,6 +185,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		replicaSetLister:              cfg.ReplicaSetInformer.Lister(),
 		replicaSetSynced:              cfg.ReplicaSetInformer.Informer().HasSynced,
 		rolloutsInformer:              cfg.RolloutsInformer.Informer(),
+		replicaSetInformer:            cfg.ReplicaSetInformer.Informer(),
 		rolloutsIndexer:               cfg.RolloutsInformer.Informer().GetIndexer(),
 		rolloutsLister:                cfg.RolloutsInformer.Lister(),
 		rolloutsSynced:                cfg.RolloutsInformer.Informer().HasSynced,
