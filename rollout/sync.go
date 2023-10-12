@@ -85,7 +85,14 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
-		return c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+		rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+		if err != nil {
+			c.log.WithError(err).Error("Error: updating replicaset revision")
+			return nil, fmt.Errorf("error updating replicaset revision: %v", err)
+		}
+		c.log.Infof("Synced revision on ReplicaSet '%s' to '%s'", rs.Name, newRevision)
+		c.replicaSetInformer.GetIndexer().Update(rs)
+		return rs, nil
 	}
 
 	// Should use the revision in existingNewRS's annotation, since it set by before
@@ -360,6 +367,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 			scaled = true
 			revision, _ := replicasetutil.Revision(rs)
 			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, conditions.ScalingReplicaSetMessage, scalingOperation, rs.Name, revision, oldScale, newScale)
+			c.replicaSetInformer.GetIndexer().Update(rs)
 		}
 	}
 	return scaled, rs, err

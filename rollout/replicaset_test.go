@@ -195,16 +195,29 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
+
+			f := newFixture(t)
+			defer f.Close()
+			f.objects = append(f.objects, rollout)
+			f.replicaSetLister = append(f.replicaSetLister, oldRS, newRS)
+			f.kubeobjects = append(f.kubeobjects, oldRS, newRS)
+			_, informers, k8sInformer := f.newController(noResyncPeriodFunc)
+			stopCh := make(chan struct{})
+			informers.Start(stopCh)
+			informers.WaitForCacheSync(stopCh)
+			close(stopCh)
+
 			roCtx := rolloutContext{
 				log:      logutil.WithRollout(rollout),
 				rollout:  rollout,
 				newRS:    newRS,
 				stableRS: oldRS,
 				reconcilerBase: reconcilerBase{
-					argoprojclientset: &fake,
-					kubeclientset:     &k8sfake,
-					recorder:          record.NewFakeEventRecorder(),
-					resyncPeriod:      30 * time.Second,
+					argoprojclientset:  &fake,
+					kubeclientset:      &k8sfake,
+					recorder:           record.NewFakeEventRecorder(),
+					resyncPeriod:       30 * time.Second,
+					replicaSetInformer: k8sInformer.Apps().V1().ReplicaSets().Informer(),
 				},
 				pauseContext: &pauseContext{
 					rollout: rollout,
