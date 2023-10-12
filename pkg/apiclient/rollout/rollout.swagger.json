@@ -5575,8 +5575,19 @@
           }
         },
         "specAndStatus": {
-          "$ref": "#/definitions/rollout.SpecAndStatus",
+          "$ref": "#/definitions/rollout.AnalysisRunSpecAndStatus",
           "description": "The new API changes should use SpecAndStatus field type."
+        }
+      }
+    },
+    "rollout.AnalysisRunSpecAndStatus": {
+      "type": "object",
+      "properties": {
+        "spec": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStatus"
         }
       }
     },
@@ -5941,17 +5952,6 @@
         },
         "namespace": {
           "type": "string"
-        }
-      }
-    },
-    "rollout.SpecAndStatus": {
-      "type": "object",
-      "properties": {
-        "spec": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunSpec"
-        },
-        "status": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStatus"
         }
       }
     },

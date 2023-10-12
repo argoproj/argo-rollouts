@@ -6746,10 +6746,29 @@ export interface RolloutAnalysisRunInfo {
     metrics?: Array<RolloutMetrics>;
     /**
      * 
-     * @type {RolloutSpecAndStatus}
+     * @type {RolloutAnalysisRunSpecAndStatus}
      * @memberof RolloutAnalysisRunInfo
      */
-    specAndStatus?: RolloutSpecAndStatus;
+    specAndStatus?: RolloutAnalysisRunSpecAndStatus;
+}
+/**
+ * 
+ * @export
+ * @interface RolloutAnalysisRunSpecAndStatus
+ */
+export interface RolloutAnalysisRunSpecAndStatus {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec}
+     * @memberof RolloutAnalysisRunSpecAndStatus
+     */
+    spec?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus}
+     * @memberof RolloutAnalysisRunSpecAndStatus
+     */
+    status?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus;
 }
 /**
  * 
@@ -7341,25 +7360,6 @@ export interface RolloutSetImageRequest {
      * @memberof RolloutSetImageRequest
      */
     namespace?: string;
-}
-/**
- * 
- * @export
- * @interface RolloutSpecAndStatus
- */
-export interface RolloutSpecAndStatus {
-    /**
-     * 
-     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec}
-     * @memberof RolloutSpecAndStatus
-     */
-    spec?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec;
-    /**
-     * 
-     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus}
-     * @memberof RolloutSpecAndStatus
-     */
-    status?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus;
 }
 /**
  * 

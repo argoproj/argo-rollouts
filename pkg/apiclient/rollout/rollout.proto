@@ -148,7 +148,7 @@ message JobInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 5;
 }
 
-message SpecAndStatus {
+message AnalysisRunSpecAndStatus {
   github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunSpec spec = 1;
   github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStatus status = 2;
 }
@@ -169,7 +169,7 @@ message AnalysisRunInfo {
   repeated NonJobInfo nonJobInfo = 10;
   repeated Metrics metrics = 11;
   /* The new API changes should use SpecAndStatus field type. */
-  SpecAndStatus specAndStatus = 12;
+  AnalysisRunSpecAndStatus specAndStatus = 12;
 }
 
 message NonJobInfo {
