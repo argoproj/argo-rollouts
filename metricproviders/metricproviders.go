@@ -48,7 +48,10 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		c := kayenta.NewHttpClient()
 		return kayenta.NewKayentaProvider(logCtx, c), nil
 	case webmetric.ProviderType:
-		c := webmetric.NewWebMetricHttpClient(metric)
+		c, err := webmetric.NewWebMetricHttpClient(metric)
+		if err != nil {
+			return nil, err
+		}
 		p, err := webmetric.NewWebMetricJsonParser(metric)
 		if err != nil {
 			return nil, err

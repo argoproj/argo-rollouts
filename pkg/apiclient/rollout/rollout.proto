@@ -148,8 +148,16 @@ message JobInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 5;
 }
 
+message AnalysisRunSpecAndStatus {
+  github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunSpec spec = 1;
+  github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunStatus status = 2;
+}
+
 message AnalysisRunInfo {
   k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta objectMeta = 1;
+  /*
+   field type from 161 -170 will be deprecated in future.
+  */
   string icon = 2;
   int64 revision = 3;
   string status = 4;
@@ -160,6 +168,8 @@ message AnalysisRunInfo {
   repeated JobInfo jobs = 9;
   repeated NonJobInfo nonJobInfo = 10;
   repeated Metrics metrics = 11;
+  /* The new API changes should use SpecAndStatus field type. */
+  AnalysisRunSpecAndStatus specAndStatus = 12;
 }
 
 message NonJobInfo {

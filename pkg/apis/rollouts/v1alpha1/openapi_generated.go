@@ -1836,15 +1836,38 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"interval": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Interval refers to the Interval time window in Datadog (default: 5m). Not to be confused with the polling rate for the metric.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"query": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"queries": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Queries is a map of query_name_as_key: query. You can then use query_name_as_key inside Formula.Used for v2",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"formula": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Formula refers to the Formula made up of the queries. Only useful with Queries. Used for v2",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"apiVersion": {
@@ -1855,7 +1878,6 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 						},
 					},
 				},
-				Required: []string{"query"},
 			},
 		},
 	}

@@ -4305,6 +4305,26 @@
                                                     },
                                                     "authentication": {
                                                         "properties": {
+                                                            "oauth2": {
+                                                                "properties": {
+                                                                    "clientId": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "clientSecret": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "scopes": {
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "tokenUrl": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "sigv4": {
                                                                 "properties": {
                                                                     "profile": {
@@ -4380,6 +4400,45 @@
                                             },
                                             "web": {
                                                 "properties": {
+                                                    "authentication": {
+                                                        "properties": {
+                                                            "oauth2": {
+                                                                "properties": {
+                                                                    "clientId": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "clientSecret": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "scopes": {
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "tokenUrl": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
                                                     "body": {
                                                         "type": "string"
                                                     },
@@ -8764,6 +8823,26 @@
                                                     },
                                                     "authentication": {
                                                         "properties": {
+                                                            "oauth2": {
+                                                                "properties": {
+                                                                    "clientId": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "clientSecret": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "scopes": {
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "tokenUrl": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "sigv4": {
                                                                 "properties": {
                                                                     "profile": {
@@ -8839,6 +8918,45 @@
                                             },
                                             "web": {
                                                 "properties": {
+                                                    "authentication": {
+                                                        "properties": {
+                                                            "oauth2": {
+                                                                "properties": {
+                                                                    "clientId": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "clientSecret": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "scopes": {
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "tokenUrl": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
                                                     "body": {
                                                         "type": "string"
                                                     },
@@ -13223,6 +13341,26 @@
                                                     },
                                                     "authentication": {
                                                         "properties": {
+                                                            "oauth2": {
+                                                                "properties": {
+                                                                    "clientId": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "clientSecret": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "scopes": {
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "tokenUrl": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
                                                             "sigv4": {
                                                                 "properties": {
                                                                     "profile": {
@@ -13298,6 +13436,45 @@
                                             },
                                             "web": {
                                                 "properties": {
+                                                    "authentication": {
+                                                        "properties": {
+                                                            "oauth2": {
+                                                                "properties": {
+                                                                    "clientId": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "clientSecret": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "scopes": {
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "tokenUrl": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
+                                                            "sigv4": {
+                                                                "properties": {
+                                                                    "profile": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "region": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "roleArn": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
                                                     "body": {
                                                         "type": "string"
                                                     },

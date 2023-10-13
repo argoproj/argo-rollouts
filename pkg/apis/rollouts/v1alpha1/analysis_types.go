@@ -210,9 +210,9 @@ type PrometheusMetric struct {
 	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
 	// Query is a raw prometheus query to perform
 	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
-	// Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
+	// Authentication details
 	// +optional
-	Authentication PrometheusAuth `json:"authentication,omitempty" protobuf:"bytes,3,opt,name=authentication"`
+	Authentication Authentication `json:"authentication,omitempty" protobuf:"bytes,3,opt,name=authentication"`
 	// Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
@@ -225,10 +225,26 @@ type PrometheusMetric struct {
 	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,6,opt,name=headers"`
 }
 
-// PrometheusMetric defines the prometheus query to perform canary analysis
-type PrometheusAuth struct {
+// Authentication method
+type Authentication struct {
+	// Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
 	// +optional
-	Sigv4 Sigv4Config `json:"sigv4,omitempty" protobuf:"bytes,3,opt,name=sigv4"`
+	Sigv4 Sigv4Config `json:"sigv4,omitempty" protobuf:"bytes,1,opt,name=sigv4"`
+	// OAuth2 config
+	// +optional
+	OAuth2 OAuth2Config `json:"oauth2,omitempty" protobuf:"bytes,2,opt,name=oauth2"`
+}
+
+type OAuth2Config struct {
+	// OAuth2 provider token URL
+	TokenURL string `json:"tokenUrl,omitempty" protobuf:"bytes,1,name=tokenUrl"`
+	// OAuth2 client ID
+	ClientID string `json:"clientId,omitempty" protobuf:"bytes,2,name=clientId"`
+	// OAuth2 client secret
+	ClientSecret string `json:"clientSecret,omitempty" protobuf:"bytes,3,name=clientSecret"`
+	// OAuth2 scopes
+	// +optional
+	Scopes []string `json:"scopes,omitempty" protobuf:"bytes,4,opt,name=scopes"`
 }
 
 type Sigv4Config struct {
@@ -532,6 +548,9 @@ type WebMetric struct {
 	// +kubebuilder:validation:Type=object
 	// JSONBody is the body of the web metric in a json format (method must be POST/PUT)
 	JSONBody json.RawMessage `json:"jsonBody,omitempty" protobuf:"bytes,8,opt,name=jsonBody,casttype=encoding/json.RawMessage"`
+	// Authentication details
+	// +optional
+	Authentication Authentication `json:"authentication,omitempty" protobuf:"bytes,9,opt,name=authentication"`
 }
 
 // WebMetricMethod is the available HTTP methods
