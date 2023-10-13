@@ -8,6 +8,7 @@ import {useWatchRollouts} from '../../shared/services/rollout';
 import {RolloutsToolbar, defaultDisplayMode, Filters} from '../rollouts-toolbar/rollouts-toolbar';
 import {RolloutsTable} from '../rollouts-table/rollouts-table';
 import {RolloutsGrid} from '../rollouts-grid/rollouts-grid';
+import {RolloutRolloutInfo } from '../../../models/rollout/generated';
 import './rollouts-home.scss';
 
 export const RolloutsHome = () => {
@@ -49,33 +50,33 @@ export const RolloutsHome = () => {
         localStorage.setItem('rolloutsFavorites', JSON.stringify(newFavorites));
     };
     
+    const isFavorite = (r: RolloutRolloutInfo) => filters.showFavorites && !favorites[r.objectMeta.name];
+
+    const requiresAttention = (r: RolloutRolloutInfo) => filters.showRequiresAttention && r.status !== 'Degraded' && r.status !== 'Paused' && r.message !== 'CanaryPauseStep';
+    
+    const hasStatusFilter = (r: RolloutRolloutInfo) => Object.values(filters.status).some((value) => value === true) && !filters.status[r.status];
+    
+    const nameMatches = (r: RolloutRolloutInfo) => {
+      let nameMatches = false;
+      for (let term of filters.name.split(',').map((t) => t.trim())) {
+        if (term === '') continue; // Skip empty terms
+        if (term.startsWith('!')) {
+          if (!r.objectMeta.name.includes(term.substring(1))) {
+            nameMatches = true;
+            break;
+          }
+        } else if (r.objectMeta.name.includes(term)) {
+          nameMatches = true;
+          break;
+        }
+      }
+      return filters.name === '' || nameMatches;
+    };
+    
     const filteredRollouts = React.useMemo(() => {
-        return rollouts.filter((r) => {
-            if (filters.showFavorites && !favorites[r.objectMeta.name]) {
-                return false;
-            }
-            if (filters.showRequiresAttention && r.status !== 'Degraded' && r.status !== 'Paused' && r.message !== 'CanaryPauseStep') {
-                return false;
-            }
-            if (Object.values(filters.status).some((value) => value === true) && !filters.status[r.status]) {
-                return false;
-            }
-            let nameMatches = false;
-            for (let term of filters.name.split(',').map((t) => t.trim())) {
-                if (term === '') continue; // Skip empty terms
-                if (term.startsWith('!')) {
-                    if (!r.objectMeta.name.includes(term.substring(1))) {
-                        nameMatches = true;
-                        break;
-                    }
-                } else if (r.objectMeta.name.includes(term)) {
-                    nameMatches = true;
-                    break;
-                }
-            }
-            if (filters.name != '' && !nameMatches) return false;
-            return true;
-        });
+      return rollouts.filter((r) => {
+        return isFavorite(r) || requiresAttention(r) || hasStatusFilter(r) || nameMatches(r);
+      });
     }, [rollouts, filters, favorites]);
 
     return (
