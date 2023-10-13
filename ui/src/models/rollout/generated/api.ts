@@ -211,6 +211,86 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRun
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec {
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    metrics?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    args?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    terminate?: boolean;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    dryRun?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    measurementRetention?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    phase?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    message?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    metricResults?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult>;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    startedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    runSummary?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    dryRunSummary?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStrategy {
@@ -347,6 +427,31 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirt
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AppMeshVirtualService
      */
     routes?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument
+     */
+    value?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument
+     */
+    valueFrom?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom;
 }
 /**
  * 
@@ -710,6 +815,168 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStrat
     minPodsPerReplicaSet?: number;
 }
 /**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric
+     */
+    interval?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric
+     */
+    metricDataQueries?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    id?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    expression?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    label?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    metricStat?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    period?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricDataQuery
+     */
+    returnData?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat
+     */
+    metric?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat
+     */
+    period?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat
+     */
+    stat?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStat
+     */
+    unit?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric {
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric
+     */
+    dimensions?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric
+     */
+    metricName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetric
+     */
+    namespace?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetricStatMetricDimension
+     */
+    value?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    interval?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    query?: string;
+    /**
+     * ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    apiVersion?: string;
+}
+/**
  * DryRun defines the settings for running the analysis in Dry-Run mode.
  * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun
@@ -738,6 +1005,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef {
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric
+     */
+    query?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch {
@@ -753,6 +1039,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRouti
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1HeaderRoutingMatch
      */
     headerValue?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StringMatch;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric
+     */
+    profile?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric
+     */
+    query?: string;
 }
 /**
  * 
@@ -838,6 +1143,124 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtua
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric {
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1ObjectMeta}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric
+     */
+    metadata?: K8sIoApimachineryPkgApisMetaV1ObjectMeta;
+    /**
+     * 
+     * @type {K8sIoApiBatchV1JobSpec}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric
+     */
+    spec?: K8sIoApiBatchV1JobSpec;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    application?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    canaryConfigName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    metricsAccountName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    configurationAccountName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    storageAccountName?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    threshold?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric
+     */
+    scopes?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope
+     */
+    name?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope
+     */
+    controlScope?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaScope
+     */
+    experimentScope?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold
+     */
+    pass?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaThreshold
+     */
+    marginal?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes {
@@ -847,6 +1270,55 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoute
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MangedRoutes
      */
     name?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    phase?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    message?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    startedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    finishedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    value?: string;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    metadata?: { [key: string]: string; };
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
+     */
+    resumeAt?: K8sIoApimachineryPkgApisMetaV1Time;
 }
 /**
  * MeasurementRetention defines the settings for retaining the number of measurements during the analysis.
@@ -866,6 +1338,250 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention
      */
     limit?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    interval?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    initialDelay?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    count?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    successCondition?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    failureCondition?: string;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    failureLimit?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    inconclusiveLimit?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgUtilIntstrIntOrString}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    consecutiveErrorLimit?: K8sIoApimachineryPkgUtilIntstrIntOrString;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Metric
+     */
+    provider?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    prometheus?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    kayenta?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1KayentaMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    web?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    datadog?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    wavefront?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    newRelic?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    job?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1JobMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    cloudWatch?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    graphite?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1GraphiteMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    influxdb?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1InfluxdbMetric;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    skywalking?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric;
+    /**
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricProvider
+     */
+    plugin?: { [key: string]: string; };
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    phase?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    measurements?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Measurement>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    message?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    count?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    successful?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    failed?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    inconclusive?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    error?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    consecutiveError?: number;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    dryRun?: boolean;
+    /**
+     * Metadata stores additional metadata about this metric. It is used by different providers to store the final state which gets used while taking measurements. For example, Prometheus uses this field to store the final resolved query after substituting the template arguments.
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MetricResult
+     */
+    metadata?: { [key: string]: string; };
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+     */
+    profile?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NewRelicMetric
+     */
+    query?: string;
 }
 /**
  * 
@@ -992,6 +1708,62 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PreferredDu
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PreferredDuringSchedulingIgnoredDuringExecution
      */
     weight?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusAuth
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusAuth {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusAuth
+     */
+    sigv4?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    query?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusAuth}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    authentication?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusAuth;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    timeout?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    insecure?: boolean;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
+     */
+    headers?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>;
 }
 /**
  * 
@@ -1667,6 +2439,43 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RouteMatch 
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary {
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+     */
+    count?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+     */
+    successful?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+     */
+    failed?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+     */
+    inconclusive?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary
+     */
+    error?: number;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SMITrafficRouting
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SMITrafficRouting {
@@ -1682,6 +2491,62 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SMITrafficR
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SMITrafficRouting
      */
     trafficSplitName?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+     */
+    scope?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+     */
+    region?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+     */
+    step?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+     */
+    start?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ScopeDetail
+     */
+    end?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef
+     */
+    name?: string;
+    /**
+     * Key is the key of the secret to select from.
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef
+     */
+    key?: string;
 }
 /**
  * 
@@ -1751,6 +2616,56 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRo
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SetMirrorRoute
      */
     percentage?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
+     */
+    profile?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config
+     */
+    roleArn?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
+     */
+    query?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SkyWalkingMetric
+     */
+    interval?: string;
 }
 /**
  * 
@@ -1888,6 +2803,118 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeig
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom
+     */
+    secretKeyRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1SecretKeyRef;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ValueFrom
+     */
+    fieldRef?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1FieldRef;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric
+     */
+    address?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WavefrontMetric
+     */
+    query?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    method?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    url?: string;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    headers?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    body?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    timeoutSeconds?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    jsonPath?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    insecure?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    jsonBody?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader
+     */
+    key?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetricHeader
+     */
+    value?: string;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WeightDestination {
@@ -1996,6 +3023,161 @@ export interface GrpcGatewayRuntimeStreamError {
      * @memberof GrpcGatewayRuntimeStreamError
      */
     details?: Array<GoogleProtobufAny>;
+}
+/**
+ * JobSpec describes how the job execution will look like.
+ * @export
+ * @interface K8sIoApiBatchV1JobSpec
+ */
+export interface K8sIoApiBatchV1JobSpec {
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    parallelism?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    completions?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    activeDeadlineSeconds?: string;
+    /**
+     * 
+     * @type {K8sIoApiBatchV1PodFailurePolicy}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    podFailurePolicy?: K8sIoApiBatchV1PodFailurePolicy;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    backoffLimit?: number;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1LabelSelector}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    selector?: K8sIoApimachineryPkgApisMetaV1LabelSelector;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    manualSelector?: boolean;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1PodTemplateSpec}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    template?: K8sIoApiCoreV1PodTemplateSpec;
+    /**
+     * 
+     * @type {number}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    ttlSecondsAfterFinished?: number;
+    /**
+     * CompletionMode specifies how Pod completions are tracked. It can be `NonIndexed` (default) or `Indexed`.  `NonIndexed` means that the Job is considered complete when there have been .spec.completions successfully completed Pods. Each Pod completion is homologous to each other.  `Indexed` means that the Pods of a Job get an associated completion index from 0 to (.spec.completions - 1), available in the annotation batch.kubernetes.io/job-completion-index. The Job is considered complete when there is one successfully completed Pod for each index. When value is `Indexed`, .spec.completions must be specified and `.spec.parallelism` must be less than or equal to 10^5. In addition, The Pod name takes the form `$(job-name)-$(index)-$(random-string)`, the Pod hostname takes the form `$(job-name)-$(index)`.  More completion modes can be added in the future. If the Job controller observes a mode that it doesn't recognize, which is possible during upgrades due to version skew, the controller skips updates for the Job. +optional
+     * @type {string}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    completionMode?: string;
+    /**
+     * Suspend specifies whether the Job controller should create Pods or not. If a Job is created with suspend set to true, no Pods are created by the Job controller. If a Job is suspended after creation (i.e. the flag goes from false to true), the Job controller will delete all active Pods associated with this Job. Users must design their workload to gracefully handle this. Suspending a Job will reset the StartTime field of the Job, effectively resetting the ActiveDeadlineSeconds timer too. Defaults to false.  +optional
+     * @type {boolean}
+     * @memberof K8sIoApiBatchV1JobSpec
+     */
+    suspend?: boolean;
+}
+/**
+ * PodFailurePolicy describes how failed pods influence the backoffLimit.
+ * @export
+ * @interface K8sIoApiBatchV1PodFailurePolicy
+ */
+export interface K8sIoApiBatchV1PodFailurePolicy {
+    /**
+     * 
+     * @type {Array<K8sIoApiBatchV1PodFailurePolicyRule>}
+     * @memberof K8sIoApiBatchV1PodFailurePolicy
+     */
+    rules?: Array<K8sIoApiBatchV1PodFailurePolicyRule>;
+}
+/**
+ * PodFailurePolicyOnExitCodesRequirement describes the requirement for handling a failed pod based on its container exit codes. In particular, it lookups the .state.terminated.exitCode for each app container and init container status, represented by the .status.containerStatuses and .status.initContainerStatuses fields in the Pod status, respectively. Containers completed with success (exit code 0) are excluded from the requirement check.
+ * @export
+ * @interface K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement
+ */
+export interface K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement
+     */
+    containerName?: string;
+    /**
+     * Represents the relationship between the container exit code(s) and the specified values. Containers completed with success (exit code 0) are excluded from the requirement check. Possible values are: - In: the requirement is satisfied if at least one container exit code   (might be multiple if there are multiple containers not restricted   by the 'containerName' field) is in the set of specified values. - NotIn: the requirement is satisfied if at least one container exit code   (might be multiple if there are multiple containers not restricted   by the 'containerName' field) is not in the set of specified values. Additional values are considered to be added in the future. Clients should react to an unknown operator by assuming the requirement is not satisfied.
+     * @type {string}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement
+     */
+    operator?: string;
+    /**
+     * 
+     * @type {Array<number>}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement
+     */
+    values?: Array<number>;
+}
+/**
+ * PodFailurePolicyOnPodConditionsPattern describes a pattern for matching an actual pod condition type.
+ * @export
+ * @interface K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern
+ */
+export interface K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern {
+    /**
+     * Specifies the required Pod condition type. To match a pod condition it is required that specified type equals the pod condition type.
+     * @type {string}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern
+     */
+    type?: string;
+    /**
+     * Specifies the required Pod condition status. To match a pod condition it is required that the specified status equals the pod condition status. Defaults to True.
+     * @type {string}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern
+     */
+    status?: string;
+}
+/**
+ * PodFailurePolicyRule describes how a pod failure is handled when the requirements are met. One of OnExitCodes and onPodConditions, but not both, can be used in each rule.
+ * @export
+ * @interface K8sIoApiBatchV1PodFailurePolicyRule
+ */
+export interface K8sIoApiBatchV1PodFailurePolicyRule {
+    /**
+     * Specifies the action taken on a pod failure when the requirements are satisfied. Possible values are: - FailJob: indicates that the pod's job is marked as Failed and all   running pods are terminated. - Ignore: indicates that the counter towards the .backoffLimit is not   incremented and a replacement pod is created. - Count: indicates that the pod is handled in the default way - the   counter towards the .backoffLimit is incremented. Additional values are considered to be added in the future. Clients should react to an unknown action by skipping the rule.
+     * @type {string}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyRule
+     */
+    action?: string;
+    /**
+     * 
+     * @type {K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyRule
+     */
+    onExitCodes?: K8sIoApiBatchV1PodFailurePolicyOnExitCodesRequirement;
+    /**
+     * 
+     * @type {Array<K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern>}
+     * @memberof K8sIoApiBatchV1PodFailurePolicyRule
+     */
+    onPodConditions?: Array<K8sIoApiBatchV1PodFailurePolicyOnPodConditionsPattern>;
 }
 /**
  * Represents a Persistent Disk resource in AWS.  An AWS EBS disk must exist before mounting to a container. The disk must also be in the same AWS zone as the kubelet. An AWS EBS disk can only be mounted as read/write once. AWS EBS volumes support ownership management and SELinux relabeling.
@@ -5503,7 +6685,7 @@ export interface RolloutAnalysisRunInfo {
      */
     objectMeta?: K8sIoApimachineryPkgApisMetaV1ObjectMeta;
     /**
-     * 
+     * field type from 161 -170 will be deprecated in future.
      * @type {string}
      * @memberof RolloutAnalysisRunInfo
      */
@@ -5562,6 +6744,31 @@ export interface RolloutAnalysisRunInfo {
      * @memberof RolloutAnalysisRunInfo
      */
     metrics?: Array<RolloutMetrics>;
+    /**
+     * 
+     * @type {RolloutAnalysisRunSpecAndStatus}
+     * @memberof RolloutAnalysisRunInfo
+     */
+    specAndStatus?: RolloutAnalysisRunSpecAndStatus;
+}
+/**
+ * 
+ * @export
+ * @interface RolloutAnalysisRunSpecAndStatus
+ */
+export interface RolloutAnalysisRunSpecAndStatus {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec}
+     * @memberof RolloutAnalysisRunSpecAndStatus
+     */
+    spec?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus}
+     * @memberof RolloutAnalysisRunSpecAndStatus
+     */
+    status?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus;
 }
 /**
  * 
