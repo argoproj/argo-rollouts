@@ -1407,6 +1407,26 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    Authorization
+  </a>
+  
+    <nav class="md-nav" aria-label="Authorization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with-oauth2" class="md-nav__link">
+    With OAuth2
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3195,6 +3215,26 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    Authorization
+  </a>
+  
+    <nav class="md-nav" aria-label="Authorization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with-oauth2" class="md-nav__link">
+    With OAuth2
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3254,7 +3294,7 @@ was greater than <code>0.90</code></p>
 <p>NOTE: if the result is a string, two convenience functions <code>asInt</code> and <code>asFloat</code> are provided
 to convert a result value to a numeric type so that mathematical comparison operators can be used
 (e.g. &gt;, &lt;, &gt;=, &lt;=).</p>
-<h3 id="optional-web-methods">Optional web methods<a class="headerlink" href="#optional-web-methods" title="Permanent link">&para;</a></h3>
+<h2 id="optional-web-methods">Optional web methods<a class="headerlink" href="#optional-web-methods" title="Permanent link">&para;</a></h2>
 <p>It is possible to use a POST or PUT requests, by specifying the <code>method</code> and either <code>body</code> or <code>jsonBody</code> fields</p>
 <p><div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">webmetric</span>
@@ -3296,7 +3336,7 @@ to convert a result value to a numeric type so that mathematical comparison oper
 <span class="w">            </span><span class="nt">key3</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
 <span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data.ok}&quot;</span>
 </code></pre></div>
-<h3 id="skip-tls-verification">Skip TLS verification<a class="headerlink" href="#skip-tls-verification" title="Permanent link">&para;</a></h3>
+<h2 id="skip-tls-verification">Skip TLS verification<a class="headerlink" href="#skip-tls-verification" title="Permanent link">&para;</a></h2>
 <p>You can skip the TLS verification of the web host provided by setting the options <code>insecure: true</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">webmetric</span>
@@ -3310,6 +3350,44 @@ to convert a result value to a numeric type so that mathematical comparison oper
 <span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Bearer</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">args.api-token</span><span class="nv"> </span><span class="s">}}&quot;</span>
 <span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data}&quot;</span>
 </code></pre></div>
+<h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
+<h3 id="with-oauth2">With OAuth2<a class="headerlink" href="#with-oauth2" title="Permanent link">&para;</a></h3>
+<p>You can setup an <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-4.4">OAuth2 client credential</a> flow using the following values:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
+<span class="w">  </span><span class="c1"># from secret</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">oauthSecret</span><span class="w">  </span><span class="c1"># This is the OAuth2 shared secret</span>
+<span class="w">    </span><span class="nt">valueFrom</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">secretKeyRef</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">oauth-secret</span>
+<span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">secret</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">webmetric</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result == true</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">web</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;http://my-server.com/api/v1/measurement?service={{</span><span class="nv"> </span><span class="s">args.service-name</span><span class="nv"> </span><span class="s">}}&quot;</span>
+<span class="w">        </span><span class="nt">timeoutSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w"> </span><span class="c1"># defaults to 10 seconds</span>
+<span class="w">        </span><span class="nt">authentication</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">oauth2</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">tokenUrl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://my-oauth2-provider/token</span>
+<span class="w">            </span><span class="nt">clientId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-cliend-id</span>
+<span class="w">            </span><span class="nt">clientSecret</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.oauthSecret</span><span class="nv"> </span><span class="s">}}&quot;</span>
+<span class="w">            </span><span class="nt">scopes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span>
+<span class="w">              </span><span class="s">&quot;my-oauth2-scope&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">]</span>
+<span class="w">        </span><span class="nt">headers</span><span class="p">:</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Content-Type</span><span class="w"> </span><span class="c1"># if body is a json, it is recommended to set the Content-Type</span>
+<span class="w">            </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;application/json&quot;</span>
+<span class="w">        </span><span class="nt">jsonPath</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{$.data.ok}&quot;</span>
+</code></pre></div>
+<p>In that case, no need to provide specifically the <code>Authentication</code> header.
+The AnalysisRun will first get an access token using that information, and provide it as an <code>Authorization: Bearer</code> header for the metric provider call.</p>
 
 
   

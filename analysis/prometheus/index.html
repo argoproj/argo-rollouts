@@ -1294,9 +1294,29 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    Authorization
+  </a>
+  
+    <nav class="md-nav" aria-label="Authorization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#utilizing-amazon-managed-prometheus" class="md-nav__link">
     Utilizing Amazon Managed Prometheus
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#with-oauth2" class="md-nav__link">
+    With OAuth2
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -3189,9 +3209,29 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    Authorization
+  </a>
+  
+    <nav class="md-nav" aria-label="Authorization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#utilizing-amazon-managed-prometheus" class="md-nav__link">
     Utilizing Amazon Managed Prometheus
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#with-oauth2" class="md-nav__link">
+    With OAuth2
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -3262,7 +3302,8 @@
 <p>The example shows Istio metrics, but you can use any kind of metric available to your prometheus instance. We suggest
 you validate your <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/">PromQL expression</a> using the <a href="https://prometheus.io/docs/introduction/first_steps/#using-the-expression-browser">Prometheus GUI first</a>.</p>
 <p>See the <a href="../../features/analysis">Analysis Overview page</a> for more details on the available options.</p>
-<h2 id="utilizing-amazon-managed-prometheus">Utilizing Amazon Managed Prometheus<a class="headerlink" href="#utilizing-amazon-managed-prometheus" title="Permanent link">&para;</a></h2>
+<h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
+<h3 id="utilizing-amazon-managed-prometheus">Utilizing Amazon Managed Prometheus<a class="headerlink" href="#utilizing-amazon-managed-prometheus" title="Permanent link">&para;</a></h3>
 <p>Amazon Managed Prometheus can be used as the prometheus data source for analysis. In order to do this the namespace where your analysis is running will have to have the appropriate <a href="https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-onboard-ingest-metrics-new-Prometheus.html#AMP-onboard-new-Prometheus-IRSA">IRSA attached</a> to allow for prometheus queries. Once you ensure the proper permissions are in place to access AMP, you can use an AMP workspace url in your <code>provider</code> block and add a SigV4 config for Sigv4 signing:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">provider</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">prometheus</span><span class="p">:</span>
@@ -3280,6 +3321,50 @@ you validate your <a href="https://prometheus.io/docs/prometheus/latest/querying
 <span class="w">        </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$PROFILE</span>
 <span class="w">        </span><span class="nt">roleArn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$ROLEARN</span>
 </code></pre></div>
+<h3 id="with-oauth2">With OAuth2<a class="headerlink" href="#with-oauth2" title="Permanent link">&para;</a></h3>
+<p>You can setup an <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-4.4">OAuth2 client credential</a> flow using the following values:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
+<span class="w">  </span><span class="c1"># from secret</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">oauthSecret</span><span class="w">  </span><span class="c1"># This is the OAuth2 shared secret</span>
+<span class="w">    </span><span class="nt">valueFrom</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">secretKeyRef</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">oauth-secret</span>
+<span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">secret</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">    </span><span class="c1"># NOTE: prometheus queries return results in the form of a vector.</span>
+<span class="w">    </span><span class="c1"># So it is common to access the index 0 of the returned array to obtain the value</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result[0] &gt;= 0.95</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">prometheus</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
+<span class="w">        </span><span class="c1"># timeout is expressed in seconds</span>
+<span class="w">        </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span>
+<span class="w">        </span><span class="nt">authentication</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">oauth2</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">tokenUrl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://my-oauth2-provider/token</span>
+<span class="w">            </span><span class="nt">clientId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-cliend-id</span>
+<span class="w">            </span><span class="nt">clientSecret</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.oauthSecret</span><span class="nv"> </span><span class="s">}}&quot;</span>
+<span class="w">            </span><span class="nt">scopes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span>
+<span class="w">              </span><span class="s">&quot;my-oauth2-scope&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">]</span>
+<span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">sum(irate(</span>
+<span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code!~&quot;5.*&quot;}[5m]</span>
+<span class="w">          </span><span class="no">)) /</span>
+<span class="w">          </span><span class="no">sum(irate(</span>
+<span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
+<span class="w">          </span><span class="no">))</span>
+</code></pre></div>
+<p>The AnalysisRun will first get an access token using that information, and provide it as an <code>Authorization: Bearer</code> header for the metric provider call.</p>
 <h2 id="additional-metadata">Additional Metadata<a class="headerlink" href="#additional-metadata" title="Permanent link">&para;</a></h2>
 <p>Any additional metadata from the Prometheus controller, like the resolved queries after substituting the template's
 arguments, etc. will appear under the <code>Metadata</code> map in the <code>MetricsResult</code> object of <code>AnalysisRun</code>.</p>
