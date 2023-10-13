@@ -26,6 +26,12 @@ func getAnalysisRunInfo(ownerUID types.UID, allAnalysisRuns []*v1alpha1.Analysis
 				UID:               run.UID,
 			},
 		}
+
+		arInfo.SpecAndStatus = &rollout.AnalysisRunSpecAndStatus{
+			Spec:   &run.Spec,
+			Status: &run.Status,
+		}
+
 		if run.Spec.Metrics != nil {
 			for _, metric := range run.Spec.Metrics {
 
