@@ -813,6 +813,20 @@
       },
       "title": "ArgumentValueFrom defines references to fields within resources to grab for the value (i.e. Pod Template Hash)"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Authentication": {
+      "type": "object",
+      "properties": {
+        "sigv4": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Sigv4Config",
+          "title": "Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus\n+optional"
+        },
+        "oauth2": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.OAuth2Config",
+          "title": "OAuth2 config\n+optional"
+        }
+      },
+      "title": "Authentication method"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AwsResourceRef": {
       "type": "object",
       "properties": {
@@ -1631,6 +1645,30 @@
       },
       "title": "NginxTrafficRouting configuration for Nginx ingress controller to control traffic routing"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.OAuth2Config": {
+      "type": "object",
+      "properties": {
+        "tokenUrl": {
+          "type": "string",
+          "title": "OAuth2 provider token URL"
+        },
+        "clientId": {
+          "type": "string",
+          "title": "OAuth2 client ID"
+        },
+        "clientSecret": {
+          "type": "string",
+          "title": "OAuth2 client secret"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "OAuth2 scopes\n+optional"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ObjectRef": {
       "type": "object",
       "properties": {
@@ -1706,16 +1744,6 @@
       },
       "title": "PreferredDuringSchedulingIgnoredDuringExecution defines the weight of the anti-affinity injection"
     },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusAuth": {
-      "type": "object",
-      "properties": {
-        "sigv4": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Sigv4Config",
-          "title": "+optional"
-        }
-      },
-      "title": "PrometheusMetric defines the prometheus query to perform canary analysis"
-    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusMetric": {
       "type": "object",
       "properties": {
@@ -1728,8 +1756,8 @@
           "title": "Query is a raw prometheus query to perform"
         },
         "authentication": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PrometheusAuth",
-          "title": "Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus\n+optional"
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Authentication",
+          "title": "Authentication details\n+optional"
         },
         "timeout": {
           "type": "string",
@@ -2596,6 +2624,10 @@
           "type": "string",
           "format": "byte",
           "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nJSONBody is the body of the web metric in a json format (method must be POST/PUT)"
+        },
+        "authentication": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.Authentication",
+          "title": "Authentication details\n+optional"
         }
       }
     },
