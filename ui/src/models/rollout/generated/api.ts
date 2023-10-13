@@ -475,6 +475,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ArgumentVal
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication {
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+     */
+    sigv4?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication
+     */
+    oauth2?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AwsResourceRef {
@@ -1617,6 +1636,37 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1NginxTraffi
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config
+     */
+    tokenUrl?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config
+     */
+    clientId?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config
+     */
+    clientSecret?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1OAuth2Config
+     */
+    scopes?: Array<string>;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef {
@@ -1712,19 +1762,6 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PreferredDu
 /**
  * 
  * @export
- * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusAuth
- */
-export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusAuth {
-    /**
-     * 
-     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusAuth
-     */
-    sigv4?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Sigv4Config;
-}
-/**
- * 
- * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric {
@@ -1742,10 +1779,10 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusM
     query?: string;
     /**
      * 
-     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusAuth}
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusMetric
      */
-    authentication?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PrometheusAuth;
+    authentication?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication;
     /**
      * 
      * @type {string}
@@ -2892,6 +2929,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
      */
     jsonBody?: string;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1WebMetric
+     */
+    authentication?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Authentication;
 }
 /**
  * 
