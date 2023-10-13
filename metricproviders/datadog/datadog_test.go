@@ -50,7 +50,7 @@ func TestDatadogSpecDefaults(t *testing.T) {
 
 	t.Run("interval: Validate default is 5m", func(t *testing.T) {
 		defaultInterval := string(ddSpec.Properties["interval"].Default.Raw)
-		assert.Equal(t, "\"5m\"", defaultInterval, "Default interval should be "\"5m\" ")
+		assert.Equal(t, "\"5m\"", defaultInterval, "Default interval should be \"5m\" ")
 	})
 }
 
