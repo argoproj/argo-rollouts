@@ -50,11 +50,17 @@ export const RolloutsHome = () => {
         localStorage.setItem('rolloutsFavorites', JSON.stringify(newFavorites));
     };
     
-    const isFavorite = (r: RolloutRolloutInfo) => filters.showFavorites && !favorites[r.objectMeta.name];
+    const isFavorite = (r: RolloutRolloutInfo) => {
+        return filters.showFavorites && favorites[r.objectMeta.name];
+    }
 
-    const requiresAttention = (r: RolloutRolloutInfo) => filters.showRequiresAttention && r.status !== 'Degraded' && r.status !== 'Paused' && r.message !== 'CanaryPauseStep';
+    const requiresAttention = (r: RolloutRolloutInfo) => {
+        return filters.showRequiresAttention && (r.status === 'Degraded' || (r.status === 'Paused' && r.message !== 'CanaryPauseStep'));
+    }
     
-    const hasStatusFilter = (r: RolloutRolloutInfo) => Object.values(filters.status).some((value) => value === true) && !filters.status[r.status];
+    const hasStatusFilter = (r: RolloutRolloutInfo) => {
+        return filters.status[r.status];
+    }
     
     const nameMatches = (r: RolloutRolloutInfo) => {
       let nameMatches = false;
@@ -74,9 +80,14 @@ export const RolloutsHome = () => {
     };
     
     const filteredRollouts = React.useMemo(() => {
-      return rollouts.filter((r) => {
-        return isFavorite(r) || requiresAttention(r) || hasStatusFilter(r) || nameMatches(r);
-      });
+        return rollouts.filter((r) => {
+            // Only include the status filter if one of them is enabled
+            if (Object.values(filters.status).some((v: boolean) => v === true)) {
+                return isFavorite(r) || requiresAttention(r) || nameMatches(r) || hasStatusFilter(r);
+            } else {
+                return isFavorite(r) || requiresAttention(r) || nameMatches(r);
+            }
+        });
     }, [rollouts, filters, favorites]);
 
     return (
