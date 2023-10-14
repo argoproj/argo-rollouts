@@ -1161,14 +1161,26 @@
       "type": "object",
       "properties": {
         "interval": {
-          "type": "string"
+          "type": "string",
+          "description": "+kubebuilder:default=\"5m\"\nInterval refers to the Interval time window in Datadog (default: 5m). Not to be confused with the polling rate for the metric."
         },
         "query": {
           "type": "string"
         },
+        "queries": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Queries is a map of query_name_as_key: query. You can then use query_name_as_key inside Formula.Used for v2\n+kubebuilder:validation:Type=object"
+        },
+        "formula": {
+          "type": "string",
+          "title": "Formula refers to the Formula made up of the queries. Only useful with Queries. Used for v2"
+        },
         "apiVersion": {
           "type": "string",
-          "description": "ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated."
+          "title": "ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.\n+kubebuilder:validation:Enum=v1;v2\n+kubebuilder:default=v1"
         }
       }
     },

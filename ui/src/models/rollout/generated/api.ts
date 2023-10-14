@@ -977,7 +977,7 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CloudWatchM
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric {
     /**
-     * 
+     * +kubebuilder:default=\"5m\" Interval refers to the Interval time window in Datadog (default: 5m). Not to be confused with the polling rate for the metric.
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
      */
@@ -989,7 +989,19 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetr
      */
     query?: string;
     /**
-     * ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.
+     * 
+     * @type {{ [key: string]: string; }}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    queries?: { [key: string]: string; };
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    formula?: string;
+    /**
+     * 
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
      */

@@ -396,8 +396,8 @@ type ValueFrom struct {
 	// Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom
 	// +optional
 	SecretKeyRef *SecretKeyRef `json:"secretKeyRef,omitempty" protobuf:"bytes,1,opt,name=secretKeyRef"`
-	//FieldRef is a reference to the fields in metadata which we are referencing. This field is one of the fields with
-	//valueFrom
+	// FieldRef is a reference to the fields in metadata which we are referencing. This field is one of the fields with
+	// valueFrom
 	// +optional
 	FieldRef *FieldRef `json:"fieldRef,omitempty" protobuf:"bytes,2,opt,name=fieldRef"`
 }
@@ -569,8 +569,17 @@ type WebMetricHeader struct {
 }
 
 type DatadogMetric struct {
+	// +kubebuilder:default="5m"
+	// Interval refers to the Interval time window in Datadog (default: 5m). Not to be confused with the polling rate for the metric.
 	Interval DurationString `json:"interval,omitempty" protobuf:"bytes,1,opt,name=interval,casttype=DurationString"`
-	Query    string         `json:"query" protobuf:"bytes,2,opt,name=query"`
+	Query    string         `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+	// Queries is a map of query_name_as_key: query. You can then use query_name_as_key inside Formula.Used for v2
+	// +kubebuilder:validation:Type=object
+	Queries map[string]string `json:"queries,omitempty" protobuf:"bytes,3,opt,name=queries"`
+	// Formula refers to the Formula made up of the queries. Only useful with Queries. Used for v2
+	Formula string `json:"formula,omitempty" protobuf:"bytes,4,opt,name=formula"`
 	// ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.
-	ApiVersion string `json:"apiVersion,omitempty" protobuf:"bytes,3,opt,name=apiVersion"`
+	// +kubebuilder:validation:Enum=v1;v2
+	// +kubebuilder:default=v1
+	ApiVersion string `json:"apiVersion,omitempty" protobuf:"bytes,5,opt,name=apiVersion"`
 }
