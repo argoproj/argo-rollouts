@@ -1277,6 +1277,17 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Datadog
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1286,6 +1297,86 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-datadog-api-v2" class="md-nav__link">
+    Working with Datadog API v2
+  </a>
+  
+    <nav class="md-nav" aria-label="Working with Datadog API v2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#moving-to-v2" class="md-nav__link">
+    Moving to v2
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    Examples
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tips" class="md-nav__link">
+    Tips
+  </a>
+  
+    <nav class="md-nav" aria-label="Tips">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#datadog-results" class="md-nav__link">
+    Datadog Results
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#templates-and-helm" class="md-nav__link">
+    Templates and Helm
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rate-limits" class="md-nav__link">
+    Rate Limits
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -3131,6 +3222,75 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-datadog-api-v2" class="md-nav__link">
+    Working with Datadog API v2
+  </a>
+  
+    <nav class="md-nav" aria-label="Working with Datadog API v2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#moving-to-v2" class="md-nav__link">
+    Moving to v2
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    Examples
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tips" class="md-nav__link">
+    Tips
+  </a>
+  
+    <nav class="md-nav" aria-label="Tips">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#datadog-results" class="md-nav__link">
+    Datadog Results
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#templates-and-helm" class="md-nav__link">
+    Templates and Helm
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rate-limits" class="md-nav__link">
+    Rate Limits
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -3172,11 +3332,7 @@
 <span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <span class="w">          </span><span class="no">sum:requests.error.rate{service:{{args.service-name}}}</span>
 </code></pre></div>
-<p>The field <code>apiVersion</code> refers to the API version of Datadog (v1 or v2). Default value is <code>v1</code> if this is omitted.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Datadog is moving away from the legacy v1 API. Rate limits imposed by Datadog are therefore stricter when using v1. It is recommended to switch to v2 soon. If you switch to v2, you will not be able to use formulas (operations between individual queries).</p>
-</div>
+<p>The field <code>apiVersion</code> refers to the API version of Datadog (v1 or v2). Default value is <code>v1</code> if this is omitted. See "Working with Datadog API v2" below for more information.</p>
 <p>Datadog api and app tokens can be configured in a kubernetes secret in argo-rollouts namespace.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
@@ -3189,6 +3345,109 @@
 <span class="w">  </span><span class="nt">app-key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;datadog-app-key&gt;</span>
 </code></pre></div>
 <p><code>apiVersion</code> here is different from the <code>apiVersion</code> from the Datadog configuration above.</p>
+<h3 id="working-with-datadog-api-v2">Working with Datadog API v2<a class="headerlink" href="#working-with-datadog-api-v2" title="Permanent link">&para;</a></h3>
+<h4 id="moving-to-v2">Moving to v2<a class="headerlink" href="#moving-to-v2" title="Permanent link">&para;</a></h4>
+<p>If your old v1 was just a simple metric query - no formula as part of the query - then you can just move to v2 by updating the <code>apiVersion</code> in your existing Analysis Template, and everything should work.</p>
+<p>If you have a formula, you will need to update how you configure your metric. Here is a before/after example of what your Analysis Template should look like:</p>
+<p>Before:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">log-error-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default(result, 0) &lt; 10</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">datadog</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="w">        </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;moving_rollup(sum:requests.errors{service:{{args.service-name}}}.as_count(),</span><span class="nv"> </span><span class="s">60,</span><span class="nv"> </span><span class="s">&#39;sum&#39;)</span><span class="nv"> </span><span class="s">/</span><span class="nv"> </span><span class="s">sum:requests{service:{{args.service-name}}}.as_count()&quot;</span>
+</code></pre></div>
+<p>After:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">loq-error-rate</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+<span class="w">    </span><span class="c1"># Polling rate against the Datadog API</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default(result, 0) &lt; 10</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">datadog</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v2</span>
+<span class="w">        </span><span class="c1"># The window of time we are looking at in DD. Basically we will fetch data from (now-5m) to now.</span>
+<span class="w">        </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">        </span><span class="nt">queries</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">a</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sum:requests.errors{service:{{args.service-name}}}.as_count()</span>
+<span class="w">          </span><span class="nt">b</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sum:requests{service:{{args.service-name}}}.as_count()</span>
+<span class="w">        </span><span class="nt">formula</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;moving_rollup(a,</span><span class="nv"> </span><span class="s">60,</span><span class="nv"> </span><span class="s">&#39;sum&#39;)</span><span class="nv"> </span><span class="s">/</span><span class="nv"> </span><span class="s">b&quot;</span>
+</code></pre></div>
+<h4 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h4>
+<p>Simple v2 query with no formula</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-container-restarts</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># This is set in rollout using the valueFrom: podTemplateHashValue functionality</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">canary-hash</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">restarts.initial-delay</span>
+<span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;60s&quot;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">restarts.max-restarts</span>
+<span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;4&quot;</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kubernetes.containers.restarts</span>
+<span class="w">      </span><span class="nt">initialDelay</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{</span><span class="nv"> </span><span class="s">args.restarts.initial-delay</span><span class="nv"> </span><span class="s">}}&quot;</span>
+<span class="w">      </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">15s</span>
+<span class="w">      </span><span class="nt">failureCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default(result, 0) &gt; {{ args.restarts.max-restarts }}</span>
+<span class="w">      </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">      </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">datadog</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v2</span>
+<span class="w">          </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">          </span><span class="nt">queries</span><span class="p">:</span>
+<span class="w">            </span><span class="c1"># The key is arbitrary - you will use this key to refer to the query if you use a formula.</span>
+<span class="w">            </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;max:kubernetes.containers.restarts{service-name:{{args.service-name}},rollouts_pod_template_hash:{{args.canary-hash}}}&quot;</span>
+</code></pre></div>
+<h3 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h3>
+<h4 id="datadog-results">Datadog Results<a class="headerlink" href="#datadog-results" title="Permanent link">&para;</a></h4>
+<p>Datadog queries can return empty results if the query takes place during a time interval with no metrics. The Datadog provider will return a <code>nil</code> value yielding an error during the evaluation phase like:</p>
+<div class="highlight"><pre><span></span><code>invalid operation: &lt; (mismatched types &lt;nil&gt; and float64)
+</code></pre></div>
+<p>However, empty query results yielding a <code>nil</code> value can be handled using the <code>default()</code> function. Here is a succeeding example using the <code>default()</code> function:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default(result, 0) &lt; 0.05</span>
+</code></pre></div>
+<h4 id="templates-and-helm">Templates and Helm<a class="headerlink" href="#templates-and-helm" title="Permanent link">&para;</a></h4>
+<p>Helm and Argo Rollouts both try to parse things between <code>{{ ... }}</code> when rendering templates. If you use Helm to deliver your manifests, you will need to escape <code>{{ args.whatever }}</code>. Using the example above, here it is set up for Helm:</p>
+<div class="highlight"><pre><span></span><code><span class="l l-Scalar l-Scalar-Plain">...&lt;snip&gt;</span>
+<span class="l l-Scalar l-Scalar-Plain">metrics</span><span class="p p-Indicator">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kubernetes.containers.restarts</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">initialDelay</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;{{</span><span class="nv"> </span><span class="s">`{{</span><span class="nv"> </span><span class="s">args.restarts.initial-delay</span><span class="nv"> </span><span class="s">}}`</span><span class="nv"> </span><span class="s">}}&quot;</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">15s</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">failureCondition</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default(result, 0) &gt; {{ `{{ args.restarts.max-restarts }}` }}</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">datadog</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v2</span>
+<span class="w">        </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">        </span><span class="nt">queries</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{</span><span class="nv"> </span><span class="s">`max:kubernetes.containers.restarts{kube_app_name:{{args.kube_app_name}},rollouts_pod_template_hash:{{args.canary-hash}}}`</span><span class="nv"> </span><span class="s">}}&quot;</span>
+</code></pre></div>
+<h4 id="rate-limits">Rate Limits<a class="headerlink" href="#rate-limits" title="Permanent link">&para;</a></h4>
+<p>For the <code>v1</code> API, you ask for an increase on the <code>api/v1/query</code> route.</p>
+<p>For the <code>v2</code> API, the Ratelimit-Name you ask for an increase in is the <code>query_scalar_public</code>.</p>
 
 
   
