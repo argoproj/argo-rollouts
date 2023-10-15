@@ -6,10 +6,10 @@ require (
 	github.com/antonmedv/expr v1.15.3
 	github.com/argoproj/notifications-engine v0.4.1-0.20231011160156-2d2d1a75dbee
 	github.com/argoproj/pkg v0.13.6
-	github.com/aws/aws-sdk-go-v2 v1.21.1
+	github.com/aws/aws-sdk-go-v2 v1.21.2
 	github.com/aws/aws-sdk-go-v2/config v1.18.44
-	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.27.8
-	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.21.4
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.27.9
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.21.6
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bombsimon/logrusr/v4 v4.0.0
 	github.com/evanphx/json-patch/v5 v5.7.0
@@ -36,6 +36,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/tj/assert v0.0.3
 	github.com/valyala/fasttemplate v1.2.2
+	golang.org/x/oauth2 v0.10.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230711160842-782d3b101e98
 	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
@@ -84,8 +85,8 @@ require (
 	github.com/aws/aws-sdk-go v1.44.116 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.42 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.12 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.42 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.36 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.43 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.37 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.44 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.36 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.20.0 // indirect
@@ -179,7 +180,6 @@ require (
 	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
-	golang.org/x/oauth2 v0.10.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
