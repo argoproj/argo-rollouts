@@ -13,7 +13,6 @@ import {RolloutInfo} from '../../../models/rollout/rollout';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 import './rollouts-table.scss';
 
-//({rollouts}:{rollouts: RolloutInfo[]}) => {
 export const RolloutsTable = ({
     rollouts,
     onFavoriteChange,
@@ -214,7 +213,7 @@ export const RolloutsTable = ({
             rowClassName='rollouts-table__row'
             onRow={(record: RolloutInfo) => ({
                 onClick: () => {
-                    window.location.href = `/rollout/${record.objectMeta?.name}`;
+                    window.location.href = `/rollouts/rollout/${record.objectMeta?.name}`;
                 },
                 style: {cursor: 'pointer'},
             })}
