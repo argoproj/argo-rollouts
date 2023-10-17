@@ -989,6 +989,7 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		}
 	}
 	previousStableHash := newStatus.StableRS
+	revision, _ := replicasetutil.Revision(c.rollout)
 	if previousStableHash != newStatus.CurrentPodHash {
 		// only emit this event when we switched stable
 		if trafficrouting.IsPingPongEnabled(c.rollout) {
@@ -1000,9 +1001,17 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		}
 		newStatus.StableRS = newStatus.CurrentPodHash
 
-		revision, _ := replicasetutil.Revision(c.rollout)
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},
 			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
 	}
+
+	if revision == 1 && c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownOnSuccess {
+		var targetScale int32 = 0
+		err := c.scaleDeployment(&targetScale)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

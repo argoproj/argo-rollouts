@@ -54,7 +54,11 @@ Instead of removing Deployment you can scale it down to zero and reference it fr
 
 1. Create a Rollout resource.
 1. Reference an existing Deployment using `workloadRef` field.
-1. Scale-down an existing Deployment by changing `replicas` field of an existing Deployment to zero.
+1. In the `workloadRef` field set the `scaleDown` attribute, which specifies how the Deployment should be scaled down. There are three options available:
+* "never": the Deployment is not scaled down
+* "onsuccess": the Deployment is scaled down after the Rollout becomes healthy
+* "progressively": as the Rollout is scaled up the Deployment is scaled down.
+Alternatively, manually scale down an existing Deployment by changing replicas field of an existing Deployment to zero.
 1. To perform an update, the change should be made to the Pod template field of the Deployment.
 
 Below is an example of a Rollout resource referencing a Deployment.
@@ -73,6 +77,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: rollout-ref-deployment
+    scaleDown: onsuccess
   strategy:
     canary:
       steps:
