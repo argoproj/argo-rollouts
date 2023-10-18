@@ -14,42 +14,38 @@ import (
 func (c *rolloutContext) reconcileEphemeralMetadata() error {
 	ctx := context.TODO()
 	var newMetadata, stableMetadata *v1alpha1.PodTemplateMetadata
-
-	switch {
-	case c.rollout.Spec.Strategy.Canary != nil:
+	if c.rollout.Spec.Strategy.Canary != nil {
 		newMetadata = c.rollout.Spec.Strategy.Canary.CanaryMetadata
 		stableMetadata = c.rollout.Spec.Strategy.Canary.StableMetadata
-	case c.rollout.Spec.Strategy.BlueGreen != nil:
+	} else if c.rollout.Spec.Strategy.BlueGreen != nil {
 		newMetadata = c.rollout.Spec.Strategy.BlueGreen.PreviewMetadata
 		stableMetadata = c.rollout.Spec.Strategy.BlueGreen.ActiveMetadata
-	default:
+	} else {
 		return nil
 	}
-
 	fullyRolledOut := c.rollout.Status.StableRS == "" || c.rollout.Status.StableRS == replicasetutil.GetPodTemplateHash(c.newRS)
-	var err error
 
 	if fullyRolledOut {
-		// If the rollout is fully completed, we're in a steady state where newRS is the stableRS and there is no longer a canary.
-		// Sync the stable metadata to the newRS.
-		err = c.syncEphemeralMetadata(ctx, c.newRS, stableMetadata)
-	} else {
-		// If the rollout is not fully completed, we are in an upgrading state where newRS is a canary.
-		// Sync the new metadata to the newRS.
-		err = c.syncEphemeralMetadata(ctx, c.newRS, newMetadata)
-		// If there was no error syncing the new metadata, sync the stable metadata to the stableRS.
-		if err == nil {
-			err = c.syncEphemeralMetadata(ctx, c.stableRS, stableMetadata)
-		}
+		// We are in a steady-state (fully rolled out). newRS is the stableRS. there is no longer a canary
+		return c.syncEphemeralMetadata(ctx, c.newRS, stableMetadata)
 	}
 
+	// We are in an upgrading state. newRS is a canary
+	err := c.syncEphemeralMetadata(ctx, c.newRS, newMetadata)
+	if err != nil {
+		return err
+	}
+
+	// Sync stable metadata to the stable rs
+	err = c.syncEphemeralMetadata(ctx, c.stableRS, stableMetadata)
 	if err != nil {
 		return err
 	}
 
 	// Iterate all other ReplicaSets and verify we don't have injected metadata for them
 	for _, rs := range c.otherRSs {
-		if err := c.syncEphemeralMetadata(ctx, rs, nil); err != nil {
+		err := c.syncEphemeralMetadata(ctx, rs, nil)
+		if err != nil {
 			return err
 		}
 	}
