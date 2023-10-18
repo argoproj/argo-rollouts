@@ -2549,6 +2549,13 @@ func schema_pkg_apis_rollouts_v1alpha1_IstioTrafficRouting(ref common.ReferenceC
 							},
 						},
 					},
+					"maxWeight": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Max weight that will be split between canary and stable services. If unset, it defaults to 100.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
 				},
 			},
 		},

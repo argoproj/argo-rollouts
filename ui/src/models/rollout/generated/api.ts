@@ -1139,6 +1139,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioTraffi
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioTrafficRouting
      */
     virtualServices?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioVirtualService>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1IstioTrafficRouting
+     */
+    maxWeight?: string;
 }
 /**
  * 

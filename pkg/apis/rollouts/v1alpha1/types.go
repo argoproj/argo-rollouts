@@ -450,6 +450,9 @@ type IstioTrafficRouting struct {
 	DestinationRule *IstioDestinationRule `json:"destinationRule,omitempty" protobuf:"bytes,2,opt,name=destinationRule"`
 	// VirtualServices references a list of Istio VirtualService to modify to shape traffic
 	VirtualServices []IstioVirtualService `json:"virtualServices,omitempty" protobuf:"bytes,3,opt,name=virtualServices"`
+	// Max weight that will be split between canary and stable services. If unset, it defaults to 100.
+	// +optional
+	MaxWeight int64 `json:"maxWeight,omitempty" protobuf:"bytes,4,opt,name=maxWeight"`
 }
 
 // IstioVirtualService holds information on the virtual service the rollout needs to modify

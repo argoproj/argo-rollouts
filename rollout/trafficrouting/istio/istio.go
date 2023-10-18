@@ -122,11 +122,21 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []any, tlsRo
 	return nil
 }
 
+func getSanitizedMaxWeight(maxWeight int64) int64 {
+	// Ignore any invalid values for maxWeight by setting it to the default (100)
+	sanitizedMaxWeight := maxWeight
+	if sanitizedMaxWeight <= 0 || sanitizedMaxWeight >= 100 {
+		sanitizedMaxWeight = 100
+	}
+	return sanitizedMaxWeight
+}
+
 func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []string, httpRoutes []VirtualServiceHTTPRoute, rolloutVsvcTLSRoutes []v1alpha1.TLSRoute, tlsRoutes []VirtualServiceTLSRoute, rolloutVsvcTCPRoutes []v1alpha1.TCPRoute, tcpRoutes []VirtualServiceTCPRoute, desiredWeight int64, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	canarySvc := r.rollout.Spec.Strategy.Canary.CanaryService
 	stableSvc := r.rollout.Spec.Strategy.Canary.StableService
 	canarySubset := ""
 	stableSubset := ""
+	maxWeight := getSanitizedMaxWeight(r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.MaxWeight)
 	if r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule != nil {
 		canarySubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.CanarySubsetName
 		stableSubset = r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule.StableSubsetName
@@ -164,28 +174,28 @@ func (r *Reconciler) generateVirtualServicePatches(rolloutVsvcRouteNames []strin
 		if len(httpRoutes) <= routeIdx {
 			break
 		}
-		patches = processRoutes(Http, routeIdx, httpRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches, additionalDestinations...)
+		patches = processRoutes(Http, routeIdx, httpRoutes[routeIdx].Route, desiredWeight, maxWeight, svcSubsets, patches, additionalDestinations...)
 	}
 	// Process TLS Routes
 	for _, routeIdx := range tlsRouteIndexesToPatch {
 		if len(tlsRoutes) <= routeIdx {
 			break
 		}
-		patches = processRoutes(Tls, routeIdx, tlsRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches, additionalDestinations...)
+		patches = processRoutes(Tls, routeIdx, tlsRoutes[routeIdx].Route, desiredWeight, maxWeight, svcSubsets, patches, additionalDestinations...)
 	}
 	// Process TCP Routes
 	for _, routeIdx := range tcpRouteIndexesToPatch {
 		if len(tcpRoutes) <= routeIdx {
 			break
 		}
-		patches = processRoutes(Tcp, routeIdx, tcpRoutes[routeIdx].Route, desiredWeight, svcSubsets, patches, additionalDestinations...)
+		patches = processRoutes(Tcp, routeIdx, tcpRoutes[routeIdx].Route, desiredWeight, maxWeight, svcSubsets, patches, additionalDestinations...)
 	}
 	return patches
 }
 
-func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight int64, svcSubsets svcSubsets, patches virtualServicePatches, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
+func processRoutes(routeType string, routeIdx int, destinations []VirtualServiceRouteDestination, desiredWeight, maxWeight int64, svcSubsets svcSubsets, patches virtualServicePatches, additionalDestinations ...v1alpha1.WeightDestination) virtualServicePatches {
 	svcToDest := map[string]v1alpha1.WeightDestination{}
-	stableWeight := 100 - desiredWeight
+	stableWeight := maxWeight - desiredWeight
 	for _, dest := range additionalDestinations {
 		svcToDest[dest.ServiceName] = dest
 		stableWeight -= int64(dest.Weight)
@@ -449,7 +459,7 @@ func updateDestinationRule(ctx context.Context, client dynamic.ResourceInterface
 	if err != nil {
 		return false, err
 	}
-	log.Infof("updating destinationrule: %s", string(patch))
+	log.Errorf("updating destinationrule: %s", string(patch))
 	return true, nil
 }
 
@@ -1031,7 +1041,7 @@ func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []V
 	}
 	for _, routeIndex := range routeIndexesToPatch {
 		route := httpRoutes[routeIndex]
-		err := validateVirtualServiceRouteDestinations(route.Route, stableSvc, canarySvc, r.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule)
+		err := validateVirtualServiceRouteDestinations(route.Route, stableSvc, canarySvc, r.Spec.Strategy.Canary.TrafficRouting.Istio.MaxWeight, r.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule)
 		if err != nil {
 			return err
 		}
@@ -1069,7 +1079,7 @@ func ValidateTlsRoutes(r *v1alpha1.Rollout, vsvcTLSRoutes []v1alpha1.TLSRoute, t
 	}
 	for _, routeIndex := range routeIndexesToPatch {
 		route := tlsRoutes[routeIndex]
-		err := validateVirtualServiceRouteDestinations(route.Route, stableSvc, canarySvc, r.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule)
+		err := validateVirtualServiceRouteDestinations(route.Route, stableSvc, canarySvc, r.Spec.Strategy.Canary.TrafficRouting.Istio.MaxWeight, r.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule)
 		if err != nil {
 			return err
 		}
@@ -1091,7 +1101,7 @@ func ValidateTcpRoutes(r *v1alpha1.Rollout, vsvcTCPRoutes []v1alpha1.TCPRoute, t
 	}
 	for _, routeIndex := range routeIndexesToPatch {
 		route := tcpRoutes[routeIndex]
-		err := validateVirtualServiceRouteDestinations(route.Route, stableSvc, canarySvc, r.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule)
+		err := validateVirtualServiceRouteDestinations(route.Route, stableSvc, canarySvc, r.Spec.Strategy.Canary.TrafficRouting.Istio.MaxWeight, r.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule)
 		if err != nil {
 			return err
 		}
@@ -1103,30 +1113,39 @@ func ValidateTcpRoutes(r *v1alpha1.Rollout, vsvcTCPRoutes []v1alpha1.TCPRoute, t
 }
 
 // validateVirtualServiceRouteDestinations verifies that there is both a canary and a stable host or subset specified
-func validateVirtualServiceRouteDestinations(hr []VirtualServiceRouteDestination, stableSvc, canarySvc string, dRule *v1alpha1.IstioDestinationRule) error {
+func validateVirtualServiceRouteDestinations(hr []VirtualServiceRouteDestination, stableSvc, canarySvc string, maxWeight int64, dRule *v1alpha1.IstioDestinationRule) error {
 	hasStableSvc := false
 	hasCanarySvc := false
 	hasStableSubset := false
 	hasCanarySubset := false
+
+	var fixedWeight int64 = 0
+
 	for _, r := range hr {
 		host := getHost(r)
 
 		if stableSvc != "" && host == stableSvc {
 			hasStableSvc = true
+			continue
 		}
 
 		if canarySvc != "" && host == canarySvc {
 			hasCanarySvc = true
+			continue
 		}
 		if dRule != nil {
 			if dRule.StableSubsetName != "" && r.Destination.Subset == dRule.StableSubsetName {
 				hasStableSubset = true
+				continue
 			}
 			if dRule.CanarySubsetName != "" && r.Destination.Subset == dRule.CanarySubsetName {
 				hasCanarySubset = true
+				continue
 			}
+			fixedWeight += r.Weight
 		}
 	}
+
 	return validateDestinationRule(dRule, hasCanarySubset, hasStableSubset, hasCanarySvc, hasStableSvc, canarySvc, stableSvc)
 }
 

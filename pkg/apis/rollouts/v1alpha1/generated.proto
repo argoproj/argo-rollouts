@@ -850,6 +850,10 @@ message IstioTrafficRouting {
 
   // VirtualServices references a list of Istio VirtualService to modify to shape traffic
   repeated IstioVirtualService virtualServices = 3;
+
+  // Max weight that will be split between canary and stable services. If unset, it defaults to 100.
+  // +optional
+  optional int64 maxWeight = 4;
 }
 
 // IstioVirtualService holds information on the virtual service the rollout needs to modify

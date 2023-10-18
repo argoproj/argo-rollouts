@@ -829,6 +829,9 @@ spec:
                                 - name
                                 - stableSubsetName
                                 type: object
+                              maxWeight:
+                                format: int64
+                                type: integer
                               virtualService:
                                 properties:
                                   name:
