@@ -29,6 +29,8 @@ func NewRolloutInfo(
 		ObjectMeta: &v1.ObjectMeta{
 			Name:              ro.Name,
 			Namespace:         ro.Namespace,
+			Labels:            ro.Labels,
+			Annotations:       ro.Annotations,
 			UID:               ro.UID,
 			CreationTimestamp: ro.CreationTimestamp,
 			ResourceVersion:   ro.ObjectMeta.ResourceVersion,

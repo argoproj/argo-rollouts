@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import {useParams} from 'react-router';
+import {Key, KeybindingContext} from 'react-keyhooks';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 
 import './header.scss';
@@ -18,6 +19,12 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
     const api = React.useContext(RolloutAPIContext);
     const [version, setVersion] = React.useState('v?');
     const [nsInput, setNsInput] = React.useState(namespaceInfo.namespace);
+    const {useKeybinding} = React.useContext(KeybindingContext);
+    useKeybinding([Key.SHIFT, Key.H], () => {
+        props.showHelp();
+        return true;
+    });
+
     React.useEffect(() => {
         const getVersion = async () => {
             const v = await api.rolloutServiceVersion();
@@ -25,12 +32,14 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
         };
         getVersion();
     }, []);
+
     React.useEffect(() => {
         if (namespace && namespace != namespaceInfo.namespace) {
             props.changeNamespace(namespace);
             setNsInput(namespace);
         }
     }, []);
+
     return (
         <header className='rollouts-header'>
             <Link to='/' className='rollouts-header__brand'>

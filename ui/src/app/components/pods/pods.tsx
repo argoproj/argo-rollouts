@@ -55,7 +55,7 @@ export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRe
                         <div key={rsInfo.objectMeta.uid} style={{marginBottom: '1em'}}>
                             <ReplicaSet rs={rsInfo} showRevision={props.showRevisions} />
                         </div>
-                    )
+                    ),
             )}
         </div>
     );
@@ -84,7 +84,8 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                                                     <span>
                                                         Scaledown in <Duration durationMs={time} />
                                                     </span>
-                                                }>
+                                                }
+                                            >
                                                 <InfoItem content={(<Duration durationMs={time} />) as any} icon='fa fa-clock'></InfoItem>
                                             </Tooltip>
                                         );
