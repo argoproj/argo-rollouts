@@ -51,7 +51,7 @@ type Controller struct {
 	ingressWorkqueue workqueue.RateLimitingInterface
 
 	metricServer   *metrics.MetricsServer
-	enqueueRollout func(obj interface{})
+	enqueueRollout func(obj any)
 	albClasses     []string
 	nginxClasses   []string
 }
@@ -76,7 +76,7 @@ func NewController(cfg ControllerConfig) *Controller {
 	}
 
 	util.CheckErr(cfg.RolloutsInformer.Informer().AddIndexers(cache.Indexers{
-		ingressIndexName: func(obj interface{}) ([]string, error) {
+		ingressIndexName: func(obj any) ([]string, error) {
 			if ro := unstructuredutil.ObjectToRollout(obj); ro != nil {
 				return ingressutil.GetRolloutIngressKeys(ro), nil
 			}
@@ -85,17 +85,17 @@ func NewController(cfg ControllerConfig) *Controller {
 	}))
 
 	cfg.IngressWrap.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			controllerutil.Enqueue(obj, cfg.IngressWorkQueue)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			controllerutil.Enqueue(newObj, cfg.IngressWorkQueue)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controllerutil.Enqueue(obj, cfg.IngressWorkQueue)
 		},
 	})
-	controller.enqueueRollout = func(obj interface{}) {
+	controller.enqueueRollout = func(obj any) {
 		controllerutil.EnqueueRateLimited(obj, cfg.RolloutWorkQueue)
 	}
 

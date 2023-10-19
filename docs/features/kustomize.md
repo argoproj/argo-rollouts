@@ -4,7 +4,7 @@ Kustomize can be extended to understand CRD objects through the use of
 [transformer configs](https://github.com/kubernetes-sigs/kustomize/tree/master/examples/transformerconfigs).
 Using transformer configs, kustomize can be "taught" about the structure of a Rollout object and
 leverage kustomize features such as ConfigMap/Secret generators, variable references, and common
-labels & annotations. To use Rollouts with kustomize: 
+labels & annotations. To use Rollouts with kustomize:
 
 1. Download [`rollout-transform.yaml`](kustomize/rollout-transform.yaml) into your kustomize directory.
 
@@ -65,18 +65,18 @@ resources:
 openapi:
   path: https://raw.githubusercontent.com/argoproj/argo-schema-generator/main/schema/argo_all_k8s_kustomize_schema.json
 
-patchesStrategicMerge:
-- |-
-  apiVersion: argoproj.io/v1alpha1
-  kind: Rollout
-  metadata:
-    name: rollout-canary
-  spec:
-    template:
-      spec:
-        containers:
-        - name: rollouts-demo
-          image: nginx
+patches:
+- patch: |-
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    metadata:
+      name: rollout-canary
+    spec:
+      template:
+        spec:
+          containers:
+          - name: rollouts-demo
+            image: nginx
 ```
 
 The OpenAPI data is auto-generated and defined in this [file](https://github.com/argoproj/argo-schema-generator/blob/main/schema/argo_all_k8s_kustomize_schema.json).

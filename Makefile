@@ -20,7 +20,7 @@ DEV_IMAGE ?= false
 
 # E2E variables
 E2E_INSTANCE_ID ?= argo-rollouts-e2e
-E2E_TEST_OPTIONS ?= 
+E2E_TEST_OPTIONS ?=
 E2E_PARALLEL ?= 1
 E2E_WAIT_TIMEOUT ?= 120
 GOPATH ?= $(shell go env GOPATH)
@@ -111,7 +111,7 @@ gen-proto: k8s-proto api-proto ui-proto
 # generates the .proto files affected by changes to types.go
 .PHONY: k8s-proto
 k8s-proto: go-mod-vendor $(TYPES) ## generate kubernetes protobuf files
-	PATH=${DIST_DIR}:$$PATH go-to-protobuf \
+	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} go-to-protobuf \
 		--go-header-file=./hack/custom-boilerplate.go.txt \
 		--packages=github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
 		--apimachinery-packages=${APIMACHINERY_PKGS} \
@@ -149,7 +149,7 @@ gen-mocks: install-go-tools-local ## generate mock files
 # generates openapi_generated.go
 .PHONY: gen-openapi
 gen-openapi: $(DIST_DIR)/openapi-gen ## generate openapi files
-	PATH=${DIST_DIR}:$$PATH openapi-gen \
+	PATH=${DIST_DIR}:$$PATH GOPATH=${GOPATH} openapi-gen \
 		--go-header-file ${CURRENT_DIR}/hack/custom-boilerplate.go.txt \
 		--input-dirs github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \
 		--output-package github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1 \

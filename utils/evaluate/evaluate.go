@@ -14,7 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
-func EvaluateResult(result interface{}, metric v1alpha1.Metric, logCtx logrus.Entry) (v1alpha1.AnalysisPhase, error) {
+func EvaluateResult(result any, metric v1alpha1.Metric, logCtx logrus.Entry) (v1alpha1.AnalysisPhase, error) {
 	successCondition := false
 	failCondition := false
 	var err error
@@ -57,10 +57,10 @@ func EvaluateResult(result interface{}, metric v1alpha1.Metric, logCtx logrus.En
 }
 
 // EvalCondition evaluates the condition with the resultValue as an input
-func EvalCondition(resultValue interface{}, condition string) (bool, error) {
+func EvalCondition(resultValue any, condition string) (bool, error) {
 	var err error
 
-	env := map[string]interface{}{
+	env := map[string]any{
 		"result":  valueFromPointer(resultValue),
 		"asInt":   asInt,
 		"asFloat": asFloat,
@@ -99,7 +99,7 @@ func isInf(f float64) bool {
 	return math.IsInf(f, 0)
 }
 
-func asInt(in interface{}) int64 {
+func asInt(in any) int64 {
 	switch i := in.(type) {
 	case float64:
 		return int64(i)
@@ -135,7 +135,7 @@ func asInt(in interface{}) int64 {
 	panic(fmt.Sprintf("asInt() not supported on %v %v", reflect.TypeOf(in), in))
 }
 
-func asFloat(in interface{}) float64 {
+func asFloat(in any) float64 {
 	switch i := in.(type) {
 	case float64:
 		return i
@@ -188,8 +188,8 @@ func Equal(a, b []string) bool {
 	return true
 }
 
-func defaultFunc(resultValue interface{}) func(interface{}, interface{}) interface{} {
-	return func(_ interface{}, defaultValue interface{}) interface{} {
+func defaultFunc(resultValue any) func(any, any) any {
+	return func(_ any, defaultValue any) any {
 		if isNil(resultValue) {
 			return defaultValue
 		}
@@ -197,14 +197,14 @@ func defaultFunc(resultValue interface{}) func(interface{}, interface{}) interfa
 	}
 }
 
-func isNilFunc(resultValue interface{}) func(interface{}) bool {
-	return func(_ interface{}) bool {
+func isNilFunc(resultValue any) func(any) bool {
+	return func(_ any) bool {
 		return isNil(resultValue)
 	}
 }
 
 // isNil is courtesy of: https://gist.github.com/mangatmodi/06946f937cbff24788fa1d9f94b6b138
-func isNil(in interface{}) (out bool) {
+func isNil(in any) (out bool) {
 	if in == nil {
 		out = true
 		return
@@ -220,7 +220,7 @@ func isNil(in interface{}) (out bool) {
 
 // valueFromPointer allows pointers to be passed in from the provider, but then extracts the value from
 // the pointer if the pointer is not nil, else returns nil
-func valueFromPointer(in interface{}) (out interface{}) {
+func valueFromPointer(in any) (out any) {
 	if isNil(in) {
 		return
 	}

@@ -73,15 +73,15 @@ func updateMkDocsNav(parent string, child string, files []string) error {
 	if e := yaml.Unmarshal(data, &un.Object); e != nil {
 		return e
 	}
-	nav := un.Object["nav"].([]interface{})
+	nav := un.Object["nav"].([]any)
 	navitem, _ := findNavItem(nav, parent)
 	if navitem == nil {
 		return fmt.Errorf("Can't find '%s' nav item in mkdoc.yml", parent)
 	}
-	navitemmap := navitem.(map[interface{}]interface{})
-	subnav := navitemmap[parent].([]interface{})
+	navitemmap := navitem.(map[any]any)
+	subnav := navitemmap[parent].([]any)
 	subnav = removeNavItem(subnav, child)
-	commands := make(map[string]interface{})
+	commands := make(map[string]any)
 	commands[child] = files
 	navitemmap[parent] = append(subnav, commands)
 
@@ -92,9 +92,9 @@ func updateMkDocsNav(parent string, child string, files []string) error {
 	return os.WriteFile("mkdocs.yml", newmkdocs, 0644)
 }
 
-func findNavItem(nav []interface{}, key string) (interface{}, int) {
+func findNavItem(nav []any, key string) (any, int) {
 	for i, item := range nav {
-		o, ismap := item.(map[interface{}]interface{})
+		o, ismap := item.(map[any]any)
 		if ismap {
 			if _, ok := o[key]; ok {
 				return o, i
@@ -104,7 +104,7 @@ func findNavItem(nav []interface{}, key string) (interface{}, int) {
 	return nil, -1
 }
 
-func removeNavItem(nav []interface{}, key string) []interface{} {
+func removeNavItem(nav []any, key string) []any {
 	_, i := findNavItem(nav, key)
 	if i != -1 {
 		nav = append(nav[:i], nav[i+1:]...)

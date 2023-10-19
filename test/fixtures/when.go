@@ -88,7 +88,7 @@ func (w *When) injectDelays(un *unstructured.Unstructured) {
 	w.CheckError(err)
 	containersIf, _, err := unstructured.NestedSlice(un.Object, "spec", "template", "spec", "containers")
 	w.CheckError(err)
-	container := containersIf[0].(map[string]interface{})
+	container := containersIf[0].(map[string]any)
 	container["lifecycle"] = lifecycleObj
 	containersIf[0] = container
 	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
@@ -103,7 +103,7 @@ func (w *When) injectImagePrefix(un *unstructured.Unstructured) {
 	}
 	containersIf, _, err := unstructured.NestedSlice(un.Object, "spec", "template", "spec", "containers")
 	w.CheckError(err)
-	container := containersIf[0].(map[string]interface{})
+	container := containersIf[0].(map[string]any)
 	container["image"] = imagePrefix + container["image"].(string)
 	containersIf[0] = container
 	err = unstructured.SetNestedSlice(un.Object, containersIf, "spec", "template", "spec", "containers")
@@ -233,7 +233,7 @@ func (w *When) PatchSpec(patch string) *When {
 		w.t.Fatal("Rollout not set")
 	}
 	// convert YAML patch to JSON patch
-	var patchObj map[string]interface{}
+	var patchObj map[string]any
 	err := yaml.Unmarshal([]byte(patch), &patchObj)
 	w.CheckError(err)
 	jsonPatch, err := json.Marshal(patchObj)

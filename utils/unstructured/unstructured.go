@@ -13,7 +13,7 @@ import (
 )
 
 func StrToUnstructuredUnsafe(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	if err != nil {
 		panic(err)
@@ -22,7 +22,7 @@ func StrToUnstructuredUnsafe(jsonStr string) *unstructured.Unstructured {
 }
 
 func StrToUnstructured(jsonStr string) (*unstructured.Unstructured, error) {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func StrToUnstructured(jsonStr string) (*unstructured.Unstructured, error) {
 	return &unstructured.Unstructured{Object: obj}, nil
 }
 
-func ObjectToRollout(obj interface{}) *v1alpha1.Rollout {
+func ObjectToRollout(obj any) *v1alpha1.Rollout {
 	un, ok := obj.(*unstructured.Unstructured)
 	if ok {
 		var ro v1alpha1.Rollout
@@ -49,7 +49,7 @@ func ObjectToRollout(obj interface{}) *v1alpha1.Rollout {
 	return ro
 }
 
-func ObjectToAnalysisRun(obj interface{}) *v1alpha1.AnalysisRun {
+func ObjectToAnalysisRun(obj any) *v1alpha1.AnalysisRun {
 	un, ok := obj.(*unstructured.Unstructured)
 	if ok {
 		var ar v1alpha1.AnalysisRun
@@ -67,7 +67,7 @@ func ObjectToAnalysisRun(obj interface{}) *v1alpha1.AnalysisRun {
 	return ar
 }
 
-func ObjectToExperiment(obj interface{}) *v1alpha1.Experiment {
+func ObjectToExperiment(obj any) *v1alpha1.Experiment {
 	un, ok := obj.(*unstructured.Unstructured)
 	if ok {
 		var ex v1alpha1.Experiment
@@ -93,7 +93,7 @@ func SplitYAML(out string) ([]*unstructured.Unstructured, error) {
 	parts := diffSeparator.Split(out, -1)
 	var objs []*unstructured.Unstructured
 	for _, part := range parts {
-		var objMap map[string]interface{}
+		var objMap map[string]any
 		err := yaml.Unmarshal([]byte(part), &objMap)
 		if err != nil {
 			return objs, err

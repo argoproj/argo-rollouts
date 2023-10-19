@@ -18,7 +18,7 @@ jobs:
       contents: write  # for peaceiris/actions-gh-pages to push pages branch
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3.1.0
+      - uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v4
         with:

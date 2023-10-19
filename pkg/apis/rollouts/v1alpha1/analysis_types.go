@@ -210,9 +210,9 @@ type PrometheusMetric struct {
 	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address"`
 	// Query is a raw prometheus query to perform
 	Query string `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
-	// Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
+	// Authentication details
 	// +optional
-	Authentication PrometheusAuth `json:"authentication,omitempty" protobuf:"bytes,3,opt,name=authentication"`
+	Authentication Authentication `json:"authentication,omitempty" protobuf:"bytes,3,opt,name=authentication"`
 	// Timeout represents the duration within which a prometheus query should complete. It is expressed in seconds.
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
@@ -225,10 +225,26 @@ type PrometheusMetric struct {
 	Headers []WebMetricHeader `json:"headers,omitempty" patchStrategy:"merge" patchMergeKey:"key" protobuf:"bytes,6,opt,name=headers"`
 }
 
-// PrometheusMetric defines the prometheus query to perform canary analysis
-type PrometheusAuth struct {
+// Authentication method
+type Authentication struct {
+	// Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus
 	// +optional
-	Sigv4 Sigv4Config `json:"sigv4,omitempty" protobuf:"bytes,3,opt,name=sigv4"`
+	Sigv4 Sigv4Config `json:"sigv4,omitempty" protobuf:"bytes,1,opt,name=sigv4"`
+	// OAuth2 config
+	// +optional
+	OAuth2 OAuth2Config `json:"oauth2,omitempty" protobuf:"bytes,2,opt,name=oauth2"`
+}
+
+type OAuth2Config struct {
+	// OAuth2 provider token URL
+	TokenURL string `json:"tokenUrl,omitempty" protobuf:"bytes,1,name=tokenUrl"`
+	// OAuth2 client ID
+	ClientID string `json:"clientId,omitempty" protobuf:"bytes,2,name=clientId"`
+	// OAuth2 client secret
+	ClientSecret string `json:"clientSecret,omitempty" protobuf:"bytes,3,name=clientSecret"`
+	// OAuth2 scopes
+	// +optional
+	Scopes []string `json:"scopes,omitempty" protobuf:"bytes,4,opt,name=scopes"`
 }
 
 type Sigv4Config struct {
@@ -380,8 +396,8 @@ type ValueFrom struct {
 	// Secret is a reference to where a secret is stored. This field is one of the fields with valueFrom
 	// +optional
 	SecretKeyRef *SecretKeyRef `json:"secretKeyRef,omitempty" protobuf:"bytes,1,opt,name=secretKeyRef"`
-	//FieldRef is a reference to the fields in metadata which we are referencing. This field is one of the fields with
-	//valueFrom
+	// FieldRef is a reference to the fields in metadata which we are referencing. This field is one of the fields with
+	// valueFrom
 	// +optional
 	FieldRef *FieldRef `json:"fieldRef,omitempty" protobuf:"bytes,2,opt,name=fieldRef"`
 }
@@ -532,6 +548,9 @@ type WebMetric struct {
 	// +kubebuilder:validation:Type=object
 	// JSONBody is the body of the web metric in a json format (method must be POST/PUT)
 	JSONBody json.RawMessage `json:"jsonBody,omitempty" protobuf:"bytes,8,opt,name=jsonBody,casttype=encoding/json.RawMessage"`
+	// Authentication details
+	// +optional
+	Authentication Authentication `json:"authentication,omitempty" protobuf:"bytes,9,opt,name=authentication"`
 }
 
 // WebMetricMethod is the available HTTP methods
@@ -550,8 +569,17 @@ type WebMetricHeader struct {
 }
 
 type DatadogMetric struct {
+	// +kubebuilder:default="5m"
+	// Interval refers to the Interval time window in Datadog (default: 5m). Not to be confused with the polling rate for the metric.
 	Interval DurationString `json:"interval,omitempty" protobuf:"bytes,1,opt,name=interval,casttype=DurationString"`
-	Query    string         `json:"query" protobuf:"bytes,2,opt,name=query"`
+	Query    string         `json:"query,omitempty" protobuf:"bytes,2,opt,name=query"`
+	// Queries is a map of query_name_as_key: query. You can then use query_name_as_key inside Formula.Used for v2
+	// +kubebuilder:validation:Type=object
+	Queries map[string]string `json:"queries,omitempty" protobuf:"bytes,3,opt,name=queries"`
+	// Formula refers to the Formula made up of the queries. Only useful with Queries. Used for v2
+	Formula string `json:"formula,omitempty" protobuf:"bytes,4,opt,name=formula"`
 	// ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.
-	ApiVersion string `json:"apiVersion,omitempty" protobuf:"bytes,3,opt,name=apiVersion"`
+	// +kubebuilder:validation:Enum=v1;v2
+	// +kubebuilder:default=v1
+	ApiVersion string `json:"apiVersion,omitempty" protobuf:"bytes,5,opt,name=apiVersion"`
 }

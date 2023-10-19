@@ -74,26 +74,26 @@ const (
 	invalidCasting = "Invalid casting: field '%s' is not of type '%s'"
 )
 
-func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{}, tlsRoutes []interface{}, tcpRoutes []interface{}) error {
+func (patches virtualServicePatches) patchVirtualService(httpRoutes []any, tlsRoutes []any, tcpRoutes []any) error {
 	for _, patch := range patches {
-		var route map[string]interface{}
+		var route map[string]any
 		err := false
 		if patch.routeType == Http {
-			route, err = httpRoutes[patch.routeIndex].(map[string]interface{})
+			route, err = httpRoutes[patch.routeIndex].(map[string]any)
 		} else if patch.routeType == Tls {
-			route, err = tlsRoutes[patch.routeIndex].(map[string]interface{})
+			route, err = tlsRoutes[patch.routeIndex].(map[string]any)
 		} else if patch.routeType == Tcp {
-			route, err = tcpRoutes[patch.routeIndex].(map[string]interface{})
+			route, err = tcpRoutes[patch.routeIndex].(map[string]any)
 		}
 		if !err {
 			return fmt.Errorf(invalidCasting, patch.routeType+"[]", "map[string]interface")
 		}
-		destinations, ok := route["route"].([]interface{})
+		destinations, ok := route["route"].([]any)
 		if !ok {
 			return fmt.Errorf(invalidCasting, patch.routeType+"[].route", "[]interface")
 		}
 		if patch.destinationIndex < len(destinations) {
-			destination, ok := destinations[patch.destinationIndex].(map[string]interface{})
+			destination, ok := destinations[patch.destinationIndex].(map[string]any)
 			if !ok {
 				return fmt.Errorf(invalidCasting, patch.routeType+"[].route[].destination", "map[string]interface")
 			}
@@ -105,9 +105,9 @@ func (patches virtualServicePatches) patchVirtualService(httpRoutes []interface{
 			}
 			route["route"] = destinations
 		} else {
-			destination := make(map[string]interface{}, 0)
+			destination := make(map[string]any, 0)
 			destination["weight"] = float64(patch.weight)
-			destination["destination"] = map[string]interface{}{"host": patch.host}
+			destination["destination"] = map[string]any{"host": patch.host}
 			destinations = append(destinations, destination)
 			route["route"] = destinations
 		}
@@ -388,12 +388,12 @@ func (r *Reconciler) UpdateHash(canaryHash, stableHash string, additionalDestina
 // destinationRuleReplaceExtraMarshal relace the key of "Extra" with the actual content
 // e.g., "trafficpolicy" and return the bytes of the new object
 func destinationRuleReplaceExtraMarshal(dRule *DestinationRule) []byte {
-	dRuleNew := map[string]interface{}{}
+	dRuleNew := map[string]any{}
 	dRuleNew["metadata"] = dRule.ObjectMeta.DeepCopy()
 
-	subsets := []map[string]interface{}{}
+	subsets := []map[string]any{}
 	for _, subset := range dRule.Spec.Subsets {
-		newsubset := map[string]interface{}{}
+		newsubset := map[string]any{}
 		newsubset["name"] = subset.Name
 		newsubset["labels"] = subset.Labels
 
@@ -402,7 +402,7 @@ func destinationRuleReplaceExtraMarshal(dRule *DestinationRule) []byte {
 			continue
 		}
 
-		extra := map[string]interface{}{}
+		extra := map[string]any{}
 		inputbyte, _ := json.Marshal(subset.Extra)
 		json.Unmarshal(inputbyte, &extra)
 
@@ -412,7 +412,7 @@ func destinationRuleReplaceExtraMarshal(dRule *DestinationRule) []byte {
 		}
 		subsets = append(subsets, newsubset)
 	}
-	dRuleNew["spec"] = map[string]interface{}{
+	dRuleNew["spec"] = map[string]any{
 		"subsets": subsets,
 		"host":    dRule.Spec.Host,
 	}
@@ -474,7 +474,7 @@ func unstructuredToDestinationRules(un *unstructured.Unstructured) ([]byte, *Des
 func unMarshalSubsets(dRule *DestinationRule, dRuleBytes []byte) error {
 	var err error
 
-	unstructured := map[string]interface{}{}
+	unstructured := map[string]any{}
 	var extractFieldBytes func([]byte, string) ([]byte, error)
 	extractFieldBytes = func(input []byte, name string) ([]byte, error) {
 		err = json.Unmarshal(input, &unstructured)
@@ -498,7 +498,7 @@ func unMarshalSubsets(dRule *DestinationRule, dRuleBytes []byte) error {
 		return err
 	}
 
-	subsetsMap := []map[string]interface{}{}
+	subsetsMap := []map[string]any{}
 	err = json.Unmarshal(subsetsBytes, &subsetsMap)
 	if err != nil {
 		return err
@@ -523,9 +523,9 @@ func unMarshalSubsets(dRule *DestinationRule, dRuleBytes []byte) error {
 	return nil
 }
 
-func UnmarshalJson(input []byte, result interface{}) (map[string]interface{}, error) {
+func UnmarshalJson(input []byte, result any) (map[string]any, error) {
 	// unmarshal json to a map
-	foomap := make(map[string]interface{})
+	foomap := make(map[string]any)
 	json.Unmarshal(input, &foomap)
 
 	// create a mapstructure decoder
@@ -545,7 +545,7 @@ func UnmarshalJson(input []byte, result interface{}) (map[string]interface{}, er
 	}
 
 	// copy and return unused fields
-	unused := map[string]interface{}{}
+	unused := map[string]any{}
 	for _, k := range md.Unused {
 		unused[k] = foomap[k]
 	}
@@ -565,7 +565,7 @@ func jsonBytesToDestinationRule(dRuleBytes []byte) (*DestinationRule, error) {
 	return &dRule, nil
 }
 
-func GetHttpRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
+func GetHttpRoutesI(obj *unstructured.Unstructured) ([]any, error) {
 	httpRoutesI, notFound, err := unstructured.NestedSlice(obj.Object, "spec", Http)
 	if !notFound {
 		return nil, fmt.Errorf(SpecHttpNotFound)
@@ -576,7 +576,7 @@ func GetHttpRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
 	return httpRoutesI, nil
 }
 
-func GetTlsRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
+func GetTlsRoutesI(obj *unstructured.Unstructured) ([]any, error) {
 	tlsRoutesI, notFound, err := unstructured.NestedSlice(obj.Object, "spec", Tls)
 	if !notFound {
 		return nil, fmt.Errorf(SpecHttpNotFound)
@@ -587,7 +587,7 @@ func GetTlsRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
 	return tlsRoutesI, nil
 }
 
-func GetTcpRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
+func GetTcpRoutesI(obj *unstructured.Unstructured) ([]any, error) {
 	tcpRoutesI, notFound, err := unstructured.NestedSlice(obj.Object, "spec", Tcp)
 	if !notFound {
 		return nil, fmt.Errorf(".spec.tcp is not defined")
@@ -598,7 +598,7 @@ func GetTcpRoutesI(obj *unstructured.Unstructured) ([]interface{}, error) {
 	return tcpRoutesI, nil
 }
 
-func GetHttpRoutes(httpRoutesI []interface{}) ([]VirtualServiceHTTPRoute, error) {
+func GetHttpRoutes(httpRoutesI []any) ([]VirtualServiceHTTPRoute, error) {
 	routeBytes, err := json.Marshal(httpRoutesI)
 	if err != nil {
 		return nil, err
@@ -613,7 +613,7 @@ func GetHttpRoutes(httpRoutesI []interface{}) ([]VirtualServiceHTTPRoute, error)
 	return httpRoutes, nil
 }
 
-func GetTlsRoutes(obj *unstructured.Unstructured, tlsRoutesI []interface{}) ([]VirtualServiceTLSRoute, error) {
+func GetTlsRoutes(obj *unstructured.Unstructured, tlsRoutesI []any) ([]VirtualServiceTLSRoute, error) {
 	routeBytes, err := json.Marshal(tlsRoutesI)
 	if err != nil {
 		return nil, err
@@ -628,7 +628,7 @@ func GetTlsRoutes(obj *unstructured.Unstructured, tlsRoutesI []interface{}) ([]V
 	return tlsRoutes, nil
 }
 
-func GetTcpRoutes(obj *unstructured.Unstructured, tcpRoutesI []interface{}) ([]VirtualServiceTCPRoute, error) {
+func GetTcpRoutes(obj *unstructured.Unstructured, tcpRoutesI []any) ([]VirtualServiceTCPRoute, error) {
 	routeBytes, err := json.Marshal(tcpRoutesI)
 	if err != nil {
 		return nil, err
@@ -825,8 +825,8 @@ func (r *Reconciler) getDestinationRule(dRuleSpec *v1alpha1.IstioDestinationRule
 	return origBytes, dRule, dRuleNew, nil
 }
 
-func createHeaderRoute(virtualService v1alpha1.IstioVirtualService, unVsvc *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute, host string, subset string) map[string]interface{} {
-	var routeMatches []interface{}
+func createHeaderRoute(virtualService v1alpha1.IstioVirtualService, unVsvc *unstructured.Unstructured, headerRouting *v1alpha1.SetHeaderRoute, host string, subset string) map[string]any {
+	var routeMatches []any
 	for _, hrm := range headerRouting.Match {
 		routeMatches = append(routeMatches, createHeaderRouteMatch(hrm))
 	}
@@ -838,41 +838,41 @@ func createHeaderRoute(virtualService v1alpha1.IstioVirtualService, unVsvc *unst
 
 	canaryDestination := routeDestination(host, port.Number, subset, 100)
 
-	return map[string]interface{}{
+	return map[string]any{
 		"name":  headerRouting.Name,
 		"match": routeMatches,
-		"route": []interface{}{canaryDestination},
+		"route": []any{canaryDestination},
 	}
 }
 
-func createHeaderRouteMatch(hrm v1alpha1.HeaderRoutingMatch) interface{} {
-	res := map[string]interface{}{}
+func createHeaderRouteMatch(hrm v1alpha1.HeaderRoutingMatch) any {
+	res := map[string]any{}
 	value := hrm.HeaderValue
 	setMapValueIfNotEmpty(res, "exact", value.Exact)
 	setMapValueIfNotEmpty(res, "regex", value.Regex)
 	setMapValueIfNotEmpty(res, "prefix", value.Prefix)
-	return map[string]interface{}{
-		"headers": map[string]interface{}{hrm.HeaderName: res},
+	return map[string]any{
+		"headers": map[string]any{hrm.HeaderName: res},
 	}
 }
 
-func setMapValueIfNotEmpty(m map[string]interface{}, key string, value string) {
+func setMapValueIfNotEmpty(m map[string]any, key string, value string) {
 	if value != "" {
 		m[key] = value
 	}
 }
 
-func routeDestination(host string, port uint32, subset string, weight int64) map[string]interface{} {
-	dest := map[string]interface{}{
+func routeDestination(host string, port uint32, subset string, weight int64) map[string]any {
+	dest := map[string]any{
 		"host": host,
 	}
 	if port > 0 {
-		dest["port"] = map[string]interface{}{"number": int64(port)}
+		dest["port"] = map[string]any{"number": int64(port)}
 	}
 	if subset != "" {
 		dest["subset"] = subset
 	}
-	routeValue := map[string]interface{}{
+	routeValue := map[string]any{
 		"weight":      float64(weight),
 		"destination": dest,
 	}
@@ -1041,10 +1041,10 @@ func ValidateHTTPRoutes(r *v1alpha1.Rollout, routeNames []string, httpRoutes []V
 	if err != nil {
 		return fmt.Errorf("[ValidateHTTPRoutes] failed to marshal http routes: %w", err)
 	}
-	var httpRoutesI []interface{}
+	var httpRoutesI []any
 	err = json.Unmarshal(httpRoutesBytes, &httpRoutesI)
 	if err != nil {
-		return fmt.Errorf("[ValidateHTTPRoutes] failed to marshal http routes to []interface{}: %w", err)
+		return fmt.Errorf("[ValidateHTTPRoutes] failed to marshal http routes to []any: %w", err)
 	}
 
 	_, httpRoutesNotWithinManagedRoutes, err := splitManagedRoutesAndNonManagedRoutes(r.Spec.Strategy.Canary.TrafficRouting.ManagedRoutes, httpRoutesI)
@@ -1234,7 +1234,7 @@ func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1
 	if !found {
 		return fmt.Errorf(SpecHttpNotFound)
 	}
-	vsRoutes = append([]interface{}{mR}, vsRoutes...)
+	vsRoutes = append([]any{mR}, vsRoutes...)
 	if err := unstructured.SetNestedSlice(istioVirtualService.Object, vsRoutes, "spec", Http); err != nil {
 		return fmt.Errorf("[reconcileVirtualServiceMirrorRoutes] failed to update virtual service routes via set nested slice: %w", err)
 	}
@@ -1243,8 +1243,8 @@ func (r *Reconciler) reconcileVirtualServiceMirrorRoutes(virtualService v1alpha1
 }
 
 // getVirtualServiceHttpRoutes This returns all the http routes from an istio virtual service as both a rollouts wrapped type
-// []VirtualServiceHTTPRoute and a []interface{} of VirtualServiceHTTPRoute
-func getVirtualServiceHttpRoutes(obj *unstructured.Unstructured) ([]VirtualServiceHTTPRoute, []interface{}, error) {
+// []VirtualServiceHTTPRoute and a []any of VirtualServiceHTTPRoute
+func getVirtualServiceHttpRoutes(obj *unstructured.Unstructured) ([]VirtualServiceHTTPRoute, []any, error) {
 	httpRoutesI, err := GetHttpRoutesI(obj)
 	if err != nil {
 		return nil, nil, fmt.Errorf("[getVirtualServiceHttpRoutes] failed to get http route interfaces: %w", err)
@@ -1256,9 +1256,9 @@ func getVirtualServiceHttpRoutes(obj *unstructured.Unstructured) ([]VirtualServi
 	return routes, httpRoutesI, nil
 }
 
-// createMirrorRoute This returns a map[string]interface{} of an istio virtual service mirror route configuration using the last
+// createMirrorRoute This returns a map[string]any of an istio virtual service mirror route configuration using the last
 // set weight as values for the non-matching destinations and canary service for the matching destination.
-func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes []VirtualServiceHTTPRoute, mirrorRouting *v1alpha1.SetMirrorRoute, canarySvc string, subset string) (map[string]interface{}, error) {
+func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes []VirtualServiceHTTPRoute, mirrorRouting *v1alpha1.SetMirrorRoute, canarySvc string, subset string) (map[string]any, error) {
 	var percent int32
 	if mirrorRouting.Percentage == nil {
 		percent = 100
@@ -1289,12 +1289,12 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 		mirrorDestinations.Port = &Port{Number: route[0].Destination.Port.Number}
 	}
 
-	mirrorRoute := map[string]interface{}{
+	mirrorRoute := map[string]any{
 		"name":             mirrorRouting.Name,
 		"match":            istioMatch,
 		"route":            route,
 		"mirror":           mirrorDestinations,
-		"mirrorPercentage": map[string]interface{}{"value": float64(percent)},
+		"mirrorPercentage": map[string]any{"value": float64(percent)},
 	}
 
 	mirrorRouteBytes, err := json.Marshal(mirrorRoute)
@@ -1302,7 +1302,7 @@ func createMirrorRoute(virtualService v1alpha1.IstioVirtualService, httpRoutes [
 		return nil, fmt.Errorf("[createMirrorRoute] failed to marshal mirror route: %w", err)
 	}
 
-	var mirrorRouteI map[string]interface{}
+	var mirrorRouteI map[string]any
 	err = json.Unmarshal(mirrorRouteBytes, &mirrorRouteI)
 	if err != nil {
 		return nil, fmt.Errorf("[createMirrorRoute] failed to unmarshal mirror route: %w", err)
@@ -1336,11 +1336,11 @@ func removeRoute(istioVirtualService *unstructured.Unstructured, routeName strin
 		return fmt.Errorf(SpecHttpNotFound)
 	}
 
-	var newVsRoutes []interface{}
+	var newVsRoutes []any
 	for _, route := range vsRoutes {
-		routeMap, ok := route.(map[string]interface{})
+		routeMap, ok := route.(map[string]any)
 		if !ok {
-			return fmt.Errorf("Could not cast type to map[string]interface{} to find route name in Istio Virtual Service")
+			return fmt.Errorf("Could not cast type to map[string]any to find route name in Istio Virtual Service")
 		}
 		routeNameIstioSvc, ok := routeMap["name"].(string)
 		if !ok {
@@ -1392,8 +1392,8 @@ func (r *Reconciler) orderRoutes(istioVirtualService *unstructured.Unstructured)
 // splitManagedRoutesAndNonManagedRoutes This splits the routes from an istio virtual service into two slices
 // one slice contains all the routes that are also in the rollouts managedRoutes object and one that contains routes
 // that where only in the virtual service (aka routes that where manually added by user)
-func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes, httpRouteI []interface{}) (httpRoutesWithinManagedRoutes []map[string]interface{}, httpRoutesNotWithinManagedRoutes []map[string]interface{}, err error) {
-	var httpRoutes []map[string]interface{}
+func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes, httpRouteI []any) (httpRoutesWithinManagedRoutes []map[string]any, httpRoutesNotWithinManagedRoutes []map[string]any, err error) {
+	var httpRoutes []map[string]any
 
 	jsonHttpRoutes, err := json.Marshal(httpRouteI)
 	if err != nil {
@@ -1424,11 +1424,11 @@ func splitManagedRoutesAndNonManagedRoutes(managedRoutes []v1alpha1.MangedRoutes
 	return httpRoutesWithinManagedRoutes, httpRoutesNotWithinManagedRoutes, nil
 }
 
-// getOrderedVirtualServiceRoutes This returns an []interface{} of istio virtual routes where the routes are ordered based
+// getOrderedVirtualServiceRoutes This returns an []any of istio virtual routes where the routes are ordered based
 // on the rollouts managedRoutes field. We take the routes from the rollouts managedRoutes field order them and place them on top
 // of routes that are manually defined within the virtual service (aka. routes that users have defined manually)
-func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1alpha1.MangedRoutes, httpRoutesWithinManagedRoutes []map[string]interface{}, httpRoutesNotWithinManagedRoutes []map[string]interface{}) ([]interface{}, error) {
-	var orderedManagedRoutes []map[string]interface{}
+func getOrderedVirtualServiceRoutes(httpRouteI []any, managedRoutes []v1alpha1.MangedRoutes, httpRoutesWithinManagedRoutes []map[string]any, httpRoutesNotWithinManagedRoutes []map[string]any) ([]any, error) {
+	var orderedManagedRoutes []map[string]any
 	for _, route := range managedRoutes {
 		for _, managedRoute := range httpRoutesWithinManagedRoutes {
 			if route.Name == managedRoute["name"] {
@@ -1439,10 +1439,10 @@ func getOrderedVirtualServiceRoutes(httpRouteI []interface{}, managedRoutes []v1
 
 	orderedVirtualServiceHTTPRoutes := append(orderedManagedRoutes, httpRoutesNotWithinManagedRoutes...)
 
-	var orderedInterfaceVSVCHTTPRoutes []interface{}
+	var orderedInterfaceVSVCHTTPRoutes []any
 	for _, routeMap := range orderedVirtualServiceHTTPRoutes {
 		for _, route := range httpRouteI {
-			r := route.(map[string]interface{})
+			r := route.(map[string]any)
 
 			// Not checking the cast success here is ok because it covers the case when the route has no name
 			name, rNameOK := r["name"].(string)
@@ -1530,7 +1530,7 @@ func (r *Reconciler) RemoveManagedRoutes() error {
 		if err != nil {
 			return fmt.Errorf("[RemoveManagedRoutes] failed to marshal non-managed routes: %w", err)
 		}
-		var nonManagedRoutesI []interface{}
+		var nonManagedRoutesI []any
 		if err := json.Unmarshal(jsonNonManagedRoutes, &nonManagedRoutesI); err != nil {
 			return fmt.Errorf("[RemoveManagedRoutes] failed to split managaed and non-managed routes: %w", err)
 		}

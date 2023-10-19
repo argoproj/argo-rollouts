@@ -113,7 +113,7 @@ func TestSendNotifications(t *testing.T) {
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 	//ch := make(chan prometheus.HistogramVec, 1)
 	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 }
 
 func TestSendNotificationsWhenCondition(t *testing.T) {
@@ -140,7 +140,7 @@ func TestSendNotificationsWhenCondition(t *testing.T) {
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 	//ch := make(chan prometheus.HistogramVec, 1)
 	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 }
 
 func TestSendNotificationsWhenConditionTime(t *testing.T) {
@@ -340,7 +340,7 @@ func TestSendNotificationsFails(t *testing.T) {
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
 		err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
-		assert.Error(t, err)
+		assert.Len(t, err, 1)
 	})
 
 	t.Run("GetAPIError", func(t *testing.T) {
@@ -349,7 +349,7 @@ func TestSendNotificationsFails(t *testing.T) {
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
 		err := rec.sendNotifications(nil, &r, EventOptions{EventReason: "FooReason"})
-		assert.Error(t, err)
+		assert.NotNil(t, err)
 	})
 
 }
@@ -380,7 +380,7 @@ func TestSendNotificationsFailsWithRunTriggerError(t *testing.T) {
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
 		err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "FooReason"})
-		assert.Error(t, err)
+		assert.Len(t, err, 1)
 	})
 
 	t.Run("GetAPIError", func(t *testing.T) {
@@ -389,7 +389,7 @@ func TestSendNotificationsFailsWithRunTriggerError(t *testing.T) {
 		rec.EventRecorderAdapter.apiFactory = apiFactory
 
 		err := rec.sendNotifications(nil, &r, EventOptions{EventReason: "FooReason"})
-		assert.Error(t, err)
+		assert.NotNil(t, err)
 	})
 
 }
@@ -419,7 +419,7 @@ func TestSendNotificationsNoTrigger(t *testing.T) {
 	rec.EventRecorderAdapter.apiFactory = apiFactory
 
 	err := rec.sendNotifications(mockAPI, &r, EventOptions{EventReason: "MissingReason"})
-	assert.Error(t, err)
+	assert.Len(t, err, 1)
 }
 
 func TestNewAPIFactorySettings(t *testing.T) {
@@ -429,10 +429,10 @@ func TestNewAPIFactorySettings(t *testing.T) {
 	getVars, err := settings.InitGetVars(nil, nil, nil)
 	assert.NoError(t, err)
 
-	rollout := map[string]interface{}{"name": "hello"}
+	rollout := map[string]any{"name": "hello"}
 	vars := getVars(rollout, services.Destination{})
 
-	assert.Equal(t, map[string]interface{}{"rollout": rollout, "time": timeExprs}, vars)
+	assert.Equal(t, map[string]any{"rollout": rollout, "time": timeExprs}, vars)
 }
 
 func TestWorkloadRefObjectMap(t *testing.T) {

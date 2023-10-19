@@ -127,7 +127,7 @@ func isJSON(fileBytes []byte) bool {
 	return false
 }
 
-func unmarshal(fileBytes []byte, obj interface{}) error {
+func unmarshal(fileBytes []byte, obj any) error {
 	if isJSON(fileBytes) {
 		decoder := json.NewDecoder(bytes.NewReader(fileBytes))
 		decoder.DisallowUnknownFields()
@@ -143,7 +143,7 @@ func (c *CreateOptions) getNamespace(un unstructured.Unstructured) string {
 		if md == nil {
 			return ns
 		}
-		metadata := md.(map[string]interface{})
+		metadata := md.(map[string]any)
 		if internalns, ok := metadata["namespace"]; ok {
 			ns = internalns.(string)
 		}

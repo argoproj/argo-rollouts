@@ -180,13 +180,22 @@ spec:
                         datadog:
                           properties:
                             apiVersion:
+                              default: v1
+                              enum:
+                              - v1
+                              - v2
+                              type: string
+                            formula:
                               type: string
                             interval:
+                              default: 5m
                               type: string
+                            queries:
+                              additionalProperties:
+                                type: string
+                              type: object
                             query:
                               type: string
-                          required:
-                          - query
                           type: object
                         graphite:
                           properties:
@@ -2800,6 +2809,19 @@ spec:
                               type: string
                             authentication:
                               properties:
+                                oauth2:
+                                  properties:
+                                    clientId:
+                                      type: string
+                                    clientSecret:
+                                      type: string
+                                    scopes:
+                                      items:
+                                        type: string
+                                      type: array
+                                    tokenUrl:
+                                      type: string
+                                  type: object
                                 sigv4:
                                   properties:
                                     profile:
@@ -2848,6 +2870,31 @@ spec:
                           type: object
                         web:
                           properties:
+                            authentication:
+                              properties:
+                                oauth2:
+                                  properties:
+                                    clientId:
+                                      type: string
+                                    clientSecret:
+                                      type: string
+                                    scopes:
+                                      items:
+                                        type: string
+                                      type: array
+                                    tokenUrl:
+                                      type: string
+                                  type: object
+                                sigv4:
+                                  properties:
+                                    profile:
+                                      type: string
+                                    region:
+                                      type: string
+                                    roleArn:
+                                      type: string
+                                  type: object
+                              type: object
                             body:
                               type: string
                             headers:
@@ -3188,13 +3235,22 @@ spec:
                         datadog:
                           properties:
                             apiVersion:
+                              default: v1
+                              enum:
+                              - v1
+                              - v2
+                              type: string
+                            formula:
                               type: string
                             interval:
+                              default: 5m
                               type: string
+                            queries:
+                              additionalProperties:
+                                type: string
+                              type: object
                             query:
                               type: string
-                          required:
-                          - query
                           type: object
                         graphite:
                           properties:
@@ -5808,6 +5864,19 @@ spec:
                               type: string
                             authentication:
                               properties:
+                                oauth2:
+                                  properties:
+                                    clientId:
+                                      type: string
+                                    clientSecret:
+                                      type: string
+                                    scopes:
+                                      items:
+                                        type: string
+                                      type: array
+                                    tokenUrl:
+                                      type: string
+                                  type: object
                                 sigv4:
                                   properties:
                                     profile:
@@ -5856,6 +5925,31 @@ spec:
                           type: object
                         web:
                           properties:
+                            authentication:
+                              properties:
+                                oauth2:
+                                  properties:
+                                    clientId:
+                                      type: string
+                                    clientSecret:
+                                      type: string
+                                    scopes:
+                                      items:
+                                        type: string
+                                      type: array
+                                    tokenUrl:
+                                      type: string
+                                  type: object
+                                sigv4:
+                                  properties:
+                                    profile:
+                                      type: string
+                                    region:
+                                      type: string
+                                    roleArn:
+                                      type: string
+                                  type: object
+                              type: object
                             body:
                               type: string
                             headers:
@@ -6082,13 +6176,22 @@ spec:
                         datadog:
                           properties:
                             apiVersion:
+                              default: v1
+                              enum:
+                              - v1
+                              - v2
+                              type: string
+                            formula:
                               type: string
                             interval:
+                              default: 5m
                               type: string
+                            queries:
+                              additionalProperties:
+                                type: string
+                              type: object
                             query:
                               type: string
-                          required:
-                          - query
                           type: object
                         graphite:
                           properties:
@@ -8702,6 +8805,19 @@ spec:
                               type: string
                             authentication:
                               properties:
+                                oauth2:
+                                  properties:
+                                    clientId:
+                                      type: string
+                                    clientSecret:
+                                      type: string
+                                    scopes:
+                                      items:
+                                        type: string
+                                      type: array
+                                    tokenUrl:
+                                      type: string
+                                  type: object
                                 sigv4:
                                   properties:
                                     profile:
@@ -8750,6 +8866,31 @@ spec:
                           type: object
                         web:
                           properties:
+                            authentication:
+                              properties:
+                                oauth2:
+                                  properties:
+                                    clientId:
+                                      type: string
+                                    clientSecret:
+                                      type: string
+                                    scopes:
+                                      items:
+                                        type: string
+                                      type: array
+                                    tokenUrl:
+                                      type: string
+                                  type: object
+                                sigv4:
+                                  properties:
+                                    profile:
+                                      type: string
+                                    region:
+                                      type: string
+                                    roleArn:
+                                      type: string
+                                  type: object
+                              type: object
                             body:
                               type: string
                             headers:
