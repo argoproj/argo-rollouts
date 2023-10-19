@@ -4,13 +4,14 @@
 package e2e
 
 import (
+	"testing"
+	"time"
+
 	a6 "github.com/argoproj/argo-rollouts/rollout/trafficrouting/apisix"
 	"github.com/argoproj/argo-rollouts/test/fixtures"
 	"github.com/stretchr/testify/suite"
 	"github.com/tj/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"testing"
-	"time"
 )
 
 const (
@@ -132,7 +133,7 @@ func (s *APISIXSuite) check(t *fixtures.Then, stableWeight int64, canaryWeight i
 	assert.NoError(s.T(), err)
 
 	for _, backend := range backends {
-		typedBackend, ok := backend.(map[string]interface{})
+		typedBackend, ok := backend.(map[string]any)
 		assert.Equal(s.T(), ok, true)
 		nameOfCurrentBackend, isFound, err := unstructured.NestedString(typedBackend, "serviceName")
 		assert.NoError(s.T(), err)
@@ -165,14 +166,14 @@ func (s *APISIXSuite) checkSetHeader(t *fixtures.Then, stableWeight int64, canar
 	apisixHttpRouteObj, err := a6.GetHttpRoute(apisixHttpRoutesObj, apisixRouteName)
 	assert.NoError(s.T(), err)
 
-	exprs, isFound, err := unstructured.NestedSlice(apisixHttpRouteObj.(map[string]interface{}), "match", "exprs")
+	exprs, isFound, err := unstructured.NestedSlice(apisixHttpRouteObj.(map[string]any), "match", "exprs")
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), isFound, true)
 
 	assert.Equal(s.T(), 1, len(exprs))
 	expr := exprs[0]
 
-	exprObj, ok := expr.(map[string]interface{})
+	exprObj, ok := expr.(map[string]any)
 	assert.Equal(s.T(), ok, true)
 
 	op, isFound, err := unstructured.NestedString(exprObj, "op")

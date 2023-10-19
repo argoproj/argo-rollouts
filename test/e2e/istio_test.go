@@ -303,7 +303,7 @@ func (s *IstioSuite) TestIstioAbortUpdate() {
 		Then().
 		When().
 		AbortRollout().
-		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectRevisionPodCount("1", 1).
 		When().
@@ -316,7 +316,7 @@ func (s *IstioSuite) TestIstioAbortUpdate() {
 		Then().
 		When().
 		AbortRollout().
-		WaitForRolloutStatus("Degraded").
+		WaitForRolloutStatus("Healthy").
 		Then().
 		ExpectRevisionPodCount("2", 1)
 }

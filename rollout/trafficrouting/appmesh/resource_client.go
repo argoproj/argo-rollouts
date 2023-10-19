@@ -61,7 +61,7 @@ func (rc *ResourceClient) GetVirtualRouterCRForVirtualService(ctx context.Contex
 	return rc.GetVirtualRouterCR(ctx, namespace, name)
 }
 
-func defaultIfEmpty(strI interface{}, defaultStr string) string {
+func defaultIfEmpty(strI any, defaultStr string) string {
 	if strI == nil {
 		return defaultStr
 	} else {

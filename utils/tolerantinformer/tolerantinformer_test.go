@@ -122,7 +122,7 @@ func TestMalformedRolloutEphemeralCtr(t *testing.T) {
 	verify(list[0])
 }
 
-func verifyAnalysisSpec(t *testing.T, s interface{}) {
+func verifyAnalysisSpec(t *testing.T, s any) {
 	//   metrics:
 	//   - name: test
 	//     provider:

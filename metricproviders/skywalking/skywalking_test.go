@@ -25,7 +25,7 @@ func TestType(t *testing.T) {
 func TestRunSuccessfully(t *testing.T) {
 	e := log.Entry{}
 	mock := &mockAPI{
-		results: map[string]interface{}{"count": 10},
+		results: map[string]any{"count": 10},
 	}
 	p := NewSkyWalkingProvider(mock, e)
 	metric := v1alpha1.Metric{
@@ -51,10 +51,10 @@ func TestRunSuccessfully(t *testing.T) {
 func TestRunWithTimeseries(t *testing.T) {
 	e := log.NewEntry(log.New())
 	mock := &mockAPI{
-		results: []interface{}{
-			map[string]interface{}{"count": 10},
-			map[string]interface{}{"count": 20},
-			map[string]interface{}{"count": 30}},
+		results: []any{
+			map[string]any{"count": 10},
+			map[string]any{"count": 20},
+			map[string]any{"count": 30}},
 	}
 	p := NewSkyWalkingProvider(mock, *e)
 	metric := v1alpha1.Metric{
@@ -107,7 +107,7 @@ func TestRunWithResolveArgsError(t *testing.T) {
 	expectedErr := fmt.Errorf("failed to resolve {{args.var}}")
 	mock := &mockAPI{
 		err:     expectedErr,
-		results: map[string]interface{}{"A": "B"},
+		results: map[string]any{"A": "B"},
 	}
 	p := NewSkyWalkingProvider(mock, *e)
 	metric := v1alpha1.Metric{

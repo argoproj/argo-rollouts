@@ -490,3 +490,69 @@ func TestPromoteCmdAlreadyFullyPromoted(t *testing.T) {
 	assert.Equal(t, stdout, "rollout 'guestbook' fully promoted\n")
 	assert.Empty(t, stderr)
 }
+
+func TestPromoteInconclusiveStep(t *testing.T) {
+	ro := v1alpha1.Rollout{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.RolloutSpec{
+			Paused: true,
+			Strategy: v1alpha1.RolloutStrategy{
+				Canary: &v1alpha1.CanaryStrategy{
+					Steps: []v1alpha1.CanaryStep{
+						{
+							SetWeight: pointer.Int32Ptr(1),
+						},
+						{
+							SetWeight: pointer.Int32Ptr(2),
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.RolloutStatus{
+			PauseConditions: []v1alpha1.PauseCondition{{
+				Reason: v1alpha1.PauseReasonCanaryPauseStep,
+			}},
+			ControllerPause: true,
+			Canary: v1alpha1.CanaryStatus{
+				CurrentStepAnalysisRunStatus: &v1alpha1.RolloutAnalysisRunStatus{
+					Status: v1alpha1.AnalysisPhaseInconclusive,
+				},
+			},
+		},
+	}
+
+	tf, o := options.NewFakeArgoRolloutsOptions(&ro)
+	defer tf.Cleanup()
+	fakeClient := o.RolloutsClient.(*fakeroclient.Clientset)
+	fakeClient.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			patchRo := v1alpha1.Rollout{}
+			err := json.Unmarshal(patchAction.GetPatch(), &patchRo)
+			if err != nil {
+				panic(err)
+			}
+			ro.Status.CurrentStepIndex = patchRo.Status.CurrentStepIndex
+			ro.Status.ControllerPause = patchRo.Status.ControllerPause
+			ro.Status.PauseConditions = patchRo.Status.PauseConditions
+		}
+		return true, &ro, nil
+	})
+
+	cmd := NewCmdPromote(o)
+	cmd.PersistentPreRunE = o.PersistentPreRunE
+	cmd.SetArgs([]string{"guestbook"})
+
+	err := cmd.Execute()
+	assert.Nil(t, err)
+	assert.Equal(t, false, ro.Status.ControllerPause)
+	assert.Empty(t, ro.Status.PauseConditions)
+
+	stdout := o.Out.(*bytes.Buffer).String()
+	stderr := o.ErrOut.(*bytes.Buffer).String()
+	assert.Equal(t, stdout, "rollout 'guestbook' promoted\n")
+	assert.Empty(t, stderr)
+}

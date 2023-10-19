@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// This is done so we can explicitly override it in the unit test
 var unixNow = func() int64 { return timeutil.Now().Unix() }
 
 const (
@@ -35,7 +36,6 @@ const (
 	DatadogApiKey           = "api-key"
 	DatadogAppKey           = "app-key"
 	DatadogAddress          = "address"
-	DefaultApiVersion       = "v1"
 )
 
 // Provider contains all the required components to run a Datadog query
@@ -46,9 +46,10 @@ type Provider struct {
 }
 
 type datadogQueryAttributes struct {
-	From    int64               `json:"from"`
-	To      int64               `json:"to"`
-	Queries []map[string]string `json:"queries"`
+	From     int64               `json:"from"`
+	To       int64               `json:"to"`
+	Queries  []map[string]string `json:"queries"`
+	Formulas []map[string]string `json:"formulas"`
 }
 
 type datadogQuery struct {
@@ -69,8 +70,9 @@ type datadogResponseV1 struct {
 type datadogResponseV2 struct {
 	Data struct {
 		Attributes struct {
-			Values [][]float64
-			Times  []int64
+			Columns []struct {
+				Values []float64
+			}
 		}
 		Errors string
 	}
@@ -82,7 +84,7 @@ type datadogConfig struct {
 	AppKey  string `yaml:"app-key,omitempty"`
 }
 
-// Type incidates provider is a Datadog provider
+// Type indicates provider is a Datadog provider
 func (p *Provider) Type() string {
 	return ProviderType
 }
@@ -92,57 +94,58 @@ func (p *Provider) GetMetadata(metric v1alpha1.Metric) map[string]string {
 	return nil
 }
 
+func (p *Provider) buildEndpointUrl(apiVersion string) (*url.URL, error) {
+	endpoint := "https://api.datadoghq.com"
+	if p.config.Address != "" {
+		endpoint = p.config.Address
+	}
+
+	// Check if the user provided URL is valid first before adding the endpoint
+	url, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	route := "/api/v1/query"
+	if apiVersion == "v2" {
+		route = "/api/v2/query/scalar"
+	}
+
+	// Add endpoint after getting the API version
+	url, err = url.Parse(endpoint + route)
+	if err != nil {
+		return nil, err
+	}
+	return url, err
+}
+
 func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alpha1.Measurement {
 	startTime := timeutil.MetaNow()
+	dd := metric.Provider.Datadog
+
+	if dd.ApiVersion == "v1" {
+		p.logCtx.Warn("Datadog will soon deprecate their API v1. Please consider switching to v2 soon.")
+	}
 
 	// Measurement to pass back
 	measurement := v1alpha1.Measurement{
 		StartedAt: &startTime,
 	}
 
-	endpoint := "https://api.datadoghq.com"
-	if p.config.Address != "" {
-		endpoint = p.config.Address
-	}
-
-	// Check if the URL is valid first before adding the endpoint
-	url, err := url.Parse(endpoint)
+	url, err := p.buildEndpointUrl(dd.ApiVersion)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	apiVersion := DefaultApiVersion
-	if metric.Provider.Datadog.ApiVersion != "" {
-		apiVersion = metric.Provider.Datadog.ApiVersion
-	}
-
-	if apiVersion == "v1" {
-		p.logCtx.Warn("Datadog will soon deprecate their API v1. Please consider switching to v2 soon.")
-	}
-
-	route := "/api/v1/query"
-	if apiVersion == "v2" {
-		route = "/api/v2/query/timeseries"
-	}
-
-	// Add endpoint after getting the API version
-	url, err = url.Parse(endpoint + route)
+	// Interval default is in the spec. bigger things would need to fail to get here without an dd.Interval
+	expDuration, err := dd.Interval.Duration()
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
+	// Convert to seconds as DataDog expects unix timestamp
+	interval := int64(expDuration.Seconds())
 
-	now := unixNow()
-	var interval int64 = 300
-	if metric.Provider.Datadog.Interval != "" {
-		expDuration, err := metric.Provider.Datadog.Interval.Duration()
-		if err != nil {
-			return metricutil.MarkMeasurementError(measurement, err)
-		}
-		// Convert to seconds as DataDog expects unix timestamp
-		interval = int64(expDuration.Seconds())
-	}
-
-	request, err := p.createRequest(metric.Provider.Datadog.Query, apiVersion, now, interval, url)
+	request, err := p.createRequest(dd, unixNow(), interval, url)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
@@ -158,12 +161,11 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 		Timeout: time.Duration(10) * time.Second,
 	}
 	response, err := httpClient.Do(request)
-
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 
-	value, status, err := p.parseResponse(metric, response, apiVersion)
+	value, status, err := p.parseResponse(metric, response, dd.ApiVersion)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
@@ -176,52 +178,84 @@ func (p *Provider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1alph
 	return measurement
 }
 
-func (p *Provider) createRequest(query string, apiVersion string, now int64, interval int64, url *url.URL) (*http.Request, error) {
-	if apiVersion == "v1" {
-		q := url.Query()
-		q.Set("query", query)
-		q.Set("from", strconv.FormatInt(now-interval, 10))
-		q.Set("to", strconv.FormatInt(now, 10))
-		url.RawQuery = q.Encode()
-
-		return &http.Request{Method: "GET"}, nil
-	} else if apiVersion == "v2" {
-		queryBody, err := json.Marshal(datadogRequest{
-			Data: datadogQuery{
-				QueryType: "timeseries_request",
-				Attributes: datadogQueryAttributes{
-					From: (now - interval) * 1000,
-					To:   now * 1000,
-					Queries: []map[string]string{{
-						"data_source": "metrics",
-						"query":       query,
-					}},
-				},
-			}})
-		if err != nil {
-			return nil, fmt.Errorf("Could not parse your JSON request: %v", err)
-		}
-		request := &http.Request{Method: "POST"}
-		request.Body = io.NopCloser(bytes.NewReader(queryBody))
-		return request, nil
+func (p *Provider) createRequest(dd *v1alpha1.DatadogMetric, now int64, interval int64, url *url.URL) (*http.Request, error) {
+	if dd.ApiVersion == "v1" {
+		return p.createRequestV1(dd.Query, now, interval, url)
 	}
 
-	return nil, fmt.Errorf("Invalid API version: %s", apiVersion)
+	// we know dd.Query and dd.Queries are mutually exclusive.
+	if dd.Query != "" {
+		dd.Queries = map[string]string{"query": dd.Query}
+	}
+
+	return p.createRequestV2(dd.Queries, dd.Formula, now, interval, url)
+}
+
+func (p *Provider) createRequestV1(query string, now int64, interval int64, url *url.URL) (*http.Request, error) {
+	q := url.Query()
+	q.Set("query", query)
+	q.Set("from", strconv.FormatInt(now-interval, 10))
+	q.Set("to", strconv.FormatInt(now, 10))
+	url.RawQuery = q.Encode()
+
+	return &http.Request{Method: "GET"}, nil
+}
+
+func buildQueriesPayload(queries map[string]string) []map[string]string {
+	qp := make([]map[string]string, 0, len(queries))
+	for k, v := range queries {
+		p := map[string]string{
+			"aggregator":  "last",
+			"data_source": "metrics",
+			"name":        k,
+			"query":       v,
+		}
+		qp = append(qp, p)
+	}
+	return qp
+}
+
+func (p *Provider) createRequestV2(queries map[string]string, formula string, now int64, interval int64, url *url.URL) (*http.Request, error) {
+	formulas := []map[string]string{}
+	// ddAPI supports multiple formulas but doesn't make sense in our context
+	// can't have a 'blank' formula, so have to guard
+	if formula != "" {
+		formulas = []map[string]string{{
+			"formula": formula,
+		}}
+	}
+
+	attribs := datadogQueryAttributes{
+		// Datadog requires milliseconds for v2 api
+		From:     (now - interval) * 1000,
+		To:       now * 1000,
+		Queries:  buildQueriesPayload(queries),
+		Formulas: formulas,
+	}
+
+	queryBody, err := json.Marshal(datadogRequest{
+		Data: datadogQuery{
+			QueryType:  "scalar_request",
+			Attributes: attribs,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Could not parse your JSON request: %v", err)
+	}
+	request := &http.Request{Method: "POST"}
+	request.Body = io.NopCloser(bytes.NewReader(queryBody))
+	return request, nil
 }
 
 func (p *Provider) parseResponse(metric v1alpha1.Metric, response *http.Response, apiVersion string) (string, v1alpha1.AnalysisPhase, error) {
 	if apiVersion == "v1" {
 		return p.parseResponseV1(metric, response)
-	} else if apiVersion == "v2" {
-		return p.parseResponseV2(metric, response)
 	}
-	return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Invalid API version: %s", apiVersion)
+	return p.parseResponseV2(metric, response)
 }
 
 func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
-
 	bodyBytes, err := io.ReadAll(response.Body)
-
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
 	}
@@ -263,9 +297,7 @@ func (p *Provider) parseResponseV1(metric v1alpha1.Metric, response *http.Respon
 }
 
 func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Response) (string, v1alpha1.AnalysisPhase, error) {
-
 	bodyBytes, err := io.ReadAll(response.Body)
-
 	if err != nil {
 		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Received no bytes in response: %v", err)
 	}
@@ -288,26 +320,30 @@ func (p *Provider) parseResponseV2(metric v1alpha1.Metric, response *http.Respon
 	}
 
 	// Handle an empty query result
-	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Values) == 0 || len(res.Data.Attributes.Times) == 0 {
+	if reflect.ValueOf(res.Data.Attributes).IsZero() || len(res.Data.Attributes.Columns) == 0 || len(res.Data.Attributes.Columns[0].Values) == 0 {
 		var nilFloat64 *float64
 		status, err := evaluate.EvaluateResult(nilFloat64, metric, p.logCtx)
-		attributesBytes, jsonErr := json.Marshal(res.Data.Attributes)
+
+		var attributesBytes []byte
+		var jsonErr error
+		// Should be impossible for this to not be true, based on dd openapi spec.
+		// But in this case, better safe than sorry
+		if len(res.Data.Attributes.Columns) == 1 {
+			attributesBytes, jsonErr = json.Marshal(res.Data.Attributes.Columns[0].Values)
+		} else {
+			attributesBytes, jsonErr = json.Marshal(res.Data.Attributes)
+		}
+
 		if jsonErr != nil {
-			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Failed to marshall JSON empty series: %v", jsonErr)
+			return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Failed to marshall JSON empty Values: %v", jsonErr)
 		}
 
 		return string(attributesBytes), status, err
 	}
 
 	// Handle a populated query result
-	attributes := res.Data.Attributes
-	datapoint := attributes.Values[0]
-	timepoint := attributes.Times[len(attributes.Times)-1]
-	if timepoint == 0 {
-		return "", v1alpha1.AnalysisPhaseError, fmt.Errorf("Datapoint does not have a corresponding time value")
-	}
-
-	value := datapoint[len(datapoint)-1]
+	column := res.Data.Attributes.Columns[0]
+	value := column.Values[0]
 	status, err := evaluate.EvaluateResult(value, metric, p.logCtx)
 	return strconv.FormatFloat(value, 'f', -1, 64), status, err
 }
@@ -341,7 +377,44 @@ func lookupKeysInEnv(keys []string) map[string]string {
 	return valuesByKey
 }
 
-func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*Provider, error) {
+// The current gen tooling we are using can't generate CRD with all the validations we need.
+// This is unfortunate, user has more ways to deliver an invalid Analysis Template vs
+// being rejected on delivery by k8s (and allowing for a validation step if desired in CI/CD).
+// So we run through all the checks here. If the situation changes (eg: being able to use oneOf with required)
+// in the CRD spec, please update.
+func validateIncomingProps(dd *v1alpha1.DatadogMetric) error {
+	// check that we have the required field
+	if dd.Query == "" && len(dd.Queries) == 0 {
+		return errors.New("Must have either a query or queries. Please review the Analysis Template.")
+	}
+
+	// check that we have ONE OF query/queries
+	if dd.Query != "" && len(dd.Queries) > 0 {
+		return errors.New("Cannot have both a query and queries. Please review the Analysis Template.")
+	}
+
+	// check that query is set for apiversion v1
+	if dd.ApiVersion == "v1" && dd.Query == "" {
+		return errors.New("Query is empty. API Version v1 only supports using the query parameter in your Analysis Template.")
+	}
+
+	// formula <3 queries. won't go anywhere without them
+	if dd.Formula != "" && len(dd.Queries) == 0 {
+		return errors.New("Formula are only valid when queries are set. Please review the Analysis Template.")
+	}
+
+	// Reject queries with more than 1 when NO formula provided. While this would technically work
+	// DD will return 2 columns of data, and there is no guarantee what order they would be in, so
+	// there is no way to guess at intention of user. Since this is about metrics and monitoring, we should
+	// avoid ambiguity.
+	if dd.Formula == "" && len(dd.Queries) > 1 {
+		return errors.New("When multiple queries are provided you must include a formula.")
+	}
+
+	return nil
+}
+
+func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, metric v1alpha1.Metric) (*Provider, error) {
 	ns := defaults.Namespace()
 
 	apiKey := ""
@@ -366,6 +439,12 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*
 	}
 
 	if apiKey != "" && appKey != "" {
+
+		err := validateIncomingProps(metric.Provider.Datadog)
+		if err != nil {
+			return nil, err
+		}
+
 		return &Provider{
 			logCtx: logCtx,
 			config: datadogConfig{
@@ -377,5 +456,4 @@ func NewDatadogProvider(logCtx log.Entry, kubeclientset kubernetes.Interface) (*
 	} else {
 		return nil, errors.New("API or App token not found")
 	}
-
 }
