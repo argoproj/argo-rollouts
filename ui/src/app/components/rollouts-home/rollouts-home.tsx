@@ -83,7 +83,7 @@ export const RolloutsHome = () => {
                     term = term.replace(/^!/, '');
 
                     const isExact = term.startsWith('"') && term.endsWith('"');
-                    term = term.replace(/^"|"$/g, '');
+                    term = term.replace(/"/g, '');
 
                     if (isExact) {
                         if (isNegated) {
