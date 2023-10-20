@@ -51,16 +51,26 @@ export const RolloutsHome = () => {
 
     const filteredRollouts = React.useMemo(() => {
         return rollouts.filter((r) => {
-            if (filters.showFavorites && !favorites[r.objectMeta.name]) {
-                return false;
+            // If no filters are set, show all rollouts
+            if (filters.name === '' && !filters.showFavorites && !filters.showRequiresAttention && !Object.values(filters.status).some((value) => value === true)) {
+                return true;
             }
-            if (filters.showRequiresAttention && r.status !== 'Degraded' && r.status !== 'Paused' && r.message !== 'CanaryPauseStep') {
-                return false;
-            }
-            if (Object.values(filters.status).some((value) => value === true) && !filters.status[r.status]) {
-                return false;
-            }
+
+            let favoritesMatches = false;
+            let requiresAttentionMatches = false;
+            let statusMatches = false;
             let nameMatches = false;
+
+            if (filters.showFavorites && favorites[r.objectMeta.name]) {
+                favoritesMatches = true;
+            }
+            if (filters.showRequiresAttention && (r.status === 'Degraded' || (r.status === 'Paused' && r.message !== 'CanaryPauseStep'))) {
+                requiresAttentionMatches = true;
+            }
+            if (Object.values(filters.status).some((value) => value === true) && filters.status[r.status]) {
+                statusMatches = true;
+            }
+            
             for (let term of filters.name.split(',').map((t) => t.trim())) {
                 if (term === '') continue; // Skip empty terms
 
@@ -112,8 +122,12 @@ export const RolloutsHome = () => {
                     }
                 }
             }
-            if (filters.name != '' && !nameMatches) return false;
-            return true;
+
+            if (favoritesMatches || requiresAttentionMatches || statusMatches || nameMatches) {
+                return true;
+            } else {
+                return false;
+            }
         });
     }, [rollouts, filters, favorites]);
 
