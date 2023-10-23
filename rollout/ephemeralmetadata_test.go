@@ -242,7 +242,6 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 }
 
 func TestReconcileEphemeralMetadata(t *testing.T) {
-	// Create a mock ReplicaSet objects for newRS and stableRS, to test the business logic of the reconcileEphemeralMetadata() function
 	newRS := &v1.ReplicaSet{}
 	stableRS := &v1.ReplicaSet{}
 
