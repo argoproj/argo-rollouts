@@ -44,12 +44,11 @@ func (c *rolloutContext) reconcileEphemeralMetadata() error {
 
 	// Iterate all other ReplicaSets and verify we don't have injected metadata for them
 	for _, rs := range c.otherRSs {
-		err := c.syncEphemeralMetadata(ctx, rs, nil)
+		err := c.syncEphemeralMetadata(ctx, rs, nil) // Define err as needed in your context
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
