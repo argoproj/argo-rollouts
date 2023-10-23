@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1889,4 +1890,121 @@ func TestHandleCanaryAbort(t *testing.T) {
 		newConditions := generateConditionsPatch(true, conditions.ReplicaSetUpdatedReason, r1, false, "", true)
 		assert.JSONEq(t, calculatePatch(r1, fmt.Sprintf(expectedPatch, newConditions)), patch)
 	})
+}
+
+func TestIsDynamicallyRollingBackToStable(t *testing.T) {
+	newRSWithHashAndReplicas := func(hash string, available int32) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					v1alpha1.DefaultRolloutUniqueLabelKey: hash,
+				},
+			},
+			Status: v1.ReplicaSetStatus{
+				AvailableReplicas: available,
+			},
+		}
+	}
+
+	testCases := []struct {
+		name                         string
+		status                       v1alpha1.RolloutStatus
+		trafficRoutingDisabled       bool
+		dynamicStableScalingDisabled bool
+		rsHash                       string
+		rsAvailableReplicas          *int32 // if nil, will set to rollout replicas
+		trafficWeights               *v1alpha1.TrafficWeights
+		expectedResult               bool
+	}{
+		{
+			name:           "desired RS != stable RS",
+			status:         v1alpha1.RolloutStatus{CurrentPodHash: "abc123", StableRS: "def456"},
+			rsHash:         "",
+			expectedResult: false,
+		},
+		{
+			name:                   "not using traffic routing",
+			trafficRoutingDisabled: true,
+			status:                 v1alpha1.RolloutStatus{CurrentPodHash: "abc123", StableRS: "abc123"},
+			rsHash:                 "",
+			expectedResult:         false,
+		},
+		{
+			name:                         "not using dynamicStableScaling",
+			dynamicStableScalingDisabled: true,
+			status:                       v1alpha1.RolloutStatus{CurrentPodHash: "abc123", StableRS: "abc123"},
+			rsHash:                       "",
+			expectedResult:               false,
+		},
+		{
+			name: "weighted selector == desired RS",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+				Canary: v1alpha1.CanaryStatus{
+					Weights: &v1alpha1.TrafficWeights{
+						Canary: v1alpha1.WeightDestination{
+							PodTemplateHash: "abc123",
+						},
+					},
+				},
+			},
+			rsHash:         "abc123",
+			expectedResult: false,
+		},
+		{
+			name: "weighted selector != desired RS, desired not fully available",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+				Canary: v1alpha1.CanaryStatus{
+					Weights: &v1alpha1.TrafficWeights{
+						Canary: v1alpha1.WeightDestination{
+							PodTemplateHash: "def456",
+						},
+					},
+				},
+			},
+			rsHash:              "abc123",
+			rsAvailableReplicas: pointer.Int32(1),
+			expectedResult:      true,
+		},
+		{
+			name: "weighted selector != desired RS, desired RS is fully available",
+			status: v1alpha1.RolloutStatus{
+				CurrentPodHash: "abc123",
+				StableRS:       "abc123",
+				Canary: v1alpha1.CanaryStatus{
+					Weights: &v1alpha1.TrafficWeights{
+						Canary: v1alpha1.WeightDestination{
+							PodTemplateHash: "def456",
+						},
+					},
+				},
+			},
+			rsHash:         "abc123",
+			expectedResult: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ro := newCanaryRollout("test", 10, nil, nil, nil, intstr.FromInt(0), intstr.FromInt(1))
+			if !tc.trafficRoutingDisabled {
+				ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+			}
+			if !tc.dynamicStableScalingDisabled {
+				ro.Spec.Strategy.Canary.DynamicStableScale = true
+			}
+			ro.Status = tc.status
+
+			desiredRS := newRSWithHashAndReplicas(tc.rsHash, 1)
+			if tc.rsAvailableReplicas != nil {
+				desiredRS.Status.AvailableReplicas = *tc.rsAvailableReplicas
+			}
+
+			rbToStable, _ := isDynamicallyRollingBackToStable(ro, desiredRS)
+
+			assert.Equal(t, tc.expectedResult, rbToStable)
+		})
+	}
 }
