@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -752,8 +753,8 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	defer f.Close()
 
 	r1 := newCanaryRollout("foo", 1, nil, []v1alpha1.CanaryStep{{
-		SetWeight: pointer.Int32Ptr(10),
-	}}, pointer.Int32Ptr(0), intstr.FromInt(1), intstr.FromInt(1))
+		SetWeight: pointer.Int32(10),
+	}}, pointer.Int32(0), intstr.FromInt(1), intstr.FromInt(1))
 	r1.Spec.Strategy.Canary.CanaryService = "canary"
 	r1.Spec.Strategy.Canary.StableService = "stable"
 	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
@@ -765,6 +766,7 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	r2 = updateCanaryRolloutStatus(r2, rs2PodHash, 2, 1, 2, false)
 	r2.Status.ObservedGeneration = strconv.Itoa(int(r2.Generation))
+	r2.Status.CurrentStepIndex = pointer.Int32(1)
 	availableCondition, _ := newAvailableCondition(true)
 	conditions.SetRolloutCondition(&r2.Status, availableCondition)
 	completedCondition, _ := newCompletedCondition(true)
@@ -1050,4 +1052,197 @@ func TestDynamicScalingDecreaseWeightAccordingToStableAvailabilityWhenAbortedAnd
 	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
 	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
 	f.run(getKey(r1, t))
+}
+
+func TestRolloutReplicaIsAvailableAndGenerationNotBeModifiedShouldModifyVirtualServiceSHeaderRoute(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetCanaryScale: &v1alpha1.SetCanaryScale{
+				Replicas: pointer.Int32(1),
+			},
+		},
+		{
+			SetHeaderRoute: &v1alpha1.SetHeaderRoute{
+				Name: "test-header",
+				Match: []v1alpha1.HeaderRoutingMatch{
+					{
+						HeaderName: "test",
+						HeaderValue: &v1alpha1.StringMatch{
+							Prefix: "test",
+						},
+					},
+				},
+			},
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		Istio: &v1alpha1.IstioTrafficRouting{
+			VirtualService: &v1alpha1.IstioVirtualService{
+				Name: "test",
+				Routes: []string{
+					"primary",
+				},
+			},
+			DestinationRule: &v1alpha1.IstioDestinationRule{
+				Name:             "test",
+				StableSubsetName: "stable",
+				CanarySubsetName: "canary",
+			},
+		},
+		ManagedRoutes: []v1alpha1.MangedRoutes{
+			{
+				Name: "test-header",
+			},
+		},
+	}
+	r1.Spec.WorkloadRef = &v1alpha1.ObjectRef{
+		Name:       "test",
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+	}
+	r1.Spec.SelectorResolvedFromRef = true
+	r1.Spec.TemplateResolvedFromRef = true
+	r2 := bumpVersion(r1)
+
+	// if set WorkloadRef it does not change the generation
+	r2.ObjectMeta.Generation = r2.ObjectMeta.Generation - 1
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r1)
+	stableSvc := newService("stable", 80, stableSelector, r1)
+	r2.Status.StableRS = rs1PodHash
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			Weight:          0,
+			ServiceName:     "canary",
+			PodTemplateHash: rs2PodHash,
+		},
+		Stable: v1alpha1.WeightDestination{
+			Weight:          100,
+			ServiceName:     "stable",
+			PodTemplateHash: rs1PodHash,
+		},
+	}
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+	f.expectPatchRolloutAction(r2)
+	f.expectPatchReplicaSetAction(rs1)
+	f.expectPatchReplicaSetAction(rs2)
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("SetHeaderRoute", &v1alpha1.SetHeaderRoute{
+		Name: "test-header",
+		Match: []v1alpha1.HeaderRoutingMatch{
+			{
+				HeaderName: "test",
+				HeaderValue: &v1alpha1.StringMatch{
+					Prefix: "test",
+				},
+			},
+		},
+	}).Once().Return(nil)
+	f.run(getKey(r1, t))
+}
+
+// This makes sure we don't set weight to zero if we are rolling back to stable with DynamicStableScale
+func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: pointer.Int32(90),
+		},
+		{
+			Pause: &v1alpha1.RolloutPause{},
+		},
+	}
+	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32(1), intstr.FromInt(1), intstr.FromInt(1))
+	r1.Spec.Strategy.Canary.DynamicStableScale = true
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r1.Spec.Strategy.Canary.CanaryService = "canary"
+	r1.Spec.Strategy.Canary.StableService = "stable"
+	r1.Status.ReadyReplicas = 10
+	r1.Status.AvailableReplicas = 10
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 9, 9)
+
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	canarySelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2PodHash}
+	stableSelector := map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1PodHash}
+	canarySvc := newService("canary", 80, canarySelector, r1)
+	stableSvc := newService("stable", 80, stableSelector, r1)
+
+	// simulate rollback to stable
+	r2.Spec = r1.Spec
+	r2.Status.StableRS = rs1PodHash
+	r2.Status.CurrentPodHash = rs1PodHash // will cause IsFullyPromoted() to be true
+	r2.Status.Canary.Weights = &v1alpha1.TrafficWeights{
+		Canary: v1alpha1.WeightDestination{
+			Weight:          10,
+			ServiceName:     "canary",
+			PodTemplateHash: rs2PodHash,
+		},
+		Stable: v1alpha1.WeightDestination{
+			Weight:          90,
+			ServiceName:     "stable",
+			PodTemplateHash: rs1PodHash,
+		},
+	}
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	f.expectUpdateReplicaSetAction(rs1)                 // Updates the revision annotation from 1 to 3
+	f.expectUpdateReplicaSetAction(rs1)                 // repeat of the above (not sure why)
+	scaleUpIndex := f.expectUpdateReplicaSetAction(rs1) // this one scales the stable RS to 10
+	f.expectPatchRolloutAction(r2)
+
+	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
+	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(func(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
+		// make sure UpdateHash was called with previous desired hash (not current pod hash)
+		if canaryHash != rs2PodHash {
+			return fmt.Errorf("UpdateHash was called with canary hash: %s. Expected: %s", canaryHash, rs2PodHash)
+		}
+		if stableHash != rs1PodHash {
+			return fmt.Errorf("UpdateHash was called with stable hash: %s. Expected: %s", canaryHash, rs1PodHash)
+		}
+		return nil
+
+	})
+	f.fakeTrafficRouting.On("SetWeight", mock.Anything, mock.Anything).Return(func(desiredWeight int32, additionalDestinations ...v1alpha1.WeightDestination) error {
+		// make sure SetWeight was not changed
+		if desiredWeight != 10 {
+			return fmt.Errorf("SetWeight was called with unexpected weight: %d. Expected: 10", desiredWeight)
+		}
+		return nil
+	})
+	f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("RemoveManagedRoutes", mock.Anything, mock.Anything).Return(nil)
+	f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(pointer.BoolPtr(true), nil)
+	f.run(getKey(r1, t))
+
+	// Make sure we scale up stable ReplicaSet to 10
+	rs1Updated := f.getUpdatedReplicaSet(scaleUpIndex)
+	assert.Equal(t, int32(10), *rs1Updated.Spec.Replicas)
 }
