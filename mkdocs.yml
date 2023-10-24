@@ -75,6 +75,7 @@ nav:
   - Overview: features/notifications.md
   - Services:
     - generated/notification-services/alertmanager.md
+    - generated/notification-services/awssqs.md
     - generated/notification-services/email.md
     - generated/notification-services/github.md
     - generated/notification-services/googlechat.md

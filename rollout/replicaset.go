@@ -7,6 +7,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	patchtypes "k8s.io/apimachinery/pkg/types"
@@ -15,6 +16,7 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
 )
 
@@ -35,6 +37,7 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
 		c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
+		c.replicaSetInformer.GetIndexer().Update(rs)
 	}
 	return err
 }
@@ -56,9 +59,10 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 	}
 	deadline := timeutil.MetaNow().Add(scaleDownDelaySeconds).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
-	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	rs, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
 		c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
+		c.replicaSetInformer.GetIndexer().Update(rs)
 	}
 	return err
 }
@@ -293,4 +297,57 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 	}
 
 	return annotationedRSs, desiredReplicaCount, nil
+}
+
+// isReplicaSetReferenced returns if the given ReplicaSet is still being referenced by any of
+// the current, stable, blue-green services. Used to determine if the ReplicaSet can
+// safely be scaled to zero, or deleted.
+func (c *rolloutContext) isReplicaSetReferenced(rs *appsv1.ReplicaSet) bool {
+	rsPodHash := replicasetutil.GetPodTemplateHash(rs)
+	if rsPodHash == "" {
+		return false
+	}
+	ro := c.rollout
+	referencesToCheck := []string{
+		ro.Status.StableRS,
+		ro.Status.CurrentPodHash,
+		ro.Status.BlueGreen.ActiveSelector,
+		ro.Status.BlueGreen.PreviewSelector,
+	}
+	if ro.Status.Canary.Weights != nil {
+		referencesToCheck = append(referencesToCheck, ro.Status.Canary.Weights.Canary.PodTemplateHash, ro.Status.Canary.Weights.Stable.PodTemplateHash)
+	}
+	for _, ref := range referencesToCheck {
+		if ref == rsPodHash {
+			return true
+		}
+	}
+
+	// The above are static, lightweight checks to see if the selectors we record in our status are
+	// still referencing the ReplicaSet in question. Those checks aren't always enough. Next, we do
+	// a deeper check to look up the actual service objects, and see if they are still referencing
+	// the ReplicaSet. If so, we cannot scale it down.
+	var servicesToCheck []string
+	if ro.Spec.Strategy.Canary != nil {
+		servicesToCheck = []string{ro.Spec.Strategy.Canary.CanaryService, ro.Spec.Strategy.Canary.StableService}
+	} else {
+		servicesToCheck = []string{ro.Spec.Strategy.BlueGreen.ActiveService, ro.Spec.Strategy.BlueGreen.PreviewService}
+	}
+	for _, svcName := range servicesToCheck {
+		if svcName == "" {
+			continue
+		}
+		svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(svcName)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				// service doesn't exist
+				continue
+			}
+			return true
+		}
+		if serviceutil.GetRolloutSelectorLabel(svc) == rsPodHash {
+			return true
+		}
+	}
+	return false
 }
