@@ -220,10 +220,9 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 	annotationedRSs := int32(0)
 	rolloutReplicas := defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas)
 	for _, targetRS := range oldRSs {
-		if replicasetutil.IsStillReferenced(c.rollout.Status, targetRS) {
-			// We should technically never get here because we shouldn't be passing a replicaset list
-			// which includes referenced ReplicaSets. But we check just in case
-			c.log.Warnf("Prevented inadvertent scaleDown of RS '%s'", targetRS.Name)
+		if c.isReplicaSetReferenced(targetRS) {
+			// We might get here if user interrupted an an update in order to move back to stable.
+			c.log.Infof("Skip scale down of older RS '%s': still referenced", targetRS.Name)
 			continue
 		}
 		if *targetRS.Spec.Replicas == 0 {
