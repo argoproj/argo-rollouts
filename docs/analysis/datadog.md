@@ -1,8 +1,5 @@
 # Datadog Metrics
 
-!!! important
-    Available since v0.10.0
-
 A [Datadog](https://www.datadoghq.com/) query can be used to obtain measurements for analysis.
 
 ```yaml
@@ -45,6 +42,9 @@ stringData:
 `apiVersion` here is different from the `apiVersion` from the Datadog configuration above.
 
 ### Working with Datadog API v2
+
+!!! important
+    While some basic v2 functionality is working in earlier versions, the new properties of `formula` and `queries` are only available as of v1.7
 
 #### Moving to v2
 
