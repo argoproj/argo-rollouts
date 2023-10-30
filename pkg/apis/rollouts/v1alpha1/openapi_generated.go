@@ -52,7 +52,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AppMeshVirtualService":                           schema_pkg_apis_rollouts_v1alpha1_AppMeshVirtualService(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument":                                        schema_pkg_apis_rollouts_v1alpha1_Argument(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ArgumentValueFrom":                               schema_pkg_apis_rollouts_v1alpha1_ArgumentValueFrom(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Authentication":                                  schema_pkg_apis_rollouts_v1alpha1_Authentication(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.AwsResourceRef":                                  schema_pkg_apis_rollouts_v1alpha1_AwsResourceRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStatus":                                 schema_pkg_apis_rollouts_v1alpha1_BlueGreenStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.BlueGreenStrategy":                               schema_pkg_apis_rollouts_v1alpha1_BlueGreenStrategy(ref),
@@ -94,12 +93,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MetricResult":                                    schema_pkg_apis_rollouts_v1alpha1_MetricResult(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NewRelicMetric":                                  schema_pkg_apis_rollouts_v1alpha1_NewRelicMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.NginxTrafficRouting":                             schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref),
-		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OAuth2Config":                                    schema_pkg_apis_rollouts_v1alpha1_OAuth2Config(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ObjectRef":                                       schema_pkg_apis_rollouts_v1alpha1_ObjectRef(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PauseCondition":                                  schema_pkg_apis_rollouts_v1alpha1_PauseCondition(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PingPongSpec":                                    schema_pkg_apis_rollouts_v1alpha1_PingPongSpec(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PodTemplateMetadata":                             schema_pkg_apis_rollouts_v1alpha1_PodTemplateMetadata(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PreferredDuringSchedulingIgnoredDuringExecution": schema_pkg_apis_rollouts_v1alpha1_PreferredDuringSchedulingIgnoredDuringExecution(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusAuth":                                  schema_pkg_apis_rollouts_v1alpha1_PrometheusAuth(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusMetric":                                schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RequiredDuringSchedulingIgnoredDuringExecution":  schema_pkg_apis_rollouts_v1alpha1_RequiredDuringSchedulingIgnoredDuringExecution(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RollbackWindowSpec":                              schema_pkg_apis_rollouts_v1alpha1_RollbackWindowSpec(ref),
@@ -1100,35 +1099,6 @@ func schema_pkg_apis_rollouts_v1alpha1_ArgumentValueFrom(ref common.ReferenceCal
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_Authentication(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "Authentication method",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"sigv4": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Sigv4Config"),
-						},
-					},
-					"oauth2": {
-						SchemaProps: spec.SchemaProps{
-							Description: "OAuth2 config",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OAuth2Config"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.OAuth2Config", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Sigv4Config"},
-	}
-}
-
 func schema_pkg_apis_rollouts_v1alpha1_AwsResourceRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1836,38 +1806,15 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"interval": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Interval refers to the Interval time window in Datadog (default: 5m). Not to be confused with the polling rate for the metric.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"query": {
-						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
 						},
 					},
-					"queries": {
+					"query": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Queries is a map of query_name_as_key: query. You can then use query_name_as_key inside Formula.Used for v2",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"formula": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Formula refers to the Formula made up of the queries. Only useful with Queries. Used for v2",
-							Type:        []string{"string"},
-							Format:      "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"apiVersion": {
@@ -1878,6 +1825,7 @@ func schema_pkg_apis_rollouts_v1alpha1_DatadogMetric(ref common.ReferenceCallbac
 						},
 					},
 				},
+				Required: []string{"query"},
 			},
 		},
 	}
@@ -3294,54 +3242,6 @@ func schema_pkg_apis_rollouts_v1alpha1_NginxTrafficRouting(ref common.ReferenceC
 	}
 }
 
-func schema_pkg_apis_rollouts_v1alpha1_OAuth2Config(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"tokenUrl": {
-						SchemaProps: spec.SchemaProps{
-							Description: "OAuth2 provider token URL",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"clientId": {
-						SchemaProps: spec.SchemaProps{
-							Description: "OAuth2 client ID",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"clientSecret": {
-						SchemaProps: spec.SchemaProps{
-							Description: "OAuth2 client secret",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"scopes": {
-						SchemaProps: spec.SchemaProps{
-							Description: "OAuth2 scopes",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_rollouts_v1alpha1_ObjectRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3502,6 +3402,27 @@ func schema_pkg_apis_rollouts_v1alpha1_PreferredDuringSchedulingIgnoredDuringExe
 	}
 }
 
+func schema_pkg_apis_rollouts_v1alpha1_PrometheusAuth(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PrometheusMetric defines the prometheus query to perform canary analysis",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"sigv4": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Sigv4Config"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Sigv4Config"},
+	}
+}
+
 func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3525,9 +3446,9 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 					},
 					"authentication": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Authentication details",
+							Description: "Sigv4 Config is the aws SigV4 configuration to use for SigV4 signing if using Amazon Managed Prometheus",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Authentication"),
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusAuth"),
 						},
 					},
 					"timeout": {
@@ -3568,7 +3489,7 @@ func schema_pkg_apis_rollouts_v1alpha1_PrometheusMetric(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Authentication", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.PrometheusAuth", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader"},
 	}
 }
 
@@ -5537,19 +5458,12 @@ func schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref common.ReferenceCallback) c
 							Format:      "byte",
 						},
 					},
-					"authentication": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Authentication details",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Authentication"),
-						},
-					},
 				},
 				Required: []string{"url"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Authentication", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetricHeader"},
 	}
 }
 
