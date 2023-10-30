@@ -155,7 +155,10 @@ export const RolloutsHome = () => {
 
 const EmptyMessage = (props: {namespace: string}) => {
     const CodeLine = (props: {children: string}) => {
-        return <pre onClick={() => navigator.clipboard.writeText(props.children)}>{props.children}</pre>;
+        return (
+        <pre onClick={() => navigator.clipboard.writeText(props.children)}
+            onKeyDown={() => navigator.clipboard.writeText(props.children)}
+            >{props.children}</pre>);
     };
     return (
         <div className='rollouts-list__empty-message'>
