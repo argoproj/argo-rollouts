@@ -3308,10 +3308,6 @@
 
 
 <h1 id="datadog-metrics">Datadog Metrics<a class="headerlink" href="#datadog-metrics" title="Permanent link">&para;</a></h1>
-<div class="admonition important">
-<p class="admonition-title">Important</p>
-<p>Available since v0.10.0</p>
-</div>
 <p>A <a href="https://www.datadoghq.com/">Datadog</a> query can be used to obtain measurements for analysis.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisTemplate</span>
@@ -3346,6 +3342,10 @@
 </code></pre></div>
 <p><code>apiVersion</code> here is different from the <code>apiVersion</code> from the Datadog configuration above.</p>
 <h3 id="working-with-datadog-api-v2">Working with Datadog API v2<a class="headerlink" href="#working-with-datadog-api-v2" title="Permanent link">&para;</a></h3>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>While some basic v2 functionality is working in earlier versions, the new properties of <code>formula</code> and <code>queries</code> are only available as of v1.7</p>
+</div>
 <h4 id="moving-to-v2">Moving to v2<a class="headerlink" href="#moving-to-v2" title="Permanent link">&para;</a></h4>
 <p>If your old v1 was just a simple metric query - no formula as part of the query - then you can just move to v2 by updating the <code>apiVersion</code> in your existing Analysis Template, and everything should work.</p>
 <p>If you have a formula, you will need to update how you configure your metric. Here is a before/after example of what your Analysis Template should look like:</p>
