@@ -780,6 +780,31 @@ spec:
 	assert.Equal(t, httpRoutes[0].Route[2].Weight, int64(20))
 }
 
+func TestHttpReconcileInvalidMultipleDestRule(t *testing.T) {
+	ro := rolloutWithDestinationRule()
+	// set to invalid destination rule
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.DestinationRule = &v1alpha1.IstioDestinationRule{
+		Name:             "invalid-destination-rule",
+		CanarySubsetName: "canary",
+		StableSubsetName: "stable",
+	}
+
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name = "vsvc"
+	ro.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes = nil
+
+	obj := unstructuredutil.StrToUnstructuredUnsafe(singleRouteSubsetMultipleDestRuleVsvc)
+	client := testutil.NewFakeDynamicClient(obj)
+	vsvcLister, druleLister := getIstioListers(client)
+	r := NewReconciler(ro, client, record.NewFakeEventRecorder(), vsvcLister, druleLister)
+	client.ClearActions()
+
+	vsvcRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Routes
+	vsvcTLSRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TLSRoutes
+	vsvcTCPRoutes := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.TCPRoutes
+	_, _, err := r.reconcileVirtualService(obj, vsvcRoutes, vsvcTLSRoutes, vsvcTCPRoutes, 10)
+	assert.Error(t, err, "expected destination rule not found")
+}
+
 func TestHttpReconcileHeaderRouteHostBased(t *testing.T) {
 	ro := rolloutWithHttpRoutes("stable", "canary", "vsvc", []string{"primary"})
 	obj := unstructuredutil.StrToUnstructuredUnsafe(regularVsvc)
