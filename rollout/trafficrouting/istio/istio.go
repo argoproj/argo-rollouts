@@ -255,23 +255,6 @@ func (r *Reconciler) reconcileVirtualService(obj *unstructured.Unstructured, vsv
 		if err = ValidateHTTPRoutes(r.rollout, vsvcRouteNames, httpRoutes); err != nil {
 			return nil, false, err
 		}
-
-		host, err := r.getDestinationRuleHost()
-		if err != nil {
-			return nil, false, err
-		}
-
-		if host != "" {
-			var routeDestinations []VirtualServiceRouteDestination
-			for i, routes := range httpRoutes {
-				for _, r := range routes.Route {
-					if r.Destination.Host == host {
-						routeDestinations = append(routeDestinations, VirtualServiceRouteDestination{Destination: r.Destination, Weight: r.Weight})
-					}
-				}
-				httpRoutes[i].Route = routeDestinations
-			}
-		}
 	}
 
 	// TLS Routes
