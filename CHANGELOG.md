@@ -1,4 +1,34 @@
 
+<a name="v1.6.2"></a>
+## [v1.6.2](https://github.com/argoproj/argo-rollouts/compare/v1.6.1...v1.6.2) (2023-11-02)
+
+### Fix
+
+* Revert "fix: istio destionationrule subsets enforcement ([#3126](https://github.com/argoproj/argo-rollouts/issues/3126))" ([#3147](https://github.com/argoproj/argo-rollouts/issues/3147))
+
+
+<a name="v1.6.1"></a>
+## [v1.6.1](https://github.com/argoproj/argo-rollouts/compare/v1.6.0...v1.6.1) (2023-11-01)
+
+### Chore
+
+* upgrade cosign ([#3139](https://github.com/argoproj/argo-rollouts/issues/3139))
+* add missing rollout fields ([#3062](https://github.com/argoproj/argo-rollouts/issues/3062))
+* change file name for readthedocs compatibility ([#2999](https://github.com/argoproj/argo-rollouts/issues/2999))
+
+### Fix
+
+* istio destionationrule subsets enforcement ([#3126](https://github.com/argoproj/argo-rollouts/issues/3126))
+* docs require build.os to be defined ([#3133](https://github.com/argoproj/argo-rollouts/issues/3133))
+* inopportune scaling events would lose some status fields ([#3060](https://github.com/argoproj/argo-rollouts/issues/3060))
+* rollback to stable with dynamicStableScale could overwhelm stable pods ([#3077](https://github.com/argoproj/argo-rollouts/issues/3077))
+* prevent hot loop when fully promoted rollout is aborted ([#3064](https://github.com/argoproj/argo-rollouts/issues/3064))
+* keep rs informer updated ([#3091](https://github.com/argoproj/argo-rollouts/issues/3091))
+* bump notification-engine to fix double send on self server notifications ([#3095](https://github.com/argoproj/argo-rollouts/issues/3095))
+* sync notification controller configmaps/secrets first ([#3075](https://github.com/argoproj/argo-rollouts/issues/3075))
+* missing notification on error ([#3076](https://github.com/argoproj/argo-rollouts/issues/3076))
+
+
 <a name="v1.6.0"></a>
 ## [v1.6.0](https://github.com/argoproj/argo-rollouts/compare/v1.6.0-rc1...v1.6.0) (2023-09-05)
 
