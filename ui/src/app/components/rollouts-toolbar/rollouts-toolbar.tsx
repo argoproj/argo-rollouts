@@ -27,7 +27,7 @@ interface StatusCount {
     [key: string]: number;
 }
 
-export const defaultDisplayMode = 'table';
+export const defaultDisplayMode = 'grid';
 
 export const RolloutsToolbar = ({
     rollouts,
