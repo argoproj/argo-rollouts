@@ -8,7 +8,7 @@
 The Argo Rollout controller achieves traffic shaping by creating and manipulating the [TrafficSplit CR](https://github.com/servicemeshinterface/smi-spec/blob/master/traffic-split.md). A TrafficSplit describes the desired traffic routing for an application and relies on the underlying Service Meshes implement that desired state. Instead of worrying about the details of a specific service mesh, a user needs to specify a root Service that clients use to communicate and a list of backends consisting of a Service and weight. The Service Mesh implementing SMI uses this spec to route traffic to the backends Services based on the weights of the backends. For Rollout users, the Argo Rollout controller creates and manipulates the TrafficSplit using the following information:
 
 - Canary Service: Name of the service that sends traffic only to the canary pods
-- Stable Service: Name of the service that sends traffic only to the stable po ds
+- Stable Service: Name of the service that sends traffic only to the stable pods
 - Root Service: Name of the service that clients use to communicate. If a request comes to this root service not through a proxy, the standard Kubernetes service routing will be used.
 
 Below is an example of a Rollout with all the required fields configured:
