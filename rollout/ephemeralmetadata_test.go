@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -238,4 +239,37 @@ func TestSyncBlueGreenEphemeralMetadataSecondRevision(t *testing.T) {
 	// also it's pods
 	updatedPod := f.getUpdatedPod(podIdx)
 	assert.Equal(t, expectedStableLabels, updatedPod.Labels)
+}
+
+func TestReconcileEphemeralMetadata(t *testing.T) {
+	newRS := &v1.ReplicaSet{}
+	stableRS := &v1.ReplicaSet{}
+
+	mockContext := &rolloutContext{
+		rollout: &v1alpha1.Rollout{
+			Spec: v1alpha1.RolloutSpec{
+				Strategy: v1alpha1.RolloutStrategy{
+					Canary: &v1alpha1.CanaryStrategy{
+						CanaryMetadata: &v1alpha1.PodTemplateMetadata{},
+						StableMetadata: &v1alpha1.PodTemplateMetadata{},
+					},
+				},
+			},
+			Status: v1alpha1.RolloutStatus{
+				StableRS: "some-stable-rs-hash",
+			},
+		},
+		newRS:    newRS,
+		stableRS: stableRS,
+		otherRSs: []*v1.ReplicaSet{new(v1.ReplicaSet), new(v1.ReplicaSet)},
+	}
+
+	// Scenario 1: upgrading state when the new ReplicaSet is a canary
+	err := mockContext.reconcileEphemeralMetadata()
+	assert.NoError(t, err)
+
+	// Scenario 2: Sync stable metadata to the stable ReplicaSet
+	mockContext.rollout.Status.StableRS = "" // Set stable ReplicaSet to empty to simulate an upgrading state
+	err = mockContext.reconcileEphemeralMetadata()
+	assert.NoError(t, err)
 }
