@@ -36,6 +36,11 @@ const Page = (props: {path: string; component: React.ReactNode; exact?: boolean;
                                     setShowShortcuts(!showShortcuts);
                                 }
                             }}
+                            hideHelp={() => {
+                                if (props.shortcuts) {
+                                    setShowShortcuts(false);
+                                }
+                            }}
                         />
                         {props.component}
                     </React.Fragment>

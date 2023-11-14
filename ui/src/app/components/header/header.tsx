@@ -12,7 +12,7 @@ import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
 
 const Logo = () => <img src='assets/images/argo-icon-color-square.png' style={{width: '37px', height: '37px', margin: '0 12px'}} alt='Argo Logo' />;
 
-export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val: string) => void; showHelp: () => void}) => {
+export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val: string) => void; showHelp: () => void; hideHelp: () => void}) => {
     const history = useHistory();
     const namespaceInfo = React.useContext(NamespaceContext);
     const {namespace} = useParams<{namespace: string}>();
@@ -30,7 +30,7 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
     );
 
     useKeybinding(Key.ESCAPE, () => {
-        props.showHelp();
+        props.hideHelp();
         return true;
     });
 
