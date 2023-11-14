@@ -56,18 +56,21 @@ export const RolloutsHome = () => {
                 return true;
             }
 
+            const statusFiltersSet = Object.values(filters.status).some((value) => value === true);
+            const nameFilterSet = filters.name !== '';
+
             let favoritesMatches = false;
             let requiresAttentionMatches = false;
             let statusMatches = false;
             let nameMatches = false;
-
+            
             if (filters.showFavorites && favorites[r.objectMeta.name]) {
                 favoritesMatches = true;
             }
             if (filters.showRequiresAttention && (r.status === 'Unknown' || r.status === 'Degraded' || (r.status === 'Paused' && r.message !== 'CanaryPauseStep'))) {
                 requiresAttentionMatches = true;
             }
-            if (Object.values(filters.status).some((value) => value === true) && filters.status[r.status]) {
+            if (statusFiltersSet && filters.status[r.status]) {
                 statusMatches = true;
             }
             
@@ -122,12 +125,15 @@ export const RolloutsHome = () => {
                     }
                 }
             }
+            console.log('nameFilterSet %s, showFavorites: %s, showRequiresAttention: %s, statusFiltersSet: %s', nameFilterSet, filters.showFavorites, filters.showRequiresAttention, statusFiltersSet);
+            console.log('nameMatches: %s, favoritesMatches: %s, requiresAttentionMatches: %s, statusMatches: %s', nameMatches, favoritesMatches, requiresAttentionMatches, statusMatches);
 
-            if (favoritesMatches || requiresAttentionMatches || statusMatches || nameMatches) {
-                return true;
-            } else {
-                return false;
-            }
+            return (
+                (!nameFilterSet || nameMatches) && 
+                (!filters.showFavorites || favoritesMatches) &&
+                (!filters.showRequiresAttention || requiresAttentionMatches) &&
+                (!statusFiltersSet || statusMatches)
+            );
         });
     }, [rollouts, filters, favorites]);
 
