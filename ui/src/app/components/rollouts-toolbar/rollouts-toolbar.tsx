@@ -187,15 +187,17 @@ export const RolloutsToolbar = ({
                         <StatusCount status={'NeedsAttention'} count={needsAttentionCount} active={filters.showRequiresAttention} />
                     </button>
                 </Tooltip>
-                {Object.keys(statusCounts).map((status: string) => {
-                    return (
-                        <Tooltip key={status} title={'Show Only ' + status + ' Rollouts'}>
-                            <button id={status} className='rollouts-toolbar_status-button' onClick={handleStatusFilterChange}>
-                                <StatusCount key={status} status={status} count={statusCounts[status]} active={filters.status[status]} />
-                            </button>
-                        </Tooltip>
-                    );
-                })}
+                <div className='rollouts-toolbar_status-buttons'>
+                    {Object.keys(statusCounts).map((status: string) => {
+                        return (
+                            <Tooltip key={status} title={'Show Only ' + status + ' Rollouts'}>
+                                <button id={status} className='rollouts-toolbar_status-button' onClick={handleStatusFilterChange}>
+                                    <StatusCount key={status} status={status} count={statusCounts[status]} active={filters.status[status]} />
+                                </button>
+                            </Tooltip>
+                        );
+                    })}
+                </div>
             </div>
             <div className='rollouts-toolbar_display-modes'>
                 <Tooltip title={'Table View'}>

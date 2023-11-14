@@ -45,3 +45,11 @@
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
+
+.rollouts-toolbar_status-filters {
+    display: flex;
+}
+
+.rollouts-toolbar_status-buttons {
+    margin-left: 20px;
+}
