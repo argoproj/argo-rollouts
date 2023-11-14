@@ -64,7 +64,7 @@ export const RolloutsHome = () => {
             if (filters.showFavorites && favorites[r.objectMeta.name]) {
                 favoritesMatches = true;
             }
-            if (filters.showRequiresAttention && (r.status === 'Degraded' || (r.status === 'Paused' && r.message !== 'CanaryPauseStep'))) {
+            if (filters.showRequiresAttention && (r.status === 'Unknown' || r.status === 'Degraded' || (r.status === 'Paused' && r.message !== 'CanaryPauseStep'))) {
                 requiresAttentionMatches = true;
             }
             if (Object.values(filters.status).some((value) => value === true) && filters.status[r.status]) {

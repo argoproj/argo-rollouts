@@ -155,7 +155,9 @@ export const RolloutsToolbar = ({
 
     const needsAttentionCount: number = React.useMemo(() => {
         const pausedRollouts = rollouts.filter((r) => r.status === 'Paused' && r.message !== 'CanaryPauseStep');
-        return statusCounts['Degraded'] + pausedRollouts.length;
+        const degradedRollouts = rollouts.filter((r) => r.status === 'Degraded');
+        const unknownRollouts = rollouts.filter((r) => r.status === 'Unknown');
+        return pausedRollouts.length + degradedRollouts.length + unknownRollouts.length;
     }, [rollouts, statusCounts]);
 
     const favoriteCount: number = React.useMemo(() => {
