@@ -125,8 +125,6 @@ export const RolloutsHome = () => {
                     }
                 }
             }
-            console.log('nameFilterSet %s, showFavorites: %s, showRequiresAttention: %s, statusFiltersSet: %s', nameFilterSet, filters.showFavorites, filters.showRequiresAttention, statusFiltersSet);
-            console.log('nameMatches: %s, favoritesMatches: %s, requiresAttentionMatches: %s, statusMatches: %s', nameMatches, favoritesMatches, requiresAttentionMatches, statusMatches);
 
             return (
                 (!nameFilterSet || nameMatches) && 
