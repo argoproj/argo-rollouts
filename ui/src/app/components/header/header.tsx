@@ -20,7 +20,16 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
     const [version, setVersion] = React.useState('v?');
     const [nsInput, setNsInput] = React.useState(namespaceInfo.namespace);
     const {useKeybinding} = React.useContext(KeybindingContext);
-    useKeybinding([Key.SHIFT, Key.H], () => {
+
+    useKeybinding([Key.SHIFT, Key.H], 
+        () => {
+            props.showHelp();
+            return true;
+        },
+        true
+    );
+
+    useKeybinding(Key.ESCAPE, () => {
         props.showHelp();
         return true;
     });

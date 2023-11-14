@@ -173,15 +173,6 @@ export const RolloutsToolbar = ({
         }
         return false;
     });
-    useKeybinding(Key.ESCAPE, () => {
-        if (filters.name !== '') {
-            handleNameFilterChange('');
-            searchRef.current.blur();
-            return true;
-        } else {
-            return false;
-        }
-    });
 
     return (
         <div className='rollouts-toolbar'>
