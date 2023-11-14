@@ -12,6 +12,7 @@ import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
 import {RolloutInfo} from '../../../models/rollout/rollout';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
+import { AlignType } from 'rc-table/lib/interface';
 import './rollouts-table.scss';
 
 export const RolloutsTable = ({
@@ -87,11 +88,19 @@ export const RolloutsTable = ({
             title: 'Strategy',
             dataIndex: 'strategy',
             key: 'strategy',
-            align: 'left' as const,
+            align: 'left' as AlignType,
             sorter: (a: any, b: any) => a.strategy.localeCompare(b.strategy),
             render: (strategy: string) => {
                 return (
-                    <InfoItemRow label={''} items={{content: strategy, icon: strategy === 'BlueGreen' ? 'fa-palette' : 'fa-dove', kind: strategy.toLowerCase() as InfoItemKind}} />
+                    <InfoItemRow 
+                        label={false} 
+                        items={{
+                            content: strategy, 
+                            icon: strategy === 'BlueGreen' ? 'fa-palette' : 'fa-dove', 
+                            kind: strategy.toLowerCase() as InfoItemKind
+                        }}
+                        style={{marginLeft: '0px', paddingLeft: '0px'}}
+                    />
                 );
             },
         },
