@@ -116,12 +116,22 @@ export const RolloutsToolbar = ({
             searchParams.set('displayMode', event.currentTarget.id);
         } else {
             searchParams.delete('displayMode');
+            searchParams.delete('displaymode');
         }
         history.push({search: searchParams.toString()});
         handleFilterChange(newFilters);
     };
 
     const handleStatusFilterChange = (event: React.MouseEvent<HTMLButtonElement>) => {
+        const searchParams = new URLSearchParams(location.search);
+
+        if (!filters.status[event.currentTarget.id]) {
+            searchParams.set(event.currentTarget.id, 'true');
+        } else {
+            searchParams.delete(event.currentTarget.id);
+        }
+        history.push({search: searchParams.toString()});
+
         const newFilters = {
             ...filters,
             status: {
@@ -129,14 +139,7 @@ export const RolloutsToolbar = ({
                 [event.currentTarget.id]: !filters.status[event.currentTarget.id],
             },
         };
-        const searchParams = new URLSearchParams(location.search);
-        if (event.currentTarget.id) {
-            searchParams.set(event.currentTarget.id, 'true');
-        } else {
-            searchParams.delete(event.currentTarget.id);
-        }
-        history.push({search: searchParams.toString()});
-        handleFilterChange(newFilters);
+        handleFilterChange(newFilters);        
     };
 
     const statusCounts: StatusCount = React.useMemo(() => {
