@@ -205,12 +205,16 @@ export const RolloutsToolbar = ({
                 })}
             </div>
             <div className='rollouts-toolbar_display-modes'>
-                <button id='table' className={`rollouts-toolbar_mode-button ${filters.displayMode === 'table' ? 'active' : ''}`} onClick={handleDisplayModeChange}>
-                    <FontAwesomeIcon icon={faTableList} />
-                </button>
-                <button id='grid' className={`rollouts-toolbar_mode-button ${filters.displayMode === 'grid' ? 'active' : ''}`} onClick={handleDisplayModeChange}>
-                    <FontAwesomeIcon icon={faTableCellsLarge} />
-                </button>
+                <Tooltip title={'Table View'}>
+                    <button id='table' className={`rollouts-toolbar_mode-button ${filters.displayMode === 'table' ? 'active' : ''}`} onClick={handleDisplayModeChange}>
+                        <FontAwesomeIcon icon={faTableList} />
+                    </button>
+                </Tooltip>
+                <Tooltip title={'Grid View'}>
+                    <button id='grid' className={`rollouts-toolbar_mode-button ${filters.displayMode === 'grid' ? 'active' : ''}`} onClick={handleDisplayModeChange}>
+                        <FontAwesomeIcon icon={faTableCellsLarge} />
+                    </button>
+                </Tooltip>
             </div>
             <Tooltip
                 title={
