@@ -2,7 +2,7 @@ import * as React from 'react';
 import {useHistory} from 'react-router-dom';
 import {Key, KeybindingContext, useNav} from 'react-keyhooks';
 import {RolloutInfo} from '../../../models/rollout/rollout';
-import {RolloutWidget} from '../rollout-widget/rollout-widget';
+import {RolloutGridWidget} from '../rollout-grid-widget/rollout-grid-widget';
 import './rollouts-grid.scss';
 
 export const RolloutsGrid = ({
@@ -81,7 +81,7 @@ export const RolloutsGrid = ({
     return (
         <div className='rollouts-grid' ref={rolloutsGridRef}>
             {orderedRollouts.map((rollout, i) => (
-                <RolloutWidget
+                <RolloutGridWidget
                     key={rollout.objectMeta?.uid}
                     rollout={rollout}
                     selected={i === pos}

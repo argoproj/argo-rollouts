@@ -16,7 +16,7 @@ import {useClickOutside} from '../../shared/utils/utils';
 import {InfoItemKind, InfoItemRow} from '../info-item/info-item';
 import {RolloutAction, RolloutActionButton} from '../rollout-actions/rollout-actions';
 import {RolloutStatus, StatusIcon} from '../status-icon/status-icon';
-import './rollout-widget.scss';
+import './rollout-grid-widget.scss';
 
 export const isInProgress = (rollout: RolloutInfo): boolean => {
     for (const rs of rollout.replicaSets || []) {
@@ -30,7 +30,7 @@ export const isInProgress = (rollout: RolloutInfo): boolean => {
     return false;
 };
 
-export const RolloutWidget = (props: {
+export const RolloutGridWidget = (props: {
     rollout: RolloutInfo;
     deselect: () => void;
     selected?: boolean;
