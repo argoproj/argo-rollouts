@@ -224,6 +224,9 @@ export const RolloutsToolbar = ({
                     placeholder='Filter by name or label tag:value'
                     value={filters.name}
                     onChange={handleNameFilterChange}
+                    onKeyDown={(event) => {
+                        event.stopPropagation(); // Prevents shift+H from opening the help menu
+                    }}
                     ref={searchRef}
                 />
             </Tooltip>
