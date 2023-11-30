@@ -379,7 +379,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		if err == nil {
 			err = c.replicaSetInformer.GetIndexer().Update(rs)
 			if err != nil {
-				err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet", c.replicaSetInformer.GetIndexer().Update(rs))
+				err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %v", c.replicaSetInformer.GetIndexer().Update(rs))
 				return scaled, rs, err
 			}
 			if sizeNeedsUpdate {
