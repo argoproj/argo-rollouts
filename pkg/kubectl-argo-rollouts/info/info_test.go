@@ -169,3 +169,11 @@ func TestRolloutAborted(t *testing.T) {
 	assert.Equal(t, "Degraded", roInfo.Status)
 	assert.Equal(t, `RolloutAborted: metric "web" assessed Failed due to failed (1) > failureLimit (0)`, roInfo.Message)
 }
+
+func TestRolloutInfoMetadata(t *testing.T) {
+	rolloutObjs := testdata.NewCanaryRollout()
+	roInfo := NewRolloutInfo(rolloutObjs.Rollouts[0], rolloutObjs.ReplicaSets, rolloutObjs.Pods, rolloutObjs.Experiments, rolloutObjs.AnalysisRuns, nil)
+	assert.Equal(t, roInfo.ObjectMeta.Name, rolloutObjs.Rollouts[0].Name)
+	assert.Equal(t, roInfo.ObjectMeta.Annotations, rolloutObjs.Rollouts[0].Annotations)
+	assert.Equal(t, roInfo.ObjectMeta.Labels, rolloutObjs.Rollouts[0].Labels)
+}

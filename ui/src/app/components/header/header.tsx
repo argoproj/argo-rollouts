@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import {useParams} from 'react-router';
+import {Key, KeybindingContext} from 'react-keyhooks';
 import {NamespaceContext, RolloutAPIContext} from '../../shared/context/api';
 
 import './header.scss';
@@ -11,13 +12,28 @@ import {faBook, faKeyboard} from '@fortawesome/free-solid-svg-icons';
 
 const Logo = () => <img src='assets/images/argo-icon-color-square.png' style={{width: '37px', height: '37px', margin: '0 12px'}} alt='Argo Logo' />;
 
-export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val: string) => void; showHelp: () => void}) => {
+export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val: string) => void; showHelp: () => void; hideHelp: () => void}) => {
     const history = useHistory();
     const namespaceInfo = React.useContext(NamespaceContext);
     const {namespace} = useParams<{namespace: string}>();
     const api = React.useContext(RolloutAPIContext);
     const [version, setVersion] = React.useState('v?');
     const [nsInput, setNsInput] = React.useState(namespaceInfo.namespace);
+    const {useKeybinding} = React.useContext(KeybindingContext);
+
+    useKeybinding([Key.SHIFT, Key.H], 
+        () => {
+            props.showHelp();
+            return true;
+        },
+        true
+    );
+
+    useKeybinding(Key.ESCAPE, () => {
+        props.hideHelp();
+        return true;
+    });
+
     React.useEffect(() => {
         const getVersion = async () => {
             const v = await api.rolloutServiceVersion();
@@ -25,12 +41,14 @@ export const Header = (props: {pageHasShortcuts: boolean; changeNamespace: (val:
         };
         getVersion();
     }, []);
+
     React.useEffect(() => {
         if (namespace && namespace != namespaceInfo.namespace) {
             props.changeNamespace(namespace);
             setNsInput(namespace);
         }
     }, []);
+
     return (
         <header className='rollouts-header'>
             <Link to='/' className='rollouts-header__brand'>

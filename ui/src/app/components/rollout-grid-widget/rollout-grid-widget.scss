@@ -1,0 +1,178 @@
+@import 'node_modules/argo-ui/v2/styles/colors';
+
+$WIDGET_WIDTH: 400px;
+
+$widgetPadding: 17px;
+$widgetMarginRight: 20px;
+$colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
+
+.rollouts-list {
+    display: flex;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+
+    &__search-container {
+        width: 50% !important;
+        margin: 0 auto;
+    }
+
+    &__search {
+        width: 100%;
+        font-size: 15px;
+    }
+
+    &__rollouts-container {
+        padding: 20px;
+        display: flex;
+        flex-wrap: wrap;
+
+        width: 3 * $colWidth;
+        margin: 0 auto;
+
+        @media screen and (max-width: (3 * $colWidth)) {
+            width: 2 * $colWidth;
+            margin: 0 auto;
+        }
+
+        @media screen and (max-width: (2 * $colWidth)) {
+            width: $colWidth;
+
+            .rollouts-list__widget {
+                margin: 0 inherit;
+                width: 100%;
+            }
+
+            .rollouts-list__search-container {
+                width: 100% !important;
+            }
+        }
+    }
+
+    &__empty-message {
+        padding-top: 70px;
+        width: 50%;
+        margin: 0 auto;
+        color: $argo-color-gray-7;
+        h1 {
+            margin-bottom: 1em;
+            text-align: center;
+        }
+        div {
+            line-height: 1.5em;
+        }
+        pre {
+            overflow: scroll;
+            cursor: pointer;
+            line-height: 2em;
+            font-size: 15px;
+            padding: 3px 5px;
+            color: $argo-color-gray-8;
+            margin: 0.5em 0;
+            background-color: white;
+        }
+        a {
+            color: $sea;
+            border-bottom: 1px solid $sea;
+        }
+
+        &--dark {
+            color: $shine;
+            a {
+                color: $sky;
+                border-color: $sky;
+            }
+            pre {
+                background-color: $space;
+                color: $shine;
+            }
+        }
+
+        @media screen and (max-width: (2 * $colWidth)) {
+            width: 80%;
+        }
+    }
+
+    &__toolbar {
+        width: 100%;
+        padding: 1em 0;
+        background-color: white;
+        border-bottom: 1px solid white;
+
+        &--dark {
+            border-bottom: 1px solid $silver-lining;
+            background-color: $space;
+        }
+    }
+
+    &__widget {
+        position: relative;
+        box-sizing: border-box;
+        padding: 17px;
+        font-size: 14px;
+        margin: 0 10px;
+        color: $argo-color-gray-7;
+        width: $WIDGET_WIDTH;
+        height: max-content;
+        flex-shrink: 0;
+        margin-bottom: 1.5em;
+        border-radius: 5px;
+        background-color: white;
+        box-shadow: 1px 2px 2px rgba(0, 0, 0, 0.05);
+        border: 1px solid $argo-color-gray-4;
+        z-index: 0;
+
+        &:hover,
+        &--selected {
+            border-color: $argo-running-color;
+        }
+
+        &__pods {
+            margin-bottom: 1em;
+        }
+
+        &--dark {
+            color: $dull-shine;
+            border-color: $silver-lining;
+            box-shadow: 1px 2px 3px 1px $space;
+            background: none;
+        }
+
+        &__refresh {
+            &:hover {
+                color: $argo-running-color;
+            }
+        }
+
+        &__body {
+            margin-bottom: 1em;
+            padding-bottom: 0.75em;
+            border-bottom: 1px solid $argo-color-gray-4;
+            &--dark {
+                border-bottom: 1px solid $silver-lining;
+            }
+        }
+
+        header {
+            color: $argo-color-gray-8;
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+            font-size: 20px;
+            margin-bottom: 1em;
+        }
+
+        &--dark header {
+            color: $shine;
+            border-bottom: 1px solid $silver-lining;
+        }
+        &__actions {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-top: 1.5em;
+            z-index: 10 !important;
+            color: $argo-color-gray-7;
+            font-size: 14px;
+        }
+    }
+}

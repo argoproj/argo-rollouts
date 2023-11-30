@@ -63,7 +63,8 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
                                             setError(true);
                                         }
                                     }
-                                }}>
+                                }}
+                            >
                                 {error ? 'ERROR' : 'SAVE'}
                             </ConfirmButton>
                         </div>
