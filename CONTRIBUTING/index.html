@@ -3187,6 +3187,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#running-the-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running the UI
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#controller-architecture" class="md-nav__link">
     <span class="md-ellipsis">
       Controller architecture
@@ -3457,6 +3466,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#running-the-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running the UI
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#controller-architecture" class="md-nav__link">
     <span class="md-ellipsis">
       Controller architecture
@@ -3601,6 +3619,20 @@ kubectl apply -f test/e2e/crds
 <p>To run a subset of e2e tests, you need to specify the suite with <code>-run</code>, and the specific test regex with <code>-testify.m</code>.</p>
 <div class="highlight"><pre><span></span><code>E2E_TEST_OPTIONS=&quot;-run &#39;TestCanarySuite&#39; -testify.m &#39;TestCanaryScaleDownOnAbortNoTrafficRouting&#39;&quot; make test-e2e
 </code></pre></div>
+<h2 id="running-the-ui">Running the UI<a class="headerlink" href="#running-the-ui" title="Permanent link">&para;</a></h2>
+<p>If you'd like to run the UI locally, you first need a running Rollouts controller. This can be a locally running controller with a k3d cluster, as described above, or a controller running in a remote Kubernetes cluster. </p>
+<p>In order for the local React app to communicate with the controller and Kubernetes API, run the following to open a port forward to the dashboard:
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>dashboard
+</code></pre></div></p>
+<p>Note that you can also build the API server and run this instead,</p>
+<div class="highlight"><pre><span></span><code>make plugin
+./dist/kubectl-argo-rollouts dashboard
+</code></pre></div>
+<p>In another terminal, run the following to start the UI:
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>ui
+yarn<span class="w"> </span>install
+yarn<span class="w"> </span>start
+</code></pre></div></p>
 <h2 id="controller-architecture">Controller architecture<a class="headerlink" href="#controller-architecture" title="Permanent link">&para;</a></h2>
 <p>Argo Rollouts is actually a collection of individual controllers
 that handle a specific aspect of Progressive Delivery.</p>
