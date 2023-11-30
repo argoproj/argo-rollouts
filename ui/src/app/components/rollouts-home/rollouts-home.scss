@@ -6,6 +6,12 @@ $widgetPadding: 17px;
 $widgetMarginRight: 20px;
 $colWidth: ($WIDGET_WIDTH + (2 * $widgetPadding)) + $widgetMarginRight;
 
+.rollouts-home {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
 .rollouts-list {
     display: flex;
     box-sizing: border-box;

@@ -107,7 +107,8 @@ export const RolloutActionButton = (props: {action: RolloutAction; rollout: Roll
             disabled={ap.disabled}
             loading={loading}
             tooltip={ap.tooltip}
-            icon={<FontAwesomeIcon icon={ap.icon} style={{marginRight: '5px'}} />}>
+            icon={<FontAwesomeIcon icon={ap.icon} style={{marginRight: '5px'}} />}
+        >
             {props.action}
         </ConfirmButton>
     );
