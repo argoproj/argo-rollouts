@@ -37,7 +37,11 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
 		c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
-		c.replicaSetInformer.GetIndexer().Update(rs)
+		err = c.replicaSetInformer.GetIndexer().Update(rs)
+		if err != nil {
+			return fmt.Errorf("error updating replicaset informer in removeScaleDownDelay", err)
+		}
+
 	}
 	return err
 }
@@ -62,7 +66,10 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 	rs, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	if err == nil {
 		c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
-		c.replicaSetInformer.GetIndexer().Update(rs)
+		err = c.replicaSetInformer.GetIndexer().Update(rs)
+		if err != nil {
+			return fmt.Errorf("error updating replicaset informer in addScaleDownDelay", err)
+		}
 	}
 	return err
 }
