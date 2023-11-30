@@ -8,7 +8,7 @@ Install:
 * [docker](https://docs.docker.com/install/#supported-platforms)
 * [golang](https://golang.org/)
 * [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
-* [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
+* [kustomize](https://github.com/kubernetes-sigs/kustomize/releases) >= 4.5.5
 * [k3d](https://k3d.io/) recommended
 
 Kustomize is required for unit tests (`make test` is using it), so you [must install it](https://kubectl.docs.kubernetes.io/installation/kustomize/)
