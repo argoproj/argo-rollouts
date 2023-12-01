@@ -127,33 +127,17 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 
 func TestReconcileNewReplicaSet(t *testing.T) {
 	tests := []struct {
-		name                          string
-		rolloutReplicas               int
-		newReplicas                   int
-		scaleExpected                 bool
-		abortScaleDownDelaySeconds    int32
-		abortScaleDownAnnotated       bool
-		abortScaleDownDelayPassed     bool
-		expectedNewReplicas           int
-		addDefaultScaleDownAnnotation bool
-		failRSUpdate                  bool
+		name                       string
+		rolloutReplicas            int
+		newReplicas                int
+		scaleExpected              bool
+		abortScaleDownDelaySeconds int32
+		abortScaleDownAnnotated    bool
+		abortScaleDownDelayPassed  bool
+		expectedNewReplicas        int
+		failRSUpdate               bool
+		abort                      bool
 	}{
-		{
-			name:                          "New Replica Set matches rollout replica: No scale and add annotation",
-			rolloutReplicas:               10,
-			newReplicas:                   10,
-			scaleExpected:                 false,
-			addDefaultScaleDownAnnotation: true,
-		},
-		{
-			name:                          "New Replica Set matches rollout replica: No scale and fail update",
-			rolloutReplicas:               10,
-			newReplicas:                   10,
-			scaleExpected:                 false,
-			addDefaultScaleDownAnnotation: true,
-			failRSUpdate:                  true,
-		},
-
 		{
 			name:            "New Replica Set matches rollout replica: No scale",
 			rolloutReplicas: 10,
@@ -181,6 +165,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			newReplicas:     10,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    true,
 			abortScaleDownDelayPassed:  true,
 			scaleExpected:              true,
@@ -192,6 +177,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			newReplicas:     8,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    true,
 			abortScaleDownDelayPassed:  false,
 			scaleExpected:              false,
@@ -202,9 +188,19 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			rolloutReplicas:            10,
 			newReplicas:                10,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    false,
 			scaleExpected:              false,
 			expectedNewReplicas:        0,
+		},
+		{
+			name:                       "Fail to update RS: No scale and add default annotation",
+			rolloutReplicas:            10,
+			newReplicas:                10,
+			scaleExpected:              false,
+			failRSUpdate:               true,
+			abort:                      true,
+			abortScaleDownDelaySeconds: -1,
 		},
 	}
 	for i := range tests {
@@ -252,21 +248,15 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			}
 			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
 
-			if test.abortScaleDownDelaySeconds == 0 && test.addDefaultScaleDownAnnotation {
-				if test.failRSUpdate {
-					//We need to be in an aborted state in order to call patch api
-					rollout.Status.Abort = true
-				}
-				roCtx.stableRS.Status.AvailableReplicas = 10
-				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
-					BlueGreen: &v1alpha1.BlueGreenStrategy{
-						AbortScaleDownDelaySeconds: nil,
-					},
-				}
+			rollout.Status.Abort = test.abort
+			roCtx.stableRS.Status.AvailableReplicas = int32(test.rolloutReplicas)
+			rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+				},
 			}
 
 			if test.abortScaleDownDelaySeconds > 0 {
-				rollout.Status.Abort = true
 				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
 					BlueGreen: &v1alpha1.BlueGreenStrategy{
 						AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
@@ -280,6 +270,14 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 						deadline = timeutil.Now().Add(time.Duration(test.abortScaleDownDelaySeconds) * time.Second).UTC().Format(time.RFC3339)
 					}
 					roCtx.newRS.Annotations[v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey] = deadline
+				}
+			}
+
+			if test.abortScaleDownDelaySeconds < 0 {
+				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+					BlueGreen: &v1alpha1.BlueGreenStrategy{
+						AbortScaleDownDelaySeconds: nil,
+					},
 				}
 			}
 
