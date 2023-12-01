@@ -39,7 +39,7 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 		c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
 		err = c.replicaSetInformer.GetIndexer().Update(rs)
 		if err != nil {
-			return fmt.Errorf("error updating replicaset informer in removeScaleDownDelay: %v", err)
+			return fmt.Errorf("error updating replicaset informer in removeScaleDownDelay: %w", err)
 		}
 
 	}
@@ -68,7 +68,7 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 		c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
 		err = c.replicaSetInformer.GetIndexer().Update(rs)
 		if err != nil {
-			return fmt.Errorf("error updating replicaset informer in addScaleDownDelay: %v", err)
+			return fmt.Errorf("error updating replicaset informer in addScaleDownDelay: %w", err)
 		}
 	}
 	return err
