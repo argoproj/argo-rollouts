@@ -127,31 +127,31 @@ func TestGetReplicaSetsForRollouts(t *testing.T) {
 
 func TestReconcileNewReplicaSet(t *testing.T) {
 	tests := []struct {
-		name                       string
-		rolloutReplicas            int
-		newReplicas                int
-		scaleExpected              bool
-		abortScaleDownDelaySeconds int32
-		abortScaleDownAnnotated    bool
-		abortScaleDownDelayPassed  bool
-		expectedNewReplicas        int
-		addAnnotation              bool
-		failRSUpdate               bool
+		name                          string
+		rolloutReplicas               int
+		newReplicas                   int
+		scaleExpected                 bool
+		abortScaleDownDelaySeconds    int32
+		abortScaleDownAnnotated       bool
+		abortScaleDownDelayPassed     bool
+		expectedNewReplicas           int
+		addDefaultScaleDownAnnotation bool
+		failRSUpdate                  bool
 	}{
 		{
-			name:            "New Replica Set matches rollout replica: No scale and add annotation",
-			rolloutReplicas: 10,
-			newReplicas:     10,
-			scaleExpected:   false,
-			addAnnotation:   true,
+			name:                          "New Replica Set matches rollout replica: No scale and add annotation",
+			rolloutReplicas:               10,
+			newReplicas:                   10,
+			scaleExpected:                 false,
+			addDefaultScaleDownAnnotation: true,
 		},
 		{
-			name:            "New Replica Set matches rollout replica: No scale and fail update",
-			rolloutReplicas: 10,
-			newReplicas:     10,
-			scaleExpected:   false,
-			addAnnotation:   true,
-			failRSUpdate:    true,
+			name:                          "New Replica Set matches rollout replica: No scale and fail update",
+			rolloutReplicas:               10,
+			newReplicas:                   10,
+			scaleExpected:                 false,
+			addDefaultScaleDownAnnotation: true,
+			failRSUpdate:                  true,
 		},
 
 		{
@@ -218,8 +218,8 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			k8sfake := k8sfake.Clientset{}
 
 			if test.failRSUpdate {
-				k8sfake.PrependReactor("update", "replicasets", func(action core.Action) (handled bool, ret runtime.Object, err error) {
-					return true, newRS, fmt.Errorf("should not update replica set")
+				k8sfake.PrependReactor("patch", "replicasets", func(action core.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &appsv1.ReplicaSet{}, fmt.Errorf("should not patch replica set")
 				})
 			}
 
@@ -252,8 +252,11 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			}
 			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
 
-			if test.abortScaleDownDelaySeconds == 0 && test.addAnnotation {
-				rollout.Status.Abort = true
+			if test.abortScaleDownDelaySeconds == 0 && test.addDefaultScaleDownAnnotation {
+				if test.failRSUpdate {
+					//We need to be in an aborted state in order to call patch api
+					rollout.Status.Abort = true
+				}
 				roCtx.stableRS.Status.AvailableReplicas = 10
 				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
 					BlueGreen: &v1alpha1.BlueGreenStrategy{
@@ -281,6 +284,10 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			}
 
 			scaled, err := roCtx.reconcileNewReplicaSet()
+			if test.failRSUpdate {
+				assert.Error(t, err)
+				return
+			}
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
