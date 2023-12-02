@@ -1,5 +1,5 @@
 import * as React from 'react';
-import * as moment from 'moment';
+import moment from 'moment';
 import {Duration, Ticker} from 'argo-ui';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';

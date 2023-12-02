@@ -8,7 +8,7 @@
         "@fortawesome/free-solid-svg-icons": "^6.4.0",
         "@fortawesome/react-fontawesome": "^0.2.0",
         "antd": "^5.4.2",
-        "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
+        "argo-ui": "git+https://github.com/argoproj/argo-ui.git#5ff344ac9692c14dd108468bd3c020c3c75181cb",
         "classnames": "2.2.6",
         "isomorphic-fetch": "^3.0.0",
         "moment": "^2.29.4",
@@ -25,7 +25,7 @@
         "web-vitals": "^1.0.1"
     },
     "scripts": {
-        "start": "webpack serve --config ./src/app/webpack.dev.js",
+        "start": "NODE_OPTIONS=--openssl-legacy-provider webpack serve --config ./src/app/webpack.dev.js",
         "build": "rm -rf dist && NODE_OPTIONS=--openssl-legacy-provider webpack --config ./src/app/webpack.prod.js",
         "test": "react-scripts test",
         "eject": "react-scripts eject",
@@ -60,6 +60,9 @@
         "@types/react-dom": "^16.9.3",
         "@types/react-helmet": "^6.1.0",
         "@types/react-router-dom": "^5.1.7",
+        "@types/react-form": "^2.16.1",
+        "@types/uuid": "^9.0.3",
+        "@types/react-autocomplete": "^1.8.4",
         "copy-webpack-plugin": "^6.3.2",
         "mini-css-extract-plugin": "^1.3.9",
         "raw-loader": "^4.0.2",
