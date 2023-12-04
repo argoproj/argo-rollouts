@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -134,8 +135,9 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 		abortScaleDownAnnotated    bool
 		abortScaleDownDelayPassed  bool
 		expectedNewReplicas        int
+		failRSUpdate               bool
+		abort                      bool
 	}{
-
 		{
 			name:            "New Replica Set matches rollout replica: No scale",
 			rolloutReplicas: 10,
@@ -163,6 +165,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			newReplicas:     10,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    true,
 			abortScaleDownDelayPassed:  true,
 			scaleExpected:              true,
@@ -174,6 +177,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			newReplicas:     8,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    true,
 			abortScaleDownDelayPassed:  false,
 			scaleExpected:              false,
@@ -184,9 +188,19 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			rolloutReplicas:            10,
 			newReplicas:                10,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    false,
 			scaleExpected:              false,
 			expectedNewReplicas:        0,
+		},
+		{
+			name:                       "Fail to update RS: No scale and add default annotation",
+			rolloutReplicas:            10,
+			newReplicas:                10,
+			scaleExpected:              false,
+			failRSUpdate:               true,
+			abort:                      true,
+			abortScaleDownDelaySeconds: -1,
 		},
 	}
 	for i := range tests {
@@ -198,6 +212,12 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
+
+			if test.failRSUpdate {
+				k8sfake.PrependReactor("patch", "replicasets", func(action core.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &appsv1.ReplicaSet{}, fmt.Errorf("should not patch replica set")
+				})
+			}
 
 			f := newFixture(t)
 			defer f.Close()
@@ -226,15 +246,22 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 					rollout: rollout,
 				},
 			}
-			roCtx.enqueueRolloutAfter = func(obj interface{}, duration time.Duration) {}
+			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
+
+			rollout.Status.Abort = test.abort
+			roCtx.stableRS.Status.AvailableReplicas = int32(test.rolloutReplicas)
+			rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+				},
+			}
+
 			if test.abortScaleDownDelaySeconds > 0 {
-				rollout.Status.Abort = true
 				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
 					BlueGreen: &v1alpha1.BlueGreenStrategy{
 						AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
 					},
 				}
-
 				if test.abortScaleDownAnnotated {
 					var deadline string
 					if test.abortScaleDownDelayPassed {
@@ -246,7 +273,19 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				}
 			}
 
+			if test.abortScaleDownDelaySeconds < 0 {
+				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+					BlueGreen: &v1alpha1.BlueGreenStrategy{
+						AbortScaleDownDelaySeconds: nil,
+					},
+				}
+			}
+
 			scaled, err := roCtx.reconcileNewReplicaSet()
+			if test.failRSUpdate {
+				assert.Error(t, err)
+				return
+			}
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
