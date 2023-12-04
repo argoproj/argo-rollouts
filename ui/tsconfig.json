@@ -2,14 +2,14 @@
     "compilerOptions": {
         "sourceMap": true,
         "noImplicitAny": true,
-        "module": "commonjs",
+        "module": "CommonJS",
         "target": "es6",
         "jsx": "react",
         "experimentalDecorators": true,
         "noUnusedLocals": true,
         "declaration": false,
         "lib": ["es2017", "dom"],
-        "esModuleInterop": true
+        "allowSyntheticDefaultImports": true
     },
     "include": ["./**/*"],
     "exclude": ["node_modules", "./**/*.test.ts", "./**/*.test.tsx"]
