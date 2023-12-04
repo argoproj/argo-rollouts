@@ -94,7 +94,6 @@ var allowAllPodValidationOptions = apivalidation.PodValidationOptions{
 	AllowDownwardAPIHugePages:       true,
 	AllowInvalidPodDeletionCost:     true,
 	AllowIndivisibleHugePagesValues: true,
-	AllowWindowsHostProcessField:    true,
 	AllowExpandedDNSConfig:          true,
 }
 
@@ -117,7 +116,7 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 			message := fmt.Sprintf(MissingFieldMessage, ".spec.selector")
 			allErrs = append(allErrs, field.Required(fldPath.Child("selector"), message))
 		} else {
-			allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, fldPath.Child("selector"))...)
+			allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, unversionedvalidation.LabelSelectorValidationOptions{}, fldPath.Child("selector"))...)
 			if len(spec.Selector.MatchLabels)+len(spec.Selector.MatchExpressions) == 0 {
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "empty selector is invalid for deployment"))
 			}

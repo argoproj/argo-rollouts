@@ -9,7 +9,6 @@ import (
 
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -800,8 +799,8 @@ func TestVerifyWeight(t *testing.T) {
 			SetWeight: pointer.Int32Ptr(10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
-		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		i.Status.LoadBalancer = extensionsv1beta1.IngressLoadBalancerStatus{
+			Ingress: []extensionsv1beta1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
 				},
@@ -1001,15 +1000,15 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 		mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
-		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		i.Status.LoadBalancer = extensionsv1beta1.IngressLoadBalancerStatus{
+			Ingress: []extensionsv1beta1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
 				},
 			},
 		}
-		mi.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		mi.Status.LoadBalancer = extensionsv1beta1.IngressLoadBalancerStatus{
+			Ingress: []extensionsv1beta1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-multi-ingress.us-west-2.elb.amazonaws.com",
 				},
@@ -1337,8 +1336,8 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
 
-		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		i.Status.LoadBalancer = extensionsv1beta1.IngressLoadBalancerStatus{
+			Ingress: []extensionsv1beta1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
 				},
@@ -1552,15 +1551,15 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
 		mi.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
 
-		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		i.Status.LoadBalancer = extensionsv1beta1.IngressLoadBalancerStatus{
+			Ingress: []extensionsv1beta1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
 				},
 			},
 		}
-		mi.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		mi.Status.LoadBalancer = extensionsv1beta1.IngressLoadBalancerStatus{
+			Ingress: []extensionsv1beta1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-multi-ingress.us-west-2.elb.amazonaws.com",
 				},
