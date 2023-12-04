@@ -3048,6 +3048,20 @@
       },
       "description": "Represents a cinder volume resource in Openstack.\nA Cinder volume must exist before mounting to a container.\nThe volume must also be in the same region as the kubelet.\nCinder volumes support ownership management and SELinux relabeling."
     },
+    "k8s.io.api.core.v1.ClaimSource": {
+      "type": "object",
+      "properties": {
+        "resourceClaimName": {
+          "type": "string",
+          "description": "ResourceClaimName is the name of a ResourceClaim object in the same\nnamespace as this pod."
+        },
+        "resourceClaimTemplateName": {
+          "type": "string",
+          "description": "ResourceClaimTemplateName is the name of a ResourceClaimTemplate\nobject in the same namespace as this pod.\n\nThe template will be used to create a new ResourceClaim, which will\nbe bound to this pod. When this pod is deleted, the ResourceClaim\nwill also be deleted. The name of the ResourceClaim will be \u003cpod\nname\u003e-\u003cresource name\u003e, where \u003cresource name\u003e is the\nPodResourceClaim.Name. Pod validation will reject the pod if the\nconcatenated name is not valid for a ResourceClaim (e.g. too long).\n\nAn existing ResourceClaim with that name that is not owned by the\npod will not be used for the pod to avoid using an unrelated\nresource by mistake. Scheduling and pod startup are then blocked\nuntil the unrelated ResourceClaim is removed.\n\nThis field is immutable and no changes will be made to the\ncorresponding ResourceClaim by the control plane after creating the\nResourceClaim."
+        }
+      },
+      "description": "ClaimSource describes a reference to a ResourceClaim.\n\nExactly one of these fields should be set.  Consumers of this type must\ntreat an empty object as if it has an unknown value."
+    },
     "k8s.io.api.core.v1.ConfigMapEnvSource": {
       "type": "object",
       "properties": {
@@ -4019,11 +4033,11 @@
         },
         "dataSource": {
           "$ref": "#/definitions/k8s.io.api.core.v1.TypedLocalObjectReference",
-          "title": "dataSource field can be used to specify either:\n* An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)\n* An existing PVC (PersistentVolumeClaim)\nIf the provisioner or an external controller can support the specified data source,\nit will create a new volume based on the contents of the specified data source.\nIf the AnyVolumeDataSource feature gate is enabled, this field will always have\nthe same contents as the DataSourceRef field.\n+optional"
+          "title": "dataSource field can be used to specify either:\n* An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)\n* An existing PVC (PersistentVolumeClaim)\nIf the provisioner or an external controller can support the specified data source,\nit will create a new volume based on the contents of the specified data source.\nWhen the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,\nand dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.\nIf the namespace is specified, then dataSourceRef will not be copied to dataSource.\n+optional"
         },
         "dataSourceRef": {
-          "$ref": "#/definitions/k8s.io.api.core.v1.TypedLocalObjectReference",
-          "title": "dataSourceRef specifies the object from which to populate the volume with data, if a non-empty\nvolume is desired. This may be any local object from a non-empty API group (non\ncore object) or a PersistentVolumeClaim object.\nWhen this field is specified, volume binding will only succeed if the type of\nthe specified object matches some installed volume populator or dynamic\nprovisioner.\nThis field will replace the functionality of the DataSource field and as such\nif both fields are non-empty, they must have the same value. For backwards\ncompatibility, both fields (DataSource and DataSourceRef) will be set to the same\nvalue automatically if one of them is empty and the other is non-empty.\nThere are two important differences between DataSource and DataSourceRef:\n* While DataSource only allows two specific types of objects, DataSourceRef\n  allows any non-core object, as well as PersistentVolumeClaim objects.\n* While DataSource ignores disallowed values (dropping them), DataSourceRef\n  preserves all values, and generates an error if a disallowed value is\n  specified.\n(Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.\n+optional"
+          "$ref": "#/definitions/k8s.io.api.core.v1.TypedObjectReference",
+          "title": "dataSourceRef specifies the object from which to populate the volume with data, if a non-empty\nvolume is desired. This may be any object from a non-empty API group (non\ncore object) or a PersistentVolumeClaim object.\nWhen this field is specified, volume binding will only succeed if the type of\nthe specified object matches some installed volume populator or dynamic\nprovisioner.\nThis field will replace the functionality of the dataSource field and as such\nif both fields are non-empty, they must have the same value. For backwards\ncompatibility, when namespace isn't specified in dataSourceRef,\nboth fields (dataSource and dataSourceRef) will be set to the same\nvalue automatically if one of them is empty and the other is non-empty.\nWhen namespace is specified in dataSourceRef,\ndataSource isn't set to the same value and must be empty.\nThere are three important differences between dataSource and dataSourceRef:\n* While dataSource only allows two specific types of objects, dataSourceRef\n  allows any non-core object, as well as PersistentVolumeClaim objects.\n* While dataSource ignores disallowed values (dropping them), dataSourceRef\n  preserves all values, and generates an error if a disallowed value is\n  specified.\n* While dataSource only allows local objects, dataSourceRef allows objects\n  in any namespaces.\n(Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.\n(Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.\n+optional"
         }
       },
       "title": "PersistentVolumeClaimSpec describes the common attributes of storage devices\nand allows a Source for provider-specific attributes"
@@ -4196,6 +4210,30 @@
       },
       "title": "PodReadinessGate contains the reference to a pod condition"
     },
+    "k8s.io.api.core.v1.PodResourceClaim": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name uniquely identifies this resource claim inside the pod.\nThis must be a DNS_LABEL."
+        },
+        "source": {
+          "$ref": "#/definitions/k8s.io.api.core.v1.ClaimSource",
+          "description": "Source describes where to find the ResourceClaim."
+        }
+      },
+      "description": "PodResourceClaim references exactly one ResourceClaim through a ClaimSource.\nIt adds a name to it that uniquely identifies the ResourceClaim inside the Pod.\nContainers that need access to the ResourceClaim reference it with this name."
+    },
+    "k8s.io.api.core.v1.PodSchedulingGate": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the scheduling gate.\nEach scheduling gate must have a unique name field."
+        }
+      },
+      "description": "PodSchedulingGate is associated to a Pod to guard its scheduling."
+    },
     "k8s.io.api.core.v1.PodSecurityContext": {
       "type": "object",
       "properties": {
@@ -4227,7 +4265,7 @@
             "type": "string",
             "format": "int64"
           },
-          "title": "A list of groups applied to the first process run in each container, in addition\nto the container's primary GID.  If unspecified, no groups will be added to\nany container.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
+          "title": "A list of groups applied to the first process run in each container, in addition\nto the container's primary GID, the fsGroup (if specified), and group memberships\ndefined in the container image for the uid of the container process. If unspecified,\nno additional groups are added to any container. Note that group memberships\ndefined in the container image for the uid of the container process are still effective,\neven if they are not included in this list.\nNote that this field cannot be set when spec.os.name is windows.\n+optional"
         },
         "fsGroup": {
           "type": "string",
@@ -4439,6 +4477,20 @@
         "hostUsers": {
           "type": "boolean",
           "title": "Use the host's user namespace.\nOptional: Default to true.\nIf set to true or not present, the pod will be run in the host user namespace, useful\nfor when the pod needs a feature only available to the host user namespace, such as\nloading a kernel module with CAP_SYS_MODULE.\nWhen set to false, a new userns is created for the pod. Setting false is useful for\nmitigating container breakout vulnerabilities even allowing users to run their\ncontainers as root without actually having root privileges on the host.\nThis field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.\n+k8s:conversion-gen=false\n+optional"
+        },
+        "schedulingGates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/k8s.io.api.core.v1.PodSchedulingGate"
+          },
+          "description": "SchedulingGates is an opaque list of values that if specified will block scheduling the pod.\nMore info:  https://git.k8s.io/enhancements/keps/sig-scheduling/3521-pod-scheduling-readiness.\n\nThis is an alpha-level feature enabled by PodSchedulingReadiness feature gate.\n+optional\n+patchMergeKey=name\n+patchStrategy=merge\n+listType=map\n+listMapKey=name"
+        },
+        "resourceClaims": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/k8s.io.api.core.v1.PodResourceClaim"
+          },
+          "description": "ResourceClaims defines which ResourceClaims must be allocated\nand reserved before the Pod is allowed to start. The resources\nwill be made available to those containers which consume them\nby name.\n\nThis is an alpha field and requires enabling the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable.\n\n+patchMergeKey=name\n+patchStrategy=merge,retainKeys\n+listType=map\n+listMapKey=name\n+featureGate=DynamicResourceAllocation\n+optional"
         }
       },
       "description": "PodSpec is a description of a pod."
@@ -4641,6 +4693,16 @@
       },
       "description": "Represents a Rados Block Device mount that lasts the lifetime of a pod.\nRBD volumes support ownership management and SELinux relabeling."
     },
+    "k8s.io.api.core.v1.ResourceClaim": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name must match the name of one entry in pod.spec.resourceClaims of\nthe Pod where this field is used. It makes that resource available\ninside a container."
+        }
+      },
+      "description": "ResourceClaim references one entry in PodSpec.ResourceClaims."
+    },
     "k8s.io.api.core.v1.ResourceFieldSelector": {
       "type": "object",
       "properties": {
@@ -4675,6 +4737,13 @@
             "$ref": "#/definitions/k8s.io.apimachinery.pkg.api.resource.Quantity"
           },
           "title": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if that is explicitly specified,\notherwise to an implementation-defined value.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/\n+optional"
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/k8s.io.api.core.v1.ResourceClaim"
+          },
+          "description": "Claims lists the names of resources, defined in spec.resourceClaims,\nthat are used by this container.\n\nThis is an alpha field and requires enabling the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable.\n\n+listType=set\n+featureGate=DynamicResourceAllocation\n+optional"
         }
       },
       "description": "ResourceRequirements describes the compute resource requirements."
@@ -5019,11 +5088,11 @@
         },
         "nodeAffinityPolicy": {
           "type": "string",
-          "description": "NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector\nwhen calculating pod topology spread skew. Options are:\n- Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations.\n- Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.\n\nIf this value is nil, the behavior is equivalent to the Honor policy.\nThis is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.\n+optional"
+          "description": "NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector\nwhen calculating pod topology spread skew. Options are:\n- Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations.\n- Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.\n\nIf this value is nil, the behavior is equivalent to the Honor policy.\nThis is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.\n+optional"
         },
         "nodeTaintsPolicy": {
           "type": "string",
-          "description": "NodeTaintsPolicy indicates how we will treat node taints when calculating\npod topology spread skew. Options are:\n- Honor: nodes without taints, along with tainted nodes for which the incoming pod\nhas a toleration, are included.\n- Ignore: node taints are ignored. All nodes are included.\n\nIf this value is nil, the behavior is equivalent to the Ignore policy.\nThis is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.\n+optional"
+          "description": "NodeTaintsPolicy indicates how we will treat node taints when calculating\npod topology spread skew. Options are:\n- Honor: nodes without taints, along with tainted nodes for which the incoming pod\nhas a toleration, are included.\n- Ignore: node taints are ignored. All nodes are included.\n\nIf this value is nil, the behavior is equivalent to the Ignore policy.\nThis is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.\n+optional"
         },
         "matchLabelKeys": {
           "type": "array",
@@ -5052,6 +5121,27 @@
         }
       },
       "title": "TypedLocalObjectReference contains enough information to let you locate the\ntyped referenced object inside the same namespace.\n+structType=atomic"
+    },
+    "k8s.io.api.core.v1.TypedObjectReference": {
+      "type": "object",
+      "properties": {
+        "apiGroup": {
+          "type": "string",
+          "title": "APIGroup is the group for the resource being referenced.\nIf APIGroup is not specified, the specified Kind must be in the core API group.\nFor any other third-party types, APIGroup is required.\n+optional"
+        },
+        "kind": {
+          "type": "string",
+          "title": "Kind is the type of resource being referenced"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name is the name of resource being referenced"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace is the namespace of resource being referenced\nNote that when a namespace is specified, a gateway.networking.k8s.io/ReferenceGrant object is required in the referent namespace to allow that namespace's owner to accept the reference. See the ReferenceGrant documentation for details.\n(Alpha) This field requires the CrossNamespaceVolumeDataSource feature gate to be enabled.\n+featureGate=CrossNamespaceVolumeDataSource\n+optional"
+        }
+      }
     },
     "k8s.io.api.core.v1.Volume": {
       "type": "object",
