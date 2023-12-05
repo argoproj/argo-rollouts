@@ -387,8 +387,7 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "action",
-                                                                                "onPodConditions"
+                                                                                "action"
                                                                             ],
                                                                             "type": "object"
                                                                         },
@@ -1645,7 +1644,10 @@
                                                                                                         "type": "object"
                                                                                                     },
                                                                                                     "type": "array",
-                                                                                                    "x-kubernetes-list-type": "set"
+                                                                                                    "x-kubernetes-list-map-keys": [
+                                                                                                        "name"
+                                                                                                    ],
+                                                                                                    "x-kubernetes-list-type": "map"
                                                                                                 },
                                                                                                 "limits": {
                                                                                                     "x-kubernetes-preserve-unknown-fields": true
@@ -2610,7 +2612,10 @@
                                                                                                         "type": "object"
                                                                                                     },
                                                                                                     "type": "array",
-                                                                                                    "x-kubernetes-list-type": "set"
+                                                                                                    "x-kubernetes-list-map-keys": [
+                                                                                                        "name"
+                                                                                                    ],
+                                                                                                    "x-kubernetes-list-type": "map"
                                                                                                 },
                                                                                                 "limits": {
                                                                                                     "x-kubernetes-preserve-unknown-fields": true
@@ -3585,7 +3590,10 @@
                                                                                                         "type": "object"
                                                                                                     },
                                                                                                     "type": "array",
-                                                                                                    "x-kubernetes-list-type": "set"
+                                                                                                    "x-kubernetes-list-map-keys": [
+                                                                                                        "name"
+                                                                                                    ],
+                                                                                                    "x-kubernetes-list-type": "map"
                                                                                                 },
                                                                                                 "limits": {
                                                                                                     "x-kubernetes-preserve-unknown-fields": true
@@ -4997,8 +5005,7 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "action",
-                                                                                "onPodConditions"
+                                                                                "action"
                                                                             ],
                                                                             "type": "object"
                                                                         },
@@ -6255,7 +6262,10 @@
                                                                                                         "type": "object"
                                                                                                     },
                                                                                                     "type": "array",
-                                                                                                    "x-kubernetes-list-type": "set"
+                                                                                                    "x-kubernetes-list-map-keys": [
+                                                                                                        "name"
+                                                                                                    ],
+                                                                                                    "x-kubernetes-list-type": "map"
                                                                                                 },
                                                                                                 "limits": {
                                                                                                     "x-kubernetes-preserve-unknown-fields": true
@@ -7220,7 +7230,10 @@
                                                                                                         "type": "object"
                                                                                                     },
                                                                                                     "type": "array",
-                                                                                                    "x-kubernetes-list-type": "set"
+                                                                                                    "x-kubernetes-list-map-keys": [
+                                                                                                        "name"
+                                                                                                    ],
+                                                                                                    "x-kubernetes-list-type": "map"
                                                                                                 },
                                                                                                 "limits": {
                                                                                                     "x-kubernetes-preserve-unknown-fields": true
@@ -8195,7 +8208,10 @@
                                                                                                         "type": "object"
                                                                                                     },
                                                                                                     "type": "array",
-                                                                                                    "x-kubernetes-list-type": "set"
+                                                                                                    "x-kubernetes-list-map-keys": [
+                                                                                                        "name"
+                                                                                                    ],
+                                                                                                    "x-kubernetes-list-type": "map"
                                                                                                 },
                                                                                                 "limits": {
                                                                                                     "x-kubernetes-preserve-unknown-fields": true
@@ -9607,8 +9623,7 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "action",
-                                                                                "onPodConditions"
+                                                                                "action"
                                                                             ],
                                                                             "type": "object"
                                                                         },
@@ -10865,7 +10880,10 @@
                                                                                                         "type": "object"
                                                                                                     },
                                                                                                     "type": "array",
-                                                                                                    "x-kubernetes-list-type": "set"
+                                                                                                    "x-kubernetes-list-map-keys": [
+                                                                                                        "name"
+                                                                                                    ],
+                                                                                                    "x-kubernetes-list-type": "map"
                                                                                                 },
                                                                                                 "limits": {
                                                                                                     "x-kubernetes-preserve-unknown-fields": true
@@ -11830,7 +11848,10 @@
                                                                                                         "type": "object"
                                                                                                     },
                                                                                                     "type": "array",
-                                                                                                    "x-kubernetes-list-type": "set"
+                                                                                                    "x-kubernetes-list-map-keys": [
+                                                                                                        "name"
+                                                                                                    ],
+                                                                                                    "x-kubernetes-list-type": "map"
                                                                                                 },
                                                                                                 "limits": {
                                                                                                     "x-kubernetes-preserve-unknown-fields": true
@@ -12805,7 +12826,10 @@
                                                                                                         "type": "object"
                                                                                                     },
                                                                                                     "type": "array",
-                                                                                                    "x-kubernetes-list-type": "set"
+                                                                                                    "x-kubernetes-list-map-keys": [
+                                                                                                        "name"
+                                                                                                    ],
+                                                                                                    "x-kubernetes-list-type": "map"
                                                                                                 },
                                                                                                 "limits": {
                                                                                                     "x-kubernetes-preserve-unknown-fields": true
@@ -15208,7 +15232,10 @@
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array",
-                                                                            "x-kubernetes-list-type": "set"
+                                                                            "x-kubernetes-list-map-keys": [
+                                                                                "name"
+                                                                            ],
+                                                                            "x-kubernetes-list-type": "map"
                                                                         },
                                                                         "limits": {
                                                                             "x-kubernetes-preserve-unknown-fields": true
@@ -16173,7 +16200,10 @@
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array",
-                                                                            "x-kubernetes-list-type": "set"
+                                                                            "x-kubernetes-list-map-keys": [
+                                                                                "name"
+                                                                            ],
+                                                                            "x-kubernetes-list-type": "map"
                                                                         },
                                                                         "limits": {
                                                                             "x-kubernetes-preserve-unknown-fields": true
@@ -17148,7 +17178,10 @@
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array",
-                                                                            "x-kubernetes-list-type": "set"
+                                                                            "x-kubernetes-list-map-keys": [
+                                                                                "name"
+                                                                            ],
+                                                                            "x-kubernetes-list-type": "map"
                                                                         },
                                                                         "limits": {
                                                                             "x-kubernetes-preserve-unknown-fields": true
@@ -18765,7 +18798,10 @@
                                                                     "type": "object"
                                                                 },
                                                                 "type": "array",
-                                                                "x-kubernetes-list-type": "set"
+                                                                "x-kubernetes-list-map-keys": [
+                                                                    "name"
+                                                                ],
+                                                                "x-kubernetes-list-type": "map"
                                                             },
                                                             "limits": {
                                                                 "x-kubernetes-preserve-unknown-fields": true
@@ -19695,7 +19731,10 @@
                                                                     "type": "object"
                                                                 },
                                                                 "type": "array",
-                                                                "x-kubernetes-list-type": "set"
+                                                                "x-kubernetes-list-map-keys": [
+                                                                    "name"
+                                                                ],
+                                                                "x-kubernetes-list-type": "map"
                                                             },
                                                             "limits": {
                                                                 "x-kubernetes-preserve-unknown-fields": true
@@ -20661,7 +20700,10 @@
                                                                     "type": "object"
                                                                 },
                                                                 "type": "array",
-                                                                "x-kubernetes-list-type": "set"
+                                                                "x-kubernetes-list-map-keys": [
+                                                                    "name"
+                                                                ],
+                                                                "x-kubernetes-list-type": "map"
                                                             },
                                                             "limits": {
                                                                 "x-kubernetes-preserve-unknown-fields": true
@@ -20963,6 +21005,13 @@
                                             "type": "array",
                                             "x-kubernetes-patch-merge-key": "name",
                                             "x-kubernetes-patch-strategy": "merge"
+                                        },
+                                        "nodeSelector": {
+                                            "additionalProperties": {
+                                                "type": "string"
+                                            },
+                                            "type": "object",
+                                            "x-kubernetes-map-type": "atomic"
                                         },
                                         "resourceClaims": {
                                             "items": {

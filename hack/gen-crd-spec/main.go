@@ -78,7 +78,7 @@ func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[stri
 
 func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
-		"controller-gen",
+		"dist/controller-gen",
 		"paths=./pkg/apis/rollouts/...",
 		"crd:crdVersions=v1,maxDescLen=0",
 		"output:crd:stdout",
@@ -322,6 +322,7 @@ var patchAnnotationKeys = map[string]bool{
 	"x-kubernetes-patch-strategy":  true,
 	"x-kubernetes-list-map-keys":   true,
 	"x-kubernetes-list-type":       true,
+	"x-kubernetes-map-type":        true,
 }
 
 // injectPatchAnnotations injects patch annotations from given schema definitions and drop properties that don't have

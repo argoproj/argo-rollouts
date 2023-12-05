@@ -4373,7 +4373,7 @@ export interface K8sIoApiCoreV1HTTPGetAction {
  */
 export interface K8sIoApiCoreV1HTTPHeader {
     /**
-     * 
+     * The header field name. This will be canonicalized upon output, so case-variant names will be understood as the same header.
      * @type {string}
      * @memberof K8sIoApiCoreV1HTTPHeader
      */
@@ -5606,7 +5606,7 @@ export interface K8sIoApiCoreV1ResourceRequirements {
      */
     requests?: { [key: string]: K8sIoApimachineryPkgApiResourceQuantity; };
     /**
-     * Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable.  +listType=set +featureGate=DynamicResourceAllocation +optional
+     * Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers.  +listType=map +listMapKey=name +featureGate=DynamicResourceAllocation +optional
      * @type {Array<K8sIoApiCoreV1ResourceClaim>}
      * @memberof K8sIoApiCoreV1ResourceRequirements
      */

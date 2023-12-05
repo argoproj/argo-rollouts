@@ -2754,7 +2754,7 @@
         },
         "podFailurePolicy": {
           "$ref": "#/definitions/k8s.io.api.batch.v1.PodFailurePolicy",
-          "description": "Specifies the policy of handling failed pods. In particular, it allows to\nspecify the set of actions and conditions which need to be\nsatisfied to take the associated action.\nIf empty, the default behaviour applies - the counter of failed pods,\nrepresented by the jobs's .status.failed field, is incremented and it is\nchecked against the backoffLimit. This field cannot be used in combination\nwith restartPolicy=OnFailure.\n\nThis field is alpha-level. To use this field, you must enable the\n`JobPodFailurePolicy` feature gate (disabled by default).\n+optional"
+          "description": "Specifies the policy of handling failed pods. In particular, it allows to\nspecify the set of actions and conditions which need to be\nsatisfied to take the associated action.\nIf empty, the default behaviour applies - the counter of failed pods,\nrepresented by the jobs's .status.failed field, is incremented and it is\nchecked against the backoffLimit. This field cannot be used in combination\nwith restartPolicy=OnFailure.\n\nThis field is beta-level. It can be used when the `JobPodFailurePolicy`\nfeature gate is enabled (enabled by default).\n+optional"
         },
         "backoffLimit": {
           "type": "integer",
@@ -2854,7 +2854,7 @@
           "items": {
             "$ref": "#/definitions/k8s.io.api.batch.v1.PodFailurePolicyOnPodConditionsPattern"
           },
-          "title": "Represents the requirement on the pod conditions. The requirement is represented\nas a list of pod condition patterns. The requirement is satisfied if at\nleast one pattern matches an actual pod condition. At most 20 elements are allowed.\n+listType=atomic"
+          "title": "Represents the requirement on the pod conditions. The requirement is represented\nas a list of pod condition patterns. The requirement is satisfied if at\nleast one pattern matches an actual pod condition. At most 20 elements are allowed.\n+listType=atomic\n+optional"
         }
       },
       "description": "PodFailurePolicyRule describes how a pod failure is handled when the requirements are met.\nOne of OnExitCodes and onPodConditions, but not both, can be used in each rule."
@@ -3747,7 +3747,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "title": "The header field name"
+          "description": "The header field name.\nThis will be canonicalized upon output, so case-variant names will be understood as the same header."
         },
         "value": {
           "type": "string",
@@ -4747,7 +4747,7 @@
           "items": {
             "$ref": "#/definitions/k8s.io.api.core.v1.ResourceClaim"
           },
-          "description": "Claims lists the names of resources, defined in spec.resourceClaims,\nthat are used by this container.\n\nThis is an alpha field and requires enabling the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable.\n\n+listType=set\n+featureGate=DynamicResourceAllocation\n+optional"
+          "description": "Claims lists the names of resources, defined in spec.resourceClaims,\nthat are used by this container.\n\nThis is an alpha field and requires enabling the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable. It can only be set for containers.\n\n+listType=map\n+listMapKey=name\n+featureGate=DynamicResourceAllocation\n+optional"
         }
       },
       "description": "ResourceRequirements describes the compute resource requirements."
