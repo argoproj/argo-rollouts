@@ -1128,6 +1128,9 @@ message ObjectRef {
 
   // Name of the referent
   optional string name = 3;
+
+  // Automatically scale down deployment
+  optional string scaleDown = 4;
 }
 
 // PauseCondition the reason for a pause and when it started

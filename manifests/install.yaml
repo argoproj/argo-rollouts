@@ -14920,6 +14920,8 @@ spec:
                     type: string
                   name:
                     type: string
+                  scaleDown:
+                    type: string
                 type: object
             type: object
           status:

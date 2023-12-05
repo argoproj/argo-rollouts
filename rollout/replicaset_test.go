@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
@@ -572,5 +573,72 @@ func TestIsReplicaSetReferenced(t *testing.T) {
 				stillReferenced,
 			)
 		})
+	}
+}
+
+func TestScaleDownProgressively(t *testing.T) {
+
+	tests := []struct {
+		name                       string
+		deploymentReplicas         int32
+		newRSReplicas              int
+		newRSRevision              string
+		rolloutReplicas            int32
+		rolloutReadyReplicas       int32
+		abortScaleDownDelaySeconds int32
+		expectedDeploymentReplicas int32
+	}{
+		{
+			name:                       "Scale down deployment",
+			deploymentReplicas:         5,
+			newRSReplicas:              5,
+			newRSRevision:              "1",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       3,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 2,
+		},
+		{
+			name:                       "Scale up deployment",
+			deploymentReplicas:         0,
+			newRSReplicas:              5,
+			newRSRevision:              "1",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       1,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 4,
+		},
+		{
+			name:                       "Do not scale deployment",
+			deploymentReplicas:         5,
+			newRSReplicas:              5,
+			newRSRevision:              "2",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       3,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 5,
+		},
+	}
+
+	for _, test := range tests {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownProgressively, test.deploymentReplicas, true, nil)
+		ctx.rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+			BlueGreen: &v1alpha1.BlueGreenStrategy{
+				AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+			},
+		}
+		ctx.newRS = rs("foo-v2", test.newRSReplicas, nil, noTimestamp, nil)
+		ctx.newRS.ObjectMeta.Annotations[annotations.RevisionAnnotation] = test.newRSRevision
+		ctx.pauseContext.removeAbort = true
+		ctx.rollout.Spec.Replicas = &test.rolloutReplicas
+		ctx.rollout.Status.ReadyReplicas = test.rolloutReadyReplicas
+
+		_, err := ctx.reconcileNewReplicaSet()
+		assert.Nil(t, err)
+		k8sfakeClient := ctx.kubeclientset.(*k8sfake.Clientset)
+		updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+		assert.Nil(t, err)
+		assert.Equal(t, test.expectedDeploymentReplicas, *updatedDeployment.Spec.Replicas)
+
 	}
 }

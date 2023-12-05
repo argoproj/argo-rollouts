@@ -172,6 +172,22 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	}
 
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.newRS, newReplicasCount)
+
+	if err != nil {
+		return scaled, err
+	}
+
+	revision, _ := replicasetutil.Revision(c.newRS)
+
+	if revision == 1 && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownProgressively {
+		oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
+		// scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
+		if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
+			targetScale := *c.rollout.Spec.Replicas - c.rollout.Status.ReadyReplicas
+			err = c.scaleDeployment(&targetScale)
+		}
+	}
+
 	return scaled, err
 }
 

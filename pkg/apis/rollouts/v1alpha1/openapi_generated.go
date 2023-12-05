@@ -3370,6 +3370,13 @@ func schema_pkg_apis_rollouts_v1alpha1_ObjectRef(ref common.ReferenceCallback) c
 							Format:      "",
 						},
 					},
+					"scaleDown": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Automatically scale down deployment",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
