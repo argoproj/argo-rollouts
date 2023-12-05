@@ -91,7 +91,10 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 			return nil, fmt.Errorf("error updating replicaset revision: %v", err)
 		}
 		c.log.Infof("Synced revision on ReplicaSet '%s' to '%s'", rs.Name, newRevision)
-		c.replicaSetInformer.GetIndexer().Update(rs)
+		err = c.replicaSetInformer.GetIndexer().Update(rs)
+		if err != nil {
+			return nil, fmt.Errorf("error updating replicaset informer in syncReplicaSetRevision: %w", err)
+		}
 		return rs, nil
 	}
 
@@ -372,12 +375,21 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
+
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
-		if err == nil && sizeNeedsUpdate {
+		if err != nil {
+			return scaled, rs, fmt.Errorf("error updating replicaset %s: %w", rs.Name, err)
+		}
+		err = c.replicaSetInformer.GetIndexer().Update(rs)
+		if err != nil {
+			err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
+			return scaled, rs, err
+		}
+
+		if sizeNeedsUpdate {
 			scaled = true
 			revision, _ := replicasetutil.Revision(rs)
 			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, conditions.ScalingReplicaSetMessage, scalingOperation, rs.Name, revision, oldScale, newScale)
-			c.replicaSetInformer.GetIndexer().Update(rs)
 		}
 	}
 	return scaled, rs, err

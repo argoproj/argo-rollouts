@@ -72,6 +72,7 @@
         "webpack-merge": "^5.7.3"
     },
     "resolutions": {
-        "@types/react": "16.9.3"
+        "@types/react": "16.9.3",
+        "moment": "2.29.4"
     }
 }
