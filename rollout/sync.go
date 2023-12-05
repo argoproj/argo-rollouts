@@ -95,6 +95,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error updating replicaset informer in syncReplicaSetRevision: %w", err)
 		}
+		c.newRS = rs.DeepCopy()
 		return rs, nil
 	}
 
