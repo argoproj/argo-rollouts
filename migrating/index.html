@@ -3447,7 +3447,11 @@ tested before deleting the original Deployment.</p>
 <ol>
 <li>Create a Rollout resource.</li>
 <li>Reference an existing Deployment using <code>workloadRef</code> field.</li>
-<li>Scale-down an existing Deployment by changing <code>replicas</code> field of an existing Deployment to zero.</li>
+<li>In the <code>workloadRef</code> field set the <code>scaleDown</code> attribute, which specifies how the Deployment should be scaled down. There are three options available:</li>
+<li>"never": the Deployment is not scaled down</li>
+<li>"onsuccess": the Deployment is scaled down after the Rollout becomes healthy</li>
+<li>"progressively": as the Rollout is scaled up the Deployment is scaled down.
+Alternatively, manually scale down an existing Deployment by changing replicas field of an existing Deployment to zero.</li>
 <li>To perform an update, the change should be made to the Pod template field of the Deployment.</li>
 </ol>
 <p>Below is an example of a Rollout resource referencing a Deployment.</p>
@@ -3464,6 +3468,7 @@ tested before deleting the original Deployment.</p>
 <span class="w">    </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
 <span class="w">    </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deployment</span>
 <span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-ref-deployment</span>
+<span class="w">    </span><span class="nt">scaleDown</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">onsuccess</span>
 <span class="w">  </span><span class="nt">strategy</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">canary</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">steps</span><span class="p">:</span>

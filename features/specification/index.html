@@ -3365,6 +3365,13 @@
 <span class="w">    </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
 <span class="w">    </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deployment</span>
 <span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rollout-ref-deployment</span>
+<span class="w">    </span><span class="c1"># Specifies if the workload (Deployment) is scaled down after migrating to Rollout.</span>
+<span class="w">    </span><span class="c1"># The possible options are:</span>
+<span class="w">    </span><span class="c1"># &quot;never&quot;: the Deployment is not scaled down</span>
+<span class="w">    </span><span class="c1"># &quot;onsuccess&quot;: the Deployment is scaled down after the Rollout becomes healthy</span>
+<span class="w">    </span><span class="c1"># &quot;progressively&quot;: as the Rollout is scaled up the Deployment is scaled down</span>
+<span class="w">    </span><span class="c1"># If the Rollout fails the Deployment will be scaled back up.</span>
+<span class="w">    </span><span class="nt">scaleDown</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">never|onsuccess|progressively</span>
 
 <span class="w">  </span><span class="c1"># Template describes the pods that will be created. Same as deployment.</span>
 <span class="w">  </span><span class="c1"># If used, then do not use Rollout workloadRef property. </span>
