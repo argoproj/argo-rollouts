@@ -45,9 +45,13 @@ export const RolloutsGrid = ({
 
         const updateItemsPerRow = () => {
             if (rolloutsGrid) {
+                const rolloutsListWidget = document.querySelector('.rollouts-list__widget');
+                if (!rolloutsListWidget) {
+                    return;
+                }
                 const containerWidth = rolloutsGrid.clientWidth;
-                const widgetWidth = parseInt(getComputedStyle(document.querySelector('.rollouts-list__widget')).getPropertyValue('width'), 10);
-                const widgetPadding = parseInt(getComputedStyle(document.querySelector('.rollouts-list__widget')).getPropertyValue('padding'), 10);
+                const widgetWidth = parseInt(getComputedStyle(rolloutsListWidget).getPropertyValue('width'), 10);
+                const widgetPadding = parseInt(getComputedStyle(rolloutsListWidget).getPropertyValue('padding'), 10);
                 const itemsPerRowValue = Math.floor(containerWidth / (widgetWidth + widgetPadding * 2));
                 setItemsPerRow(itemsPerRowValue);
             }

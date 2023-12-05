@@ -36,6 +36,12 @@ const config = {
                 test: /\.css$/,
                 loader: 'style-loader!raw-loader',
             },
+            // https://github.com/fkhadra/react-toastify/issues/775#issuecomment-1149569290
+            {
+                test: /\.mjs$/,
+                include: /node_modules/,
+                type: "javascript/auto"
+            },
         ],
     },
     node: {

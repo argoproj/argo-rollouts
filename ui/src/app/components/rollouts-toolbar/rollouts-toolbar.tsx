@@ -53,8 +53,11 @@ export const RolloutsToolbar = ({
             Healthy: searchParams.get('Healthy') === 'true',
         },
     });
+
     // Ensure that the filters are updated when the URL changes
-    onFilterChange(filters);
+    React.useEffect(() => {
+        onFilterChange(filters);
+    }, [filters]);
 
     const handleFilterChange = (newFilters: Filters) => {
         setFilters(newFilters);
@@ -139,7 +142,7 @@ export const RolloutsToolbar = ({
                 [event.currentTarget.id]: !filters.status[event.currentTarget.id],
             },
         };
-        handleFilterChange(newFilters);        
+        handleFilterChange(newFilters);
     };
 
     const statusCounts: StatusCount = React.useMemo(() => {
@@ -217,18 +220,19 @@ export const RolloutsToolbar = ({
             <Tooltip
                 title={
                     'Filter by name or filter by label using syntax label:value. Include multiple terms by separating with comma. For example, "api,team:data". Surround in quotes for exact match.'
-                }
-            >
-                <AutoComplete
-                    className='rollouts-toolbar_search-container'
-                    placeholder='Filter by name or label tag:value'
-                    value={filters.name}
-                    onChange={handleNameFilterChange}
-                    onKeyDown={(event) => {
-                        event.stopPropagation(); // Prevents shift+H from opening the help menu
-                    }}
-                    ref={searchRef}
-                />
+                }>
+                <div>
+                    <AutoComplete
+                        className='rollouts-toolbar_search-container'
+                        placeholder='Filter by name or label tag:value'
+                        value={filters.name}
+                        onChange={handleNameFilterChange}
+                        onKeyDown={(event) => {
+                            event.stopPropagation(); // Prevents shift+H from opening the help menu
+                        }}
+                        ref={searchRef}
+                    />
+                </div>
             </Tooltip>
         </div>
     );
