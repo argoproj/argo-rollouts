@@ -33,6 +33,13 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: rollout-ref-deployment
+    # Specifies if the workload (Deployment) is scaled down after migrating to Rollout.
+    # The possible options are:
+    # "never": the Deployment is not scaled down
+    # "onsuccess": the Deployment is scaled down after the Rollout becomes healthy
+    # "progressively": as the Rollout is scaled up the Deployment is scaled down
+    # If the Rollout fails the Deployment will be scaled back up.
+    scaleDown: never|onsuccess|progressively
 
   # Template describes the pods that will be created. Same as deployment.
   # If used, then do not use Rollout workloadRef property. 

@@ -137,6 +137,8 @@ type ObjectRef struct {
 	Kind string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
 	// Name of the referent
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	// Automatically scale down deployment
+	ScaleDown string `json:"scaleDown,omitempty" protobuf:"bytes,4,opt,name=scaleDown"`
 }
 
 const (
@@ -1081,3 +1083,9 @@ type RolloutList struct {
 type RollbackWindowSpec struct {
 	Revisions int32 `json:"revisions,omitempty" protobuf:"varint,1,opt,name=revisions"`
 }
+
+const (
+	ScaleDownNever         string = "never"
+	ScaleDownOnSuccess     string = "onsuccess"
+	ScaleDownProgressively string = "progressively"
+)

@@ -1695,6 +1695,10 @@
         "name": {
           "type": "string",
           "title": "Name of the referent"
+        },
+        "scaleDown": {
+          "type": "string",
+          "title": "Automatically scale down deployment"
         }
       },
       "title": "ObjectRef holds a references to the Kubernetes object"

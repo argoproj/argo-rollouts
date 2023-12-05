@@ -1700,6 +1700,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef
      */
     name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1ObjectRef
+     */
+    scaleDown?: string;
 }
 /**
  * 

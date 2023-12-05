@@ -35,9 +35,13 @@ func (c *rolloutContext) removeScaleDownDelay(rs *appsv1.ReplicaSet) error {
 	}
 	patch := fmt.Sprintf(removeScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 	_, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
-	if err == nil {
-		c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
-		c.replicaSetInformer.GetIndexer().Update(rs)
+	if err != nil {
+		return fmt.Errorf("error removing scale-down-deadline annotation from RS '%s': %w", rs.Name, err)
+	}
+	c.log.Infof("Removed '%s' annotation from RS '%s'", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name)
+	err = c.replicaSetInformer.GetIndexer().Update(rs)
+	if err != nil {
+		return fmt.Errorf("error updating replicaset informer in removeScaleDownDelay: %w", err)
 	}
 	return err
 }
@@ -60,9 +64,13 @@ func (c *rolloutContext) addScaleDownDelay(rs *appsv1.ReplicaSet, scaleDownDelay
 	deadline := timeutil.MetaNow().Add(scaleDownDelaySeconds).UTC().Format(time.RFC3339)
 	patch := fmt.Sprintf(addScaleDownAtAnnotationsPatch, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, deadline)
 	rs, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.JSONPatchType, []byte(patch), metav1.PatchOptions{})
-	if err == nil {
-		c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
-		c.replicaSetInformer.GetIndexer().Update(rs)
+	if err != nil {
+		return fmt.Errorf("error adding scale-down-deadline annotation to RS '%s': %w", rs.Name, err)
+	}
+	c.log.Infof("Set '%s' annotation on '%s' to %s (%s)", v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey, rs.Name, deadline, scaleDownDelaySeconds)
+	err = c.replicaSetInformer.GetIndexer().Update(rs)
+	if err != nil {
+		return fmt.Errorf("error updating replicaset informer in addScaleDownDelay: %w", err)
 	}
 	return err
 }
@@ -164,6 +172,22 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	}
 
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.newRS, newReplicasCount)
+
+	if err != nil {
+		return scaled, err
+	}
+
+	revision, _ := replicasetutil.Revision(c.newRS)
+
+	if revision == 1 && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownProgressively {
+		oldScale := defaults.GetReplicasOrDefault(c.newRS.Spec.Replicas)
+		// scale down the deployment when the rollout has ready replicas or scale up the deployment if rollout fails
+		if c.rollout.Spec.Replicas != nil && (c.rollout.Status.ReadyReplicas > 0 || oldScale > newReplicasCount) {
+			targetScale := *c.rollout.Spec.Replicas - c.rollout.Status.ReadyReplicas
+			err = c.scaleDeployment(&targetScale)
+		}
+	}
+
 	return scaled, err
 }
 

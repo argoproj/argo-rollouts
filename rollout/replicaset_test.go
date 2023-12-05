@@ -1,6 +1,8 @@
 package rollout
 
 import (
+	"context"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -134,8 +136,9 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 		abortScaleDownAnnotated    bool
 		abortScaleDownDelayPassed  bool
 		expectedNewReplicas        int
+		failRSUpdate               bool
+		abort                      bool
 	}{
-
 		{
 			name:            "New Replica Set matches rollout replica: No scale",
 			rolloutReplicas: 10,
@@ -163,6 +166,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			newReplicas:     10,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    true,
 			abortScaleDownDelayPassed:  true,
 			scaleExpected:              true,
@@ -174,6 +178,7 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			newReplicas:     8,
 			// ScaleDownOnAbort:           true,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    true,
 			abortScaleDownDelayPassed:  false,
 			scaleExpected:              false,
@@ -184,9 +189,19 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			rolloutReplicas:            10,
 			newReplicas:                10,
 			abortScaleDownDelaySeconds: 5,
+			abort:                      true,
 			abortScaleDownAnnotated:    false,
 			scaleExpected:              false,
 			expectedNewReplicas:        0,
+		},
+		{
+			name:                       "Fail to update RS: No scale and add default annotation",
+			rolloutReplicas:            10,
+			newReplicas:                10,
+			scaleExpected:              false,
+			failRSUpdate:               true,
+			abort:                      true,
+			abortScaleDownDelaySeconds: -1,
 		},
 	}
 	for i := range tests {
@@ -198,6 +213,12 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 			rollout := newBlueGreenRollout("foo", test.rolloutReplicas, nil, "", "")
 			fake := fake.Clientset{}
 			k8sfake := k8sfake.Clientset{}
+
+			if test.failRSUpdate {
+				k8sfake.PrependReactor("patch", "replicasets", func(action core.Action) (handled bool, ret runtime.Object, err error) {
+					return true, &appsv1.ReplicaSet{}, fmt.Errorf("should not patch replica set")
+				})
+			}
 
 			f := newFixture(t)
 			defer f.Close()
@@ -227,14 +248,21 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				},
 			}
 			roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {}
+
+			rollout.Status.Abort = test.abort
+			roCtx.stableRS.Status.AvailableReplicas = int32(test.rolloutReplicas)
+			rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+				BlueGreen: &v1alpha1.BlueGreenStrategy{
+					AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+				},
+			}
+
 			if test.abortScaleDownDelaySeconds > 0 {
-				rollout.Status.Abort = true
 				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
 					BlueGreen: &v1alpha1.BlueGreenStrategy{
 						AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
 					},
 				}
-
 				if test.abortScaleDownAnnotated {
 					var deadline string
 					if test.abortScaleDownDelayPassed {
@@ -246,7 +274,19 @@ func TestReconcileNewReplicaSet(t *testing.T) {
 				}
 			}
 
+			if test.abortScaleDownDelaySeconds < 0 {
+				rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+					BlueGreen: &v1alpha1.BlueGreenStrategy{
+						AbortScaleDownDelaySeconds: nil,
+					},
+				}
+			}
+
 			scaled, err := roCtx.reconcileNewReplicaSet()
+			if test.failRSUpdate {
+				assert.Error(t, err)
+				return
+			}
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -533,5 +573,72 @@ func TestIsReplicaSetReferenced(t *testing.T) {
 				stillReferenced,
 			)
 		})
+	}
+}
+
+func TestScaleDownProgressively(t *testing.T) {
+
+	tests := []struct {
+		name                       string
+		deploymentReplicas         int32
+		newRSReplicas              int
+		newRSRevision              string
+		rolloutReplicas            int32
+		rolloutReadyReplicas       int32
+		abortScaleDownDelaySeconds int32
+		expectedDeploymentReplicas int32
+	}{
+		{
+			name:                       "Scale down deployment",
+			deploymentReplicas:         5,
+			newRSReplicas:              5,
+			newRSRevision:              "1",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       3,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 2,
+		},
+		{
+			name:                       "Scale up deployment",
+			deploymentReplicas:         0,
+			newRSReplicas:              5,
+			newRSRevision:              "1",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       1,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 4,
+		},
+		{
+			name:                       "Do not scale deployment",
+			deploymentReplicas:         5,
+			newRSReplicas:              5,
+			newRSRevision:              "2",
+			rolloutReplicas:            5,
+			rolloutReadyReplicas:       3,
+			abortScaleDownDelaySeconds: 0,
+			expectedDeploymentReplicas: 5,
+		},
+	}
+
+	for _, test := range tests {
+		ctx := createScaleDownRolloutContext(v1alpha1.ScaleDownProgressively, test.deploymentReplicas, true, nil)
+		ctx.rollout.Spec.Strategy = v1alpha1.RolloutStrategy{
+			BlueGreen: &v1alpha1.BlueGreenStrategy{
+				AbortScaleDownDelaySeconds: &test.abortScaleDownDelaySeconds,
+			},
+		}
+		ctx.newRS = rs("foo-v2", test.newRSReplicas, nil, noTimestamp, nil)
+		ctx.newRS.ObjectMeta.Annotations[annotations.RevisionAnnotation] = test.newRSRevision
+		ctx.pauseContext.removeAbort = true
+		ctx.rollout.Spec.Replicas = &test.rolloutReplicas
+		ctx.rollout.Status.ReadyReplicas = test.rolloutReadyReplicas
+
+		_, err := ctx.reconcileNewReplicaSet()
+		assert.Nil(t, err)
+		k8sfakeClient := ctx.kubeclientset.(*k8sfake.Clientset)
+		updatedDeployment, err := k8sfakeClient.AppsV1().Deployments("default").Get(context.TODO(), "workload-test", metav1.GetOptions{})
+		assert.Nil(t, err)
+		assert.Equal(t, test.expectedDeploymentReplicas, *updatedDeployment.Spec.Replicas)
+
 	}
 }
