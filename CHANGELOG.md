@@ -1,3 +1,14 @@
+<a name="v1.6.3"></a>
+## [v1.6.3](https://github.com/argoproj/argo-rollouts/compare/v1.6.2...v1.6.3) (2023-12-04)
+
+### Build
+
+* **deps:** always resolve momentjs version 2.29.4 ([#3182](https://github.com/argoproj/argo-rollouts/issues/3182))
+
+### Fix
+
+* rollouts getting stuck due to bad rs informer updates ([#3200](https://github.com/argoproj/argo-rollouts/issues/3200))
+
 
 <a name="v1.6.2"></a>
 ## [v1.6.2](https://github.com/argoproj/argo-rollouts/compare/v1.6.1...v1.6.2) (2023-11-02)
