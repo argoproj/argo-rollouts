@@ -78,7 +78,7 @@ func setValidationOverride(un *unstructured.Unstructured, fieldOverride map[stri
 
 func NewCustomResourceDefinition() []*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
-		"dist/controller-gen",
+		"controller-gen",
 		"paths=./pkg/apis/rollouts/...",
 		"crd:crdVersions=v1,maxDescLen=0",
 		"output:crd:stdout",
