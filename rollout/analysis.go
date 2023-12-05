@@ -455,24 +455,25 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 		}
 
 	}
-	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention, name, "", c.rollout.Namespace)
-	if err != nil {
-		return nil, err
-	}
-	run.Labels = labels
+	runLabels := labels
 	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
-		run.Labels[k] = v
+		runLabels[k] = v
 	}
 
 	for k, v := range c.rollout.Spec.Selector.MatchLabels {
-		run.Labels[k] = v
+		runLabels[k] = v
 	}
 
-	run.Annotations = map[string]string{
+	runAnnotations := map[string]string{
 		annotations.RevisionAnnotation: revision,
 	}
 	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
-		run.Annotations[k] = v
+		runAnnotations[k] = v
+	}
+	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention,
+		runLabels, runAnnotations, name, "", c.rollout.Namespace)
+	if err != nil {
+		return nil, err
 	}
 	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(c.rollout, controllerKind)}
 	return run, nil

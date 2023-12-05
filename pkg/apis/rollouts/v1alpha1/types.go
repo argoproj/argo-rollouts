@@ -533,6 +533,14 @@ type RolloutExperimentStep struct {
 	// +patchMergeKey=name
 	// +patchStrategy=merge
 	Analyses []RolloutExperimentStepAnalysisTemplateRef `json:"analyses,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,3,rep,name=analyses"`
+	// DryRun object contains the settings for running the analysis in Dry-Run mode
+	// +patchMergeKey=metricName
+	// +patchStrategy=merge
+	// +optional
+	DryRun []DryRun `json:"dryRun,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=dryRun"`
+	// AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+	// +optional
+	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
 }
 
 type RolloutExperimentStepAnalysisTemplateRef struct {

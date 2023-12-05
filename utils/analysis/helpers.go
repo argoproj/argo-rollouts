@@ -288,7 +288,10 @@ func CreateWithCollisionCounter(logCtx *log.Entry, analysisRunIf argoprojclient.
 	}
 }
 
-func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun, measurementRetentionMetrics []v1alpha1.MeasurementRetention, name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
+func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate, args []v1alpha1.Argument, dryRunMetrics []v1alpha1.DryRun,
+	measurementRetentionMetrics []v1alpha1.MeasurementRetention,
+	labels map[string]string, annotations map[string]string,
+	name, generateName, namespace string) (*v1alpha1.AnalysisRun, error) {
 	template, err := FlattenTemplates(templates, clusterTemplates)
 	if err != nil {
 		return nil, err
@@ -310,6 +313,8 @@ func NewAnalysisRunFromTemplates(templates []*v1alpha1.AnalysisTemplate, cluster
 			Name:         name,
 			GenerateName: generateName,
 			Namespace:    namespace,
+			Labels:       labels,
+			Annotations:  annotations,
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
 			Metrics:              template.Spec.Metrics,

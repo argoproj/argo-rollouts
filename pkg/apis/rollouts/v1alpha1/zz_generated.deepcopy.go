@@ -1298,6 +1298,7 @@ func (in *ExperimentSpec) DeepCopyInto(out *ExperimentSpec) {
 		*out = make([]MeasurementRetention, len(*in))
 		copy(*out, *in)
 	}
+	in.AnalysisRunMetadata.DeepCopyInto(&out.AnalysisRunMetadata)
 	return
 }
 
@@ -2170,6 +2171,12 @@ func (in *RolloutExperimentStep) DeepCopyInto(out *RolloutExperimentStep) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.DryRun != nil {
+		in, out := &in.DryRun, &out.DryRun
+		*out = make([]DryRun, len(*in))
+		copy(*out, *in)
+	}
+	in.AnalysisRunMetadata.DeepCopyInto(&out.AnalysisRunMetadata)
 	return
 }
 
