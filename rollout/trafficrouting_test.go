@@ -1213,12 +1213,10 @@ func TestDontWeightToZeroWhenDynamicallyRollingBackToStable(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
+	f.expectUpdateRolloutAction(r2)
+	f.expectPatchRolloutAction(r2)
 	f.expectUpdateReplicaSetAction(rs1) // Updates the revision annotation from 1 to 3
 	scaleUpIndex := f.expectUpdateReplicaSetAction(rs1)
-	//f.expectUpdateReplicaSetAction(rs1) // repeat of the above (not sure why)
-	//f.expectPatchRolloutAction(r2)
-	//scaleUpIndex := f.expectUpdateReplicaSetAction(rs1) // this one scales the stable RS to 10
-	f.expectPatchRolloutAction(r2)
 
 	f.fakeTrafficRouting = newUnmockedFakeTrafficRoutingReconciler()
 	f.fakeTrafficRouting.On("UpdateHash", mock.Anything, mock.Anything, mock.Anything).Return(func(canaryHash, stableHash string, additionalDestinations ...v1alpha1.WeightDestination) error {
