@@ -22,6 +22,7 @@ kubectl argo rollouts notifications [flags]
       --cluster string                 The name of the kubeconfig cluster to use
       --config-map string              argo-rollouts-notification-configmap.yaml file path
       --context string                 The name of the kubeconfig context to use
+      --disable-compression            If true, opt-out of response compression for all requests to the server
   -h, --help                           help for notifications
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster

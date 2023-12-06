@@ -322,6 +322,7 @@ var patchAnnotationKeys = map[string]bool{
 	"x-kubernetes-patch-strategy":  true,
 	"x-kubernetes-list-map-keys":   true,
 	"x-kubernetes-list-type":       true,
+	"x-kubernetes-map-type":        true,
 }
 
 // injectPatchAnnotations injects patch annotations from given schema definitions and drop properties that don't have

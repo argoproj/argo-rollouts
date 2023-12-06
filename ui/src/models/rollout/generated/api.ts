@@ -3495,6 +3495,25 @@ export interface K8sIoApiCoreV1CinderVolumeSource {
     secretRef?: K8sIoApiCoreV1LocalObjectReference;
 }
 /**
+ * ClaimSource describes a reference to a ResourceClaim.  Exactly one of these fields should be set.  Consumers of this type must treat an empty object as if it has an unknown value.
+ * @export
+ * @interface K8sIoApiCoreV1ClaimSource
+ */
+export interface K8sIoApiCoreV1ClaimSource {
+    /**
+     * ResourceClaimName is the name of a ResourceClaim object in the same namespace as this pod.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ClaimSource
+     */
+    resourceClaimName?: string;
+    /**
+     * ResourceClaimTemplateName is the name of a ResourceClaimTemplate object in the same namespace as this pod.  The template will be used to create a new ResourceClaim, which will be bound to this pod. When this pod is deleted, the ResourceClaim will also be deleted. The name of the ResourceClaim will be <pod name>-<resource name>, where <resource name> is the PodResourceClaim.Name. Pod validation will reject the pod if the concatenated name is not valid for a ResourceClaim (e.g. too long).  An existing ResourceClaim with that name that is not owned by the pod will not be used for the pod to avoid using an unrelated resource by mistake. Scheduling and pod startup are then blocked until the unrelated ResourceClaim is removed.  This field is immutable and no changes will be made to the corresponding ResourceClaim by the control plane after creating the ResourceClaim.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ClaimSource
+     */
+    resourceClaimTemplateName?: string;
+}
+/**
  * ConfigMapEnvSource selects a ConfigMap to populate the environment variables with.  The contents of the target ConfigMap's Data field will represent the key-value pairs as environment variables.
  * @export
  * @interface K8sIoApiCoreV1ConfigMapEnvSource
@@ -4354,7 +4373,7 @@ export interface K8sIoApiCoreV1HTTPGetAction {
  */
 export interface K8sIoApiCoreV1HTTPHeader {
     /**
-     * 
+     * The header field name. This will be canonicalized upon output, so case-variant names will be understood as the same header.
      * @type {string}
      * @memberof K8sIoApiCoreV1HTTPHeader
      */
@@ -4729,10 +4748,10 @@ export interface K8sIoApiCoreV1PersistentVolumeClaimSpec {
     dataSource?: K8sIoApiCoreV1TypedLocalObjectReference;
     /**
      * 
-     * @type {K8sIoApiCoreV1TypedLocalObjectReference}
+     * @type {K8sIoApiCoreV1TypedObjectReference}
      * @memberof K8sIoApiCoreV1PersistentVolumeClaimSpec
      */
-    dataSourceRef?: K8sIoApiCoreV1TypedLocalObjectReference;
+    dataSourceRef?: K8sIoApiCoreV1TypedObjectReference;
 }
 /**
  * PersistentVolumeClaimTemplate is used to produce PersistentVolumeClaim objects as part of an EphemeralVolumeSource.
@@ -4929,6 +4948,38 @@ export interface K8sIoApiCoreV1PodReadinessGate {
      * @memberof K8sIoApiCoreV1PodReadinessGate
      */
     conditionType?: string;
+}
+/**
+ * PodResourceClaim references exactly one ResourceClaim through a ClaimSource. It adds a name to it that uniquely identifies the ResourceClaim inside the Pod. Containers that need access to the ResourceClaim reference it with this name.
+ * @export
+ * @interface K8sIoApiCoreV1PodResourceClaim
+ */
+export interface K8sIoApiCoreV1PodResourceClaim {
+    /**
+     * Name uniquely identifies this resource claim inside the pod. This must be a DNS_LABEL.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodResourceClaim
+     */
+    name?: string;
+    /**
+     * 
+     * @type {K8sIoApiCoreV1ClaimSource}
+     * @memberof K8sIoApiCoreV1PodResourceClaim
+     */
+    source?: K8sIoApiCoreV1ClaimSource;
+}
+/**
+ * PodSchedulingGate is associated to a Pod to guard its scheduling.
+ * @export
+ * @interface K8sIoApiCoreV1PodSchedulingGate
+ */
+export interface K8sIoApiCoreV1PodSchedulingGate {
+    /**
+     * Name of the scheduling gate. Each scheduling gate must have a unique name field.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1PodSchedulingGate
+     */
+    name?: string;
 }
 /**
  * PodSecurityContext holds pod-level security attributes and common container settings. Some fields are also present in container.securityContext.  Field values of container.securityContext take precedence over field values of PodSecurityContext.
@@ -5225,6 +5276,18 @@ export interface K8sIoApiCoreV1PodSpec {
      * @memberof K8sIoApiCoreV1PodSpec
      */
     hostUsers?: boolean;
+    /**
+     * SchedulingGates is an opaque list of values that if specified will block scheduling the pod. More info:  https://git.k8s.io/enhancements/keps/sig-scheduling/3521-pod-scheduling-readiness.  This is an alpha-level feature enabled by PodSchedulingReadiness feature gate. +optional +patchMergeKey=name +patchStrategy=merge +listType=map +listMapKey=name
+     * @type {Array<K8sIoApiCoreV1PodSchedulingGate>}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    schedulingGates?: Array<K8sIoApiCoreV1PodSchedulingGate>;
+    /**
+     * ResourceClaims defines which ResourceClaims must be allocated and reserved before the Pod is allowed to start. The resources will be made available to those containers which consume them by name.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable.  +patchMergeKey=name +patchStrategy=merge,retainKeys +listType=map +listMapKey=name +featureGate=DynamicResourceAllocation +optional
+     * @type {Array<K8sIoApiCoreV1PodResourceClaim>}
+     * @memberof K8sIoApiCoreV1PodSpec
+     */
+    resourceClaims?: Array<K8sIoApiCoreV1PodResourceClaim>;
 }
 /**
  * 
@@ -5487,6 +5550,19 @@ export interface K8sIoApiCoreV1RBDVolumeSource {
     readOnly?: boolean;
 }
 /**
+ * ResourceClaim references one entry in PodSpec.ResourceClaims.
+ * @export
+ * @interface K8sIoApiCoreV1ResourceClaim
+ */
+export interface K8sIoApiCoreV1ResourceClaim {
+    /**
+     * Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
+     * @type {string}
+     * @memberof K8sIoApiCoreV1ResourceClaim
+     */
+    name?: string;
+}
+/**
  * 
  * @export
  * @interface K8sIoApiCoreV1ResourceFieldSelector
@@ -5529,6 +5605,12 @@ export interface K8sIoApiCoreV1ResourceRequirements {
      * @memberof K8sIoApiCoreV1ResourceRequirements
      */
     requests?: { [key: string]: K8sIoApimachineryPkgApiResourceQuantity; };
+    /**
+     * Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers.  +listType=map +listMapKey=name +featureGate=DynamicResourceAllocation +optional
+     * @type {Array<K8sIoApiCoreV1ResourceClaim>}
+     * @memberof K8sIoApiCoreV1ResourceRequirements
+     */
+    claims?: Array<K8sIoApiCoreV1ResourceClaim>;
 }
 /**
  * 
@@ -5994,13 +6076,13 @@ export interface K8sIoApiCoreV1TopologySpreadConstraint {
      */
     minDomains?: number;
     /**
-     * NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector when calculating pod topology spread skew. Options are: - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations. - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.  If this value is nil, the behavior is equivalent to the Honor policy. This is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread feature flag. +optional
+     * NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector when calculating pod topology spread skew. Options are: - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations. - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.  If this value is nil, the behavior is equivalent to the Honor policy. This is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag. +optional
      * @type {string}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
     nodeAffinityPolicy?: string;
     /**
-     * NodeTaintsPolicy indicates how we will treat node taints when calculating pod topology spread skew. Options are: - Honor: nodes without taints, along with tainted nodes for which the incoming pod has a toleration, are included. - Ignore: node taints are ignored. All nodes are included.  If this value is nil, the behavior is equivalent to the Ignore policy. This is a alpha-level feature enabled by the NodeInclusionPolicyInPodTopologySpread feature flag. +optional
+     * NodeTaintsPolicy indicates how we will treat node taints when calculating pod topology spread skew. Options are: - Honor: nodes without taints, along with tainted nodes for which the incoming pod has a toleration, are included. - Ignore: node taints are ignored. All nodes are included.  If this value is nil, the behavior is equivalent to the Ignore policy. This is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag. +optional
      * @type {string}
      * @memberof K8sIoApiCoreV1TopologySpreadConstraint
      */
@@ -6036,6 +6118,37 @@ export interface K8sIoApiCoreV1TypedLocalObjectReference {
      * @memberof K8sIoApiCoreV1TypedLocalObjectReference
      */
     name?: string;
+}
+/**
+ * 
+ * @export
+ * @interface K8sIoApiCoreV1TypedObjectReference
+ */
+export interface K8sIoApiCoreV1TypedObjectReference {
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1TypedObjectReference
+     */
+    apiGroup?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1TypedObjectReference
+     */
+    kind?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1TypedObjectReference
+     */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof K8sIoApiCoreV1TypedObjectReference
+     */
+    namespace?: string;
 }
 /**
  * Volume represents a named volume in a pod that may be accessed by any container in the pod.

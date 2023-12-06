@@ -251,22 +251,22 @@ func (r *Reconciler) VerifyWeightPerIngress(desiredWeight int32, ingresses []str
 			resourceIDToDest[resourceID] = dest
 		}
 
-		loadBalancerStatus := ingress.GetLoadBalancerStatus()
-		if len(loadBalancerStatus.Ingress) == 0 {
+		hostnames := ingress.GetLoadBalancerHostnames()
+		if len(hostnames) == 0 {
 			r.log.Infof("LoadBalancer not yet allocated")
 		}
 
-		for _, lbIngress := range loadBalancerStatus.Ingress {
-			if lbIngress.Hostname == "" {
+		for _, hostname := range hostnames {
+			if hostname == "" {
 				continue
 			}
-			lb, err := r.aws.FindLoadBalancerByDNSName(ctx, lbIngress.Hostname)
+			lb, err := r.aws.FindLoadBalancerByDNSName(ctx, hostname)
 			if err != nil {
 				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.TargetGroupVerifyErrorReason}, conditions.TargetGroupVerifyErrorMessage, canaryService, "unknown", err.Error())
 				return pointer.Bool(false), err
 			}
 			if lb == nil || lb.LoadBalancerArn == nil {
-				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.LoadBalancerNotFoundReason}, conditions.LoadBalancerNotFoundMessage, lbIngress.Hostname)
+				r.cfg.Recorder.Warnf(rollout, record.EventOptions{EventReason: conditions.LoadBalancerNotFoundReason}, conditions.LoadBalancerNotFoundMessage, hostname)
 				return pointer.Bool(false), nil
 			}
 
