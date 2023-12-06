@@ -792,12 +792,6 @@ func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	return len
 }
 
-func (f *fixture) expectGetReplicaSetAction(r *appsv1.ReplicaSet) int {
-	len := len(f.kubeactions)
-	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r.Name))
-	return len
-}
-
 func (f *fixture) expectUpdateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewUpdateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
