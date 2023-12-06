@@ -7,15 +7,15 @@ import (
 	"strings"
 	"testing"
 
+	networkingv1 "k8s.io/api/networking/v1"
+
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
@@ -125,7 +125,7 @@ func albActionAnnotation(stable string) string {
 	return fmt.Sprintf("%s%s%s", ingressutil.ALBIngressAnnotation, ingressutil.ALBActionPrefix, stable)
 }
 
-func ingress(name, stableSvc, canarySvc, actionService string, port, weight int32, managedBy string, includeStickyConfig bool) *extensionsv1beta1.Ingress {
+func ingress(name, stableSvc, canarySvc, actionService string, port, weight int32, managedBy string, includeStickyConfig bool) *networkingv1.Ingress {
 	managedByValue := ingressutil.ManagedALBAnnotations{
 		managedBy: ingressutil.ManagedALBAnnotation{albActionAnnotation(actionService)},
 	}
@@ -139,7 +139,7 @@ func ingress(name, stableSvc, canarySvc, actionService string, port, weight int3
 		panic(err)
 	}
 
-	i := &extensionsv1beta1.Ingress{
+	i := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
@@ -148,16 +148,22 @@ func ingress(name, stableSvc, canarySvc, actionService string, port, weight int3
 				ingressutil.ManagedAnnotations:     managedByValue.String(),
 			},
 		},
-		Spec: extensionsv1beta1.IngressSpec{
-			Rules: []extensionsv1beta1.IngressRule{
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{
 				{
-					IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-						HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-							Paths: []extensionsv1beta1.HTTPIngressPath{
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
 								{
-									Backend: extensionsv1beta1.IngressBackend{
-										ServiceName: actionService,
-										ServicePort: intstr.Parse("use-annotation"),
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: actionService,
+											Port: networkingv1.ServiceBackendPort{
+												Name:   "use-annotation",
+												Number: 0,
+											},
+										},
+										Resource: nil,
 									},
 								},
 							},
@@ -207,7 +213,7 @@ func TestIngressNotFound(t *testing.T) {
 	ro := fakeRollout("stable-service", "canary-service", nil, "stable-ingress", 443)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +233,7 @@ func TestIngressNotFoundMultiIngress(t *testing.T) {
 	ro := fakeRolloutWithMultiIngress("stable-service", "canary-service", nil, []string{"stable-ingress", "multi-ingress"}, 443)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +256,7 @@ func TestServiceNotFoundInIngress(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,8 +280,8 @@ func TestServiceNotFoundInMultiIngress(t *testing.T) {
 	client := fake.NewSimpleClientset(i, mi)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
 	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,8 +302,8 @@ func TestNoChanges(t *testing.T) {
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,9 +326,9 @@ func TestNoChangesMultiIngress(t *testing.T) {
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
 	client := fake.NewSimpleClientset(i, mi)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -345,8 +351,8 @@ func TestErrorOnInvalidManagedBy(t *testing.T) {
 	i.Annotations[ingressutil.ManagedAnnotations] = "test"
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,9 +375,9 @@ func TestErrorOnInvalidManagedByMultiIngress(t *testing.T) {
 	mi.Annotations[ingressutil.ManagedAnnotations] = "test"
 	client := fake.NewSimpleClientset(i, mi)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,8 +399,8 @@ func TestSetInitialDesiredWeight(t *testing.T) {
 	i.Annotations = map[string]string{}
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,9 +424,9 @@ func TestSetInitialDesiredWeightMultiIngress(t *testing.T) {
 	i.Annotations = map[string]string{}
 	client := fake.NewSimpleClientset(i, mi)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,8 +452,8 @@ func TestSetWeightPingPong(t *testing.T) {
 	i.Annotations = map[string]string{}
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -475,9 +481,9 @@ func TestSetWeightPingPongMultiIngress(t *testing.T) {
 	i.Annotations = map[string]string{}
 	client := fake.NewSimpleClientset(i, mi)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,8 +506,8 @@ func TestUpdateDesiredWeightWithStickyConfig(t *testing.T) {
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, true)
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	assert.Nil(t, err)
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
@@ -522,9 +528,9 @@ func TestUpdateDesiredWeightWithStickyConfigMultiIngress(t *testing.T) {
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, true)
 	client := fake.NewSimpleClientset(i, mi)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	assert.Nil(t, err)
 	r, err := NewReconciler(ReconcilerConfig{
 		Rollout:        ro,
@@ -544,8 +550,8 @@ func TestUpdateDesiredWeight(t *testing.T) {
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -568,9 +574,9 @@ func TestUpdateDesiredWeightMultiIngress(t *testing.T) {
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 	client := fake.NewSimpleClientset(i, mi)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -646,8 +652,8 @@ func TestErrorPatching(t *testing.T) {
 	client := fake.NewSimpleClientset(i)
 	client.ReactionChain = nil
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -677,9 +683,9 @@ func TestErrorPatchingMultiIngress(t *testing.T) {
 	client := fake.NewSimpleClientset(i, mi)
 	client.ReactionChain = nil
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -800,8 +806,9 @@ func TestVerifyWeight(t *testing.T) {
 			SetWeight: pointer.Int32Ptr(10),
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
-		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+
+		i.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
 				},
@@ -810,8 +817,8 @@ func TestVerifyWeight(t *testing.T) {
 
 		client := fake.NewSimpleClientset(i)
 		k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+		k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1001,15 +1008,15 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		}}
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
 		mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 5, ro.Name, false)
-		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		i.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
 				},
 			},
 		}
-		mi.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		mi.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-multi-ingress.us-west-2.elb.amazonaws.com",
 				},
@@ -1018,9 +1025,9 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 
 		client := fake.NewSimpleClientset(i, mi)
 		k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+		k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+		k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1224,8 +1231,8 @@ func TestSetWeightWithMultipleBackends(t *testing.T) {
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1272,9 +1279,9 @@ func TestSetWeightWithMultipleBackendsMultiIngress(t *testing.T) {
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 	client := fake.NewSimpleClientset(i, mi)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1337,8 +1344,8 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 		i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 0, ro.Name, false)
 		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
 
-		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		i.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
 				},
@@ -1347,8 +1354,8 @@ func TestVerifyWeightWithAdditionalDestinations(t *testing.T) {
 
 		client := fake.NewSimpleClientset(i)
 		k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+		k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1552,15 +1559,15 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 		i.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
 		mi.Annotations["alb.ingress.kubernetes.io/actions.stable-svc"] = fmt.Sprintf(actionTemplateWithExperiments, CANARY_SVC, 443, 10, weightDestinations[0].ServiceName, 443, weightDestinations[0].Weight, weightDestinations[1].ServiceName, 443, weightDestinations[1].Weight, STABLE_SVC, 443, 85)
 
-		i.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		i.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
 				},
 			},
 		}
-		mi.Status.LoadBalancer = corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		mi.Status.LoadBalancer = networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
 				{
 					Hostname: "verify-weight-multi-ingress.us-west-2.elb.amazonaws.com",
 				},
@@ -1569,9 +1576,9 @@ func TestVerifyWeightWithAdditionalDestinationsMultiIngress(t *testing.T) {
 
 		client := fake.NewSimpleClientset(i, mi)
 		k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-		k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+		k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+		k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+		ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1835,8 +1842,8 @@ func TestSetHeaderRoute(t *testing.T) {
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1875,9 +1882,9 @@ func TestSetHeaderRouteWithDifferentHeaderNames(t *testing.T) {
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
 
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1926,9 +1933,9 @@ func TestSetHeaderRouteWithDuplicateHeaderNameMatches(t *testing.T) {
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, "action1", 443, 10, ro.Name, false)
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
 
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1977,9 +1984,9 @@ func TestSetHeaderRouteMultiIngress(t *testing.T) {
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, "action2", 443, 10, ro.Name, false)
 	client := fake.NewSimpleClientset(i, mi)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2025,15 +2032,21 @@ func TestRemoveManagedRoutes(t *testing.T) {
 	i.Annotations["alb.ingress.kubernetes.io/actions.header-route"] = "{}"
 	i.Annotations["alb.ingress.kubernetes.io/conditions.header-route"] = "{}"
 	i.Annotations[ingressutil.ManagedAnnotations] = managedByValue.String()
-	i.Spec.Rules = []extensionsv1beta1.IngressRule{
+	i.Spec.Rules = []networkingv1.IngressRule{
 		{
-			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-					Paths: []extensionsv1beta1.HTTPIngressPath{
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{
 						{
-							Backend: extensionsv1beta1.IngressBackend{
-								ServiceName: "action1",
-								ServicePort: intstr.Parse("use-annotation"),
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: "action1",
+									Port: networkingv1.ServiceBackendPort{
+										Name:   "use-annotation",
+										Number: 0,
+									},
+								},
+								Resource: nil,
 							},
 						},
 					},
@@ -2041,13 +2054,19 @@ func TestRemoveManagedRoutes(t *testing.T) {
 			},
 		},
 		{
-			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-					Paths: []extensionsv1beta1.HTTPIngressPath{
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{
 						{
-							Backend: extensionsv1beta1.IngressBackend{
-								ServiceName: "header-route",
-								ServicePort: intstr.Parse("use-annotation"),
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: "header-route",
+									Port: networkingv1.ServiceBackendPort{
+										Name:   "use-annotation",
+										Number: 0,
+									},
+								},
+								Resource: nil,
 							},
 						},
 					},
@@ -2058,8 +2077,8 @@ func TestRemoveManagedRoutes(t *testing.T) {
 
 	client := fake.NewSimpleClientset(i)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2100,15 +2119,21 @@ func TestRemoveManagedRoutesMultiIngress(t *testing.T) {
 	i.Annotations["alb.ingress.kubernetes.io/actions.header-route"] = "{}"
 	i.Annotations["alb.ingress.kubernetes.io/conditions.header-route"] = "{}"
 	i.Annotations[ingressutil.ManagedAnnotations] = managedByValue.String()
-	i.Spec.Rules = []extensionsv1beta1.IngressRule{
+	i.Spec.Rules = []networkingv1.IngressRule{
 		{
-			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-					Paths: []extensionsv1beta1.HTTPIngressPath{
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{
 						{
-							Backend: extensionsv1beta1.IngressBackend{
-								ServiceName: "action1",
-								ServicePort: intstr.Parse("use-annotation"),
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: "action1",
+									Port: networkingv1.ServiceBackendPort{
+										Name:   "use-annotation",
+										Number: 0,
+									},
+								},
+								Resource: nil,
 							},
 						},
 					},
@@ -2116,13 +2141,19 @@ func TestRemoveManagedRoutesMultiIngress(t *testing.T) {
 			},
 		},
 		{
-			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-					Paths: []extensionsv1beta1.HTTPIngressPath{
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{
 						{
-							Backend: extensionsv1beta1.IngressBackend{
-								ServiceName: "header-route",
-								ServicePort: intstr.Parse("use-annotation"),
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: "header-route",
+									Port: networkingv1.ServiceBackendPort{
+										Name:   "use-annotation",
+										Number: 0,
+									},
+								},
+								Resource: nil,
 							},
 						},
 					},
@@ -2134,15 +2165,20 @@ func TestRemoveManagedRoutesMultiIngress(t *testing.T) {
 	mi.Annotations["alb.ingress.kubernetes.io/actions.header-route"] = "{}"
 	mi.Annotations["alb.ingress.kubernetes.io/conditions.header-route"] = "{}"
 	mi.Annotations[ingressutil.ManagedAnnotations] = managedByValue.String()
-	mi.Spec.Rules = []extensionsv1beta1.IngressRule{
+	mi.Spec.Rules = []networkingv1.IngressRule{
 		{
-			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-					Paths: []extensionsv1beta1.HTTPIngressPath{
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{
 						{
-							Backend: extensionsv1beta1.IngressBackend{
-								ServiceName: "action1",
-								ServicePort: intstr.Parse("use-annotation"),
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: "action1",
+									Port: networkingv1.ServiceBackendPort{
+										Name: "use-annotation",
+									},
+								},
+								Resource: nil,
 							},
 						},
 					},
@@ -2150,13 +2186,18 @@ func TestRemoveManagedRoutesMultiIngress(t *testing.T) {
 			},
 		},
 		{
-			IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-				HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-					Paths: []extensionsv1beta1.HTTPIngressPath{
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{
 						{
-							Backend: extensionsv1beta1.IngressBackend{
-								ServiceName: "header-route",
-								ServicePort: intstr.Parse("use-annotation"),
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: "header-route",
+									Port: networkingv1.ServiceBackendPort{
+										Name: "use-annotation",
+									},
+								},
+								Resource: nil,
 							},
 						},
 					},
@@ -2167,9 +2208,9 @@ func TestRemoveManagedRoutesMultiIngress(t *testing.T) {
 
 	client := fake.NewSimpleClientset(i, mi)
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2198,8 +2239,8 @@ func TestSetMirrorRoute(t *testing.T) {
 	i := ingress("ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2230,9 +2271,9 @@ func TestSetMirrorRouteMultiIngress(t *testing.T) {
 	mi := ingress("multi-ingress", STABLE_SVC, CANARY_SVC, STABLE_SVC, 443, 10, ro.Name, false)
 	client := fake.NewSimpleClientset()
 	k8sI := kubeinformers.NewSharedInformerFactory(client, 0)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(i)
-	k8sI.Extensions().V1beta1().Ingresses().Informer().GetIndexer().Add(mi)
-	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeExtensions, client, k8sI)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(i)
+	k8sI.Networking().V1().Ingresses().Informer().GetIndexer().Add(mi)
+	ingressWrapper, err := ingressutil.NewIngressWrapper(ingressutil.IngressModeNetworking, client, k8sI)
 	if err != nil {
 		t.Fatal(err)
 	}

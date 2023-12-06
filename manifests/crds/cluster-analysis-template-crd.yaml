@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.12.1
+    controller-gen.kubebuilder.io/version: v0.13.0
   name: clusteranalysistemplates.argoproj.io
 spec:
   group: argoproj.io
@@ -275,7 +275,6 @@ spec:
                                             x-kubernetes-list-type: atomic
                                         required:
                                         - action
-                                        - onPodConditions
                                         type: object
                                       type: array
                                       x-kubernetes-list-type: atomic
@@ -1082,6 +1081,18 @@ spec:
                                                 type: object
                                               resources:
                                                 properties:
+                                                  claims:
+                                                    items:
+                                                      properties:
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - name
+                                                      type: object
+                                                    type: array
+                                                    x-kubernetes-list-map-keys:
+                                                    - name
+                                                    x-kubernetes-list-type: map
                                                   limits:
                                                     x-kubernetes-preserve-unknown-fields: true
                                                   requests:
@@ -1687,6 +1698,18 @@ spec:
                                                 type: object
                                               resources:
                                                 properties:
+                                                  claims:
+                                                    items:
+                                                      properties:
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - name
+                                                      type: object
+                                                    type: array
+                                                    x-kubernetes-list-map-keys:
+                                                    - name
+                                                    x-kubernetes-list-type: map
                                                   limits:
                                                     x-kubernetes-preserve-unknown-fields: true
                                                   requests:
@@ -2299,6 +2322,18 @@ spec:
                                                 type: object
                                               resources:
                                                 properties:
+                                                  claims:
+                                                    items:
+                                                      properties:
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - name
+                                                      type: object
+                                                    type: array
+                                                    x-kubernetes-list-map-keys:
+                                                    - name
+                                                    x-kubernetes-list-type: map
                                                   limits:
                                                     x-kubernetes-preserve-unknown-fields: true
                                                   requests:
@@ -2529,12 +2564,43 @@ spec:
                                             - conditionType
                                             type: object
                                           type: array
+                                        resourceClaims:
+                                          items:
+                                            properties:
+                                              name:
+                                                type: string
+                                              source:
+                                                properties:
+                                                  resourceClaimName:
+                                                    type: string
+                                                  resourceClaimTemplateName:
+                                                    type: string
+                                                type: object
+                                            required:
+                                            - name
+                                            type: object
+                                          type: array
+                                          x-kubernetes-list-map-keys:
+                                          - name
+                                          x-kubernetes-list-type: map
                                         restartPolicy:
                                           type: string
                                         runtimeClassName:
                                           type: string
                                         schedulerName:
                                           type: string
+                                        schedulingGates:
+                                          items:
+                                            properties:
+                                              name:
+                                                type: string
+                                            required:
+                                            - name
+                                            type: object
+                                          type: array
+                                          x-kubernetes-list-map-keys:
+                                          - name
+                                          x-kubernetes-list-type: map
                                         securityContext:
                                           properties:
                                             fsGroup:
