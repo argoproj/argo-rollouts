@@ -76,7 +76,6 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	// and also update the revision annotation in the rollout with the
 	// latest revision.
 	rsCopy := c.newRS.DeepCopy()
-	//rsCopy, _ = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
 
 	// Set existing new replica set's annotation
 	annotationsUpdated := annotations.SetNewReplicaSetAnnotations(c.rollout, rsCopy, newRevision, true)
@@ -96,7 +95,6 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error updating replicaset informer in syncReplicaSetRevision: %w", err)
 		}
-		//c.newRS = rs.DeepCopy()
 		return rs, nil
 	}
 
