@@ -884,7 +884,7 @@ func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	f.expectUpdateReplicaSetAction(rs1)
-	f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateRolloutAction(r2)
 	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
@@ -963,7 +963,8 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
-	f.expectUpdateReplicaSetAction(rs1)
+	//f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateRolloutAction(r2)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
