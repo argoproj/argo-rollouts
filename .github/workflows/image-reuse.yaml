@@ -69,7 +69,7 @@ jobs:
         if: ${{ github.ref_type != 'tag'}}
 
       - name: Setup Golang
-        uses: actions/setup-go@v4.1.0 # v3.5.0
+        uses: actions/setup-go@v5.0.0 # v3.5.0
         with:
           go-version: ${{ inputs.go-version }}
 
