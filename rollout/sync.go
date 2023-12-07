@@ -280,7 +280,8 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
 func (c *rolloutContext) syncReplicasOnly() error {
 	c.log.Infof("Syncing replicas only due to scaling event")
-	_, err := c.getAllReplicaSetsAndSyncRevision(false)
+	var err error
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
 		return err
 	}
@@ -326,7 +327,8 @@ func (c *rolloutContext) syncReplicasOnly() error {
 //
 // rsList should come from getReplicaSetsForRollout(r).
 func (c *rolloutContext) isScalingEvent() (bool, error) {
-	_, err := c.getAllReplicaSetsAndSyncRevision(false)
+	var err error
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
 		return false, err
 	}
