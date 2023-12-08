@@ -3,7 +3,7 @@ import {Modal, Tabs} from 'antd';
 import {RolloutAnalysisRunInfo} from '../../../models/rollout/generated';
 
 import MetricLabel from './metric-label/metric-label';
-import {AnalysisPanel, MetricPanel} from './panels';
+import {MetricPanel, SummaryPanel} from './panels';
 import {analysisEndTime, analysisStartTime, getAdjustedMetricPhase, metricStatusLabel, metricSubstatus, transformMetrics} from './transforms';
 import {AnalysisStatus} from './types';
 
@@ -44,7 +44,7 @@ export const AnalysisModal = ({analysis, analysisName, images, onClose, open, re
             label: <MetricLabel label='Summary' status={adjustedAnalysisStatus} substatus={analysisSubstatus} />,
             key: 'analysis-summary',
             children: (
-                <AnalysisPanel
+                <SummaryPanel
                     title={metricStatusLabel((analysis.status ?? AnalysisStatus.Unknown) as AnalysisStatus, analysis.failed ?? 0, analysis.error ?? 0, analysis.inconclusive ?? 0)}
                     status={adjustedAnalysisStatus}
                     substatus={analysisSubstatus}

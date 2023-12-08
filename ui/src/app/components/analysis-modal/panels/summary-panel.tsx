@@ -22,7 +22,7 @@ const timeRangeFormatter = (start: number, end: number | null) => {
     return `${startFormatted} - ${endFormatted}`;
 };
 
-interface AnalysisPanelProps {
+interface SummaryPanelProps {
     className?: string[] | string;
     endTime: number | null;
     images: string[];
@@ -34,7 +34,7 @@ interface AnalysisPanelProps {
     title: string;
 }
 
-const AnalysisPanel = ({className, endTime, images, message, revision, startTime, status, substatus, title}: AnalysisPanelProps) => (
+const SummaryPanel = ({className, endTime, images, message, revision, startTime, status, substatus, title}: SummaryPanelProps) => (
     <div className={cx(className)}>
         <Header className={cx('analysis-header')} title={title} status={status} substatus={substatus} />
         {images.length > 0 && (
@@ -70,4 +70,4 @@ const AnalysisPanel = ({className, endTime, images, message, revision, startTime
     </div>
 );
 
-export default AnalysisPanel;
+export default SummaryPanel;

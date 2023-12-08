@@ -1,2 +1,2 @@
-export {default as AnalysisPanel} from './analysis-panel';
 export {default as MetricPanel} from './metric-panel';
+export {default as SummaryPanel} from './summary-panel';
