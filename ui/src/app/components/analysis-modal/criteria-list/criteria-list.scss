@@ -1,0 +1,19 @@
+@import '../theme/theme.scss';
+
+.criteria-list {
+    margin: 0;
+    padding-left: 0;
+    list-style-type: none;
+}
+
+.icon-pass {
+    color: $success-foreground;
+}
+
+.icon-fail {
+    color: $error-foreground;
+}
+
+.icon-pending {
+    color: $in-progress-foreground;
+}
