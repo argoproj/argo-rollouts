@@ -1,6 +1,6 @@
 // eslint-disable-file @typescript-eslint/ban-ts-comment
 import * as React from 'react';
-import * as moment from 'moment';
+import moment from 'moment';
 import {CartesianGrid, DotProps, Label, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, TooltipProps, XAxis, YAxis} from 'recharts';
 import {NameType, ValueType} from 'recharts/types/component/DefaultTooltipContent';
 import {Typography} from 'antd';

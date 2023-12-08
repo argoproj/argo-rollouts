@@ -1,4 +1,5 @@
 import * as React from 'react';
+import moment from 'moment';
 import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {IconForTag} from '../../shared/utils/utils';
 import {ReplicaSets} from '../pods/pods';
@@ -14,8 +15,6 @@ import {AnalysisModal} from '../analysis-modal/analysis-modal';
 import StatusIndicator from '../analysis-modal/status-indicator/status-indicator';
 import {AnalysisStatus} from '../analysis-modal/types';
 import {getAdjustedMetricPhase} from '../analysis-modal/transforms';
-
-import moment = require('moment');
 
 const {Text} = Typography;
 
