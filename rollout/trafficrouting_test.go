@@ -783,6 +783,7 @@ func TestCanaryWithTrafficRoutingAddScaleDownDelay(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	rs1Patch := f.expectPatchReplicaSetAction(rs1) // set scale-down-deadline annotation
+	f.expectPatchRolloutAction(r2)                 // updates the rollout status
 	f.run(getKey(r2, t))
 
 	f.verifyPatchedReplicaSet(rs1Patch, 30)

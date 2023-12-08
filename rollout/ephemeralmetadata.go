@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"context"
+	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -81,10 +82,15 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	}
 
 	// 2. Update ReplicaSet so that any new pods it creates will have the metadata
-	_, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
+	rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update ReplicaSet %s in syncEphemeralMetadata: %w", rs.Name, err)
 	}
 	c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
+	err = c.replicaSetInformer.GetStore().Update(rs)
+	if err != nil {
+		return fmt.Errorf("failed to update ReplicaSet informer %s in syncEphemeralMetadata: %w", rs.Name, err)
+	}
+	c.newRS = rs.DeepCopy()
 	return nil
 }

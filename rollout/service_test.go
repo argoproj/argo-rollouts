@@ -609,10 +609,12 @@ func TestCanaryAWSVerifyTargetGroupsReady(t *testing.T) {
 
 	f.expectGetEndpointsAction(ep)
 	scaleDownRSIndex := f.expectPatchReplicaSetAction(rs1)
+	f.expectPatchRolloutAction(r2) // update status message
 	f.run(getKey(r2, t))
 	f.verifyPatchedReplicaSet(scaleDownRSIndex, 30)
 	f.assertEvents([]string{
 		conditions.TargetGroupVerifiedReason,
+		conditions.RolloutNotCompletedReason,
 	})
 }
 
