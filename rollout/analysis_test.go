@@ -614,6 +614,84 @@ func TestCreateAnalysisRunOnAnalysisStep(t *testing.T) {
 	assert.JSONEq(t, calculatePatch(r2, fmt.Sprintf(expectedPatch, expectedArName)), patch)
 }
 
+func TestCreateAnalysisRunOnPromotedAnalysisStepIfPreviousStepWasAnalysisToo(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{{
+		Analysis: &v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
+		},
+	}, {
+		Analysis: &v1alpha1.RolloutAnalysis{
+			Templates: []v1alpha1.RolloutAnalysisTemplate{
+				{
+					TemplateName: at.Name,
+				},
+			},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+	ar0Step := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r2)
+	ar0Step.Status.Phase = v1alpha1.AnalysisPhaseRunning
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	//rs2PodHash := rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+	progressingCondition, _ := newProgressingCondition(conditions.ReplicaSetUpdatedReason, rs2, "")
+	conditions.SetRolloutCondition(&r2.Status, progressingCondition)
+	availableCondition, _ := newAvailableCondition(true)
+	conditions.SetRolloutCondition(&r2.Status, availableCondition)
+	completedCondition, _ := newCompletedCondition(false)
+	conditions.SetRolloutCondition(&r2.Status, completedCondition)
+	r2.Status.Canary.CurrentStepAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name:   ar0Step.Name,
+		Status: "",
+	}
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar0Step)
+	f.objects = append(f.objects, r2, at, ar0Step)
+
+	patchOldAnalysisIndex := f.expectPatchAnalysisRunAction(ar0Step)
+	//createdIndex := f.expectCreateAnalysisRunAction(ar0Step)
+	index := f.expectPatchRolloutAction(r2)
+
+	// simulate promote action
+	r2.Status.CurrentStepIndex = pointer.Int32Ptr(1)
+
+	f.run(getKey(r2, t))
+
+	assert.True(t, f.verifyPatchedAnalysisRun(patchOldAnalysisIndex, ar0Step))
+	// should terminate analysis run for old step
+	patchedOldAr := f.getPatchedAnalysisRun(patchOldAnalysisIndex)
+	assert.True(t, patchedOldAr.Spec.Terminate)
+
+	// should patch rollout with relevant currentStepAnalysisRun
+	patch := f.getPatchedRollout(index)
+	expectedPatch := `{
+		"status": {
+			"canary": {
+				"currentStepAnalysisRunStatus":null
+			}
+		}
+	}`
+	assert.JSONEq(t, calculatePatch(r2, expectedPatch), patch)
+}
+
 func TestFailCreateStepAnalysisRunIfInvalidTemplateRef(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()

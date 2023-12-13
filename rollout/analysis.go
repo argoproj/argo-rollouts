@@ -372,7 +372,10 @@ func (c *rolloutContext) reconcileStepBasedAnalysisRun() (*v1alpha1.AnalysisRun,
 		return currentAr, nil
 	}
 
-	if step == nil || step.Analysis == nil || index == nil {
+	// for promotion cases
+	analysisRunFromPreviousStep := step != nil && step.Analysis != nil && currentAr != nil && currentAr.GetLabels()[v1alpha1.RolloutCanaryStepIndexLabel] != strconv.Itoa(int(*index))
+
+	if step == nil || step.Analysis == nil || index == nil || analysisRunFromPreviousStep {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
