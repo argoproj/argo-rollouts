@@ -1,5 +1,5 @@
 import * as React from 'react';
-import moment from 'moment';
+import * as moment from 'moment';
 import {RolloutAnalysisRunInfo, RolloutExperimentInfo, RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {IconForTag} from '../../shared/utils/utils';
 import {ReplicaSets} from '../pods/pods';

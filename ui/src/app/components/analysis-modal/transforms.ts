@@ -1,5 +1,5 @@
 // eslint-disable-file @typescript-eslint/ban-ts-comment
-import moment from 'moment';
+import * as moment from 'moment';
 
 import {
     GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Argument,

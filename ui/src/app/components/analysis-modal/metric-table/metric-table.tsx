@@ -1,5 +1,5 @@
 import * as React from 'react';
-import moment from 'moment';
+import * as moment from 'moment';
 import {Table, Typography} from 'antd';
 
 import {AnalysisStatus, TransformedMeasurement, TransformedValueObject} from '../types';
