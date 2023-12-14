@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as moment from 'moment';
-import {DropDown, Duration, Ticker} from 'argo-ui';
+import {DropDown, Duration} from 'argo-ui';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
 import './pods.scss';
@@ -10,6 +10,7 @@ import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {IconDefinition, faCheck, faCircleNotch, faClipboard, faExclamationTriangle, faQuestionCircle, faTimes} from '@fortawesome/free-solid-svg-icons';
 import {EllipsisMiddle} from '../ellipsis-middle/ellipsis-middle';
 import {InfoItem} from '../info-item/info-item';
+import {Ticker} from '../ticker/ticker';
 
 export enum PodStatus {
     Pending = 'pending',
