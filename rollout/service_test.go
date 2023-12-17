@@ -879,3 +879,73 @@ func TestDelayCanaryStableServiceDelayOnAdoptedService(t *testing.T) {
 	})
 
 }
+
+func TestGetCanaryReplicaSet(t *testing.T) {
+	t.Run("Not Canary Strategy", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		ro := newRollout("foo", 3, nil, nil)
+		roCtx, err := ctrl.newRolloutContext(ro)
+		assert.NoError(t, err)
+		rs, err := roCtx.getCanaryReplicaSet()
+		assert.Nil(t, rs)
+		assert.NoError(t, err)
+	},
+	)
+
+	t.Run("No Canary SVC", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+		roCtx, err := ctrl.newRolloutContext(ro)
+		assert.NoError(t, err)
+		rs, err := roCtx.getCanaryReplicaSet()
+		assert.Nil(t, rs)
+		assert.NoError(t, err)
+	},
+	)
+	t.Run("Have Canary SVC", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+		canarySVCName := "canary"
+		canaryRS := newReplicaSetWithStatus(ro, 3, 3)
+		canarySVC := newService(canarySVCName, 80,
+			map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: canaryRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
+		ro.Spec.Strategy.Canary.CanaryService = canarySVCName
+		f.rolloutLister = append(f.rolloutLister, ro)
+		f.kubeobjects = append(f.kubeobjects, canaryRS, canarySVC)
+		f.replicaSetLister = append(f.replicaSetLister, canaryRS)
+		f.serviceLister = append(f.serviceLister, canarySVC)
+
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro)
+		assert.NoError(t, err)
+		rs, err := roCtx.getCanaryReplicaSet()
+		assert.NoError(t, err)
+		assert.NotNil(t, rs)
+	})
+	t.Run("No Matched Replicaset", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+		canarySVCName := "canary"
+		canaryRS := newReplicaSetWithStatus(ro, 3, 0)
+		canarySVC := newService(canarySVCName, 80,
+			map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "youknowthisisdifferent"}, ro)
+		ro.Spec.Strategy.Canary.CanaryService = canarySVCName
+		f.rolloutLister = append(f.rolloutLister, ro)
+		f.kubeobjects = append(f.kubeobjects, canaryRS, canarySVC)
+		f.replicaSetLister = append(f.replicaSetLister, canaryRS)
+		f.serviceLister = append(f.serviceLister, canarySVC)
+
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		roCtx, err := ctrl.newRolloutContext(ro)
+		assert.NoError(t, err)
+		rs, err := roCtx.getCanaryReplicaSet()
+		assert.NoError(t, err)
+		assert.Nil(t, rs)
+	})
+}
