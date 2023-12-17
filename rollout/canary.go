@@ -435,6 +435,13 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 		return true, nil
 	}
 
+	if c.newRS == nil {
+		canaryRS, err := c.getCanaryReplicaSet()
+		if err != nil {
+			return false, err
+		}
+		c.newRS = canaryRS
+	}
 	scaledNewRS, err := c.reconcileNewReplicaSet()
 	if err != nil {
 		return false, err
