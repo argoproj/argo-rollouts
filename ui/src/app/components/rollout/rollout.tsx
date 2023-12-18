@@ -159,7 +159,6 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                                         initCollapsed={false}
                                         rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
                                         current={i === 0}
-                                        message={rollout.message}
                                     />
                                 ))}
                             </div>

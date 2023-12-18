@@ -12,5 +12,6 @@
         "allowSyntheticDefaultImports": true
     },
     "include": ["./**/*"],
-    "exclude": ["node_modules", "./**/*.test.ts", "./**/*.test.tsx"]
+    "exclude": ["node_modules", "./**/*.test.tsx"],
+    "types": ["node", "jest"]
 }

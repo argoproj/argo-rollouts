@@ -1,0 +1,79 @@
+@import '../theme/theme.scss';
+
+@mixin chartDot($background, $foreground) {
+    fill: $background;
+    stroke: $foreground;
+}
+
+.metric-chart svg {
+    overflow: visible;
+}
+
+.metric-chart-tooltip {
+    background: white;
+    max-width: 350px;
+    padding: 8px;
+    box-shadow: $shadow-1;
+}
+
+.metric-chart-tooltip-timestamp {
+    margin-left: 16px;
+}
+
+.metric-chart-tooltip-status {
+    display: flex;
+
+    > :first-child {
+        margin: 4px 4px 0 0;
+    }
+}
+
+.chart-axis text,
+.chart-label > tspan {
+    stroke: $gray-10;
+    font-size: 11px;
+    font-family: $font-family-primary;
+    font-weight: 100;
+}
+
+.dot-ERROR {
+    @include chartDot($error-background, $error-foreground);
+}
+.dot-INACTIVE {
+    @include chartDot($inactive-background, $inactive-foreground);
+}
+.dot-IN_PROGRESS {
+    @include chartDot($in-progress-background, $in-progress-foreground);
+}
+.dot-SUCCESS {
+    @include chartDot($success-background, $success-foreground);
+}
+.dot-WARNING {
+    @include chartDot($warning-background, $warning-foreground);
+}
+
+.chart-line > path {
+    stroke: $gray-11;
+}
+
+.reference-line {
+    &.is-ERROR > line {
+        stroke: $error-foreground;
+    }
+    &.is-SUCCESS > line {
+        stroke: $success-foreground;
+    }
+}
+
+.reference-area {
+    > path {
+        opacity: 0.3;
+    }
+
+    &.is-ERROR > path {
+        fill: $error-background;
+    }
+    &.is-SUCCESS > path {
+        fill: $success-background;
+    }
+}
