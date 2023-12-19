@@ -1606,6 +1606,8 @@ message RolloutTrafficRouting {
   // +kubebuilder:validation:Type=object
   // Plugins holds specific configuration that traffic router plugins can use for routing traffic
   map<string, bytes> plugins = 10;
+
+  optional int32 maxTrafficWeight = 11;
 }
 
 message RouteMatch {

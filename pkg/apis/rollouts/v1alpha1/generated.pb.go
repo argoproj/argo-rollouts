@@ -9125,6 +9125,11 @@ func (m *RolloutTrafficRouting) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.MaxTrafficWeight != nil {
+		i = encodeVarintGenerated(dAtA, i, uint64(*m.MaxTrafficWeight))
+		i--
+		dAtA[i] = 0x58
+	}
 	if len(m.Plugins) > 0 {
 		keysForPlugins := make([]string, 0, len(m.Plugins))
 		for k := range m.Plugins {
@@ -12352,6 +12357,9 @@ func (m *RolloutTrafficRouting) Size() (n int) {
 			n += mapEntrySize + 1 + sovGenerated(uint64(mapEntrySize))
 		}
 	}
+	if m.MaxTrafficWeight != nil {
+		n += 1 + sovGenerated(uint64(*m.MaxTrafficWeight))
+	}
 	return n
 }
 
@@ -14260,6 +14268,7 @@ func (this *RolloutTrafficRouting) String() string {
 		`ManagedRoutes:` + repeatedStringForManagedRoutes + `,`,
 		`Apisix:` + strings.Replace(this.Apisix.String(), "ApisixTrafficRouting", "ApisixTrafficRouting", 1) + `,`,
 		`Plugins:` + mapStringForPlugins + `,`,
+		`MaxTrafficWeight:` + valueToStringGenerated(this.MaxTrafficWeight) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -31598,6 +31607,26 @@ func (m *RolloutTrafficRouting) Unmarshal(dAtA []byte) error {
 			}
 			m.Plugins[mapkey] = ((encoding_json.RawMessage)(mapvalue))
 			iNdEx = postIndex
+		case 11:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxTrafficWeight", wireType)
+			}
+			var v int32
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.MaxTrafficWeight = &v
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

@@ -2303,6 +2303,10 @@
             "format": "byte"
           },
           "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nPlugins holds specific configuration that traffic router plugins can use for routing traffic"
+        },
+        "maxTrafficWeight": {
+          "type": "integer",
+          "format": "int32"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"
