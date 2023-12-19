@@ -133,6 +133,10 @@ func (r *Reconciler) buildCanaryIngress(stableIngress *networkingv1.Ingress, nam
 	desiredCanaryIngress.Annotations[fmt.Sprintf("%s/canary", annotationPrefix)] = "true"
 	desiredCanaryIngress.Annotations[fmt.Sprintf("%s/canary-weight", annotationPrefix)] = fmt.Sprintf("%d", desiredWeight)
 
+	if r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.MaxTrafficWeight != nil {
+		weightTotal := *r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.MaxTrafficWeight
+		desiredCanaryIngress.Annotations[fmt.Sprintf("%s/canary-weight-total", annotationPrefix)] = fmt.Sprintf("%d", weightTotal)
+	}
 	return ingressutil.NewIngress(desiredCanaryIngress), nil
 }
 
