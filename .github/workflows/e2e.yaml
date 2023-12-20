@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Event File
           path: ${{ github.event_path }}
@@ -85,13 +85,13 @@ jobs:
           [[ -f rerunreport.txt ]] && cat rerunreport.txt || echo "No rerun report found"
       - name: Upload E2E Test Results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: E2E Test Results (k8s ${{ matrix.kubernetes-minor-version }})
           path: |
             junit.xml
       - name: Upload e2e-controller logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: e2e-controller-k8s-${{ matrix.kubernetes-minor-version }}.log
           path: /tmp/e2e-controller.log
