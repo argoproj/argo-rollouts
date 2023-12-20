@@ -3282,6 +3282,10 @@
 <p class="admonition-title">Important</p>
 <p>Available since v0.9.0</p>
 </div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The Cloud Native Computing Foundation <a href="https://www.cncf.io/blog/2023/10/03/cncf-archives-the-service-mesh-interface-smi-project/">has archived the SMI Spec</a>. The recommended way forward is to look at the <a href="https://gateway-api.sigs.k8s.io/">Gateway API</a>, <a href="https://gateway-api.sigs.k8s.io/concepts/gamma/">Project Gamma</a> and the <a href="https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi">Argo Rollouts Gateway API Plugin</a>. </p>
+</div>
 <p><a href="https://smi-spec.io/">Service Mesh Interface</a> (SMI) is a standard interface for service meshes on Kubernetes leveraged by many Service Mesh implementations (like Linkerd). SMI offers this functionality through a set of CRDs, and the Argo Rollouts controller creates these resources to manipulate the traffic routing into the desired state. </p>
 <p>The Argo Rollout controller achieves traffic shaping by creating and manipulating the <a href="https://github.com/servicemeshinterface/smi-spec/blob/master/traffic-split.md">TrafficSplit CR</a>. A TrafficSplit describes the desired traffic routing for an application and relies on the underlying Service Meshes implement that desired state. Instead of worrying about the details of a specific service mesh, a user needs to specify a root Service that clients use to communicate and a list of backends consisting of a Service and weight. The Service Mesh implementing SMI uses this spec to route traffic to the backends Services based on the weights of the backends. For Rollout users, the Argo Rollout controller creates and manipulates the TrafficSplit using the following information:</p>
 <ul>
