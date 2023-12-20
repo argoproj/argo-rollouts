@@ -889,8 +889,22 @@ func TestGetCanaryReplicaSet(t *testing.T) {
 		roCtx, err := ctrl.newRolloutContext(ro)
 		assert.NoError(t, err)
 		rs, err := roCtx.getCanaryReplicaSet()
-		assert.Nil(t, rs)
 		assert.NoError(t, err)
+		assert.Nil(t, rs)
+	},
+	)
+
+	t.Run("Empty Canary Service", func(t *testing.T) {
+		f := newFixture(t)
+		defer f.Close()
+		ctrl, _, _ := f.newController(noResyncPeriodFunc)
+		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+		ro.Spec.Strategy.Canary.CanaryService = ""
+		roCtx, err := ctrl.newRolloutContext(ro)
+		assert.NoError(t, err)
+		rs, err := roCtx.getCanaryReplicaSet()
+		assert.NoError(t, err)
+		assert.Nil(t, rs)
 	},
 	)
 
@@ -899,6 +913,7 @@ func TestGetCanaryReplicaSet(t *testing.T) {
 		defer f.Close()
 		ctrl, _, _ := f.newController(noResyncPeriodFunc)
 		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
+		ro.Spec.Strategy.Canary.CanaryService = "canary"
 		roCtx, err := ctrl.newRolloutContext(ro)
 		assert.NoError(t, err)
 		rs, err := roCtx.getCanaryReplicaSet()
@@ -906,11 +921,13 @@ func TestGetCanaryReplicaSet(t *testing.T) {
 		assert.NoError(t, err)
 	},
 	)
+
 	t.Run("Have Canary SVC", func(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
 		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
 		canarySVCName := "canary"
+		ro.Spec.Strategy.Canary.CanaryService = canarySVCName
 		canaryRS := newReplicaSetWithStatus(ro, 3, 3)
 		canarySVC := newService(canarySVCName, 80,
 			map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: canaryRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, ro)
@@ -927,11 +944,13 @@ func TestGetCanaryReplicaSet(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, rs)
 	})
+
 	t.Run("No Matched Replicaset", func(t *testing.T) {
 		f := newFixture(t)
 		defer f.Close()
 		ro := newCanaryRollout("foo", 3, nil, nil, nil, intstr.FromInt(1), intstr.FromInt(1))
 		canarySVCName := "canary"
+		ro.Spec.Strategy.Canary.CanaryService = canarySVCName
 		canaryRS := newReplicaSetWithStatus(ro, 3, 0)
 		canarySVC := newService(canarySVCName, 80,
 			map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: "youknowthisisdifferent"}, ro)
