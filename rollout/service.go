@@ -286,7 +286,7 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 }
 
 func (c *rolloutContext) getCanaryReplicaSet() (*appsv1.ReplicaSet, error) {
-	if c.rollout.Spec.Strategy.Canary == nil {
+	if c.rollout.Spec.Strategy.Canary == nil || c.rollout.Spec.Strategy.Canary.CanaryService == "" {
 		return nil, nil
 	}
 	svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.CanaryService)
