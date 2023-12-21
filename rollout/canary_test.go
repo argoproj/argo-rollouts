@@ -2037,6 +2037,7 @@ func TestCanaryReplicaAndSpecChangedTogether(t *testing.T) {
 	r3 := bumpVersion(r2)
 	r3.Spec.Replicas = pointer.Int32(int32(originReplicas) + 5)
 	r3.Status.StableRS = stableRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r3.Status.CurrentPodHash = canaryRS.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 
 	f.rolloutLister = append(f.rolloutLister, r3)
 	f.kubeobjects = append(f.kubeobjects, canaryRS, stableRS, canarySVC, stableSVC)

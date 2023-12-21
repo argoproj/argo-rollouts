@@ -17,7 +17,6 @@ import (
 	serviceutil "github.com/argoproj/argo-rollouts/utils/service"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
@@ -283,27 +282,6 @@ func (c *rolloutContext) reconcileStableAndCanaryService() error {
 		return err
 	}
 	return nil
-}
-
-func (c *rolloutContext) getCanaryReplicaSet() (*appsv1.ReplicaSet, error) {
-	if c.rollout.Spec.Strategy.Canary == nil || c.rollout.Spec.Strategy.Canary.CanaryService == "" {
-		return nil, nil
-	}
-	svc, err := c.servicesLister.Services(c.rollout.Namespace).Get(c.rollout.Spec.Strategy.Canary.CanaryService)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if svc != nil {
-		for _, rs := range c.allRSs {
-			if serviceutil.GetRolloutSelectorLabel(svc) == rs.Labels[v1alpha1.DefaultRolloutUniqueLabelKey] {
-				return rs, nil
-			}
-		}
-	}
-	return nil, nil
 }
 
 // ensureSVCTargets updates the service with the given name to point to the given ReplicaSet,
