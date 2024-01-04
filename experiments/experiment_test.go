@@ -97,7 +97,7 @@ func TestSetExperimentToPending(t *testing.T) {
 		"status":{
 			"phase": "Pending"
 		}
-	}`, templateStatus, cond)
+	}`, templateStatus, cond, nil, "")
 	assert.Equal(t, expectedPatch, patch)
 }
 
@@ -281,7 +281,7 @@ func TestSuccessAfterDurationPasses(t *testing.T) {
 		"status":{
 			"phase": "Successful"
 		}
-	}`, templateStatuses, cond)
+	}`, templateStatuses, cond, nil, "")
 	assert.JSONEq(t, expectedPatch, patch)
 }
 
@@ -554,4 +554,421 @@ func TestServiceNameSet(t *testing.T) {
 
 	assert.NotNil(t, exCtx.templateServices["bar"])
 	assert.Equal(t, exCtx.templateServices["bar"].Name, "service-name")
+}
+
+func TestCreatenalysisRunWithClusterTemplatesAndTemplateAndInnerTemplates(t *testing.T) {
+
+	at := analysisTemplateWithNamespacedAnalysisRefs("bar", "bar2")
+	at2 := analysisTemplateWithClusterAnalysisRefs("bar2", "clusterbar", "clusterbar2")
+	cat := clusterAnalysisTemplateWithAnalysisRefs("clusterbar", "clusterbar2", "clusterbar3")
+	cat2 := clusterAnalysisTemplate("clusterbar2")
+	cat3 := clusterAnalysisTemplate("clusterbar3")
+	cat4 := clusterAnalysisTemplate("clusterbar4")
+
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "exp-bar",
+			TemplateName: "bar",
+			ClusterScope: false,
+		},
+		{
+			Name:         "exp-bar-2",
+			TemplateName: "clusterbar4",
+			ClusterScope: true,
+		},
+	}
+
+	e.Status = v1alpha1.ExperimentStatus{}
+	e.Status.AvailableAt = now()
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+
+	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
+
+	rs := templateToRS(e, templates[0], 0)
+	f := newFixture(t, e, rs, cat, cat2, cat3, cat4, at, at2)
+	defer f.Close()
+
+	ar1 := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "foo-exp-bar",
+			Namespace:       metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(rs, controllerKind)},
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics:              concatMultipleSlices([][]v1alpha1.Metric{at.Spec.Metrics, at2.Spec.Metrics, cat.Spec.Metrics, cat2.Spec.Metrics, cat3.Spec.Metrics}),
+			DryRun:               concatMultipleSlices([][]v1alpha1.DryRun{at.Spec.DryRun, at2.Spec.DryRun, cat.Spec.DryRun, cat2.Spec.DryRun, cat3.Spec.DryRun}),
+			Args:                 at.Spec.Args,
+			MeasurementRetention: concatMultipleSlices([][]v1alpha1.MeasurementRetention{at.Spec.MeasurementRetention, at2.Spec.MeasurementRetention, cat.Spec.MeasurementRetention, cat2.Spec.MeasurementRetention, cat3.Spec.MeasurementRetention}),
+		},
+	}
+	ar2 := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "foo-exp-bar-2",
+			Namespace:       metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(rs, controllerKind)},
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics:              cat4.Spec.Metrics,
+			Args:                 cat4.Spec.Args,
+			DryRun:               cat4.Spec.DryRun,
+			MeasurementRetention: cat4.Spec.MeasurementRetention,
+		},
+	}
+	createdIndex1 := f.expectCreateAnalysisRunAction(ar1)
+	createdIndex2 := f.expectCreateAnalysisRunAction(ar2)
+	index := f.expectPatchExperimentAction(e)
+
+	f.run(getKey(e, t))
+
+	createdAr1 := f.getCreatedAnalysisRun(createdIndex1)
+	createdAr2 := f.getCreatedAnalysisRun(createdIndex2)
+
+	patch := f.getPatchedExperiment(index)
+	templateStatus := []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil),
+	}
+	analysisRun := []*v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			AnalysisRun: "foo-exp-bar",
+			Name:        "exp-bar",
+			Phase:       "Pending",
+		},
+		{
+			AnalysisRun: "foo-exp-bar-2",
+			Name:        "exp-bar-2",
+			Phase:       "Pending",
+		},
+	}
+	expectedPatch := calculatePatch(e, `{
+		"status":{
+			"phase": "Pending"
+		}
+	}`, templateStatus, cond, analysisRun, "")
+	assert.Equal(t, expectedPatch, patch)
+
+	assert.Equal(t, "foo-exp-bar", createdAr1.Name)
+	assert.Len(t, createdAr1.Spec.Metrics, 5)
+	assert.Equal(t, "foo-exp-bar-2", createdAr2.Name)
+	assert.Len(t, createdAr2.Spec.Metrics, 1)
+}
+
+func TestCreatenalysisRunWithTemplatesAndNoMetricsAtRoot(t *testing.T) {
+
+	at := analysisTemplateWithOnlyNamespacedAnalysisRefs("bar", "bar2")
+	at2 := analysisTemplateWithClusterAnalysisRefs("bar2", "clusterbar", "clusterbar2")
+	cat := clusterAnalysisTemplateWithAnalysisRefs("clusterbar", "clusterbar2", "clusterbar3")
+	cat2 := clusterAnalysisTemplate("clusterbar2")
+	cat3 := clusterAnalysisTemplate("clusterbar3")
+	cat4 := clusterAnalysisTemplate("clusterbar4")
+
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "exp-bar",
+			TemplateName: "bar",
+			ClusterScope: false,
+		},
+		{
+			Name:         "exp-bar-2",
+			TemplateName: "clusterbar4",
+			ClusterScope: true,
+		},
+	}
+
+	e.Status = v1alpha1.ExperimentStatus{}
+	e.Status.AvailableAt = now()
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+
+	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
+
+	rs := templateToRS(e, templates[0], 0)
+	f := newFixture(t, e, rs, cat, cat2, cat3, cat4, at, at2)
+	defer f.Close()
+
+	ar1 := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "foo-exp-bar",
+			Namespace:       metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(rs, controllerKind)},
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics:              concatMultipleSlices([][]v1alpha1.Metric{at2.Spec.Metrics, cat.Spec.Metrics, cat2.Spec.Metrics, cat3.Spec.Metrics}),
+			DryRun:               concatMultipleSlices([][]v1alpha1.DryRun{at2.Spec.DryRun, cat.Spec.DryRun, cat2.Spec.DryRun, cat3.Spec.DryRun}),
+			Args:                 at.Spec.Args,
+			MeasurementRetention: concatMultipleSlices([][]v1alpha1.MeasurementRetention{at2.Spec.MeasurementRetention, cat.Spec.MeasurementRetention, cat2.Spec.MeasurementRetention, cat3.Spec.MeasurementRetention}),
+		},
+	}
+	ar2 := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "foo-exp-bar-2",
+			Namespace:       metav1.NamespaceDefault,
+			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(rs, controllerKind)},
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics:              cat4.Spec.Metrics,
+			Args:                 cat4.Spec.Args,
+			DryRun:               cat4.Spec.DryRun,
+			MeasurementRetention: cat4.Spec.MeasurementRetention,
+		},
+	}
+	createdIndex1 := f.expectCreateAnalysisRunAction(ar1)
+	createdIndex2 := f.expectCreateAnalysisRunAction(ar2)
+	index := f.expectPatchExperimentAction(e)
+
+	f.run(getKey(e, t))
+
+	createdAr1 := f.getCreatedAnalysisRun(createdIndex1)
+	createdAr2 := f.getCreatedAnalysisRun(createdIndex2)
+
+	patch := f.getPatchedExperiment(index)
+	templateStatus := []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil),
+	}
+	analysisRun := []*v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			AnalysisRun: "foo-exp-bar",
+			Name:        "exp-bar",
+			Phase:       "Pending",
+		},
+		{
+			AnalysisRun: "foo-exp-bar-2",
+			Name:        "exp-bar-2",
+			Phase:       "Pending",
+		},
+	}
+	expectedPatch := calculatePatch(e, `{
+		"status":{
+			"phase": "Pending"
+		}
+	}`, templateStatus, cond, analysisRun, "")
+	assert.Equal(t, expectedPatch, patch)
+
+	assert.Equal(t, "foo-exp-bar", createdAr1.Name)
+	assert.Len(t, createdAr1.Spec.Metrics, 4)
+	assert.Equal(t, "foo-exp-bar-2", createdAr2.Name)
+	assert.Len(t, createdAr2.Spec.Metrics, 1)
+}
+
+func TestAnalysisTemplateNotFoundShouldFailTheExperiment(t *testing.T) {
+
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "exp-bar",
+			TemplateName: "bar",
+			ClusterScope: false,
+		},
+	}
+
+	rs := templateToRS(e, templates[0], 0)
+
+	expectFailureWithMessage(e, templates, t, "Failed to create AnalysisRun for analysis 'exp-bar': analysistemplate.argoproj.io \"bar\" not found", e, rs)
+}
+
+func TestClusterAnalysisTemplateNotFoundShouldFailTheExperiment(t *testing.T) {
+
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "exp-bar",
+			TemplateName: "cluster-bar",
+			ClusterScope: true,
+		},
+	}
+
+	rs := templateToRS(e, templates[0], 0)
+
+	expectFailureWithMessage(e, templates, t, "Failed to create AnalysisRun for analysis 'exp-bar': clusteranalysistemplate.argoproj.io \"cluster-bar\" not found", e, rs)
+}
+
+func TestInnerAnalysisTemplateNotFoundShouldFailTheExperiment(t *testing.T) {
+
+	at := analysisTemplateWithOnlyNamespacedAnalysisRefs("bar", "bar2")
+
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "exp-bar",
+			TemplateName: "bar",
+			ClusterScope: false,
+		},
+	}
+
+	rs := templateToRS(e, templates[0], 0)
+
+	expectFailureWithMessage(e, templates, t, "Failed to create AnalysisRun for analysis 'exp-bar': analysistemplate.argoproj.io \"bar2\" not found", at, e, rs)
+}
+
+func TestInnerClusterAnalysisTemplateNotFoundShouldFailTheExperiment(t *testing.T) {
+
+	cat := clusterAnalysisTemplateWithAnalysisRefs("clusterbar", "clusterbar2", "clusterbar3")
+	cat2 := clusterAnalysisTemplate("clusterbar2")
+
+	templates := generateTemplates("bar")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "exp-bar",
+			TemplateName: "clusterbar",
+			ClusterScope: true,
+		},
+	}
+	rs := templateToRS(e, templates[0], 0)
+
+	expectFailureWithMessage(e, templates, t, "Failed to create AnalysisRun for analysis 'exp-bar': clusteranalysistemplate.argoproj.io \"clusterbar3\" not found", cat, cat2, e, rs)
+}
+
+func expectFailureWithMessage(e *v1alpha1.Experiment, templates []v1alpha1.TemplateSpec, t *testing.T, message string, objects ...runtime.Object) {
+
+	e.Status = v1alpha1.ExperimentStatus{}
+	e.Status.AvailableAt = now()
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+
+	cond := newCondition(conditions.ReplicaSetUpdatedReason, e)
+
+	f := newFixture(t, objects...)
+	defer f.Close()
+
+	index := f.expectPatchExperimentAction(e)
+
+	f.run(getKey(e, t))
+
+	patch := f.getPatchedExperiment(index)
+	templateStatus := []v1alpha1.TemplateStatus{
+		generateTemplatesStatus("bar", 0, 0, v1alpha1.TemplateStatusProgressing, nil),
+	}
+	analysisRun := []*v1alpha1.ExperimentAnalysisRunStatus{
+		{
+			AnalysisRun: "",
+			Name:        "exp-bar",
+			Message:     message,
+			Phase:       "Error",
+		},
+	}
+	expectedPatch := calculatePatch(e, `{
+		"status":{
+			"phase": "Error"
+		}
+	}`, templateStatus, cond, analysisRun, message)
+	assert.Equal(t, expectedPatch, patch)
+}
+
+func concatMultipleSlices[T any](slices [][]T) []T {
+	var totalLen int
+
+	for _, s := range slices {
+		totalLen += len(s)
+	}
+
+	result := make([]T, totalLen)
+
+	var i int
+
+	for _, s := range slices {
+		i += copy(result[i:], s)
+	}
+
+	return result
+}
+
+func analysisTemplateWithNamespacedAnalysisRefs(name string, innerRefsName ...string) *v1alpha1.AnalysisTemplate {
+	return analysisTemplateWithAnalysisRefs(name, false, innerRefsName...)
+}
+
+func analysisTemplateWithClusterAnalysisRefs(name string, innerRefsName ...string) *v1alpha1.AnalysisTemplate {
+	return analysisTemplateWithAnalysisRefs(name, true, innerRefsName...)
+}
+
+func analysisTemplateWithAnalysisRefs(name string, clusterScope bool, innerRefsName ...string) *v1alpha1.AnalysisTemplate {
+	templatesRefs := []v1alpha1.AnalysisTemplateRef{}
+	for _, innerTplName := range innerRefsName {
+		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
+			TemplateName: innerTplName,
+			ClusterScope: clusterScope,
+		})
+	}
+	return &v1alpha1.AnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name: "example-" + name,
+			}},
+			DryRun: []v1alpha1.DryRun{{
+				MetricName: "example-" + name,
+			}},
+			MeasurementRetention: []v1alpha1.MeasurementRetention{{
+				MetricName: "example-" + name,
+			}},
+			Templates: templatesRefs,
+		},
+	}
+}
+
+func analysisTemplateWithOnlyNamespacedAnalysisRefs(name string, innerRefsName ...string) *v1alpha1.AnalysisTemplate {
+	return analysisTemplateWithOnlyRefs(name, false, innerRefsName...)
+}
+
+func analysisTemplateWithOnlyRefs(name string, clusterScope bool, innerRefsName ...string) *v1alpha1.AnalysisTemplate {
+	templatesRefs := []v1alpha1.AnalysisTemplateRef{}
+	for _, innerTplName := range innerRefsName {
+		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
+			TemplateName: innerTplName,
+			ClusterScope: clusterScope,
+		})
+	}
+	return &v1alpha1.AnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics:              []v1alpha1.Metric{},
+			DryRun:               []v1alpha1.DryRun{},
+			MeasurementRetention: []v1alpha1.MeasurementRetention{},
+			Templates:            templatesRefs,
+		},
+	}
+}
+
+func clusterAnalysisTemplate(name string) *v1alpha1.ClusterAnalysisTemplate {
+	return &v1alpha1.ClusterAnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name: "clusterexample-" + name,
+			}},
+		},
+	}
+}
+
+func clusterAnalysisTemplateWithAnalysisRefs(name string, innerRefsName ...string) *v1alpha1.ClusterAnalysisTemplate {
+	templatesRefs := []v1alpha1.AnalysisTemplateRef{}
+	for _, innerTplName := range innerRefsName {
+		templatesRefs = append(templatesRefs, v1alpha1.AnalysisTemplateRef{
+			TemplateName: innerTplName,
+			ClusterScope: true,
+		})
+	}
+	return &v1alpha1.ClusterAnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: v1alpha1.AnalysisTemplateSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name: "clusterexample-" + name,
+			}},
+			Templates: templatesRefs,
+		},
+	}
 }

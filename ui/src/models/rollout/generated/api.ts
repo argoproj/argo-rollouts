@@ -322,6 +322,25 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRun
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef {
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef
+     */
+    templateName?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef
+     */
+    clusterScope?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AntiAffinity
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AntiAffinity {
@@ -1891,10 +1910,10 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout {
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis {
     /**
      * 
-     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate>}
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef>}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysis
      */
-    templates?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate>;
+    templates?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisTemplateRef>;
     /**
      * 
      * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunArgument>}
@@ -1963,25 +1982,6 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnal
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisRunStatus
      */
     message?: string;
-}
-/**
- * 
- * @export
- * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate
- */
-export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate {
-    /**
-     * 
-     * @type {string}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate
-     */
-    templateName?: string;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutAnalysisTemplate
-     */
-    clusterScope?: boolean;
 }
 /**
  * RolloutCondition describes the state of a rollout at a certain point.
