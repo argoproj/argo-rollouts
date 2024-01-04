@@ -8,7 +8,7 @@ Install:
 * [docker](https://docs.docker.com/install/#supported-platforms)
 * [golang](https://golang.org/)
 * [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
-* [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
+* [kustomize](https://github.com/kubernetes-sigs/kustomize/releases) >= 4.5.5
 * [k3d](https://k3d.io/) recommended
 
 Kustomize is required for unit tests (`make test` is using it), so you [must install it](https://kubectl.docs.kubernetes.io/installation/kustomize/)
@@ -108,6 +108,29 @@ To run a subset of e2e tests, you need to specify the suite with `-run`, and the
 
 ```
 E2E_TEST_OPTIONS="-run 'TestCanarySuite' -testify.m 'TestCanaryScaleDownOnAbortNoTrafficRouting'" make test-e2e
+```
+
+## Running the UI
+
+If you'd like to run the UI locally, you first need a running Rollouts controller. This can be a locally running controller with a k3d cluster, as described above, or a controller running in a remote Kubernetes cluster. 
+
+In order for the local React app to communicate with the controller and Kubernetes API, run the following to open a port forward to the dashboard:
+```bash
+kubectl argo rollouts dashboard
+```
+
+Note that you can also build the API server and run this instead,
+
+```
+make plugin
+./dist/kubectl-argo-rollouts dashboard
+```
+
+In another terminal, run the following to start the UI:
+```bash
+cd ui
+yarn install
+yarn start
 ```
 
 ## Controller architecture

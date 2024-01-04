@@ -69,12 +69,12 @@ jobs:
         if: ${{ github.ref_type != 'tag'}}
 
       - name: Setup Golang
-        uses: actions/setup-go@v4.1.0 # v3.5.0
+        uses: actions/setup-go@v5.0.0 # v3.5.0
         with:
           go-version: ${{ inputs.go-version }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@1fc5bd396d372bee37d608f955b336615edf79c8 # v3.2.0
+        uses: sigstore/cosign-installer@9614fae9e5c5eddabb09f90a270fcb487c9f7149 # v3.3.0
         with:
           cosign-release: 'v2.2.0'
 
@@ -130,7 +130,7 @@ jobs:
 
       - name: Build and push container image
         id: image
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 #v5.0.0
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 #v5.1.0
         with:
           context: .
           platforms: ${{ inputs.platforms }}

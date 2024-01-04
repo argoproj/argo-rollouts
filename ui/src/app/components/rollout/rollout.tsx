@@ -159,7 +159,6 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                                         initCollapsed={false}
                                         rollback={interactive ? (r) => interactive.api.rolloutServiceUndoRollout({}, interactive.namespace, rollout.objectMeta.name, `${r}`) : null}
                                         current={i === 0}
-                                        message={rollout.message}
                                     />
                                 ))}
                             </div>
@@ -332,7 +331,8 @@ const Step = (props: {step: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1
                         (props.step.setMirrorRoute && openMirror)
                             ? 'steps__step-title--experiment'
                             : ''
-                    }`}>
+                    }`}
+                >
                     {icon && <i className={`fa ${icon}`} />} {content}
                     {unit}
                     {props.step.setCanaryScale && (
@@ -457,7 +457,7 @@ const WidgetItemSetMirror = ({value}: {value: GithubComArgoprojArgoRolloutsPkgAp
                                     {index} - Path ({stringMatcherType})
                                 </div>
                                 <div className='steps__step__content-value'>{stringMatcherValue}</div>
-                            </Fragment>
+                            </Fragment>,
                         );
                     }
                     if (val.method != null) {
@@ -479,7 +479,7 @@ const WidgetItemSetMirror = ({value}: {value: GithubComArgoprojArgoRolloutsPkgAp
                                     {index} - Method ({stringMatcherType})
                                 </div>
                                 <div className='steps__step__content-value'>{stringMatcherValue}</div>
-                            </Fragment>
+                            </Fragment>,
                         );
                     }
                     return fragments;

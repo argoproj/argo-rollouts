@@ -9,9 +9,11 @@ export enum RolloutStatus {
     Healthy = 'Healthy',
 }
 
-export const StatusIcon = (props: {status: RolloutStatus}): JSX.Element => {
+export const StatusIcon = (props: {status: RolloutStatus; showTooltip?: boolean; defaultIcon?: String}): JSX.Element => {
     let icon, className;
     let spin = false;
+    const showTooltip = props.showTooltip ?? true;
+    const defaultIcon = props.defaultIcon ?? 'fa-question-circle';
     const {status} = props;
     switch (status) {
         case 'Progressing': {
@@ -36,14 +38,19 @@ export const StatusIcon = (props: {status: RolloutStatus}): JSX.Element => {
             break;
         }
         default: {
-            icon = 'fa-question-circle';
+            icon = defaultIcon;
             className = 'unknown';
         }
     }
     return (
-        <Tooltip title={status}>
-            <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />
-        </Tooltip>
+        <React.Fragment>
+            {showTooltip && (
+                <Tooltip title={status}>
+                    <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />
+                </Tooltip>
+            )}
+            {!showTooltip && <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />}
+        </React.Fragment>
     );
 };
 
@@ -55,9 +62,11 @@ export enum ReplicaSetStatus {
     Progressing = 'Progressing',
 }
 
-export const ReplicaSetStatusIcon = (props: {status: ReplicaSetStatus}) => {
+export const ReplicaSetStatusIcon = (props: {status: ReplicaSetStatus; showTooltip?: boolean; defaultIcon?: String}) => {
     let icon, className;
     let spin = false;
+    const showTooltip = props.showTooltip ?? true;
+    const defaultIcon = props.defaultIcon ?? 'fa-question-circle';
     const {status} = props;
     switch (status) {
         case 'Healthy':
@@ -83,13 +92,18 @@ export const ReplicaSetStatusIcon = (props: {status: ReplicaSetStatus}) => {
             break;
         }
         default: {
-            icon = 'fa-question-circle';
+            icon = defaultIcon;
             className = 'unknown';
         }
     }
     return (
-        <Tooltip title={status}>
-            <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />
-        </Tooltip>
+        <React.Fragment>
+            {showTooltip && (
+                <Tooltip title={status}>
+                    <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />
+                </Tooltip>
+            )}
+            {!showTooltip && <i className={`fa ${icon} status-icon--${className} ${spin ? 'fa-spin' : ''}`} />}
+        </React.Fragment>
     );
 };

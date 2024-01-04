@@ -1,0 +1,8 @@
+.tabs {
+    min-height: 550px;
+    margin-top: 16px !important; // antd override
+
+    .ant-tabs-tab {
+        padding-left: 0 !important; // antd override
+    }
+}

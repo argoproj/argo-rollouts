@@ -1443,3 +1443,170 @@ spec:
 		Then().
 		ExpectRolloutStatus("Healthy"))
 }
+
+func (s *FunctionalSuite) TestScaleDownOnSuccess() {
+	s.Given().
+		RolloutObjects(`
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: rollout-ref-deployment
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-ref-deployment
+spec:
+  replicas: 2
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rollout-ref-deployment
+    scaleDown: onsuccess
+  strategy:
+    blueGreen:
+      activeService: rollout-bluegreen-active
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rollout-ref-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rollout-ref-deployment
+  template:
+    metadata:
+      labels:
+        app: rollout-ref-deployment
+    spec:
+      containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:green
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectDeploymentReplicasCount("The deployment has been scaled to 0 replicas", "rollout-ref-deployment", 0)
+}
+
+func (s *FunctionalSuite) TestScaleDownProgressively() {
+	s.Given().
+		RolloutObjects(`
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: rollout-ref-deployment
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-ref-deployment
+spec:
+  replicas: 2
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rollout-ref-deployment
+    scaleDown: progressively
+  strategy:
+    blueGreen:
+      activeService: rollout-bluegreen-active
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rollout-ref-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rollout-ref-deployment
+  template:
+    metadata:
+      labels:
+        app: rollout-ref-deployment
+    spec:
+      containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:green
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectDeploymentReplicasCount("The deployment has been scaled to 0 replicas", "rollout-ref-deployment", 0)
+}
+
+func (s *FunctionalSuite) TestNeverScaleDown() {
+	s.Given().
+		RolloutObjects(`
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+  annotations:
+    rollout.argoproj.io/scale-down: never
+spec:
+  selector:
+    app: rollout-ref-deployment
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-ref-deployment
+spec:
+  replicas: 2
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rollout-ref-deployment
+    scaleDown: never
+  strategy:
+    blueGreen:
+      activeService: rollout-bluegreen-active
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rollout-ref-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rollout-ref-deployment
+  template:
+    metadata:
+      labels:
+        app: rollout-ref-deployment
+    spec:
+      containers:
+        - name: rollouts-demo
+          image: argoproj/rollouts-demo:green
+`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectDeploymentReplicasCount("The deployment has not been scaled", "rollout-ref-deployment", 2)
+}

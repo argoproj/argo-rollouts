@@ -91,7 +91,10 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 			return nil, fmt.Errorf("error updating replicaset revision: %v", err)
 		}
 		c.log.Infof("Synced revision on ReplicaSet '%s' to '%s'", rs.Name, newRevision)
-		c.replicaSetInformer.GetIndexer().Update(rs)
+		err = c.replicaSetInformer.GetIndexer().Update(rs)
+		if err != nil {
+			return nil, fmt.Errorf("error updating replicaset informer in syncReplicaSetRevision: %w", err)
+		}
 		return rs, nil
 	}
 
@@ -277,7 +280,8 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 // syncReplicasOnly is responsible for reconciling rollouts on scaling events.
 func (c *rolloutContext) syncReplicasOnly() error {
 	c.log.Infof("Syncing replicas only due to scaling event")
-	_, err := c.getAllReplicaSetsAndSyncRevision(false)
+	var err error
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
 		return err
 	}
@@ -323,7 +327,8 @@ func (c *rolloutContext) syncReplicasOnly() error {
 //
 // rsList should come from getReplicaSetsForRollout(r).
 func (c *rolloutContext) isScalingEvent() (bool, error) {
-	_, err := c.getAllReplicaSetsAndSyncRevision(false)
+	var err error
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
 		return false, err
 	}
@@ -372,12 +377,21 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
 			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
+
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
-		if err == nil && sizeNeedsUpdate {
+		if err != nil {
+			return scaled, rs, fmt.Errorf("error updating replicaset %s: %w", rs.Name, err)
+		}
+		err = c.replicaSetInformer.GetIndexer().Update(rs)
+		if err != nil {
+			err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
+			return scaled, rs, err
+		}
+
+		if sizeNeedsUpdate {
 			scaled = true
 			revision, _ := replicasetutil.Revision(rs)
 			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, conditions.ScalingReplicaSetMessage, scalingOperation, rs.Name, revision, oldScale, newScale)
-			c.replicaSetInformer.GetIndexer().Update(rs)
 		}
 	}
 	return scaled, rs, err
@@ -989,6 +1003,7 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		}
 	}
 	previousStableHash := newStatus.StableRS
+	revision, _ := replicasetutil.Revision(c.rollout)
 	if previousStableHash != newStatus.CurrentPodHash {
 		// only emit this event when we switched stable
 		if trafficrouting.IsPingPongEnabled(c.rollout) {
@@ -1000,9 +1015,17 @@ func (c *rolloutContext) promoteStable(newStatus *v1alpha1.RolloutStatus, reason
 		}
 		newStatus.StableRS = newStatus.CurrentPodHash
 
-		revision, _ := replicasetutil.Revision(c.rollout)
 		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutCompletedReason},
 			conditions.RolloutCompletedMessage, revision, newStatus.CurrentPodHash, reason)
 	}
+
+	if revision == 1 && c.rollout.Status.Phase == v1alpha1.RolloutPhaseHealthy && c.rollout.Spec.WorkloadRef != nil && c.rollout.Spec.WorkloadRef.ScaleDown == v1alpha1.ScaleDownOnSuccess {
+		var targetScale int32 = 0
+		err := c.scaleDeployment(&targetScale)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

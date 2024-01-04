@@ -7,7 +7,7 @@ import './App.scss';
 import {NamespaceContext, RolloutAPI} from './shared/context/api';
 import {Modal} from './components/modal/modal';
 import {Rollout} from './components/rollout/rollout';
-import {RolloutsList} from './components/rollouts-list/rollouts-list';
+import {RolloutsHome} from './components/rollouts-home/rollouts-home';
 import {Shortcut, Shortcuts} from './components/shortcuts/shortcuts';
 import {ConfigProvider} from 'antd';
 import {theme} from '../config/theme';
@@ -33,7 +33,12 @@ const Page = (props: {path: string; component: React.ReactNode; exact?: boolean;
                             pageHasShortcuts={!!props.shortcuts}
                             showHelp={() => {
                                 if (props.shortcuts) {
-                                    setShowShortcuts(true);
+                                    setShowShortcuts(!showShortcuts);
+                                }
+                            }}
+                            hideHelp={() => {
+                                if (props.shortcuts) {
+                                    setShowShortcuts(false);
                                 }
                             }}
                         />
@@ -84,7 +89,7 @@ const App = () => {
                             <Page
                                 exact
                                 path='/:namespace?'
-                                component={<RolloutsList />}
+                                component={<RolloutsHome />}
                                 shortcuts={[
                                     {key: '/', description: 'Search'},
                                     {key: 'TAB', description: 'Search, navigate search items'},

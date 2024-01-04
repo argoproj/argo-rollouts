@@ -1,14 +1,16 @@
 import * as React from 'react';
 import * as moment from 'moment';
-import {Duration, Ticker} from 'argo-ui';
+import {DropDown, Duration} from 'argo-ui';
 import {RolloutReplicaSetInfo} from '../../../models/rollout/generated';
 import {ReplicaSetStatus, ReplicaSetStatusIcon} from '../status-icon/status-icon';
 import './pods.scss';
-import {Dropdown, MenuProps, Tooltip} from 'antd';
+import {Tooltip} from 'antd';
+
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {IconDefinition, faCheck, faCircleNotch, faClipboard, faExclamationTriangle, faQuestionCircle, faTimes} from '@fortawesome/free-solid-svg-icons';
 import {EllipsisMiddle} from '../ellipsis-middle/ellipsis-middle';
 import {InfoItem} from '../info-item/info-item';
+import {Ticker} from '../ticker/ticker';
 
 export enum PodStatus {
     Pending = 'pending',
@@ -48,15 +50,11 @@ export const ReplicaSets = (props: {replicaSets: RolloutReplicaSetInfo[]; showRe
 
     return (
         <div>
-            {replicaSets?.map(
-                (rsInfo) =>
-                    rsInfo.pods &&
-                    rsInfo.pods.length > 0 && (
-                        <div key={rsInfo.objectMeta.uid} style={{marginBottom: '1em'}}>
-                            <ReplicaSet rs={rsInfo} showRevision={props.showRevisions} />
-                        </div>
-                    )
-            )}
+            {replicaSets?.map((rsInfo) => (
+                <div key={rsInfo.objectMeta.uid} style={{marginBottom: '1em'}}>
+                    <ReplicaSet rs={rsInfo} showRevision={props.showRevisions} />
+                </div>
+            ))}
         </div>
     );
 };
@@ -85,7 +83,7 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                                                         Scaledown in <Duration durationMs={time} />
                                                     </span>
                                                 }>
-                                                <InfoItem content={(<Duration durationMs={time} />) as any} icon='fa fa-clock'></InfoItem>
+                                                <InfoItem content={(<Duration durationMs={time} />) as any} icon='fa fa-clock' />
                                             </Tooltip>
                                         );
                                     }}
@@ -96,38 +94,25 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                 </Tooltip>
             )}
 
-            {props.rs.pods && props.rs.pods.length > 0 && (
-                <div className='pods__container'>
-                    {(props.rs?.pods || []).map((pod, i) => (
-                        <PodWidget
-                            key={pod.objectMeta?.uid}
-                            name={pod.objectMeta?.name}
-                            status={pod.status}
-                            tooltip={
-                                <div>
-                                    <div>Status: {pod.status}</div>
-                                    <div>{pod.objectMeta?.name}</div>
-                                </div>
-                            }
-                        />
-                    ))}
-                </div>
-            )}
+            <div className='pods__container'>
+                {(props.rs?.pods || []).length > 0
+                    ? (props.rs?.pods || []).map((pod, i) => (
+                          <PodWidget
+                              key={pod.objectMeta?.uid}
+                              name={pod.objectMeta?.name}
+                              status={pod.status}
+                              tooltip={
+                                  <div>
+                                      <div>Status: {pod.status}</div>
+                                      <div>{pod.objectMeta?.name}</div>
+                                  </div>
+                              }
+                          />
+                      ))
+                    : 'No Pods!'}
+            </div>
         </div>
     );
-};
-
-const CopyMenu = (name: string): MenuProps['items'] => {
-    return [
-        {
-            key: 1,
-            label: (
-                <div onClick={() => navigator.clipboard.writeText(name)}>
-                    <FontAwesomeIcon icon={faClipboard} style={{marginRight: '5px'}} /> Copy Name
-                </div>
-            ),
-        },
-    ];
 };
 
 export const PodWidget = ({name, status, tooltip, customIcon}: {name: string; status: string; tooltip: React.ReactNode; customIcon?: IconDefinition}) => {
@@ -171,12 +156,18 @@ export const PodWidget = ({name, status, tooltip, customIcon}: {name: string; st
     }
 
     return (
-        <Dropdown menu={{items: CopyMenu(name)}} trigger={['click']}>
-            <Tooltip title={tooltip}>
-                <div className={`pod-icon pod-icon--${className}`}>
-                    <FontAwesomeIcon icon={icon} spin={spin} />
-                </div>
-            </Tooltip>
-        </Dropdown>
+        <DropDown
+            isMenu={true}
+            anchor={() => (
+                <Tooltip title={tooltip}>
+                    <div className={`pod-icon pod-icon--${className}`}>
+                        <FontAwesomeIcon icon={icon} spin={spin} />
+                    </div>
+                </Tooltip>
+            )}>
+            <div onClick={() => navigator.clipboard.writeText(name)}>
+                <FontAwesomeIcon icon={faClipboard} style={{marginRight: '5px'}} /> Copy Name
+            </div>
+        </DropDown>
     );
 };

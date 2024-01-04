@@ -1,6 +1,6 @@
 import * as React from 'react';
 import './info-item.scss';
-import { Tooltip } from 'antd';
+import {Tooltip} from 'antd';
 
 export enum InfoItemKind {
     Default = 'default',
@@ -40,7 +40,7 @@ export const InfoItem = (props: InfoItemProps) => {
 /**
  * Displays a right justified InfoItem (or multiple InfoItems) and a left justfied label
  */
-export const InfoItemRow = (props: {label: string | React.ReactNode; items?: InfoItemProps | InfoItemProps[]; lightweight?: boolean}) => {
+export const InfoItemRow = (props: {label: string | React.ReactNode; items?: InfoItemProps | InfoItemProps[]; lightweight?: boolean; style?: React.CSSProperties}) => {
     let {label, items} = props;
     let itemComponents = null;
     if (!Array.isArray(items)) {
@@ -55,7 +55,7 @@ export const InfoItemRow = (props: {label: string | React.ReactNode; items?: Inf
                     <label>{label}</label>
                 </div>
             )}
-            {props.items && <div className='info-item--row__container'>{itemComponents}</div>}
+            {props.items && <div className='info-item--row__container' style={props.style}>{itemComponents}</div>}
         </div>
     );
 };

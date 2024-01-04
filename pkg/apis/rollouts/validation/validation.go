@@ -94,7 +94,6 @@ var allowAllPodValidationOptions = apivalidation.PodValidationOptions{
 	AllowDownwardAPIHugePages:       true,
 	AllowInvalidPodDeletionCost:     true,
 	AllowIndivisibleHugePagesValues: true,
-	AllowWindowsHostProcessField:    true,
 	AllowExpandedDNSConfig:          true,
 }
 
@@ -117,7 +116,7 @@ func ValidateRolloutSpec(rollout *v1alpha1.Rollout, fldPath *field.Path) field.E
 			message := fmt.Sprintf(MissingFieldMessage, ".spec.selector")
 			allErrs = append(allErrs, field.Required(fldPath.Child("selector"), message))
 		} else {
-			allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, fldPath.Child("selector"))...)
+			allErrs = append(allErrs, unversionedvalidation.ValidateLabelSelector(spec.Selector, unversionedvalidation.LabelSelectorValidationOptions{}, fldPath.Child("selector"))...)
 			if len(spec.Selector.MatchLabels)+len(spec.Selector.MatchExpressions) == 0 {
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("selector"), spec.Selector, "empty selector is invalid for deployment"))
 			}
@@ -305,7 +304,7 @@ func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Pat
 
 		if step.SetHeaderRoute != nil {
 			trafficRouting := rollout.Spec.Strategy.Canary.TrafficRouting
-			if trafficRouting == nil || (trafficRouting.Istio == nil && trafficRouting.ALB == nil && trafficRouting.Apisix == nil) {
+			if trafficRouting == nil || (trafficRouting.Istio == nil && trafficRouting.ALB == nil && trafficRouting.Apisix == nil && len(trafficRouting.Plugins) == 0) {
 				allErrs = append(allErrs, field.Invalid(stepFldPath.Child("setHeaderRoute"), step.SetHeaderRoute, InvalidSetHeaderRouteTrafficPolicy))
 			} else if step.SetHeaderRoute.Match != nil && len(step.SetHeaderRoute.Match) > 0 {
 				for j, match := range step.SetHeaderRoute.Match {
