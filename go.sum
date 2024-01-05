@@ -107,8 +107,8 @@ github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.5.10 h1:nYPe006ktcqUji8S2m
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.5.10/go.mod h1:6UV4SZkVvmODfXKql4LCbaZUpF7HO2BX38FgBf9ZOLw=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.7.2 h1:GrSw8s0Gs/5zZ0SX+gX4zQjRnRsMJDJ2sLur1gRBhEM=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.7.2/go.mod h1:6fQQgfuGmw8Al/3M2IgIllycxV7ZW7WCdVSqfBeUiCY=
-github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.32.1 h1:IQ+uLXwS5Eelikc5ZdR0P55XPo+tqWh+k872KdpAjFA=
-github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.32.1/go.mod h1:G63GKqSBLpBmO3tN1/PwM2NC65XvSd00zJWTZk202bc=
+github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.32.2 h1:vQfCIHSDouEvbE4EuDrlCGKcrtABEqF3cMt61nGEV4g=
+github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.32.2/go.mod h1:3ToKMEhVj+Q+HzZ8Hqin6LdAKtsi3zVXVNUPpQMd+Xk=
 github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.26.7 h1:ystNRv96lPnlDFU/K3O4/erHR+kPaiDbDGi/192uXQ4=
 github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.26.7/go.mod h1:7iQ5nRkEdgQWWOmaA+BBbe1pKX8/sceSO6NSNqVx/vk=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.10.4 h1:/b31bi3YVNlkzkBrm9LfpaKoaYZUxIAj4sHfOTmLfqw=
