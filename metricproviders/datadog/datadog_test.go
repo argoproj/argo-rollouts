@@ -105,6 +105,15 @@ func TestValidateIncomingProps(t *testing.T) {
 			expectedErrorMessage: "Formula are only valid when queries are set",
 		},
 		{
+			name: "v1 query with aggregator",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion: "v1",
+				Query:      "foo",
+				Aggregator: "sum",
+			},
+			expectedErrorMessage: "Aggregator is not supported in v1. Please review the Analysis Template.",
+		},
+		{
 			name: "More than 1 queries with no formula",
 			metric: &v1alpha1.DatadogMetric{
 				ApiVersion: "v2",
@@ -128,6 +137,17 @@ func TestValidateIncomingProps(t *testing.T) {
 				Query:      "",
 				Queries:    map[string]string{"a": "sum:api_gateway.request.count{*}.as_count()", "b": "fish bike"},
 				Formula:    "a + b",
+			},
+			expectedErrorMessage: "",
+		},
+		{
+			name: "valid queries with v2 and an aggregator",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion: "v2",
+				Query:      "",
+				Queries:    map[string]string{"a": "sum:api_gateway.request.count{*}.as_count()", "b": "fish bike"},
+				Formula:    "a + b",
+				Aggregator: "avg",
 			},
 			expectedErrorMessage: "",
 		},

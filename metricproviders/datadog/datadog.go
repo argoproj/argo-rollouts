@@ -411,6 +411,10 @@ func validateIncomingProps(dd *v1alpha1.DatadogMetric) error {
 		return errors.New("When multiple queries are provided you must include a formula.")
 	}
 
+	if dd.ApiVersion == "v1" && dd.Aggregator != "" {
+		return errors.New("Aggregator is not supported in v1. Please review the Analysis Template.")
+	}
+
 	return nil
 }
 
