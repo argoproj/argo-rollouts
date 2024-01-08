@@ -243,6 +243,10 @@
                                             },
                                             "datadog": {
                                                 "properties": {
+                                                    "aggregator": {
+                                                        "default": "last",
+                                                        "type": "string"
+                                                    },
                                                     "apiVersion": {
                                                         "default": "v1",
                                                         "enum": [
@@ -4861,6 +4865,10 @@
                                             },
                                             "datadog": {
                                                 "properties": {
+                                                    "aggregator": {
+                                                        "default": "last",
+                                                        "type": "string"
+                                                    },
                                                     "apiVersion": {
                                                         "default": "v1",
                                                         "enum": [
@@ -9479,6 +9487,10 @@
                                             },
                                             "datadog": {
                                                 "properties": {
+                                                    "aggregator": {
+                                                        "default": "last",
+                                                        "type": "string"
+                                                    },
                                                     "apiVersion": {
                                                         "default": "v1",
                                                         "enum": [

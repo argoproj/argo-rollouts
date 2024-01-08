@@ -1181,6 +1181,10 @@
         "apiVersion": {
           "type": "string",
           "title": "ApiVersion refers to the Datadog API version being used (default: v1). v1 will eventually be deprecated.\n+kubebuilder:validation:Enum=v1;v2\n+kubebuilder:default=v1"
+        },
+        "aggregator": {
+          "type": "string",
+          "title": "+kubebuilder:default=\"last\"\nAggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2"
         }
       }
     },
