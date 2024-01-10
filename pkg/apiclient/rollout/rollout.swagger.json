@@ -1184,7 +1184,7 @@
         },
         "aggregator": {
           "type": "string",
-          "title": "+kubebuilder:default=\"last\"\nAggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2"
+          "title": "+kubebuilder:default=\"last\"\n+kubebuilder:validation:Enum=avg;min;max;sum;last;percentile;mean;l2norm;area\nAggregator is a type of aggregator to use for metrics-based queries (default: last). Used for v2"
         }
       }
     },

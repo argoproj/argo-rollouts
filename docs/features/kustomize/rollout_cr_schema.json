@@ -245,6 +245,17 @@
                                                 "properties": {
                                                     "aggregator": {
                                                         "default": "last",
+                                                        "enum": [
+                                                            "avg",
+                                                            "min",
+                                                            "max",
+                                                            "sum",
+                                                            "last",
+                                                            "percentile",
+                                                            "mean",
+                                                            "l2norm",
+                                                            "area"
+                                                        ],
                                                         "type": "string"
                                                     },
                                                     "apiVersion": {
@@ -4867,6 +4878,17 @@
                                                 "properties": {
                                                     "aggregator": {
                                                         "default": "last",
+                                                        "enum": [
+                                                            "avg",
+                                                            "min",
+                                                            "max",
+                                                            "sum",
+                                                            "last",
+                                                            "percentile",
+                                                            "mean",
+                                                            "l2norm",
+                                                            "area"
+                                                        ],
                                                         "type": "string"
                                                     },
                                                     "apiVersion": {
@@ -9489,6 +9511,17 @@
                                                 "properties": {
                                                     "aggregator": {
                                                         "default": "last",
+                                                        "enum": [
+                                                            "avg",
+                                                            "min",
+                                                            "max",
+                                                            "sum",
+                                                            "last",
+                                                            "percentile",
+                                                            "mean",
+                                                            "l2norm",
+                                                            "area"
+                                                        ],
                                                         "type": "string"
                                                     },
                                                     "apiVersion": {
