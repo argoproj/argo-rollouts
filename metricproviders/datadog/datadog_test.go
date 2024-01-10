@@ -52,6 +52,21 @@ func TestDatadogSpecDefaults(t *testing.T) {
 		defaultInterval := string(ddSpec.Properties["interval"].Default.Raw)
 		assert.Equal(t, "\"5m\"", defaultInterval, "Default interval should be \"5m\" ")
 	})
+
+	t.Run("aggregator: Validate enum exists to restrict aggregator to 9 options", func(t *testing.T) {
+		aggregatorEnums := ddSpec.Properties["aggregator"].Enum
+		assert.Equal(t, 9, len(aggregatorEnums), "Expecting 9 enum options")
+		assert.Equal(t, "\"avg\"", string(aggregatorEnums[0].Raw), "\"avg\" expected, got %s", string(aggregatorEnums[0].Raw))
+		assert.Equal(t, "\"min\"", string(aggregatorEnums[1].Raw), "\"min\" expected, got %s", string(aggregatorEnums[1].Raw))
+		assert.Equal(t, "\"max\"", string(aggregatorEnums[2].Raw), "\"max\" expected, got %s", string(aggregatorEnums[2].Raw))
+		assert.Equal(t, "\"sum\"", string(aggregatorEnums[3].Raw), "\"sum\" expected, got %s", string(aggregatorEnums[3].Raw))
+		assert.Equal(t, "\"last\"", string(aggregatorEnums[4].Raw), "\"last\" expected, got %s", string(aggregatorEnums[4].Raw))
+		assert.Equal(t, "\"percentile\"", string(aggregatorEnums[5].Raw), "\"percentile\" expected, got %s", string(aggregatorEnums[5].Raw))
+		assert.Equal(t, "\"mean\"", string(aggregatorEnums[6].Raw), "\"mean\" expected, got %s", string(aggregatorEnums[6].Raw))
+		assert.Equal(t, "\"l2norm\"", string(aggregatorEnums[7].Raw), "\"l2norm\" expected, got %s", string(aggregatorEnums[7].Raw))
+		assert.Equal(t, "\"area\"", string(aggregatorEnums[8].Raw), "\"area\" expected, got %s", string(aggregatorEnums[8].Raw))
+	})
+
 }
 
 func TestValidateIncomingProps(t *testing.T) {
