@@ -150,6 +150,30 @@ However, empty query results yielding a `nil` value can be handled using the `de
 successCondition: default(result, 0) < 0.05
 ```
 
+#### Metric aggregation (v2 only)
+
+By default, Argo Rollouts is configured to use `last` metric aggregator when querying DataDog v2 API. This value can be overriden by specifying a new `aggregator` value from a list of supported aggregators (`avg,min,max,sum,last,percentile,mean,l2norm,area`) for the V2 API ([docs](https://docs.datadoghq.com/api/latest/metrics/#query-scalar-data-across-multiple-products)).
+
+For example, using count-based distribution metric (`count:metric{*}.as_count()`) with values `1,9,3,7,5` in a given `interval` will make `last` aggregator return `5`. To return a sum of all values (`25`), set `aggregator: sum` in Datadog provider block and use `moving_rollup()` function to aggregate values in the specified rollup interval. These functions can be combined in a `formula` to perform additional calculations:
+
+```yaml
+...<snip>
+  metrics:
+  - name: error-percentage
+    interval: 30s
+    successCondition: default(result, 0) < 5
+    failureLimit: 3
+    provider:
+      datadog:
+        apiVersion: v2
+        interval: 5m
+        aggregator: sum # override default aggregator
+        queries:
+          a: count:requests.errors{service:my-service}.as_count()
+          b: count:requests{service:my-service}.as_count()
+        formula: "moving_rollup(a, 300, 'sum') / moving_rollup(b, 300, 'sum') * 100" # percentage of requests with errors
+```
+
 #### Templates and Helm
 
 Helm and Argo Rollouts both try to parse things between `{{ ... }}` when rendering templates. If you use Helm to deliver your manifests, you will need to escape `{{ args.whatever }}`. Using the example above, here it is set up for Helm:
