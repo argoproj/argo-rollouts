@@ -11,7 +11,7 @@ spec:
   args:
   - name: service-name
   metrics:
-  - name: success-rate 
+  - name: success-rate
     interval: 5m
     # NOTE: prometheus queries return results in the form of a vector.
     # So it is common to access the index 0 of the returned array to obtain the value
