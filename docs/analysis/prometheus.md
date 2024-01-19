@@ -23,7 +23,7 @@ spec:
         # timeout is expressed in seconds
         timeout: 40
         headers:
-        - name: X-Scope-Org-ID
+        - key: X-Scope-OrgID
           value: tenant_a
         query: |
           sum(irate(
