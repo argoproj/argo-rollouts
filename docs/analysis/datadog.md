@@ -152,7 +152,7 @@ successCondition: default(result, 0) < 0.05
 
 #### Metric aggregation (v2 only)
 
-By default, Argo Rollouts is configured to use `last` metric aggregator when querying DataDog v2 API. This value can be overriden by specifying a new `aggregator` value from a list of supported aggregators (`avg,min,max,sum,last,percentile,mean,l2norm,area`) for the V2 API ([docs](https://docs.datadoghq.com/api/latest/metrics/#query-scalar-data-across-multiple-products)).
+By default, Datadog analysis run is configured to use `last` metric aggregator when querying Datadog v2 API. This value can be overriden by specifying a new `aggregator` value from a list of supported aggregators (`avg,min,max,sum,last,percentile,mean,l2norm,area`) for the V2 API ([docs](https://docs.datadoghq.com/api/latest/metrics/#query-scalar-data-across-multiple-products)).
 
 For example, using count-based distribution metric (`count:metric{*}.as_count()`) with values `1,9,3,7,5` in a given `interval` will make `last` aggregator return `5`. To return a sum of all values (`25`), set `aggregator: sum` in Datadog provider block and use `moving_rollup()` function to aggregate values in the specified rollup interval. These functions can be combined in a `formula` to perform additional calculations:
 
