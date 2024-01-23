@@ -3,6 +3,7 @@ package analysis
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -14,13 +15,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
+	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
 func timePtr(t metav1.Time) *metav1.Time {
@@ -2225,4 +2231,147 @@ func TestCompletedTimeFilled(t *testing.T) {
 	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
 	assert.NotNil(t, newRun.Status.CompletedAt)
 	assert.Equal(t, f.now, newRun.Status.CompletedAt.Time)
+}
+
+func TestReconcileAnalysisRunOnRunNotFound(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+
+	// Prepend since there is a default reaction that captures it.
+	f.client.Fake.PrependReactor("delete", "analysisruns", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, k8serrors.NewNotFound(k8sschema.GroupResource{Resource: "analysisruns"}, "test")
+	})
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run" + string(uuid.NewUUID()),
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			TtlStrategy: &v1alpha1.TtlStrategy{
+				SecondsAfterCompletion: pointer.Int32Ptr(1),
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:       v1alpha1.AnalysisPhaseSuccessful,
+			CompletedAt: timePtr(metav1.NewTime(f.now.Add(-2 * time.Second))),
+		},
+	}
+	_ = c.reconcileAnalysisRun(origRun)
+	logMessage := buf.String()
+	assert.Contains(t, logMessage, "Trying to cleanup TTL exceeded analysis run")
+	assert.NotContains(t, logMessage, "Failed to garbage collect analysis run")
+	// One deletion issued.
+	assert.Len(t, f.client.Fake.Actions(), 1)
+	assert.Equal(t, "delete", f.client.Fake.Actions()[0].GetVerb())
+	assert.Equal(t, "analysisruns", f.client.Fake.Actions()[0].GetResource().Resource)
+}
+
+func TestReconcileAnalysisRunOnOtherRunErrors(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+
+	// Prepend since there is a default reaction that captures it.
+	f.client.Fake.PrependReactor("delete", "analysisruns", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New("some error")
+	})
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run" + string(uuid.NewUUID()),
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			TtlStrategy: &v1alpha1.TtlStrategy{
+				SecondsAfterCompletion: pointer.Int32Ptr(1),
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:       v1alpha1.AnalysisPhaseSuccessful,
+			CompletedAt: timePtr(metav1.NewTime(f.now.Add(-2 * time.Second))),
+		},
+	}
+	_ = c.reconcileAnalysisRun(origRun)
+	logMessage := buf.String()
+	assert.Contains(t, logMessage, "Failed to garbage collect analysis run")
+	// One deletion issued.
+	assert.Len(t, f.client.Fake.Actions(), 1)
+	assert.Equal(t, "delete", f.client.Fake.Actions()[0].GetVerb())
+	assert.Equal(t, "analysisruns", f.client.Fake.Actions()[0].GetResource().Resource)
+}
+
+func TestMaybeGarbageCollectAnalysisRunNoGCIfNotCompleted(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run" + string(uuid.NewUUID()),
+			Namespace: metav1.NamespaceDefault,
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseRunning,
+		},
+	}
+	logger := logutil.WithAnalysisRun(origRun)
+	err := c.maybeGarbageCollectAnalysisRun(origRun, logger)
+	// No error, no deletion issued.
+	assert.NoError(t, err)
+	assert.Empty(t, f.client.Fake.Actions())
+}
+
+func TestMaybeGarbageCollectAnalysisRunNoGCIfNoTtlStrategy(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run" + string(uuid.NewUUID()),
+			Namespace: metav1.NamespaceDefault,
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+	}
+	logger := logutil.WithAnalysisRun(origRun)
+	err := c.maybeGarbageCollectAnalysisRun(origRun, logger)
+	// No error, no deletion issued.
+	assert.NoError(t, err)
+	assert.Empty(t, f.client.Fake.Actions())
+}
+
+func TestMaybeGarbageCollectAnalysisRunNoGCIfWithDeletionTimestamp(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "run" + string(uuid.NewUUID()),
+			Namespace:         metav1.NamespaceDefault,
+			DeletionTimestamp: timePtr(metav1.NewTime(f.now)),
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			TtlStrategy: &v1alpha1.TtlStrategy{
+				SecondsAfterCompletion: pointer.Int32Ptr(1),
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:       v1alpha1.AnalysisPhaseSuccessful,
+			CompletedAt: timePtr(metav1.NewTime(f.now.Add(-2 * time.Second))),
+		},
+	}
+	logger := logutil.WithAnalysisRun(origRun)
+	err := c.maybeGarbageCollectAnalysisRun(origRun, logger)
+	// No error, no deletion issued.
+	assert.NoError(t, err)
+	assert.Empty(t, f.client.Fake.Actions())
 }
