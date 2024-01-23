@@ -101,3 +101,5 @@ You can reach the Argo Rollouts community and developers via the following chann
 * [How Scalable is Argo-Rollouts: A Cloud Operator’s Perspective](https://www.youtube.com/watch?v=rCEhxJ2NSTI)
 * [Minimize Impact in Kubernetes Using Argo Rollouts](https://medium.com/@arielsimhon/minimize-impact-in-kubernetes-using-argo-rollouts-992fb9519969)
 * [Progressive Application Delivery with GitOps on Red Hat OpenShift](https://www.youtube.com/watch?v=DfeL7cdTx4c)
+* [How to use Argo Rollouts for A/B Testing in Progressive Delivery](https://www.infracloud.io/blogs/progressive-delivery-ab-testing-argo-rollouts/)
+* [Progressive Delivery with Argo Rollouts : Blue-Green Deployment](https://www.infracloud.io/blogs/progressive-delivery-argo-rollouts-blue-green-deployment/)
