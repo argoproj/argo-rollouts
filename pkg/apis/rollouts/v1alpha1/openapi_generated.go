@@ -135,6 +135,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TemplateStatus":                                  schema_pkg_apis_rollouts_v1alpha1_TemplateStatus(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TraefikTrafficRouting":                           schema_pkg_apis_rollouts_v1alpha1_TraefikTrafficRouting(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TrafficWeights":                                  schema_pkg_apis_rollouts_v1alpha1_TrafficWeights(ref),
+		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TtlStrategy":                                     schema_pkg_apis_rollouts_v1alpha1_TtlStrategy(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.ValueFrom":                                       schema_pkg_apis_rollouts_v1alpha1_ValueFrom(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WavefrontMetric":                                 schema_pkg_apis_rollouts_v1alpha1_WavefrontMetric(ref),
 		"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WebMetric":                                       schema_pkg_apis_rollouts_v1alpha1_WebMetric(ref),
@@ -549,12 +550,18 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunSpec(ref common.ReferenceCallb
 							},
 						},
 					},
+					"ttlStrategy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TtlStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed",
+							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TtlStrategy"),
+						},
+					},
 				},
 				Required: []string{"metrics"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DryRun", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MeasurementRetention", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric"},
+			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Argument", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.DryRun", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.MeasurementRetention", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.Metric", "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.TtlStrategy"},
 	}
 }
 
@@ -611,6 +618,12 @@ func schema_pkg_apis_rollouts_v1alpha1_AnalysisRunStatus(ref common.ReferenceCal
 						SchemaProps: spec.SchemaProps{
 							Description: "DryRunSummary contains the final results from the metric executions in the dry-run mode",
 							Ref:         ref("github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.RunSummary"),
+						},
+					},
+					"completedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CompletedAt indicates when the analysisRun completed",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 				},
@@ -5417,6 +5430,40 @@ func schema_pkg_apis_rollouts_v1alpha1_TrafficWeights(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1.WeightDestination"},
+	}
+}
+
+func schema_pkg_apis_rollouts_v1alpha1_TtlStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TtlStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"secondsAfterCompletion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecondsAfterCompletion is the number of seconds to live after completion.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"secondsAfterFailure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecondsAfterFailure is the number of seconds to live after failure.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"secondsAfterSuccess": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecondsAfterSuccess is the number of seconds to live after success.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

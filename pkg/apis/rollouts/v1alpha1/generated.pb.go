@@ -3049,10 +3049,38 @@ func (m *TrafficWeights) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_TrafficWeights proto.InternalMessageInfo
 
+func (m *TtlStrategy) Reset()      { *m = TtlStrategy{} }
+func (*TtlStrategy) ProtoMessage() {}
+func (*TtlStrategy) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e0e705f843545fab, []int{107}
+}
+func (m *TtlStrategy) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TtlStrategy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *TtlStrategy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TtlStrategy.Merge(m, src)
+}
+func (m *TtlStrategy) XXX_Size() int {
+	return m.Size()
+}
+func (m *TtlStrategy) XXX_DiscardUnknown() {
+	xxx_messageInfo_TtlStrategy.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TtlStrategy proto.InternalMessageInfo
+
 func (m *ValueFrom) Reset()      { *m = ValueFrom{} }
 func (*ValueFrom) ProtoMessage() {}
 func (*ValueFrom) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e0e705f843545fab, []int{107}
+	return fileDescriptor_e0e705f843545fab, []int{108}
 }
 func (m *ValueFrom) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3080,7 +3108,7 @@ var xxx_messageInfo_ValueFrom proto.InternalMessageInfo
 func (m *WavefrontMetric) Reset()      { *m = WavefrontMetric{} }
 func (*WavefrontMetric) ProtoMessage() {}
 func (*WavefrontMetric) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e0e705f843545fab, []int{108}
+	return fileDescriptor_e0e705f843545fab, []int{109}
 }
 func (m *WavefrontMetric) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3108,7 +3136,7 @@ var xxx_messageInfo_WavefrontMetric proto.InternalMessageInfo
 func (m *WebMetric) Reset()      { *m = WebMetric{} }
 func (*WebMetric) ProtoMessage() {}
 func (*WebMetric) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e0e705f843545fab, []int{109}
+	return fileDescriptor_e0e705f843545fab, []int{110}
 }
 func (m *WebMetric) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3136,7 +3164,7 @@ var xxx_messageInfo_WebMetric proto.InternalMessageInfo
 func (m *WebMetricHeader) Reset()      { *m = WebMetricHeader{} }
 func (*WebMetricHeader) ProtoMessage() {}
 func (*WebMetricHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e0e705f843545fab, []int{110}
+	return fileDescriptor_e0e705f843545fab, []int{111}
 }
 func (m *WebMetricHeader) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3164,7 +3192,7 @@ var xxx_messageInfo_WebMetricHeader proto.InternalMessageInfo
 func (m *WeightDestination) Reset()      { *m = WeightDestination{} }
 func (*WeightDestination) ProtoMessage() {}
 func (*WeightDestination) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e0e705f843545fab, []int{111}
+	return fileDescriptor_e0e705f843545fab, []int{112}
 }
 func (m *WeightDestination) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3308,6 +3336,7 @@ func init() {
 	proto.RegisterType((*TemplateStatus)(nil), "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TemplateStatus")
 	proto.RegisterType((*TraefikTrafficRouting)(nil), "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TraefikTrafficRouting")
 	proto.RegisterType((*TrafficWeights)(nil), "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TrafficWeights")
+	proto.RegisterType((*TtlStrategy)(nil), "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TtlStrategy")
 	proto.RegisterType((*ValueFrom)(nil), "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ValueFrom")
 	proto.RegisterType((*WavefrontMetric)(nil), "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WavefrontMetric")
 	proto.RegisterType((*WebMetric)(nil), "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.WebMetric")
@@ -4238,6 +4267,18 @@ func (m *AnalysisRunSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.TtlStrategy != nil {
+		{
+			size, err := m.TtlStrategy.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x32
+	}
 	if len(m.MeasurementRetention) > 0 {
 		for iNdEx := len(m.MeasurementRetention) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -4325,6 +4366,18 @@ func (m *AnalysisRunStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.CompletedAt != nil {
+		{
+			size, err := m.CompletedAt.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x3a
+	}
 	if m.DryRunSummary != nil {
 		{
 			size, err := m.DryRunSummary.MarshalToSizedBuffer(dAtA[:i])
@@ -10004,6 +10057,44 @@ func (m *TrafficWeights) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *TtlStrategy) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TtlStrategy) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TtlStrategy) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.SecondsAfterSuccess != nil {
+		i = encodeVarintGenerated(dAtA, i, uint64(*m.SecondsAfterSuccess))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.SecondsAfterFailure != nil {
+		i = encodeVarintGenerated(dAtA, i, uint64(*m.SecondsAfterFailure))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.SecondsAfterCompletion != nil {
+		i = encodeVarintGenerated(dAtA, i, uint64(*m.SecondsAfterCompletion))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *ValueFrom) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -10412,6 +10503,10 @@ func (m *AnalysisRunSpec) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	if m.TtlStrategy != nil {
+		l = m.TtlStrategy.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
 	return n
 }
 
@@ -10439,6 +10534,10 @@ func (m *AnalysisRunStatus) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	if m.DryRunSummary != nil {
 		l = m.DryRunSummary.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	if m.CompletedAt != nil {
+		l = m.CompletedAt.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
 	return n
@@ -12522,6 +12621,24 @@ func (m *TrafficWeights) Size() (n int) {
 	return n
 }
 
+func (m *TtlStrategy) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.SecondsAfterCompletion != nil {
+		n += 1 + sovGenerated(uint64(*m.SecondsAfterCompletion))
+	}
+	if m.SecondsAfterFailure != nil {
+		n += 1 + sovGenerated(uint64(*m.SecondsAfterFailure))
+	}
+	if m.SecondsAfterSuccess != nil {
+		n += 1 + sovGenerated(uint64(*m.SecondsAfterSuccess))
+	}
+	return n
+}
+
 func (m *ValueFrom) Size() (n int) {
 	if m == nil {
 		return 0
@@ -12755,6 +12872,7 @@ func (this *AnalysisRunSpec) String() string {
 		`Terminate:` + fmt.Sprintf("%v", this.Terminate) + `,`,
 		`DryRun:` + repeatedStringForDryRun + `,`,
 		`MeasurementRetention:` + repeatedStringForMeasurementRetention + `,`,
+		`TtlStrategy:` + strings.Replace(this.TtlStrategy.String(), "TtlStrategy", "TtlStrategy", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -12775,6 +12893,7 @@ func (this *AnalysisRunStatus) String() string {
 		`StartedAt:` + strings.Replace(fmt.Sprintf("%v", this.StartedAt), "Time", "v1.Time", 1) + `,`,
 		`RunSummary:` + strings.Replace(strings.Replace(this.RunSummary.String(), "RunSummary", "RunSummary", 1), `&`, ``, 1) + `,`,
 		`DryRunSummary:` + strings.Replace(this.DryRunSummary.String(), "RunSummary", "RunSummary", 1) + `,`,
+		`CompletedAt:` + strings.Replace(fmt.Sprintf("%v", this.CompletedAt), "Time", "v1.Time", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -14343,6 +14462,18 @@ func (this *TrafficWeights) String() string {
 	}, "")
 	return s
 }
+func (this *TtlStrategy) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&TtlStrategy{`,
+		`SecondsAfterCompletion:` + valueToStringGenerated(this.SecondsAfterCompletion) + `,`,
+		`SecondsAfterFailure:` + valueToStringGenerated(this.SecondsAfterFailure) + `,`,
+		`SecondsAfterSuccess:` + valueToStringGenerated(this.SecondsAfterSuccess) + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func (this *ValueFrom) String() string {
 	if this == nil {
 		return "nil"
@@ -15820,6 +15951,42 @@ func (m *AnalysisRunSpec) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TtlStrategy", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.TtlStrategy == nil {
+				m.TtlStrategy = &TtlStrategy{}
+			}
+			if err := m.TtlStrategy.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -16070,6 +16237,42 @@ func (m *AnalysisRunStatus) Unmarshal(dAtA []byte) error {
 				m.DryRunSummary = &RunSummary{}
 			}
 			if err := m.DryRunSummary.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CompletedAt", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.CompletedAt == nil {
+				m.CompletedAt = &v1.Time{}
+			}
+			if err := m.CompletedAt.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -34018,6 +34221,116 @@ func (m *TrafficWeights) Unmarshal(dAtA []byte) error {
 			}
 			b := bool(v != 0)
 			m.Verified = &b
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TtlStrategy) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TtlStrategy: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TtlStrategy: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SecondsAfterCompletion", wireType)
+			}
+			var v int32
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.SecondsAfterCompletion = &v
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SecondsAfterFailure", wireType)
+			}
+			var v int32
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.SecondsAfterFailure = &v
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SecondsAfterSuccess", wireType)
+			}
+			var v int32
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.SecondsAfterSuccess = &v
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

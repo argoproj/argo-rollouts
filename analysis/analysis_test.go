@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -1984,4 +1985,244 @@ func TestInvalidMeasurementsRetentionConfigThrowsError(t *testing.T) {
 	newRun := c.reconcileAnalysisRun(run)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, newRun.Status.Phase)
 	assert.Equal(t, "Analysis spec invalid: measurementRetention[0]: Rule didn't match any metric name(s)", newRun.Status.Message)
+}
+
+func TestExceededTtlChecked(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	testTtlStrategy := func(
+		t *testing.T,
+		ttlStrategy *v1alpha1.TtlStrategy,
+		expiredStatus *v1alpha1.AnalysisRunStatus,
+		notExpiredStatus *v1alpha1.AnalysisRunStatus) {
+		testId := string(uuid.NewUUID())
+		ttlExpiredRun := &v1alpha1.AnalysisRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "expired-run" + testId,
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: v1alpha1.AnalysisRunSpec{
+				TtlStrategy: ttlStrategy,
+			},
+			Status: *expiredStatus,
+		}
+		_ = c.reconcileAnalysisRun(ttlExpiredRun)
+		if notExpiredStatus != nil {
+			ttlNotExpiredRun := &v1alpha1.AnalysisRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "not-expired-run" + testId,
+					Namespace: metav1.NamespaceDefault,
+				},
+				Spec: v1alpha1.AnalysisRunSpec{
+					TtlStrategy: ttlStrategy,
+				},
+				Status: *notExpiredStatus,
+			}
+			_ = c.reconcileAnalysisRun(ttlNotExpiredRun)
+		}
+
+		pi := f.expectDeleteAnalysisRunAction(ttlExpiredRun)
+		assert.Equal(t, fmt.Sprintf("%s/%s", metav1.NamespaceDefault, "expired-run"+testId), f.getDeletedAnalysisRunNamespaceAndName(pi))
+		// Nothing else is deleted
+		assert.Equal(t, 1, len(filterInformerActions(f.client.Actions())))
+		// Clear actions to avoid affecting other test instances.
+		f.client.ClearActions()
+		f.actions = nil
+	}
+
+	ttlNotExpiredCompletedTime := f.now.Add(-86400 * time.Second)
+	ttlExpiredCompletedTime := ttlNotExpiredCompletedTime.Add(-1 * time.Second)
+	secondsOfOneDay := int32(86400)
+
+	// Test completed TTL.
+	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+		SecondsAfterCompletion: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	})
+	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+		SecondsAfterCompletion: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	})
+	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+		SecondsAfterCompletion: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseError,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseError,
+	})
+	// Test successful TTL.
+	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+		SecondsAfterSuccess: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	})
+	// Test failed TTL.
+	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+		SecondsAfterFailure: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	})
+
+	// Test success TTL does not affect failed run.
+	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+		SecondsAfterSuccess: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	})
+	// Test failed TTL does not affect successful run.
+	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+		SecondsAfterFailure: &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	})
+	// Test success TTL overrides completed TTL.
+	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+		SecondsAfterCompletion: pointer.Int32Ptr(100000),
+		SecondsAfterSuccess:    &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	})
+	// Test failed TTL overrides completed TTL.
+	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+		SecondsAfterCompletion: pointer.Int32Ptr(100000),
+		SecondsAfterFailure:    &secondsOfOneDay,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	})
+	// Test completed TTL still evaluated when non-matching overrides exist.
+	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+		SecondsAfterCompletion: &secondsOfOneDay,
+		SecondsAfterFailure:    pointer.Int32Ptr(86401),
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseSuccessful,
+	}, &v1alpha1.AnalysisRunStatus{
+		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
+		Phase:       v1alpha1.AnalysisPhaseFailed,
+	})
+}
+
+func TestTtlNotGCInProgressAnalysisRun(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	expectedCount := intstr.FromInt(3)
+	origRun := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "metric1",
+					Interval: "60s",
+					Count:    &expectedCount,
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:     v1alpha1.AnalysisPhaseRunning,
+			StartedAt: timePtr(metav1.NewTime(time.Now())),
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:  "metric1",
+					Phase: v1alpha1.AnalysisPhaseRunning,
+					Count: 1,
+					Measurements: []v1alpha1.Measurement{{
+						Value:      "1",
+						Phase:      v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
+				},
+			},
+		},
+	}
+	newRun := c.reconcileAnalysisRun(origRun)
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, newRun.Status.Phase)
+	assert.Nil(t, newRun.Status.CompletedAt)
+	// Nothing else is deleted
+	assert.Equal(t, 0, len(filterInformerActions(f.client.Actions())))
+}
+
+func TestCompletedTimeFilled(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	expectedCount := intstr.FromInt(1)
+	origRun := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{
+				{
+					Name:     "metric1",
+					Interval: "60s",
+					Count:    &expectedCount,
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase:     v1alpha1.AnalysisPhaseRunning,
+			StartedAt: timePtr(metav1.NewTime(time.Now())),
+			MetricResults: []v1alpha1.MetricResult{
+				{
+					Name:  "metric1",
+					Phase: v1alpha1.AnalysisPhaseSuccessful,
+					Count: 1,
+					Measurements: []v1alpha1.Measurement{{
+						Value:      "1",
+						Phase:      v1alpha1.AnalysisPhaseSuccessful,
+						StartedAt:  timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+						FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
+					}},
+				},
+			},
+		},
+	}
+	newRun := c.reconcileAnalysisRun(origRun)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	assert.NotNil(t, newRun.Status.CompletedAt)
+	assert.Equal(t, f.now, newRun.Status.CompletedAt.Time)
 }

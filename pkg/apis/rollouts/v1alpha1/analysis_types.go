@@ -134,6 +134,16 @@ type MeasurementRetention struct {
 	Limit int32 `json:"limit" protobuf:"varint,2,opt,name=limit"`
 }
 
+// TtlStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed
+type TtlStrategy struct {
+	// SecondsAfterCompletion is the number of seconds to live after completion.
+	SecondsAfterCompletion *int32 `json:"secondsAfterCompletion,omitempty" protobuf:"varint,1,opt,name=secondsAfterCompletion"`
+	// SecondsAfterFailure is the number of seconds to live after failure.
+	SecondsAfterFailure *int32 `json:"secondsAfterFailure,omitempty" protobuf:"varint,2,opt,name=secondsAfterFailure"`
+	// SecondsAfterSuccess is the number of seconds to live after success.
+	SecondsAfterSuccess *int32 `json:"secondsAfterSuccess,omitempty" protobuf:"varint,3,opt,name=secondsAfterSuccess"`
+}
+
 // EffectiveCount is the effective count based on whether or not count/interval is specified
 // If neither count or interval is specified, the effective count is 1
 // If only interval is specified, metric runs indefinitely and there is no effective count (nil)
@@ -378,6 +388,9 @@ type AnalysisRunSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,5,rep,name=measurementRetention"`
+	// TtlStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed
+	// +optional
+	TtlStrategy *TtlStrategy `json:"ttlStrategy,omitempty" protobuf:"bytes,6,opt,name=ttlStrategy"`
 }
 
 // Argument is an argument to an AnalysisRun
@@ -423,6 +436,8 @@ type AnalysisRunStatus struct {
 	RunSummary RunSummary `json:"runSummary,omitempty" protobuf:"bytes,5,opt,name=runSummary"`
 	// DryRunSummary contains the final results from the metric executions in the dry-run mode
 	DryRunSummary *RunSummary `json:"dryRunSummary,omitempty" protobuf:"bytes,6,opt,name=dryRunSummary"`
+	// CompletedAt indicates when the analysisRun completed
+	CompletedAt *metav1.Time `json:"completedAt,omitempty" protobuf:"bytes,7,opt,name=completedAt"`
 }
 
 // RunSummary contains the final results from the metric executions

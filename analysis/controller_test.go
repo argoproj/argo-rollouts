@@ -55,6 +55,9 @@ type fixture struct {
 	unfreezeTime    func() error
 	// fake provider
 	provider *mocks.Provider
+
+	// Reference to frozen now
+	now time.Time
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -62,9 +65,9 @@ func newFixture(t *testing.T) *fixture {
 	f.t = t
 	f.objects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
-	now := time.Now()
+	f.now = time.Now()
 	timeutil.Now = func() time.Time {
-		return now
+		return f.now
 	}
 	f.unfreezeTime = func() error {
 		timeutil.Now = time.Now
@@ -284,6 +287,22 @@ func (f *fixture) getPatchedAnalysisRun(index int) v1alpha1.AnalysisRun { //noli
 		panic(err)
 	}
 	return ar
+}
+
+func (f *fixture) expectDeleteAnalysisRunAction(analysisRun *v1alpha1.AnalysisRun) int { //nolint:unused
+	action := core.NewDeleteAction(schema.GroupVersionResource{Resource: "analysisrun"}, analysisRun.Namespace, analysisRun.Name)
+	len := len(f.actions)
+	f.actions = append(f.actions, action)
+	return len
+}
+
+func (f *fixture) getDeletedAnalysisRunNamespaceAndName(index int) string { //nolint:unused
+	action := filterInformerActions(f.client.Actions())[index]
+	deleteAction, ok := action.(core.DeleteAction)
+	if !ok {
+		f.t.Fatalf("Expected Patch action, not %s", action.GetVerb())
+	}
+	return fmt.Sprintf("%s/%s", deleteAction.GetNamespace(), deleteAction.GetName())
 }
 
 func TestNoReconcileForNotFoundAnalysisRun(t *testing.T) {
