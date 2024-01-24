@@ -2375,3 +2375,29 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfWithDeletionTimestamp(t *testing.T)
 	assert.NoError(t, err)
 	assert.Empty(t, f.client.Fake.Actions())
 }
+
+func TestMaybeGarbageCollectAnalysisRunNoGCIfNoCompletedAt(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+
+	origRun := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "run" + string(uuid.NewUUID()),
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			TtlStrategy: &v1alpha1.TtlStrategy{
+				SecondsAfterCompletion: pointer.Int32Ptr(1),
+			},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseSuccessful,
+		},
+	}
+	logger := logutil.WithAnalysisRun(origRun)
+	err := c.maybeGarbageCollectAnalysisRun(origRun, logger)
+	// No error, no deletion issued.
+	assert.NoError(t, err)
+	assert.Empty(t, f.client.Fake.Actions())
+}
