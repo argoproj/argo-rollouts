@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"fmt"
 	"math"
 	"sort"
 
@@ -22,7 +23,7 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 	}
 	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(true)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutBlueGreen create true: %w", err)
 	}
 
 	// This must happen right after the new replicaset is created
@@ -82,6 +83,9 @@ func (c *rolloutContext) reconcileBlueGreenStableReplicaSet(activeSvc *corev1.Se
 
 	c.log.Infof("Reconciling stable ReplicaSet '%s'", activeRS.Name)
 	_, _, err := c.scaleReplicaSetAndRecordEvent(activeRS, defaults.GetReplicasOrDefault(c.rollout.Spec.Replicas))
+	if err != nil {
+		return fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileBlueGreenStableReplicaSet: %w", err)
+	}
 	return err
 }
 
@@ -243,7 +247,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 		// Scale down.
 		_, _, err = c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in scaleDownOldReplicaSetsForBlueGreen: %w", err)
 		}
 		hasScaled = true
 	}

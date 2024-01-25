@@ -283,7 +283,7 @@ func (c *rolloutContext) syncReplicasOnly() error {
 	var err error
 	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in syncReplicasOnly: %w", err)
 	}
 	newStatus := c.rollout.Status.DeepCopy()
 
@@ -296,7 +296,7 @@ func (c *rolloutContext) syncReplicasOnly() error {
 		if err := c.reconcileBlueGreenReplicaSets(activeSvc); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
-			return err
+			return fmt.Errorf("failed to reconcileBlueGreenReplicaSets in syncReplicasOnly: %w", err)
 		}
 		activeRS, _ := replicasetutil.GetReplicaSetByTemplateHash(c.allRSs, newStatus.BlueGreen.ActiveSelector)
 		if activeRS != nil {
@@ -314,7 +314,7 @@ func (c *rolloutContext) syncReplicasOnly() error {
 		if _, err := c.reconcileCanaryReplicaSets(); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
-			return err
+			return fmt.Errorf("failed to reconcileCanaryReplicaSets in syncReplicasOnly: %w", err)
 		}
 		newStatus.AvailableReplicas = replicasetutil.GetAvailableReplicaCountForReplicaSets(c.allRSs)
 		newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
@@ -330,7 +330,7 @@ func (c *rolloutContext) isScalingEvent() (bool, error) {
 	var err error
 	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in isScalingEvent: %w", err)
 	}
 
 	for _, rs := range controller.FilterActiveReplicaSets(c.allRSs) {
@@ -357,6 +357,9 @@ func (c *rolloutContext) scaleReplicaSetAndRecordEvent(rs *appsv1.ReplicaSet, ne
 		scalingOperation = "down"
 	}
 	scaled, newRS, err := c.scaleReplicaSet(rs, newScale, c.rollout, scalingOperation)
+	if err != nil {
+		return scaled, newRS, fmt.Errorf("failed to scaleReplicaSet in scaleReplicaSetAndRecordEvent: %w", err)
+	}
 	return scaled, newRS, err
 }
 

@@ -172,6 +172,9 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 	}
 
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.newRS, newReplicasCount)
+	if err != nil {
+		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileNewReplicaSet: %w", err)
+	}
 	return scaled, err
 }
 
@@ -263,7 +266,7 @@ func (c *rolloutContext) cleanupUnhealthyReplicas(oldRSs []*appsv1.ReplicaSet) (
 		}
 		_, updatedOldRS, err := c.scaleReplicaSetAndRecordEvent(targetRS, newReplicasCount)
 		if err != nil {
-			return nil, totalScaledDown, err
+			return nil, totalScaledDown, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in cleanupUnhealthyReplicas: %w", err)
 		}
 		totalScaledDown += scaledDownCount
 		oldRSs[i] = updatedOldRS
