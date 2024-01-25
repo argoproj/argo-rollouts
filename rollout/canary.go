@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"fmt"
 	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -21,14 +22,14 @@ func (c *rolloutContext) rolloutCanary() error {
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
 		c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary with PodTemplateOrStepsChanged: %w", err)
 		}
 		return c.syncRolloutStatusCanary()
 	}
 
 	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(true)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
 	}
 
 	err = c.podRestarter.Reconcile(c)
@@ -110,6 +111,9 @@ func (c *rolloutContext) reconcileCanaryStableReplicaSet() (bool, error) {
 		_, desiredStableRSReplicaCount = replicasetutil.CalculateReplicaCountsForTrafficRoutedCanary(c.rollout, c.rollout.Status.Canary.Weights)
 	}
 	scaled, _, err := c.scaleReplicaSetAndRecordEvent(c.stableRS, desiredStableRSReplicaCount)
+	if err != nil {
+		return scaled, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in reconcileCanaryStableReplicaSet:L %w", err)
+	}
 	return scaled, err
 }
 
@@ -230,7 +234,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 		// Scale down.
 		_, _, err = c.scaleReplicaSetAndRecordEvent(targetRS, desiredReplicaCount)
 		if err != nil {
-			return totalScaledDown, err
+			return totalScaledDown, fmt.Errorf("failed to scaleReplicaSetAndRecordEvent in scaleDownOldReplicaSetsForCanary: %w", err)
 		}
 		scaleDownCount := *targetRS.Spec.Replicas - desiredReplicaCount
 		maxScaleDown -= scaleDownCount
