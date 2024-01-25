@@ -1862,7 +1862,7 @@
         
   
   <span class="md-ellipsis">
-    Pagerduty
+    PagerDuty
   </span>
   
 
@@ -2081,6 +2081,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#retry-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Retry Behavior
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       Configuration
@@ -2102,7 +2111,7 @@
           <li class="md-nav__item">
   <a href="#set-github-commit-status" class="md-nav__link">
     <span class="md-ellipsis">
-      Set Github commit status
+      Set GitHub commit status
     </span>
   </a>
   
@@ -3378,6 +3387,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#retry-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Retry Behavior
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       Configuration
@@ -3399,7 +3417,7 @@
           <li class="md-nav__item">
   <a href="#set-github-commit-status" class="md-nav__link">
     <span class="md-ellipsis">
-      Set Github commit status
+      Set GitHub commit status
     </span>
   </a>
   
@@ -3457,15 +3475,21 @@
 
 <h1 id="webhook">Webhook<a class="headerlink" href="#webhook" title="Permanent link">&para;</a></h1>
 <p>The webhook notification service allows sending a generic HTTP request using the templatized request body and URL.
-Using Webhook you might trigger a Jenkins job, update Github commit status.</p>
+Using Webhook you might trigger a Jenkins job, update GitHub commit status.</p>
 <h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
 <p>The Webhook notification service configuration includes following settings:</p>
 <ul>
 <li><code>url</code> - the url to send the webhook to</li>
 <li><code>headers</code> - optional, the headers to pass along with the webhook</li>
-<li><code>basicAuth</code> - optional, the basic authentication to pass along with the webook</li>
+<li><code>basicAuth</code> - optional, the basic authentication to pass along with the webhook</li>
 <li><code>insecureSkipVerify</code> - optional bool, true or false</li>
+<li><code>retryWaitMin</code> - Optional, the minimum wait time between retries. Default value: 1s.</li>
+<li><code>retryWaitMax</code> - Optional, the maximum wait time between retries. Default value: 5s.</li>
+<li><code>retryMax</code> - Optional, the maximum number of retries. Default value: 3.</li>
 </ul>
+<h2 id="retry-behavior">Retry Behavior<a class="headerlink" href="#retry-behavior" title="Permanent link">&para;</a></h2>
+<p>The webhook service will automatically retry the request if it fails due to network errors or if the server returns a 5xx status code. The number of retries and the wait time between retries can be configured using the <code>retryMax</code>, <code>retryWaitMin</code>, and <code>retryWaitMax</code> parameters.</p>
+<p>The wait time between retries is between <code>retryWaitMin</code> and <code>retryWaitMax</code>. If all retries fail, the <code>Send</code> method will return an error.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <p>Use the following steps to configure webhook:</p>
 <p>1 Register webhook in <code>argocd-notifications-cm</code> ConfigMap:</p>
@@ -3509,7 +3533,7 @@ Using Webhook you might trigger a Jenkins job, update Github commit status.</p>
 <span class="w">    </span><span class="nt">notifications.argoproj.io/subscribe.&lt;trigger-name&gt;.&lt;webhook-name&gt;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
 </code></pre></div>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
-<h3 id="set-github-commit-status">Set Github commit status<a class="headerlink" href="#set-github-commit-status" title="Permanent link">&para;</a></h3>
+<h3 id="set-github-commit-status">Set GitHub commit status<a class="headerlink" href="#set-github-commit-status" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>

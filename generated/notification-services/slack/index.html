@@ -1862,7 +1862,7 @@
         
   
   <span class="md-ellipsis">
-    Pagerduty
+    PagerDuty
   </span>
   
 
@@ -3375,13 +3375,68 @@
 <p>If you want to send message using incoming webhook, you can use <a href="../webhook/#send-slack">webhook</a>.</p>
 <h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
 <p>The Slack notification service configuration includes following settings:</p>
-<ul>
-<li><code>token</code> - the app token</li>
-<li><code>apiURL</code> - optional, the server url, e.g. https://example.com/api</li>
-<li><code>username</code> - optional, the app username</li>
-<li><code>icon</code> - optional, the app icon, e.g. :robot_face: or https://example.com/image.png</li>
-<li><code>insecureSkipVerify</code> - optional bool, true or false</li>
-</ul>
+<table>
+<thead>
+<tr>
+<th><strong>Option</strong></th>
+<th><strong>Required</strong></th>
+<th><strong>Type</strong></th>
+<th><strong>Description</strong></th>
+<th><strong>Example</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiURL</code></td>
+<td>False</td>
+<td><code>string</code></td>
+<td>The server URL.</td>
+<td><code>https://example.com/api</code></td>
+</tr>
+<tr>
+<td><code>channels</code></td>
+<td>False</td>
+<td><code>list[string]</code></td>
+<td></td>
+<td><code>["my-channel-1", "my-channel-2"]</code></td>
+</tr>
+<tr>
+<td><code>icon</code></td>
+<td>False</td>
+<td><code>string</code></td>
+<td>The app icon.</td>
+<td><code>:robot_face:</code> or <code>https://example.com/image.png</code></td>
+</tr>
+<tr>
+<td><code>insecureSkipVerify</code></td>
+<td>False</td>
+<td><code>bool</code></td>
+<td></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>signingSecret</code></td>
+<td>False</td>
+<td><code>string</code></td>
+<td></td>
+<td><code>8f742231b10e8888abcd99yyyzzz85a5</code></td>
+</tr>
+<tr>
+<td><code>token</code></td>
+<td><strong>True</strong></td>
+<td><code>string</code></td>
+<td>The app's OAuth access token.</td>
+<td><code>xoxb-1234567890-1234567890123-5n38u5ed63fgzqlvuyxvxcx6</code></td>
+</tr>
+<tr>
+<td><code>username</code></td>
+<td>False</td>
+<td><code>string</code></td>
+<td>The app username.</td>
+<td><code>argocd</code></td>
+</tr>
+</tbody>
+</table>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Create Slack Application using https://api.slack.com/apps?new_app=1

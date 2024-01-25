@@ -1872,7 +1872,7 @@
         
   
   <span class="md-ellipsis">
-    Pagerduty
+    PagerDuty
   </span>
   
 
@@ -3292,8 +3292,8 @@
 <li>Give your integration a name, copy the "API key" and safe it somewhere for later</li>
 <li>Make sure the checkboxes for "Create and Update Access" and "enable" are selected, disable the other checkboxes to remove unnecessary permissions</li>
 <li>Click "Safe Integration" at the bottom</li>
-<li>Check your browser for the correct server apiURL. If it is "app.opsgenie.com" then use the us/international api url <code>api.opsgenie.com</code> in the next step, otherwise use <code>api.eu.opsgenie.com</code> (european api). </li>
-<li>You are finished with configuring opsgenie. Now you need to configure argocd-notifications. Use the apiUrl, the team name and the apiKey to configure the opsgenie integration in the <code>argocd-notifications-secret</code> secret. </li>
+<li>Check your browser for the correct server apiURL. If it is "app.opsgenie.com" then use the US/international api url <code>api.opsgenie.com</code> in the next step, otherwise use <code>api.eu.opsgenie.com</code> (European API). </li>
+<li>You are finished with configuring opsgenie. Now you need to configure argocd-notifications. Use the apiUrl, the team name and the apiKey to configure the Opsgenie integration in the <code>argocd-notifications-secret</code> secret. </li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>

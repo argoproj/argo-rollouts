@@ -1944,7 +1944,7 @@
         
   
   <span class="md-ellipsis">
-    Pagerduty
+    PagerDuty
   </span>
   
 
@@ -3405,10 +3405,10 @@
 <h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
 <p>This notification service is capable of sending simple messages to AWS SQS queue. </p>
 <ul>
-<li><code>queue</code> - name of the queue you are intending to send messages to. Can be overwriten with target destination annotation.</li>
+<li><code>queue</code> - name of the queue you are intending to send messages to. Can be overridden with target destination annotation.</li>
 <li><code>region</code> - region of the sqs queue can be provided via env variable AWS_DEFAULT_REGION</li>
 <li><code>key</code> - optional, aws access key must be either referenced from a secret via variable or via env variable AWS_ACCESS_KEY_ID</li>
-<li><code>secret</code> - optional, aws access secret must be either referenced from a secret via variableor via env variable AWS_SECRET_ACCESS_KEY</li>
+<li><code>secret</code> - optional, aws access secret must be either referenced from a secret via variable or via env variable AWS_SECRET_ACCESS_KEY</li>
 <li><code>account</code> optional, external accountId of the queue</li>
 <li><code>endpointUrl</code> optional, useful for development with localstack</li>
 </ul>
@@ -3456,7 +3456,7 @@
 </code></pre></div></li>
 </ul>
 <h3 id="minimal-configuration-using-aws-env-variables">Minimal configuration using AWS Env variables<a class="headerlink" href="#minimal-configuration-using-aws-env-variables" title="Permanent link">&para;</a></h3>
-<p>Ensure following list of enviromental variable is injected via OIDC, or other method. And assuming SQS is local to the account.
+<p>Ensure following list of environment variables are injected via OIDC, or other method. And assuming SQS is local to the account.
 You may skip usage of secret for sensitive data and omit other parameters. (Setting parameters via ConfigMap takes precedent.)</p>
 <p>Variables:</p>
 <div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">AWS_ACCESS_KEY_ID</span><span class="o">=</span><span class="s2">&quot;test&quot;</span>

@@ -22,7 +22,7 @@
     
     
       
-        <title>Pagerduty - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
+        <title>PagerDuty - Argo Rollouts - Kubernetes Progressive Delivery Controller</title>
       
     
     
@@ -121,7 +121,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Pagerduty
+              PagerDuty
             
           </span>
         </div>
@@ -1871,7 +1871,7 @@
           
   
   <span class="md-ellipsis">
-    Pagerduty
+    PagerDuty
   </span>
   
 
@@ -1882,7 +1882,7 @@
         
   
   <span class="md-ellipsis">
-    Pagerduty
+    PagerDuty
   </span>
   
 
@@ -3389,16 +3389,16 @@
   
 
 
-<h1 id="pagerduty">Pagerduty<a class="headerlink" href="#pagerduty" title="Permanent link">&para;</a></h1>
+<h1 id="pagerduty">PagerDuty<a class="headerlink" href="#pagerduty" title="Permanent link">&para;</a></h1>
 <h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
-<p>The Pagerduty notification service is used to create pagerduty incidents and requires specifying the following settings:</p>
+<p>The PagerDuty notification service is used to create PagerDuty incidents and requires specifying the following settings:</p>
 <ul>
-<li><code>pagerdutyToken</code> - the pagerduty auth token</li>
+<li><code>pagerdutyToken</code> - the PagerDuty auth token</li>
 <li><code>from</code> - email address of a valid user associated with the account making the request.</li>
 <li><code>serviceID</code> - The ID of the resource.</li>
 </ul>
 <h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
-<p>The following snippet contains sample Pagerduty service configuration:</p>
+<p>The following snippet contains sample PagerDuty service configuration:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -3416,7 +3416,7 @@
 <span class="w">    </span><span class="no">from: &lt;emailid&gt;</span>
 </code></pre></div>
 <h2 id="template">Template<a class="headerlink" href="#template" title="Permanent link">&para;</a></h2>
-<p><a href="../templates.md">Notification templates</a> support specifying subject for pagerduty notifications:</p>
+<p><a href="../templates.md">Notification templates</a> support specifying subject for PagerDuty notifications:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -3437,7 +3437,7 @@
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
 <span class="nt">metadata</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">notifications.argoproj.io/subscribe.on-rollout-aborted.pagerduty</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&lt;serviceID</span><span class="nv"> </span><span class="s">for</span><span class="nv"> </span><span class="s">Pagerduty&gt;&quot;</span>
+<span class="w">    </span><span class="nt">notifications.argoproj.io/subscribe.on-rollout-aborted.pagerduty</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&lt;serviceID</span><span class="nv"> </span><span class="s">for</span><span class="nv"> </span><span class="s">PagerDuty&gt;&quot;</span>
 </code></pre></div></p>
 
 
