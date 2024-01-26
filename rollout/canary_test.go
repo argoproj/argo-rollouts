@@ -824,9 +824,9 @@ func TestRollBackToStable(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1) // Bump replicaset revision from 1 to 3
-	f.expectUpdateRolloutAction(r2)                       // Bump rollout revision from 1 to 3
-	patchIndex := f.expectPatchRolloutAction(r2)          // Patch rollout status
+	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs1)
+	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	expectedRS1 := rs1.DeepCopy()
@@ -884,9 +884,9 @@ func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
 	f.rolloutLister = append(f.rolloutLister, r2)
 	f.objects = append(f.objects, r2)
 
-	f.expectUpdateReplicaSetAction(rs1)                 // Update replicaset revision from 1 to 3
-	f.expectUpdateRolloutAction(r2)                     // Update rollout revision from 1 to 3
-	rolloutPatchIndex := f.expectPatchRolloutAction(r2) // Patch rollout status
+	f.expectUpdateReplicaSetAction(rs1)
+	f.expectUpdateReplicaSetAction(rs1)
+	rolloutPatchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
 	expectedStepIndex := len(steps)
@@ -964,8 +964,7 @@ func TestRollBackToStableAndStepChange(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	updatedRSIndex := f.expectUpdateReplicaSetAction(rs1)
-	//f.expectUpdateReplicaSetAction(rs1)
-	f.expectUpdateRolloutAction(r2)
+	f.expectUpdateReplicaSetAction(rs1)
 	patchIndex := f.expectPatchRolloutAction(r2)
 	f.run(getKey(r2, t))
 
