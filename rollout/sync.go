@@ -91,10 +91,6 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 			return nil, fmt.Errorf("error updating replicaset revision: %v", err)
 		}
 		c.log.Infof("Synced revision on ReplicaSet '%s' to '%s'", rs.Name, newRevision)
-		err = c.replicaSetInformer.GetIndexer().Update(rs)
-		if err != nil {
-			return nil, fmt.Errorf("error updating replicaset informer in syncReplicaSetRevision: %w", err)
-		}
 		return rs, nil
 	}
 
@@ -384,11 +380,6 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
 			return scaled, rs, fmt.Errorf("error updating replicaset %s: %w", rsCopy.Name, err)
-		}
-		err = c.replicaSetInformer.GetIndexer().Update(rs)
-		if err != nil {
-			err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
-			return scaled, rs, err
 		}
 
 		if sizeNeedsUpdate {
