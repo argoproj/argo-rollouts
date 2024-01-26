@@ -1006,6 +1006,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetr
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
      */
     apiVersion?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DatadogMetric
+     */
+    aggregator?: string;
 }
 /**
  * DryRun defines the settings for running the analysis in Dry-Run mode.

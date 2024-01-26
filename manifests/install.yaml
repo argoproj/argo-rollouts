@@ -179,6 +179,19 @@ spec:
                           type: object
                         datadog:
                           properties:
+                            aggregator:
+                              default: last
+                              enum:
+                              - avg
+                              - min
+                              - max
+                              - sum
+                              - last
+                              - percentile
+                              - mean
+                              - l2norm
+                              - area
+                              type: string
                             apiVersion:
                               default: v1
                               enum:
@@ -3300,6 +3313,19 @@ spec:
                           type: object
                         datadog:
                           properties:
+                            aggregator:
+                              default: last
+                              enum:
+                              - avg
+                              - min
+                              - max
+                              - sum
+                              - last
+                              - percentile
+                              - mean
+                              - l2norm
+                              - area
+                              type: string
                             apiVersion:
                               default: v1
                               enum:
@@ -6307,6 +6333,19 @@ spec:
                           type: object
                         datadog:
                           properties:
+                            aggregator:
+                              default: last
+                              enum:
+                              - avg
+                              - min
+                              - max
+                              - sum
+                              - last
+                              - percentile
+                              - mean
+                              - l2norm
+                              - area
+                              type: string
                             apiVersion:
                               default: v1
                               enum:

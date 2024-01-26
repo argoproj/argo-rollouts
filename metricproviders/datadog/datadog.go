@@ -188,7 +188,7 @@ func (p *Provider) createRequest(dd *v1alpha1.DatadogMetric, now int64, interval
 		dd.Queries = map[string]string{"query": dd.Query}
 	}
 
-	return p.createRequestV2(dd.Queries, dd.Formula, now, interval, url)
+	return p.createRequestV2(dd.Queries, dd.Formula, now, interval, dd.Aggregator, url)
 }
 
 func (p *Provider) createRequestV1(query string, now int64, interval int64, url *url.URL) (*http.Request, error) {
@@ -201,11 +201,11 @@ func (p *Provider) createRequestV1(query string, now int64, interval int64, url 
 	return &http.Request{Method: "GET"}, nil
 }
 
-func buildQueriesPayload(queries map[string]string) []map[string]string {
+func buildQueriesPayload(queries map[string]string, aggregator string) []map[string]string {
 	qp := make([]map[string]string, 0, len(queries))
 	for k, v := range queries {
 		p := map[string]string{
-			"aggregator":  "last",
+			"aggregator":  aggregator,
 			"data_source": "metrics",
 			"name":        k,
 			"query":       v,
@@ -215,7 +215,7 @@ func buildQueriesPayload(queries map[string]string) []map[string]string {
 	return qp
 }
 
-func (p *Provider) createRequestV2(queries map[string]string, formula string, now int64, interval int64, url *url.URL) (*http.Request, error) {
+func (p *Provider) createRequestV2(queries map[string]string, formula string, now int64, interval int64, aggregator string, url *url.URL) (*http.Request, error) {
 	formulas := []map[string]string{}
 	// ddAPI supports multiple formulas but doesn't make sense in our context
 	// can't have a 'blank' formula, so have to guard
@@ -229,7 +229,7 @@ func (p *Provider) createRequestV2(queries map[string]string, formula string, no
 		// Datadog requires milliseconds for v2 api
 		From:     (now - interval) * 1000,
 		To:       now * 1000,
-		Queries:  buildQueriesPayload(queries),
+		Queries:  buildQueriesPayload(queries, aggregator),
 		Formulas: formulas,
 	}
 
@@ -409,6 +409,10 @@ func validateIncomingProps(dd *v1alpha1.DatadogMetric) error {
 	// avoid ambiguity.
 	if dd.Formula == "" && len(dd.Queries) > 1 {
 		return errors.New("When multiple queries are provided you must include a formula.")
+	}
+
+	if dd.ApiVersion == "v1" && dd.Aggregator != "" {
+		return errors.New("Aggregator is not supported in v1. Please review the Analysis Template.")
 	}
 
 	return nil

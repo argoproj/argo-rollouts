@@ -52,6 +52,26 @@ func TestDatadogSpecDefaults(t *testing.T) {
 		defaultInterval := string(ddSpec.Properties["interval"].Default.Raw)
 		assert.Equal(t, "\"5m\"", defaultInterval, "Default interval should be \"5m\" ")
 	})
+
+	t.Run("aggregator: Validate enum exists to restrict aggregator to 9 options", func(t *testing.T) {
+		aggregatorEnums := ddSpec.Properties["aggregator"].Enum
+		assert.Equal(t, 9, len(aggregatorEnums), "Expecting 9 enum options")
+		assert.Equal(t, "\"avg\"", string(aggregatorEnums[0].Raw), "\"avg\" expected, got %s", string(aggregatorEnums[0].Raw))
+		assert.Equal(t, "\"min\"", string(aggregatorEnums[1].Raw), "\"min\" expected, got %s", string(aggregatorEnums[1].Raw))
+		assert.Equal(t, "\"max\"", string(aggregatorEnums[2].Raw), "\"max\" expected, got %s", string(aggregatorEnums[2].Raw))
+		assert.Equal(t, "\"sum\"", string(aggregatorEnums[3].Raw), "\"sum\" expected, got %s", string(aggregatorEnums[3].Raw))
+		assert.Equal(t, "\"last\"", string(aggregatorEnums[4].Raw), "\"last\" expected, got %s", string(aggregatorEnums[4].Raw))
+		assert.Equal(t, "\"percentile\"", string(aggregatorEnums[5].Raw), "\"percentile\" expected, got %s", string(aggregatorEnums[5].Raw))
+		assert.Equal(t, "\"mean\"", string(aggregatorEnums[6].Raw), "\"mean\" expected, got %s", string(aggregatorEnums[6].Raw))
+		assert.Equal(t, "\"l2norm\"", string(aggregatorEnums[7].Raw), "\"l2norm\" expected, got %s", string(aggregatorEnums[7].Raw))
+		assert.Equal(t, "\"area\"", string(aggregatorEnums[8].Raw), "\"area\" expected, got %s", string(aggregatorEnums[8].Raw))
+	})
+
+	t.Run("aggregator: Validate default is last", func(t *testing.T) {
+		defaultAggregator := string(ddSpec.Properties["aggregator"].Default.Raw)
+		assert.Equal(t, "\"last\"", defaultAggregator, "Default aggregator should be \"last\" ")
+	})
+
 }
 
 func TestValidateIncomingProps(t *testing.T) {
@@ -105,6 +125,15 @@ func TestValidateIncomingProps(t *testing.T) {
 			expectedErrorMessage: "Formula are only valid when queries are set",
 		},
 		{
+			name: "v1 query with aggregator",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion: "v1",
+				Query:      "foo",
+				Aggregator: "sum",
+			},
+			expectedErrorMessage: "Aggregator is not supported in v1. Please review the Analysis Template.",
+		},
+		{
 			name: "More than 1 queries with no formula",
 			metric: &v1alpha1.DatadogMetric{
 				ApiVersion: "v2",
@@ -128,6 +157,17 @@ func TestValidateIncomingProps(t *testing.T) {
 				Query:      "",
 				Queries:    map[string]string{"a": "sum:api_gateway.request.count{*}.as_count()", "b": "fish bike"},
 				Formula:    "a + b",
+			},
+			expectedErrorMessage: "",
+		},
+		{
+			name: "valid queries with v2 and an aggregator",
+			metric: &v1alpha1.DatadogMetric{
+				ApiVersion: "v2",
+				Query:      "",
+				Queries:    map[string]string{"a": "sum:api_gateway.request.count{*}.as_count()", "b": "fish bike"},
+				Formula:    "a + b",
+				Aggregator: "avg",
 			},
 			expectedErrorMessage: "",
 		},
