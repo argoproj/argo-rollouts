@@ -1412,6 +1412,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#metric-aggregation-v2-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      Metric aggregation (v2 only)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#templates-and-helm" class="md-nav__link">
     <span class="md-ellipsis">
       Templates and Helm
@@ -3425,6 +3434,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#metric-aggregation-v2-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      Metric aggregation (v2 only)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#templates-and-helm" class="md-nav__link">
     <span class="md-ellipsis">
       Templates and Helm
@@ -3586,6 +3604,25 @@
 </code></pre></div>
 <p>However, empty query results yielding a <code>nil</code> value can be handled using the <code>default()</code> function. Here is a succeeding example using the <code>default()</code> function:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default(result, 0) &lt; 0.05</span>
+</code></pre></div>
+<h4 id="metric-aggregation-v2-only">Metric aggregation (v2 only)<a class="headerlink" href="#metric-aggregation-v2-only" title="Permanent link">&para;</a></h4>
+<p>By default, Datadog analysis run is configured to use <code>last</code> metric aggregator when querying Datadog v2 API. This value can be overriden by specifying a new <code>aggregator</code> value from a list of supported aggregators (<code>avg,min,max,sum,last,percentile,mean,l2norm,area</code>) for the V2 API (<a href="https://docs.datadoghq.com/api/latest/metrics/#query-scalar-data-across-multiple-products">docs</a>).</p>
+<p>For example, using count-based distribution metric (<code>count:metric{*}.as_count()</code>) with values <code>1,9,3,7,5</code> in a given <code>interval</code> will make <code>last</code> aggregator return <code>5</code>. To return a sum of all values (<code>25</code>), set <code>aggregator: sum</code> in Datadog provider block and use <code>moving_rollup()</code> function to aggregate values in the specified rollup interval. These functions can be combined in a <code>formula</code> to perform additional calculations:</p>
+<div class="highlight"><pre><span></span><code><span class="l l-Scalar l-Scalar-Plain">...&lt;snip&gt;</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">metrics</span><span class="p p-Indicator">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error-percentage</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default(result, 0) &lt; 5</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">datadog</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v2</span>
+<span class="w">        </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">        </span><span class="nt">aggregator</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sum</span><span class="w"> </span><span class="c1"># override default aggregator</span>
+<span class="w">        </span><span class="nt">queries</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">a</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">count:requests.errors{service:my-service}.as_count()</span>
+<span class="w">          </span><span class="nt">b</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">count:requests{service:my-service}.as_count()</span>
+<span class="w">        </span><span class="nt">formula</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;moving_rollup(a,</span><span class="nv"> </span><span class="s">300,</span><span class="nv"> </span><span class="s">&#39;sum&#39;)</span><span class="nv"> </span><span class="s">/</span><span class="nv"> </span><span class="s">moving_rollup(b,</span><span class="nv"> </span><span class="s">300,</span><span class="nv"> </span><span class="s">&#39;sum&#39;)</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">100&quot;</span><span class="w"> </span><span class="c1"># percentage of requests with errors</span>
 </code></pre></div>
 <h4 id="templates-and-helm">Templates and Helm<a class="headerlink" href="#templates-and-helm" title="Permanent link">&para;</a></h4>
 <p>Helm and Argo Rollouts both try to parse things between <code>{{ ... }}</code> when rendering templates. If you use Helm to deliver your manifests, you will need to escape <code>{{ args.whatever }}</code>. Using the example above, here it is set up for Helm:</p>
