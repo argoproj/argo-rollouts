@@ -47,4 +47,4 @@ spec:
       securityContext:
         runAsNonRoot: true
   strategy:
-    type: Recreate
+    type: RollingUpdate

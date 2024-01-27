@@ -15971,7 +15971,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: argo-rollouts
   strategy:
-    type: Recreate
+    type: RollingUpdate
   template:
     metadata:
       labels:
