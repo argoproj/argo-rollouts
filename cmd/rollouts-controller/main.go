@@ -41,7 +41,11 @@ const (
 	cliName    = "argo-rollouts"
 	jsonFormat = "json"
 	textFormat = "text"
+
+	controllerAnalysis = "analysis"
 )
+
+var supportedControllers = map[string]bool{controllerAnalysis: true}
 
 func newCommand() *cobra.Command {
 	var (
@@ -71,7 +75,7 @@ func newCommand() *cobra.Command {
 		namespaced                     bool
 		printVersion                   bool
 		selfServiceNotificationEnabled bool
-		onlyAnalysisMode               bool
+		controllersEnabled             []string
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -187,7 +191,11 @@ func newCommand() *cobra.Command {
 
 			var cm *controller.Manager
 
-			if onlyAnalysisMode {
+			enabledControllers, err := getEnabledControllers(controllersEnabled)
+			checkError(err)
+
+			// currently only supports running analysis controller independently
+			if enabledControllers[controllerAnalysis] {
 				log.Info("Running only analysis controller")
 				cm = controller.NewAnalysisManager(
 					namespace,
@@ -284,7 +292,7 @@ func newCommand() *cobra.Command {
 	command.Flags().DurationVar(&electOpts.LeaderElectionRenewDeadline, "leader-election-renew-deadline", controller.DefaultLeaderElectionRenewDeadline, "The interval between attempts by the acting master to renew a leadership slot before it stops leading. This must be less than or equal to the lease duration. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
-	command.Flags().BoolVar(&onlyAnalysisMode, "only-analysis-mode", false, "Only runs analysis controller")
+	command.Flags().StringSliceVar(&controllersEnabled, "controllers", nil, "Explicitly specify the list of controllers to run, currently only supports 'analysis', eg. --controller=analysis. Default: all controllers are enabled")
 	return &command
 }
 
@@ -337,4 +345,16 @@ func checkError(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getEnabledControllers(controllersEnabled []string) (map[string]bool, error) {
+	enabledControllers := make(map[string]bool)
+	for _, controller := range controllersEnabled {
+		if supportedControllers[controller] {
+			enabledControllers[controller] = true
+		} else {
+			return nil, fmt.Errorf("unsupported controller: %s", controller)
+		}
+	}
+	return enabledControllers, nil
 }
