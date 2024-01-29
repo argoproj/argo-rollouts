@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/record"
-
 	"github.com/argoproj/pkg/kubeclientmetrics"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -72,6 +71,7 @@ func newCommand() *cobra.Command {
 		namespaced                     bool
 		printVersion                   bool
 		selfServiceNotificationEnabled bool
+		onlyAnalysisMode               bool
 	)
 	electOpts := controller.NewLeaderElectionOptions()
 	var command = cobra.Command{
@@ -185,41 +185,63 @@ func newCommand() *cobra.Command {
 			ingressWrapper, err := ingressutil.NewIngressWrapper(mode, kubeClient, kubeInformerFactory)
 			checkError(err)
 
-			cm := controller.NewManager(
-				namespace,
-				kubeClient,
-				argoprojClient,
-				dynamicClient,
-				smiClient,
-				discoveryClient,
-				kubeInformerFactory.Apps().V1().ReplicaSets(),
-				kubeInformerFactory.Core().V1().Services(),
-				ingressWrapper,
-				jobInformerFactory.Batch().V1().Jobs(),
-				tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory),
-				tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory),
-				tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
-				tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
-				tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
-				istioPrimaryDynamicClient,
-				istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
-				istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
-				notificationConfigMapInformerFactory,
-				notificationSecretInformerFactory,
-				resyncDuration,
-				instanceID,
-				metricsPort,
-				healthzPort,
-				k8sRequestProvider,
-				nginxIngressClasses,
-				albIngressClasses,
-				dynamicInformerFactory,
-				clusterDynamicInformerFactory,
-				istioDynamicInformerFactory,
-				namespaced,
-				kubeInformerFactory,
-				jobInformerFactory)
+			var cm *controller.Manager
 
+			if onlyAnalysisMode {
+				log.Info("Running only analysis controller")
+				cm = controller.NewAnalysisManager(
+					namespace,
+					kubeClient,
+					argoprojClient,
+					jobInformerFactory.Batch().V1().Jobs(),
+					tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
+					resyncDuration,
+					metricsPort,
+					healthzPort,
+					k8sRequestProvider,
+					dynamicInformerFactory,
+					clusterDynamicInformerFactory,
+					namespaced,
+					kubeInformerFactory,
+					jobInformerFactory)
+			} else {
+				cm = controller.NewManager(
+					namespace,
+					kubeClient,
+					argoprojClient,
+					dynamicClient,
+					smiClient,
+					discoveryClient,
+					kubeInformerFactory.Apps().V1().ReplicaSets(),
+					kubeInformerFactory.Core().V1().Services(),
+					ingressWrapper,
+					jobInformerFactory.Batch().V1().Jobs(),
+					tolerantinformer.NewTolerantRolloutInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantExperimentInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantAnalysisRunInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantAnalysisTemplateInformer(dynamicInformerFactory),
+					tolerantinformer.NewTolerantClusterAnalysisTemplateInformer(clusterDynamicInformerFactory),
+					istioPrimaryDynamicClient,
+					istioDynamicInformerFactory.ForResource(istioutil.GetIstioVirtualServiceGVR()).Informer(),
+					istioDynamicInformerFactory.ForResource(istioutil.GetIstioDestinationRuleGVR()).Informer(),
+					notificationConfigMapInformerFactory,
+					notificationSecretInformerFactory,
+					resyncDuration,
+					instanceID,
+					metricsPort,
+					healthzPort,
+					k8sRequestProvider,
+					nginxIngressClasses,
+					albIngressClasses,
+					dynamicInformerFactory,
+					clusterDynamicInformerFactory,
+					istioDynamicInformerFactory,
+					namespaced,
+					kubeInformerFactory,
+					jobInformerFactory)
+			}
 			if err = cm.Run(ctx, rolloutThreads, serviceThreads, ingressThreads, experimentThreads, analysisThreads, electOpts); err != nil {
 				log.Fatalf("Error running controller: %s", err.Error())
 			}
@@ -262,6 +284,7 @@ func newCommand() *cobra.Command {
 	command.Flags().DurationVar(&electOpts.LeaderElectionRenewDeadline, "leader-election-renew-deadline", controller.DefaultLeaderElectionRenewDeadline, "The interval between attempts by the acting master to renew a leadership slot before it stops leading. This must be less than or equal to the lease duration. This is only applicable if leader election is enabled.")
 	command.Flags().DurationVar(&electOpts.LeaderElectionRetryPeriod, "leader-election-retry-period", controller.DefaultLeaderElectionRetryPeriod, "The duration the clients should wait between attempting acquisition and renewal of a leadership. This is only applicable if leader election is enabled.")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", false, "Allows rollouts controller to pull notification config from the namespace that the rollout resource is in. This is useful for self-service notification.")
+	command.Flags().BoolVar(&onlyAnalysisMode, "only-analysis-mode", false, "Only runs analysis controller")
 	return &command
 }
 
