@@ -134,8 +134,8 @@ type MeasurementRetention struct {
 	Limit int32 `json:"limit" protobuf:"varint,2,opt,name=limit"`
 }
 
-// TtlStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed
-type TtlStrategy struct {
+// TTLStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed
+type TTLStrategy struct {
 	// SecondsAfterCompletion is the number of seconds to live after completion.
 	SecondsAfterCompletion *int32 `json:"secondsAfterCompletion,omitempty" protobuf:"varint,1,opt,name=secondsAfterCompletion"`
 	// SecondsAfterFailure is the number of seconds to live after failure.
@@ -388,9 +388,9 @@ type AnalysisRunSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,5,rep,name=measurementRetention"`
-	// TtlStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed
+	// TTLStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed
 	// +optional
-	TtlStrategy *TtlStrategy `json:"ttlStrategy,omitempty" protobuf:"bytes,6,opt,name=ttlStrategy"`
+	TTLStrategy *TTLStrategy `json:"ttlStrategy,omitempty" protobuf:"bytes,6,opt,name=ttlStrategy"`
 }
 
 // Argument is an argument to an AnalysisRun

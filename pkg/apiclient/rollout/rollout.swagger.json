@@ -634,8 +634,8 @@
           "title": "MeasurementRetention object contains the settings for retaining the number of measurements during the analysis\n+patchMergeKey=metricName\n+patchStrategy=merge\n+optional"
         },
         "ttlStrategy": {
-          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TtlStrategy",
-          "title": "TtlStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed\n+optional"
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TTLStrategy",
+          "title": "TTLStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed\n+optional"
         }
       },
       "title": "AnalysisRunSpec is the spec for a AnalysisRun resource"
@@ -2542,6 +2542,27 @@
       },
       "description": "TLSRoute holds the information on the virtual service's TLS/HTTPS routes that are desired to be matched for changing weights."
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TTLStrategy": {
+      "type": "object",
+      "properties": {
+        "secondsAfterCompletion": {
+          "type": "integer",
+          "format": "int32",
+          "description": "SecondsAfterCompletion is the number of seconds to live after completion."
+        },
+        "secondsAfterFailure": {
+          "type": "integer",
+          "format": "int32",
+          "description": "SecondsAfterFailure is the number of seconds to live after failure."
+        },
+        "secondsAfterSuccess": {
+          "type": "integer",
+          "format": "int32",
+          "description": "SecondsAfterSuccess is the number of seconds to live after success."
+        }
+      },
+      "title": "TTLStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed"
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TemplateService": {
       "type": "object",
       "properties": {
@@ -2585,27 +2606,6 @@
         }
       },
       "title": "TrafficWeights describes the current status of how traffic has been split"
-    },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.TtlStrategy": {
-      "type": "object",
-      "properties": {
-        "secondsAfterCompletion": {
-          "type": "integer",
-          "format": "int32",
-          "description": "SecondsAfterCompletion is the number of seconds to live after completion."
-        },
-        "secondsAfterFailure": {
-          "type": "integer",
-          "format": "int32",
-          "description": "SecondsAfterFailure is the number of seconds to live after failure."
-        },
-        "secondsAfterSuccess": {
-          "type": "integer",
-          "format": "int32",
-          "description": "SecondsAfterSuccess is the number of seconds to live after success."
-        }
-      },
-      "title": "TtlStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed"
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.ValueFrom": {
       "type": "object",

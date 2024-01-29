@@ -246,10 +246,10 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRun
     measurementRetention?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention>;
     /**
      * 
-     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TtlStrategy}
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
      */
-    ttlStrategy?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TtlStrategy;
+    ttlStrategy?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy;
 }
 /**
  * 
@@ -2819,6 +2819,31 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute {
 /**
  * 
  * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy {
+    /**
+     * SecondsAfterCompletion is the number of seconds to live after completion.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+     */
+    secondsAfterCompletion?: number;
+    /**
+     * SecondsAfterFailure is the number of seconds to live after failure.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+     */
+    secondsAfterFailure?: number;
+    /**
+     * SecondsAfterSuccess is the number of seconds to live after success.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+     */
+    secondsAfterSuccess?: number;
+}
+/**
+ * 
+ * @export
  * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService
  */
 export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TemplateService {
@@ -2872,31 +2897,6 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeig
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TrafficWeights
      */
     verified?: boolean;
-}
-/**
- * 
- * @export
- * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TtlStrategy
- */
-export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TtlStrategy {
-    /**
-     * SecondsAfterCompletion is the number of seconds to live after completion.
-     * @type {number}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TtlStrategy
-     */
-    secondsAfterCompletion?: number;
-    /**
-     * SecondsAfterFailure is the number of seconds to live after failure.
-     * @type {number}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TtlStrategy
-     */
-    secondsAfterFailure?: number;
-    /**
-     * SecondsAfterSuccess is the number of seconds to live after success.
-     * @type {number}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TtlStrategy
-     */
-    secondsAfterSuccess?: number;
 }
 /**
  * 

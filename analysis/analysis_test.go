@@ -1998,9 +1998,9 @@ func TestExceededTtlChecked(t *testing.T) {
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
 
-	testTtlStrategy := func(
+	testTTLStrategy := func(
 		t *testing.T,
-		ttlStrategy *v1alpha1.TtlStrategy,
+		ttlStrategy *v1alpha1.TTLStrategy,
 		expiredStatus *v1alpha1.AnalysisRunStatus,
 		notExpiredStatus *v1alpha1.AnalysisRunStatus) {
 		testId := string(uuid.NewUUID())
@@ -2010,7 +2010,7 @@ func TestExceededTtlChecked(t *testing.T) {
 				Namespace: metav1.NamespaceDefault,
 			},
 			Spec: v1alpha1.AnalysisRunSpec{
-				TtlStrategy: ttlStrategy,
+				TTLStrategy: ttlStrategy,
 			},
 			Status: *expiredStatus,
 		}
@@ -2022,7 +2022,7 @@ func TestExceededTtlChecked(t *testing.T) {
 					Namespace: metav1.NamespaceDefault,
 				},
 				Spec: v1alpha1.AnalysisRunSpec{
-					TtlStrategy: ttlStrategy,
+					TTLStrategy: ttlStrategy,
 				},
 				Status: *notExpiredStatus,
 			}
@@ -2043,7 +2043,7 @@ func TestExceededTtlChecked(t *testing.T) {
 	secondsOfOneDay := int32(86400)
 
 	// Test completed TTL.
-	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterCompletion: &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2052,7 +2052,7 @@ func TestExceededTtlChecked(t *testing.T) {
 		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
 		Phase:       v1alpha1.AnalysisPhaseSuccessful,
 	})
-	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterCompletion: &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2061,7 +2061,7 @@ func TestExceededTtlChecked(t *testing.T) {
 		CompletedAt: timePtr(metav1.NewTime(ttlNotExpiredCompletedTime)),
 		Phase:       v1alpha1.AnalysisPhaseFailed,
 	})
-	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterCompletion: &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2071,7 +2071,7 @@ func TestExceededTtlChecked(t *testing.T) {
 		Phase:       v1alpha1.AnalysisPhaseError,
 	})
 	// Test successful TTL.
-	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterSuccess: &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2081,7 +2081,7 @@ func TestExceededTtlChecked(t *testing.T) {
 		Phase:       v1alpha1.AnalysisPhaseSuccessful,
 	})
 	// Test failed TTL.
-	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterFailure: &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2092,7 +2092,7 @@ func TestExceededTtlChecked(t *testing.T) {
 	})
 
 	// Test success TTL does not affect failed run.
-	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterSuccess: &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2102,7 +2102,7 @@ func TestExceededTtlChecked(t *testing.T) {
 		Phase:       v1alpha1.AnalysisPhaseFailed,
 	})
 	// Test failed TTL does not affect successful run.
-	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterFailure: &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
 		CompletedAt: timePtr(metav1.NewTime(ttlExpiredCompletedTime)),
@@ -2112,7 +2112,7 @@ func TestExceededTtlChecked(t *testing.T) {
 		Phase:       v1alpha1.AnalysisPhaseSuccessful,
 	})
 	// Test success TTL overrides completed TTL.
-	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterCompletion: pointer.Int32Ptr(100000),
 		SecondsAfterSuccess:    &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
@@ -2123,7 +2123,7 @@ func TestExceededTtlChecked(t *testing.T) {
 		Phase:       v1alpha1.AnalysisPhaseSuccessful,
 	})
 	// Test failed TTL overrides completed TTL.
-	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterCompletion: pointer.Int32Ptr(100000),
 		SecondsAfterFailure:    &secondsOfOneDay,
 	}, &v1alpha1.AnalysisRunStatus{
@@ -2134,7 +2134,7 @@ func TestExceededTtlChecked(t *testing.T) {
 		Phase:       v1alpha1.AnalysisPhaseFailed,
 	})
 	// Test completed TTL still evaluated when non-matching overrides exist.
-	testTtlStrategy(t, &v1alpha1.TtlStrategy{
+	testTTLStrategy(t, &v1alpha1.TTLStrategy{
 		SecondsAfterCompletion: &secondsOfOneDay,
 		SecondsAfterFailure:    pointer.Int32Ptr(86401),
 	}, &v1alpha1.AnalysisRunStatus{
@@ -2251,7 +2251,7 @@ func TestReconcileAnalysisRunOnRunNotFound(t *testing.T) {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			TtlStrategy: &v1alpha1.TtlStrategy{
+			TTLStrategy: &v1alpha1.TTLStrategy{
 				SecondsAfterCompletion: pointer.Int32Ptr(1),
 			},
 		},
@@ -2288,7 +2288,7 @@ func TestReconcileAnalysisRunOnOtherRunErrors(t *testing.T) {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			TtlStrategy: &v1alpha1.TtlStrategy{
+			TTLStrategy: &v1alpha1.TTLStrategy{
 				SecondsAfterCompletion: pointer.Int32Ptr(1),
 			},
 		},
@@ -2327,7 +2327,7 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfNotCompleted(t *testing.T) {
 	assert.Empty(t, f.client.Fake.Actions())
 }
 
-func TestMaybeGarbageCollectAnalysisRunNoGCIfNoTtlStrategy(t *testing.T) {
+func TestMaybeGarbageCollectAnalysisRunNoGCIfNoTTLStrategy(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 	c, _, _ := f.newController(noResyncPeriodFunc)
@@ -2360,7 +2360,7 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfWithDeletionTimestamp(t *testing.T)
 			DeletionTimestamp: timePtr(metav1.NewTime(f.now)),
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			TtlStrategy: &v1alpha1.TtlStrategy{
+			TTLStrategy: &v1alpha1.TTLStrategy{
 				SecondsAfterCompletion: pointer.Int32Ptr(1),
 			},
 		},
@@ -2387,7 +2387,7 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfNoCompletedAt(t *testing.T) {
 			Namespace: metav1.NamespaceDefault,
 		},
 		Spec: v1alpha1.AnalysisRunSpec{
-			TtlStrategy: &v1alpha1.TtlStrategy{
+			TTLStrategy: &v1alpha1.TTLStrategy{
 				SecondsAfterCompletion: pointer.Int32Ptr(1),
 			},
 		},

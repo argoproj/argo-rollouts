@@ -778,7 +778,7 @@ func (c *Controller) maybeGarbageCollectAnalysisRun(run *v1alpha1.AnalysisRun, l
 
 func isAnalysisRunTtlExceeded(run *v1alpha1.AnalysisRun) bool {
 	// TTL only counted for completed runs with TTL strategy.
-	if !run.Status.Phase.Completed() || run.Spec.TtlStrategy == nil {
+	if !run.Status.Phase.Completed() || run.Spec.TTLStrategy == nil {
 		return false
 	}
 	// Cannot determine TTL if run has no completion time.
@@ -787,12 +787,12 @@ func isAnalysisRunTtlExceeded(run *v1alpha1.AnalysisRun) bool {
 	}
 	secondsCompleted := timeutil.MetaNow().Sub(run.Status.CompletedAt.Time).Seconds()
 	var ttlSeconds *int32
-	if run.Status.Phase == v1alpha1.AnalysisPhaseSuccessful && run.Spec.TtlStrategy.SecondsAfterSuccess != nil {
-		ttlSeconds = run.Spec.TtlStrategy.SecondsAfterSuccess
-	} else if run.Status.Phase == v1alpha1.AnalysisPhaseFailed && run.Spec.TtlStrategy.SecondsAfterFailure != nil {
-		ttlSeconds = run.Spec.TtlStrategy.SecondsAfterFailure
-	} else if run.Spec.TtlStrategy.SecondsAfterCompletion != nil {
-		ttlSeconds = run.Spec.TtlStrategy.SecondsAfterCompletion
+	if run.Status.Phase == v1alpha1.AnalysisPhaseSuccessful && run.Spec.TTLStrategy.SecondsAfterSuccess != nil {
+		ttlSeconds = run.Spec.TTLStrategy.SecondsAfterSuccess
+	} else if run.Status.Phase == v1alpha1.AnalysisPhaseFailed && run.Spec.TTLStrategy.SecondsAfterFailure != nil {
+		ttlSeconds = run.Spec.TTLStrategy.SecondsAfterFailure
+	} else if run.Spec.TTLStrategy.SecondsAfterCompletion != nil {
+		ttlSeconds = run.Spec.TTLStrategy.SecondsAfterCompletion
 	}
 	if ttlSeconds == nil {
 		return false
