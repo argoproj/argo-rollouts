@@ -180,12 +180,15 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			if (c.rollout.Spec.Strategy.Canary.DynamicStableScale && desiredWeight == 0) || !c.rollout.Spec.Strategy.Canary.DynamicStableScale {
 				// If we are using dynamic stable scale we need to also make sure that desiredWeight=0 aka we are completely
 				// done with aborting before resetting the canary service selectors back to stable
-				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
-				if err != nil {
-					return err
+				if c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting.ALB == nil {
+					// if we are using ALB we can not switch back service selectors especially with readiness gates because we get in a loop where ALB controller updates
+					// pod readiness gate conditions to false for desired and rollouts then can not update the desired service selector because it is not ready.
+					err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+					if err != nil {
+						return err
+					}
 				}
 			}
-
 			err := reconciler.RemoveManagedRoutes()
 			if err != nil {
 				return err
