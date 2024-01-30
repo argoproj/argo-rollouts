@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.5">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.6">
     
     
       
@@ -1458,6 +1458,15 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#time-to-live-ttl-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Time-to-live (TTL) Strategy
+    </span>
+  </a>
   
 </li>
       
@@ -3712,6 +3721,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#time-to-live-ttl-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Time-to-live (TTL) Strategy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#inconclusive-runs" class="md-nav__link">
     <span class="md-ellipsis">
       Inconclusive Runs
@@ -4600,6 +4618,21 @@ RegEx rule <code>test.*</code> will have their latest twenty measurements get re
 <span class="hll"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">metricName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test.*</span>
 </span><span class="hll"><span class="w">    </span><span class="nt">limit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
 </span></code></pre></div>
+<h2 id="time-to-live-ttl-strategy">Time-to-live (TTL) Strategy<a class="headerlink" href="#time-to-live-ttl-strategy" title="Permanent link">&para;</a></h2>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Available since v1.7</p>
+</div>
+<p><code>ttlStrategy</code> limits the lifetime of an analysis run that has finished execution depending on if it Succeeded or Failed. If this struct is set, once the run finishes, it will be deleted after the time to live expires. If this field is unset, the analysis controller will keep the completed runs, unless they are associated with rollouts using other garbage collection policies (e.g. <code>successfulRunHistoryLimit</code> and <code>unsuccessfulRunHistoryLimit</code>).</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">ttlStrategy</span><span class="p p-Indicator">:</span>
+<span class="w">    </span><span class="nt">secondsAfterCompletion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3600</span>
+<span class="w">    </span><span class="nt">secondsAfterSuccess</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1800</span>
+<span class="w">    </span><span class="nt">secondsAfterFailure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1800</span>
+</code></pre></div>
 <h2 id="inconclusive-runs">Inconclusive Runs<a class="headerlink" href="#inconclusive-runs" title="Permanent link">&para;</a></h2>
 <p>Analysis runs can also be considered <code>Inconclusive</code>, which indicates the run was neither successful,
 nor failed. Inconclusive runs causes a rollout to become paused at its current step. Manual
@@ -4880,7 +4913,7 @@ to handle these cases accordingly.</p>
     <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c18c5fb9.min.js"></script>
+      <script src="../../assets/javascripts/bundle.e1c3ead8.min.js"></script>
       
         <script src="../../assets/versions.js"></script>
       
