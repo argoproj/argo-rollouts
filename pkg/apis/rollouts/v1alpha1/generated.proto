@@ -143,6 +143,10 @@ message AnalysisRunSpec {
   // +patchStrategy=merge
   // +optional
   repeated MeasurementRetention measurementRetention = 5;
+
+  // TTLStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed
+  // +optional
+  optional TTLStrategy ttlStrategy = 6;
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource
@@ -164,6 +168,9 @@ message AnalysisRunStatus {
 
   // DryRunSummary contains the final results from the metric executions in the dry-run mode
   optional RunSummary dryRunSummary = 6;
+
+  // CompletedAt indicates when the analysisRun completed
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time completedAt = 7;
 }
 
 // AnalysisRunStrategy configuration for the analysis runs and experiments to retain
@@ -1739,6 +1746,18 @@ message TLSRoute {
 
   // A list of all the SNI Hosts of the TLS Route desired to be matched in the given Istio VirtualService.
   repeated string sniHosts = 2;
+}
+
+// TTLStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed
+message TTLStrategy {
+  // SecondsAfterCompletion is the number of seconds to live after completion.
+  optional int32 secondsAfterCompletion = 1;
+
+  // SecondsAfterFailure is the number of seconds to live after failure.
+  optional int32 secondsAfterFailure = 2;
+
+  // SecondsAfterSuccess is the number of seconds to live after success.
+  optional int32 secondsAfterSuccess = 3;
 }
 
 message TemplateService {

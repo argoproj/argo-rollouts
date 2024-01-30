@@ -3014,11 +3014,26 @@ spec:
                 type: array
               terminate:
                 type: boolean
+              ttlStrategy:
+                properties:
+                  secondsAfterCompletion:
+                    format: int32
+                    type: integer
+                  secondsAfterFailure:
+                    format: int32
+                    type: integer
+                  secondsAfterSuccess:
+                    format: int32
+                    type: integer
+                type: object
             required:
             - metrics
             type: object
           status:
             properties:
+              completedAt:
+                format: date-time
+                type: string
               dryRunSummary:
                 properties:
                   count:

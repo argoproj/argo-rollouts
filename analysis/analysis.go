@@ -9,6 +9,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -40,10 +41,15 @@ type metricTask struct {
 }
 
 func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alpha1.AnalysisRun {
+	logger := logutil.WithAnalysisRun(origRun)
 	if origRun.Status.Phase.Completed() {
+		err := c.maybeGarbageCollectAnalysisRun(origRun, logger)
+		if err != nil {
+			// TODO(jessesuen): surface errors to controller so they can be retried
+			logger.Warnf("Failed to garbage collect analysis run: %v", err)
+		}
 		return origRun
 	}
-	logger := logutil.WithAnalysisRun(origRun)
 	run := origRun.DeepCopy()
 
 	if run.Status.MetricResults == nil {
@@ -108,6 +114,10 @@ func (c *Controller) reconcileAnalysisRun(origRun *v1alpha1.AnalysisRun) *v1alph
 		run.Status.Message = newMessage
 		if newStatus.Completed() {
 			c.recordAnalysisRunCompletionEvent(run)
+			if run.Status.CompletedAt == nil {
+				now := timeutil.MetaNow()
+				run.Status.CompletedAt = &now
+			}
 		}
 	}
 
@@ -751,4 +761,41 @@ func (c *Controller) garbageCollectMeasurements(run *v1alpha1.AnalysisRun, measu
 		return errors[0]
 	}
 	return nil
+}
+
+func (c *Controller) maybeGarbageCollectAnalysisRun(run *v1alpha1.AnalysisRun, logger *log.Entry) error {
+	ctx := context.TODO()
+	if run.DeletionTimestamp != nil || !isAnalysisRunTtlExceeded(run) {
+		return nil
+	}
+	logger.Infof("Trying to cleanup TTL exceeded analysis run")
+	err := c.argoProjClientset.ArgoprojV1alpha1().AnalysisRuns(run.Namespace).Delete(ctx, run.Name, metav1.DeleteOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+func isAnalysisRunTtlExceeded(run *v1alpha1.AnalysisRun) bool {
+	// TTL only counted for completed runs with TTL strategy.
+	if !run.Status.Phase.Completed() || run.Spec.TTLStrategy == nil {
+		return false
+	}
+	// Cannot determine TTL if run has no completion time.
+	if run.Status.CompletedAt == nil {
+		return false
+	}
+	secondsCompleted := timeutil.MetaNow().Sub(run.Status.CompletedAt.Time).Seconds()
+	var ttlSeconds *int32
+	if run.Status.Phase == v1alpha1.AnalysisPhaseSuccessful && run.Spec.TTLStrategy.SecondsAfterSuccess != nil {
+		ttlSeconds = run.Spec.TTLStrategy.SecondsAfterSuccess
+	} else if run.Status.Phase == v1alpha1.AnalysisPhaseFailed && run.Spec.TTLStrategy.SecondsAfterFailure != nil {
+		ttlSeconds = run.Spec.TTLStrategy.SecondsAfterFailure
+	} else if run.Spec.TTLStrategy.SecondsAfterCompletion != nil {
+		ttlSeconds = run.Spec.TTLStrategy.SecondsAfterCompletion
+	}
+	if ttlSeconds == nil {
+		return false
+	}
+	return int32(secondsCompleted) > *ttlSeconds
 }

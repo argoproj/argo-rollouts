@@ -244,6 +244,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRun
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
      */
     measurementRetention?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1MeasurementRetention>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunSpec
+     */
+    ttlStrategy?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy;
 }
 /**
  * 
@@ -287,6 +293,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRun
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
      */
     dryRunSummary?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RunSummary;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunStatus
+     */
+    completedAt?: K8sIoApimachineryPkgApisMetaV1Time;
 }
 /**
  * 
@@ -2803,6 +2815,31 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute {
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TLSRoute
      */
     sniHosts?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+ */
+export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy {
+    /**
+     * SecondsAfterCompletion is the number of seconds to live after completion.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+     */
+    secondsAfterCompletion?: number;
+    /**
+     * SecondsAfterFailure is the number of seconds to live after failure.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+     */
+    secondsAfterFailure?: number;
+    /**
+     * SecondsAfterSuccess is the number of seconds to live after success.
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1TTLStrategy
+     */
+    secondsAfterSuccess?: number;
 }
 /**
  * 

@@ -854,6 +854,24 @@ spec:
     limit: 20
 ```
 
+## Time-to-live (TTL) Strategy
+
+!!! important
+    Available since v1.7
+
+`ttlStrategy` limits the lifetime of an analysis run that has finished execution depending on if it Succeeded or Failed. If this struct is set, once the run finishes, it will be deleted after the time to live expires. If this field is unset, the analysis controller will keep the completed runs, unless they are associated with rollouts using other garbage collection policies (e.g. `successfulRunHistoryLimit` and `unsuccessfulRunHistoryLimit`).
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+spec:
+  ...
+  ttlStrategy:
+    secondsAfterCompletion: 3600
+    secondsAfterSuccess: 1800
+    secondsAfterFailure: 1800
+```
+
 ## Inconclusive Runs
 
 Analysis runs can also be considered `Inconclusive`, which indicates the run was neither successful,
