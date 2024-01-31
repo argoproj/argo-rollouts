@@ -179,14 +179,13 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			desiredWeight = c.calculateDesiredWeightOnAbortOrStableRollback()
 			if (c.rollout.Spec.Strategy.Canary.DynamicStableScale && desiredWeight == 0) || !c.rollout.Spec.Strategy.Canary.DynamicStableScale {
 				// If we are using dynamic stable scale we need to also make sure that desiredWeight=0 aka we are completely
-				// done with aborting before resetting the canary service selectors back to stable
-				if c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && c.rollout.Spec.Strategy.Canary.TrafficRouting.ALB == nil {
-					// if we are using ALB we can not switch back service selectors especially with readiness gates because we get in a loop where ALB controller updates
-					// pod readiness gate conditions to false for desired and rollouts then can not update the desired service selector because it is not ready.
-					err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
-					if err != nil {
-						return err
-					}
+				// done with aborting before resetting the canary service selectors back to stable we do not check for availability because we are
+				// fully aborted and stable pods will be there, if we check for availability it causes issues with ALB readiness gates if all stable pods
+				// have the desired readiness gate on them during an abort we get stuck in a loop because all the stable go undready and rollouts won't be able
+				// to switch the desired services because there is no ready pods which causes pods to get stuck progressing forever waiting for readiness.
+				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, false)
+				if err != nil {
+					return err
 				}
 			}
 			err := reconciler.RemoveManagedRoutes()

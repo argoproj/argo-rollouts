@@ -535,13 +535,13 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 	s.Given().
 		HealthyRollout(`@functional/canary-scaledownonabort.yaml`).
 		When().
-		UpdateSpec("{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"update\":\"canary\"}}}}}"). // update to revision 2
+		UpdateSpec(). // update to revision 2
 		WaitForRolloutStatus("Paused").
 		AbortRollout().
 		WaitForRolloutStatus("Degraded").
 		Then().
-		// Expect that the canary service selector has been left at canary because rollout is configured to use ALB
-		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "7f8b67bffd"}, false).
+		// Expect that the canary service selector has been moved back to stable
+		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "66597877b7"}, false).
 		When().
 		Sleep(3*time.Second).
 		Then().
