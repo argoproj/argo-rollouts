@@ -66,6 +66,8 @@ func newCommand() *cobra.Command {
 		ingressThreads                 int
 		istioVersion                   string
 		trafficSplitVersion            string
+		traefikAPIGroup                string
+		traefikVersion                 string
 		ambassadorVersion              string
 		ingressVersion                 string
 		appmeshCRDVersion              string
@@ -102,6 +104,8 @@ func newCommand() *cobra.Command {
 			defaults.SetAmbassadorAPIVersion(ambassadorVersion)
 			defaults.SetSMIAPIVersion(trafficSplitVersion)
 			defaults.SetAppMeshCRDVersion(appmeshCRDVersion)
+			defaults.SetTraefikAPIGroup(traefikAPIGroup)
+			defaults.SetTraefikVersion(traefikVersion)
 
 			config, err := clientConfig.ClientConfig()
 			checkError(err)
@@ -279,6 +283,8 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&istioVersion, "istio-api-version", defaults.DefaultIstioVersion, "Set the default Istio apiVersion that controller should look when manipulating VirtualServices.")
 	command.Flags().StringVar(&ambassadorVersion, "ambassador-api-version", defaults.DefaultAmbassadorVersion, "Set the Ambassador apiVersion that controller should look when manipulating Ambassador Mappings.")
 	command.Flags().StringVar(&trafficSplitVersion, "traffic-split-api-version", defaults.DefaultSMITrafficSplitVersion, "Set the default TrafficSplit apiVersion that controller uses when creating TrafficSplits.")
+	command.Flags().StringVar(&traefikAPIGroup, "traefik-api-group", defaults.DefaultTraefikAPIGroup, "Set the default Traerfik apiGroup that controller uses.")
+	command.Flags().StringVar(&traefikVersion, "traefik-api-version", defaults.DefaultTraefikVersion, "Set the default Traerfik apiVersion that controller uses.")
 	command.Flags().StringVar(&ingressVersion, "ingress-api-version", "", "Set the Ingress apiVersion that the controller should use.")
 	command.Flags().StringVar(&appmeshCRDVersion, "appmesh-crd-version", defaults.DefaultAppMeshCRDVersion, "Set the default AppMesh CRD Version that controller uses when manipulating resources.")
 	command.Flags().StringArrayVar(&albIngressClasses, "alb-ingress-classes", defaultALBIngressClass, "Defines all the ingress class annotations that the alb ingress controller operates on. Defaults to alb")

@@ -67,6 +67,8 @@ const (
 
 var (
 	defaultVerifyTargetGroup     = false
+	traefikAPIGroup              = DefaultTraefikAPIGroup
+	traefikVersion               = DefaultTraefikVersion
 	istioAPIVersion              = DefaultIstioVersion
 	ambassadorAPIVersion         = DefaultAmbassadorVersion
 	smiAPIVersion                = DefaultSMITrafficSplitVersion
@@ -303,6 +305,22 @@ func SetSMIAPIVersion(apiVersion string) {
 
 func GetSMIAPIVersion() string {
 	return smiAPIVersion
+}
+
+func SetTraefikVersion(apiVersion string) {
+	traefikVersion = apiVersion
+}
+
+func GetTraefikVersion() string {
+	return traefikVersion
+}
+
+func SetTraefikAPIGroup(apiGroup string) {
+	traefikAPIGroup = apiGroup
+}
+
+func GetTraefikAPIGroup() string {
+	return traefikAPIGroup
 }
 
 func SetTargetGroupBindingAPIVersion(apiVersion string) {
