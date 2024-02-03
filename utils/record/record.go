@@ -208,20 +208,22 @@ func (e *EventRecorderAdapter) defaultEventf(object runtime.Object, warn bool, o
 			e.RolloutEventCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
 		}
 
-		apis, err := e.apiFactory.GetAPIsFromNamespace(namespace)
-		if err != nil {
-			logCtx.Errorf("notifications failed to get apis for eventReason %s with error: %s", opts.EventReason, err)
-			e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
-		}
-
-		for _, api := range apis {
-			err := e.sendNotifications(api, object, opts)
+		if e.apiFactory != nil {
+			apis, err := e.apiFactory.GetAPIsFromNamespace(namespace)
 			if err != nil {
-				logCtx.Errorf("Notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
+				logCtx.Errorf("notifications failed to get apis for eventReason %s with error: %s", opts.EventReason, err)
+				e.NotificationFailedCounter.WithLabelValues(namespace, name, opts.EventType, opts.EventReason).Inc()
+			}
+
+			for _, api := range apis {
+				err := e.sendNotifications(api, object, opts)
+				if err != nil {
+					logCtx.Errorf("Notifications failed to send for eventReason %s with error: %s", opts.EventReason, err)
+				}
 			}
 		}
-	}
 
+	}
 	logFn := logCtx.Infof
 	if warn {
 		logFn = logCtx.Warnf
