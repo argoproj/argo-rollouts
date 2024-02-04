@@ -212,6 +212,8 @@ func getJobNamespacedName(measurement v1alpha1.Measurement, defaultNS string) (t
 		if measurement.Metadata[JobNamespaceKey] != "" {
 			name.Namespace = measurement.Metadata[JobNamespaceKey]
 		}
+	} else {
+		return name, errors.New("job metadata reference missing")
 	}
 	return name, nil
 }

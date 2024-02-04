@@ -128,6 +128,7 @@ func newCommand() *cobra.Command {
 			discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
 			checkError(err)
 			smiClient, err := smiclientset.NewForConfig(config)
+			checkError(err)
 			resyncDuration := time.Duration(rolloutResyncPeriod) * time.Second
 			kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 				kubeClient,
