@@ -2,10 +2,13 @@ package metricproviders
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/argoproj/argo-rollouts/metric"
 	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
 	"github.com/argoproj/argo-rollouts/metricproviders/skywalking"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
@@ -26,6 +29,10 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
+const (
+	InclusterKubeconfig = "in-cluster"
+)
+
 type ProviderFactory struct {
 	KubeClient kubernetes.Interface
 	JobLister  batchlisters.JobLister
@@ -43,7 +50,12 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		}
 		return prometheus.NewPrometheusProvider(api, logCtx, metric)
 	case job.ProviderType:
-		return job.NewJobProvider(logCtx, f.KubeClient, f.JobLister), nil
+		kubeClient, err := GetAnalysisJobClientset(f.KubeClient)
+		if err != nil {
+			return nil, err
+		}
+
+		return job.NewJobProvider(logCtx, kubeClient, f.JobLister, GetAnalysisJobNamespace()), nil
 	case kayenta.ProviderType:
 		c := kayenta.NewHttpClient()
 		return kayenta.NewKayentaProvider(logCtx, c), nil
@@ -134,4 +146,32 @@ func Type(metric v1alpha1.Metric) string {
 	}
 
 	return "Unknown Provider"
+}
+
+// GetAnalysisJobClientset returns kubernetes clientset for the analysis job clientset,
+// if the ANALYSIS_JOB_KUBECONFIG is set to InclusterKubeconfig, it will return the incluster client
+// else if it's set to a kubeconfig file it will return the clientset corresponding to the kubeconfig file.
+// If empty it returns the provided clientset
+func GetAnalysisJobClientset(clientset kubernetes.Interface) (kubernetes.Interface, error) {
+	customJobKubeconfig := os.Getenv("ANALYSIS_JOB_KUBECONFIG")
+	if customJobKubeconfig != "" {
+		var (
+			cfg *rest.Config
+			err error
+		)
+		if customJobKubeconfig == InclusterKubeconfig {
+			cfg, err = rest.InClusterConfig()
+		} else {
+			cfg, err = clientcmd.BuildConfigFromFlags("", customJobKubeconfig)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return kubernetes.NewForConfig(cfg)
+	}
+	return clientset, nil
+}
+
+func GetAnalysisJobNamespace() string {
+	return os.Getenv("ANALYSIS_JOB_NAMESPACE")
 }

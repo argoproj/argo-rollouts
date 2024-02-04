@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/metricproviders"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/argoproj/pkg/kubeclientmetrics"
 	smiclientset "github.com/servicemeshinterface/smi-sdk-go/pkg/gen/client/split/clientset/versioned"
@@ -136,10 +137,17 @@ func newCommand() *cobra.Command {
 			instanceIDTweakListFunc := func(options *metav1.ListOptions) {
 				options.LabelSelector = instanceIDSelector.String()
 			}
+			jobKubeClient, err := metricproviders.GetAnalysisJobClientset(kubeClient)
+			checkError(err)
+			jobNs := metricproviders.GetAnalysisJobNamespace()
+			if jobNs == "" {
+				// if not set explicitly use the configured ns
+				jobNs = namespace
+			}
 			jobInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-				kubeClient,
+				jobKubeClient,
 				resyncDuration,
-				kubeinformers.WithNamespace(namespace),
+				kubeinformers.WithNamespace(jobNs),
 				kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 					options.LabelSelector = jobprovider.AnalysisRunUIDLabelKey
 				}))
