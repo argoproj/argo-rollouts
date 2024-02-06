@@ -182,6 +182,28 @@ func TestValidateRolloutStrategyCanaryMissingServiceNames(t *testing.T) {
 				Traefik: &v1alpha1.TraefikTrafficRouting{},
 			},
 		},
+		{
+			name: "Traefik and Istio Subset Routing",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				Traefik: &v1alpha1.TraefikTrafficRouting{},
+				Istio:   &v1alpha1.IstioTrafficRouting{DestinationRule: &v1alpha1.IstioDestinationRule{Name: "destination-rule"}},
+			},
+		},
+		{
+			name: "AppMesh and external plugin(doesnt require service names)",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				AppMesh: &v1alpha1.AppMeshTrafficRouting{},
+				Plugins: map[string]json.RawMessage{"some-plugin": []byte(`{"key": "value"}`)},
+			},
+		},
+		{
+			name: "Apisix, Istio Subset Routing and external plugin(doesnt require service names)",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				Apisix:  &v1alpha1.ApisixTrafficRouting{},
+				Istio:   &v1alpha1.IstioTrafficRouting{DestinationRule: &v1alpha1.IstioDestinationRule{Name: "destination-rule"}},
+				Plugins: map[string]json.RawMessage{"some-plugin": []byte(`{"key": "value"}`)},
+			},
+		},
 	}
 
 	for _, tt := range tests {
