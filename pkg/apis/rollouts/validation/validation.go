@@ -231,10 +231,24 @@ func ValidateRolloutStrategyBlueGreen(rollout *v1alpha1.Rollout, fldPath *field.
 // canary.canaryService to be defined
 func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {
 	canary := rollout.Spec.Strategy.Canary
-	if canary.TrafficRouting == nil || (canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule != nil) || (canary.PingPong != nil) || (canary.TrafficRouting.Plugins["hashicorp/consul"] != nil) {
+
+	if canary.TrafficRouting == nil {
 		return false
 	}
-	return true
+
+	switch {
+	case canary.TrafficRouting.ALB != nil && canary.PingPong == nil,
+		canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule == nil,
+		canary.TrafficRouting.SMI != nil,
+		canary.TrafficRouting.Apisix != nil,
+		canary.TrafficRouting.Ambassador != nil,
+		canary.TrafficRouting.Nginx != nil,
+		canary.TrafficRouting.AppMesh != nil,
+		canary.TrafficRouting.Traefik != nil:
+		return true
+	default:
+		return false
+	}
 }
 
 func ValidateRolloutStrategyCanary(rollout *v1alpha1.Rollout, fldPath *field.Path) field.ErrorList {

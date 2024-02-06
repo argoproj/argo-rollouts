@@ -129,6 +129,80 @@ func TestValidateRolloutStrategyBlueGreen(t *testing.T) {
 	assert.Equal(t, ScaleDownLimitLargerThanRevisionLimit, allErrs[1].Detail)
 }
 
+func TestValidateRolloutStrategyCanaryMissingServiceNames(t *testing.T) {
+	tests := []struct {
+		name           string
+		trafficRouting *v1alpha1.RolloutTrafficRouting
+	}{
+		{
+			name: "ALB",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				ALB: &v1alpha1.ALBTrafficRouting{RootService: "root-service"},
+			},
+		},
+		{
+			name: "Istio",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				Istio: &v1alpha1.IstioTrafficRouting{},
+			},
+		},
+		{
+			name: "SMI",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				SMI: &v1alpha1.SMITrafficRouting{},
+			},
+		},
+		{
+			name: "Apisix",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				Apisix: &v1alpha1.ApisixTrafficRouting{},
+			},
+		},
+		{
+			name: "Ambassador",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				Ambassador: &v1alpha1.AmbassadorTrafficRouting{},
+			},
+		},
+		{
+			name: "Nginx",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				Nginx: &v1alpha1.NginxTrafficRouting{},
+			},
+		},
+		{
+			name: "AppMesh",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				AppMesh: &v1alpha1.AppMeshTrafficRouting{},
+			},
+		},
+		{
+			name: "Traefik",
+			trafficRouting: &v1alpha1.RolloutTrafficRouting{
+				Traefik: &v1alpha1.TraefikTrafficRouting{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a table of test cases
+			canaryStrategy := &v1alpha1.CanaryStrategy{
+				Steps: []v1alpha1.CanaryStep{{
+					SetWeight: pointer.Int32(10),
+				}},
+			}
+			ro := &v1alpha1.Rollout{}
+			ro.Spec.Strategy.Canary = canaryStrategy
+
+			// Set the traffic route we will be testing
+			ro.Spec.Strategy.Canary.TrafficRouting = tt.trafficRouting
+			allErrs := ValidateRolloutStrategyCanary(ro, field.NewPath(""))
+			assert.Equal(t, InvalidTrafficRoutingMessage, allErrs[0].Detail)
+		})
+	}
+}
+
 func TestValidateRolloutStrategyCanary(t *testing.T) {
 	canaryStrategy := &v1alpha1.CanaryStrategy{
 		CanaryService: "canary",
@@ -164,6 +238,45 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 			},
 		},
 	}
+
+	t.Run("valid rollout", func(t *testing.T) {
+		validRo := ro.DeepCopy()
+		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32(10)
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("valid plugin missing canary and stable service", func(t *testing.T) {
+		validRo := ro.DeepCopy()
+		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32(10)
+		validRo.Spec.Strategy.Canary.CanaryService = ""
+		validRo.Spec.Strategy.Canary.StableService = ""
+		validRo.Spec.Strategy.Canary.TrafficRouting.ALB = nil
+		validRo.Spec.Strategy.Canary.TrafficRouting.Plugins = map[string]json.RawMessage{"some-plugin": []byte(`{"key": "value"}`)}
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("valid Istio missing canary and stable service", func(t *testing.T) {
+		validRo := ro.DeepCopy()
+		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32(10)
+		validRo.Spec.Strategy.Canary.CanaryService = ""
+		validRo.Spec.Strategy.Canary.StableService = ""
+		validRo.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{DestinationRule: &v1alpha1.IstioDestinationRule{Name: "destination-rule"}}
+		validRo.Spec.Strategy.Canary.TrafficRouting.ALB = nil
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("valid PingPong missing canary and stable service", func(t *testing.T) {
+		validRo := ro.DeepCopy()
+		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32(10)
+		validRo.Spec.Strategy.Canary.CanaryService = ""
+		validRo.Spec.Strategy.Canary.StableService = ""
+		validRo.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "ping", PongService: "pong"}
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
 
 	t.Run("duplicate services", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
@@ -651,7 +764,7 @@ func TestCanaryScaleDownDelaySeconds(t *testing.T) {
 				Canary: &v1alpha1.CanaryStrategy{
 					StableService:         "stable",
 					CanaryService:         "canary",
-					ScaleDownDelaySeconds: pointer.Int32Ptr(60),
+					ScaleDownDelaySeconds: pointer.Int32(60),
 				},
 			},
 			Template: corev1.PodTemplateSpec{
@@ -718,7 +831,7 @@ func TestCanaryDynamicStableScale(t *testing.T) {
 	})
 	t.Run("dynamicStableScale with scaleDownDelaySeconds", func(t *testing.T) {
 		ro := ro.DeepCopy()
-		ro.Spec.Strategy.Canary.ScaleDownDelaySeconds = pointer.Int32Ptr(60)
+		ro.Spec.Strategy.Canary.ScaleDownDelaySeconds = pointer.Int32(60)
 		ro.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
 			SMI: &v1alpha1.SMITrafficRouting{},
 		}
@@ -782,7 +895,7 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 			Experiment: &v1alpha1.RolloutExperimentStep{
 				Templates: []v1alpha1.RolloutExperimentTemplate{{
 					Name:   "template",
-					Weight: pointer.Int32Ptr(20),
+					Weight: pointer.Int32(20),
 				}},
 			},
 		}},
@@ -869,5 +982,4 @@ func TestCanaryExperimentStepWithWeight(t *testing.T) {
 		assert.Equal(t, 1, len(allErrs))
 		assert.Equal(t, errTrafficRoutingWithExperimentSupport, allErrs[0].Detail)
 	})
-
 }
