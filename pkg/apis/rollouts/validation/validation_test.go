@@ -278,6 +278,29 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		assert.Empty(t, allErrs)
 	})
 
+	t.Run("valid two plugins missing canary and stable service", func(t *testing.T) {
+		validRo := ro.DeepCopy()
+		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32(10)
+		validRo.Spec.Strategy.Canary.CanaryService = ""
+		validRo.Spec.Strategy.Canary.StableService = ""
+		validRo.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{PingService: "ping", PongService: "pong"}
+		validRo.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{DestinationRule: &v1alpha1.IstioDestinationRule{Name: "destination-rule"}}
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("invalid two plugins missing canary and stable service", func(t *testing.T) {
+		validRo := ro.DeepCopy()
+		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32(10)
+		validRo.Spec.Strategy.Canary.CanaryService = ""
+		validRo.Spec.Strategy.Canary.StableService = ""
+		validRo.Spec.Strategy.Canary.TrafficRouting.ALB = nil
+		validRo.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{}
+		validRo.Spec.Strategy.Canary.TrafficRouting.Plugins = map[string]json.RawMessage{"some-plugin": []byte(`{"key": "value"}`)}
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
+		assert.Equal(t, InvalidTrafficRoutingMessage, allErrs[0].Detail)
+	})
+
 	t.Run("duplicate services", func(t *testing.T) {
 		invalidRo := ro.DeepCopy()
 		invalidRo.Spec.Strategy.Canary.CanaryService = "stable"
