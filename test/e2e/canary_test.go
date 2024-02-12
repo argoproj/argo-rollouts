@@ -548,6 +548,23 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 		ExpectRevisionPodCount("2", 0)
 }
 
+func (s *CanarySuite) TestCanaryWithPausedRollout() {
+	(s.Given().
+		HealthyRollout(`@functional/rollout-canary-with-pause.yaml`).
+		When().
+		ApplyManifests().
+		MarkPodsReady("1", 3). // mark all 3 pods ready
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec(). // update to revision 2
+		WaitForRolloutStatus("Paused").
+		UpdateSpec(). // update to revision 3
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("1", 3).
+		ExpectRevisionPodCount("2", 0).
+		ExpectRevisionPodCount("3", 1))
+}
+
 func (s *CanarySuite) TestCanaryUnScaleDownOnAbort() {
 	s.Given().
 		HealthyRollout(`@functional/canary-unscaledownonabort.yaml`).
