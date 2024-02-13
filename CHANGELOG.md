@@ -721,6 +721,269 @@ weeks in a large deployment. Set the name to "N/A" for these client request
 types.
 
 
+<a name="v1.6.6"></a>
+## [v1.6.6](https://github.com/argoproj/argo-rollouts/compare/v1.6.5...v1.6.6) (2024-02-12)
+
+### Fix
+
+* stuck rollout when 2nd deployment happens before 1st finishes ([#3354](https://github.com/argoproj/argo-rollouts/issues/3354))
+* do not require pod readiness when switching desired service selector on abort ([#3338](https://github.com/argoproj/argo-rollouts/issues/3338))
+
+
+<a name="v1.6.5"></a>
+## [v1.6.5](https://github.com/argoproj/argo-rollouts/compare/v1.6.4...v1.6.5) (2024-01-25)
+
+### Chore
+
+* add logging context around replicaset updates ([#3326](https://github.com/argoproj/argo-rollouts/issues/3326))
+* remove year from codegen license  ([#3282](https://github.com/argoproj/argo-rollouts/issues/3282))
+
+### Fix
+
+* log rs name when update fails ([#3318](https://github.com/argoproj/argo-rollouts/issues/3318))
+* keep rs inormer updated upon updating labels and annotations ([#3321](https://github.com/argoproj/argo-rollouts/issues/3321))
+* updates to replicas and pod template at the same time causes rollout to get stuck ([#3272](https://github.com/argoproj/argo-rollouts/issues/3272))
+
+
+<a name="v1.6.4"></a>
+## [v1.6.4](https://github.com/argoproj/argo-rollouts/compare/v1.6.3...v1.6.4) (2023-12-08)
+
+### Fix
+
+* make sure we use the updated rs when we write back to informer ([#3237](https://github.com/argoproj/argo-rollouts/issues/3237))
+* conflict on updates to replicaset revision ([#3216](https://github.com/argoproj/argo-rollouts/issues/3216))
+
+
+<a name="v1.6.3"></a>
+## [v1.6.3](https://github.com/argoproj/argo-rollouts/compare/v1.6.2...v1.6.3) (2023-12-04)
+
+### Build
+
+* **deps:** always resolve momentjs version 2.29.4 ([#3182](https://github.com/argoproj/argo-rollouts/issues/3182))
+
+### Fix
+
+* rollouts getting stuck due to bad rs informer updates ([#3200](https://github.com/argoproj/argo-rollouts/issues/3200))
+
+
+<a name="v1.6.2"></a>
+## [v1.6.2](https://github.com/argoproj/argo-rollouts/compare/v1.6.1...v1.6.2) (2023-11-02)
+
+### Fix
+
+* Revert "fix: istio destionationrule subsets enforcement ([#3126](https://github.com/argoproj/argo-rollouts/issues/3126))" ([#3147](https://github.com/argoproj/argo-rollouts/issues/3147))
+
+
+<a name="v1.6.1"></a>
+## [v1.6.1](https://github.com/argoproj/argo-rollouts/compare/v1.6.0...v1.6.1) (2023-11-01)
+
+### Chore
+
+* upgrade cosign ([#3139](https://github.com/argoproj/argo-rollouts/issues/3139))
+* add missing rollout fields ([#3062](https://github.com/argoproj/argo-rollouts/issues/3062))
+* change file name for readthedocs compatibility ([#2999](https://github.com/argoproj/argo-rollouts/issues/2999))
+
+### Fix
+
+* istio destionationrule subsets enforcement ([#3126](https://github.com/argoproj/argo-rollouts/issues/3126))
+* docs require build.os to be defined ([#3133](https://github.com/argoproj/argo-rollouts/issues/3133))
+* inopportune scaling events would lose some status fields ([#3060](https://github.com/argoproj/argo-rollouts/issues/3060))
+* rollback to stable with dynamicStableScale could overwhelm stable pods ([#3077](https://github.com/argoproj/argo-rollouts/issues/3077))
+* prevent hot loop when fully promoted rollout is aborted ([#3064](https://github.com/argoproj/argo-rollouts/issues/3064))
+* keep rs informer updated ([#3091](https://github.com/argoproj/argo-rollouts/issues/3091))
+* bump notification-engine to fix double send on self server notifications ([#3095](https://github.com/argoproj/argo-rollouts/issues/3095))
+* sync notification controller configmaps/secrets first ([#3075](https://github.com/argoproj/argo-rollouts/issues/3075))
+* missing notification on error ([#3076](https://github.com/argoproj/argo-rollouts/issues/3076))
+
+
+<a name="v1.6.0"></a>
+## [v1.6.0](https://github.com/argoproj/argo-rollouts/compare/v1.6.0-rc1...v1.6.0) (2023-09-05)
+
+### Chore
+
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.20.2 to 1.21.0 ([#2950](https://github.com/argoproj/argo-rollouts/issues/2950))
+* **deps:** bump github.com/antonmedv/expr from 1.12.7 to 1.13.0 ([#2951](https://github.com/argoproj/argo-rollouts/issues/2951))
+
+### Docs
+
+* update supported k8s version ([#2949](https://github.com/argoproj/argo-rollouts/issues/2949))
+
+### Fix
+
+* analysis step should be ignored after promote ([#3016](https://github.com/argoproj/argo-rollouts/issues/3016))
+* **controller:** rollback should skip all steps to active rs within RollbackWindow ([#2953](https://github.com/argoproj/argo-rollouts/issues/2953))
+* **controller:** typo fix ("Secrete" -> "Secret") in secret informer ([#2965](https://github.com/argoproj/argo-rollouts/issues/2965))
+
+
+<a name="v1.6.0-rc1"></a>
+## [v1.6.0-rc1](https://github.com/argoproj/argo-rollouts/compare/v1.5.1...v1.6.0-rc1) (2023-08-10)
+
+### Chore
+
+* quote golang version string to not use go 1.2.2 ([#2915](https://github.com/argoproj/argo-rollouts/issues/2915))
+* bump gotestsum and fix flakey test causing nil channel send ([#2934](https://github.com/argoproj/argo-rollouts/issues/2934))
+* Update test and related docs for plugin name standard ([#2728](https://github.com/argoproj/argo-rollouts/issues/2728))
+* bump k8s deps to v0.25.8 ([#2712](https://github.com/argoproj/argo-rollouts/issues/2712))
+* add zachaller as lead in owers file ([#2759](https://github.com/argoproj/argo-rollouts/issues/2759))
+* add unit test ([#2798](https://github.com/argoproj/argo-rollouts/issues/2798))
+* add make help cmd ([#2854](https://github.com/argoproj/argo-rollouts/issues/2854))
+* Add tests for pause functionality in rollout package ([#2772](https://github.com/argoproj/argo-rollouts/issues/2772))
+* bump golang to 1.20 ([#2910](https://github.com/argoproj/argo-rollouts/issues/2910))
+* **deps:** bump actions/setup-go from 4.0.1 to 4.1.0 ([#2947](https://github.com/argoproj/argo-rollouts/issues/2947))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.30 to 1.18.31 ([#2924](https://github.com/argoproj/argo-rollouts/issues/2924))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.29 to 1.18.30 ([#2919](https://github.com/argoproj/argo-rollouts/issues/2919))
+* **deps:** bump github.com/aws/aws-sdk-go-v2 from 1.19.0 to 1.19.1 ([#2920](https://github.com/argoproj/argo-rollouts/issues/2920))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.26.3 to 1.27.0 ([#2922](https://github.com/argoproj/argo-rollouts/issues/2922))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.31 to 1.18.32 ([#2928](https://github.com/argoproj/argo-rollouts/issues/2928))
+* **deps:** bump google.golang.org/grpc from 1.56.2 to 1.57.0 ([#2908](https://github.com/argoproj/argo-rollouts/issues/2908))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.28 to 1.18.29 ([#2907](https://github.com/argoproj/argo-rollouts/issues/2907))
+* **deps:** bump github.com/antonmedv/expr from 1.12.6 to 1.12.7 ([#2894](https://github.com/argoproj/argo-rollouts/issues/2894))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.26.2 to 1.26.3 ([#2884](https://github.com/argoproj/argo-rollouts/issues/2884))
+* **deps:** bump docker/setup-qemu-action from 2.1.0 to 2.2.0 ([#2878](https://github.com/argoproj/argo-rollouts/issues/2878))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.27 to 1.18.28 ([#2883](https://github.com/argoproj/argo-rollouts/issues/2883))
+* **deps:** bump slsa-framework/slsa-github-generator from 1.6.0 to 1.7.0 ([#2880](https://github.com/argoproj/argo-rollouts/issues/2880))
+* **deps:** bump actions/setup-go from 4.0.0 to 4.0.1 ([#2881](https://github.com/argoproj/argo-rollouts/issues/2881))
+* **deps:** bump docker/setup-buildx-action from 2.5.0 to 2.9.1 ([#2879](https://github.com/argoproj/argo-rollouts/issues/2879))
+* **deps:** bump docker/login-action from 2.1.0 to 2.2.0 ([#2877](https://github.com/argoproj/argo-rollouts/issues/2877))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.13 to 1.19.14 ([#2886](https://github.com/argoproj/argo-rollouts/issues/2886))
+* **deps:** bump github.com/antonmedv/expr from 1.12.5 to 1.12.6 ([#2882](https://github.com/argoproj/argo-rollouts/issues/2882))
+* **deps:** bump google.golang.org/grpc from 1.56.1 to 1.56.2 ([#2872](https://github.com/argoproj/argo-rollouts/issues/2872))
+* **deps:** bump sigstore/cosign-installer from 3.1.0 to 3.1.1 ([#2860](https://github.com/argoproj/argo-rollouts/issues/2860))
+* **deps:** bump google.golang.org/protobuf from 1.30.0 to 1.31.0 ([#2859](https://github.com/argoproj/argo-rollouts/issues/2859))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.27.0 to 1.27.1 ([#2927](https://github.com/argoproj/argo-rollouts/issues/2927))
+* **deps:** bump google.golang.org/grpc from 1.55.0 to 1.56.1 ([#2856](https://github.com/argoproj/argo-rollouts/issues/2856))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.14 to 1.20.1 ([#2926](https://github.com/argoproj/argo-rollouts/issues/2926))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.12 to 1.19.13 ([#2847](https://github.com/argoproj/argo-rollouts/issues/2847))
+* **deps:** bump actions/setup-go from 3.5.0 to 4.0.1 ([#2849](https://github.com/argoproj/argo-rollouts/issues/2849))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.26 to 1.18.27 ([#2844](https://github.com/argoproj/argo-rollouts/issues/2844))
+* **deps:** bump github.com/prometheus/client_golang from 1.15.1 to 1.16.0 ([#2846](https://github.com/argoproj/argo-rollouts/issues/2846))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.26.1 to 1.26.2 ([#2848](https://github.com/argoproj/argo-rollouts/issues/2848))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.11 to 1.19.12 ([#2839](https://github.com/argoproj/argo-rollouts/issues/2839))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.26.0 to 1.26.1 ([#2840](https://github.com/argoproj/argo-rollouts/issues/2840))
+* **deps:** bump sigstore/cosign-installer from 3.0.5 to 3.1.0 ([#2858](https://github.com/argoproj/argo-rollouts/issues/2858))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.25 to 1.18.26 ([#2841](https://github.com/argoproj/argo-rollouts/issues/2841))
+* **deps:** bump docker/build-push-action from 4.0.0 to 4.1.0 ([#2832](https://github.com/argoproj/argo-rollouts/issues/2832))
+* **deps:** bump github.com/sirupsen/logrus from 1.9.2 to 1.9.3 ([#2821](https://github.com/argoproj/argo-rollouts/issues/2821))
+* **deps:** bump github.com/hashicorp/go-plugin from 1.4.9 to 1.4.10 ([#2822](https://github.com/argoproj/argo-rollouts/issues/2822))
+* **deps:** bump github.com/stretchr/testify from 1.8.3 to 1.8.4 ([#2817](https://github.com/argoproj/argo-rollouts/issues/2817))
+* **deps:** bump github.com/sirupsen/logrus from 1.9.1 to 1.9.2 ([#2789](https://github.com/argoproj/argo-rollouts/issues/2789))
+* **deps:** bump github.com/stretchr/testify from 1.8.2 to 1.8.3 ([#2796](https://github.com/argoproj/argo-rollouts/issues/2796))
+* **deps:** bump slsa-framework/slsa-github-generator from 1.7.0 to 1.8.0 ([#2936](https://github.com/argoproj/argo-rollouts/issues/2936))
+* **deps:** bump sigstore/cosign-installer from 3.0.3 to 3.0.5 ([#2788](https://github.com/argoproj/argo-rollouts/issues/2788))
+* **deps:** bump docker/build-push-action from 4.1.0 to 4.1.1 ([#2837](https://github.com/argoproj/argo-rollouts/issues/2837))
+* **deps:** bump github.com/sirupsen/logrus from 1.9.0 to 1.9.1 ([#2784](https://github.com/argoproj/argo-rollouts/issues/2784))
+* **deps:** bump codecov/codecov-action from 3.1.3 to 3.1.4 ([#2782](https://github.com/argoproj/argo-rollouts/issues/2782))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.24 to 1.18.25 ([#2770](https://github.com/argoproj/argo-rollouts/issues/2770))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.23 to 1.18.24 ([#2768](https://github.com/argoproj/argo-rollouts/issues/2768))
+* **deps:** bump google.golang.org/grpc from 1.54.0 to 1.55.0 ([#2763](https://github.com/argoproj/argo-rollouts/issues/2763))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.22 to 1.18.23 ([#2756](https://github.com/argoproj/argo-rollouts/issues/2756))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.20.1 to 1.20.2 ([#2941](https://github.com/argoproj/argo-rollouts/issues/2941))
+* **deps:** replace `github.com/ghodss/yaml` with `sigs.k8s.io/yaml` ([#2681](https://github.com/argoproj/argo-rollouts/issues/2681))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.25.10 to 1.26.0 ([#2755](https://github.com/argoproj/argo-rollouts/issues/2755))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.10 to 1.19.11 ([#2757](https://github.com/argoproj/argo-rollouts/issues/2757))
+* **deps:** bump github.com/prometheus/client_golang from 1.15.0 to 1.15.1 ([#2754](https://github.com/argoproj/argo-rollouts/issues/2754))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.21 to 1.18.22 ([#2746](https://github.com/argoproj/argo-rollouts/issues/2746))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.25.9 to 1.25.10 ([#2745](https://github.com/argoproj/argo-rollouts/issues/2745))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.27.1 to 1.27.2 ([#2944](https://github.com/argoproj/argo-rollouts/issues/2944))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.9 to 1.19.10 ([#2747](https://github.com/argoproj/argo-rollouts/issues/2747))
+* **deps:** bump codecov/codecov-action from 3.1.2 to 3.1.3 ([#2735](https://github.com/argoproj/argo-rollouts/issues/2735))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.32 to 1.18.33 ([#2943](https://github.com/argoproj/argo-rollouts/issues/2943))
+* **deps:** bump github.com/prometheus/client_golang from 1.14.0 to 1.15.0 ([#2721](https://github.com/argoproj/argo-rollouts/issues/2721))
+* **deps:** bump codecov/codecov-action from 3.1.1 to 3.1.2 ([#2711](https://github.com/argoproj/argo-rollouts/issues/2711))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.20 to 1.18.21 ([#2709](https://github.com/argoproj/argo-rollouts/issues/2709))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.8 to 1.19.9 ([#2708](https://github.com/argoproj/argo-rollouts/issues/2708))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.25.8 to 1.25.9 ([#2710](https://github.com/argoproj/argo-rollouts/issues/2710))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/config from 1.18.19 to 1.18.20 ([#2705](https://github.com/argoproj/argo-rollouts/issues/2705))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 from 1.19.7 to 1.19.8 ([#2704](https://github.com/argoproj/argo-rollouts/issues/2704))
+* **deps:** bump github.com/aws/aws-sdk-go-v2 from 1.17.7 to 1.17.8 ([#2703](https://github.com/argoproj/argo-rollouts/issues/2703))
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/cloudwatch from 1.25.7 to 1.25.8 ([#2702](https://github.com/argoproj/argo-rollouts/issues/2702))
+* **deps:** bump peter-evans/create-pull-request from 4 to 5 ([#2697](https://github.com/argoproj/argo-rollouts/issues/2697))
+* **deps:** bump github.com/spf13/cobra from 1.6.1 to 1.7.0 ([#2698](https://github.com/argoproj/argo-rollouts/issues/2698))
+* **deps:** bump github.com/influxdata/influxdb-client-go/v2 from 2.12.2 to 2.12.3 ([#2684](https://github.com/argoproj/argo-rollouts/issues/2684))
+
+### Ci
+
+* generate attestations during a release  ([#2785](https://github.com/argoproj/argo-rollouts/issues/2785))
+* use keyless signing for main and release branches ([#2783](https://github.com/argoproj/argo-rollouts/issues/2783))
+
+### Docs
+
+* mirroring support in Traefik is not implemented yet ([#2904](https://github.com/argoproj/argo-rollouts/issues/2904))
+* update contributions.md to include k3d as recommended cluster, add details on e2e test setup, and update kubectl install link. Fixes [#1750](https://github.com/argoproj/argo-rollouts/issues/1750) ([#1867](https://github.com/argoproj/argo-rollouts/issues/1867))
+* fix minor mistakes in Migrating to Deployments ([#2270](https://github.com/argoproj/argo-rollouts/issues/2270))
+* Update docs of Rollout spec to add active/previewMetadata ([#2833](https://github.com/argoproj/argo-rollouts/issues/2833))
+* Update datadog.md - clarify formulas [#2813](https://github.com/argoproj/argo-rollouts/issues/2813) ([#2819](https://github.com/argoproj/argo-rollouts/issues/2819))
+* support for Kong ingress ([#2820](https://github.com/argoproj/argo-rollouts/issues/2820))
+* Fix AWS App Mesh getting started documentation to avoid connection pooling problems ([#2814](https://github.com/argoproj/argo-rollouts/issues/2814))
+* Update Changelog ([#2807](https://github.com/argoproj/argo-rollouts/issues/2807))
+* use correct capitalization for "Datadog" in navigation sidebar ([#2809](https://github.com/argoproj/argo-rollouts/issues/2809))
+* Fix typo in header routing specification docs ([#2808](https://github.com/argoproj/argo-rollouts/issues/2808))
+* support for Google Cloud Load balancers ([#2803](https://github.com/argoproj/argo-rollouts/issues/2803))
+* Show how plugins are loaded ([#2801](https://github.com/argoproj/argo-rollouts/issues/2801))
+* Add gateway API link, fix Contour plugin naming ([#2787](https://github.com/argoproj/argo-rollouts/issues/2787))
+* Add some details around running locally to make things clearer new contributors ([#2786](https://github.com/argoproj/argo-rollouts/issues/2786))
+* Add docs for Amazon Managed Prometheus ([#2777](https://github.com/argoproj/argo-rollouts/issues/2777))
+* Update Changelog ([#2765](https://github.com/argoproj/argo-rollouts/issues/2765))
+* copy argo cd docs drop down fix ([#2731](https://github.com/argoproj/argo-rollouts/issues/2731))
+* Add contour trafficrouter plugin ([#2729](https://github.com/argoproj/argo-rollouts/issues/2729))
+* fix link to plugins for traffic routers ([#2719](https://github.com/argoproj/argo-rollouts/issues/2719))
+* Update Changelog ([#2683](https://github.com/argoproj/argo-rollouts/issues/2683))
+* **analysis:** fix use stringData in the examples ([#2715](https://github.com/argoproj/argo-rollouts/issues/2715))
+* **example:** Add example on how to execute subset of e2e tests ([#2867](https://github.com/argoproj/argo-rollouts/issues/2867))
+* **example:** interval requires count ([#2690](https://github.com/argoproj/argo-rollouts/issues/2690))
+
+### Feat
+
+* Send informer add k8s event ([#2834](https://github.com/argoproj/argo-rollouts/issues/2834))
+* enable self service notification support ([#2930](https://github.com/argoproj/argo-rollouts/issues/2930))
+* support prometheus headers ([#2937](https://github.com/argoproj/argo-rollouts/issues/2937))
+* Add insecure option for Prometheus. Fixes [#2913](https://github.com/argoproj/argo-rollouts/issues/2913) ([#2914](https://github.com/argoproj/argo-rollouts/issues/2914))
+* Add prometheus timeout ([#2893](https://github.com/argoproj/argo-rollouts/issues/2893))
+* Support Multiple ALB Ingresses ([#2639](https://github.com/argoproj/argo-rollouts/issues/2639))
+* add merge key to analysis template ([#2842](https://github.com/argoproj/argo-rollouts/issues/2842))
+* retain TLS configuration for canary ingresses in the nginx integration. Fixes [#1134](https://github.com/argoproj/argo-rollouts/issues/1134) ([#2679](https://github.com/argoproj/argo-rollouts/issues/2679))
+* **analysis:** Adds rollout Spec.Selector.MatchLabels to AnalysisRun. Fixes [#2888](https://github.com/argoproj/argo-rollouts/issues/2888) ([#2903](https://github.com/argoproj/argo-rollouts/issues/2903))
+* **controller:** Add custom metadata support for AnalysisRun. Fixes [#2740](https://github.com/argoproj/argo-rollouts/issues/2740) ([#2743](https://github.com/argoproj/argo-rollouts/issues/2743))
+* **dashboard:** Refresh Rollouts dashboard UI ([#2723](https://github.com/argoproj/argo-rollouts/issues/2723))
+* **metricprovider:** allow user to define metrics.provider.job.metadata ([#2762](https://github.com/argoproj/argo-rollouts/issues/2762))
+
+### Fix
+
+* make new alb fullName field  optional for backward compatability ([#2806](https://github.com/argoproj/argo-rollouts/issues/2806))
+* cloudwatch metrics provider multiple dimensions ([#2932](https://github.com/argoproj/argo-rollouts/issues/2932))
+*  rollout not modify the VirtualService whit setHeaderRoute step with workloadRef ([#2797](https://github.com/argoproj/argo-rollouts/issues/2797))
+* get new httpRoutesI after removeRoute() to avoid duplicates. Fixes [#2769](https://github.com/argoproj/argo-rollouts/issues/2769) ([#2887](https://github.com/argoproj/argo-rollouts/issues/2887))
+* change logic of analysis run to better handle errors ([#2695](https://github.com/argoproj/argo-rollouts/issues/2695))
+* istio dropping fields during removing of managed routes ([#2692](https://github.com/argoproj/argo-rollouts/issues/2692))
+* resolve args to metric in garbage collection function ([#2843](https://github.com/argoproj/argo-rollouts/issues/2843))
+* properly wrap Datadog API v2 request body ([#2771](https://github.com/argoproj/argo-rollouts/issues/2771)) ([#2775](https://github.com/argoproj/argo-rollouts/issues/2775))
+* add required ingress permission ([#2933](https://github.com/argoproj/argo-rollouts/issues/2933))
+* **analysis:** Adding field in YAML to provide region for Sigv4 signing.  ([#2794](https://github.com/argoproj/argo-rollouts/issues/2794))
+* **analysis:** Graphite query - remove whitespaces ([#2752](https://github.com/argoproj/argo-rollouts/issues/2752))
+* **analysis:** Graphite metric provider - index out of range [0] with length 0 ([#2751](https://github.com/argoproj/argo-rollouts/issues/2751))
+* **controller:** Remove name label from some k8s client metrics on events and replicasets ([#2851](https://github.com/argoproj/argo-rollouts/issues/2851))
+* **controller:** Fix for rollouts getting stuck in loop ([#2689](https://github.com/argoproj/argo-rollouts/issues/2689))
+* **controller:** Add klog logrus bridge. Fixes [#2707](https://github.com/argoproj/argo-rollouts/issues/2707). ([#2701](https://github.com/argoproj/argo-rollouts/issues/2701))
+* **trafficrouting:** apply stable selectors on canary service on rollout abort [#2781](https://github.com/argoproj/argo-rollouts/issues/2781) ([#2818](https://github.com/argoproj/argo-rollouts/issues/2818))
+
+### Refactor
+
+* change plugin naming pattern [#2720](https://github.com/argoproj/argo-rollouts/issues/2720) ([#2722](https://github.com/argoproj/argo-rollouts/issues/2722))
+
+### BREAKING CHANGE
+
+
+The metric labels have changed on controller_clientset_k8s_request_total to not include the name of the resource for events and replicasets. These names have generated hashes in them and cause really high cardinality.
+
+Remove name label from k8s some client metrics
+
+The `name` label in the `controller_clientset_k8s_request_total` metric
+produce an excessive amount of cardinality for `events` and `replicasets`.
+This can lead to hundreds of thousands of unique metrics over a couple
+weeks in a large deployment. Set the name to "N/A" for these client request
+types.
+
+
 <a name="v1.5.1"></a>
 ## [v1.5.1](https://github.com/argoproj/argo-rollouts/compare/v1.5.0...v1.5.1) (2023-05-24)
 
