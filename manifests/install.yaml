@@ -15825,6 +15825,7 @@ rules:
   - patch
 - apiGroups:
   - traefik.containo.us
+  - traefik.io
   resources:
   - traefikservices
   verbs:
