@@ -369,11 +369,13 @@ func (c *rolloutContext) calculateWeightDestinationsFromExperiment() []v1alpha1.
 		}
 		for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
 			templateWeight := getTemplateWeight(templateStatus.Name)
-			weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
-				ServiceName:     templateStatus.ServiceName,
-				PodTemplateHash: templateStatus.PodTemplateHash,
-				Weight:          *templateWeight,
-			})
+			if templateWeight != nil {
+				weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
+					ServiceName:     templateStatus.ServiceName,
+					PodTemplateHash: templateStatus.PodTemplateHash,
+					Weight:          *templateWeight,
+				})
+			}
 		}
 	}
 	return weightDestinations
