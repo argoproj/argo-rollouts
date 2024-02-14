@@ -308,7 +308,9 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 
 				if err != nil {
 					log.Errorf("Error fetching analysisRuns for namespace: %s",
-						&ro.Namespace)
+						ro.Namespace)
+					return vars
+
 				}
 
 				vars = map[string]any{"rollout": obj, "analysisRuns": arsObj, "time": timeExprs}

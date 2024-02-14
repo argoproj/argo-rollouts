@@ -484,7 +484,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 		},
 	}
 
-	type expectedFunc func(obj map[string]interface{}, ar interface{}) map[string]interface{}
+	type expectedFunc func(obj map[string]interface{}, ar any) map[string]interface{}
 	type arInformerFunc func([]*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer
 
 	testcase := []struct {
@@ -501,7 +501,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 			},
 			rollout: ro,
 			ars:     ars,
-			expected: func(obj map[string]interface{}, ar interface{}) map[string]interface{} {
+			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
 				return map[string]interface{}{
 					"rollout":      obj,
 					"analysisRuns": ar,
@@ -526,10 +526,11 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					},
 				},
 			},
-			expected: func(obj map[string]interface{}, ar interface{}) map[string]interface{} {
+			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
 				return map[string]interface{}{
-					"rollout": obj,
-					"time":    timeExprs,
+					"rollout":      obj,
+					"analysisRuns": nil,
+					"time":         timeExprs,
 				}
 			},
 		},
@@ -540,7 +541,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 			},
 			rollout: ro,
 			ars:     nil,
-			expected: func(obj map[string]interface{}, ar interface{}) map[string]interface{} {
+			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
 				return map[string]interface{}{
 					"rollout": obj,
 					"time":    timeExprs,
@@ -548,16 +549,27 @@ func TestNewAPIFactorySettings(t *testing.T) {
 			},
 		},
 		{
-			name: "analysisRuns list empty in given namespace",
+			name: "analysisRuns nil for no matching namespace",
 			arInformer: func(ars []*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer {
 				return createAnalysisRunInformer(ars)
 			},
 			rollout: ro,
-			ars:     nil,
-			expected: func(obj map[string]interface{}, ar interface{}) map[string]interface{} {
+			ars: []*v1alpha1.AnalysisRun{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "analysis-run-1",
+						CreationTimestamp: metav1.NewTime(timeutil.Now().Add(-2 * time.Hour)),
+						Namespace:         "default-1",
+						Labels:            map[string]string{"rollouts-pod-template-hash": "1234"},
+						Annotations:       map[string]string{"rollout.argoproj.io/revision": "2"},
+					},
+				},
+			},
+			expected: func(obj map[string]interface{}, ar any) map[string]interface{} {
 				return map[string]interface{}{
-					"rollout": obj,
-					"time":    timeExprs,
+					"rollout":      obj,
+					"analysisRuns": nil,
+					"time":         timeExprs,
 				}
 			},
 		},
