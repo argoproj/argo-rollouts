@@ -205,7 +205,7 @@ func (f *fixture) newManager(t *testing.T) *Manager {
 		Recorder:                        record.NewFakeEventRecorder(),
 	})
 
-	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(), "default", k8sI.Core().V1().Secrets().Informer(), k8sI.Core().V1().ConfigMaps().Informer())
+	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(i.Argoproj().V1alpha1().AnalysisRuns()), "default", k8sI.Core().V1().Secrets().Informer(), k8sI.Core().V1().ConfigMaps().Informer())
 	// rolloutsInformer := rolloutinformers.NewRolloutInformer(f.client, "", time.Minute, cache.Indexers{})
 	cm.notificationsController = notificationcontroller.NewController(dynamicClient.Resource(v1alpha1.RolloutGVR), i.Argoproj().V1alpha1().Rollouts().Informer(), apiFactory,
 		notificationcontroller.WithToUnstructured(func(obj metav1.Object) (*unstructured.Unstructured, error) {
