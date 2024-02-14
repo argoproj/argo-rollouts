@@ -284,6 +284,10 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32(10)
 		validRo.Spec.Strategy.Canary.CanaryService = ""
 		validRo.Spec.Strategy.Canary.StableService = ""
+		validRo.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{
+			PingService: "ping",
+			PongService: "pong",
+		}
 		validRo.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{DestinationRule: &v1alpha1.IstioDestinationRule{Name: "destination-rule"}}
 		validRo.Spec.Strategy.Canary.TrafficRouting.ALB = nil
 		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
@@ -368,7 +372,7 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 			Nginx: &v1alpha1.NginxTrafficRouting{StableIngress: "stable-ingress"},
 		}
 		allErrs := ValidateRolloutStrategyCanary(invalidRo, field.NewPath(""))
-		assert.Equal(t, PingPongWithAlbOnlyMessage, allErrs[0].Detail)
+		assert.Equal(t, PingPongWithRouterOnlyMessage, allErrs[0].Detail)
 	})
 
 	t.Run("invalid traffic routing", func(t *testing.T) {
