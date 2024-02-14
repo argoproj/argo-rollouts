@@ -307,14 +307,11 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 				arsObj, err := getAnalysisRunsFilterWithLabels(ro, arInformer)
 
 				if err != nil {
-					log.Errorf("Error fetching analysisRuns for namespace %s: notifying rollout: %v",
-						ro.Namespace, err)
-				} else if arsObj == nil {
-					log.Infof("Failed to fetch analysisRuns for namespace %s: proceed notification with  rollout info: arsObj: %v",
-						ro.Namespace, arsObj)
-				} else {
-					vars = map[string]any{"rollout": obj, "analysisRuns": arsObj, "time": timeExprs}
+					log.Errorf("Error fetching analysisRuns for namespace: %s",
+						&ro.Namespace)
 				}
+
+				vars = map[string]any{"rollout": obj, "analysisRuns": arsObj, "time": timeExprs}
 				return vars
 			}, nil
 		},
