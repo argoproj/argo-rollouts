@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"strings"
+
+	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/mitchellh/mapstructure"

@@ -238,7 +238,7 @@ func requireCanaryStableServices(rollout *v1alpha1.Rollout) bool {
 
 	switch {
 	case canary.TrafficRouting.ALB != nil && canary.PingPong == nil,
-		canary.TrafficRouting.Istio != nil && (canary.TrafficRouting.Istio.DestinationRule == nil || canary.PingPong == nil),
+		canary.TrafficRouting.Istio != nil && canary.TrafficRouting.Istio.DestinationRule == nil && canary.PingPong == nil,
 		canary.TrafficRouting.SMI != nil,
 		canary.TrafficRouting.Apisix != nil,
 		canary.TrafficRouting.Ambassador != nil,
