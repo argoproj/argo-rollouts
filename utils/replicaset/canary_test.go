@@ -292,7 +292,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 1,
 		},
 		{
-			name:                "Do not scale newRS down to zero on non-100 weight",
+			name:                "Do not scale canaryRS down to zero on non-100 weight",
 			rolloutSpecReplicas: 1,
 			setWeight:           90,
 			maxSurge:            intstr.FromInt(1),
@@ -308,7 +308,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 1,
 		},
 		{
-			name:                "Scale newRS to zero on <50 weight without surge",
+			name:                "Scale canaryRS to zero on <50 weight without surge",
 			rolloutSpecReplicas: 1,
 			setWeight:           49,
 			maxSurge:            intstr.FromInt(0),
@@ -356,7 +356,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 1,
 		},
 		{
-			name:                "Scale up Stable before newRS",
+			name:                "Scale up Stable before canaryRS",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
 			maxSurge:            intstr.FromInt(1),
@@ -374,7 +374,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			olderRS: newRS("older", 3, 3),
 		},
 		{
-			name:                "Scale down newRS and stable",
+			name:                "Scale down canaryRS and stable",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
 			maxSurge:            intstr.FromInt(0),
@@ -406,7 +406,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 9,
 		},
 		{
-			name:                "Do not scale down newRS or stable when older RS count >= scaleDownCount",
+			name:                "Do not scale down canaryRS or stable when older RS count >= scaleDownCount",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
 			maxSurge:            intstr.FromInt(0),
