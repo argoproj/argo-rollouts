@@ -56,11 +56,12 @@ func AtDesiredReplicaCountsForCanary(ro *v1alpha1.Rollout, newRS, stableRS *apps
 // when using the basic canary strategy. The function calculates the desired number of replicas for
 // the new and stable RS using the following equations:
 //
-// newRS Replica count = spec.Replica * (setweight / 100)
-// stableRS Replica count = spec.Replica * (1 - setweight / 100)
+// desired newRS Replica count = spec.Replica * (setweight / 100)
+// desired stableRS Replica count = spec.Replica - newRS
 //
-// In both equations, the function rounds the desired replica count up if the math does not divide into whole numbers
-// because the rollout guarantees at least one replica for both the stable and new RS when the setWeight is not 0 or 100.
+// The function for newRS finds the closest whole number of replicas based on the weight percentage
+// and rounds up the desired replica count in case of a tie.
+//
 // Then, the function finds the number of replicas it can scale up using the following equation:
 //
 // scaleUpCount := (maxSurge + rollout.Spec.Replica) - sum of rollout's RSs spec.Replica
