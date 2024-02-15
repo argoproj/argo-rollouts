@@ -276,7 +276,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 10,
 		},
 		{
-			name:                "Do not scale newRS down to zero on non-zero weight",
+			name:                "Do not scale canaryRS down to zero on non-zero weight",
 			rolloutSpecReplicas: 1,
 			setWeight:           20,
 			maxSurge:            intstr.FromInt(1),
@@ -292,7 +292,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 1,
 		},
 		{
-			name:                "Do not scale canaryRS down to zero on non-100 weight",
+			name:                "Do not scale newRS down to zero on non-100 weight",
 			rolloutSpecReplicas: 1,
 			setWeight:           90,
 			maxSurge:            intstr.FromInt(1),
@@ -305,6 +305,54 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			canaryAvailableReplica: 0,
 
 			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 1,
+		},
+		{
+			name:                "Scale newRS to zero on <50 weight without surge",
+			rolloutSpecReplicas: 1,
+			setWeight:           49,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 0,
+		},
+		{
+			name:                "Scale stableRS down to zero on >=50 weight without surge",
+			rolloutSpecReplicas: 1,
+			setWeight:           51,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 0,
+			expectedCanaryReplicaCount: 0,
+		},
+		{
+			name:                "Scale canaryRS to one on >=50 weight without surge and stable replicas",
+			rolloutSpecReplicas: 1,
+			setWeight:           51,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      0,
+			stableAvailableReplica: 0,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 0,
 			expectedCanaryReplicaCount: 1,
 		},
 		{
