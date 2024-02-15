@@ -25,7 +25,7 @@ const TraefikServiceUpdateError = "TraefikServiceUpdateError"
 
 var (
 	apiGroupToResource = map[string]string{
-		defaults.DefaultTraefikAPIGroup: traefikServices,
+		defaults.GetTraefikAPIGroup(): traefikServices,
 	}
 )
 
@@ -68,8 +68,8 @@ func NewDynamicClient(di dynamic.Interface, namespace string) dynamic.ResourceIn
 }
 
 func GetMappingGVR() schema.GroupVersionResource {
-	group := defaults.DefaultTraefikAPIGroup
-	parts := strings.Split(defaults.DefaultTraefikVersion, "/")
+	group := defaults.GetTraefikAPIGroup()
+	parts := strings.Split(defaults.GetTraefikVersion(), "/")
 	version := parts[len(parts)-1]
 	resourceName := apiGroupToResource[group]
 	return schema.GroupVersionResource{

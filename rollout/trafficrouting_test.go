@@ -249,13 +249,21 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 					SpecRef:  "canary",
 					Replicas: pointer.Int32Ptr(1),
 					Weight:   pointer.Int32Ptr(5),
-				}},
+				},
+					{
+						Name:     "experiment-template-without-weight",
+						SpecRef:  "stable",
+						Replicas: pointer.Int32Ptr(1),
+					}},
 			},
 		},
 	}
 	r1 := newCanaryRollout("foo", 10, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
 	r2 := bumpVersion(r1)
-	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{}
+	r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+		SMI: &v1alpha1.SMITrafficRouting{},
+	}
+	r2.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{SMI: &v1alpha1.SMITrafficRouting{}}
 	r2.Spec.Strategy.Canary.CanaryService = "canary"
 	r2.Spec.Strategy.Canary.StableService = "stable"
 
@@ -273,7 +281,12 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 		Name:            "experiment-template",
 		ServiceName:     "experiment-service",
 		PodTemplateHash: rs2PodHash,
-	}}
+	},
+		{
+			Name:            "experiment-template-without-weight",
+			ServiceName:     "experiment-service-without-weight",
+			PodTemplateHash: rs2PodHash,
+		}}
 	r2.Status.Canary.CurrentExperiment = ex.Name
 
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2, canarySvc, stableSvc)
@@ -293,18 +306,13 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			// make sure SetWeight was called with correct value
 			assert.Equal(t, int32(10), desiredWeight)
 			assert.Equal(t, int32(5), weightDestinations[0].Weight)
+			assert.Len(t, weightDestinations, 1)
 			assert.Equal(t, ex.Status.TemplateStatuses[0].ServiceName, weightDestinations[0].ServiceName)
 			assert.Equal(t, ex.Status.TemplateStatuses[0].PodTemplateHash, weightDestinations[0].PodTemplateHash)
 			return nil
 		})
 		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
-			assert.Equal(t, int32(10), desiredWeight)
-			assert.Equal(t, int32(5), weightDestinations[0].Weight)
-			assert.Equal(t, ex.Status.TemplateStatuses[0].ServiceName, weightDestinations[0].ServiceName)
-			assert.Equal(t, ex.Status.TemplateStatuses[0].PodTemplateHash, weightDestinations[0].PodTemplateHash)
-			return nil
-		})
+		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(pointer.BoolPtr(true), nil)
 		f.run(getKey(r2, t))
 	})
 
@@ -319,11 +327,7 @@ func TestRolloutWithExperimentStep(t *testing.T) {
 			return nil
 		})
 		f.fakeTrafficRouting.On("SetHeaderRoute", mock.Anything, mock.Anything).Return(nil)
-		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything).Return(func(desiredWeight int32, weightDestinations ...v1alpha1.WeightDestination) error {
-			assert.Equal(t, int32(10), desiredWeight)
-			assert.Len(t, weightDestinations, 0)
-			return nil
-		})
+		f.fakeTrafficRouting.On("VerifyWeight", mock.Anything, mock.Anything).Return(pointer.BoolPtr(true), nil)
 		f.run(getKey(r2, t))
 	})
 }

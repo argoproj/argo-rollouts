@@ -398,6 +398,16 @@ func TestSetDefaults(t *testing.T) {
 	SetSMIAPIVersion(DefaultSMITrafficSplitVersion)
 	assert.Equal(t, DefaultSMITrafficSplitVersion, GetSMIAPIVersion())
 
+	SetTraefikAPIGroup("traefik.containo.us")
+	assert.Equal(t, "traefik.containo.us", GetTraefikAPIGroup())
+	SetTraefikAPIGroup(DefaultTraefikAPIGroup)
+	assert.Equal(t, DefaultTraefikAPIGroup, GetTraefikAPIGroup())
+
+	SetTraefikVersion("traefik.containo.us/v1alpha1")
+	assert.Equal(t, "traefik.containo.us/v1alpha1", GetTraefikVersion())
+	SetTraefikVersion(DefaultTraefikVersion)
+	assert.Equal(t, DefaultTraefikVersion, GetTraefikVersion())
+
 	SetTargetGroupBindingAPIVersion("v1alpha9")
 	assert.Equal(t, "v1alpha9", GetTargetGroupBindingAPIVersion())
 	SetTargetGroupBindingAPIVersion(DefaultTargetGroupBindingAPIVersion)
