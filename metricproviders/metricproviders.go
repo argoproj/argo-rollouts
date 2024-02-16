@@ -30,7 +30,9 @@ import (
 )
 
 const (
-	InclusterKubeconfig = "in-cluster"
+	InclusterKubeconfig      = "in-cluster"
+	AnalysisJobKubeconfigEnv = "ARGO_ROLLOUTS_ANALYSIS_JOB_KUBECONFIG"
+	AnalysisJobNamespaceEnv  = "ARGO_ROLLOUTS_ANALYSIS_JOB_NAMESPACE"
 )
 
 type ProviderFactory struct {
@@ -149,11 +151,11 @@ func Type(metric v1alpha1.Metric) string {
 }
 
 // GetAnalysisJobClientset returns kubernetes clientset for executing the analysis job metric,
-// if the ANALYSIS_JOB_KUBECONFIG is set to InclusterKubeconfig, it will return the incluster client
+// if the AnalysisJobKubeconfigEnv is set to InclusterKubeconfig, it will return the incluster client
 // else if it's set to a kubeconfig file it will return the clientset corresponding to the kubeconfig file.
 // If empty it returns the provided defaultClientset
 func GetAnalysisJobClientset(defaultClientset kubernetes.Interface) (kubernetes.Interface, error) {
-	customJobKubeconfig := os.Getenv("ANALYSIS_JOB_KUBECONFIG")
+	customJobKubeconfig := os.Getenv(AnalysisJobKubeconfigEnv)
 	if customJobKubeconfig != "" {
 		var (
 			cfg *rest.Config
@@ -173,5 +175,5 @@ func GetAnalysisJobClientset(defaultClientset kubernetes.Interface) (kubernetes.
 }
 
 func GetAnalysisJobNamespace() string {
-	return os.Getenv("ANALYSIS_JOB_NAMESPACE")
+	return os.Getenv(AnalysisJobNamespaceEnv)
 }
