@@ -3516,7 +3516,18 @@ command line.</p>
 <div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>argo<span class="w"> </span>rollouts<span class="w"> </span>version
 </code></pre></div>
 <h2 id="shell-auto-completion">Shell auto completion<a class="headerlink" href="#shell-auto-completion" title="Permanent link">&para;</a></h2>
-<p>The CLI can export shell completion code for several shells.</p>
+<p>To enable auto completion for the plugin when used with <code>kubectl</code> (version 1.26 or newer), you need to create a shell script on your PATH called <code>kubectl_complete-argo-rollouts</code> which will provide the completions.</p>
+<div class="highlight"><pre><span></span><code>cat<span class="w"> </span><span class="s">&lt;&lt;EOF &gt;kubectl_complete-argo-rollouts</span>
+<span class="s">#!/usr/bin/env sh</span>
+
+<span class="s"># Call the __complete command passing it all arguments</span>
+<span class="s">kubectl argo rollouts __complete &quot;\$@&quot;</span>
+<span class="s">EOF</span>
+
+chmod<span class="w"> </span>+x<span class="w"> </span>kubectl_complete-argo-rollouts
+sudo<span class="w"> </span>mv<span class="w"> </span>./kubectl_complete-argo-rollouts<span class="w"> </span>/usr/local/bin/
+</code></pre></div>
+<p>To enable auto completion for the CLI run as a standalone binary, the CLI can export shell completion code for several shells.</p>
 <p>For bash, ensure you have bash completions installed and enabled. To access completions in your current shell, run $ <code>source &lt;(kubectl-argo-rollouts completion bash)</code>. Alternatively, write it to a file and source in <code>.bash_profile</code>.</p>
 <p>The completion command supports bash, zsh, fish and powershell.</p>
 <p>See the <a href="../generated/kubectl-argo-rollouts/kubectl-argo-rollouts_completion/">completion command documentation</a> for more details.</p>
