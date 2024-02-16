@@ -2050,6 +2050,18 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExpe
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
      */
     analyses?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStepAnalysisTemplateRef>;
+    /**
+     * 
+     * @type {Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
+     */
+    dryRun?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1DryRun>;
+    /**
+     * 
+     * @type {GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1RolloutExperimentStep
+     */
+    analysisRunMetadata?: GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1AnalysisRunMetadata;
 }
 /**
  * 

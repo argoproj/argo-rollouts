@@ -777,6 +777,10 @@ message ExperimentSpec {
   // +patchStrategy=merge
   // +optional
   repeated MeasurementRetention measurementRetention = 8;
+
+  // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+  // +optional
+  optional AnalysisRunMetadata analysisRunMetadata = 9;
 }
 
 // ExperimentStatus is the status for a Experiment resource
@@ -1311,6 +1315,16 @@ message RolloutExperimentStep {
   // +patchMergeKey=name
   // +patchStrategy=merge
   repeated RolloutExperimentStepAnalysisTemplateRef analyses = 3;
+
+  // DryRun object contains the settings for running the analysis in Dry-Run mode
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated DryRun dryRun = 4;
+
+  // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+  // +optional
+  optional AnalysisRunMetadata analysisRunMetadata = 5;
 }
 
 message RolloutExperimentStepAnalysisTemplateRef {
