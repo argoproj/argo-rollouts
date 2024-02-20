@@ -32,7 +32,7 @@ The Slack notification service configuration includes following settings:
 
 1. Create a public or private channel, for this example `my_channel`
 1. Invite your slack bot to this channel **otherwise slack bot won't be able to deliver notifications to this channel**
-1. Store Oauth access token in `argocd-notifications-secret` secret
+1. Store Oauth access token in `argo-rollouts-notification-secret` secret
 
     ```yaml
       apiVersion: v1
@@ -43,13 +43,13 @@ The Slack notification service configuration includes following settings:
           slack-token: <Oauth-access-token>
     ```
 
-1. Define service type slack in data section of `<config-map-name>` configmap:
+1. Define service type slack in data section of `argo-rollouts-notification-configmap` configmap:
 
     ```yaml
       apiVersion: v1
       kind: ConfigMap
       metadata:
-        name: <config-map-name>
+        name: argo-rollouts-notification-configmap
       data:
         service.slack: |
           token: $slack-token

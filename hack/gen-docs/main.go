@@ -36,7 +36,10 @@ func generateNotificationsDocs() {
 		if e := updateMkDocsNav("Notifications", "Services", files); e != nil {
 			log.Fatal(e)
 		}
-		if e := strReplaceDocFiles("argocd-notifications-cm", "<config-map-name>", files); e != nil {
+		if e := strReplaceDocFiles("argocd-notifications-cm", "argo-rollouts-notification-configmap", files); e != nil {
+			log.Fatal(e)
+		}
+		if e := strReplaceDocFiles("argocd-notifications-secret", "argo-rollouts-notification-secret", files); e != nil {
 			log.Fatal(e)
 		}
 	}

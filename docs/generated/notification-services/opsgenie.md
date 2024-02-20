@@ -15,8 +15,8 @@ To be able to send notifications with argocd-notifications you have to create an
 11. Click "Save" at the bottom
 12. Click "Turn on integration" in the top right corner
 13. Check your browser for the correct server apiURL. If it is "app.opsgenie.com" then use the US/international api url `api.opsgenie.com` in the next step, otherwise use `api.eu.opsgenie.com` (European API). 
-14. You are finished with configuring Opsgenie. Now you need to configure argocd-notifications. Use the apiUrl, the team name and the apiKey to configure the Opsgenie integration in the `argocd-notifications-secret` secret.
-15. You can find the example `<config-map-name>` configuration at the below.
+14. You are finished with configuring Opsgenie. Now you need to configure argocd-notifications. Use the apiUrl, the team name and the apiKey to configure the Opsgenie integration in the `argo-rollouts-notification-secret` secret.
+15. You can find the example `argo-rollouts-notification-configmap` configuration at the below.
 
 | **Option**    | **Required** | **Type** | **Description**                                                                                          | **Example**                      |
 | ------------- | ------------ | -------- | -------------------------------------------------------------------------------------------------------- | -------------------------------- |
@@ -29,7 +29,7 @@ To be able to send notifications with argocd-notifications you have to create an
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.opsgenie: |
     apiUrl: <api-url>
