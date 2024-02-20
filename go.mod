@@ -202,6 +202,7 @@ require (
 
 replace (
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
+	github.com/go-telegram-bot-api/telegram-bot-api/v5 => github.com/OvyFlash/telegram-bot-api/v5 v5.0.0-20240108230938-63e5c59035bf
 	k8s.io/api v0.0.0 => k8s.io/api v0.26.11
 	k8s.io/apiextensions-apiserver v0.0.0 => k8s.io/apiextensions-apiserver v0.26.11
 	k8s.io/apimachinery v0.0.0 => k8s.io/apimachinery v0.26.11
