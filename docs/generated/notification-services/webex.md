@@ -9,7 +9,7 @@ The Webex Teams notification service configuration includes following settings:
 ## Configuration
 
 1. Create a Webex [Bot](https://developer.webex.com/docs/bots)
-1. Copy the bot access [token](https://developer.webex.com/my-apps) and store it in the `argocd-notifications-secret` Secret and configure Webex Teams integration in `argocd-notifications-cm` ConfigMap
+1. Copy the bot access [token](https://developer.webex.com/my-apps) and store it in the `argocd-notifications-secret` Secret and configure Webex Teams integration in `<config-map-name>` ConfigMap
 
     ``` yaml
     apiVersion: v1

@@ -25,7 +25,7 @@ The wait time between retries is between `retryWaitMin` and `retryWaitMax`. If a
 
 Use the following steps to configure webhook:
 
-1 Register webhook in `argocd-notifications-cm` ConfigMap:
+1 Register webhook in `<config-map-name>` ConfigMap:
 
 ```yaml
 apiVersion: v1

@@ -70,7 +70,7 @@ data:
 
 ### Send high availability alertmanager with auth
 
-Store auth token in `argocd-notifications-secret` Secret and use configure in `argocd-notifications-cm` ConfigMap.
+Store auth token in `argocd-notifications-secret` Secret and use configure in `<config-map-name>` ConfigMap.
 
 ```yaml
 apiVersion: v1
