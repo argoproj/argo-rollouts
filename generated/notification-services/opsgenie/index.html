@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.9">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.11">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.f2e4d321.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.7e359304.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
@@ -3265,24 +3265,94 @@
 <li>Click "Teams" in the Menu on the left</li>
 <li>Select the team that you want to notify</li>
 <li>In the teams configuration menu select "Integrations"</li>
-<li>click "Add Integration" in the top right corner</li>
+<li>Click "Add Integration" in the top right corner</li>
 <li>Select "API" integration</li>
 <li>Give your integration a name, copy the "API key" and safe it somewhere for later</li>
-<li>Make sure the checkboxes for "Create and Update Access" and "enable" are selected, disable the other checkboxes to remove unnecessary permissions</li>
-<li>Click "Safe Integration" at the bottom</li>
+<li>Click "Edit" in the integration settings</li>
+<li>Make sure the checkbox for "Create and Update Access" is selected, disable the other checkboxes to remove unnecessary permissions</li>
+<li>Click "Save" at the bottom</li>
+<li>Click "Turn on integration" in the top right corner</li>
 <li>Check your browser for the correct server apiURL. If it is "app.opsgenie.com" then use the US/international api url <code>api.opsgenie.com</code> in the next step, otherwise use <code>api.eu.opsgenie.com</code> (European API). </li>
-<li>You are finished with configuring opsgenie. Now you need to configure argocd-notifications. Use the apiUrl, the team name and the apiKey to configure the Opsgenie integration in the <code>argocd-notifications-secret</code> secret. </li>
+<li>You are finished with configuring Opsgenie. Now you need to configure argocd-notifications. Use the apiUrl, the team name and the apiKey to configure the Opsgenie integration in the <code>argo-rollouts-notification-secret</code> secret.</li>
+<li>You can find the example <code>argo-rollouts-notification-configmap</code> configuration at the below.</li>
 </ol>
+<table>
+<thead>
+<tr>
+<th><strong>Option</strong></th>
+<th><strong>Required</strong></th>
+<th><strong>Type</strong></th>
+<th><strong>Description</strong></th>
+<th><strong>Example</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>description</code></td>
+<td>True</td>
+<td><code>string</code></td>
+<td>Description field of the alert that is generally used to provide a detailed information about the alert.</td>
+<td><code>Hello from Argo CD!</code></td>
+</tr>
+<tr>
+<td><code>priority</code></td>
+<td>False</td>
+<td><code>string</code></td>
+<td>Priority level of the alert. Possible values are P1, P2, P3, P4 and P5. Default value is P3.</td>
+<td><code>P1</code></td>
+</tr>
+<tr>
+<td><code>alias</code></td>
+<td>False</td>
+<td><code>string</code></td>
+<td>Client-defined identifier of the alert, that is also the key element of Alert De-Duplication.</td>
+<td><code>Life is too short for no alias</code></td>
+</tr>
+<tr>
+<td><code>note</code></td>
+<td>False</td>
+<td><code>string</code></td>
+<td>Additional note that will be added while creating the alert.</td>
+<td><code>Error from Argo CD!</code></td>
+</tr>
+</tbody>
+</table>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
 <span class="nt">metadata</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;config-map-name&gt;</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argo-rollouts-notification-configmap</span>
 <span class="nt">data</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">service.opsgenie</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <span class="w">    </span><span class="no">apiUrl: &lt;api-url&gt;</span>
 <span class="w">    </span><span class="no">apiKeys:</span>
 <span class="w">      </span><span class="no">&lt;your-team&gt;: &lt;integration-api-key&gt;</span>
+<span class="w">  </span><span class="nt">template.opsgenie</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">    </span><span class="no">message: |</span>
+<span class="w">      </span><span class="no">[Argo CD] Application {{.app.metadata.name}} has a problem.</span>
+<span class="w">    </span><span class="no">opsgenie:</span>
+<span class="w">      </span><span class="no">description: |</span>
+<span class="w">        </span><span class="no">Application: {{.app.metadata.name}}</span>
+<span class="w">        </span><span class="no">Health Status: {{.app.status.health.status}}</span>
+<span class="w">        </span><span class="no">Operation State Phase: {{.app.status.operationState.phase}}</span>
+<span class="w">        </span><span class="no">Sync Status: {{.app.status.sync.status}}</span>
+<span class="w">      </span><span class="no">priority: P1</span>
+<span class="w">      </span><span class="no">alias: {{.app.metadata.name}}</span>
+<span class="w">      </span><span class="no">note: Error from Argo CD!</span>
+<span class="w">  </span><span class="nt">trigger.on-a-problem</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">    </span><span class="no">- description: Application has a problem.</span>
+<span class="w">      </span><span class="no">send:</span>
+<span class="w">      </span><span class="no">- opsgenie</span>
+<span class="w">      </span><span class="no">when: app.status.health.status == &#39;Degraded&#39; or app.status.operationState.phase in [&#39;Error&#39;, &#39;Failed&#39;] or app.status.sync.status == &#39;Unknown&#39;</span>
 </code></pre></div>
+<ol>
+<li>Add annotation in application yaml file to enable notifications for specific Argo CD app.
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="w">  </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
+<span class="w">  </span><span class="nt">metadata</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">notifications.argoproj.io/subscribe.on-a-problem.opsgenie</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;your-team&gt;</span>
+</code></pre></div></li>
+</ol>
 
 
 

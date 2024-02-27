@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.9">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.11">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.f2e4d321.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e359304.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
@@ -3216,6 +3216,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#upgrading-notifications-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      Upgrading Notifications Engine
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#documentation-changes" class="md-nav__link">
     <span class="md-ellipsis">
       Documentation Changes
@@ -3495,6 +3504,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#upgrading-notifications-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      Upgrading Notifications Engine
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#documentation-changes" class="md-nav__link">
     <span class="md-ellipsis">
       Documentation Changes
@@ -3692,6 +3710,16 @@ make<span class="w"> </span>test-e2e<span class="w"> </span><span class="nv">E2E
 pushed into the other kubernetes repositories yet. In order to import the kubernetes/kubernetes repo, all of the
 associated repos have to pinned to the correct version specified by the kubernetes/kubernetes release. The
 <code>./hack/update-k8s-dependencies.sh</code> updates all the dependencies to the those correct versions.</p>
+<h2 id="upgrading-notifications-engine">Upgrading Notifications Engine<a class="headerlink" href="#upgrading-notifications-engine" title="Permanent link">&para;</a></h2>
+<p>Argo Rollouts has a dependency on the <a href="https://github.com/argoproj/notifications-engine">argoproj/notifications-engines</a> repo 
+for the notifications functionality and related documentation. </p>
+<p>This is updated by upgrading the Go library in <code>go.mod</code> by running the commands:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>get<span class="w"> </span>github.com/argoproj/notifications-engine@LATEST_COMMIT_HASH
+go<span class="w"> </span>mod<span class="w"> </span>tidy
+</code></pre></div>
+<p>Next the latest notifications documentation can be imported by running:</p>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span>docs
+</code></pre></div>
 <h2 id="documentation-changes">Documentation Changes<a class="headerlink" href="#documentation-changes" title="Permanent link">&para;</a></h2>
 <p>Modify contents in <code>docs/</code> directory.</p>
 <p>Preview changes in your browser by visiting http://localhost:8000 after running:</p>

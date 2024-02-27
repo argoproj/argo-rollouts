@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.9">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.11">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.f2e4d321.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.7e359304.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
@@ -3345,8 +3345,8 @@
 
   <h1>Overview</h1>
 
-<p>The notification services represent integration with services such as slack, email or custom webhook. Services are configured in <code>argocd-notifications-cm</code> ConfigMap
-using <code>service.&lt;type&gt;.(&lt;custom-name&gt;)</code> keys and might reference sensitive data from <code>argocd-notifications-secret</code> Secret. Following example demonstrates slack
+<p>The notification services represent integration with services such as slack, email or custom webhook. Services are configured in <code>argo-rollouts-notification-configmap</code> ConfigMap
+using <code>service.&lt;type&gt;.(&lt;custom-name&gt;)</code> keys and might reference sensitive data from <code>argo-rollouts-notification-secret</code> Secret. Following example demonstrates slack
 service configuration:</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">service.slack</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <span class="w">    </span><span class="no">token: $slack-token</span>
