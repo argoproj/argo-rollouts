@@ -108,8 +108,8 @@ github.com/aws/aws-sdk-go-v2/internal/ini v1.8.0 h1:hT8rVHwugYE2lEfdFE0QWVo81lF7
 github.com/aws/aws-sdk-go-v2/internal/ini v1.8.0/go.mod h1:8tu/lYfQfFe6IGnaOdrpVgEL2IrrDOf6/m9RQum4NkY=
 github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.36.1 h1:mQySuI87thHtcbZvEDjwUROGWikU6fqgpHklCBXpJU4=
 github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.36.1/go.mod h1:Z1ThUUTuCO9PArtiQsTmBGBv+38NGj+795Zl0n1jgiM=
-github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.27.0 h1:r9eCNAMs0C4gjkod/p4dsb+ZMOQAkdjPuin9QUUcjmY=
-github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.27.0/go.mod h1:7iQ5nRkEdgQWWOmaA+BBbe1pKX8/sceSO6NSNqVx/vk=
+github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.30.1 h1:eDD7nyDlMxlkGhWu0n92LYkuSQIIEwN5CffwiMDohh0=
+github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.30.1/go.mod h1:DGUI2cbxu24m0rNOm7DDmrCtTzR0U0FqE3XpBkR8+r8=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.0 h1:a33HuFlO0KsveiP90IUJh8Xr/cx9US2PqkSroaLc+o8=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.0/go.mod h1:SxIkWpByiGbhbHYTo9CMTUnx2G4p4ZQMrDPcRRy//1c=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.11.0 h1:SHN/umDLTmFTmYfI+gkanz6da3vK8Kvj/5wkqnTHbuA=
