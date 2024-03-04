@@ -187,6 +187,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 		if c.rollout.Spec.Strategy.Canary.TrafficRouting != nil && c.isReplicaSetReferenced(targetRS) {
 			// We might get here if user interrupted an an update in order to move back to stable.
 			c.log.Infof("Skip scale down of older RS '%s': still referenced", targetRS.Name)
+			c.reconcileStableAndCanaryService()
 			continue
 		}
 		if maxScaleDown <= 0 {

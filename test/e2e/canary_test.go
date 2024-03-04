@@ -222,6 +222,24 @@ spec:
 		ExpectCanaryStablePodCount(2, 4)
 }
 
+func (s *CanarySuite) TestRolloutScalingWithServiceSwitchDelay() {
+	s.Given().
+		RolloutObjects(`@functional/alb-canary-rollout-with-delay.yaml`).
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		UpdateSpec().
+		Sleep(1*time.Second).
+		ScaleRollout(3).
+		WaitForRolloutStatus("Paused").
+		Then().
+		ExpectRevisionPodCount("1", 3).
+		ExpectRevisionPodCount("2", 0).
+		ExpectRevisionPodCount("3", 1)
+}
+
 // TestReduceWeightAndHonorMaxUnavailable verifies we honor maxUnavailable when decreasing weight or aborting
 func (s *CanarySuite) TestReduceWeightAndHonorMaxUnavailable() {
 	s.Given().
