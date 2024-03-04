@@ -25,13 +25,13 @@ The wait time between retries is between `retryWaitMin` and `retryWaitMax`. If a
 
 Use the following steps to configure webhook:
 
-1 Register webhook in `argocd-notifications-cm` ConfigMap:
+1 Register webhook in `argo-rollouts-notification-configmap` ConfigMap:
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.webhook.<webhook-name>: |
     url: https://<hostname>/<optional-path>
@@ -50,7 +50,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   template.github-commit-status: |
     webhook:
@@ -82,7 +82,7 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.webhook.github: |
     url: https://api.github.com
@@ -97,7 +97,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.webhook.github: |
     url: https://api.github.com
@@ -128,7 +128,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.webhook.jenkins: |
     url: http://<jenkins-host>/job/<job-name>/build?token=<job-secret>
@@ -145,7 +145,7 @@ type: Opaque
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.webhook.form: |
     url: https://form.example.com
@@ -166,7 +166,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.webhook.slack_webhook: |
     url: https://hooks.slack.com/services/xxxxx

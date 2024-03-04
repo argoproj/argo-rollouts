@@ -15,13 +15,13 @@ Available parameters :
 3. Click "Add API Key" 
 4. Fill the Key with name `ArgoCD Notification`, role `Editor` and Time to Live `10y` (for example)
 5. Click on Add button
-6. Store apiKey in `argocd-notifications-secret` Secret and Copy your API Key and define it in `argocd-notifications-cm` ConfigMap
+6. Store apiKey in `argo-rollouts-notification-secret` Secret and Copy your API Key and define it in `argo-rollouts-notification-configmap` ConfigMap
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.grafana: |
     apiUrl: https://grafana.example.com/api

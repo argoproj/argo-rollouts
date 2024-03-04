@@ -43,7 +43,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.rocketchat: |
     email: $rocketchat-email

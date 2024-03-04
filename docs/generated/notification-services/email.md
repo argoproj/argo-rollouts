@@ -20,7 +20,7 @@ The following snippet contains sample Gmail service configuration:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.email.gmail: |
     username: $email-username
@@ -36,7 +36,7 @@ Without authentication:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.email.example: |
     host: smtp.example.com
@@ -52,7 +52,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   template.app-sync-succeeded: |
     email:

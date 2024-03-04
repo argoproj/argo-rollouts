@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/metric"
+	jobProvider "github.com/argoproj/argo-rollouts/metricproviders/job"
 
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
@@ -106,13 +107,13 @@ func NewController(cfg ControllerConfig) *Controller {
 
 	cfg.JobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
-			controller.enqueueIfCompleted(obj)
+			controller.enqueueJobIfCompleted(obj)
 		},
 		UpdateFunc: func(oldObj, newObj any) {
-			controller.enqueueIfCompleted(newObj)
+			controller.enqueueJobIfCompleted(newObj)
 		},
 		DeleteFunc: func(obj any) {
-			controller.enqueueIfCompleted(obj)
+			controller.enqueueJobIfCompleted(obj)
 		},
 	})
 
@@ -186,7 +187,21 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	return c.persistAnalysisRunStatus(run, newRun.Status)
 }
 
-func (c *Controller) enqueueIfCompleted(obj any) {
+func (c *Controller) jobParentNamespace(obj any) string {
+	job, ok := obj.(*batchv1.Job)
+	if !ok {
+		return ""
+	}
+	ns := job.GetNamespace()
+	if job.Annotations != nil {
+		if job.Annotations[jobProvider.AnalysisRunNamespaceAnnotationKey] != "" {
+			ns = job.Annotations[jobProvider.AnalysisRunNamespaceAnnotationKey]
+		}
+	}
+	return ns
+}
+
+func (c *Controller) enqueueJobIfCompleted(obj any) {
 	job, ok := obj.(*batchv1.Job)
 	if !ok {
 		return
@@ -194,7 +209,7 @@ func (c *Controller) enqueueIfCompleted(obj any) {
 	for _, condition := range job.Status.Conditions {
 		switch condition.Type {
 		case batchv1.JobFailed, batchv1.JobComplete:
-			controllerutil.EnqueueParentObject(job, register.AnalysisRunKind, c.enqueueAnalysis)
+			controllerutil.EnqueueParentObject(job, register.AnalysisRunKind, c.enqueueAnalysis, c.jobParentNamespace)
 			return
 		}
 	}

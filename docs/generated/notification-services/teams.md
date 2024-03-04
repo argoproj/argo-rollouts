@@ -12,13 +12,13 @@ The Teams notification service send message notifications using Teams bot and re
 2. Find `Incoming Webhook` microsoft app and click on it
 3. Press `Add to a team` -> select team and channel -> press `Set up a connector`
 4. Enter webhook name and upload image (optional)
-5. Press `Create` then copy webhook url and store it in `argocd-notifications-secret` and define it in `argocd-notifications-cm`
+5. Press `Create` then copy webhook url and store it in `argo-rollouts-notification-secret` and define it in `argo-rollouts-notification-configmap`
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.teams: |
     recipientUrls:

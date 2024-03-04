@@ -26,7 +26,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.pagerduty: |
     token: $pagerdutyToken
@@ -41,7 +41,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   template.rollout-aborted: |
     message: Rollout {{.rollout.metadata.name}} is aborted.
