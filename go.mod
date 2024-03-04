@@ -33,7 +33,7 @@ require (
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spaceapegames/go-wavefront v1.8.1
 	github.com/spf13/cobra v1.8.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/tj/assert v0.0.3
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/oauth2 v0.17.0
@@ -165,7 +165,7 @@ require (
 	github.com/slack-go/slack v0.12.2 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/objx v0.5.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fastjson v1.6.3 // indirect
