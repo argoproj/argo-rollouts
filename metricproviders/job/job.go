@@ -43,18 +43,20 @@ var (
 )
 
 type JobProvider struct {
-	kubeclientset kubernetes.Interface
-	jobLister     batchlisters.JobLister
-	logCtx        log.Entry
-	jobNamespace  string
+	kubeclientset       kubernetes.Interface
+	jobLister           batchlisters.JobLister
+	logCtx              log.Entry
+	jobNamespace        string
+	customJobKubeconfig bool
 }
 
-func NewJobProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, jobLister batchlisters.JobLister, jobNS string) *JobProvider {
+func NewJobProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, jobLister batchlisters.JobLister, jobNS string, customJobKubeconfig bool) *JobProvider {
 	return &JobProvider{
-		kubeclientset: kubeclientset,
-		logCtx:        logCtx,
-		jobLister:     jobLister,
-		jobNamespace:  jobNS,
+		kubeclientset:       kubeclientset,
+		logCtx:              logCtx,
+		jobLister:           jobLister,
+		jobNamespace:        jobNS,
+		customJobKubeconfig: customJobKubeconfig,
 	}
 }
 
@@ -85,7 +87,7 @@ func getJobIDSuffix(run *v1alpha1.AnalysisRun, metricName string) int {
 	return int(res.Count + res.Error + 1)
 }
 
-func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, jobNS string) (*batchv1.Job, error) {
+func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, jobNS string, customJobKubeconfig bool) (*batchv1.Job, error) {
 	ns := run.Namespace
 	if jobNS != "" {
 		ns = jobNS
@@ -102,11 +104,17 @@ func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, jobNS strin
 	jobAnnotations[AnalysisRunNameAnnotationKey] = run.Name
 	jobAnnotations[AnalysisRunNamespaceAnnotationKey] = run.Namespace
 	jobAnnotations[AnalysisRunMetricAnnotationKey] = metric.Name
+
+	ownerRef := []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)}
+
+	if ns != run.Namespace || customJobKubeconfig {
+		ownerRef = nil
+	}
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            newJobName(run, metric),
 			Namespace:       ns,
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)},
+			OwnerReferences: ownerRef,
 			Annotations:     jobAnnotations,
 			Labels:          jobLabels,
 		},
@@ -122,7 +130,7 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1a
 		StartedAt: &now,
 		Phase:     v1alpha1.AnalysisPhaseRunning,
 	}
-	job, err := newMetricJob(run, metric, p.jobNamespace)
+	job, err := newMetricJob(run, metric, p.jobNamespace, p.customJobKubeconfig)
 	if err != nil {
 		p.logCtx.Errorf("job initialization failed: %v", err)
 		return metricutil.MarkMeasurementError(measurement, err)
@@ -139,8 +147,17 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1a
 			p.logCtx.Errorf("job create (verify) %s failed: %v", job.Name, createErr)
 			return metricutil.MarkMeasurementError(measurement, createErr)
 		}
-		controllerRef := metav1.GetControllerOf(existingJob)
-		if run.UID != controllerRef.UID {
+		ownerUID := ""
+		// if custom kubeconfig or different namespace is used owner ref is absent,
+		// use run uid label to get owner analysis run uid
+		if p.customJobKubeconfig || job.Namespace != run.Namespace {
+			ownerUID = job.Labels[AnalysisRunUIDLabelKey]
+		} else {
+			controllerRef := metav1.GetControllerOf(existingJob)
+			ownerUID = string(controllerRef.UID)
+		}
+
+		if string(run.UID) != ownerUID {
 			// NOTE: we don't bother to check for semantic equality. UID is good enough
 			p.logCtx.Errorf("job create (uid check) %s failed: %v", job.Name, createErr)
 			return metricutil.MarkMeasurementError(measurement, createErr)
