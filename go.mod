@@ -1,8 +1,6 @@
 module github.com/argoproj/argo-rollouts
 
-go 1.21
-
-toolchain go1.21.3
+go 1.20
 
 require (
 	github.com/antonmedv/expr v1.15.5
