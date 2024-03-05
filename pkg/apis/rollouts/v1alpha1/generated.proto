@@ -1607,6 +1607,7 @@ message RolloutTrafficRouting {
   // Plugins holds specific configuration that traffic router plugins can use for routing traffic
   map<string, bytes> plugins = 10;
 
+  // MaxTrafficWeight The total weight of traffic. If unspecified, it defaults to 100
   optional int32 maxTrafficWeight = 11;
 }
 

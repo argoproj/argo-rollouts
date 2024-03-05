@@ -2306,7 +2306,8 @@
         },
         "maxTrafficWeight": {
           "type": "integer",
-          "format": "int32"
+          "format": "int32",
+          "title": "MaxTrafficWeight The total weight of traffic. If unspecified, it defaults to 100"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"

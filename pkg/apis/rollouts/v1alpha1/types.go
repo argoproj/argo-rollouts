@@ -386,6 +386,7 @@ type RolloutTrafficRouting struct {
 	// Plugins holds specific configuration that traffic router plugins can use for routing traffic
 	Plugins map[string]json.RawMessage `json:"plugins,omitempty" protobuf:"bytes,10,opt,name=plugins"`
 
+	// MaxTrafficWeight The total weight of traffic. If unspecified, it defaults to 100
 	MaxTrafficWeight *int32 `json:"maxTrafficWeight,omitempty" protobuf:"varint,11,opt,name=maxTrafficWeight"`
 }
 
