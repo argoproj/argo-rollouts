@@ -38,7 +38,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/oauth2 v0.17.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240123012728-ef4313101c80
-	google.golang.org/grpc v1.62.0
+	google.golang.org/grpc v1.62.1
 	google.golang.org/protobuf v1.32.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.26.11
