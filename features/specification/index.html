@@ -3696,6 +3696,9 @@
 <span class="w">      </span><span class="c1"># will achieve traffic split via a weighted replica counts between</span>
 <span class="w">      </span><span class="c1"># the canary and stable ReplicaSet.</span>
 <span class="w">      </span><span class="nt">trafficRouting</span><span class="p">:</span>
+<span class="w">        </span><span class="c1"># Supports nginx and plugins only: This lets you control the denominator or total weight of traffic.</span>
+<span class="w">        </span><span class="c1"># The total weight of traffic. If unspecified, it defaults to 100</span>
+<span class="w">        </span><span class="nt">maxTrafficWeight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
 <span class="w">        </span><span class="c1"># This is a list of routes that Argo Rollouts has the rights to manage it is currently only required for</span>
 <span class="w">        </span><span class="c1"># setMirrorRoute and setHeaderRoute. The order of managedRoutes array also sets the precedence of the route</span>
 <span class="w">        </span><span class="c1"># in the traffic router. Argo Rollouts will place these routes in the order specified above any routes already</span>
