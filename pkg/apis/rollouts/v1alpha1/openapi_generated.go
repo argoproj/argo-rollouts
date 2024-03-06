@@ -4729,6 +4729,13 @@ func schema_pkg_apis_rollouts_v1alpha1_RolloutTrafficRouting(ref common.Referenc
 							},
 						},
 					},
+					"maxTrafficWeight": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxTrafficWeight The total weight of traffic. If unspecified, it defaults to 100",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},
