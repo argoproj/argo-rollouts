@@ -923,6 +923,9 @@ spec:
                               - name
                               type: object
                             type: array
+                          maxTrafficWeight:
+                            format: int32
+                            type: integer
                           nginx:
                             properties:
                               additionalIngressAnnotations:

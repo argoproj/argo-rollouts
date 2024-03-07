@@ -386,6 +386,9 @@ spec:
       # will achieve traffic split via a weighted replica counts between
       # the canary and stable ReplicaSet.
       trafficRouting:
+        # Supports nginx and plugins only: This lets you control the denominator or total weight of traffic.
+        # The total weight of traffic. If unspecified, it defaults to 100
+        maxTrafficWeight: 1000
         # This is a list of routes that Argo Rollouts has the rights to manage it is currently only required for
         # setMirrorRoute and setHeaderRoute. The order of managedRoutes array also sets the precedence of the route
         # in the traffic router. Argo Rollouts will place these routes in the order specified above any routes already

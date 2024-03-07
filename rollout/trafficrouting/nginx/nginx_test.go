@@ -574,6 +574,52 @@ func TestCanaryIngressAdditionalAnnotations(t *testing.T) {
 	}
 }
 
+func TestCanaryIngressMaxWeightInTrafficRouting(t *testing.T) {
+	maxWeights := []*int32{nil, pointer.Int32(1000)}
+	for _, maxWeight := range maxWeights {
+		tests := generateMultiIngressTestData()
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				r := Reconciler{
+					cfg: ReconcilerConfig{
+						Rollout: fakeRollout(stableService, canaryService, test.singleIngress, test.multiIngress),
+					},
+				}
+				r.cfg.Rollout.Spec.Strategy.Canary.TrafficRouting.MaxTrafficWeight = maxWeight
+				for _, ing := range test.ingresses {
+					stable := extensionsIngress(ing, 80, stableService)
+					canary := extensionsIngress("canary-ingress", 80, canaryService)
+					canary.SetAnnotations(map[string]string{
+						"nginx.ingress.kubernetes.io/canary":        "true",
+						"nginx.ingress.kubernetes.io/canary-weight": "10",
+					})
+					stableIngress := ingressutil.NewLegacyIngress(stable)
+					canaryIngress := ingressutil.NewLegacyIngress(canary)
+
+					desiredCanaryIngress, err := r.canaryIngress(stableIngress, ingressutil.GetCanaryIngressName(r.cfg.Rollout.GetName(), ing), 15)
+					assert.Nil(t, err, "No error returned when calling canaryIngress")
+
+					checkBackendService(t, desiredCanaryIngress, canaryService)
+
+					patch, modified, err := ingressutil.BuildIngressPatch(canaryIngress.Mode(), canaryIngress, desiredCanaryIngress,
+						ingressutil.WithAnnotations(), ingressutil.WithLabels(), ingressutil.WithSpec())
+					assert.Nil(t, err, "compareCanaryIngresses returns no error")
+					assert.True(t, modified, "compareCanaryIngresses returns modified=true")
+					if maxWeight == nil {
+						assert.Equal(t,
+							"{\"metadata\":{\"annotations\":{\"nginx.ingress.kubernetes.io/canary-weight\":\"15\"}}}", string(patch), "compareCanaryIngresses returns expected patch")
+					} else {
+						assert.Equal(t,
+							fmt.Sprintf("{\"metadata\":{\"annotations\":{\"nginx.ingress.kubernetes.io/canary-weight\":\"15\",\"nginx.ingress.kubernetes.io/canary-weight-total\":\"%d\"}}}", *maxWeight),
+							string(patch), "compareCanaryIngresses returns expected patch")
+					}
+				}
+			})
+		}
+	}
+
+}
+
 func TestReconciler_canaryIngress(t *testing.T) {
 	tests := generateMultiIngressTestData()
 	for _, test := range tests {

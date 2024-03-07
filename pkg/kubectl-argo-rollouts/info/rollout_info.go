@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/defaults"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 func NewRolloutInfo(
@@ -58,12 +59,12 @@ func NewRolloutInfo(
 		currentStep, _ := replicasetutil.GetCurrentCanaryStep(ro)
 
 		if currentStep == nil {
-			roInfo.ActualWeight = "100"
+			roInfo.ActualWeight = fmt.Sprintf("%d", weightutil.MaxTrafficWeight(ro))
 		} else if ro.Status.AvailableReplicas > 0 {
 			if ro.Spec.Strategy.Canary.TrafficRouting == nil {
 				for _, rs := range roInfo.ReplicaSets {
 					if rs.Canary {
-						roInfo.ActualWeight = fmt.Sprintf("%d", (rs.Available*100)/ro.Status.AvailableReplicas)
+						roInfo.ActualWeight = fmt.Sprintf("%d", (rs.Available*weightutil.MaxTrafficWeight(ro))/ro.Status.AvailableReplicas)
 					}
 				}
 			} else {
