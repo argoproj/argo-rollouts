@@ -175,7 +175,8 @@ func ValidateAnalysisTemplateWithType(rollout *v1alpha1.Rollout, template *v1alp
 		} else {
 			for _, metric := range resolvedMetrics {
 				effectiveCount := metric.EffectiveCount()
-				if effectiveCount == nil {
+				// Count is ignored when using timeout analysis
+				if metric.Timeout == "" && effectiveCount == nil {
 					msg := fmt.Sprintf("AnalysisTemplate %s has metric %s which runs indefinitely. Invalid value for count: %s", templateName, metric.Name, metric.Count)
 					allErrs = append(allErrs, field.Invalid(fldPath, templateName, msg))
 				}

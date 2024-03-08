@@ -3007,6 +3007,9 @@ spec:
                       type: object
                     successCondition:
                       type: string
+                    timeout:
+                      type: string
+                      default: ""
                   required:
                   - name
                   - provider
