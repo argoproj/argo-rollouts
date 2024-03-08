@@ -2510,6 +2510,11 @@ func (in *RolloutTrafficRouting) DeepCopyInto(out *RolloutTrafficRouting) {
 			(*out)[key] = outVal
 		}
 	}
+	if in.MaxTrafficWeight != nil {
+		in, out := &in.MaxTrafficWeight, &out.MaxTrafficWeight
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
