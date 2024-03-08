@@ -3426,12 +3426,12 @@ tested before deleting the original Deployment.</p>
 <li>Create a Rollout resource.</li>
 <li>Reference an existing Deployment using <code>workloadRef</code> field.</li>
 <li>In the <code>workloadRef</code> field set the <code>scaleDown</code> attribute, which specifies how the Deployment should be scaled down. There are three options available:</li>
-<li>"never": the Deployment is not scaled down</li>
-<li>"onsuccess": the Deployment is scaled down after the Rollout becomes healthy</li>
-<li>"progressively": as the Rollout is scaled up the Deployment is scaled down.
-Alternatively, manually scale down an existing Deployment by changing replicas field of an existing Deployment to zero.</li>
-<li>To perform an update, the change should be made to the Pod template field of the Deployment.</li>
+<li><code>never</code>: the Deployment is not scaled down</li>
+<li><code>onsuccess</code>: the Deployment is scaled down after the Rollout becomes healthy</li>
+<li><code>progressively</code>: as the Rollout is scaled up the Deployment is scaled down.</li>
 </ol>
+<p>Alternatively, manually scale down an existing Deployment by changing replicas field of an existing Deployment to zero.
+1. To perform an update, the change should be made to the Pod template field of the Deployment.</p>
 <p>Below is an example of a Rollout resource referencing a Deployment.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span><span class="w">               </span><span class="c1"># Create a rollout resource</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rollout</span>
