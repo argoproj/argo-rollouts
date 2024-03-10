@@ -1537,6 +1537,48 @@ func TestSecretResolution(t *testing.T) {
 	assert.Contains(t, secretList, secretData)
 }
 
+func TestFieldReferenceSuccess(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+	c, _, _ := f.newController(noResyncPeriodFunc)
+	argName := "namespace"
+	namespaceValue := "outerspace"
+	run := &v1alpha1.AnalysisRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespaceValue,
+		},
+		Spec: v1alpha1.AnalysisRunSpec{
+			Args: []v1alpha1.Argument{{
+				Name: argName,
+				ValueFrom: &v1alpha1.ValueFrom{
+					FieldRef: &v1alpha1.FieldRef{
+						FieldPath: "metadata.namespace",
+					},
+				},
+			}},
+			Metrics: []v1alpha1.Metric{
+				{
+					Name: "success-metric",
+					Provider: v1alpha1.MetricProvider{
+						Job: &v1alpha1.JobMetric{},
+					},
+				},
+			},
+			DryRun: []v1alpha1.DryRun{{
+				MetricName: "success-metric",
+			}},
+		},
+	}
+	f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+	f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
+	newRun := c.reconcileAnalysisRun(run)
+	assert.Equal(t, namespaceValue, run.Namespace)
+	assert.Equal(t, argName, run.Spec.Args[0].Name)
+	assert.Equal(t, "metadata.namespace", run.Spec.Args[0].ValueFrom.FieldRef.FieldPath)
+	assert.Equal(t, namespaceValue, newRun.Namespace)
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+}
+
 // TestAssessMetricFailureInconclusiveOrError verifies that assessMetricFailureInconclusiveOrError returns the correct phases and messages
 // for Failed, Inconclusive, and Error metrics respectively
 func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
