@@ -571,6 +571,26 @@ spec:
                                     - templateName
                                     type: object
                                   type: array
+                                analysisRunMetadata:
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
+                                dryRun:
+                                  items:
+                                    properties:
+                                      metricName:
+                                        type: string
+                                    required:
+                                    - metricName
+                                    type: object
+                                  type: array
                                 duration:
                                   type: string
                                 templates:
@@ -903,6 +923,9 @@ spec:
                               - name
                               type: object
                             type: array
+                          maxTrafficWeight:
+                            format: int32
+                            type: integer
                           nginx:
                             properties:
                               additionalIngressAnnotations:

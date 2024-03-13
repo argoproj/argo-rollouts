@@ -127,7 +127,7 @@ func ValidateAnalysisTemplatesWithType(rollout *v1alpha1.Rollout, templates Anal
 
 	templateNames := GetAnalysisTemplateNames(templates)
 	value := fmt.Sprintf("templateNames: %s", templateNames)
-	_, err := analysisutil.NewAnalysisRunFromTemplates(templates.AnalysisTemplates, templates.ClusterAnalysisTemplates, buildAnalysisArgs(templates.Args, rollout), []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, "", "", "")
+	_, err := analysisutil.NewAnalysisRunFromTemplates(templates.AnalysisTemplates, templates.ClusterAnalysisTemplates, buildAnalysisArgs(templates.Args, rollout), []v1alpha1.DryRun{}, []v1alpha1.MeasurementRetention{}, make(map[string]string), make(map[string]string), "", "", "")
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath, value, err.Error()))
 		return allErrs
@@ -136,7 +136,7 @@ func ValidateAnalysisTemplatesWithType(rollout *v1alpha1.Rollout, templates Anal
 	if rollout.Spec.Strategy.Canary != nil {
 		for _, step := range rollout.Spec.Strategy.Canary.Steps {
 			if step.Analysis != nil {
-				_, err := analysisutil.NewAnalysisRunFromTemplates(templates.AnalysisTemplates, templates.ClusterAnalysisTemplates, buildAnalysisArgs(templates.Args, rollout), step.Analysis.DryRun, step.Analysis.MeasurementRetention, "", "", "")
+				_, err := analysisutil.NewAnalysisRunFromTemplates(templates.AnalysisTemplates, templates.ClusterAnalysisTemplates, buildAnalysisArgs(templates.Args, rollout), step.Analysis.DryRun, step.Analysis.MeasurementRetention, make(map[string]string), make(map[string]string), "", "", "")
 				if err != nil {
 					allErrs = append(allErrs, field.Invalid(fldPath, value, err.Error()))
 					return allErrs

@@ -222,7 +222,7 @@ func EnqueueRateLimited(obj any, q workqueue.RateLimitingInterface) {
 // It then enqueues that ownerType resource to be processed. If the object does not
 // have an appropriate OwnerReference, it will simply be skipped.
 // This function assumes parent object is in the same namespace as the child
-func EnqueueParentObject(obj any, ownerType string, enqueue func(obj any)) {
+func EnqueueParentObject(obj any, ownerType string, enqueue func(obj any), parentNamespaceGetter ...func(any) string) {
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {
@@ -245,6 +245,11 @@ func EnqueueParentObject(obj any, ownerType string, enqueue func(obj any)) {
 			return
 		}
 		namespace := object.GetNamespace()
+		if len(parentNamespaceGetter) > 0 {
+			// If the parentNamespaceGetter is provided, use it to get the parent namespace
+			// only uses the first parentNamespaceGetter func
+			namespace = parentNamespaceGetter[0](obj)
+		}
 		parent := cache.ExplicitKey(namespace + "/" + ownerRef.Name)
 		log.Infof("Enqueueing parent of %s/%s: %s %s", namespace, object.GetName(), ownerRef.Kind, parent)
 		enqueue(parent)

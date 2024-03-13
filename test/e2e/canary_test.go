@@ -465,6 +465,31 @@ spec:
 		WaitForRolloutStatus("Healthy")
 }
 
+// TestCanaryScaleDownDelayWithProgressDeadline verifies that a rollout with a pending scale down doesn't trigger a ProgressDeadlineExceeded event and renders the rollout degraded
+func (s *CanarySuite) TestCanaryScaleDownDelayWithProgressDeadline() {
+	s.Given().
+		HealthyRollout(`@functional/canary-scaledowndelay.yaml`).
+		When().
+		UpdateSpec(`
+spec:
+  progressDeadlineSeconds: 5`).
+		Then().
+		When().
+		UpdateSpec(`
+spec:
+  template:
+    metadata:
+      annotations:
+        rev: two`). // update to revision 2
+		WaitForRolloutStatus("Healthy").
+		Sleep(10 * time.Second). // sleep > progressDeadlineSeconds
+		Then().
+		Assert(func(t *fixtures.Then) {
+			status := string(t.GetRollout().Status.Phase)
+			assert.Equal(s.T(), "Healthy", status)
+		})
+}
+
 // TestCanaryScaleDownDelay verifies canary uses a scaleDownDelay when traffic routing is used,
 // and verifies the annotation is properly managed
 func (s *CanarySuite) TestCanaryScaleDownDelay() {
