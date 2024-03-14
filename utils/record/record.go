@@ -246,9 +246,11 @@ func getAnalysisRunsFilterWithLabels(ro v1alpha1.Rollout, arInformer argoinforme
 
 	revision, _ := annotations.GetRevisionAnnotation(&ro)
 	ars, err := arInformer.Lister().AnalysisRuns(ro.Namespace).List(labels.SelectorFromSet(set))
-
-	if err != nil || len(ars) == 0 {
-		return nil, err
+	if err != nil {
+		return nil, fmt.Errorf("error getting analysisruns from informer for namespace: %s error: %w", ro.Namespace, err)
+	}
+	if len(ars) == 0 {
+		return nil, nil
 	}
 
 	filteredArs := make([]*v1alpha1.AnalysisRun, 0, len(ars))
@@ -259,7 +261,7 @@ func getAnalysisRunsFilterWithLabels(ro v1alpha1.Rollout, arInformer argoinforme
 		}
 	}
 
-	sort.Slice(filteredArs[:], func(i, j int) bool {
+	sort.Slice(filteredArs, func(i, j int) bool {
 		ts1 := filteredArs[i].ObjectMeta.CreationTimestamp.Time
 		ts2 := filteredArs[j].ObjectMeta.CreationTimestamp.Time
 		return ts1.After(ts2)
@@ -269,14 +271,12 @@ func getAnalysisRunsFilterWithLabels(ro v1alpha1.Rollout, arInformer argoinforme
 	arBytes, err := json.Marshal(filteredArs)
 
 	if err != nil {
-		log.Errorf("Failed to fetch analysisRuns for rollout revision: %s, err: %v", string(revision), err)
-		return nil, err
+		return nil, fmt.Errorf("Failed to marshal analysisRuns for rollout revision: %s, err: %w", string(revision), err)
 	}
 
 	err = json.Unmarshal(arBytes, &arsObj)
 	if err != nil {
-		log.Errorf("Failed to fetch analysisRuns for rollout revision: %s, err: %v", string(revision), err)
-		return nil, err
+		return nil, fmt.Errorf("Failed to unmarshal analysisRuns for rollout revision: %s, err: %w", string(revision), err)
 	}
 
 	return arsObj, nil
@@ -307,7 +307,7 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 				arsObj, err := getAnalysisRunsFilterWithLabels(ro, arInformer)
 
 				if err != nil {
-					log.Errorf("Error fetching analysisRuns for namespace: %s",
+					log.Errorf("Error calling getAnalysisRunsFilterWithLabels for namespace: %s",
 						ro.Namespace)
 					return vars
 
