@@ -84,6 +84,17 @@ spec:
                   - templateName
                   type: object
                 type: array
+              analysisRunMetadata:
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  labels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
               dryRun:
                 items:
                   properties:

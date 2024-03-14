@@ -1963,6 +1963,17 @@
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutExperimentStepAnalysisTemplateRef"
           },
           "title": "Analyses reference which analysis templates to run with the experiment\n+patchMergeKey=name\n+patchStrategy=merge"
+        },
+        "dryRun": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.DryRun"
+          },
+          "title": "DryRun object contains the settings for running the analysis in Dry-Run mode\n+patchMergeKey=metricName\n+patchStrategy=merge\n+optional"
+        },
+        "analysisRunMetadata": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisRunMetadata",
+          "title": "AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns\n+optional"
         }
       },
       "title": "RolloutExperimentStep defines a template that is used to create a experiment for a step"
@@ -2292,6 +2303,11 @@
             "format": "byte"
           },
           "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nPlugins holds specific configuration that traffic router plugins can use for routing traffic"
+        },
+        "maxTrafficWeight": {
+          "type": "integer",
+          "format": "int32",
+          "title": "MaxTrafficWeight The total weight of traffic. If unspecified, it defaults to 100"
         }
       },
       "title": "RolloutTrafficRouting hosts all the different configuration for supported service meshes to enable more fine-grained traffic routing"

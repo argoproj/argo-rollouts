@@ -734,3 +734,118 @@ func TestTerminateAnalysisRuns(t *testing.T) {
 	patchedAr := f.getPatchedAnalysisRunAsObj(arPatchIdx)
 	assert.True(t, patchedAr.Spec.Terminate)
 }
+
+// TestCreateAnalysisRunWithMetadataAndDryRun ensures we create the AnalysisRun with the appropriate labels, annotations, and dry-run options when provided in the experiment
+func TestCreateAnalysisRunWithMetadataAndDryRun(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+	e.Spec.AnalysisRunMetadata = v1alpha1.AnalysisRunMetadata{
+		Labels: map[string]string{
+			"foo":  "bar",
+			"foo2": "bar2",
+		},
+		Annotations: map[string]string{
+			"bar":  "foo",
+			"bar2": "foo2",
+		},
+	}
+	e.Spec.DryRun = []v1alpha1.DryRun{
+		{
+			MetricName: "someMetric",
+		},
+		{
+			MetricName: "someOtherMetric",
+		},
+	}
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+
+	f := newFixture(t, e, rs, &aTemplates[0])
+	defer f.Close()
+
+	analysisRunIdx := f.expectCreateAnalysisRunAction(ar)
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
+
+	analysisRun := f.getCreatedAnalysisRun(analysisRunIdx)
+	assert.Len(t, analysisRun.ObjectMeta.Labels, 2)
+	assert.Equal(t, analysisRun.ObjectMeta.Labels["foo"], "bar")
+	assert.Equal(t, analysisRun.ObjectMeta.Labels["foo2"], "bar2")
+	assert.Len(t, analysisRun.ObjectMeta.Annotations, 2)
+	assert.Equal(t, analysisRun.ObjectMeta.Annotations["bar"], "foo")
+	assert.Equal(t, analysisRun.ObjectMeta.Annotations["bar2"], "foo2")
+
+	assert.Len(t, analysisRun.Spec.DryRun, 2)
+	assert.Equal(t, analysisRun.Spec.DryRun[0].MetricName, "someMetric")
+	assert.Equal(t, analysisRun.Spec.DryRun[1].MetricName, "someOtherMetric")
+}
+
+// TestCreateAnalysisRunWithMetadataAndDryRunWithClusterScope tests the same thing as TestCreateAnalysisRunWithMetadataAndDryRun, with a cluster scope analysis template
+func TestCreateAnalysisRunWithMetadataAndDryRunWithClusterScope(t *testing.T) {
+	templates := generateTemplates("bar")
+	aTemplates := generateClusterAnalysisTemplates("success-rate")
+	e := newExperiment("foo", templates, "")
+	e.Spec.Analyses = []v1alpha1.ExperimentAnalysisTemplateRef{
+		{
+			Name:         "success-rate",
+			TemplateName: aTemplates[0].Name,
+			ClusterScope: true,
+		},
+	}
+	e.Status.Phase = v1alpha1.AnalysisPhaseRunning
+	e.Status.AvailableAt = now()
+	e.Spec.AnalysisRunMetadata = v1alpha1.AnalysisRunMetadata{
+		Labels: map[string]string{
+			"foo":  "bar",
+			"foo2": "bar2",
+		},
+		Annotations: map[string]string{
+			"bar":  "foo",
+			"bar2": "foo2",
+		},
+	}
+	e.Spec.DryRun = []v1alpha1.DryRun{
+		{
+			MetricName: "someMetric",
+		},
+		{
+			MetricName: "someOtherMetric",
+		},
+	}
+	rs := templateToRS(e, templates[0], 1)
+	ar := analysisTemplateToRun("success-rate", e, &aTemplates[0].Spec)
+
+	f := newFixture(t, e, rs, &aTemplates[0])
+	defer f.Close()
+
+	analysisRunIdx := f.expectCreateAnalysisRunAction(ar)
+	patchIdx := f.expectPatchExperimentAction(e)
+	f.run(getKey(e, t))
+
+	patchedEx := f.getPatchedExperimentAsObj(patchIdx)
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, patchedEx.Status.AnalysisRuns[0].Phase)
+
+	analysisRun := f.getCreatedAnalysisRun(analysisRunIdx)
+	assert.Len(t, analysisRun.ObjectMeta.Labels, 2)
+	assert.Equal(t, analysisRun.ObjectMeta.Labels["foo"], "bar")
+	assert.Equal(t, analysisRun.ObjectMeta.Labels["foo2"], "bar2")
+	assert.Len(t, analysisRun.ObjectMeta.Annotations, 2)
+	assert.Equal(t, analysisRun.ObjectMeta.Annotations["bar"], "foo")
+	assert.Equal(t, analysisRun.ObjectMeta.Annotations["bar2"], "foo2")
+
+	assert.Len(t, analysisRun.Spec.DryRun, 2)
+	assert.Equal(t, analysisRun.Spec.DryRun[0].MetricName, "someMetric")
+	assert.Equal(t, analysisRun.Spec.DryRun[1].MetricName, "someOtherMetric")
+}

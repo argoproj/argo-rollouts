@@ -247,6 +247,23 @@ pushed into the other kubernetes repositories yet. In order to import the kubern
 associated repos have to pinned to the correct version specified by the kubernetes/kubernetes release. The
 `./hack/update-k8s-dependencies.sh` updates all the dependencies to the those correct versions.
 
+## Upgrading Notifications Engine
+Argo Rollouts has a dependency on the [argoproj/notifications-engines](https://github.com/argoproj/notifications-engine) repo 
+for the notifications functionality and related documentation. 
+
+This is updated by upgrading the Go library in `go.mod` by running the commands:
+
+```shell
+go get github.com/argoproj/notifications-engine@LATEST_COMMIT_HASH
+go mod tidy
+```
+
+Next the latest notifications documentation can be imported by running:
+
+```shell
+make docs
+```
+
 ## Documentation Changes
 
 Modify contents in `docs/` directory.
