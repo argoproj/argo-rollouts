@@ -142,7 +142,7 @@ func newCommand() *cobra.Command {
 			instanceIDTweakListFunc := func(options *metav1.ListOptions) {
 				options.LabelSelector = instanceIDSelector.String()
 			}
-			jobKubeClient, err := metricproviders.GetAnalysisJobClientset(kubeClient)
+			jobKubeClient, _, err := metricproviders.GetAnalysisJobClientset(kubeClient)
 			checkError(err)
 			jobNs := metricproviders.GetAnalysisJobNamespace()
 			if jobNs == "" {
