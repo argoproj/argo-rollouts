@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/utils/defaults"
@@ -52,17 +53,30 @@ func GetWorkloadGenerationAnnotation(ro *v1alpha1.Rollout) (int32, bool) {
 }
 
 // GetRevisionAnnotation returns revision of rollout
-func GetRevisionAnnotation(ro *v1alpha1.Rollout) (int32, bool) {
-	if ro == nil {
+func GetRevisionAnnotation(anyObj metav1.Object) (int32, bool) {
+
+	if anyObj == nil {
 		return 0, false
 	}
-	annotationValue, ok := ro.Annotations[RevisionAnnotation]
-	if !ok {
-		return int32(0), false
+	var obj interface{}
+	switch anyObj.(type) {
+	case *v1alpha1.Rollout:
+		obj = anyObj.(*v1alpha1.Rollout)
+	case *v1alpha1.AnalysisRun:
+		obj = anyObj.(*v1alpha1.AnalysisRun)
+	default:
+		log.Warnf("object not supported type: %T", anyObj)
+		return 0, false
 	}
+
+	annotationValue, ok := obj.(metav1.Object).GetAnnotations()[RevisionAnnotation]
+	if !ok {
+		return 0, false
+	}
+
 	intValue, err := strconv.ParseInt(annotationValue, 10, 32)
 	if err != nil {
-		log.Warnf("Cannot convert the value %q with annotation key %q for the replica set %q", annotationValue, RevisionAnnotation, ro.Name)
+		log.Warnf("Cannot convert the value %q with annotation key %q for the object %q", annotationValue, RevisionAnnotation, anyObj.GetName())
 		return int32(0), false
 	}
 	return int32(intValue), true
