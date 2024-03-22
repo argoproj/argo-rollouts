@@ -3626,7 +3626,7 @@
 <li>Beginning at a fully promoted, steady-state, a revision 1 ReplicaSet is pointed to by both the <code>activeService</code> and <code>previewService</code>.</li>
 <li>A user initiates an update by modifying the pod template (<code>spec.template.spec</code>).</li>
 <li>The revision 2 ReplicaSet is created with size 0.</li>
-<li>The preview service is modified to point to the revision 2 ReplicaSet. The <code>activeService</code> remains pointing to revision 1.</li>
+<li>The <code>previewService</code> is modified to point to the revision 2 ReplicaSet. The <code>activeService</code> remains pointing to revision 1.</li>
 <li>The revision 2 ReplicaSet is scaled to either <code>spec.replicas</code> or <code>previewReplicaCount</code> if set.</li>
 <li>Once revision 2 ReplicaSet Pods are fully available, <code>prePromotionAnalysis</code> begins.</li>
 <li>Upon success of <code>prePromotionAnalysis</code>, the blue/green pauses if <code>autoPromotionEnabled</code> is false, or <code>autoPromotionSeconds</code> is non-zero.</li>
