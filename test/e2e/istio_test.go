@@ -1,6 +1,3 @@
-//go:build e2e
-// +build e2e
-
 package e2e
 
 import (
@@ -489,6 +486,32 @@ func (s *IstioSuite) TestIstioSubsetSplitExperimentStep() {
 			assert.Equal(s.T(), rs2.Spec.Template.Labels[v1alpha1.DefaultRolloutUniqueLabelKey], destrule.Spec.Subsets[1].Labels[v1alpha1.DefaultRolloutUniqueLabelKey]) // canary
 		}).
 		ExpectRevisionPodCount("1", 1) // don't scale down old replicaset since it will be within scaleDownDelay
+
+	s.TearDownSuite()
+}
+
+func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
+	s.Given().
+		RolloutObjects("@istio/istio-subset-split-in-stable-downscale-after-canary-abort.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		PromoteRolloutFull().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		ScaleRollout(1).
+		Sleep(5 * time.Second).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			stableWeight := vsvc.Spec.HTTP[0].Route[0].Weight
+			canaryWeight := vsvc.Spec.HTTP[0].Route[1].Weight
+
+			assert.Equal(s.T(), int64(100), stableWeight)
+			assert.Equal(s.T(), int64(0), canaryWeight)
+		})
 
 	s.TearDownSuite()
 }
