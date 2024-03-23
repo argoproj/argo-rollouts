@@ -490,7 +490,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 
 	notificationsSecret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-notifications-secret",
+			Name:      "argo-rollouts-notification-secret",
 			Namespace: "default",
 		},
 		Data: expectedSecrets,
