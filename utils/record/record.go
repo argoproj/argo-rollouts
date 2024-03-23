@@ -7,11 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
+	argoinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
-
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
@@ -20,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	k8sinformers "k8s.io/client-go/informers"
@@ -32,6 +34,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	rolloutscheme "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned/scheme"
+	"github.com/argoproj/argo-rollouts/utils/annotations"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 )
 
@@ -235,13 +238,83 @@ func (e *EventRecorderAdapter) K8sRecorder() record.EventRecorder {
 	return e.Recorder
 }
 
-func NewAPIFactorySettings() api.Settings {
+func getAnalysisRunsFilterWithLabels(ro v1alpha1.Rollout, arInformer argoinformers.AnalysisRunInformer) (any, error) {
+
+	set := labels.Set(map[string]string{
+		v1alpha1.DefaultRolloutUniqueLabelKey: ro.Status.CurrentPodHash,
+	})
+
+	revision, _ := annotations.GetRevisionAnnotation(&ro)
+	ars, err := arInformer.Lister().AnalysisRuns(ro.Namespace).List(labels.SelectorFromSet(set))
+	if err != nil {
+		return nil, fmt.Errorf("error getting analysisruns from informer for namespace: %s error: %w", ro.Namespace, err)
+	}
+	if len(ars) == 0 {
+		return nil, nil
+	}
+
+	filteredArs := make([]*v1alpha1.AnalysisRun, 0, len(ars))
+	for _, ar := range ars {
+		arRevision, _ := annotations.GetRevisionAnnotation(ar)
+		if arRevision == revision {
+			filteredArs = append(filteredArs, ar)
+		}
+	}
+
+	sort.Slice(filteredArs, func(i, j int) bool {
+		ts1 := filteredArs[i].ObjectMeta.CreationTimestamp.Time
+		ts2 := filteredArs[j].ObjectMeta.CreationTimestamp.Time
+		return ts1.After(ts2)
+	})
+
+	var arsObj any
+	arBytes, err := json.Marshal(filteredArs)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshal analysisRuns for rollout revision: %s, err: %w", string(revision), err)
+	}
+
+	err = json.Unmarshal(arBytes, &arsObj)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal analysisRuns for rollout revision: %s, err: %w", string(revision), err)
+	}
+
+	return arsObj, nil
+}
+
+func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Settings {
 	return api.Settings{
 		SecretName:    NotificationSecret,
 		ConfigMapName: NotificationConfigMap,
 		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 			return func(obj map[string]any, dest services.Destination) map[string]any {
-				return map[string]any{"rollout": obj, "time": timeExprs}
+
+				var vars = map[string]any{"rollout": obj, "time": timeExprs}
+
+				if arInformer == nil {
+					log.Infof("Notification is not set for analysisRun Informer: %s", dest)
+					return vars
+				}
+
+				var ro v1alpha1.Rollout
+				err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj, &ro)
+
+				if err != nil {
+					log.Errorf("unable to send notification: bad rollout object: %v", err)
+					return vars
+				}
+
+				arsObj, err := getAnalysisRunsFilterWithLabels(ro, arInformer)
+
+				if err != nil {
+					log.Errorf("Error calling getAnalysisRunsFilterWithLabels for namespace: %s",
+						ro.Namespace)
+					return vars
+
+				}
+
+				vars = map[string]any{"rollout": obj, "analysisRuns": arsObj, "time": timeExprs}
+				return vars
 			}, nil
 		},
 	}

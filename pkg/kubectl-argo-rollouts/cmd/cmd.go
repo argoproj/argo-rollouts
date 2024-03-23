@@ -56,6 +56,7 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 			return o.UsageErr(c)
 		},
 	}
+
 	o.AddKubectlFlags(cmd)
 	cmd.AddCommand(create.NewCmdCreate(o))
 	cmd.AddCommand(get.NewCmdGet(o))
@@ -72,7 +73,7 @@ func NewCmdArgoRollouts(o *options.ArgoRolloutsOptions) *cobra.Command {
 	cmd.AddCommand(undo.NewCmdUndo(o))
 	cmd.AddCommand(dashboard.NewCmdDashboard(o))
 	cmd.AddCommand(status.NewCmdStatus(o))
-	cmd.AddCommand(notificationcmd.NewToolsCommand("notifications", "kubectl argo rollouts notifications", v1alpha1.RolloutGVR, record.NewAPIFactorySettings()))
+	cmd.AddCommand(notificationcmd.NewToolsCommand("notifications", "kubectl argo rollouts notifications", v1alpha1.RolloutGVR, record.NewAPIFactorySettings(nil)))
 	cmd.AddCommand(completion.NewCmdCompletion(o))
 
 	return cmd

@@ -75,7 +75,7 @@ The following describes the sequence of events that happen during a blue-green u
 1. Beginning at a fully promoted, steady-state, a revision 1 ReplicaSet is pointed to by both the `activeService` and `previewService`.
 1. A user initiates an update by modifying the pod template (`spec.template.spec`).
 1. The revision 2 ReplicaSet is created with size 0.
-1. The preview service is modified to point to the revision 2 ReplicaSet. The `activeService` remains pointing to revision 1.
+1. The `previewService` is modified to point to the revision 2 ReplicaSet. The `activeService` remains pointing to revision 1.
 1. The revision 2 ReplicaSet is scaled to either `spec.replicas` or `previewReplicaCount` if set.
 1. Once revision 2 ReplicaSet Pods are fully available, `prePromotionAnalysis` begins.
 1. Upon success of `prePromotionAnalysis`, the blue/green pauses if `autoPromotionEnabled` is false, or `autoPromotionSeconds` is non-zero.

@@ -52,12 +52,12 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		}
 		return prometheus.NewPrometheusProvider(api, logCtx, metric)
 	case job.ProviderType:
-		kubeClient, err := GetAnalysisJobClientset(f.KubeClient)
+		kubeClient, customKubeconfig, err := GetAnalysisJobClientset(f.KubeClient)
 		if err != nil {
 			return nil, err
 		}
 
-		return job.NewJobProvider(logCtx, kubeClient, f.JobLister, GetAnalysisJobNamespace()), nil
+		return job.NewJobProvider(logCtx, kubeClient, f.JobLister, GetAnalysisJobNamespace(), customKubeconfig), nil
 	case kayenta.ProviderType:
 		c := kayenta.NewHttpClient()
 		return kayenta.NewKayentaProvider(logCtx, c), nil
@@ -154,7 +154,7 @@ func Type(metric v1alpha1.Metric) string {
 // if the AnalysisJobKubeconfigEnv is set to InclusterKubeconfig, it will return the incluster client
 // else if it's set to a kubeconfig file it will return the clientset corresponding to the kubeconfig file.
 // If empty it returns the provided defaultClientset
-func GetAnalysisJobClientset(defaultClientset kubernetes.Interface) (kubernetes.Interface, error) {
+func GetAnalysisJobClientset(defaultClientset kubernetes.Interface) (kubernetes.Interface, bool, error) {
 	customJobKubeconfig := os.Getenv(AnalysisJobKubeconfigEnv)
 	if customJobKubeconfig != "" {
 		var (
@@ -167,11 +167,12 @@ func GetAnalysisJobClientset(defaultClientset kubernetes.Interface) (kubernetes.
 			cfg, err = clientcmd.BuildConfigFromFlags("", customJobKubeconfig)
 		}
 		if err != nil {
-			return nil, err
+			return nil, true, err
 		}
-		return kubernetes.NewForConfig(cfg)
+		clientSet, err := kubernetes.NewForConfig(cfg)
+		return clientSet, true, err
 	}
-	return defaultClientset, nil
+	return defaultClientset, false, nil
 }
 
 func GetAnalysisJobNamespace() string {
