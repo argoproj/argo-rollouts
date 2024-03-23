@@ -305,7 +305,7 @@ func (c *rolloutContext) calculateDesiredWeightOnAbortOrStableRollback() int32 {
 	}
 	// When using dynamic stable scaling, we must dynamically decreasing the weight to the canary
 	// according to the availability of the stable (whatever it can support).
-	desiredWeight := maxInt(0, weightutil.MaxTrafficWeight(c.rollout) - ((weightutil.MaxTrafficWeight(c.rollout) * c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas)) 
+	desiredWeight := maxInt(0, weightutil.MaxTrafficWeight(c.rollout)-((weightutil.MaxTrafficWeight(c.rollout)*c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas))
 	if c.rollout.Status.Canary.Weights != nil {
 		// This ensures that if we are already at a lower weight, then we will not
 		// increase the weight because stable availability is flapping (e.g. pod restarts)
