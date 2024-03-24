@@ -505,7 +505,7 @@ func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
 		AbortRollout().
 		WaitForRolloutStatus("Degraded").
 		ScaleRollout(1).
-		Sleep(5 * time.Second).
+		WaitForRolloutReplicas(1).
 		Then().
 		Assert(func(t *fixtures.Then) {
 			vsvc := t.GetVirtualService()
