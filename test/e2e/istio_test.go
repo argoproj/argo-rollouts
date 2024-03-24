@@ -512,8 +512,8 @@ func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
 			stableWeight := vsvc.Spec.HTTP[0].Route[0].Weight
 			canaryWeight := vsvc.Spec.HTTP[0].Route[1].Weight
 
-			assert.Equal(s.T(), int64(100), stableWeight)
 			assert.Equal(s.T(), int64(0), canaryWeight)
+			assert.Equal(s.T(), int64(100), stableWeight)
 		})
 
 	s.TearDownSuite()
