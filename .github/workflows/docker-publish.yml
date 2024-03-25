@@ -36,9 +36,8 @@ jobs:
           tags: |
             type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
             type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
-            if [["${{ contains(github.event.pull_request.labels.*.name, 'hot-fix') }}" == "true" ]]
-            then
-              type=ref,value=github.event.,enable=${{ github.ref != 'refs/heads/master'}}
+            if [ "${{ contains(github.event.pull_request.labels.*.name, 'hot-fix') }}" = "true" ]; then
+             type=ref,value=pr-${{ github.event.pull_request.number }},enable=true
             fi
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
