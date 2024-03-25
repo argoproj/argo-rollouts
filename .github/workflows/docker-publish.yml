@@ -5,9 +5,18 @@ on:
     branches:
       - master
       - release-*
+    
+        
 
   # Run tests for any PRs.
   pull_request:
+    pull_request:
+    types:
+      - opened
+    # Specify a regex pattern to match the names of the labels that will trigger the workflow
+    types:
+      - labeled:
+          name: '1.6-hot-fix'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
