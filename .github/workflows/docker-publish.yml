@@ -5,12 +5,11 @@ on:
     branches:
       - master
       - release-*
-    
-        
-
+  
   # Run tests for any PRs.
   pull_request:
-    types: [labeled]
+
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -27,7 +26,6 @@ jobs:
       controller-meta-tags: ${{ steps.controller-meta.outputs.tags }}
       plugin-meta-tags: ${{ steps.plugin-meta.outputs.tags }}
       platforms: ${{ steps.platform-matrix.outputs.platform-matrix }}
-    if: ${{contains(github.event.pull_request.labels.*.name, 'hot-fix') }}
     steps:
       - name: Docker meta (controller)
         id: controller-meta
@@ -38,7 +36,10 @@ jobs:
           tags: |
             type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
             type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
-
+            if [["${{ contains(github.event.pull_request.labels.*.name, 'hot-fix') }}" == "true" ]]
+            then
+              type=ref,value=github.event.,enable=${{ github.ref != 'refs/heads/master'}}
+            fi
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
       - name: Docker meta (plugin)
