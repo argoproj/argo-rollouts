@@ -10,14 +10,7 @@ on:
 
   # Run tests for any PRs.
   pull_request:
-    pull_request:
-    types:
-      - opened
-    # Specify a regex pattern to match the names of the labels that will trigger the workflow
-    types:
-      - labeled:
-          name: '1.6-hot-fix'
-
+    types: [labeled]
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -28,12 +21,13 @@ jobs:
   set-vars:
     permissions:
       contents: read
+    
     runs-on: ubuntu-latest
     outputs:
       controller-meta-tags: ${{ steps.controller-meta.outputs.tags }}
       plugin-meta-tags: ${{ steps.plugin-meta.outputs.tags }}
       platforms: ${{ steps.platform-matrix.outputs.platform-matrix }}
-
+    if: ${{contains(github.event.pull_request.labels.*.name, 'hot-fix') }}
     steps:
       - name: Docker meta (controller)
         id: controller-meta
@@ -43,6 +37,8 @@ jobs:
             quay.io/argoproj/argo-rollouts
           tags: |
             type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/master'}}
+
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
       - name: Docker meta (plugin)
