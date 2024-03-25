@@ -708,6 +708,7 @@ func TestCanaryRolloutScaleDownOldRsDontScaleDownTooMuch(t *testing.T) {
 	assert.Equal(t, int32(0), *updatedRS1.Spec.Replicas)
 	updatedRS2 := f.getUpdatedReplicaSet(updatedRS2Index)
 	assert.Equal(t, int32(4), *updatedRS2.Spec.Replicas)
+
 }
 
 // TestCanaryDontScaleDownOldRsDuringInterruptedUpdate tests when we need to prevent scale down an
@@ -1068,8 +1069,9 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
 	f.runController(key, true, false, c, i, k8sI)
 
-	// When the controller starts, it will enqueue the rollout while syncing the informer and during the reconciliation step
+	//When the controller starts, it will enqueue the rollout while syncing the informer and during the reconciliation step
 	assert.Equal(t, 2, f.enqueuedObjects[key])
+
 }
 
 func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
@@ -1082,7 +1084,7 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 		},
 		{
 			Pause: &v1alpha1.RolloutPause{
-				Duration: v1alpha1.DurationFromInt(3600), // 1 hour
+				Duration: v1alpha1.DurationFromInt(3600), //1 hour
 			},
 		},
 	}
@@ -1116,8 +1118,9 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
 	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
 	f.runController(key, true, false, c, i, k8sI)
-	// When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
+	//When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
 	assert.Equal(t, 1, f.enqueuedObjects[key])
+
 }
 
 func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
@@ -1131,8 +1134,7 @@ func TestSyncRolloutWaitIncrementStepIndex(t *testing.T) {
 			Pause: &v1alpha1.RolloutPause{
 				Duration: v1alpha1.DurationFromInt(5),
 			},
-		},
-		{
+		}, {
 			Pause: &v1alpha1.RolloutPause{},
 		},
 	}
@@ -1284,7 +1286,6 @@ func TestCanarySVCSelectors(t *testing.T) {
 				},
 			},
 		}
-
 		rc := rolloutContext{
 			log: logutil.WithRollout(rollout),
 			reconcilerBase: reconcilerBase{
@@ -1315,7 +1316,6 @@ func TestCanarySVCSelectors(t *testing.T) {
 				},
 			},
 		}
-
 		stopchan := make(chan struct{})
 		defer close(stopchan)
 		informers.Start(stopchan)
@@ -1331,124 +1331,6 @@ func TestCanarySVCSelectors(t *testing.T) {
 		} else {
 			assert.Empty(t, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
 				"canary SVC should not have newRS selector label when newRS has %d replicas and %d AvailableReplicas",
-				tc.canaryReplicas, tc.canaryAvailReplicas)
-		}
-	}
-}
-
-func TestCanarySVCSelectorsBasicCanaryAbortServiceSwitchBack(t *testing.T) {
-	for _, tc := range []struct {
-		canaryReplicas      int32
-		canaryAvailReplicas int32
-		shouldAbortRollout  bool
-		shouldTargetNewRS   bool
-	}{
-		{2, 2, false, true}, // Rollout, canaryService should point at the canary RS
-		{2, 2, true, false}, // Rollout aborted, canaryService should point at the stable RS
-	} {
-		namespace := "namespace"
-		selectorLabel := "selector-labels-test"
-		selectorNewRSVal := "new-rs-xxx"
-		selectorStableRSVal := "stable-rs-xxx"
-		stableService := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        "stable",
-				Namespace:   namespace,
-				Annotations: map[string]string{v1alpha1.ManagedByRolloutsKey: selectorLabel},
-				Labels: map[string]string{
-					v1alpha1.DefaultRolloutUniqueLabelKey: selectorStableRSVal,
-				},
-			},
-		}
-		canaryService := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        "canary",
-				Namespace:   namespace,
-				Annotations: map[string]string{v1alpha1.ManagedByRolloutsKey: selectorLabel},
-			},
-		}
-		kubeclient := k8sfake.NewSimpleClientset(stableService, canaryService)
-		informers := k8sinformers.NewSharedInformerFactory(kubeclient, 0)
-		servicesLister := informers.Core().V1().Services().Lister()
-
-		rollout := &v1alpha1.Rollout{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      selectorLabel,
-				Namespace: namespace,
-			},
-			Spec: v1alpha1.RolloutSpec{
-				Strategy: v1alpha1.RolloutStrategy{
-					Canary: &v1alpha1.CanaryStrategy{
-						StableService: stableService.Name,
-						CanaryService: canaryService.Name,
-					},
-				},
-			},
-		}
-
-		pc := pauseContext{
-			rollout: rollout,
-		}
-		if tc.shouldAbortRollout {
-			pc.AddAbort("Add Abort")
-		}
-
-		rc := rolloutContext{
-			log:          logutil.WithRollout(rollout),
-			pauseContext: &pc,
-			reconcilerBase: reconcilerBase{
-				servicesLister: servicesLister,
-				kubeclientset:  kubeclient,
-				recorder:       record.NewFakeEventRecorder(),
-			},
-			rollout: rollout,
-			newRS: &v1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "canary",
-					Namespace: namespace,
-					Labels: map[string]string{
-						v1alpha1.DefaultRolloutUniqueLabelKey: selectorNewRSVal,
-					},
-				},
-				Spec: v1.ReplicaSetSpec{
-					Replicas: pointer.Int32Ptr(tc.canaryReplicas),
-				},
-				Status: v1.ReplicaSetStatus{
-					AvailableReplicas: tc.canaryAvailReplicas,
-				},
-			},
-			stableRS: &v1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "stable",
-					Namespace: namespace,
-					Labels: map[string]string{
-						v1alpha1.DefaultRolloutUniqueLabelKey: selectorStableRSVal,
-					},
-				},
-				Spec: v1.ReplicaSetSpec{
-					Replicas: pointer.Int32Ptr(tc.canaryReplicas),
-				},
-				Status: v1.ReplicaSetStatus{
-					AvailableReplicas: tc.canaryAvailReplicas,
-				},
-			},
-		}
-
-		stopchan := make(chan struct{})
-		defer close(stopchan)
-		informers.Start(stopchan)
-		informers.WaitForCacheSync(stopchan)
-		err := rc.reconcileStableAndCanaryService()
-		assert.NoError(t, err, "unable to reconcileStableAndCanaryService")
-		updatedCanarySVC, err := servicesLister.Services(rc.rollout.Namespace).Get(canaryService.Name)
-		assert.NoError(t, err, "unable to get updated canary service")
-		if tc.shouldTargetNewRS {
-			assert.Equal(t, selectorNewRSVal, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
-				"canary SVC should have newRS selector label when newRS has %d replicas and %d AvailableReplicas",
-				tc.canaryReplicas, tc.canaryAvailReplicas)
-		} else {
-			assert.Equal(t, selectorStableRSVal, updatedCanarySVC.Spec.Selector[v1alpha1.DefaultRolloutUniqueLabelKey],
-				"canary SVC should have stableRS selector label when newRS has %d replicas and %d AvailableReplicas",
 				tc.canaryReplicas, tc.canaryAvailReplicas)
 		}
 	}

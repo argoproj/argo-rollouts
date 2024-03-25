@@ -145,7 +145,11 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 		c.newStatus.Canary.Weights = nil
 		return nil
 	}
-
+	if reconcilers == nil {
+		// Not using traffic routing
+		c.newStatus.Canary.Weights = nil
+		return nil
+	}
 	c.log.Infof("Found %d TrafficRouting Reconcilers", len(reconcilers))
 	// iterate over the list of trafficReconcilers
 	for _, reconciler := range reconcilers {

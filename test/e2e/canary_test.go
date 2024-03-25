@@ -444,7 +444,7 @@ spec:
             port: 80
           periodSeconds: 30
   strategy:
-    canary:
+    canary: 
       steps:
       - setWeight: 20
       - pause: {}
