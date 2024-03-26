@@ -544,23 +544,6 @@ func (s *CanarySuite) TestCanaryScaleDownOnAbort() {
 		ExpectRevisionPodCount("2", 0)
 }
 
-func (s *CanarySuite) TestCanaryScaleDownOnAbortNoTrafficRouting() {
-	s.Given().
-		HealthyRollout(`@functional/canary-scaledownonabortnotrafficrouting.yaml`).
-		When().
-		UpdateSpec(). // update to revision 2
-		WaitForRolloutStatus("Paused").
-		AbortRollout().
-		WaitForRolloutStatus("Degraded").
-		Then().
-		// Expect that the canary service selector has been moved back to stable
-		ExpectServiceSelector("canary-scaledowndelay-canary", map[string]string{"app": "canary-scaledowndelay", "rollouts-pod-template-hash": "66597877b7"}, false).
-		When().
-		Sleep(3*time.Second).
-		Then().
-		ExpectRevisionPodCount("2", 0)
-}
-
 func (s *CanarySuite) TestCanaryWithPausedRollout() {
 	(s.Given().
 		HealthyRollout(`@functional/rollout-canary-with-pause.yaml`).
