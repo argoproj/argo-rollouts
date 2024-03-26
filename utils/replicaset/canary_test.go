@@ -960,6 +960,7 @@ func TestTrafficWeightToReplicas(t *testing.T) {
 	assert.Equal(t, int32(4), trafficWeightToReplicas(10, 33, 100))
 	assert.Equal(t, int32(10), trafficWeightToReplicas(10, 99, 100))
 	assert.Equal(t, int32(10), trafficWeightToReplicas(10, 100, 100))
+	assert.Equal(t, int32(23), trafficWeightToReplicas(23, 100000000, 100000000))
 }
 
 func TestGetOtherRSs(t *testing.T) {
