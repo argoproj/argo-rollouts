@@ -313,7 +313,7 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 
 func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun, error) {
 	currentAr := c.currentArs.CanaryBackground
-	if c.rollout.Spec.Strategy.Canary.Analysis == nil {
+	if c.rollout.Spec.Strategy.Canary.Analysis == nil || len(c.rollout.Spec.Strategy.Canary.Analysis.Templates) == 0 {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}

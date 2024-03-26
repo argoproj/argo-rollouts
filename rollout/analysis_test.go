@@ -2468,3 +2468,45 @@ func TestCreateAnalysisRunWithCustomAnalysisRunMetadataAndROCopyLabels(t *testin
 	assert.Equal(t, "testLabelValue", createdAr.Labels["testLabelKey"])
 	assert.Equal(t, "1234", createdAr.Labels["my-label"])
 }
+
+func TestCancelBackgroundAnalysisRunWhenRolloutAnalysisHasNoTemplate(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{
+		{SetWeight: pointer.Int32Ptr(10)},
+	}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(1), intstr.FromInt(0), intstr.FromInt(1))
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+	r1 = updateCanaryRolloutStatus(r1, rs1PodHash, 1, 1, 1, false)
+	ar := analysisRun(at, v1alpha1.RolloutTypeStepLabel, r1)
+	r1.Status.Canary.CurrentBackgroundAnalysisRunStatus = &v1alpha1.RolloutAnalysisRunStatus{
+		Name:   ar.Name,
+		Status: v1alpha1.AnalysisPhaseRunning,
+	}
+
+	r2 := bumpVersion(r1)
+	r2.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
+		RolloutAnalysis: v1alpha1.RolloutAnalysis{}, // No templates provided.
+	}
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.analysisTemplateLister = append(f.analysisTemplateLister, at)
+	f.analysisRunLister = append(f.analysisRunLister, ar)
+	f.objects = append(f.objects, r2, at, ar)
+
+	_ = f.expectPatchAnalysisRunAction(ar)
+	patchIndex := f.expectPatchRolloutAction(r2)
+	_ = f.expectUpdateReplicaSetAction(rs1)
+	f.run(getKey(r2, t))
+
+	patch := f.getPatchedRollout(patchIndex)
+
+	assert.Contains(t, patch, `"currentBackgroundAnalysisRunStatus":null`)
+}

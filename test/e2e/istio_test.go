@@ -613,3 +613,29 @@ spec:
 		}).
 		ExpectRevisionPodCount("1", 0) // since we moved back to basic canary, we should scale down older RSs
 }
+
+func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
+	s.Given().
+		RolloutObjects("@istio/istio-subset-split-in-stable-downscale-after-canary-abort.yaml").
+		When().
+		ApplyManifests().
+		WaitForRolloutStatus("Healthy").
+		PromoteRolloutFull().
+		UpdateSpec().
+		WaitForRolloutStatus("Paused").
+		AbortRollout().
+		WaitForRolloutStatus("Degraded").
+		ScaleRollout(1).
+		WaitForRolloutReplicas(1).
+		Then().
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			stableWeight := vsvc.Spec.HTTP[0].Route[0].Weight
+			canaryWeight := vsvc.Spec.HTTP[0].Route[1].Weight
+
+			assert.Equal(s.T(), int64(0), canaryWeight)
+			assert.Equal(s.T(), int64(100), stableWeight)
+		})
+
+	s.TearDownSuite()
+}
