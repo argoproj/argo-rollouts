@@ -493,6 +493,57 @@ func (s *IstioSuite) TestIstioSubsetSplitExperimentStep() {
 	s.TearDownSuite()
 }
 
+func (s *IstioSuite) TestIstioPingPongUpdate() {
+	s.Given().
+		RolloutObjects("@istio/istio-host-split-ping-pong.yaml").
+		When().ApplyManifests().WaitForRolloutStatus("Healthy").
+		Then().
+		//Assert(assertWeights(s, "ping-service", "pong-service", 100, 0)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+		}).
+		// Update 1. Test the weight switch from ping => pong
+		When().UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
+		//Assert(assertWeights(s, "ping-service", "pong-service", 75, 25)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(75), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(25), vsvc.Spec.HTTP[0].Route[1].Weight)
+		}).
+		When().PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
+		Then().
+		//Assert(assertWeights(s, "ping-service", "pong-service", 0, 100)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[1].Weight)
+		}).
+		// Update 2. Test the weight switch from pong => ping
+		When().UpdateSpec().
+		WaitForRolloutCanaryStepIndex(1).Sleep(1 * time.Second).Then().
+		//Assert(assertWeights(s, "ping-service", "pong-service", 25, 75)).
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(25), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(75), vsvc.Spec.HTTP[0].Route[1].Weight)
+		}).
+		When().PromoteRollout().
+		WaitForRolloutStatus("Healthy").
+		Sleep(1 * time.Second).
+		Then().
+		//Assert(assertWeights(s, "ping-service", "pong-service", 100, 0))
+		Assert(func(t *fixtures.Then) {
+			vsvc := t.GetVirtualService()
+			assert.Equal(s.T(), int64(100), vsvc.Spec.HTTP[0].Route[0].Weight)
+			assert.Equal(s.T(), int64(0), vsvc.Spec.HTTP[0].Route[1].Weight)
+		})
+}
+
 func (s *IstioSuite) TestIstioSubsetSplitInStableDownscaleAfterCanaryAbort() {
 	s.Given().
 		RolloutObjects("@istio/istio-subset-split-in-stable-downscale-after-canary-abort.yaml").
