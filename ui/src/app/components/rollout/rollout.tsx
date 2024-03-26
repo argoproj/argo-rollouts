@@ -48,35 +48,7 @@ export const parseImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] =
     const unknownImages: {[key: string]: boolean} = {};
     (replicaSets || []).forEach((rs) => {
         (rs.images || []).forEach((img) => {
-            const tags: ImageTag[] = [];
-
-            if (rs.canary) {
-                tags.push(ImageTag.Canary);
-            }
-            if (rs.stable) {
-                tags.push(ImageTag.Stable);
-            }
-            if (rs.active) {
-                tags.push(ImageTag.Active);
-            }
-            if (rs.preview) {
-                tags.push(ImageTag.Preview);
-            }
-
-            if (images[img]) {
-                images[img].tags = [...tags, ...images[img].tags];
-            } else {
-                images[img] = {
-                    image: img,
-                    tags: tags,
-                };
-            }
-
-            if (images[img].tags.length === 0) {
-                unknownImages[img] = true;
-            } else {
-                unknownImages[img] = false;
-            }
+            updateImageInfo(rs,img,images,unknownImages);
         });
     });
 
@@ -87,6 +59,54 @@ export const parseImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] =
     return imgArray;
 };
 
+export const parseInitContainerImages = (replicaSets: RolloutReplicaSetInfo[]): ImageInfo[] => {
+    const images: {[key: string]: ImageInfo} = {};
+    const unknownImages: {[key: string]: boolean} = {};
+    (replicaSets || []).forEach((rs) => {
+        (rs.initContainerImages || []).forEach((img) => {
+            updateImageInfo(rs,img,images,unknownImages);
+        });
+    });
+
+    const imgArray = Object.values(images);
+    imgArray.sort((a, b) => {
+        return unknownImages[a.image] ? 1 : -1;
+    });
+    return imgArray;
+};
+
+const updateImageInfo = (rs: RolloutReplicaSetInfo,img: string ,images: {[key: string]: ImageInfo},unknownImages:{[key: string]: boolean}) => {
+    const tags: ImageTag[] = [];
+
+    if (rs.canary) {
+        tags.push(ImageTag.Canary);
+    }
+    if (rs.stable) {
+        tags.push(ImageTag.Stable);
+    }
+    if (rs.active) {
+        tags.push(ImageTag.Active);
+    }
+    if (rs.preview) {
+        tags.push(ImageTag.Preview);
+    }
+
+    if (images[img]) {
+        images[img].tags = [...tags, ...images[img].tags];
+    } else {
+        images[img] = {
+            image: img,
+            tags: tags,
+        };
+    }
+
+    if (images[img].tags.length === 0) {
+        unknownImages[img] = true;
+    } else {
+        unknownImages[img] = false;
+    }
+};
+
 export type ReactStatePair = [boolean, React.Dispatch<React.SetStateAction<boolean>>];
 
 export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?: {editState: ReactStatePair; api: RolloutServiceApi; namespace: string}}) => {
@@ -94,8 +114,10 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
     const curStep = parseInt(rollout.step, 10) || (rollout.steps || []).length;
     const revisions = ProcessRevisions(rollout);
 
-    const images = parseImages(rollout?.replicaSets || []);
+    const initContainerEditState =  React.useState(false);
+    const initContainerImages = parseInitContainerImages(rollout?.replicaSets || []);
 
+    const images = parseImages(rollout?.replicaSets || []);
     for (const img of images) {
         for (const container of rollout.containers || []) {
             if (img.image === container.image) {
@@ -132,6 +154,7 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                     <div className='info rollout__info'>
                         <ContainersWidget
                             images={images}
+                            name='Containers'
                             containers={rollout.containers || []}
                             interactive={
                                 interactive
@@ -145,6 +168,23 @@ export const RolloutWidget = (props: {rollout: RolloutRolloutInfo; interactive?:
                             }
                         />
                     </div>
+                    {rollout.initContainers && <div className='info rollout__info'>
+                        <ContainersWidget
+                            images={initContainerImages}
+                            name='Init Containers'
+                            containers={rollout.initContainers || []}
+                            interactive={
+                                interactive
+                                    ? {
+                                          editState: initContainerEditState,
+                                          setImage: (container, image, tag) => {
+                                              interactive.api.rolloutServiceSetRolloutImage({}, interactive.namespace, rollout.objectMeta?.name, container, image, tag);
+                                          },
+                                      }
+                                    : null
+                            }
+                        />
+                    </div>}
                 </div>
 
                 <div className='rollout__row rollout__row--bottom'>
