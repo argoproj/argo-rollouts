@@ -1206,6 +1206,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ping-pong" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ping Pong
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#alternatives-considered" class="md-nav__link">
     <span class="md-ellipsis">
       Alternatives Considered
@@ -3483,6 +3492,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ping-pong" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ping Pong
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#alternatives-considered" class="md-nav__link">
     <span class="md-ellipsis">
       Alternatives Considered
@@ -3950,6 +3968,16 @@ Argo CD and Argo Rollouts.</p>
 help address this problem. The proposed solution is to introduce an annotation to resources, which
 indicates to Argo CD to respect and preserve the differences at a specified path, in order to allow
 other controllers (e.g. Argo Rollouts) controller manage them instead.</p>
+<h2 id="ping-pong">Ping Pong<a class="headerlink" href="#ping-pong" title="Permanent link">&para;</a></h2>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Available since v1.7</p>
+</div>
+<p>Argo Rollouts also supports ping pong when using Istio this was added to support configuring both ALB and
+Istio traffic routers at the same time. When using an ALB, ping-pong is generally a best practice especially with ALB readiness 
+gates enabled. However, when we change the service selectors when a rollout is aborted back to stable pod hash it causes a blip 
+of traffic outage because the ALB controller will set the pod readiness gates to false for a short while due to the label changes.
+If we configure both ALB and Istio with ping-pong this selector change does not happen and hence we do not see any outages.</p>
 <h2 id="alternatives-considered">Alternatives Considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
 <h3 id="rollout-ownership-over-the-virtual-service">Rollout ownership over the Virtual Service<a class="headerlink" href="#rollout-ownership-over-the-virtual-service" title="Permanent link">&para;</a></h3>
 <p>An early design alternative was that instead of the controller modifying a referenced VirtualService, the Rollout controller would create, manage, and own a Virtual Service. While this approach is GitOps friendly, it introduces other issues:</p>
