@@ -7361,6 +7361,12 @@ export interface RolloutReplicaSetInfo {
      * @memberof RolloutReplicaSetInfo
      */
     pong?: boolean;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof RolloutReplicaSetInfo
+     */
+    initContainerImages?: Array<string>;
 }
 /**
  * 
@@ -7526,6 +7532,12 @@ export interface RolloutRolloutInfo {
      * @memberof RolloutRolloutInfo
      */
     steps?: Array<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1CanaryStep>;
+    /**
+     * 
+     * @type {Array<RolloutContainerInfo>}
+     * @memberof RolloutRolloutInfo
+     */
+    initContainers?: Array<RolloutContainerInfo>;
 }
 /**
  * 
