@@ -290,7 +290,7 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		assert.Empty(t, allErrs)
 	})
 
-	t.Run("valid Istio missing canary and stable service with ping pong", func(t *testing.T) {
+	t.Run("valid Istio with ping pong", func(t *testing.T) {
 		validRo := ro.DeepCopy()
 		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32(10)
 		validRo.Spec.Strategy.Canary.CanaryService = ""
