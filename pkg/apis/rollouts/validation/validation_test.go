@@ -284,6 +284,17 @@ func TestValidateRolloutStrategyCanary(t *testing.T) {
 		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32(10)
 		validRo.Spec.Strategy.Canary.CanaryService = ""
 		validRo.Spec.Strategy.Canary.StableService = ""
+		validRo.Spec.Strategy.Canary.TrafficRouting.Istio = &v1alpha1.IstioTrafficRouting{DestinationRule: &v1alpha1.IstioDestinationRule{Name: "destination-rule"}}
+		validRo.Spec.Strategy.Canary.TrafficRouting.ALB = nil
+		allErrs := ValidateRolloutStrategyCanary(validRo, field.NewPath(""))
+		assert.Empty(t, allErrs)
+	})
+
+	t.Run("valid Istio missing canary and stable service with ping pong", func(t *testing.T) {
+		validRo := ro.DeepCopy()
+		validRo.Spec.Strategy.Canary.Steps[0].SetWeight = pointer.Int32(10)
+		validRo.Spec.Strategy.Canary.CanaryService = ""
+		validRo.Spec.Strategy.Canary.StableService = ""
 		validRo.Spec.Strategy.Canary.PingPong = &v1alpha1.PingPongSpec{
 			PingService: "ping",
 			PongService: "pong",
