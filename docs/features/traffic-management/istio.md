@@ -473,6 +473,18 @@ help address this problem. The proposed solution is to introduce an annotation t
 indicates to Argo CD to respect and preserve the differences at a specified path, in order to allow
 other controllers (e.g. Argo Rollouts) controller manage them instead.
 
+## Ping Pong
+
+!!! important
+
+    Available since v1.7
+
+Argo Rollouts also supports ping pong when using Istio this was added to support configuring both ALB and
+Istio traffic routers at the same time. When using an ALB, ping-pong is generally a best practice especially with ALB readiness 
+gates enabled. However, when we change the service selectors when a rollout is aborted back to stable pod hash it causes a blip 
+of traffic outage because the ALB controller will set the pod readiness gates to false for a short while due to the label changes.
+If we configure both ALB and Istio with ping-pong this selector change does not happen and hence we do not see any outages.
+
 ## Alternatives Considered
 
 ### Rollout ownership over the Virtual Service

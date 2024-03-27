@@ -5990,6 +5990,12 @@
         },
         "pong": {
           "type": "boolean"
+        },
+        "initContainerImages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -6096,6 +6102,12 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.CanaryStep"
+          }
+        },
+        "initContainers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rollout.ContainerInfo"
           }
         }
       }
