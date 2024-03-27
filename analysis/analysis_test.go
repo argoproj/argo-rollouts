@@ -535,6 +535,7 @@ func TestAssessRunStatusUpdateResult(t *testing.T) {
 }
 
 func TestAssessMetricStatusNoMeasurements(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{}
 	// no measurements yet taken
 	metric := v1alpha1.Metric{
 		Name: "success-rate",
@@ -542,11 +543,12 @@ func TestAssessMetricStatusNoMeasurements(t *testing.T) {
 	result := v1alpha1.MetricResult{
 		Measurements: nil,
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhasePending, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+	assert.Equal(t, v1alpha1.AnalysisPhasePending, assessMetricStatus(run, metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(run, metric, result, true))
 }
 
 func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{}
 	// in-flight measurement
 	metric := v1alpha1.Metric{
 		Name: "success-rate",
@@ -566,10 +568,11 @@ func TestAssessMetricStatusInFlightMeasurement(t *testing.T) {
 			},
 		},
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, true))
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(run, metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(run, metric, result, true))
 }
 func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
+	run := &v1alpha1.AnalysisRun{}
 	failureLimit := intstr.FromInt(2)
 	metric := v1alpha1.Metric{
 		Name:         "success-rate",
@@ -586,15 +589,16 @@ func TestAssessMetricStatusFailureLimit(t *testing.T) { // max failures
 			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 		}},
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(metric, result, true))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(run, metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(run, metric, result, true))
 	newFailureLimit := intstr.FromInt(3)
 	metric.FailureLimit = &newFailureLimit
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(run, metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(run, metric, result, true))
 }
 
 func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{}
 	inconclusiveLimit := intstr.FromInt(2)
 	metric := v1alpha1.Metric{
 		Name:              "success-rate",
@@ -611,15 +615,16 @@ func TestAssessMetricStatusInconclusiveLimit(t *testing.T) {
 			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 		}},
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, true))
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(run, metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(run, metric, result, true))
 	newInconclusiveLimit := intstr.FromInt(3)
 	metric.InconclusiveLimit = &newInconclusiveLimit
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(run, metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(run, metric, result, true))
 }
 
 func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{}
 	metric := v1alpha1.Metric{
 		Name:     "success-rate",
 		Interval: "60s",
@@ -633,14 +638,15 @@ func TestAssessMetricStatusConsecutiveErrors(t *testing.T) {
 			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 		}},
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhaseError, assessMetricStatus(metric, result, false))
-	assert.Equal(t, v1alpha1.AnalysisPhaseError, assessMetricStatus(metric, result, true))
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, assessMetricStatus(run, metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseError, assessMetricStatus(run, metric, result, true))
 	result.ConsecutiveError = 4
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, true))
-	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(run, metric, result, true))
+	assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(run, metric, result, false))
 }
 
 func TestAssessMetricStatusCountReached(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{}
 	count := intstr.FromInt(10)
 	metric := v1alpha1.Metric{
 		Name:  "success-rate",
@@ -656,10 +662,10 @@ func TestAssessMetricStatusCountReached(t *testing.T) {
 			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(-60 * time.Second))),
 		}},
 	}
-	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(run, metric, result, false))
 	result.Successful = 5
 	result.Inconclusive = 5
-	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(metric, result, false))
+	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, assessMetricStatus(run, metric, result, false))
 }
 
 func TestCalculateNextReconcileTimeInterval(t *testing.T) {
@@ -1540,6 +1546,7 @@ func TestSecretResolution(t *testing.T) {
 // TestAssessMetricFailureInconclusiveOrError verifies that assessMetricFailureInconclusiveOrError returns the correct phases and messages
 // for Failed, Inconclusive, and Error metrics respectively
 func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{}
 	metric := v1alpha1.Metric{}
 	result := v1alpha1.MetricResult{
 		Failed: 1,
@@ -1547,11 +1554,11 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 			Phase: v1alpha1.AnalysisPhaseFailed,
 		}},
 	}
-	phase, msg := assessMetricFailureInconclusiveOrError(metric, result)
+	phase, msg := assessMetricFailureInconclusiveOrError(run, metric, result)
 	expectedMsg := fmt.Sprintf("failed (%d) > failureLimit (%d)", result.Failed, 0)
 	assert.Equal(t, v1alpha1.AnalysisPhaseFailed, phase)
 	assert.Equal(t, expectedMsg, msg)
-	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
+	assert.Equal(t, phase, assessMetricStatus(run, metric, result, true))
 
 	result = v1alpha1.MetricResult{
 		Inconclusive: 1,
@@ -1559,11 +1566,11 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 			Phase: v1alpha1.AnalysisPhaseInconclusive,
 		}},
 	}
-	phase, msg = assessMetricFailureInconclusiveOrError(metric, result)
+	phase, msg = assessMetricFailureInconclusiveOrError(run, metric, result)
 	expectedMsg = fmt.Sprintf("inconclusive (%d) > inconclusiveLimit (%d)", result.Inconclusive, 0)
 	assert.Equal(t, v1alpha1.AnalysisPhaseInconclusive, phase)
 	assert.Equal(t, expectedMsg, msg)
-	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
+	assert.Equal(t, phase, assessMetricStatus(run, metric, result, true))
 
 	result = v1alpha1.MetricResult{
 		ConsecutiveError: 5, //default ConsecutiveErrorLimit for Metrics is 4
@@ -1571,11 +1578,11 @@ func TestAssessMetricFailureInconclusiveOrError(t *testing.T) {
 			Phase: v1alpha1.AnalysisPhaseError,
 		}},
 	}
-	phase, msg = assessMetricFailureInconclusiveOrError(metric, result)
+	phase, msg = assessMetricFailureInconclusiveOrError(run, metric, result)
 	expectedMsg = fmt.Sprintf("consecutiveErrors (%d) > consecutiveErrorLimit (%d)", result.ConsecutiveError, defaults.DefaultConsecutiveErrorLimit)
 	assert.Equal(t, v1alpha1.AnalysisPhaseError, phase)
 	assert.Equal(t, expectedMsg, msg)
-	assert.Equal(t, phase, assessMetricStatus(metric, result, true))
+	assert.Equal(t, phase, assessMetricStatus(run, metric, result, true))
 }
 
 func StartAssessRunStatusErrorMessageAnalysisPhaseFail(t *testing.T, isDryRun bool) (v1alpha1.AnalysisPhase, string, *v1alpha1.RunSummary) {
@@ -2400,4 +2407,202 @@ func TestMaybeGarbageCollectAnalysisRunNoGCIfNoCompletedAt(t *testing.T) {
 	// No error, no deletion issued.
 	assert.NoError(t, err)
 	assert.Empty(t, f.client.Fake.Actions())
+}
+
+func TestGenerateMetricTasksTimeout(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name:     "success-rate",
+				Interval: "60s",
+				Timeout:  "120s",
+			}},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseRunning,
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "success-rate",
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				Measurements: []v1alpha1.Measurement{{
+					Value:      "99",
+					Phase:      v1alpha1.AnalysisPhaseSuccessful,
+					StartedAt:  timePtr(metav1.NewTime(time.Now())),
+					FinishedAt: timePtr(metav1.NewTime(time.Now())),
+				}},
+			}},
+			StartedAt: timePtr(metav1.NewTime(time.Now())),
+		},
+	}
+	{ // Do not take measurements when last measurements was successful
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
+		assert.Equal(t, 0, len(tasks))
+	}
+	{ // Take measurements when last measurements was not successful
+		lastMeasurement := run.Status.MetricResults[0].Measurements[0]
+		lastMeasurement.Phase = v1alpha1.AnalysisPhaseFailed
+		lastMeasurement.StartedAt = timePtr(metav1.NewTime(time.Now().Add(-61 * time.Second)))
+		lastMeasurement.FinishedAt = timePtr(metav1.NewTime(time.Now().Add(-61 * time.Second)))
+		run.Status.MetricResults[0].Measurements[0] = lastMeasurement
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
+		assert.Equal(t, 1, len(tasks))
+	}
+	{ // do not take measurements when timeout is reached
+		lastMeasurement := run.Status.MetricResults[0].Measurements[0]
+		lastMeasurement.Phase = v1alpha1.AnalysisPhaseFailed
+		lastMeasurement.StartedAt = timePtr(metav1.NewTime(time.Now().Add(121 * time.Second)))
+		lastMeasurement.FinishedAt = timePtr(metav1.NewTime(time.Now().Add(121 * time.Second)))
+		run.Status.MetricResults[0].Measurements[0] = lastMeasurement
+		tasks := generateMetricTasks(run, run.Spec.Metrics)
+		assert.Equal(t, 0, len(tasks))
+	}
+}
+
+func TestAssessMetricStatusTimeout(t *testing.T) {
+	run := &v1alpha1.AnalysisRun{
+		Status: v1alpha1.AnalysisRunStatus{
+			StartedAt: timePtr(metav1.NewTime(time.Now())),
+		},
+	}
+	metric := v1alpha1.Metric{
+		Name:     "success-rate",
+		Timeout:  "120s",
+		Interval: "60s",
+	}
+	result := v1alpha1.MetricResult{
+		Failed: 1,
+		Count:  1,
+		Measurements: []v1alpha1.Measurement{{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseFailed,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(1 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(1 * time.Second))),
+		}},
+	}
+	{ // Keep running metric if timeout is not reached, regardless of failure count
+		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, assessMetricStatus(run, metric, result, false))
+	}
+
+	{ // Report latest measurement status when timeout is reached
+		outOfTimeMeasurement := v1alpha1.Measurement{
+			Value:      "99",
+			Phase:      v1alpha1.AnalysisPhaseFailed,
+			StartedAt:  timePtr(metav1.NewTime(time.Now().Add(121 * time.Second))),
+			FinishedAt: timePtr(metav1.NewTime(time.Now().Add(121 * time.Second))),
+		}
+		result.Measurements = append(result.Measurements, outOfTimeMeasurement)
+		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, assessMetricStatus(run, metric, result, false))
+	}
+	{ // Return directly when measurement is successful
+		result.Measurements[1].Phase = v1alpha1.AnalysisPhaseSuccessful
+		result.Measurements[1].FinishedAt = timePtr(metav1.NewTime(time.Now().Add(60 * time.Second)))
+		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, assessMetricStatus(run, metric, result, false))
+	}
+}
+
+func TestCalculateNextReconcileTimeTimeout(t *testing.T) {
+	now := metav1.Now()
+	nowMinus30 := metav1.NewTime(now.Add(time.Second * -30))
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name:     "success-rate",
+				Interval: "60s",
+				Timeout:  "120s",
+			}},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			Phase: v1alpha1.AnalysisPhaseRunning,
+			MetricResults: []v1alpha1.MetricResult{{
+				Name:  "success-rate",
+				Phase: v1alpha1.AnalysisPhaseRunning,
+				Measurements: []v1alpha1.Measurement{{
+					Value:      "99",
+					Phase:      v1alpha1.AnalysisPhaseSuccessful,
+					StartedAt:  &now,
+					FinishedAt: &now,
+				}},
+			}},
+			StartedAt: &nowMinus30,
+		},
+	}
+	{ // Do not reconcile on success
+		run := run.DeepCopy()
+		assert.Nil(t, calculateNextReconcileTime(run, run.Spec.Metrics))
+	}
+	{ // Do not skip reconcile when count is reached
+		run := run.DeepCopy()
+		count := intstr.FromInt(2)
+		run.Spec.Metrics[0].Count = &count
+		run.Status.MetricResults[0].Count = 2
+		run.Status.MetricResults[0].Measurements[0].Phase = v1alpha1.AnalysisPhaseFailed
+		assert.Equal(t, now.Add(60*time.Second), *calculateNextReconcileTime(run, run.Spec.Metrics))
+	}
+	{ // Do not reconcile after timeout
+		run := run.DeepCopy()
+		run.Status.MetricResults[0].Measurements[0].Phase = v1alpha1.AnalysisPhaseFailed
+		outOfTime := metav1.NewTime(now.Add(121 * time.Second))
+		run.Status.MetricResults[0].Measurements[0].FinishedAt = &outOfTime
+		assert.Nil(t, calculateNextReconcileTime(run, run.Spec.Metrics))
+	}
+}
+
+func TestReconcileAnalysisRunTimeout(t *testing.T) {
+	now := metav1.Now()
+	run := &v1alpha1.AnalysisRun{
+		Spec: v1alpha1.AnalysisRunSpec{
+			Metrics: []v1alpha1.Metric{{
+				Name:     "success-rate",
+				Interval: "60s",
+				Timeout:  "120s",
+				Provider: v1alpha1.MetricProvider{
+					Prometheus: &v1alpha1.PrometheusMetric{},
+				},
+			}},
+		},
+		Status: v1alpha1.AnalysisRunStatus{
+			StartedAt: &now,
+		},
+	}
+	{ // Run should be successful on first successful measurement
+		f := newFixture(t)
+		defer f.Close()
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		run := run.DeepCopy()
+		f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseSuccessful), nil)
+		f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
+		newRun := c.reconcileAnalysisRun(run)
+		assert.Equal(t, 1, len(newRun.Status.MetricResults[0].Measurements))
+		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Measurements[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.MetricResults[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseSuccessful, newRun.Status.Phase)
+	}
+	{ // Run should be stay running on failed measurement
+		f := newFixture(t)
+		defer f.Close()
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		run := run.DeepCopy()
+		f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(newMeasurement(v1alpha1.AnalysisPhaseFailed), nil)
+		f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
+		newRun := c.reconcileAnalysisRun(run)
+		assert.Equal(t, 1, len(newRun.Status.MetricResults[0].Measurements))
+		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, newRun.Status.MetricResults[0].Measurements[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, newRun.Status.MetricResults[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseRunning, newRun.Status.Phase)
+	}
+	{ // Run should return last metric measurement after timeout
+		f := newFixture(t)
+		defer f.Close()
+		c, _, _ := f.newController(noResyncPeriodFunc)
+		run := run.DeepCopy()
+		measurement := newMeasurement(v1alpha1.AnalysisPhaseFailed)
+		outOfTime := metav1.NewTime(now.Add(121 * time.Second))
+		measurement.FinishedAt = &outOfTime
+		f.provider.On("Run", mock.Anything, mock.Anything, mock.Anything).Return(measurement, nil)
+		f.provider.On("GetMetadata", mock.Anything, mock.Anything).Return(map[string]string{}, nil)
+		newRun := c.reconcileAnalysisRun(run)
+		assert.Equal(t, 1, len(newRun.Status.MetricResults[0].Measurements))
+		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, newRun.Status.MetricResults[0].Measurements[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, newRun.Status.MetricResults[0].Phase)
+		assert.Equal(t, v1alpha1.AnalysisPhaseFailed, newRun.Status.Phase)
+	}
 }
