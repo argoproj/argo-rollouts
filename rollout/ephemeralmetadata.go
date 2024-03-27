@@ -82,13 +82,9 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	}
 
 	// 2. Update ReplicaSet so that any new pods it creates will have the metadata
-	rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
+	_, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("error updating replicaset in syncEphemeralMetadata: %w", err)
-	}
-	err = c.replicaSetInformer.GetIndexer().Update(rs)
-	if err != nil {
-		return fmt.Errorf("error updating replicaset informer in syncEphemeralMetadata: %w", err)
 	}
 	c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
 	return nil
