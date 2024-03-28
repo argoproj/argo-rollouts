@@ -301,7 +301,7 @@ func generateRSName(ex *v1alpha1.Experiment, template v1alpha1.TemplateSpec) str
 	return fmt.Sprintf("%s-%s", ex.Name, template.Name)
 }
 
-func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.TemplateStatus, condition *v1alpha1.ExperimentCondition) string {
+func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.TemplateStatus, condition *v1alpha1.ExperimentCondition, analysisRuns []*v1alpha1.ExperimentAnalysisRunStatus, message string) string {
 	patchMap := make(map[string]any)
 	err := json.Unmarshal([]byte(patch), &patchMap)
 	if err != nil {
@@ -314,6 +314,14 @@ func calculatePatch(ex *v1alpha1.Experiment, patch string, templates []v1alpha1.
 	}
 	if condition != nil {
 		newStatus["conditions"] = []v1alpha1.ExperimentCondition{*condition}
+		patchMap["status"] = newStatus
+	}
+	if analysisRuns != nil {
+		newStatus["analysisRuns"] = analysisRuns
+		patchMap["status"] = newStatus
+	}
+	if message != "" {
+		newStatus["message"] = message
 		patchMap["status"] = newStatus
 	}
 
@@ -804,7 +812,7 @@ func TestAddInvalidSpec(t *testing.T) {
 	expectedPatch := calculatePatch(e, `{
 		"status":{
 		}
-	}`, nil, cond)
+	}`, nil, cond, nil, "")
 	assert.JSONEq(t, expectedPatch, patch)
 }
 
@@ -851,7 +859,7 @@ func TestUpdateInvalidSpec(t *testing.T) {
 	expectedPatch := calculatePatch(e, `{
 		"status":{
 		}
-	}`, nil, cond)
+	}`, nil, cond, nil, "")
 	assert.JSONEq(t, expectedPatch, patch)
 
 }
@@ -891,7 +899,7 @@ func TestRemoveInvalidSpec(t *testing.T) {
 	expectedPatch := calculatePatch(e, `{
 		"status":{
 		}
-	}`, templateStatus, cond)
+	}`, templateStatus, cond, nil, "")
 	assert.JSONEq(t, expectedPatch, patch)
 }
 

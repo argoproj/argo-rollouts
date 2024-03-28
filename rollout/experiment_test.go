@@ -76,7 +76,7 @@ func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	cat := clusterAnalysisTemplate("bar")
+	cat := clusterAnalysisTemplate("bar", "cluster-example")
 	steps := []v1alpha1.CanaryStep{{
 		Experiment: &v1alpha1.RolloutExperimentStep{
 			Templates: []v1alpha1.RolloutExperimentTemplate{{

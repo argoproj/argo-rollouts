@@ -6162,8 +6162,15 @@ spec:
                   - provider
                   type: object
                 type: array
-            required:
-            - metrics
+              templates:
+                items:
+                  properties:
+                    clusterScope:
+                      type: boolean
+                    templateName:
+                      type: string
+                  type: object
+                type: array
             type: object
         required:
         - spec
@@ -9182,8 +9189,15 @@ spec:
                   - provider
                   type: object
                 type: array
-            required:
-            - metrics
+              templates:
+                items:
+                  properties:
+                    clusterScope:
+                      type: boolean
+                    templateName:
+                      type: string
+                  type: object
+                type: array
             type: object
         required:
         - spec

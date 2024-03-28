@@ -693,6 +693,19 @@
       },
       "title": "AnalysisRunStrategy configuration for the analysis runs and experiments to retain"
     },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisTemplateRef": {
+      "type": "object",
+      "properties": {
+        "templateName": {
+          "type": "string",
+          "title": "TemplateName name of template to use in AnalysisRun\n+optional"
+        },
+        "clusterScope": {
+          "type": "boolean",
+          "title": "Whether to look for the templateName at cluster scope or namespace scope\n+optional"
+        }
+      }
+    },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AntiAffinity": {
       "type": "object",
       "properties": {
@@ -1840,7 +1853,7 @@
         "templates": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutAnalysisTemplate"
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.AnalysisTemplateRef"
           },
           "title": "Templates reference to a list of analysis templates to combine for an AnalysisRun\n+patchMergeKey=templateName\n+patchStrategy=merge"
         },
@@ -1897,19 +1910,6 @@
         },
         "message": {
           "type": "string"
-        }
-      }
-    },
-    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.RolloutAnalysisTemplate": {
-      "type": "object",
-      "properties": {
-        "templateName": {
-          "type": "string",
-          "title": "TemplateName name of template to use in AnalysisRun\n+optional"
-        },
-        "clusterScope": {
-          "type": "boolean",
-          "title": "Whether to look for the templateName at cluster scope or namespace scope\n+optional"
         }
       }
     },

@@ -684,7 +684,7 @@ func TestValidateAnalysisTemplatesWithType(t *testing.T) {
 		rollout := getAlbRollout("alb-ingress")
 		rollout.Spec.Strategy.Canary.Steps = append(rollout.Spec.Strategy.Canary.Steps, v1alpha1.CanaryStep{
 			Analysis: &v1alpha1.RolloutAnalysis{
-				Templates: []v1alpha1.RolloutAnalysisTemplate{
+				Templates: []v1alpha1.AnalysisTemplateRef{
 					{
 						TemplateName: "analysis-template-name",
 					},

@@ -56,7 +56,7 @@ type AnalysisTemplateSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
 	// +patchMergeKey=name
 	// +patchStrategy=merge
-	Metrics []Metric `json:"metrics" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,1,rep,name=metrics"`
+	Metrics []Metric `json:"metrics,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,1,rep,name=metrics"`
 	// Args are the list of arguments to the template
 	// +patchMergeKey=name
 	// +patchStrategy=merge
@@ -72,6 +72,10 @@ type AnalysisTemplateSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
+	// Templates reference to a list of analysis templates to combine with the rest of the metrics for an AnalysisRun
+	// +patchMergeKey=templateName
+	// +patchStrategy=merge
+	Templates []AnalysisTemplateRef `json:"templates,omitempty" patchStrategy:"merge" patchMergeKey:"templateName" protobuf:"bytes,5,rep,name=templates"`
 }
 
 // DurationString is a string representing a duration (e.g. 30s, 5m, 1h)

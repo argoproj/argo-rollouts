@@ -585,3 +585,23 @@ func GetInstanceID(obj runtime.Object) string {
 	}
 	return ""
 }
+
+func FilterUniqueTemplates(templates []*v1alpha1.AnalysisTemplate, clusterTemplates []*v1alpha1.ClusterAnalysisTemplate) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate) {
+	uniqueTemplates := []*v1alpha1.AnalysisTemplate{}
+	uniqueClusterTemplates := []*v1alpha1.ClusterAnalysisTemplate{}
+	seenTemplates := map[string]bool{}
+	seenClusterTemplates := map[string]bool{}
+	for _, template := range templates {
+		if !seenTemplates[template.Name] {
+			seenTemplates[template.Name] = true
+			uniqueTemplates = append(uniqueTemplates, template)
+		}
+	}
+	for _, clusterTemplate := range clusterTemplates {
+		if !seenClusterTemplates[clusterTemplate.Name] {
+			seenClusterTemplates[clusterTemplate.Name] = true
+			uniqueClusterTemplates = append(uniqueClusterTemplates, clusterTemplate)
+		}
+	}
+	return uniqueTemplates, uniqueClusterTemplates
+}

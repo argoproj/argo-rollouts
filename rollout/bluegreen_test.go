@@ -428,7 +428,7 @@ func TestBlueGreenHandlePause(t *testing.T) {
 		r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 		r2 := bumpVersion(r1)
 		r2.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{{
+			Templates: []v1alpha1.AnalysisTemplateRef{{
 				TemplateName: "test",
 			}},
 		}
