@@ -158,7 +158,6 @@ func TestPreviewServiceNotFound(t *testing.T) {
 	activeSvc := newService("active-svc", 80, nil, nil)
 	notUsedPreviewSvc := newService("preview-svc", 80, nil, nil)
 	f.kubeobjects = append(f.kubeobjects, activeSvc)
-	f.serviceLister = append(f.serviceLister)
 
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
