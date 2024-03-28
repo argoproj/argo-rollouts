@@ -484,6 +484,18 @@ func TestNewAPIFactorySettings(t *testing.T) {
 		},
 	}
 
+	expectedSecrets := map[string][]byte{
+		"notification-secret": []byte("secret-value"),
+	}
+
+	notificationsSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argo-rollouts-notification-secret",
+			Namespace: "default",
+		},
+		Data: expectedSecrets,
+	}
+
 	type expectedFunc func(obj map[string]interface{}, ar any) map[string]interface{}
 	type arInformerFunc func([]*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer
 
@@ -506,6 +518,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"rollout":      obj,
 					"analysisRuns": ar,
 					"time":         timeExprs,
+					"secrets":      expectedSecrets,
 				}
 			},
 		},
@@ -531,6 +544,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"rollout":      obj,
 					"analysisRuns": nil,
 					"time":         timeExprs,
+					"secrets":      expectedSecrets,
 				}
 			},
 		},
@@ -545,6 +559,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 				return map[string]interface{}{
 					"rollout": obj,
 					"time":    timeExprs,
+					"secrets": expectedSecrets,
 				}
 			},
 		},
@@ -570,6 +585,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"rollout":      obj,
 					"analysisRuns": nil,
 					"time":         timeExprs,
+					"secrets":      expectedSecrets,
 				}
 			},
 		},
@@ -579,7 +595,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			settings := NewAPIFactorySettings(test.arInformer(test.ars))
-			getVars, err := settings.InitGetVars(nil, nil, nil)
+			getVars, err := settings.InitGetVars(nil, nil, &notificationsSecret)
 			require.NoError(t, err)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)

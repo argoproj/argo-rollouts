@@ -289,7 +289,11 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 			return func(obj map[string]any, dest services.Destination) map[string]any {
 
-				var vars = map[string]any{"rollout": obj, "time": timeExprs}
+				var vars = map[string]any{
+					"rollout": obj,
+					"time":    timeExprs,
+					"secrets": secret.Data,
+				}
 
 				if arInformer == nil {
 					log.Infof("Notification is not set for analysisRun Informer: %s", dest)
@@ -313,7 +317,12 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 
 				}
 
-				vars = map[string]any{"rollout": obj, "analysisRuns": arsObj, "time": timeExprs}
+				vars = map[string]any{
+					"rollout":      obj,
+					"analysisRuns": arsObj,
+					"time":         timeExprs,
+					"secrets":      secret.Data,
+				}
 				return vars
 			}, nil
 		},
