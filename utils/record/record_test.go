@@ -97,7 +97,7 @@ func TestIncCounter(t *testing.T) {
 	buf := dto.Metric{}
 	m.Write(&buf)
 	assert.Equal(t, float64(3), *buf.Counter.Value)
-	assert.Equal(t, []string{"FooReason", "FooReason", "FooReason"}, rec.Events)
+	assert.Equal(t, []string{"FooReason", "FooReason", "FooReason"}, rec.Events())
 }
 
 func TestSendNotifications(t *testing.T) {

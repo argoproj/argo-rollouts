@@ -116,13 +116,15 @@ func newFixture(t *testing.T, objects ...runtime.Object) *fixture {
 	f.kubeclient = k8sfake.NewSimpleClientset(f.kubeobjects...)
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	timeutil.Now = func() time.Time {
+
+	timeutil.SetNowTimeFunc(func() time.Time {
 		return now
-	}
+	})
 	f.unfreezeTime = func() error {
-		timeutil.Now = time.Now
+		timeutil.SetNowTimeFunc(time.Now)
 		return nil
 	}
+
 	return f
 }
 
