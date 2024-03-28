@@ -2,6 +2,7 @@ package viewcontroller
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -53,7 +54,11 @@ func TestRolloutControllerCallback(t *testing.T) {
 	}
 
 	callbackCalled := false
+	var callbackCalledLock sync.Mutex // acquire before accessing callbackCalled
+
 	cb := func(roInfo *rollout.RolloutInfo) {
+		callbackCalledLock.Lock()
+		defer callbackCalledLock.Unlock()
 		callbackCalled = true
 		assert.Equal(t, roInfo.ObjectMeta.Name, "foo")
 	}
@@ -67,11 +72,16 @@ func TestRolloutControllerCallback(t *testing.T) {
 	go c.Run(ctx)
 	time.Sleep(time.Second)
 	for i := 0; i < 100; i++ {
-		if callbackCalled {
+		callbackCalledLock.Lock()
+		isCallbackCalled := callbackCalled
+		callbackCalledLock.Unlock()
+		if isCallbackCalled {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+	callbackCalledLock.Lock()
+	defer callbackCalledLock.Unlock()
 	assert.True(t, callbackCalled)
 }
 
@@ -100,8 +110,11 @@ func TestExperimentControllerCallback(t *testing.T) {
 		},
 	}
 
+	var callbackCalledLock sync.Mutex // acquire before accessing callbackCalled
 	callbackCalled := false
 	cb := func(expInfo *rollout.ExperimentInfo) {
+		callbackCalledLock.Lock()
+		defer callbackCalledLock.Unlock()
 		callbackCalled = true
 		assert.Equal(t, expInfo.ObjectMeta.Name, "foo")
 	}
@@ -115,10 +128,15 @@ func TestExperimentControllerCallback(t *testing.T) {
 	go c.Run(ctx)
 	time.Sleep(time.Second)
 	for i := 0; i < 100; i++ {
-		if callbackCalled {
+		callbackCalledLock.Lock()
+		isCallbackCalled := callbackCalled
+		callbackCalledLock.Unlock()
+		if isCallbackCalled {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+	callbackCalledLock.Lock()
+	defer callbackCalledLock.Unlock()
 	assert.True(t, callbackCalled)
 }

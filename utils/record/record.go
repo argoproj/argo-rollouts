@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	argoinformers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
@@ -107,7 +108,29 @@ func NewEventRecorder(kubeclientset kubernetes.Interface, rolloutEventCounter *p
 // reasons which were emitted
 type FakeEventRecorder struct {
 	EventRecorderAdapter
-	Events []string
+	// acquire eventsLock before using events
+	events     []string
+	eventsLock sync.Mutex
+}
+
+func (e *FakeEventRecorder) appendEvents(events ...string) {
+	e.eventsLock.Lock()
+	defer e.eventsLock.Unlock()
+
+	e.events = append(e.events, events...)
+}
+
+// Events returns a list of received events, with thread safety
+func (e *FakeEventRecorder) Events() []string {
+
+	e.eventsLock.Lock()
+	defer e.eventsLock.Unlock()
+
+	if e.events == nil {
+		return nil
+	}
+
+	return append(make([]string, 0), e.events...)
 }
 
 func NewFakeApiFactory() api.Factory {
@@ -178,7 +201,7 @@ func NewFakeEventRecorder() *FakeEventRecorder {
 	fakeRecorder := &FakeEventRecorder{}
 	recorder.eventf = func(object runtime.Object, warn bool, opts EventOptions, messageFmt string, args ...any) {
 		recorder.defaultEventf(object, warn, opts, messageFmt, args...)
-		fakeRecorder.Events = append(fakeRecorder.Events, opts.EventReason)
+		fakeRecorder.appendEvents(opts.EventReason)
 	}
 	fakeRecorder.EventRecorderAdapter = *recorder
 	return fakeRecorder

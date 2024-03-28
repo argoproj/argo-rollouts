@@ -3,6 +3,7 @@ package viewcontroller
 import (
 	"context"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/utils/queue"
@@ -11,7 +12,6 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/informers"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	appslisters "k8s.io/client-go/listers/apps/v1"
@@ -32,7 +32,7 @@ type viewController struct {
 	name      string
 	namespace string
 
-	kubeInformerFactory     informers.SharedInformerFactory
+	kubeInformerFactory     kubeinformers.SharedInformerFactory
 	rolloutsInformerFactory rolloutinformers.SharedInformerFactory
 
 	replicaSetLister  appslisters.ReplicaSetNamespaceLister
@@ -48,6 +48,8 @@ type viewController struct {
 	prevObj   any
 	getObj    func() (any, error)
 	callbacks []func(any)
+	// acquire 'callbacksLock' before reading/writing to 'callbacks'
+	callbacksLock sync.Mutex
 }
 
 type RolloutViewController struct {
@@ -164,7 +166,13 @@ func (c *viewController) processNextWorkItem() bool {
 		return true
 	}
 	if !reflect.DeepEqual(c.prevObj, newObj) {
-		for _, cb := range c.callbacks {
+
+		// Acquire the mutex and make a thread-local copy of the list of callbacks
+		c.callbacksLock.Lock()
+		callbacks := append(make([]func(any), 0), c.callbacks...)
+		c.callbacksLock.Unlock()
+
+		for _, cb := range callbacks {
 			cb(newObj)
 		}
 		c.prevObj = newObj
@@ -173,6 +181,9 @@ func (c *viewController) processNextWorkItem() bool {
 }
 
 func (c *viewController) DeregisterCallbacks() {
+	c.callbacksLock.Lock()
+	defer c.callbacksLock.Unlock()
+
 	c.callbacks = nil
 }
 
@@ -218,6 +229,9 @@ func (c *RolloutViewController) RegisterCallback(callback RolloutInfoCallback) {
 	cb := func(i any) {
 		callback(i.(*rollout.RolloutInfo))
 	}
+	c.callbacksLock.Lock()
+	defer c.callbacksLock.Unlock()
+
 	c.callbacks = append(c.callbacks, cb)
 }
 
@@ -246,5 +260,7 @@ func (c *ExperimentViewController) RegisterCallback(callback ExperimentInfoCallb
 	cb := func(i any) {
 		callback(i.(*rollout.ExperimentInfo))
 	}
+	c.callbacksLock.Lock()
+	defer c.callbacksLock.Unlock()
 	c.callbacks = append(c.callbacks, cb)
 }
