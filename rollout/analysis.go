@@ -313,7 +313,7 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 
 func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun, error) {
 	currentAr := c.currentArs.CanaryBackground
-	if c.rollout.Spec.Strategy.Canary.Analysis == nil {
+	if c.rollout.Spec.Strategy.Canary.Analysis == nil || len(c.rollout.Spec.Strategy.Canary.Analysis.Templates) == 0 {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
@@ -455,24 +455,25 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 		}
 
 	}
-	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention, name, "", c.rollout.Namespace)
-	if err != nil {
-		return nil, err
-	}
-	run.Labels = labels
+	runLabels := labels
 	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
-		run.Labels[k] = v
+		runLabels[k] = v
 	}
 
 	for k, v := range c.rollout.Spec.Selector.MatchLabels {
-		run.Labels[k] = v
+		runLabels[k] = v
 	}
 
-	run.Annotations = map[string]string{
+	runAnnotations := map[string]string{
 		annotations.RevisionAnnotation: revision,
 	}
 	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
-		run.Annotations[k] = v
+		runAnnotations[k] = v
+	}
+	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention,
+		runLabels, runAnnotations, name, "", c.rollout.Namespace)
+	if err != nil {
+		return nil, err
 	}
 	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(c.rollout, controllerKind)}
 	return run, nil

@@ -36,7 +36,7 @@ func newTestJobProvider(objects ...runtime.Object) *JobProvider {
 	cancel()
 
 	jobLister := k8sI.Batch().V1().Jobs().Lister()
-	return NewJobProvider(*logCtx, kubeclient, jobLister)
+	return NewJobProvider(*logCtx, kubeclient, jobLister, "", false)
 }
 
 func newRunWithJobMetric() *v1alpha1.AnalysisRun {
@@ -193,7 +193,7 @@ func TestRunCreateCollision(t *testing.T) {
 	p := newTestJobProvider()
 	run := newRunWithJobMetric()
 
-	existingJob, err := newMetricJob(run, run.Spec.Metrics[0])
+	existingJob, err := newMetricJob(run, run.Spec.Metrics[0], p.jobNamespace, p.customJobKubeconfig)
 	assert.NoError(t, err)
 	fakeClient := p.kubeclientset.(*k8sfake.Clientset)
 	fakeClient.Tracker().Add(existingJob)

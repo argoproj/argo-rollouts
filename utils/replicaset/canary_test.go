@@ -276,7 +276,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 10,
 		},
 		{
-			name:                "Do not scale newRS down to zero on non-zero weight",
+			name:                "Do not scale canaryRS down to zero on non-zero weight",
 			rolloutSpecReplicas: 1,
 			setWeight:           20,
 			maxSurge:            intstr.FromInt(1),
@@ -308,7 +308,55 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 1,
 		},
 		{
-			name:                "Scale up Stable before newRS",
+			name:                "Scale canaryRS to zero on <50 weight without surge",
+			rolloutSpecReplicas: 1,
+			setWeight:           49,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 1,
+			expectedCanaryReplicaCount: 0,
+		},
+		{
+			name:                "Scale stableRS down to zero on >=50 weight without surge",
+			rolloutSpecReplicas: 1,
+			setWeight:           51,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      1,
+			stableAvailableReplica: 1,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 0,
+			expectedCanaryReplicaCount: 0,
+		},
+		{
+			name:                "Scale canaryRS to one on >=50 weight without surge and stable replicas",
+			rolloutSpecReplicas: 1,
+			setWeight:           51,
+			maxSurge:            intstr.FromInt(0),
+			maxUnavailable:      intstr.FromInt(1),
+
+			stableSpecReplica:      0,
+			stableAvailableReplica: 0,
+
+			canarySpecReplica:      0,
+			canaryAvailableReplica: 0,
+
+			expectedStableReplicaCount: 0,
+			expectedCanaryReplicaCount: 1,
+		},
+		{
+			name:                "Scale up Stable before canaryRS",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
 			maxSurge:            intstr.FromInt(1),
@@ -326,7 +374,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			olderRS: newRS("older", 3, 3),
 		},
 		{
-			name:                "Scale down newRS and stable",
+			name:                "Scale down canaryRS and stable",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
 			maxSurge:            intstr.FromInt(0),
@@ -358,7 +406,7 @@ func TestCalculateReplicaCountsForCanary(t *testing.T) {
 			expectedCanaryReplicaCount: 9,
 		},
 		{
-			name:                "Do not scale down newRS or stable when older RS count >= scaleDownCount",
+			name:                "Do not scale down canaryRS or stable when older RS count >= scaleDownCount",
 			rolloutSpecReplicas: 10,
 			setWeight:           30,
 			maxSurge:            intstr.FromInt(0),
@@ -721,82 +769,83 @@ func TestApproximateWeightedNewStableReplicaCounts(t *testing.T) {
 	tests := []struct {
 		replicas  int32
 		weight    int32
+		maxWeight int32
 		maxSurge  int32
 		expCanary int32
 		expStable int32
 	}{
-		{replicas: 0, weight: 0, maxSurge: 0, expCanary: 0, expStable: 0},   // 0%
-		{replicas: 0, weight: 50, maxSurge: 0, expCanary: 0, expStable: 0},  // 0%
-		{replicas: 0, weight: 100, maxSurge: 0, expCanary: 0, expStable: 0}, // 0%
+		{replicas: 0, weight: 0, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 0},   // 0%
+		{replicas: 0, weight: 50, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 0},  // 0%
+		{replicas: 0, weight: 100, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 0}, // 0%
 
-		{replicas: 0, weight: 0, maxSurge: 1, expCanary: 0, expStable: 0},   // 0%
-		{replicas: 0, weight: 50, maxSurge: 1, expCanary: 0, expStable: 0},  // 0%
-		{replicas: 0, weight: 100, maxSurge: 1, expCanary: 0, expStable: 0}, // 0%
+		{replicas: 0, weight: 0, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 0},   // 0%
+		{replicas: 0, weight: 50, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 0},  // 0%
+		{replicas: 0, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 0}, // 0%
 
-		{replicas: 1, weight: 0, maxSurge: 0, expCanary: 0, expStable: 1},   // 0%
-		{replicas: 1, weight: 1, maxSurge: 0, expCanary: 0, expStable: 1},   // 0%
-		{replicas: 1, weight: 49, maxSurge: 0, expCanary: 0, expStable: 1},  // 0%
-		{replicas: 1, weight: 50, maxSurge: 0, expCanary: 1, expStable: 0},  // 100%
-		{replicas: 1, weight: 99, maxSurge: 0, expCanary: 1, expStable: 0},  // 100%
-		{replicas: 1, weight: 100, maxSurge: 0, expCanary: 1, expStable: 0}, // 100%
+		{replicas: 1, weight: 0, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 1},   // 0%
+		{replicas: 1, weight: 1, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 1},   // 0%
+		{replicas: 1, weight: 49, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 1},  // 0%
+		{replicas: 1, weight: 50, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 0},  // 100%
+		{replicas: 1, weight: 99, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 0},  // 100%
+		{replicas: 1, weight: 100, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 0}, // 100%
 
-		{replicas: 1, weight: 0, maxSurge: 1, expCanary: 0, expStable: 1},   // 0%
-		{replicas: 1, weight: 1, maxSurge: 1, expCanary: 1, expStable: 1},   // 50%
-		{replicas: 1, weight: 49, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
-		{replicas: 1, weight: 50, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
-		{replicas: 1, weight: 99, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
-		{replicas: 1, weight: 100, maxSurge: 1, expCanary: 1, expStable: 0}, // 100%
+		{replicas: 1, weight: 0, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 1},   // 0%
+		{replicas: 1, weight: 1, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 1},   // 50%
+		{replicas: 1, weight: 49, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 1, weight: 50, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 1, weight: 99, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 1, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 0}, // 100%
 
-		{replicas: 2, weight: 0, maxSurge: 0, expCanary: 0, expStable: 2},   // 0%
-		{replicas: 2, weight: 1, maxSurge: 0, expCanary: 1, expStable: 1},   // 50%
-		{replicas: 2, weight: 50, maxSurge: 0, expCanary: 1, expStable: 1},  // 50%
-		{replicas: 2, weight: 99, maxSurge: 0, expCanary: 1, expStable: 1},  // 50%
-		{replicas: 2, weight: 100, maxSurge: 0, expCanary: 2, expStable: 0}, // 100%
+		{replicas: 2, weight: 0, maxWeight: 100, maxSurge: 0, expCanary: 0, expStable: 2},   // 0%
+		{replicas: 2, weight: 1, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 1},   // 50%
+		{replicas: 2, weight: 50, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 2, weight: 99, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 2, weight: 100, maxWeight: 100, maxSurge: 0, expCanary: 2, expStable: 0}, // 100%
 
-		{replicas: 2, weight: 0, maxSurge: 1, expCanary: 0, expStable: 2},   // 0%
-		{replicas: 2, weight: 1, maxSurge: 1, expCanary: 1, expStable: 2},   // 33.3%
-		{replicas: 2, weight: 50, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
-		{replicas: 2, weight: 99, maxSurge: 1, expCanary: 2, expStable: 1},  // 66.6%
-		{replicas: 2, weight: 100, maxSurge: 1, expCanary: 2, expStable: 0}, // 100%
+		{replicas: 2, weight: 0, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 2},   // 0%
+		{replicas: 2, weight: 1, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 2},   // 33.3%
+		{replicas: 2, weight: 50, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 1},  // 50%
+		{replicas: 2, weight: 99, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 1},  // 66.6%
+		{replicas: 2, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 0}, // 100%
 
-		{replicas: 3, weight: 10, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
-		{replicas: 3, weight: 25, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
-		{replicas: 3, weight: 33, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
-		{replicas: 3, weight: 34, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
-		{replicas: 3, weight: 49, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
-		{replicas: 3, weight: 50, maxSurge: 0, expCanary: 2, expStable: 1}, // 66.6%
+		{replicas: 3, weight: 10, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 25, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 33, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 34, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 49, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 50, maxWeight: 100, maxSurge: 0, expCanary: 2, expStable: 1}, // 66.6%
 
-		{replicas: 3, weight: 10, maxSurge: 1, expCanary: 1, expStable: 3}, // 25%
-		{replicas: 3, weight: 25, maxSurge: 1, expCanary: 1, expStable: 3}, // 25%
-		{replicas: 3, weight: 33, maxSurge: 1, expCanary: 1, expStable: 2}, // 33.3%
-		{replicas: 3, weight: 34, maxSurge: 1, expCanary: 1, expStable: 2}, // 33.3%
-		{replicas: 3, weight: 49, maxSurge: 1, expCanary: 2, expStable: 2}, // 50%
-		{replicas: 3, weight: 50, maxSurge: 1, expCanary: 2, expStable: 2}, // 50%
+		{replicas: 3, weight: 10, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 3}, // 25%
+		{replicas: 3, weight: 25, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 3}, // 25%
+		{replicas: 3, weight: 33, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 34, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 2}, // 33.3%
+		{replicas: 3, weight: 49, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 2}, // 50%
+		{replicas: 3, weight: 50, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 2}, // 50%
 
-		{replicas: 10, weight: 0, maxSurge: 1, expCanary: 0, expStable: 10},   // 0%
-		{replicas: 10, weight: 1, maxSurge: 0, expCanary: 1, expStable: 9},    // 10%
-		{replicas: 10, weight: 14, maxSurge: 0, expCanary: 1, expStable: 9},   // 10%
-		{replicas: 10, weight: 15, maxSurge: 0, expCanary: 2, expStable: 8},   // 20%
-		{replicas: 10, weight: 16, maxSurge: 0, expCanary: 2, expStable: 8},   // 20%
-		{replicas: 10, weight: 99, maxSurge: 0, expCanary: 9, expStable: 1},   // 90%
-		{replicas: 10, weight: 100, maxSurge: 1, expCanary: 10, expStable: 0}, // 100%
+		{replicas: 10, weight: 0, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 10},   // 0%
+		{replicas: 10, weight: 1, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 9},    // 10%
+		{replicas: 10, weight: 14, maxWeight: 100, maxSurge: 0, expCanary: 1, expStable: 9},   // 10%
+		{replicas: 10, weight: 15, maxWeight: 100, maxSurge: 0, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 16, maxWeight: 100, maxSurge: 0, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 99, maxWeight: 100, maxSurge: 0, expCanary: 9, expStable: 1},   // 90%
+		{replicas: 10, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 10, expStable: 0}, // 100%
 
-		{replicas: 10, weight: 0, maxSurge: 1, expCanary: 0, expStable: 10},   // 0%
-		{replicas: 10, weight: 1, maxSurge: 1, expCanary: 1, expStable: 10},   // 9.1%
-		{replicas: 10, weight: 18, maxSurge: 1, expCanary: 2, expStable: 9},   // 18.1%
-		{replicas: 10, weight: 19, maxSurge: 1, expCanary: 2, expStable: 9},   // 18.1%
-		{replicas: 10, weight: 20, maxSurge: 1, expCanary: 2, expStable: 8},   // 20%
-		{replicas: 10, weight: 23, maxSurge: 1, expCanary: 2, expStable: 8},   // 20%
-		{replicas: 10, weight: 24, maxSurge: 1, expCanary: 3, expStable: 8},   // 27.2%
-		{replicas: 10, weight: 25, maxSurge: 1, expCanary: 3, expStable: 8},   // 27.2%
-		{replicas: 10, weight: 99, maxSurge: 1, expCanary: 10, expStable: 1},  // 90.9%
-		{replicas: 10, weight: 100, maxSurge: 1, expCanary: 10, expStable: 0}, // 100%
+		{replicas: 10, weight: 0, maxWeight: 100, maxSurge: 1, expCanary: 0, expStable: 10},   // 0%
+		{replicas: 10, weight: 1, maxWeight: 100, maxSurge: 1, expCanary: 1, expStable: 10},   // 9.1%
+		{replicas: 10, weight: 18, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 9},   // 18.1%
+		{replicas: 10, weight: 19, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 9},   // 18.1%
+		{replicas: 10, weight: 20, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 23, maxWeight: 100, maxSurge: 1, expCanary: 2, expStable: 8},   // 20%
+		{replicas: 10, weight: 24, maxWeight: 100, maxSurge: 1, expCanary: 3, expStable: 8},   // 27.2%
+		{replicas: 10, weight: 25, maxWeight: 100, maxSurge: 1, expCanary: 3, expStable: 8},   // 27.2%
+		{replicas: 10, weight: 99, maxWeight: 100, maxSurge: 1, expCanary: 10, expStable: 1},  // 90.9%
+		{replicas: 10, weight: 100, maxWeight: 100, maxSurge: 1, expCanary: 10, expStable: 0}, // 100%
 
 	}
 	for i := range tests {
 		test := tests[i]
-		t.Run(fmt.Sprintf("%s_replicas:%d_weight:%d_surge:%d", t.Name(), test.replicas, test.weight, test.maxSurge), func(t *testing.T) {
-			newRSReplicaCount, stableRSReplicaCount := approximateWeightedCanaryStableReplicaCounts(test.replicas, test.weight, test.maxSurge)
+		t.Run(fmt.Sprintf("%s_replicas:%d_weight:%d_maxweight:%d_surge:%d", t.Name(), test.replicas, test.weight, test.maxWeight, test.maxSurge), func(t *testing.T) {
+			newRSReplicaCount, stableRSReplicaCount := approximateWeightedCanaryStableReplicaCounts(test.replicas, test.weight, test.maxWeight, test.maxSurge)
 			assert.Equal(t, test.expCanary, newRSReplicaCount, "check canary replica count")
 			assert.Equal(t, test.expStable, stableRSReplicaCount, "check stable replica count")
 		})
@@ -905,12 +954,13 @@ func TestCalculateReplicaCountsForCanaryStableRSdEdgeCases(t *testing.T) {
 }
 
 func TestTrafficWeightToReplicas(t *testing.T) {
-	assert.Equal(t, int32(0), trafficWeightToReplicas(10, 0))
-	assert.Equal(t, int32(2), trafficWeightToReplicas(10, 20))
-	assert.Equal(t, int32(3), trafficWeightToReplicas(10, 25))
-	assert.Equal(t, int32(4), trafficWeightToReplicas(10, 33))
-	assert.Equal(t, int32(10), trafficWeightToReplicas(10, 99))
-	assert.Equal(t, int32(10), trafficWeightToReplicas(10, 100))
+	assert.Equal(t, int32(0), trafficWeightToReplicas(10, 0, 100))
+	assert.Equal(t, int32(2), trafficWeightToReplicas(10, 20, 100))
+	assert.Equal(t, int32(3), trafficWeightToReplicas(10, 25, 100))
+	assert.Equal(t, int32(4), trafficWeightToReplicas(10, 33, 100))
+	assert.Equal(t, int32(10), trafficWeightToReplicas(10, 99, 100))
+	assert.Equal(t, int32(10), trafficWeightToReplicas(10, 100, 100))
+	assert.Equal(t, int32(23), trafficWeightToReplicas(23, 100000000, 100000000))
 }
 
 func TestGetOtherRSs(t *testing.T) {

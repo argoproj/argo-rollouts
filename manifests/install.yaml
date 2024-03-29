@@ -9278,6 +9278,17 @@ spec:
                   - templateName
                   type: object
                 type: array
+              analysisRunMetadata:
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  labels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
               dryRun:
                 items:
                   properties:
@@ -12480,6 +12491,26 @@ spec:
                                     - templateName
                                     type: object
                                   type: array
+                                analysisRunMetadata:
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
+                                dryRun:
+                                  items:
+                                    properties:
+                                      metricName:
+                                        type: string
+                                    required:
+                                    - metricName
+                                    type: object
+                                  type: array
                                 duration:
                                   type: string
                                 templates:
@@ -12812,6 +12843,9 @@ spec:
                               - name
                               type: object
                             type: array
+                          maxTrafficWeight:
+                            format: int32
+                            type: integer
                           nginx:
                             properties:
                               additionalIngressAnnotations:
@@ -15825,6 +15859,7 @@ rules:
   - patch
 - apiGroups:
   - traefik.containo.us
+  - traefik.io
   resources:
   - traefikservices
   verbs:
@@ -16019,6 +16054,14 @@ spec:
           periodSeconds: 5
           successThreshold: 1
           timeoutSeconds: 4
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          seccompProfile:
+            type: RuntimeDefault
       securityContext:
         runAsNonRoot: true
       serviceAccountName: argo-rollouts

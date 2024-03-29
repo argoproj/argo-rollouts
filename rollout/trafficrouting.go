@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	"github.com/argoproj/argo-rollouts/utils/weightutil"
 )
 
 // NewTrafficRoutingReconciler identifies return the TrafficRouting Plugin that the rollout wants to modify
@@ -132,6 +133,7 @@ func (c *Controller) NewTrafficRoutingReconciler(roCtx *rolloutContext) ([]traff
 	return nil, nil
 }
 
+// this currently only be used in the canary strategy
 func (c *rolloutContext) reconcileTrafficRouting() error {
 	reconcilers, err := c.newTrafficRoutingReconciler(c)
 	// a return here does ensure that all trafficReconcilers are healthy
@@ -179,13 +181,15 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			desiredWeight = c.calculateDesiredWeightOnAbortOrStableRollback()
 			if (c.rollout.Spec.Strategy.Canary.DynamicStableScale && desiredWeight == 0) || !c.rollout.Spec.Strategy.Canary.DynamicStableScale {
 				// If we are using dynamic stable scale we need to also make sure that desiredWeight=0 aka we are completely
-				// done with aborting before resetting the canary service selectors back to stable
-				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, true)
+				// done with aborting before resetting the canary service selectors back to stable. For non-dynamic scale we do not check for availability because we are
+				// fully aborted and stable pods will be there, if we check for availability it causes issues with ALB readiness gates if all stable pods
+				// have the desired readiness gate on them during an abort we get stuck in a loop because all the stable go unready and rollouts won't be able
+				// to switch the desired services because there is no ready pods which causes pods to get stuck progressing forever waiting for readiness.
+				err = c.ensureSVCTargets(c.rollout.Spec.Strategy.Canary.CanaryService, c.stableRS, false)
 				if err != nil {
 					return err
 				}
 			}
-
 			err := reconciler.RemoveManagedRoutes()
 			if err != nil {
 				return err
@@ -199,7 +203,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 			// But we can only increase canary weight according to available replica counts of the canary.
 			// we will need to set the desiredWeight to 0 when the newRS is not available.
 			if c.rollout.Spec.Strategy.Canary.DynamicStableScale {
-				desiredWeight = (100 * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
+				desiredWeight = (weightutil.MaxTrafficWeight(c.rollout) * c.newRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas
 			} else if c.rollout.Status.Canary.Weights != nil {
 				desiredWeight = c.rollout.Status.Canary.Weights.Canary.Weight
 			}
@@ -227,7 +231,7 @@ func (c *rolloutContext) reconcileTrafficRouting() error {
 				desiredWeight = replicasetutil.GetCurrentSetWeight(c.rollout)
 				weightDestinations = append(weightDestinations, c.calculateWeightDestinationsFromExperiment()...)
 			} else {
-				desiredWeight = 100
+				desiredWeight = weightutil.MaxTrafficWeight(c.rollout)
 			}
 		}
 		// We need to check for revision > 1 because when we first install the rollout we run step 0 this prevents that.
@@ -301,7 +305,7 @@ func (c *rolloutContext) calculateDesiredWeightOnAbortOrStableRollback() int32 {
 	}
 	// When using dynamic stable scaling, we must dynamically decreasing the weight to the canary
 	// according to the availability of the stable (whatever it can support).
-	desiredWeight := 100 - ((100 * c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas)
+	desiredWeight := maxInt(0, weightutil.MaxTrafficWeight(c.rollout)-((weightutil.MaxTrafficWeight(c.rollout)*c.stableRS.Status.AvailableReplicas) / *c.rollout.Spec.Replicas))
 	if c.rollout.Status.Canary.Weights != nil {
 		// This ensures that if we are already at a lower weight, then we will not
 		// increase the weight because stable availability is flapping (e.g. pod restarts)
@@ -334,7 +338,7 @@ func calculateWeightStatus(ro *v1alpha1.Rollout, canaryHash, stableHash string, 
 			ServiceName:     ro.Spec.Strategy.Canary.CanaryService,
 		},
 	}
-	stableWeight := 100 - desiredWeight
+	stableWeight := weightutil.MaxTrafficWeight(ro) - desiredWeight
 	for _, weightDest := range weightDestinations {
 		weights.Additional = append(weights.Additional, weightDest)
 		stableWeight -= weightDest.Weight
@@ -367,11 +371,13 @@ func (c *rolloutContext) calculateWeightDestinationsFromExperiment() []v1alpha1.
 		}
 		for _, templateStatus := range c.currentEx.Status.TemplateStatuses {
 			templateWeight := getTemplateWeight(templateStatus.Name)
-			weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
-				ServiceName:     templateStatus.ServiceName,
-				PodTemplateHash: templateStatus.PodTemplateHash,
-				Weight:          *templateWeight,
-			})
+			if templateWeight != nil {
+				weightDestinations = append(weightDestinations, v1alpha1.WeightDestination{
+					ServiceName:     templateStatus.ServiceName,
+					PodTemplateHash: templateStatus.PodTemplateHash,
+					Weight:          *templateWeight,
+				})
+			}
 		}
 	}
 	return weightDestinations

@@ -2,10 +2,13 @@ package metricproviders
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/argoproj/argo-rollouts/metric"
 	"github.com/argoproj/argo-rollouts/metricproviders/influxdb"
 	"github.com/argoproj/argo-rollouts/metricproviders/skywalking"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-rollouts/metricproviders/cloudwatch"
 	"github.com/argoproj/argo-rollouts/metricproviders/datadog"
@@ -26,6 +29,12 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 )
 
+const (
+	InclusterKubeconfig      = "in-cluster"
+	AnalysisJobKubeconfigEnv = "ARGO_ROLLOUTS_ANALYSIS_JOB_KUBECONFIG"
+	AnalysisJobNamespaceEnv  = "ARGO_ROLLOUTS_ANALYSIS_JOB_NAMESPACE"
+)
+
 type ProviderFactory struct {
 	KubeClient kubernetes.Interface
 	JobLister  batchlisters.JobLister
@@ -43,7 +52,12 @@ func (f *ProviderFactory) NewProvider(logCtx log.Entry, metric v1alpha1.Metric) 
 		}
 		return prometheus.NewPrometheusProvider(api, logCtx, metric)
 	case job.ProviderType:
-		return job.NewJobProvider(logCtx, f.KubeClient, f.JobLister), nil
+		kubeClient, customKubeconfig, err := GetAnalysisJobClientset(f.KubeClient)
+		if err != nil {
+			return nil, err
+		}
+
+		return job.NewJobProvider(logCtx, kubeClient, f.JobLister, GetAnalysisJobNamespace(), customKubeconfig), nil
 	case kayenta.ProviderType:
 		c := kayenta.NewHttpClient()
 		return kayenta.NewKayentaProvider(logCtx, c), nil
@@ -134,4 +148,33 @@ func Type(metric v1alpha1.Metric) string {
 	}
 
 	return "Unknown Provider"
+}
+
+// GetAnalysisJobClientset returns kubernetes clientset for executing the analysis job metric,
+// if the AnalysisJobKubeconfigEnv is set to InclusterKubeconfig, it will return the incluster client
+// else if it's set to a kubeconfig file it will return the clientset corresponding to the kubeconfig file.
+// If empty it returns the provided defaultClientset
+func GetAnalysisJobClientset(defaultClientset kubernetes.Interface) (kubernetes.Interface, bool, error) {
+	customJobKubeconfig := os.Getenv(AnalysisJobKubeconfigEnv)
+	if customJobKubeconfig != "" {
+		var (
+			cfg *rest.Config
+			err error
+		)
+		if customJobKubeconfig == InclusterKubeconfig {
+			cfg, err = rest.InClusterConfig()
+		} else {
+			cfg, err = clientcmd.BuildConfigFromFlags("", customJobKubeconfig)
+		}
+		if err != nil {
+			return nil, true, err
+		}
+		clientSet, err := kubernetes.NewForConfig(cfg)
+		return clientSet, true, err
+	}
+	return defaultClientset, false, nil
+}
+
+func GetAnalysisJobNamespace() string {
+	return os.Getenv(AnalysisJobNamespaceEnv)
 }

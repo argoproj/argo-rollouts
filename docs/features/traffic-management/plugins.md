@@ -73,6 +73,9 @@ responsibility of the Argo Rollouts administrator to define the plugin installat
 * This is just a sample plugin that can be used as a starting point for creating your own plugin.
   It is not meant to be used in production. It is based on the built-in prometheus provider.
 
+#### [Consul](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-consul)
+* This is a plugin that allows argo-rollouts to work with Consul's service mesh for traffic shaping patterns.
+
 #### [Contour](https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-contour)
 * This is a plugin that allows argo-rollouts to work with contour's resource: HTTPProxy. It enables traffic shaping patterns such as canary releases and more.
 

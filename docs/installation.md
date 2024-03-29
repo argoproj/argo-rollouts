@@ -81,7 +81,21 @@ kubectl argo rollouts version
 
 ## Shell auto completion
 
-The CLI can export shell completion code for several shells.
+To enable auto completion for the plugin when used with `kubectl` (version 1.26 or newer), you need to create a shell script on your PATH called `kubectl_complete-argo-rollouts` which will provide the completions.
+
+```shell
+cat <<EOF >kubectl_complete-argo-rollouts
+#!/usr/bin/env sh
+
+# Call the __complete command passing it all arguments
+kubectl argo rollouts __complete "\$@"
+EOF
+
+chmod +x kubectl_complete-argo-rollouts
+sudo mv ./kubectl_complete-argo-rollouts /usr/local/bin/
+```
+
+To enable auto completion for the CLI run as a standalone binary, the CLI can export shell completion code for several shells.
 
 For bash, ensure you have bash completions installed and enabled. To access completions in your current shell, run $ `source <(kubectl-argo-rollouts completion bash)`. Alternatively, write it to a file and source in `.bash_profile`.
 
@@ -120,4 +134,3 @@ To upgrade Argo Rollouts:
 If deployments are happening while you upgrade the controller, then you shouldn't
 have any downtime. Current Rollouts will be paused and as soon as the new controller becomes
 active it will resume all in-flight deployments.
-

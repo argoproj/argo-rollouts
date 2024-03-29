@@ -11,6 +11,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	batchlisters "k8s.io/client-go/listers/batch/v1"
 
@@ -24,8 +25,12 @@ const (
 	ProviderType = "Job"
 	// JobNameKey is the measurement's metadata key holding the job name associated with the measurement
 	JobNameKey = "job-name"
+	// JobNamespaceKey is the measurement's metadata key holding the job namespace associated with the measurement
+	JobNamespaceKey = "job-namespace"
 	// AnalysisRunNameAnnotationKey is the job's annotation key containing the name of the controller AnalysisRun
 	AnalysisRunNameAnnotationKey = "analysisrun.argoproj.io/name"
+	// AnalysisRunNamespaceAnnotationKey is the job's annotation key containing the namespace of the controller AnalysisRun
+	AnalysisRunNamespaceAnnotationKey = "analysisrun.argoproj.io/namespace"
 	// AnalysisRunMetricLabelKey is the job's annotation key containing the name of the associated AnalysisRun metric
 	AnalysisRunMetricAnnotationKey = "analysisrun.argoproj.io/metric-name"
 	// AnalysisRunUIDLabelKey is the job's label key containing the uid of the associated AnalysisRun
@@ -38,16 +43,20 @@ var (
 )
 
 type JobProvider struct {
-	kubeclientset kubernetes.Interface
-	jobLister     batchlisters.JobLister
-	logCtx        log.Entry
+	kubeclientset       kubernetes.Interface
+	jobLister           batchlisters.JobLister
+	logCtx              log.Entry
+	jobNamespace        string
+	customJobKubeconfig bool
 }
 
-func NewJobProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, jobLister batchlisters.JobLister) *JobProvider {
+func NewJobProvider(logCtx log.Entry, kubeclientset kubernetes.Interface, jobLister batchlisters.JobLister, jobNS string, customJobKubeconfig bool) *JobProvider {
 	return &JobProvider{
-		kubeclientset: kubeclientset,
-		logCtx:        logCtx,
-		jobLister:     jobLister,
+		kubeclientset:       kubeclientset,
+		logCtx:              logCtx,
+		jobLister:           jobLister,
+		jobNamespace:        jobNS,
+		customJobKubeconfig: customJobKubeconfig,
 	}
 }
 
@@ -78,7 +87,11 @@ func getJobIDSuffix(run *v1alpha1.AnalysisRun, metricName string) int {
 	return int(res.Count + res.Error + 1)
 }
 
-func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) (*batchv1.Job, error) {
+func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, jobNS string, customJobKubeconfig bool) (*batchv1.Job, error) {
+	ns := run.Namespace
+	if jobNS != "" {
+		ns = jobNS
+	}
 	jobAnnotations := metric.Provider.Job.Metadata.GetAnnotations()
 	jobLabels := metric.Provider.Job.Metadata.GetLabels()
 	if jobAnnotations == nil {
@@ -89,12 +102,19 @@ func newMetricJob(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) (*batchv1.J
 	}
 	jobLabels[AnalysisRunUIDLabelKey] = string(run.UID)
 	jobAnnotations[AnalysisRunNameAnnotationKey] = run.Name
+	jobAnnotations[AnalysisRunNamespaceAnnotationKey] = run.Namespace
 	jobAnnotations[AnalysisRunMetricAnnotationKey] = metric.Name
+
+	ownerRef := []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)}
+
+	if ns != run.Namespace || customJobKubeconfig {
+		ownerRef = nil
+	}
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            newJobName(run, metric),
-			Namespace:       run.Namespace,
-			OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(run, analysisRunGVK)},
+			Namespace:       ns,
+			OwnerReferences: ownerRef,
 			Annotations:     jobAnnotations,
 			Labels:          jobLabels,
 		},
@@ -110,12 +130,12 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1a
 		StartedAt: &now,
 		Phase:     v1alpha1.AnalysisPhaseRunning,
 	}
-	job, err := newMetricJob(run, metric)
+	job, err := newMetricJob(run, metric, p.jobNamespace, p.customJobKubeconfig)
 	if err != nil {
 		p.logCtx.Errorf("job initialization failed: %v", err)
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
-	jobIf := p.kubeclientset.BatchV1().Jobs(run.Namespace)
+	jobIf := p.kubeclientset.BatchV1().Jobs(job.Namespace)
 	createdJob, createErr := jobIf.Create(ctx, job, metav1.CreateOptions{})
 	if createErr != nil {
 		if !k8serrors.IsAlreadyExists(createErr) {
@@ -127,8 +147,17 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1a
 			p.logCtx.Errorf("job create (verify) %s failed: %v", job.Name, createErr)
 			return metricutil.MarkMeasurementError(measurement, createErr)
 		}
-		controllerRef := metav1.GetControllerOf(existingJob)
-		if run.UID != controllerRef.UID {
+		ownerUID := ""
+		// if custom kubeconfig or different namespace is used owner ref is absent,
+		// use run uid label to get owner analysis run uid
+		if p.customJobKubeconfig || job.Namespace != run.Namespace {
+			ownerUID = job.Labels[AnalysisRunUIDLabelKey]
+		} else {
+			controllerRef := metav1.GetControllerOf(existingJob)
+			ownerUID = string(controllerRef.UID)
+		}
+
+		if string(run.UID) != ownerUID {
 			// NOTE: we don't bother to check for semantic equality. UID is good enough
 			p.logCtx.Errorf("job create (uid check) %s failed: %v", job.Name, createErr)
 			return metricutil.MarkMeasurementError(measurement, createErr)
@@ -137,19 +166,20 @@ func (p *JobProvider) Run(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric) v1a
 		createdJob = existingJob
 	}
 	measurement.Metadata = map[string]string{
-		JobNameKey: createdJob.Name,
+		JobNameKey:      createdJob.Name,
+		JobNamespaceKey: createdJob.Namespace,
 	}
 	p.logCtx.Infof("job %s/%s created", createdJob.Namespace, createdJob.Name)
 	return measurement
 }
 
 func (p *JobProvider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
-	jobName, err := getJobName(measurement)
+	jobName, err := getJobNamespacedName(measurement, run.Namespace)
 	now := timeutil.MetaNow()
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
-	job, err := p.jobLister.Jobs(run.Namespace).Get(jobName)
+	job, err := p.jobLister.Jobs(jobName.Namespace).Get(jobName.Name)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
@@ -170,26 +200,39 @@ func (p *JobProvider) Resume(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, 
 }
 
 func (p *JobProvider) Terminate(run *v1alpha1.AnalysisRun, metric v1alpha1.Metric, measurement v1alpha1.Measurement) v1alpha1.Measurement {
-	jobName, err := getJobName(measurement)
+	jobName, err := getJobNamespacedName(measurement, run.Namespace)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
-	err = p.deleteJob(run.Namespace, jobName)
+	err = p.deleteJob(jobName.Namespace, jobName.Name)
 	if err != nil {
 		return metricutil.MarkMeasurementError(measurement, err)
 	}
 	now := timeutil.MetaNow()
 	measurement.FinishedAt = &now
 	measurement.Phase = v1alpha1.AnalysisPhaseSuccessful
-	p.logCtx.Infof("job %s/%s terminated", run.Namespace, jobName)
+	p.logCtx.Infof("job %s/%s terminated", jobName.Namespace, jobName.Name)
 	return measurement
 }
 
-func getJobName(measurement v1alpha1.Measurement) (string, error) {
-	if measurement.Metadata != nil && measurement.Metadata[JobNameKey] != "" {
-		return measurement.Metadata[JobNameKey], nil
+func getJobNamespacedName(measurement v1alpha1.Measurement, defaultNS string) (types.NamespacedName, error) {
+	name := types.NamespacedName{
+		Namespace: defaultNS,
+		Name:      "",
 	}
-	return "", errors.New("job metadata reference missing")
+	if measurement.Metadata != nil {
+		if measurement.Metadata[JobNameKey] != "" {
+			name.Name = measurement.Metadata[JobNameKey]
+		} else {
+			return name, errors.New("job metadata reference missing")
+		}
+		if measurement.Metadata[JobNamespaceKey] != "" {
+			name.Namespace = measurement.Metadata[JobNamespaceKey]
+		}
+	} else {
+		return name, errors.New("job metadata reference missing")
+	}
+	return name, nil
 }
 
 func (p *JobProvider) deleteJob(namespace, jobName string) error {
@@ -220,11 +263,11 @@ func (p *JobProvider) GarbageCollect(run *v1alpha1.AnalysisRun, metric v1alpha1.
 	totalJobs := len(jobs)
 	if totalJobs > limit {
 		for i := 0; i < totalJobs-limit; i++ {
-			err = p.deleteJob(run.Namespace, jobs[i].Name)
+			err = p.deleteJob(jobs[i].Namespace, jobs[i].Name)
 			if err != nil {
 				return err
 			}
-			p.logCtx.Infof("job %s/%s garbage collected", run.Namespace, jobs[i].Name)
+			p.logCtx.Infof("job %s/%s garbage collected", jobs[i].Namespace, jobs[i].Name)
 		}
 	}
 	return nil

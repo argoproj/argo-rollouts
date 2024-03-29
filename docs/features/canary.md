@@ -1,5 +1,5 @@
 # Canary Deployment Strategy
-A canary rollout is a deployment strategy where the operator releases a new version of their application to a small percentage of the production traffic. 
+A canary rollout is a deployment strategy where the operator releases a new version of their application to a small percentage of the production traffic.
 
 ## Overview
 Since there is no agreed upon standard for a canary deployment, the rollouts controller allows users to outline how they want to run their canary deployment. Users can define a list of steps the controller uses to manipulate the ReplicaSets when there is a change to the `.spec.template`. Each step will be evaluated before the new ReplicaSet is promoted to the stable version, and the old version is completely scaled down.
@@ -7,7 +7,7 @@ Since there is no agreed upon standard for a canary deployment, the rollouts con
 Each step can have one of two fields. The `setWeight` field dictates the percentage of traffic that should be sent to the canary, and the `pause` struct instructs the rollout to pause.  When the controller reaches a `pause` step for a rollout, it will add a `PauseCondition` struct to the `.status.PauseConditions` field. If the `duration` field within the `pause` struct is set, the rollout will not progress to the next step until it has waited for the value of the `duration` field. Otherwise, the rollout will wait indefinitely until that Pause condition is removed. By using the `setWeight` and the `pause` fields, a user can declaratively describe how they want to progress to the new version. Below is an example of a canary strategy.
 
 !!! important
-    If the canary Rollout does not use [traffic management](traffic-management/index.md), the Rollout makes a best effort attempt to achieve the percentage listed in the last `setWeight` step between the new and old version. For example, if a Rollout has 10 Replicas and 10% for the first `setWeight` step, the controller will scale the new desired ReplicaSet to 1 replicas and the old stable ReplicaSet to 9. In the case where the setWeight is 15%, the Rollout attempts to get there by rounding up the calculation (i.e. the new ReplicaSet has 2 pods since 15% of 10 rounds up to 2 and the old ReplicaSet has 9 pods since 85% of 10 rounds up to 9). If a user wants to have more fine-grained control of the percentages without a large number of Replicas, that user should use the  [traffic management](#trafficrouting) functionality.
+    If the canary Rollout does not use [traffic management](traffic-management/index.md), the Rollout makes a best effort attempt to achieve the percentage listed in the last `setWeight` step between the new and old version. For example, if a Rollout has 10 Replicas and 10% for the first `setWeight` step, the controller will scale the new desired ReplicaSet to 1 replicas and the old stable ReplicaSet to 9. In the case where the setWeight is 41%, the Rollout attempts to get there by finding the whole number with the smallest delta, rounding up the calculation if the deltas are equals (i.e. the new ReplicaSet has 4 pods since 41% of 10 is closer to 4/10 than 5/10, and the old ReplicaSet has 6 pods). If a user wants to have more fine-grained control of the percentages without a large number of Replicas, that user should use the  [traffic management](#trafficrouting) functionality.
 
 ## Example
 ```yaml
@@ -59,7 +59,7 @@ spec:
         - pause: {}                # pause indefinitely
 ```
 
-If no `duration` is specified for a pause step, the rollout will be paused indefinitely. To unpause, use the [argo kubectl plugin](kubectl-plugin.md) `promote` command. 
+If no `duration` is specified for a pause step, the rollout will be paused indefinitely. To unpause, use the [argo kubectl plugin](kubectl-plugin.md) `promote` command.
 
 ```shell
 # promote to the next step
