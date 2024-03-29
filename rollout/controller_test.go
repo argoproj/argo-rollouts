@@ -99,10 +99,12 @@ type fixture struct {
 	kubeactions []core.Action
 	actions     []core.Action
 	// Objects from here preloaded into NewSimpleFake.
-	kubeobjects     []runtime.Object
-	objects         []runtime.Object
-	enqueuedObjects map[string]int
-	unfreezeTime    func() error
+	kubeobjects []runtime.Object
+	objects     []runtime.Object
+	// Acquire 'enqueuedObjectsLock' before accessing enqueuedObjects
+	enqueuedObjects     map[string]int
+	enqueuedObjectsLock sync.Mutex
+	unfreezeTime        func() error
 
 	// events holds all the K8s Event Reasons emitted during the run
 	events             []string
@@ -116,9 +118,12 @@ func newFixture(t *testing.T) *fixture {
 	f.kubeobjects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
 	now := time.Now()
-	timeutil.Now = func() time.Time { return now }
+
+	timeutil.SetNowTimeFunc(func() time.Time {
+		return now
+	})
 	f.unfreezeTime = func() error {
-		timeutil.Now = time.Now
+		timeutil.SetNowTimeFunc(time.Now)
 		return nil
 	}
 
@@ -598,15 +603,15 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		RefResolver:                     &FakeWorkloadRefResolver{},
 	})
 
-	var enqueuedObjectsLock sync.Mutex
 	c.enqueueRollout = func(obj any) {
 		var key string
 		var err error
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 			panic(err)
 		}
-		enqueuedObjectsLock.Lock()
-		defer enqueuedObjectsLock.Unlock()
+
+		f.enqueuedObjectsLock.Lock()
+		defer f.enqueuedObjectsLock.Unlock()
 		count, ok := f.enqueuedObjects[key]
 		if !ok {
 			count = 0
@@ -720,7 +725,8 @@ func (f *fixture) runController(rolloutName string, startInformers bool, expectE
 		f.t.Errorf("%d expected actions did not happen:%+v", len(f.kubeactions)-len(k8sActions), f.kubeactions[len(k8sActions):])
 	}
 	fakeRecorder := c.recorder.(*record.FakeEventRecorder)
-	f.events = fakeRecorder.Events
+
+	f.events = fakeRecorder.Events()
 	return c
 }
 

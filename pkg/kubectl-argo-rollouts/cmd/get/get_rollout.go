@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/juju/ansiterm"
@@ -59,7 +60,11 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 				getOptions.PrintRollout(ri)
 			} else {
 				rolloutUpdates := make(chan *rollout.RolloutInfo)
+				var rolloutUpdatesMutex sync.Mutex
+
 				controller.RegisterCallback(func(roInfo *rollout.RolloutInfo) {
+					rolloutUpdatesMutex.Lock()
+					defer rolloutUpdatesMutex.Unlock()
 					rolloutUpdates <- roInfo
 				})
 				stopCh := ctx.Done()
@@ -72,6 +77,8 @@ func NewCmdGetRollout(o *options.ArgoRolloutsOptions) *cobra.Command {
 				}
 				go getOptions.WatchRollout(stopCh, rolloutUpdates)
 				controller.Run(ctx)
+				rolloutUpdatesMutex.Lock()
+				defer rolloutUpdatesMutex.Unlock()
 				close(rolloutUpdates)
 			}
 			return nil

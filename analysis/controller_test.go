@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -50,9 +51,13 @@ type fixture struct {
 	// Actions expected to happen on the client.
 	actions []core.Action
 	// Objects from here preloaded into NewSimpleFake.
-	objects         []runtime.Object
-	enqueuedObjects map[string]int
-	unfreezeTime    func() error
+	objects []runtime.Object
+
+	// Acquire 'enqueuedObjectMutex' before accessing enqueuedObjects
+	enqueuedObjects     map[string]int
+	enqueuedObjectMutex sync.Mutex
+
+	unfreezeTime func() error
 	// fake provider
 	provider *mocks.Provider
 
@@ -66,11 +71,11 @@ func newFixture(t *testing.T) *fixture {
 	f.objects = []runtime.Object{}
 	f.enqueuedObjects = make(map[string]int)
 	f.now = time.Now()
-	timeutil.Now = func() time.Time {
+	timeutil.SetNowTimeFunc(func() time.Time {
 		return f.now
-	}
+	})
 	f.unfreezeTime = func() error {
-		timeutil.Now = time.Now
+		timeutil.SetNowTimeFunc(time.Now)
 		return nil
 	}
 	return f
@@ -122,6 +127,10 @@ func (f *fixture) newController(resync resyncFunc) (*Controller, informers.Share
 		if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 			panic(err)
 		}
+
+		f.enqueuedObjectMutex.Lock()
+		defer f.enqueuedObjectMutex.Unlock()
+
 		count, ok := f.enqueuedObjects[key]
 		if !ok {
 			count = 0

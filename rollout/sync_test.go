@@ -455,7 +455,7 @@ func TestSendStateChangeEvents(t *testing.T) {
 		recorder := record.NewFakeEventRecorder()
 		roCtx.recorder = recorder
 		roCtx.sendStateChangeEvents(&test.prevStatus, &test.newStatus)
-		assert.Equal(t, test.expectedEventReasons, recorder.Events)
+		assert.Equal(t, test.expectedEventReasons, recorder.Events())
 	}
 }
 
