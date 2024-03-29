@@ -21,7 +21,7 @@ import './rollout-grid-widget.scss';
 export const isInProgress = (rollout: RolloutInfo): boolean => {
     for (const rs of rollout.replicaSets || []) {
         for (const p of rs.pods || []) {
-            const status = ParsePodStatus(p.status);
+            const status = ParsePodStatus(p.status, p.ready);
             if (status === PodStatus.Pending) {
                 return true;
             }
