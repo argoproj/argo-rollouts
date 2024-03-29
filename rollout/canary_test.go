@@ -957,7 +957,6 @@ func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
 
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-	f.serviceLister = append(f.serviceLister)
 
 	// Switch back to version 1
 	r2.Spec.Template = r1.Spec.Template
@@ -1658,8 +1657,6 @@ func TestCanaryRolloutWithInvalidPingServiceName(t *testing.T) {
 
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
-	f.kubeobjects = append(f.kubeobjects)
-	f.serviceLister = append(f.serviceLister)
 
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))
