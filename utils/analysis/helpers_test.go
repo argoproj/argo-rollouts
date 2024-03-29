@@ -1115,3 +1115,83 @@ func TestGetMeasurementRetentionMetrics(t *testing.T) {
 		assert.Equal(t, len(measurementRetentionMetricNamesMap), 0)
 	})
 }
+
+func TestAnalysisTemplateFiltering(t *testing.T) {
+	t.Run("FilterAnalysisTemplates is returning empty arrays when empty arrays are provided in parameters", func(t *testing.T) {
+
+		analysisTemplates := []*v1alpha1.AnalysisTemplate{}
+		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{}
+
+		filteredAnalysisTemplates, filteredClusterAnalysisTemplates := FilterUniqueTemplates(analysisTemplates, clusterAnalysisTemplates)
+
+		assert.Equal(t, len(filteredAnalysisTemplates), 0)
+		assert.Equal(t, len(filteredClusterAnalysisTemplates), 0)
+
+	})
+
+	t.Run("FilterAnalysisTemplates is not filtering analysisTemplates duplications if there are none in the reference tree", func(t *testing.T) {
+
+		analysisTemplates := []*v1alpha1.AnalysisTemplate{
+			analysisTemplate("foo"),
+			analysisTemplate("bar"),
+			analysisTemplate("foo-2"),
+			analysisTemplate("foo-3"),
+		}
+		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{
+			clusterAnalysisTemplate("cluster-foo"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-3"),
+		}
+
+		filteredAnalysisTemplates, filteredClusterAnalysisTemplates := FilterUniqueTemplates(analysisTemplates, clusterAnalysisTemplates)
+
+		assert.Equal(t, len(filteredAnalysisTemplates), 4)
+		assert.Equal(t, len(filteredClusterAnalysisTemplates), 4)
+
+	})
+	t.Run("FilterAnalysisTemplates is filtering analysisTemplates duplications in the reference tree", func(t *testing.T) {
+
+		analysisTemplates := []*v1alpha1.AnalysisTemplate{
+			analysisTemplate("foo"),
+			analysisTemplate("foo"),
+			analysisTemplate("foo-2"),
+			analysisTemplate("foo-3"),
+			analysisTemplate("foo-3"),
+		}
+		clusterAnalysisTemplates := []*v1alpha1.ClusterAnalysisTemplate{
+			clusterAnalysisTemplate("cluster-foo"),
+			clusterAnalysisTemplate("cluster-foo"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-bar"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-2"),
+			clusterAnalysisTemplate("cluster-foo-3"),
+		}
+
+		filteredAnalysisTemplates, filteredClusterAnalysisTemplates := FilterUniqueTemplates(analysisTemplates, clusterAnalysisTemplates)
+
+		assert.Equal(t, len(filteredAnalysisTemplates), 3)
+		assert.Equal(t, len(filteredClusterAnalysisTemplates), 4)
+
+	})
+}
+
+func analysisTemplate(name string) *v1alpha1.AnalysisTemplate {
+	return &v1alpha1.AnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+}
+
+func clusterAnalysisTemplate(name string) *v1alpha1.ClusterAnalysisTemplate {
+	return &v1alpha1.ClusterAnalysisTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+}
