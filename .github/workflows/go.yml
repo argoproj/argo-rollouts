@@ -9,7 +9,7 @@ on:
       - "master"
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.20'
+  GOLANG_VERSION: '1.21'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -44,7 +44,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v4
         with:
-          version: v1.53.3
+          version: v1.57.2
           args: --timeout 6m
   build:
     name: Build
@@ -90,7 +90,7 @@ jobs:
           path: coverage.out
 
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@v4.1.0
+        uses: codecov/codecov-action@v4.1.1
         with:
           file: coverage.out
 
