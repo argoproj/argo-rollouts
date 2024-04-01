@@ -2,7 +2,7 @@ module github.com/argoproj/argo-rollouts
 
 go 1.21
 
-toolchain go1.21.7
+toolchain go1.21.8
 
 require (
 	github.com/antonmedv/expr v1.15.5
@@ -18,7 +18,7 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.3
+	github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-plugin v1.6.0
 	github.com/influxdata/influxdb-client-go/v2 v2.13.0
@@ -42,7 +42,7 @@ require (
 	golang.org/x/oauth2 v0.18.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240123012728-ef4313101c80
 	google.golang.org/grpc v1.62.1
-	google.golang.org/protobuf v1.32.0
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.26.11
 	k8s.io/apiextensions-apiserver v0.26.11
