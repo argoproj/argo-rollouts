@@ -317,7 +317,13 @@ func TestNotificationSendPerformance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
-	log.Infof("mfs: %v, %v, %v, %v", *mfs[0], *mfs[0].Metric[0].Histogram.SampleCount, *mfs[0].Metric[0].Histogram.SampleSum, *mfs[0].Metric[0].Histogram.Bucket[0].CumulativeCount)
+	t.Logf(
+		"mfs: %s, %v, %v, %v",
+		mfs[0].GetName(),
+		mfs[0].GetMetric()[0].GetHistogram().GetSampleCount(),
+		mfs[0].GetMetric()[0].GetHistogram().GetSampleSum(),
+		mfs[0].GetMetric()[0].GetHistogram().GetBucket()[0].GetCumulativeCount(),
+	)
 	want := `# HELP notification_send_performance Notification send performance.
 			 # TYPE notification_send_performance histogram
 			 notification_send_performance_bucket{name="guestbook",namespace="default",le="0.01"} 0
