@@ -957,7 +957,6 @@ func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
 
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-	f.serviceLister = append(f.serviceLister)
 
 	// Switch back to version 1
 	r2.Spec.Template = r1.Spec.Template
@@ -1156,6 +1155,8 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	f.runController(key, true, false, c, i, k8sI)
 
 	// When the controller starts, it will enqueue the rollout while syncing the informer and during the reconciliation step
+	f.enqueuedObjectsLock.Lock()
+	defer f.enqueuedObjectsLock.Unlock()
 	assert.Equal(t, 2, f.enqueuedObjects[key])
 }
 
@@ -1204,6 +1205,8 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
 	f.runController(key, true, false, c, i, k8sI)
 	// When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
+	f.enqueuedObjectsLock.Lock()
+	defer f.enqueuedObjectsLock.Unlock()
 	assert.Equal(t, 1, f.enqueuedObjects[key])
 }
 
@@ -1654,8 +1657,6 @@ func TestCanaryRolloutWithInvalidPingServiceName(t *testing.T) {
 
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
-	f.kubeobjects = append(f.kubeobjects)
-	f.serviceLister = append(f.serviceLister)
 
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))

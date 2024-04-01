@@ -383,7 +383,7 @@ func CalculateReplicaCountsForTrafficRoutedCanary(rollout *v1alpha1.Rollout, wei
 // trafficWeightToReplicas returns the appropriate replicas given the full spec.replicas and a weight
 // Rounds up if not evenly divisible.
 func trafficWeightToReplicas(replicas, weight, maxWeight int32) int32 {
-	return int32(math.Ceil(float64(weight*replicas) / float64(maxWeight)))
+	return int32(math.Ceil(float64(weight) * float64(replicas) / float64(maxWeight)))
 }
 
 func max(left, right int32) int32 {
