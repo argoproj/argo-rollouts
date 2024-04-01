@@ -1,6 +1,8 @@
 module github.com/argoproj/argo-rollouts
 
-go 1.20
+go 1.21
+
+toolchain go1.21.8
 
 require (
 	github.com/antonmedv/expr v1.15.5
@@ -16,7 +18,7 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.3
+	github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-plugin v1.6.0
 	github.com/influxdata/influxdb-client-go/v2 v2.13.0
