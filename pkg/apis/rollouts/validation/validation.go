@@ -94,10 +94,8 @@ const (
 // NOTE: this variable may need to be updated whenever we update our k8s libraries as new options
 // are introduced or removed.
 var allowAllPodValidationOptions = apivalidation.PodValidationOptions{
-	//AllowDownwardAPIHugePages:       true,
 	AllowInvalidPodDeletionCost:     true,
 	AllowIndivisibleHugePagesValues: true,
-	//AllowExpandedDNSConfig:          true,
 }
 
 func ValidateRollout(rollout *v1alpha1.Rollout) field.ErrorList {
