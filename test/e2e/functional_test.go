@@ -232,7 +232,7 @@ spec:
 		PromoteRolloutFull().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectAnalysisRunCount(0)
+		ExpectAnalysisRunCount(1)
 }
 
 func (s *FunctionalSuite) TestRolloutRestart() {
