@@ -87,6 +87,11 @@ func (c *rolloutContext) rolloutCanary() error {
 		return c.syncRolloutStatusCanary()
 	}
 
+	err = c.reconcileCanaryPluginStep()
+	if err != nil {
+		return err
+	}
+
 	return c.syncRolloutStatusCanary()
 }
 
@@ -315,7 +320,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	if c.rollout.Spec.Paused {
 		return false
 	}
-	currentStep, _ := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	if currentStep == nil {
 		return false
 	}
@@ -344,6 +349,8 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 		return true
 	case currentStep.SetMirrorRoute != nil:
 		return true
+	case currentStep.Plugin != nil:
+		return c.isPluginStepCompleted(*currentStepIndex)
 	}
 	return false
 }

@@ -13,6 +13,7 @@ import (
 
 	istioutil "github.com/argoproj/argo-rollouts/utils/istio"
 
+	stepPlugin "github.com/argoproj/argo-rollouts/rollout/steps/plugin"
 	rolloutsConfig "github.com/argoproj/argo-rollouts/utils/config"
 	goPlugin "github.com/hashicorp/go-plugin"
 
@@ -303,6 +304,7 @@ func NewManager(
 	serviceWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Services")
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
+	stepPluginResolver := stepPlugin.NewResolver()
 	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, argoprojclientset, rolloutsInformer.Informer())
 	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(analysisRunInformer), defaults.Namespace(), notificationSecretInformerFactory.Core().V1().Secrets().Informer(), notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer())
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, apiFactory)
@@ -345,6 +347,7 @@ func NewManager(
 		IngressWorkQueue:                ingressWorkqueue,
 		MetricsServer:                   metricsServer,
 		Recorder:                        recorder,
+		StepPluginResolver:              stepPluginResolver,
 	})
 
 	experimentController := experiments.NewController(experiments.ControllerConfig{

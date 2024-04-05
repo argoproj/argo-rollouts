@@ -965,6 +965,13 @@
         "stablePingPong": {
           "type": "string",
           "title": "StablePingPong For the ping-pong feature holds the current stable service, ping or pong"
+        },
+        "stepPluginStatuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StepPluginStatus"
+          },
+          "title": "StepPluginStatuses Hold the status of the step plugins executed"
         }
       },
       "title": "CanaryStatus status fields that only pertain to the canary rollout"
@@ -1000,6 +1007,10 @@
         "setMirrorRoute": {
           "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.SetMirrorRoute",
           "title": "SetMirrorRoutes Mirrors traffic that matches rules to a particular destination\n+optional"
+        },
+        "plugin": {
+          "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PluginStep",
+          "title": "Plugin defines a plugin to execute for a step"
         }
       },
       "description": "CanaryStep defines a step of a canary deployment."
@@ -1740,6 +1751,23 @@
         }
       },
       "description": "PingPongSpec holds the ping and pong service name."
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PluginStep": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name the name of the hashicorp go-plugin step to query"
+        },
+        "abortOnFailure": {
+          "type": "boolean"
+        },
+        "config": {
+          "type": "string",
+          "format": "byte",
+          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nConfig the configuration object for the specified plugin"
+        }
+      }
     },
     "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.PodTemplateMetadata": {
       "type": "object",
@@ -2496,6 +2524,34 @@
         },
         "interval": {
           "type": "string"
+        }
+      }
+    },
+    "github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StepPluginStatus": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "name": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
+        },
+        "finishedAt": {
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
+        },
+        "status": {
+          "type": "string",
+          "format": "byte"
         }
       }
     },

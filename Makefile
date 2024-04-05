@@ -146,6 +146,9 @@ gen-crd: install-go-tools-local ## generate crd manifests
 gen-mocks: install-go-tools-local ## generate mock files
 	./hack/update-mocks.sh
 
+gen-mocks-fast:
+	./hack/update-mocks.sh
+
 # generates openapi_generated.go
 .PHONY: gen-openapi
 gen-openapi: $(DIST_DIR)/openapi-gen ## generate openapi files

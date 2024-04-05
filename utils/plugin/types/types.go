@@ -85,6 +85,14 @@ type RpcTrafficRoutingReconciler interface {
 	Type() string
 }
 
+type RpcStep interface {
+	Run(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
+	Terminate(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
+	Abort(*v1alpha1.Rollout, *RpcStepContext) (RpcStepResult, RpcError)
+	// Type returns the type of the step plugin
+	Type() string
+}
+
 //type Plugin struct {
 //	MetricProviders []PluginItem `json:"metricProviders" yaml:"metricProviders"`
 //	TrafficRouters  []PluginItem `json:"trafficRouters" yaml:"trafficRouters"`
@@ -96,6 +104,10 @@ type TrafficRouterPlugins struct {
 
 type MetricProviderPlugins struct {
 	MetricProviders []PluginItem `json:"metricProviderPlugins" yaml:"metricProviderPlugins"`
+}
+
+type StepPlugins struct {
+	Steps []PluginItem `json:"stepPlugins" yaml:"stepPlugins"`
 }
 
 type PluginItem struct {

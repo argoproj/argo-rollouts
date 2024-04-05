@@ -42,6 +42,7 @@ import (
 	clientset "github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned"
 	informers "github.com/argoproj/argo-rollouts/pkg/client/informers/externalversions/rollouts/v1alpha1"
 	listers "github.com/argoproj/argo-rollouts/pkg/client/listers/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/steps/plugin"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/ambassador"
 	"github.com/argoproj/argo-rollouts/rollout/trafficrouting/appmesh"
@@ -112,6 +113,7 @@ type ControllerConfig struct {
 	IngressWorkQueue                workqueue.RateLimitingInterface
 	MetricsServer                   *metrics.MetricsServer
 	Recorder                        record.EventRecorder
+	StepPluginResolver              plugin.Resolver
 }
 
 // reconcilerBase is a shared datastructure containing all clients and configuration necessary to
@@ -126,7 +128,8 @@ type reconcilerBase struct {
 	dynamicclientset dynamic.Interface
 	smiclientset     smiclientset.Interface
 
-	refResolver TemplateRefResolver
+	refResolver        TemplateRefResolver
+	stepPluginResolver plugin.Resolver
 
 	replicaSetLister              appslisters.ReplicaSetLister
 	replicaSetSynced              cache.InformerSynced
@@ -199,6 +202,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		resyncPeriod:                  cfg.ResyncPeriod,
 		podRestarter:                  podRestarter,
 		refResolver:                   cfg.RefResolver,
+		stepPluginResolver:            cfg.StepPluginResolver,
 	}
 
 	controller := &Controller{

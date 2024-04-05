@@ -636,6 +636,22 @@ type CanaryStep struct {
 	// SetMirrorRoutes Mirrors traffic that matches rules to a particular destination
 	// +optional
 	SetMirrorRoute *SetMirrorRoute `json:"setMirrorRoute,omitempty" protobuf:"bytes,8,opt,name=setMirrorRoute"`
+	// Plugin defines a plugin to execute for a step
+	Plugin *PluginStep `json:"plugin,omitempty" protobuf:"bytes,9,opt,name=plugin"`
+}
+
+type PluginStep struct {
+	// Name the name of the hashicorp go-plugin step to query
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+
+	AbortOnFailure bool
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	// Config the configuration object for the specified plugin
+	Config json.RawMessage `json:"config,omitempty" protobuf:"bytes,2,opt,name=config"`
+
+	// json.RawMessage `json:"config,omitempty" protobuf:"bytes,2,opt,name=config"`
 }
 
 type SetMirrorRoute struct {
@@ -984,6 +1000,8 @@ type CanaryStatus struct {
 	Weights *TrafficWeights `json:"weights,omitempty" protobuf:"bytes,4,opt,name=weights"`
 	// StablePingPong For the ping-pong feature holds the current stable service, ping or pong
 	StablePingPong PingPongType `json:"stablePingPong,omitempty" protobuf:"bytes,5,opt,name=stablePingPong"`
+	// StepPluginStatuses Hold the status of the step plugins executed
+	StepPluginStatuses []StepPluginStatus `json:"stepPluginStatuses,omitempty" protobuf:"bytes,6,rep,name=stepPluginStatuses"`
 }
 
 type PingPongType string
@@ -1020,6 +1038,27 @@ type RolloutAnalysisRunStatus struct {
 	Status  AnalysisPhase `json:"status" protobuf:"bytes,2,opt,name=status,casttype=AnalysisPhase"`
 	Message string        `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
 }
+
+type StepPluginStatus struct {
+	Index      int32           `json:"index" protobuf:"bytes,1,opt,name=index"`
+	Name       string          `json:"name" protobuf:"bytes,2,opt,name=name"`
+	Phase      StepPluginPhase `json:"phase" protobuf:"bytes,3,opt,name=phase"`
+	Message    string          `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
+	StartedAt  *metav1.Time    `json:"startedAt,omitempty" protobuf:"bytes,5,opt,name=startedAt"`
+	FinishedAt *metav1.Time    `json:"finishedAt,omitempty" protobuf:"bytes,6,opt,name=finishedAt"`
+	Status     json.RawMessage `json:"status,omitempty" protobuf:"bytes,7,opt,name=status"`
+}
+
+// StepPluginPhase is the overall phase of a StepPlugin
+type StepPluginPhase string
+
+// Possible StepPluginPhase values
+const (
+	StepPluginPhaseRunning    StepPluginPhase = "Running"
+	StepPluginPhaseSuccessful StepPluginPhase = "Successful"
+	StepPluginPhaseFailed     StepPluginPhase = "Failed"
+	StepPluginPhaseError      StepPluginPhase = "Error"
+)
 
 type ALBStatus struct {
 	LoadBalancer      AwsResourceRef `json:"loadBalancer,omitempty" protobuf:"bytes,1,opt,name=loadBalancer"`

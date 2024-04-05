@@ -433,6 +433,9 @@ message CanaryStatus {
 
   // StablePingPong For the ping-pong feature holds the current stable service, ping or pong
   optional string stablePingPong = 5;
+
+  // StepPluginStatuses Hold the status of the step plugins executed
+  repeated StepPluginStatus stepPluginStatuses = 6;
 }
 
 // CanaryStep defines a step of a canary deployment.
@@ -462,6 +465,9 @@ message CanaryStep {
   // SetMirrorRoutes Mirrors traffic that matches rules to a particular destination
   // +optional
   optional SetMirrorRoute setMirrorRoute = 8;
+
+  // Plugin defines a plugin to execute for a step
+  optional PluginStep plugin = 9;
 }
 
 // CanaryStrategy defines parameters for a Replica Based Canary
@@ -1163,6 +1169,19 @@ message PingPongSpec {
   optional string pongService = 2;
 }
 
+message PluginStep {
+  // Name the name of the hashicorp go-plugin step to query
+  optional string name = 1;
+
+  optional bool abortOnFailure = 3;
+
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
+  // Config the configuration object for the specified plugin
+  optional bytes config = 2;
+}
+
 // PodTemplateMetadata extra labels to add to the template
 message PodTemplateMetadata {
   // Labels Additional labels to add to the experiment
@@ -1730,6 +1749,22 @@ message SkyWalkingMetric {
   optional string query = 2;
 
   optional string interval = 3;
+}
+
+message StepPluginStatus {
+  optional int32 index = 1;
+
+  optional string name = 2;
+
+  optional string phase = 3;
+
+  optional string message = 4;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 5;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 6;
+
+  optional bytes status = 7;
 }
 
 message StickinessConfig {
