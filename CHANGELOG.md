@@ -966,4 +966,3 @@ There was an unintentional change in behavior related to service creation with e
 ### Fixes
 
 * **controller:** istio dropping fields not defined in type ([#2268](https://github.com/argoproj/argo-rollouts/issues/2268))
-
