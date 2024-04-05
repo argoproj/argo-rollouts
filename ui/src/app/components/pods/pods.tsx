@@ -20,7 +20,17 @@ export enum PodStatus {
     Unknown = 'unknown',
 }
 
-export const ParsePodStatus = (status: string): PodStatus => {
+const isPodReady = (ready: string) => {
+    // Ready is a string in the format "0/1", "1/1", etc.
+    const [current, total] = ready.split('/');
+    return current === total;
+};
+
+export const ParsePodStatus = (status: string, ready: string): PodStatus => {
+    if (status === 'Running' && !isPodReady(ready)) {
+        return PodStatus.Pending;
+    }
+
     switch (status) {
         case 'Pending':
         case 'Terminating':
@@ -101,10 +111,12 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
                               key={pod.objectMeta?.uid}
                               name={pod.objectMeta?.name}
                               status={pod.status}
+                              ready={pod.ready}
                               tooltip={
                                   <div>
-                                      <div>Status: {pod.status}</div>
                                       <div>{pod.objectMeta?.name}</div>
+                                      <div>Status: {pod.status}</div>
+                                      <div>Ready: {pod.ready}</div>
                                   </div>
                               }
                           />
@@ -115,7 +127,7 @@ export const ReplicaSet = (props: {rs: RolloutReplicaSetInfo; showRevision?: boo
     );
 };
 
-export const PodWidget = ({name, status, tooltip, customIcon}: {name: string; status: string; tooltip: React.ReactNode; customIcon?: IconDefinition}) => {
+export const PodWidget = ({name, status, ready, tooltip, customIcon}: {name: string; status: string; ready: string; tooltip: React.ReactNode; customIcon?: IconDefinition}) => {
     let icon: IconDefinition;
     let spin = false;
     if (status.startsWith('Init:')) {
@@ -129,7 +141,7 @@ export const PodWidget = ({name, status, tooltip, customIcon}: {name: string; st
         icon = faExclamationTriangle;
     }
 
-    const className = ParsePodStatus(status);
+    const className = ParsePodStatus(status, ready);
 
     if (customIcon) {
         icon = customIcon;

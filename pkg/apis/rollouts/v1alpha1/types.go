@@ -731,7 +731,7 @@ type RolloutAnalysis struct {
 	// Templates reference to a list of analysis templates to combine for an AnalysisRun
 	// +patchMergeKey=templateName
 	// +patchStrategy=merge
-	Templates []RolloutAnalysisTemplate `json:"templates,omitempty" patchStrategy:"merge" patchMergeKey:"templateName" protobuf:"bytes,1,rep,name=templates"`
+	Templates []AnalysisTemplateRef `json:"templates,omitempty" patchStrategy:"merge" patchMergeKey:"templateName" protobuf:"bytes,1,rep,name=templates"`
 	// Args the arguments that will be added to the AnalysisRuns
 	// +patchMergeKey=name
 	// +patchStrategy=merge
@@ -751,7 +751,7 @@ type RolloutAnalysis struct {
 	AnalysisRunMetadata AnalysisRunMetadata `json:"analysisRunMetadata,omitempty" protobuf:"bytes,5,opt,name=analysisRunMetadata"`
 }
 
-type RolloutAnalysisTemplate struct {
+type AnalysisTemplateRef struct {
 	//TemplateName name of template to use in AnalysisRun
 	// +optional
 	TemplateName string `json:"templateName" protobuf:"bytes,1,opt,name=templateName"`

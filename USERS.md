@@ -16,6 +16,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [DaoCloud](https://daocloud.io)
 1. [Databricks](https://github.com/databricks)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
+1. [Factorial](https://factorialhr.com)
 1. [Farfetch](https://www.farfetch.com/)
 1. [Flipkart](https://flipkart.com)
 1. [GetYourGuide](https://www.getyourguide.com)
@@ -50,3 +51,4 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [WeLab Bank](https://www.welab.bank/)
 1. [Yotpo](https://www.yotpo.com/)
 1. [VGS](https://www.vgs.io)
+2. [Groww](https://groww.in/)
