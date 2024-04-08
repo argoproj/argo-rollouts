@@ -482,9 +482,9 @@ Or without additional metrics:
         clusterScope: false
     ```
 
-  The result in the AnalysisRun will have the aggregation of metrics of each template:
+The result in the AnalysisRun will have the aggregation of metrics of each template:
 
-  === "AnalysisRun"
+=== "AnalysisRun"
 
     ```yaml
     # NOTE: Generated AnalysisRun from a single template referencing several templates
