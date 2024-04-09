@@ -13,7 +13,7 @@
  */
 
 import * as url from "url";
-import * as portableFetch from "portable-fetch";
+import * as isomorphicFetch from "isomorphic-fetch";
 import { Configuration } from "./configuration";
 
 const BASE_PATH = "/".replace(/\/+$/, "");
@@ -56,13 +56,13 @@ export interface FetchArgs {
 export class BaseAPI {
     protected configuration: Configuration;
 
-    constructor(configuration?: Configuration, protected basePath: string = BASE_PATH, protected fetch: FetchAPI = portableFetch) {
+    constructor(configuration?: Configuration, protected basePath: string = BASE_PATH, protected fetch: FetchAPI = isomorphicFetch) {
         if (configuration) {
             this.configuration = configuration;
             this.basePath = configuration.basePath || this.basePath;
         }
     }
-};
+}
 
 /**
  *
@@ -71,7 +71,7 @@ export class BaseAPI {
  * @extends {Error}
  */
 export class RequiredError extends Error {
-    name: "RequiredError"
+    name = "RequiredError"
     constructor(public field: string, msg?: string) {
         super(msg);
     }
@@ -7969,7 +7969,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutAbortRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -7993,7 +7993,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -8027,7 +8027,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -8055,7 +8055,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -8096,7 +8096,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutPromoteRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -8139,7 +8139,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutRestartRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -8182,7 +8182,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutRetryRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -8243,7 +8243,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutSetImageRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -8292,7 +8292,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
             const needsSerialization = (<any>"RolloutUndoRolloutRequest" !== "string") || localVarRequestOptions.headers['Content-Type'] === 'application/json';
             localVarRequestOptions.body =  needsSerialization ? JSON.stringify(body || {}) : (body || "");
@@ -8316,7 +8316,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -8350,7 +8350,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -8378,7 +8378,7 @@ export const RolloutServiceApiFetchParamCreator = function (configuration?: Conf
 
             localVarUrlObj.query = Object.assign({}, localVarUrlObj.query, localVarQueryParameter, options.query);
             // fix override query string Detail: https://stackoverflow.com/a/7517673/1077943
-            delete localVarUrlObj.search;
+            localVarUrlObj.search = null;
             localVarRequestOptions.headers = Object.assign({}, localVarHeaderParameter, options.headers);
 
             return {
@@ -8405,7 +8405,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceAbortRollout(body: RolloutAbortRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceAbortRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8422,7 +8422,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceGetNamespace(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutNamespaceInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceGetNamespace(options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8441,7 +8441,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceGetRolloutInfo(namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutRolloutInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceGetRolloutInfo(namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8459,7 +8459,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceListRolloutInfos(namespace: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutRolloutInfoList> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceListRolloutInfos(namespace, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8479,7 +8479,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServicePromoteRollout(body: RolloutPromoteRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServicePromoteRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8499,7 +8499,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceRestartRollout(body: RolloutRestartRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceRestartRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8519,7 +8519,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceRetryRollout(body: RolloutRetryRolloutRequest, namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceRetryRollout(body, namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8542,7 +8542,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceSetRolloutImage(body: RolloutSetImageRequest, namespace: string, rollout: string, container: string, image: string, tag: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceSetRolloutImage(body, namespace, rollout, container, image, tag, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8563,7 +8563,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceUndoRollout(body: RolloutUndoRolloutRequest, namespace: string, rollout: string, revision: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1Rollout> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceUndoRollout(body, namespace, rollout, revision, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8580,7 +8580,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceVersion(options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<RolloutVersionInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceVersion(options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8599,7 +8599,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceWatchRolloutInfo(namespace: string, name: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<StreamResultOfRolloutRolloutInfo> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceWatchRolloutInfo(namespace, name, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();
@@ -8617,7 +8617,7 @@ export const RolloutServiceApiFp = function(configuration?: Configuration) {
          */
         rolloutServiceWatchRolloutInfos(namespace: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<StreamResultOfRolloutRolloutWatchEvent> {
             const localVarFetchArgs = RolloutServiceApiFetchParamCreator(configuration).rolloutServiceWatchRolloutInfos(namespace, options);
-            return (fetch: FetchAPI = portableFetch, basePath: string = BASE_PATH) => {
+            return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
                         return response.json();

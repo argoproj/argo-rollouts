@@ -25,6 +25,9 @@ E2E_PARALLEL ?= 1
 E2E_WAIT_TIMEOUT ?= 120
 GOPATH ?= $(shell go env GOPATH)
 
+# Global toolchain configuration
+NODE_OPTIONS=""
+
 override LDFLAGS += \
   -X ${PACKAGE}/utils/version.version=${VERSION} \
   -X ${PACKAGE}/utils/version.buildDate=${BUILD_DATE} \

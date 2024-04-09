@@ -139,3 +139,34 @@ One user of Argo Rollouts saw a 27% reduction
 in memory usage for a cluster with 1290 rollouts by changing
 `RevisionHistoryLimit` from 10 to 0.
 
+
+## Rollout a ConfigMap change
+
+Argo Rollouts is meant to work on a Kubernetes Deployment. When a ConfigMap is mounted inside one the Deployment container and a change occurs inside the ConfigMap, it won't trigger a new Rollout by default.
+
+One technique to trigger the Rollout it to name dynamically the ConfigMap.
+For example, adding a hash of its content at the end of the name:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config-7270e14e6
+```
+
+Each time a change occurs in the ConfigMap, its name will change in the Deployment reference as well, triggering a Rollout.
+
+However, it's not enough to perform correctly progressive rollouts, as the old ConfigMap might get deleted as soon as the new one is created. This would prevent Experiments and rollbacks in case of rollout failure to work correctly.
+
+While no magical solution exist to work aroud that, you can tweak your deployment tool to remove the ConfigMap only when the Rollout is completed successfully.
+
+Example with Argo CD:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config-7270e14e6
+  annotations:
+    argocd.argoproj.io/sync-options: PruneLast=true
+```
