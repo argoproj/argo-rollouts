@@ -61,13 +61,13 @@ jobs:
     needs: [set-vars]
     permissions:
       contents: read
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
     uses: ./.github/workflows/image-reuse.yaml
     with:
       quay_image_name: ${{ needs.set-vars.outputs.controller-meta-tags }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.21'
+      go-version: '1.22'
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: ${{ github.event_name != 'pull_request' }}
     secrets:
@@ -78,13 +78,13 @@ jobs:
     needs: [set-vars]
     permissions:
       contents: read
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
     uses: ./.github/workflows/image-reuse.yaml
     with:
       quay_image_name: ${{ needs.set-vars.outputs.plugin-meta-tags }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.21'
+      go-version: '1.22'
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: ${{ github.event_name != 'pull_request' }}
       target: kubectl-argo-rollouts
