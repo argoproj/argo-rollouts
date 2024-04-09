@@ -4299,49 +4299,48 @@ templates together. The controller combines the <code>metrics</code> and <code>a
 </div>
 </div>
 <p>The result in the AnalysisRun will have the aggregation of metrics of each template:</p>
-<p>=== "AnalysisRun"</p>
-<div class="codehilite"><pre><span></span><code><span class="err">```</span><span class="nx">yaml</span>
-<span class="err">#</span><span class="w"> </span><span class="nx">NOTE</span><span class="p">:</span><span class="w"> </span><span class="nx">Generated</span><span class="w"> </span><span class="nx">AnalysisRun</span><span class="w"> </span><span class="nx">from</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="nx">single</span><span class="w"> </span><span class="nx">template</span><span class="w"> </span><span class="nx">referencing</span><span class="w"> </span><span class="nx">several</span><span class="w"> </span><span class="nx">templates</span>
-<span class="nx">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="nx">argoproj</span><span class="p">.</span><span class="nx">io</span><span class="o">/</span><span class="nx">v1alpha1</span>
-<span class="nx">kind</span><span class="p">:</span><span class="w"> </span><span class="nx">AnalysisRun</span>
-<span class="nx">metadata</span><span class="p">:</span>
-<span class="w">  </span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="nx">guestbook</span><span class="o">-</span><span class="nx">CurrentPodHash</span><span class="o">-</span><span class="nx">templates</span><span class="o">-</span><span class="k">in</span><span class="o">-</span><span class="nx">template</span>
-<span class="nx">spec</span><span class="p">:</span>
-<span class="w">  </span><span class="nx">args</span><span class="p">:</span>
-<span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="nx">service</span><span class="o">-</span><span class="nx">name</span>
-<span class="w">    </span><span class="nx">value</span><span class="p">:</span><span class="w"> </span><span class="nx">guestbook</span><span class="o">-</span><span class="nx">svc</span><span class="p">.</span><span class="k">default</span><span class="p">.</span><span class="nx">svc</span><span class="p">.</span><span class="nx">cluster</span><span class="p">.</span><span class="nx">local</span>
-<span class="w">  </span><span class="nx">metrics</span><span class="p">:</span>
-<span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="nx">success</span><span class="o">-</span><span class="nx">rate</span>
-<span class="w">    </span><span class="nx">interval</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="nx">m</span>
-<span class="w">    </span><span class="nx">successCondition</span><span class="p">:</span><span class="w"> </span><span class="nx">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="m m-Double">0.95</span>
-<span class="w">    </span><span class="nx">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span>
-<span class="w">    </span><span class="nx">provider</span><span class="p">:</span>
-<span class="w">      </span><span class="nx">prometheus</span><span class="p">:</span>
-<span class="w">        </span><span class="nx">address</span><span class="p">:</span><span class="w"> </span><span class="nx">http</span><span class="p">:</span><span class="c1">//prometheus.example.com:9090</span>
-<span class="w">        </span><span class="nx">query</span><span class="p">:</span><span class="w"> </span><span class="o">|</span>
-<span class="w">          </span><span class="nx">sum</span><span class="p">(</span><span class="nx">irate</span><span class="p">(</span>
-<span class="w">            </span><span class="nx">istio_requests_total</span><span class="p">{</span><span class="nx">reporter</span><span class="p">=</span><span class="s">&quot;source&quot;</span><span class="p">,</span><span class="nx">destination_service</span><span class="p">=</span><span class="o">~</span><span class="s">&quot;{{args.service-name}}&quot;</span><span class="p">,</span><span class="nx">response_code</span><span class="p">!</span><span class="o">~</span><span class="s">&quot;5.*&quot;</span><span class="p">}[</span><span class="mi">5</span><span class="nx">m</span><span class="p">]</span>
-<span class="w">          </span><span class="p">))</span><span class="w"> </span><span class="o">/</span>
-<span class="w">          </span><span class="nx">sum</span><span class="p">(</span><span class="nx">irate</span><span class="p">(</span>
-<span class="w">            </span><span class="nx">istio_requests_total</span><span class="p">{</span><span class="nx">reporter</span><span class="p">=</span><span class="s">&quot;source&quot;</span><span class="p">,</span><span class="nx">destination_service</span><span class="p">=</span><span class="o">~</span><span class="s">&quot;{{args.service-name}}&quot;</span><span class="p">}[</span><span class="mi">5</span><span class="nx">m</span><span class="p">]</span>
-<span class="w">          </span><span class="p">))</span>
-<span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="nx">error</span><span class="o">-</span><span class="nx">rate</span>
-<span class="w">    </span><span class="nx">interval</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="nx">m</span>
-<span class="w">    </span><span class="nx">successCondition</span><span class="p">:</span><span class="w"> </span><span class="nx">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="m m-Double">0.95</span>
-<span class="w">    </span><span class="nx">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span>
-<span class="w">    </span><span class="nx">provider</span><span class="p">:</span>
-<span class="w">      </span><span class="nx">prometheus</span><span class="p">:</span>
-<span class="w">        </span><span class="nx">address</span><span class="p">:</span><span class="w"> </span><span class="nx">http</span><span class="p">:</span><span class="c1">//prometheus.example.com:9090</span>
-<span class="w">        </span><span class="nx">query</span><span class="p">:</span><span class="w"> </span><span class="o">|</span>
-<span class="w">          </span><span class="nx">sum</span><span class="p">(</span><span class="nx">irate</span><span class="p">(</span>
-<span class="w">            </span><span class="nx">istio_requests_total</span><span class="p">{</span><span class="nx">reporter</span><span class="p">=</span><span class="s">&quot;source&quot;</span><span class="p">,</span><span class="nx">destination_service</span><span class="p">=</span><span class="o">~</span><span class="s">&quot;{{args.service-name}}&quot;</span><span class="p">,</span><span class="nx">response_code</span><span class="p">=</span><span class="o">~</span><span class="s">&quot;5.*&quot;</span><span class="p">}[</span><span class="mi">5</span><span class="nx">m</span><span class="p">]</span>
-<span class="w">          </span><span class="p">))</span><span class="w"> </span><span class="o">/</span>
-<span class="w">          </span><span class="nx">sum</span><span class="p">(</span><span class="nx">irate</span><span class="p">(</span>
-<span class="w">            </span><span class="nx">istio_requests_total</span><span class="p">{</span><span class="nx">reporter</span><span class="p">=</span><span class="s">&quot;source&quot;</span><span class="p">,</span><span class="nx">destination_service</span><span class="p">=</span><span class="o">~</span><span class="s">&quot;{{args.service-name}}&quot;</span><span class="p">}[</span><span class="mi">5</span><span class="nx">m</span><span class="p">]</span>
-<span class="w">          </span><span class="p">))</span>
-<span class="err">```</span>
+<div class="tabbed-set" data-tabs="6:1"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><label for="__tabbed_6_1">AnalysisRun</label><div class="tabbed-content">
+<div class="highlight"><pre><span></span><code><span class="c1"># NOTE: Generated AnalysisRun from a single template referencing several templates</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AnalysisRun</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook-CurrentPodHash-templates-in-template</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">service-name</span>
+<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">guestbook-svc.default.svc.cluster.local</span>
+<span class="w">  </span><span class="nt">metrics</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">success-rate</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result[0] &gt;= 0.95</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">prometheus</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
+<span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">sum(irate(</span>
+<span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code!~&quot;5.*&quot;}[5m]</span>
+<span class="w">          </span><span class="no">)) /</span>
+<span class="w">          </span><span class="no">sum(irate(</span>
+<span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
+<span class="w">          </span><span class="no">))</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error-rate</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<span class="w">    </span><span class="nt">successCondition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">result[0] &lt;= 0.95</span>
+<span class="w">    </span><span class="nt">failureLimit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">prometheus</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://prometheus.example.com:9090</span>
+<span class="w">        </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">sum(irate(</span>
+<span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;,response_code=~&quot;5.*&quot;}[5m]</span>
+<span class="w">          </span><span class="no">)) /</span>
+<span class="w">          </span><span class="no">sum(irate(</span>
+<span class="w">            </span><span class="no">istio_requests_total{reporter=&quot;source&quot;,destination_service=~&quot;{{args.service-name}}&quot;}[5m]</span>
+<span class="w">          </span><span class="no">))</span>
 </code></pre></div>
-
+</div>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The same limitations as for the multiple templates feature apply.

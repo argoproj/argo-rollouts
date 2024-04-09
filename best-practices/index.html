@@ -2990,6 +2990,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#rollout-a-configmap-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rollout a ConfigMap change
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3435,6 +3444,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#rollout-a-configmap-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rollout a ConfigMap change
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3549,6 +3567,26 @@ default of 10 to a lower number. </p>
 <p>One user of Argo Rollouts saw a 27% reduction
 in memory usage for a cluster with 1290 rollouts by changing
 <code>RevisionHistoryLimit</code> from 10 to 0.</p>
+<h2 id="rollout-a-configmap-change">Rollout a ConfigMap change<a class="headerlink" href="#rollout-a-configmap-change" title="Permanent link">&para;</a></h2>
+<p>Argo Rollouts is meant to work on a Kubernetes Deployment. When a ConfigMap is mounted inside one the Deployment container and a change occurs inside the ConfigMap, it won't trigger a new Rollout by default.</p>
+<p>One technique to trigger the Rollout it to name dynamically the ConfigMap.
+For example, adding a hash of its content at the end of the name:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-config-7270e14e6</span>
+</code></pre></div>
+<p>Each time a change occurs in the ConfigMap, its name will change in the Deployment reference as well, triggering a Rollout.</p>
+<p>However, it's not enough to perform correctly progressive rollouts, as the old ConfigMap might get deleted as soon as the new one is created. This would prevent Experiments and rollbacks in case of rollout failure to work correctly.</p>
+<p>While no magical solution exist to work aroud that, you can tweak your deployment tool to remove the ConfigMap only when the Rollout is completed successfully.</p>
+<p>Example with Argo CD:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-config-7270e14e6</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">argocd.argoproj.io/sync-options</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PruneLast=true</span>
+</code></pre></div>
 
 
 
