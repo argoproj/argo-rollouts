@@ -3545,13 +3545,6 @@ func schema_pkg_apis_rollouts_v1alpha1_PluginStep(ref common.ReferenceCallback) 
 							Format:      "",
 						},
 					},
-					"AbortOnFailure": {
-						SchemaProps: spec.SchemaProps{
-							Default: false,
-							Type:    []string{"boolean"},
-							Format:  "",
-						},
-					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Config the configuration object for the specified plugin",
@@ -3560,7 +3553,7 @@ func schema_pkg_apis_rollouts_v1alpha1_PluginStep(ref common.ReferenceCallback) 
 						},
 					},
 				},
-				Required: []string{"name", "AbortOnFailure"},
+				Required: []string{"name"},
 			},
 		},
 	}

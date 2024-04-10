@@ -26,3 +26,8 @@ mockery \
     --dir "${PROJECT_ROOT}"/rollout/steps/plugin \
     --name "Resolver|StepPlugin" \
     --output "${PROJECT_ROOT}"/rollout/steps/plugin/mocks
+
+mockery \
+    --dir "${PROJECT_ROOT}"/rollout/steps/plugin/rpc \
+    --name "StepPlugin" \
+    --output "${PROJECT_ROOT}"/rollout/steps/plugin/rpc/mocks

@@ -20,7 +20,7 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 
 	status, result, err := stepPlugin.Run(c.rollout)
 	if err != nil {
-		return fmt.Errorf("TODO")
+		return fmt.Errorf("Error calling Run on plugin: %w", err)
 	}
 
 	// Update new status and preserve order
@@ -41,22 +41,24 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 
 	if status.Phase == v1alpha1.StepPluginPhaseRunning && result.RequeueAfter != nil {
 		c.enqueueRolloutAfter(c.rollout, *result.RequeueAfter)
-	}
-
-	if status.Phase == v1alpha1.StepPluginPhaseFailed {
-		c.pauseContext.AddAbort(status.Message)
-		// Call each plugin in reverse order?
+		return nil
 	}
 
 	if status.Phase == v1alpha1.StepPluginPhaseError {
 		c.persistRolloutStatus(&c.newStatus)
+		return err
+	}
+
+	if status.Phase == v1alpha1.StepPluginPhaseFailed {
+		// Call each plugin in reverse order?
+		c.pauseContext.AddAbort(status.Message)
 	}
 
 	return nil
 }
 
 func (c *rolloutContext) isPluginStepCompleted(stepIndex int32) bool {
-	status := findCurrentStepStatus(c.rollout.Status.Canary.StepPluginStatuses, stepIndex)
+	status := findCurrentStepStatus(c.newStatus.Canary.StepPluginStatuses, stepIndex)
 	return status != nil && (status.Phase == v1alpha1.StepPluginPhaseSuccessful ||
 		status.Phase == v1alpha1.StepPluginPhaseFailed ||
 		status.Phase == v1alpha1.StepPluginPhaseError)

@@ -53,8 +53,7 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 		stepStatus.Phase = v1alpha1.StepPluginPhaseError
 		stepStatus.Message = err.Error()
 		stepStatus.FinishedAt = &finishedAt
-		// return err nil ?
-		return stepStatus, result, fmt.Errorf("failed to run step via plugin: %w", err)
+		return stepStatus, result, nil
 	}
 
 	stepStatus.Message = resp.Message
@@ -70,7 +69,7 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 
 	if stepStatus.Phase == v1alpha1.StepPluginPhaseRunning {
 		result.RequeueAfter = &defaultRequeuDuration
-		if resp.RequeueAfter > minRequeueDuration {
+		if resp.RequeueAfter < minRequeueDuration {
 			result.RequeueAfter = &resp.RequeueAfter
 		}
 	}
@@ -88,7 +87,7 @@ func (p *stepPlugin) Abort(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatu
 func (p *stepPlugin) getStepStatus(rollout *v1alpha1.Rollout) *v1alpha1.StepPluginStatus {
 	for _, s := range rollout.Status.Canary.StepPluginStatuses {
 		if s.Index == p.index && s.Name == p.name {
-			return &s
+			return s.DeepCopy()
 		}
 	}
 	return nil
