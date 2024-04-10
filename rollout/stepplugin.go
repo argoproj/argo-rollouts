@@ -20,7 +20,7 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 
 	status, result, err := stepPlugin.Run(c.rollout)
 	if err != nil {
-		return fmt.Errorf("Error calling Run on plugin: %w", err)
+		return fmt.Errorf("failed to run plugin: %w", err)
 	}
 
 	// Update new status and preserve order
