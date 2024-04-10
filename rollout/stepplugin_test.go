@@ -87,6 +87,33 @@ func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 		require.Len(t, roCtx.newStatus.Canary.StepPluginStatuses, 1)
 		assert.EqualExportedValues(t, roCtx.newStatus.Canary.StepPluginStatuses[0], *runStatus)
 	})
+	t.Run("Status order is preserved when updating", func(t *testing.T) {
+		roCtx, runStatus := setup(t)
+		runStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
+
+		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
+			{
+				Index: 123,
+				Name:  runStatus.Name,
+			},
+			{
+				Index: runStatus.Index,
+				Name:  runStatus.Name,
+			},
+			{
+				Index: 456,
+				Name:  "other",
+			},
+		}
+
+		err := roCtx.reconcileCanaryPluginStep()
+
+		require.NoError(t, err)
+		require.Len(t, roCtx.newStatus.Canary.StepPluginStatuses, 3)
+		assert.Equal(t, int32(123), roCtx.newStatus.Canary.StepPluginStatuses[0].Index)
+		assert.Equal(t, runStatus.Index, roCtx.newStatus.Canary.StepPluginStatuses[1].Index)
+		assert.Equal(t, int32(456), roCtx.newStatus.Canary.StepPluginStatuses[2].Index)
+	})
 }
 
 func Test_StepPlugin_RunningReconciliation(t *testing.T) {
