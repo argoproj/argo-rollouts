@@ -68,8 +68,14 @@ func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 		roCtx, runStatus := setup(t)
 		runStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
 
-		existingStatus := runStatus.DeepCopy()
-		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{}
+		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
+			{
+				Index:   runStatus.Index,
+				Name:    runStatus.Name,
+				Message: "this is the existing status",
+				Phase:   v1alpha1.StepPluginPhaseRunning,
+			},
+		}
 
 		err := roCtx.reconcileCanaryPluginStep()
 
