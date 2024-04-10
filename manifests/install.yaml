@@ -13152,6 +13152,16 @@ spec:
                                   - type: string
                                   x-kubernetes-int-or-string: true
                               type: object
+                            plugin:
+                              properties:
+                                config:
+                                  type: object
+                                  x-kubernetes-preserve-unknown-fields: true
+                                name:
+                                  type: string
+                              required:
+                              - name
+                              type: object
                             setCanaryScale:
                               properties:
                                 matchTrafficWeight:
@@ -16207,6 +16217,33 @@ spec:
                     type: object
                   stablePingPong:
                     type: string
+                  stepPluginStatuses:
+                    items:
+                      properties:
+                        finishedAt:
+                          format: date-time
+                          type: string
+                        index:
+                          format: int32
+                          type: integer
+                        message:
+                          type: string
+                        name:
+                          type: string
+                        phase:
+                          type: string
+                        startedAt:
+                          format: date-time
+                          type: string
+                        status:
+                          format: byte
+                          type: string
+                      required:
+                      - index
+                      - name
+                      - phase
+                      type: object
+                    type: array
                   weights:
                     properties:
                       additional:

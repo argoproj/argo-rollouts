@@ -644,7 +644,6 @@ type PluginStep struct {
 	// Name the name of the hashicorp go-plugin step to query
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 
-	AbortOnFailure bool
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object

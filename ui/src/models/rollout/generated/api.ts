@@ -1808,12 +1808,6 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep 
     name?: string;
     /**
      * 
-     * @type {boolean}
-     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
-     */
-    abortOnFailure?: boolean;
-    /**
-     * 
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1PluginStep
      */

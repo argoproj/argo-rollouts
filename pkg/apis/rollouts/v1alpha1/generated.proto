@@ -1188,8 +1188,6 @@ message PluginStep {
   // Name the name of the hashicorp go-plugin step to query
   optional string name = 1;
 
-  optional bool abortOnFailure = 3;
-
   // +kubebuilder:validation:Schemaless
   // +kubebuilder:pruning:PreserveUnknownFields
   // +kubebuilder:validation:Type=object

@@ -1772,9 +1772,6 @@
           "type": "string",
           "title": "Name the name of the hashicorp go-plugin step to query"
         },
-        "abortOnFailure": {
-          "type": "boolean"
-        },
         "config": {
           "type": "string",
           "format": "byte",
