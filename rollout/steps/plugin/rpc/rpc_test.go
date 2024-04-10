@@ -88,27 +88,17 @@ func TestPlugin(t *testing.T) {
 
 	ro := v1alpha1.Rollout{}
 
-	err = plugin.RemoveManagedRoutes(&ro)
+	_, err = plugin.Run(&ro, &types.RpcStepContext{})
 	assert.Equal(t, "", err.Error())
 
-	err = plugin.SetMirrorRoute(&ro, &v1alpha1.SetMirrorRoute{})
+	_, err = plugin.Terminate(&ro, &types.RpcStepContext{})
 	assert.Equal(t, "", err.Error())
 
-	err = plugin.SetHeaderRoute(&ro, &v1alpha1.SetHeaderRoute{})
-	assert.Equal(t, "", err.Error())
-
-	err = plugin.SetWeight(&ro, 0, []v1alpha1.WeightDestination{})
-	assert.Equal(t, "", err.Error())
-
-	b, err := plugin.VerifyWeight(&ro, 0, []v1alpha1.WeightDestination{})
-	assert.Equal(t, "", err.Error())
-	assert.Equal(t, true, *b.IsVerified())
-
-	err = plugin.UpdateHash(&ro, "canary-hash", "stable-hash", []v1alpha1.WeightDestination{})
+	_, err = plugin.Abort(&ro, &types.RpcStepContext{})
 	assert.Equal(t, "", err.Error())
 
 	typeString := plugin.Type()
-	assert.Equal(t, "TestRPCPlugin", typeString)
+	assert.Equal(t, "StepPlugin Test", typeString)
 
 	// Canceling should cause an exit
 	cancel()
@@ -141,31 +131,19 @@ func TestPluginClosedConnection(t *testing.T) {
 }
 
 func TestInvalidArgs(t *testing.T) {
-	server := TrafficRouterRPCServer{}
+	server := StepRPCServer{}
 	badtype := struct {
 		Args string
 	}{}
 
-	var errRpc types.RpcError
-	err := server.SetMirrorRoute(badtype, &errRpc)
+	var resp Response
+	err := server.Run(badtype, &resp)
 	assert.Error(t, err)
 
-	err = server.RemoveManagedRoutes(badtype, &errRpc)
+	err = server.Terminate(badtype, &resp)
 	assert.Error(t, err)
 
-	var vw VerifyWeightResponse
-	err = server.VerifyWeight(badtype, &vw)
+	err = server.Abort(badtype, &resp)
 	assert.Error(t, err)
 
-	err = server.SetMirrorRoute(badtype, &errRpc)
-	assert.Error(t, err)
-
-	err = server.SetHeaderRoute(badtype, &errRpc)
-	assert.Error(t, err)
-
-	err = server.SetWeight(badtype, &errRpc)
-	assert.Error(t, err)
-
-	err = server.UpdateHash(badtype, &errRpc)
-	assert.Error(t, err)
 }

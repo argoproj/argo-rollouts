@@ -13,17 +13,17 @@ import (
 
 type RunArgs struct {
 	Rollout *v1alpha1.Rollout
-	Context types.RpcStepContext
+	Context *types.RpcStepContext
 }
 
 type TerminateArgs struct {
 	Rollout *v1alpha1.Rollout
-	Context types.RpcStepContext
+	Context *types.RpcStepContext
 }
 
 type AbortArgs struct {
 	Rollout *v1alpha1.Rollout
-	Context types.RpcStepContext
+	Context *types.RpcStepContext
 }
 
 type Response struct {
@@ -59,7 +59,7 @@ func (g *StepPluginRPC) InitPlugin() types.RpcError {
 }
 
 // Run executes the step
-func (g *StepPluginRPC) Run(rollout *v1alpha1.Rollout, context types.RpcStepContext) (types.RpcStepResult, types.RpcError) {
+func (g *StepPluginRPC) Run(rollout *v1alpha1.Rollout, context *types.RpcStepContext) (types.RpcStepResult, types.RpcError) {
 	var resp Response
 	var args any = RunArgs{
 		Rollout: rollout,
@@ -73,7 +73,7 @@ func (g *StepPluginRPC) Run(rollout *v1alpha1.Rollout, context types.RpcStepCont
 }
 
 // Terminate stops the execution of a running step and exits early
-func (g *StepPluginRPC) Terminate(rollout *v1alpha1.Rollout, context types.RpcStepContext) (types.RpcStepResult, types.RpcError) {
+func (g *StepPluginRPC) Terminate(rollout *v1alpha1.Rollout, context *types.RpcStepContext) (types.RpcStepResult, types.RpcError) {
 	var resp Response
 	var args any = TerminateArgs{
 		Rollout: rollout,
@@ -87,7 +87,7 @@ func (g *StepPluginRPC) Terminate(rollout *v1alpha1.Rollout, context types.RpcSt
 }
 
 // Abort reverts previous operation executed by the step if necessary
-func (g *StepPluginRPC) Abort(rollout *v1alpha1.Rollout, context types.RpcStepContext) (types.RpcStepResult, types.RpcError) {
+func (g *StepPluginRPC) Abort(rollout *v1alpha1.Rollout, context *types.RpcStepContext) (types.RpcStepResult, types.RpcError) {
 	var resp Response
 	var args any = AbortArgs{
 		Rollout: rollout,
@@ -131,7 +131,7 @@ func (s *StepRPCServer) Run(args any, resp *Response) error {
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
 	}
-	result, err := s.Impl.Run(runArgs.Rollout, &runArgs.Context)
+	result, err := s.Impl.Run(runArgs.Rollout, runArgs.Context)
 	*resp = Response{
 		Result: result,
 		Error:  err,
@@ -145,7 +145,7 @@ func (s *StepRPCServer) Terminate(args any, resp *Response) error {
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
 	}
-	result, err := s.Impl.Terminate(runArgs.Rollout, &runArgs.Context)
+	result, err := s.Impl.Terminate(runArgs.Rollout, runArgs.Context)
 	*resp = Response{
 		Result: result,
 		Error:  err,
@@ -159,7 +159,7 @@ func (s *StepRPCServer) Abort(args any, resp *Response) error {
 	if !ok {
 		return fmt.Errorf("invalid args %s", args)
 	}
-	result, err := s.Impl.Abort(runArgs.Rollout, &runArgs.Context)
+	result, err := s.Impl.Abort(runArgs.Rollout, runArgs.Context)
 	*resp = Response{
 		Result: result,
 		Error:  err,
