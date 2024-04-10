@@ -13,31 +13,29 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 		return nil
 	}
 
-	stepPlugin, err := c.stepPluginResolver.Resolve(*currentStepIndex, *currentStep.Plugin)
+	stepPlugin, err := c.stepPluginResolver.Resolve(*currentStepIndex, *currentStep.Plugin, c.log)
 	if err != nil {
 		return fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err)
+	}
+
+	if c.rollout.Status.PromoteFull {
+		currentStatus := findCurrentStepStatus(c.rollout.Status.Canary.StepPluginStatuses, *currentStepIndex)
+		if currentStatus != nil && currentStatus.Phase == v1alpha1.StepPluginPhaseRunning {
+			status, err := stepPlugin.Terminate(c.rollout)
+			if err != nil {
+				return fmt.Errorf("failed to terminate plugin: %w", err)
+			}
+			c.newStatus.Canary.StepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
+		}
+
+		return nil
 	}
 
 	status, result, err := stepPlugin.Run(c.rollout)
 	if err != nil {
 		return fmt.Errorf("failed to run plugin: %w", err)
 	}
-
-	// Update new status and preserve order
-	pluginStatuses := []v1alpha1.StepPluginStatus{}
-	statusAdded := false
-	for _, s := range c.rollout.Status.Canary.StepPluginStatuses {
-		if s.Index == *currentStepIndex {
-			pluginStatuses = append(pluginStatuses, *status)
-			statusAdded = true
-			continue
-		}
-		pluginStatuses = append(pluginStatuses, s)
-	}
-	if !statusAdded {
-		pluginStatuses = append(pluginStatuses, *status)
-	}
-	c.newStatus.Canary.StepPluginStatuses = pluginStatuses
+	c.newStatus.Canary.StepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
 
 	if status.Phase == v1alpha1.StepPluginPhaseRunning && result.RequeueAfter != nil {
 		c.enqueueRolloutAfter(c.rollout, *result.RequeueAfter)
@@ -57,7 +55,7 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 	return nil
 }
 
-func (c *rolloutContext) isPluginStepCompleted(stepIndex int32) bool {
+func (c *rolloutContext) isStepPluginCompleted(stepIndex int32) bool {
 	status := findCurrentStepStatus(c.newStatus.Canary.StepPluginStatuses, stepIndex)
 	return status != nil && (status.Phase == v1alpha1.StepPluginPhaseSuccessful ||
 		status.Phase == v1alpha1.StepPluginPhaseFailed ||
@@ -71,4 +69,22 @@ func findCurrentStepStatus(status []v1alpha1.StepPluginStatus, stepIndex int32) 
 		}
 	}
 	return nil
+}
+
+func updateStepPluginStatus(statuses []v1alpha1.StepPluginStatus, status *v1alpha1.StepPluginStatus) []v1alpha1.StepPluginStatus {
+	// Update new status and preserve order
+	newStatuses := []v1alpha1.StepPluginStatus{}
+	statusAdded := false
+	for _, s := range statuses {
+		if !statusAdded && s.Index == status.Index {
+			newStatuses = append(newStatuses, *status)
+			statusAdded = true
+			continue
+		}
+		newStatuses = append(newStatuses, s)
+	}
+	if !statusAdded {
+		newStatuses = append(newStatuses, *status)
+	}
+	return newStatuses
 }

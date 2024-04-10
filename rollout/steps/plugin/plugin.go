@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	metatime "github.com/argoproj/argo-rollouts/utils/time"
+	log "github.com/sirupsen/logrus"
 )
 
 type stepPlugin struct {
@@ -16,6 +17,7 @@ type stepPlugin struct {
 	index  int32
 	name   string
 	config json.RawMessage
+	log    *log.Entry
 }
 
 type StepResult struct {
@@ -60,7 +62,7 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 	if resp.Phase != "" {
 		stepStatus.Phase = v1alpha1.StepPluginPhase(resp.Phase)
 	}
-	// validate phase or Error
+
 	if stepStatus.Phase == v1alpha1.StepPluginPhaseSuccessful || stepStatus.Phase == v1alpha1.StepPluginPhaseFailed {
 		stepStatus.FinishedAt = &finishedAt
 	}
@@ -78,8 +80,35 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 }
 
 func (p *stepPlugin) Terminate(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
-	return nil, fmt.Errorf("Not implemented")
+	stepStatus := p.getStepStatus(rollout)
+	if stepStatus == nil || stepStatus.Phase != v1alpha1.StepPluginPhaseRunning {
+		return stepStatus, nil
+	}
+
+	resp, err := p.rpc.Terminate(rollout.DeepCopy(), p.getStepContext(stepStatus))
+	finishedAt := metatime.MetaNow()
+	if err.HasError() {
+		stepStatus.Phase = v1alpha1.StepPluginPhaseError
+		stepStatus.Message = fmt.Sprintf("Terminated: %s", err.Error())
+		stepStatus.FinishedAt = &finishedAt
+		return stepStatus, nil
+	}
+
+	if resp.Phase != "" {
+		stepStatus.Phase = v1alpha1.StepPluginPhase(resp.Phase)
+	}
+
+	if stepStatus.Phase == v1alpha1.StepPluginPhaseRunning {
+		p.log.Warnf("terminate cannot run asynchronously. Overriding status phase to %s.", v1alpha1.StepPluginPhaseSuccessful)
+		stepStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
+	}
+
+	stepStatus.Message = fmt.Sprintf("Terminated: %s", resp.Message)
+	stepStatus.FinishedAt = &finishedAt
+	stepStatus.Status = resp.Status
+	return stepStatus, nil
 }
+
 func (p *stepPlugin) Abort(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
 	return nil, fmt.Errorf("Not implemented")
 }

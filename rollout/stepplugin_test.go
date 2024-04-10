@@ -270,7 +270,7 @@ func Test_StepPlugin_FailedReconciliation(t *testing.T) {
 
 // Helper: write helper functions?
 
-func Test_rolloutContext_isPluginStepCompleted(t *testing.T) {
+func Test_rolloutContext_isStepPluginCompleted(t *testing.T) {
 	newRolloutContext := func(status *v1alpha1.StepPluginStatus) *rolloutContext {
 		r := newStepPluginRollout()
 		logCtx := logutil.WithRollout(r)
@@ -335,8 +335,8 @@ func Test_rolloutContext_isPluginStepCompleted(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newRolloutContext(tt.status)
-			if got := c.isPluginStepCompleted(tt.index); got != tt.want {
-				t.Errorf("rolloutContext.isPluginStepCompleted() = %v, want %v", got, tt.want)
+			if got := c.isStepPluginCompleted(tt.index); got != tt.want {
+				t.Errorf("rolloutContext.isStepPluginCompleted() = %v, want %v", got, tt.want)
 			}
 		})
 	}
