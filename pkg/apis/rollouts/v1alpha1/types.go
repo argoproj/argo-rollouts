@@ -1039,13 +1039,14 @@ type RolloutAnalysisRunStatus struct {
 }
 
 type StepPluginStatus struct {
-	Index      int32           `json:"index" protobuf:"bytes,1,opt,name=index"`
-	Name       string          `json:"name" protobuf:"bytes,2,opt,name=name"`
-	Phase      StepPluginPhase `json:"phase" protobuf:"bytes,3,opt,name=phase"`
-	Message    string          `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
-	StartedAt  *metav1.Time    `json:"startedAt,omitempty" protobuf:"bytes,5,opt,name=startedAt"`
-	FinishedAt *metav1.Time    `json:"finishedAt,omitempty" protobuf:"bytes,6,opt,name=finishedAt"`
-	Status     json.RawMessage `json:"status,omitempty" protobuf:"bytes,7,opt,name=status"`
+	Index      int32               `json:"index" protobuf:"bytes,1,name=index"`
+	Name       string              `json:"name" protobuf:"bytes,2,name=name"`
+	Operation  StepPluginOperation `json:"operation" protobuf:"bytes,3,name=operation"`
+	Phase      StepPluginPhase     `json:"phase" protobuf:"bytes,4,name=phase"`
+	Message    string              `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+	StartedAt  *metav1.Time        `json:"startedAt,omitempty" protobuf:"bytes,6,name=startedAt"`
+	FinishedAt *metav1.Time        `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
+	Status     json.RawMessage     `json:"status,omitempty" protobuf:"bytes,8,opt,name=status"`
 }
 
 // StepPluginPhase is the overall phase of a StepPlugin
@@ -1057,6 +1058,15 @@ const (
 	StepPluginPhaseSuccessful StepPluginPhase = "Successful"
 	StepPluginPhaseFailed     StepPluginPhase = "Failed"
 	StepPluginPhaseError      StepPluginPhase = "Error"
+)
+
+type StepPluginOperation string
+
+// Possible StepPluginOperation values
+const (
+	StepPluginOperationRun       StepPluginOperation = "Run"
+	StepPluginOperationTerminate StepPluginOperation = "Terminate"
+	StepPluginOperationAbort     StepPluginOperation = "Abort"
 )
 
 type ALBStatus struct {

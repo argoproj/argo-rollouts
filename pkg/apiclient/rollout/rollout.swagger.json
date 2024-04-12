@@ -2534,6 +2534,9 @@
         "name": {
           "type": "string"
         },
+        "operation": {
+          "type": "string"
+        },
         "phase": {
           "type": "string"
         },

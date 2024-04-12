@@ -5196,6 +5196,13 @@ func schema_pkg_apis_rollouts_v1alpha1_StepPluginStatus(ref common.ReferenceCall
 							Format:  "",
 						},
 					},
+					"operation": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
 					"phase": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
@@ -5226,7 +5233,7 @@ func schema_pkg_apis_rollouts_v1alpha1_StepPluginStatus(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"index", "name", "phase"},
+				Required: []string{"index", "name", "operation", "phase"},
 			},
 		},
 		Dependencies: []string{

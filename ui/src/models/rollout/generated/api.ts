@@ -2812,6 +2812,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginS
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
      */
+    operation?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
     phase?: string;
     /**
      * 

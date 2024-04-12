@@ -1759,15 +1759,17 @@ message StepPluginStatus {
 
   optional string name = 2;
 
-  optional string phase = 3;
+  optional string operation = 3;
 
-  optional string message = 4;
+  optional string phase = 4;
 
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 5;
+  optional string message = 5;
 
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 6;
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 6;
 
-  optional bytes status = 7;
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+
+  optional bytes status = 8;
 }
 
 message StickinessConfig {

@@ -335,6 +335,81 @@ func Test_StepPlugin_FullyPromoted(t *testing.T) {
 	})
 }
 
+func Test_StepPlugin_Aborted(t *testing.T) {
+	setup := func(t *testing.T) (*rolloutContext, *mocks.Resolver) {
+		stepPluginResolver := mocks.NewResolver(t)
+
+		r := newStepPluginRollout()
+		r.Status.Abort = true
+
+		logCtx := logutil.WithRollout(r)
+		roCtx := &rolloutContext{
+			rollout: r,
+			log:     logCtx,
+			reconcilerBase: reconcilerBase{
+				stepPluginResolver:  stepPluginResolver,
+				enqueueRollout:      func(obj any) { t.Error("enqueueRollout should not be called") },
+				enqueueRolloutAfter: func(obj any, duration time.Duration) { t.Error("enqueueRolloutAfter should not be called") },
+			},
+			pauseContext: &pauseContext{
+				rollout: r,
+				log:     logCtx,
+			},
+		}
+
+		return roCtx, stepPluginResolver
+	}
+	t.Run("Abort called on each plugin step", func(t *testing.T) {
+		roCtx, stepPluginResolver := setup(t)
+		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
+			{
+				Index:     0,
+				Name:      "test-plugin",
+				Operation: v1alpha1.StepPluginOperationRun,
+				Phase:     v1alpha1.StepPluginPhaseSuccessful,
+			},
+		}
+		roCtx.rollout.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
+			{
+				Plugin: &v1alpha1.PluginStep{
+					Name: "test-plugin",
+				},
+			},
+			{
+				Pause: &v1alpha1.RolloutPause{}, // Not a step plugin
+			},
+			{
+				Plugin: &v1alpha1.PluginStep{
+					Name: "test-plugin",
+				},
+			},
+		}
+		roCtx.rollout.Status.CurrentStepIndex = int32Ptr(2)
+
+		expectedAbortStatus := []*v1alpha1.StepPluginStatus{}
+		for _, stepIndex := range []int32{0, 2} {
+			abortStatus := &v1alpha1.StepPluginStatus{
+				Index:     stepIndex,
+				Name:      "test-plugin",
+				Operation: v1alpha1.StepPluginOperationAbort,
+				Phase:     v1alpha1.StepPluginPhaseSuccessful,
+			}
+			stepPluginMock := mocks.NewStepPlugin(t)
+			stepPluginResolver.On("Resolve", stepIndex, mock.Anything, mock.Anything).Return(stepPluginMock, nil)
+			stepPluginMock.On("Abort", mock.Anything).Return(abortStatus, nil)
+			expectedAbortStatus = append(expectedAbortStatus, abortStatus)
+		}
+
+		err := roCtx.reconcileCanaryPluginStep()
+
+		require.NoError(t, err)
+		require.Len(t, roCtx.stepPluginStatuses, 3)
+		assert.EqualExportedValues(t, roCtx.rollout.Status.Canary.StepPluginStatuses[0], roCtx.stepPluginStatuses[0])
+		assert.EqualExportedValues(t, *expectedAbortStatus[1], roCtx.stepPluginStatuses[1])
+		assert.EqualExportedValues(t, *expectedAbortStatus[0], roCtx.stepPluginStatuses[2])
+	})
+}
+
 //Controller:
 // Add test for plugin config
 // Add InitPlugin call test
@@ -342,19 +417,10 @@ func Test_StepPlugin_FullyPromoted(t *testing.T) {
 //Reconcile:
 // Add disable feature
 
-// Plugin:
-//if run error, save message+phase, but not state
-
-//When abort, abort all steps? validate status? validate order
-
-//error during run?
-//error during abort?
-//error during terminate? safe to ignore?
-
 // Helper: write helper functions?
 
 func Test_rolloutContext_isStepPluginCompleted(t *testing.T) {
-	newRolloutContext := func(status *v1alpha1.StepPluginStatus) *rolloutContext {
+	newRolloutContext := func(statuses []*v1alpha1.StepPluginStatus) *rolloutContext {
 		r := newStepPluginRollout()
 		logCtx := logutil.WithRollout(r)
 		roCtx := &rolloutContext{
@@ -366,59 +432,87 @@ func Test_rolloutContext_isStepPluginCompleted(t *testing.T) {
 				StepPluginStatuses: []v1alpha1.StepPluginStatus{},
 			},
 		}
-		if status != nil {
-			roCtx.stepPluginStatuses = append(roCtx.stepPluginStatuses, *status)
+		for _, s := range statuses {
+			roCtx.stepPluginStatuses = append(roCtx.stepPluginStatuses, *s)
 		}
 		roCtx.newStatus.Canary.StepPluginStatuses = roCtx.calculateStepPluginStatus()
 		return roCtx
 	}
 
 	tests := []struct {
-		name   string
-		status *v1alpha1.StepPluginStatus
-		index  int32
-		want   bool
+		name     string
+		statuses []*v1alpha1.StepPluginStatus
+		index    int32
+		want     bool
 	}{
 		{
-			name:   "Status is not set",
-			status: nil,
-			index:  0,
-			want:   false,
+			name:     "Status is not set",
+			statuses: nil,
+			index:    0,
+			want:     false,
 		},
 		{
-			name:   "Phase is successful",
-			status: &v1alpha1.StepPluginStatus{Index: 0, Phase: v1alpha1.StepPluginPhaseSuccessful},
-			index:  0,
-			want:   true,
+			name: "Phase is successful",
+			statuses: []*v1alpha1.StepPluginStatus{
+				{Index: 0, Operation: v1alpha1.StepPluginOperationRun, Phase: v1alpha1.StepPluginPhaseSuccessful},
+			},
+			index: 0,
+			want:  true,
 		},
 		{
-			name:   "Phase is failed",
-			status: &v1alpha1.StepPluginStatus{Index: 0, Phase: v1alpha1.StepPluginPhaseFailed},
-			index:  0,
-			want:   true,
+			name: "Phase is failed",
+			statuses: []*v1alpha1.StepPluginStatus{
+				{Index: 0, Operation: v1alpha1.StepPluginOperationRun, Phase: v1alpha1.StepPluginPhaseFailed},
+			},
+			index: 0,
+			want:  true,
 		},
 		{
-			name:   "Phase is error",
-			status: &v1alpha1.StepPluginStatus{Index: 0, Phase: v1alpha1.StepPluginPhaseError},
-			index:  0,
-			want:   true,
+			name: "Phase is error",
+			statuses: []*v1alpha1.StepPluginStatus{
+				{Index: 0, Operation: v1alpha1.StepPluginOperationRun, Phase: v1alpha1.StepPluginPhaseError},
+			},
+			index: 0,
+			want:  false,
 		},
 		{
-			name:   "Phase is running",
-			status: &v1alpha1.StepPluginStatus{Index: 0, Phase: v1alpha1.StepPluginPhaseRunning},
-			index:  0,
-			want:   false,
+			name: "Phase is running",
+			statuses: []*v1alpha1.StepPluginStatus{
+				{Index: 0, Operation: v1alpha1.StepPluginOperationRun, Phase: v1alpha1.StepPluginPhaseRunning},
+			},
+			index: 0,
+			want:  false,
 		},
 		{
-			name:   "status for index is missing",
-			status: &v1alpha1.StepPluginStatus{Index: 1, Phase: v1alpha1.StepPluginPhaseSuccessful},
-			index:  0,
-			want:   false,
+			name: "Phase is running, but terminated",
+			statuses: []*v1alpha1.StepPluginStatus{
+				{Index: 0, Operation: v1alpha1.StepPluginOperationRun, Phase: v1alpha1.StepPluginPhaseRunning},
+				{Index: 0, Operation: v1alpha1.StepPluginOperationTerminate},
+			},
+			index: 0,
+			want:  true,
+		},
+		{
+			name: "Phase is running, but aborted",
+			statuses: []*v1alpha1.StepPluginStatus{
+				{Index: 0, Operation: v1alpha1.StepPluginOperationRun, Phase: v1alpha1.StepPluginPhaseRunning},
+				{Index: 0, Operation: v1alpha1.StepPluginOperationTerminate},
+			},
+			index: 0,
+			want:  true,
+		},
+		{
+			name: "status for index is missing",
+			statuses: []*v1alpha1.StepPluginStatus{
+				{Index: 1, Operation: v1alpha1.StepPluginOperationRun, Phase: v1alpha1.StepPluginPhaseSuccessful},
+			},
+			index: 0,
+			want:  false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := newRolloutContext(tt.status)
+			c := newRolloutContext(tt.statuses)
 			if got := c.isStepPluginCompleted(tt.index); got != tt.want {
 				t.Errorf("rolloutContext.isStepPluginCompleted() = %v, want %v", got, tt.want)
 			}

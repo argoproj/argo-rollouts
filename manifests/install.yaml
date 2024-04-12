@@ -16230,6 +16230,8 @@ spec:
                           type: string
                         name:
                           type: string
+                        operation:
+                          type: string
                         phase:
                           type: string
                         startedAt:
@@ -16241,6 +16243,7 @@ spec:
                       required:
                       - index
                       - name
+                      - operation
                       - phase
                       type: object
                     type: array
