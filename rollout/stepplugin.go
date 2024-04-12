@@ -25,7 +25,7 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 			if err != nil {
 				return fmt.Errorf("failed to terminate plugin: %w", err)
 			}
-			c.newStatus.Canary.StepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
+			c.stepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
 		}
 
 		return nil
@@ -35,7 +35,7 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 	if err != nil {
 		return fmt.Errorf("failed to run plugin: %w", err)
 	}
-	c.newStatus.Canary.StepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
+	c.stepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
 
 	if status.Phase == v1alpha1.StepPluginPhaseRunning && result.RequeueAfter != nil {
 		c.enqueueRolloutAfter(c.rollout, *result.RequeueAfter)
@@ -43,6 +43,8 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 	}
 
 	if status.Phase == v1alpha1.StepPluginPhaseError {
+		// TODO: fix this
+		panic("this is wrong. cant do that")
 		c.persistRolloutStatus(&c.newStatus)
 		return err
 	}
@@ -53,6 +55,14 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 	}
 
 	return nil
+}
+
+func (c *rolloutContext) calculateStepPluginStatus() []v1alpha1.StepPluginStatus {
+	if c.stepPluginStatuses == nil {
+		return c.rollout.Status.Canary.StepPluginStatuses
+	}
+
+	return c.stepPluginStatuses
 }
 
 func (c *rolloutContext) isStepPluginCompleted(stepIndex int32) bool {

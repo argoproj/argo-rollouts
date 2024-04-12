@@ -99,8 +99,8 @@ func (p *stepPlugin) Terminate(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginS
 	}
 
 	if stepStatus.Phase == v1alpha1.StepPluginPhaseRunning {
-		p.log.Warnf("terminate cannot run asynchronously. Overriding status phase to %s.", v1alpha1.StepPluginPhaseSuccessful)
-		stepStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
+		p.log.Warnf("terminate cannot run asynchronously. Overriding status phase to %s.", v1alpha1.StepPluginPhaseFailed)
+		stepStatus.Phase = v1alpha1.StepPluginPhaseFailed
 	}
 
 	stepStatus.Message = fmt.Sprintf("Terminated: %s", resp.Message)

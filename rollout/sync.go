@@ -903,6 +903,7 @@ func (c *rolloutContext) resetRolloutStatus(newStatus *v1alpha1.RolloutStatus) {
 	newStatus.BlueGreen.ScaleUpPreviewCheckPoint = false
 	newStatus.Canary.CurrentStepAnalysisRunStatus = nil
 	newStatus.Canary.CurrentBackgroundAnalysisRunStatus = nil
+	newStatus.Canary.StepPluginStatuses = nil
 	newStatus.CurrentStepIndex = replicasetutil.ResetCurrentStepIndex(c.rollout)
 }
 

@@ -42,6 +42,9 @@ type rolloutContext struct {
 	newStatus    v1alpha1.RolloutStatus
 	pauseContext *pauseContext
 
+	// stepPluginStatuses are the mutated values to use in the newStatus
+	stepPluginStatuses []v1alpha1.StepPluginStatus
+
 	// targetsVerified indicates if the pods targets have been verified with underlying LoadBalancer.
 	// This is used in pod-aware flat networks where LoadBalancers target Pods and not Nodes.
 	// nil indicates the check was unnecessary or not performed.
