@@ -145,7 +145,7 @@ func (p *stepPlugin) Abort(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatu
 		Operation: v1alpha1.StepPluginOperationAbort,
 		Phase:     v1alpha1.StepPluginPhaseSuccessful,
 	}
-	resp, err := p.rpc.Terminate(rollout.DeepCopy(), p.getStepContext(stepStatus))
+	resp, err := p.rpc.Abort(rollout.DeepCopy(), p.getStepContext(stepStatus))
 	finishedAt := metatime.MetaNow()
 	if err.HasError() {
 		abortStatus.Phase = v1alpha1.StepPluginPhaseError
