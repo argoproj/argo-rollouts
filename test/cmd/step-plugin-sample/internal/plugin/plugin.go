@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/rpc"
 	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -33,7 +33,7 @@ type Result struct {
 }
 
 type rpcPlugin struct {
-	LogCtx *logrus.Entry
+	LogCtx *log.Entry
 	Seed   int64
 
 	lock      *sync.RWMutex
@@ -41,7 +41,7 @@ type rpcPlugin struct {
 	randomMap map[string]*Result
 }
 
-func New(logCtx *logrus.Entry, seed int64) rpc.StepPlugin {
+func New(logCtx *log.Entry, seed int64) rpc.StepPlugin {
 	return &rpcPlugin{
 		LogCtx: logCtx,
 		Seed:   seed,
@@ -54,7 +54,7 @@ func (p *rpcPlugin) InitPlugin() types.RpcError {
 	defer p.lock.Unlock()
 
 	p.LogCtx.Infof("InitPlugin with seed %d", p.Seed)
-	rand.New(rand.NewSource(p.Seed))
+	p.generator = rand.New(rand.NewSource(p.Seed))
 	p.randomMap = map[string]*Result{}
 	return types.RpcError{}
 }
@@ -68,11 +68,15 @@ func (p *rpcPlugin) Run(rollout *v1alpha1.Rollout, context *types.RpcStepContext
 	var config Config
 	var state State
 	if context != nil {
-		if err := json.Unmarshal(context.Config, &config); err != nil {
-			return types.RpcStepResult{}, types.RpcError{ErrorString: "could not unmarshal config"}
+		if context.Config != nil {
+			if err := json.Unmarshal(context.Config, &config); err != nil {
+				return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not unmarshal config: %w", err).Error()}
+			}
 		}
-		if err := json.Unmarshal(context.Status, &state); err != nil {
-			return types.RpcStepResult{}, types.RpcError{ErrorString: "could not unmarshal status"}
+		if context.Status != nil {
+			if err := json.Unmarshal(context.Status, &state); err != nil {
+				return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not unmarshal status: %w", err).Error()}
+			}
 		}
 	}
 
@@ -81,7 +85,8 @@ func (p *rpcPlugin) Run(rollout *v1alpha1.Rollout, context *types.RpcStepContext
 		return CompletedResult(state)
 	}
 
-	if config.Aggregate && state.SharedId != "" {
+	// If Aggregate, look for previous steps. We want to re-use the value in memory for that step id
+	if config.Aggregate && state.SharedId == "" {
 		lastStep := getLastStep(rollout, context.PluginName)
 		if lastStep != nil {
 			var lastState State
@@ -89,20 +94,23 @@ func (p *rpcPlugin) Run(rollout *v1alpha1.Rollout, context *types.RpcStepContext
 				return types.RpcStepResult{}, types.RpcError{ErrorString: "could not unmarshal last step status"}
 			}
 			if lastState.SharedId != "" {
+				// consecutive aggregate steps all use the same id
 				state.SharedId = lastState.SharedId
 			} else {
+				// Most likely the last step was not an aggregate, so we restart a sequence with this id
 				state.SharedId = lastState.Id
 			}
 		}
 	}
 
-	// Already started
+	// Already started, look if it is completed
 	if state.Id != "" {
 		p.lock.RLock()
 		v, ok := p.randomMap[state.getId()]
 		p.lock.RUnlock()
 		if ok {
 			if v.Id == state.Id {
+				// Make sure the current step is the one that updated the value
 				state.Value = strconv.Itoa(v.Value)
 				return CompletedResult(state)
 			}
@@ -125,16 +133,54 @@ func (p *rpcPlugin) Run(rollout *v1alpha1.Rollout, context *types.RpcStepContext
 
 }
 
-func (p *rpcPlugin) Terminate(_ *v1alpha1.Rollout, _ *types.RpcStepContext) (types.RpcStepResult, types.RpcError) {
+func (p *rpcPlugin) Terminate(rollout *v1alpha1.Rollout, context *types.RpcStepContext) (types.RpcStepResult, types.RpcError) {
+	// Get configs
+	var config Config
+	var state State
+	if context != nil {
+		if context.Config != nil {
+			if err := json.Unmarshal(context.Config, &config); err != nil {
+				return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not unmarshal config: %w", err).Error()}
+			}
+		}
+		if context.Status != nil {
+			if err := json.Unmarshal(context.Status, &state); err != nil {
+				return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not unmarshal status: %w", err).Error()}
+			}
+		}
+	}
 
-	// probably need to use channel to cancel the sleep and not generate a number
-	panic("not implemented") // TODO: Implement
+	log.Infof("Ignoring future value for '%s'", state.Id)
+	state.Value = "0"
+	return CompletedResult(state)
+
 }
 
-func (p *rpcPlugin) Abort(_ *v1alpha1.Rollout, _ *types.RpcStepContext) (types.RpcStepResult, types.RpcError) {
+func (p *rpcPlugin) Abort(_ *v1alpha1.Rollout, context *types.RpcStepContext) (types.RpcStepResult, types.RpcError) {
 
-	// just for show, set value to zero
-	panic("not implemented") // TODO: Implement
+	// Get configs
+	var config Config
+	var state State
+	if context != nil {
+		if context.Config != nil {
+			if err := json.Unmarshal(context.Config, &config); err != nil {
+				return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not unmarshal config: %w", err).Error()}
+			}
+		}
+		if context.Status != nil {
+			if err := json.Unmarshal(context.Status, &state); err != nil {
+				return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not unmarshal status: %w", err).Error()}
+			}
+		}
+	}
+
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	log.Infof("deleting entry for id '%s'", state.getId())
+	delete(p.randomMap, state.getId())
+
+	return CompletedResult(state)
 }
 
 func (p *rpcPlugin) Type() string {
@@ -153,6 +199,7 @@ func (p *rpcPlugin) generate(state State) *Result {
 	if state.SharedId != "" {
 		v, ok := p.randomMap[state.SharedId]
 		if ok {
+			log.Infof("Using base '%d' for aggregate %s", v.Value, state.SharedId)
 			base = v.Value
 		}
 	}
@@ -162,6 +209,7 @@ func (p *rpcPlugin) generate(state State) *Result {
 		Id:    state.Id,
 	}
 	p.randomMap[state.getId()] = result
+	log.Infof("Set '%d' for id %s", result.Value, state.getId())
 
 	return result
 }
