@@ -16238,8 +16238,8 @@ spec:
                           format: date-time
                           type: string
                         status:
-                          format: byte
-                          type: string
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
                       required:
                       - index
                       - name

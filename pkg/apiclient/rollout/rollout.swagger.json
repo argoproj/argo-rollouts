@@ -2551,7 +2551,8 @@
         },
         "status": {
           "type": "string",
-          "format": "byte"
+          "format": "byte",
+          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object"
         }
       }
     },

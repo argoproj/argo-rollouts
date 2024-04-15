@@ -1769,6 +1769,9 @@ message StepPluginStatus {
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
 
+  // +kubebuilder:validation:Schemaless
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +kubebuilder:validation:Type=object
   optional bytes status = 8;
 }
 

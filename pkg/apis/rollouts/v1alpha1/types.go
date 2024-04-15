@@ -1046,7 +1046,11 @@ type StepPluginStatus struct {
 	Message    string              `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
 	StartedAt  *metav1.Time        `json:"startedAt,omitempty" protobuf:"bytes,6,name=startedAt"`
 	FinishedAt *metav1.Time        `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
-	Status     json.RawMessage     `json:"status,omitempty" protobuf:"bytes,8,opt,name=status"`
+
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
+	Status json.RawMessage `json:"status,omitempty" protobuf:"bytes,8,opt,name=status"`
 }
 
 // StepPluginPhase is the overall phase of a StepPlugin
