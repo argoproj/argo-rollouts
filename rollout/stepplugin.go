@@ -90,11 +90,12 @@ func (c *rolloutContext) calculateStepPluginStatus() []v1alpha1.StepPluginStatus
 }
 
 func (c *rolloutContext) isStepPluginCompleted(stepIndex int32) bool {
-	runStatus := findCurrentStepStatus(c.newStatus.Canary.StepPluginStatuses, stepIndex, v1alpha1.StepPluginOperationRun)
+	updatedPluginStatus := c.calculateStepPluginStatus()
+	runStatus := findCurrentStepStatus(updatedPluginStatus, stepIndex, v1alpha1.StepPluginOperationRun)
 	isRunning := runStatus != nil && runStatus.Phase == v1alpha1.StepPluginPhaseRunning
 	if isRunning {
-		terminateStatus := findCurrentStepStatus(c.newStatus.Canary.StepPluginStatuses, stepIndex, v1alpha1.StepPluginOperationTerminate)
-		abortStatus := findCurrentStepStatus(c.newStatus.Canary.StepPluginStatuses, stepIndex, v1alpha1.StepPluginOperationAbort)
+		terminateStatus := findCurrentStepStatus(updatedPluginStatus, stepIndex, v1alpha1.StepPluginOperationTerminate)
+		abortStatus := findCurrentStepStatus(updatedPluginStatus, stepIndex, v1alpha1.StepPluginOperationAbort)
 		isRunning = terminateStatus == nil && abortStatus == nil
 	}
 	return runStatus != nil && ((!isRunning && runStatus.Phase == v1alpha1.StepPluginPhaseRunning) || runStatus.Phase == v1alpha1.StepPluginPhaseFailed || runStatus.Phase == v1alpha1.StepPluginPhaseSuccessful)
