@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,10 +52,15 @@ func InitializeConfig(k8sClientset kubernetes.Interface, configMapName string) (
 		return nil, fmt.Errorf("failed to unmarshal metric provider plugins while initializing: %w", err)
 	}
 
+	var stepPlugins []types.PluginItem
+	if err = yaml.Unmarshal([]byte(configMapCluster.Data["stepPlugins"]), &stepPlugins); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal step plugins while initializing: %w", err)
+	}
+
 	mutex.Lock()
 	configMemoryCache = &Config{
 		configMap: configMapCluster,
-		plugins:   append(trafficRouterPlugins, metricProviderPlugins...),
+		plugins:   slices.Concat(trafficRouterPlugins, metricProviderPlugins, stepPlugins),
 	}
 	mutex.Unlock()
 
