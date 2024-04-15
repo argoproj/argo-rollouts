@@ -72,7 +72,7 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 
 	if stepStatus.Phase == v1alpha1.StepPluginPhaseRunning {
 		result.RequeueAfter = &defaultRequeuDuration
-		if resp.RequeueAfter < minRequeueDuration {
+		if resp.RequeueAfter > minRequeueDuration {
 			result.RequeueAfter = &resp.RequeueAfter
 		}
 	}

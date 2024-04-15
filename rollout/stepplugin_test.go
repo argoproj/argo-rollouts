@@ -42,6 +42,7 @@ func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 		stepPluginResolver.On("Resolve", int32(0), mock.Anything, mock.Anything).Return(stepPluginMock, nil)
 
 		r := newStepPluginRollout()
+		logCtx := logutil.WithRollout(r)
 		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
@@ -49,6 +50,10 @@ func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 				stepPluginResolver:  stepPluginResolver,
 				enqueueRollout:      func(obj any) { t.Error("enqueueRollout should not be called") },
 				enqueueRolloutAfter: func(obj any, duration time.Duration) { t.Error("enqueueRolloutAfter should not be called") },
+			},
+			pauseContext: &pauseContext{
+				rollout: r,
+				log:     logCtx,
 			},
 		}
 
@@ -123,6 +128,7 @@ func Test_StepPlugin_RunningReconciliation(t *testing.T) {
 		stepPluginResolver.On("Resolve", int32(0), mock.Anything, mock.Anything).Return(stepPluginMock, nil)
 
 		r := newStepPluginRollout()
+		logCtx := logutil.WithRollout(r)
 		roCtx := &rolloutContext{
 			rollout: r,
 			log:     logutil.WithRollout(r),
@@ -130,6 +136,10 @@ func Test_StepPlugin_RunningReconciliation(t *testing.T) {
 				stepPluginResolver:  stepPluginResolver,
 				enqueueRollout:      func(obj any) { t.Error("enqueueRollout should not be called") },
 				enqueueRolloutAfter: func(obj any, duration time.Duration) { t.Error("enqueueRolloutAfter should not be called") },
+			},
+			pauseContext: &pauseContext{
+				rollout: r,
+				log:     logCtx,
 			},
 		}
 
@@ -278,50 +288,17 @@ func Test_StepPlugin_FullyPromoted(t *testing.T) {
 		return roCtx, stepPluginMock
 	}
 
-	t.Run("Terminate not called when status is missing", func(t *testing.T) {
-		roCtx, stepPluginMock := setup(t)
-		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
-			{
-				Index:   999,
-				Name:    "not current plugin",
-				Message: "other status",
-				Phase:   v1alpha1.StepPluginPhaseRunning,
-			},
-		}
-
-		stepPluginMock.On("Terminate", mock.Anything).Maybe().Panic("Terminate should not be called when plugin is not running")
-
-		err := roCtx.reconcileCanaryPluginStep()
-
-		require.NoError(t, err)
-		require.Len(t, roCtx.stepPluginStatuses, 0)
-	})
-	t.Run("Terminate not called when status is not running", func(t *testing.T) {
+	t.Run("Rollout is Terminated on full promotion", func(t *testing.T) {
 		roCtx, stepPluginMock := setup(t)
 		runStatus := newStepPluginStatus()
+		runStatus.Operation = v1alpha1.StepPluginOperationTerminate
+		runStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
 		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
-				Index: runStatus.Index,
-				Name:  runStatus.Name,
-				Phase: v1alpha1.StepPluginPhaseSuccessful,
-			},
-		}
-
-		stepPluginMock.On("Terminate", mock.Anything).Maybe().Panic("Terminate should not be called when plugin is not running")
-
-		err := roCtx.reconcileCanaryPluginStep()
-
-		require.NoError(t, err)
-		require.Len(t, roCtx.stepPluginStatuses, 0)
-	})
-	t.Run("Rollout is Terminated on full promotion if current step is running", func(t *testing.T) {
-		roCtx, stepPluginMock := setup(t)
-		runStatus := newStepPluginStatus()
-		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
-			{
-				Index: runStatus.Index,
-				Name:  runStatus.Name,
-				Phase: v1alpha1.StepPluginPhaseRunning,
+				Index:     runStatus.Index,
+				Name:      runStatus.Name,
+				Phase:     v1alpha1.StepPluginPhaseSuccessful,
+				Operation: v1alpha1.StepPluginOperationTerminate,
 			},
 		}
 

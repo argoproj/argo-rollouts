@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 
@@ -37,9 +36,10 @@ func Test_stepPlugin_Run(t *testing.T) {
 				Canary: v1alpha1.CanaryStatus{
 					StepPluginStatuses: []v1alpha1.StepPluginStatus{
 						{
-							Index:  0,
-							Name:   p.name,
-							Status: json.RawMessage("step status value"),
+							Index:     0,
+							Name:      p.name,
+							Status:    json.RawMessage("step status value"),
+							Operation: v1alpha1.StepPluginOperationRun,
 						},
 					},
 				},
@@ -75,9 +75,10 @@ func Test_stepPlugin_Run(t *testing.T) {
 				Canary: v1alpha1.CanaryStatus{
 					StepPluginStatuses: []v1alpha1.StepPluginStatus{
 						{
-							Index:  0,
-							Name:   p.name,
-							Status: json.RawMessage("step status value"),
+							Index:     0,
+							Name:      p.name,
+							Status:    json.RawMessage("step status value"),
+							Operation: v1alpha1.StepPluginOperationRun,
 						},
 					},
 				},
@@ -114,6 +115,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 			Status:    json.RawMessage("step status value"),
 			StartedAt: &v1.Time{Time: time.Now().Add(30 * time.Minute * -1)},
 			Phase:     v1alpha1.StepPluginPhaseRunning,
+			Operation: v1alpha1.StepPluginOperationRun,
 		}
 		r := &v1alpha1.Rollout{
 			Status: v1alpha1.RolloutStatus{
@@ -142,6 +144,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, p.index, status.Index)
 		assert.Equal(t, currentStatus.StartedAt, status.StartedAt)
 		assert.Equal(t, v1alpha1.StepPluginPhase(rpcResult.Phase), status.Phase)
+		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
 		assert.NotNil(t, status.FinishedAt)
@@ -176,6 +179,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.NotNil(t, status.FinishedAt)
 		assert.Greater(t, status.FinishedAt.Time, status.StartedAt.Time)
 		assert.Equal(t, v1alpha1.StepPluginPhase(rpcResult.Phase), status.Phase)
+		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
 		assert.Nil(t, result.RequeueAfter)
@@ -187,6 +191,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 			Name:      p.name,
 			Status:    json.RawMessage("step status value"),
 			StartedAt: &v1.Time{Time: time.Now().Add(30 * time.Minute * -1)},
+			Operation: v1alpha1.StepPluginOperationRun,
 		}
 		r := &v1alpha1.Rollout{
 			Status: v1alpha1.RolloutStatus{
@@ -215,11 +220,11 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, p.index, status.Index)
 		assert.NotNil(t, status.StartedAt)
 		assert.Nil(t, status.FinishedAt)
-		assert.Greater(t, status.FinishedAt.Time, status.StartedAt.Time)
 		assert.Equal(t, v1alpha1.StepPluginPhase(rpcResult.Phase), status.Phase)
+		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
-		assert.Equal(t, rpcResult.RequeueAfter, result.RequeueAfter)
+		assert.Equal(t, rpcResult.RequeueAfter, *result.RequeueAfter)
 	})
 	t.Run("Running status without requeue", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -248,6 +253,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.NotNil(t, status.StartedAt)
 		assert.Nil(t, status.FinishedAt)
 		assert.Equal(t, v1alpha1.StepPluginPhase(rpcResult.Phase), status.Phase)
+		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
 		assert.Equal(t, defaultRequeuDuration, *result.RequeueAfter)
@@ -280,9 +286,10 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.NotNil(t, status.StartedAt)
 		assert.Nil(t, status.FinishedAt)
 		assert.Equal(t, v1alpha1.StepPluginPhase(rpcResult.Phase), status.Phase)
+		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
-		assert.Equal(t, minRequeueDuration, *result.RequeueAfter)
+		assert.Equal(t, defaultRequeuDuration, *result.RequeueAfter)
 	})
 	t.Run("Failed status", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -313,6 +320,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.NotNil(t, status.FinishedAt)
 		assert.Greater(t, status.FinishedAt.Time, status.StartedAt.Time)
 		assert.Equal(t, v1alpha1.StepPluginPhase(rpcResult.Phase), status.Phase)
+		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
 		assert.Nil(t, result.RequeueAfter)
@@ -324,6 +332,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 			Name:      p.name,
 			Status:    json.RawMessage("step status value"),
 			StartedAt: &v1.Time{Time: time.Now().Add(30 * time.Minute * -1)},
+			Operation: v1alpha1.StepPluginOperationRun,
 		}
 		r := &v1alpha1.Rollout{
 			Status: v1alpha1.RolloutStatus{
@@ -355,6 +364,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, p.index, status.Index)
 		assert.Equal(t, currentStatus.StartedAt, status.StartedAt)
 		assert.Equal(t, v1alpha1.StepPluginPhaseError, status.Phase)
+		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, expectedError.Error(), status.Message)
 		assert.Equal(t, currentStatus.Status, status.Status)
 		assert.NotNil(t, status.FinishedAt)
@@ -381,6 +391,7 @@ func Test_stepPlugin_Terminate(t *testing.T) {
 			Status:    json.RawMessage("step status value"),
 			StartedAt: &v1.Time{Time: time.Now().Add(30 * time.Minute * -1)},
 			Phase:     v1alpha1.StepPluginPhaseRunning,
+			Operation: v1alpha1.StepPluginOperationRun,
 		}
 	}
 	newRollout := func(s *v1alpha1.StepPluginStatus) *v1alpha1.Rollout {
@@ -395,10 +406,11 @@ func Test_stepPlugin_Terminate(t *testing.T) {
 		}
 	}
 
-	t.Run("Return existing status if not running", func(t *testing.T) {
+	t.Run("Return nil status if not running", func(t *testing.T) {
 		p, rpcMock := setup(t)
 		currentStatus := newRunningStatus()
 		currentStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
+		currentStatus.Operation = v1alpha1.StepPluginOperationRun
 		r := newRollout(currentStatus)
 
 		rpcMock.On("Terminate", mock.Anything, mock.Anything).Maybe().Panic("Terminate should not be called when plugin is not running")
@@ -406,7 +418,22 @@ func Test_stepPlugin_Terminate(t *testing.T) {
 		status, err := p.Terminate(r)
 
 		require.NoError(t, err)
-		assert.Equal(t, currentStatus, status)
+		assert.Nil(t, status)
+	})
+
+	t.Run("Return nil status if already terminated", func(t *testing.T) {
+		p, rpcMock := setup(t)
+		currentStatus := newRunningStatus()
+		currentStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
+		currentStatus.Operation = v1alpha1.StepPluginOperationTerminate
+		r := newRollout(currentStatus)
+
+		rpcMock.On("Terminate", mock.Anything, mock.Anything).Maybe().Panic("Terminate should not be called when plugin is not running")
+
+		status, err := p.Terminate(r)
+
+		require.NoError(t, err)
+		assert.Nil(t, status)
 	})
 	t.Run("Running phase overridden to failed if running", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -426,13 +453,12 @@ func Test_stepPlugin_Terminate(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, p.name, status.Name)
 		assert.Equal(t, p.index, status.Index)
-		assert.Equal(t, currentStatus.StartedAt, status.StartedAt)
 		assert.NotNil(t, status.FinishedAt)
 		assert.Greater(t, status.FinishedAt.Time, status.StartedAt.Time)
+		assert.Equal(t, v1alpha1.StepPluginOperationTerminate, status.Operation)
 		assert.Equal(t, v1alpha1.StepPluginPhaseFailed, status.Phase)
-		assert.Contains(t, status.Message, rpcResult.Message)
-		assert.True(t, strings.HasPrefix(status.Message, "Terminated:"))
-		assert.Equal(t, rpcResult.Status, status.Status)
+		assert.Equal(t, rpcResult.Message, status.Message)
+		assert.Nil(t, status.Status)
 	})
 	t.Run("Completes successfully", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -453,13 +479,12 @@ func Test_stepPlugin_Terminate(t *testing.T) {
 
 		assert.Equal(t, p.name, status.Name)
 		assert.Equal(t, p.index, status.Index)
-		assert.Equal(t, currentStatus.StartedAt, status.StartedAt)
 		assert.NotNil(t, status.FinishedAt)
 		assert.Greater(t, status.FinishedAt.Time, status.StartedAt.Time)
 		assert.Equal(t, v1alpha1.StepPluginPhase(rpcResult.Phase), status.Phase)
-		assert.Contains(t, status.Message, rpcResult.Message)
-		assert.True(t, strings.HasPrefix(status.Message, "Terminated:"))
-		assert.Equal(t, rpcResult.Status, status.Status)
+		assert.Equal(t, v1alpha1.StepPluginOperationTerminate, status.Operation)
+		assert.Equal(t, rpcResult.Message, status.Message)
+		assert.Nil(t, status.Status)
 	})
 
 	t.Run("Error status", func(t *testing.T) {
@@ -484,12 +509,11 @@ func Test_stepPlugin_Terminate(t *testing.T) {
 
 		assert.Equal(t, p.name, status.Name)
 		assert.Equal(t, p.index, status.Index)
-		assert.Equal(t, currentStatus.StartedAt, status.StartedAt)
 		assert.NotNil(t, status.FinishedAt)
 		assert.Greater(t, status.FinishedAt.Time, status.StartedAt.Time)
+		assert.Equal(t, v1alpha1.StepPluginOperationTerminate, status.Operation)
 		assert.Equal(t, v1alpha1.StepPluginPhaseError, status.Phase)
 		assert.Contains(t, status.Message, expectedError.Error())
-		assert.True(t, strings.HasPrefix(status.Message, "Terminated:"))
-		assert.Equal(t, currentStatus.Status, status.Status)
+		assert.Nil(t, status.Status)
 	})
 }
