@@ -60,7 +60,7 @@ of blue/green deployments but only the basic capabilities of canaries.
 * Blue/Green also works with services that use queues and databases (workers that fetch tasks). Argo Rollouts doesn't control traffic flow for
 connections it doesn't understand (i.e. binary/queue channels).
 
-Here is a summary table for the two approaches.
+Here is a summary table for the possible approaches.
 
 |                           |         Blue/Green        |       Basic Canary         | Canary with Traffic manager    |
 |--------------------------:|:-------------------------:|:--------------------------:| :-----------------------------:|
