@@ -6,6 +6,7 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
+	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
 )
 
 func (c *rolloutContext) reconcileCanaryPluginStep() error {
@@ -18,6 +19,9 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 		startingIndex := *currentStepIndex
 		for i := startingIndex; i >= 0; i-- {
+			if i >= int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
+				continue
+			}
 			currentStep := &c.rollout.Spec.Strategy.Canary.Steps[i]
 			if currentStep.Plugin == nil {
 				continue
@@ -36,6 +40,41 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 		return nil
 	}
 
+	// On full promotion, we want to Terminate the last step stuck in Running
+	// At this point, the currentStepIndex is the current or last one
+	if c.rollout.Status.PromoteFull || rolloututil.IsFullyPromoted(c.rollout) {
+		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+		startingIndex := *currentStepIndex
+
+		for i := startingIndex; i >= 0; i-- {
+			if i >= int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
+				continue
+			}
+			currentStep := &c.rollout.Spec.Strategy.Canary.Steps[i]
+			if currentStep.Plugin == nil {
+				continue
+			}
+			runningStatus := findCurrentStepStatus(c.rollout.Status.Canary.StepPluginStatuses, i, v1alpha1.StepPluginOperationRun)
+			if runningStatus == nil || runningStatus.Phase != v1alpha1.StepPluginPhaseRunning {
+				continue
+			}
+
+			// found the last running step
+			stepPlugin, err := c.stepPluginResolver.Resolve(i, *currentStep.Plugin, c.log)
+			if err != nil {
+				return fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err)
+			}
+
+			status, err := stepPlugin.Terminate(c.rollout)
+			if err != nil {
+				return fmt.Errorf("failed to terminate plugin: %w", err)
+			}
+			c.stepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
+		}
+		return nil
+	}
+
+	// Normal execution flow of a step plugin
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	if currentStep == nil || currentStep.Plugin == nil {
 		return nil
@@ -45,18 +84,6 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 	if err != nil {
 		return fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err)
 	}
-
-	// On full promotion, we want to Terminate the current step
-	if c.rollout.Status.PromoteFull {
-		status, err := stepPlugin.Terminate(c.rollout)
-		if err != nil {
-			return fmt.Errorf("failed to terminate plugin: %w", err)
-		}
-		c.stepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
-		return nil
-	}
-
-	// Normal execution of a step plugin
 	status, result, err := stepPlugin.Run(c.rollout)
 	if err != nil {
 		return fmt.Errorf("failed to run plugin: %w", err)
