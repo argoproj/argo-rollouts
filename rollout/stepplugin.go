@@ -70,6 +70,7 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 				return fmt.Errorf("failed to terminate plugin: %w", err)
 			}
 			c.stepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
+			return nil
 		}
 		return nil
 	}

@@ -29,7 +29,8 @@ type Terminate struct {
 }
 
 type State struct {
-	Data string
+	Data  string
+	Count int
 }
 
 type rpcPlugin struct {
@@ -71,6 +72,7 @@ func (p *rpcPlugin) Run(rollout *v1alpha1.Rollout, context *types.RpcStepContext
 	if state.Data == "" {
 		state.Data = uuid.New().String()
 	}
+	state.Count = state.Count + 1
 
 	var requeue time.Duration
 	if config.Requeue != "" {
@@ -111,10 +113,6 @@ func (p *rpcPlugin) Terminate(rollout *v1alpha1.Rollout, context *types.RpcStepC
 		}
 	}
 
-	if state.Data == "" {
-		state.Data = uuid.New().String()
-	}
-
 	phase := types.PhaseSuccessful
 	if config.Terminate.Return != "" {
 		phase = types.Phase(config.Terminate.Return)
@@ -143,10 +141,6 @@ func (p *rpcPlugin) Abort(rollout *v1alpha1.Rollout, context *types.RpcStepConte
 				return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not unmarshal status: %w", err).Error()}
 			}
 		}
-	}
-
-	if state.Data == "" {
-		state.Data = uuid.New().String()
 	}
 
 	phase := types.PhaseSuccessful

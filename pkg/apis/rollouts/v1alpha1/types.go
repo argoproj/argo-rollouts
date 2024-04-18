@@ -1046,7 +1046,8 @@ type StepPluginStatus struct {
 	Phase      StepPluginPhase     `json:"phase" protobuf:"bytes,4,name=phase"`
 	Message    string              `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
 	StartedAt  *metav1.Time        `json:"startedAt,omitempty" protobuf:"bytes,6,name=startedAt"`
-	FinishedAt *metav1.Time        `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
+	UpdatedAt  *metav1.Time        `json:"updatedAt,omitempty" protobuf:"bytes,7,opt,name=updatedAt"`
+	FinishedAt *metav1.Time        `json:"finishedAt,omitempty" protobuf:"bytes,8,opt,name=finishedAt"`
 
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:pruning:PreserveUnknownFields

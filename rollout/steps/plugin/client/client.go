@@ -89,6 +89,9 @@ func (t *stepPlugin) startPlugin(pluginName string) (rpc.StepPlugin, error) {
 
 	client, err := t.client[pluginName].Client()
 	if err != nil {
+		// If we are not able to create the client, something is utterly wrong
+		// we should try to re-download the plugin and restart because the file
+		// can be corrupted
 		return nil, fmt.Errorf("unable to get plugin client (%s) for ping: %w", pluginName, err)
 	}
 	if err := client.Ping(); err != nil {

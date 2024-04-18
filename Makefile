@@ -242,6 +242,7 @@ test-kustomize: ## run kustomize tests
 	./test/kustomize/test.sh
 
 step-plugin-e2e-setup:
+	@rm -rf plugin-bin
 	@go build -gcflags="all=-N -l" -o plugin-bin/e2e-step-plugin test/cmd/step-plugin-e2e/main.go
 	@kubectl apply --context='${E2E_K8S_CONTEXT}' -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml
 

@@ -297,8 +297,8 @@ func Test_StepPlugin_FullyPromoted(t *testing.T) {
 			{
 				Index:     runStatus.Index,
 				Name:      runStatus.Name,
-				Phase:     v1alpha1.StepPluginPhaseSuccessful,
-				Operation: v1alpha1.StepPluginOperationTerminate,
+				Phase:     v1alpha1.StepPluginPhaseRunning,
+				Operation: v1alpha1.StepPluginOperationRun,
 			},
 		}
 
@@ -307,8 +307,8 @@ func Test_StepPlugin_FullyPromoted(t *testing.T) {
 		err := roCtx.reconcileCanaryPluginStep()
 
 		require.NoError(t, err)
-		require.Len(t, roCtx.stepPluginStatuses, 1)
-		assert.EqualExportedValues(t, roCtx.stepPluginStatuses[0], *runStatus)
+		require.Len(t, roCtx.stepPluginStatuses, 2)
+		assert.EqualExportedValues(t, roCtx.stepPluginStatuses[1], *runStatus)
 	})
 }
 

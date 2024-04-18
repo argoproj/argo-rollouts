@@ -56,11 +56,11 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 
 	resp, err := p.rpc.Run(rollout.DeepCopy(), p.getStepContext(stepStatus))
 	finishedAt := metatime.MetaNow()
+	stepStatus.UpdatedAt = &finishedAt
 	if err.HasError() {
 		p.log.Errorf("error during plugin execution")
 		stepStatus.Phase = v1alpha1.StepPluginPhaseError
 		stepStatus.Message = err.Error()
-		stepStatus.FinishedAt = &finishedAt
 		return stepStatus, result, nil
 	}
 
@@ -76,7 +76,10 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 		stepStatus.FinishedAt = &finishedAt
 	}
 
-	stepStatus.Status = resp.Status
+	if stepStatus.Phase != v1alpha1.StepPluginPhaseError {
+		// do not update status on error because it can be invalid and we want to retry later on current status
+		stepStatus.Status = resp.Status
+	}
 
 	if stepStatus.Phase == v1alpha1.StepPluginPhaseRunning {
 		result.RequeueAfter = &defaultRequeuDuration
@@ -111,6 +114,7 @@ func (p *stepPlugin) Terminate(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginS
 	}
 	resp, err := p.rpc.Terminate(rollout.DeepCopy(), p.getStepContext(stepStatus))
 	finishedAt := metatime.MetaNow()
+	stepStatus.UpdatedAt = &finishedAt
 	if err.HasError() {
 		terminateStatus.Phase = v1alpha1.StepPluginPhaseError
 		terminateStatus.Message = err.Error()
@@ -158,6 +162,7 @@ func (p *stepPlugin) Abort(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatu
 	}
 	resp, err := p.rpc.Abort(rollout.DeepCopy(), p.getStepContext(stepStatus))
 	finishedAt := metatime.MetaNow()
+	stepStatus.UpdatedAt = &finishedAt
 	if err.HasError() {
 		abortStatus.Phase = v1alpha1.StepPluginPhaseError
 		abortStatus.Message = err.Error()
