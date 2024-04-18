@@ -16240,6 +16240,9 @@ spec:
                         status:
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
+                        updatedAt:
+                          format: date-time
+                          type: string
                       required:
                       - index
                       - name

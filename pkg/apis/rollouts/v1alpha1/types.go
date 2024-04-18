@@ -1052,7 +1052,7 @@ type StepPluginStatus struct {
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object
-	Status json.RawMessage `json:"status,omitempty" protobuf:"bytes,8,opt,name=status"`
+	Status json.RawMessage `json:"status,omitempty" protobuf:"bytes,9,opt,name=status"`
 }
 
 // StepPluginPhase is the overall phase of a StepPlugin

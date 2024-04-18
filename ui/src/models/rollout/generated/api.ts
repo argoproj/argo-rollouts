@@ -2836,6 +2836,12 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginS
      * @type {K8sIoApimachineryPkgApisMetaV1Time}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
      */
+    updatedAt?: K8sIoApimachineryPkgApisMetaV1Time;
+    /**
+     * 
+     * @type {K8sIoApimachineryPkgApisMetaV1Time}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
     finishedAt?: K8sIoApimachineryPkgApisMetaV1Time;
     /**
      * 

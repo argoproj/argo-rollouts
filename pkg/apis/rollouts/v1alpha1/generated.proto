@@ -1767,12 +1767,14 @@ message StepPluginStatus {
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 6;
 
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time updatedAt = 7;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 8;
 
   // +kubebuilder:validation:Schemaless
   // +kubebuilder:pruning:PreserveUnknownFields
   // +kubebuilder:validation:Type=object
-  optional bytes status = 8;
+  optional bytes status = 9;
 }
 
 message StickinessConfig {
