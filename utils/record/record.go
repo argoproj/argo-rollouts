@@ -341,7 +341,7 @@ func NewAPIFactorySettings(arInformer argoinformers.AnalysisRunInformer) api.Set
 				}
 
 				if arsObj == nil {
-					arsObj = ""
+					arsObj = make([]*v1alpha1.AnalysisRun, 0)
 				}
 
 				vars = map[string]any{
