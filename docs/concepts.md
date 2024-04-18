@@ -62,14 +62,17 @@ connections it doesn't understand (i.e. binary/queue channels).
 
 Here is a summary table for the two approaches.
 
-|                           |         Blue/Green         | Canary with Traffic manager         |
-|--------------------------:|:-------------------------:|:--------------------------:|
-|                Ease of adoption |           Low             |     High                   | 
-|               Flexibility | Low        |  High                        | 
-|               Needs traffic provider | No        |  Yes                        | 
-|               Works with queue workers | Yes        |  No                        | 
-|               Works with shared/locked resources | Yes        |  No                        |
-|               Traffic switch | All or nothing        |  Gradual percentage                        |
-|               Failure Blast Radius | Massive impact       |  Low impact                       |
+|                           |         Blue/Green        |       Basic Canary         | Canary with Traffic manager    |
+|--------------------------:|:-------------------------:|:--------------------------:| :-----------------------------:|
+|       Adoption Complexity |           Low             |       Medium               |        High                    |
+|        Flexibility        |           Low             |        High                |        Maximum                 |
+|    Needs traffic provider |                 No        |         No                 |           Yes                  | 
+|  Works with queue workers |                Yes        |         No                 |            No                  |
+|  Works with shared/locked resources | Yes             |         No                 |            No                  |
+|            Traffic switch |     All or nothing        |  Gradual percentage        |      Gradual percentage        |
+|           Traffic control |     0% or 100%            |  coarse grained            |     fine grained               |
+|       Traffic depends on  |     deployment state      |  number of canary pods     |     Any split option is possible                |
+| Advanced routing scenarios |         No               |       No                   |         Yes                    |
+|      Failure Blast Radius | Massive impact            |  Low impact                       | Low impact              |
 
 Note that that traffic manager can be any compatible Service Mesh or Ingress Controller or Gateway API implementation (via a plugin).
