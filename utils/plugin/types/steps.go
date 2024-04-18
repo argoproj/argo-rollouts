@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -25,4 +26,16 @@ type RpcStepResult struct {
 	Message      string
 	RequeueAfter time.Duration
 	Status       json.RawMessage
+}
+
+func (p Phase) Validate() error {
+	switch p {
+	case PhaseRunning:
+	case PhaseSuccessful:
+	case PhaseFailed:
+	case PhaseError:
+	default:
+		return fmt.Errorf("phase '%s' is not valid", p)
+	}
+	return nil
 }

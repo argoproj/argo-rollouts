@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -49,6 +50,10 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 			Phase:     v1alpha1.StepPluginPhaseRunning,
 		}
 	}
+	if stepStatus.Phase == v1alpha1.StepPluginPhaseSuccessful || stepStatus.Phase == v1alpha1.StepPluginPhaseFailed {
+		return nil, nil, nil
+	}
+
 	resp, err := p.rpc.Run(rollout.DeepCopy(), p.getStepContext(stepStatus))
 	finishedAt := metatime.MetaNow()
 	if err.HasError() {
@@ -62,6 +67,9 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 	stepStatus.Message = resp.Message
 	if resp.Phase != "" {
 		stepStatus.Phase = v1alpha1.StepPluginPhase(resp.Phase)
+		if err := stepStatus.Phase.Validate(); err != nil {
+			return nil, nil, fmt.Errorf("could not validate rpc phase: %w", err)
+		}
 	}
 
 	if stepStatus.Phase == v1alpha1.StepPluginPhaseSuccessful || stepStatus.Phase == v1alpha1.StepPluginPhaseFailed {
@@ -112,6 +120,9 @@ func (p *stepPlugin) Terminate(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginS
 
 	if resp.Phase != "" {
 		terminateStatus.Phase = v1alpha1.StepPluginPhase(resp.Phase)
+		if err := terminateStatus.Phase.Validate(); err != nil {
+			return nil, fmt.Errorf("could not validate rpc phase: %w", err)
+		}
 	}
 
 	if terminateStatus.Phase == v1alpha1.StepPluginPhaseRunning {
@@ -156,6 +167,9 @@ func (p *stepPlugin) Abort(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatu
 
 	if resp.Phase != "" {
 		abortStatus.Phase = v1alpha1.StepPluginPhase(resp.Phase)
+		if err := abortStatus.Phase.Validate(); err != nil {
+			return nil, fmt.Errorf("could not validate rpc phase: %w", err)
+		}
 	}
 
 	if abortStatus.Phase == v1alpha1.StepPluginPhaseRunning {

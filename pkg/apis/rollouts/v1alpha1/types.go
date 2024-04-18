@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	fmt "fmt"
 	"strconv"
 	"time"
 
@@ -1063,6 +1064,18 @@ const (
 	StepPluginPhaseFailed     StepPluginPhase = "Failed"
 	StepPluginPhaseError      StepPluginPhase = "Error"
 )
+
+func (p StepPluginPhase) Validate() error {
+	switch p {
+	case StepPluginPhaseRunning:
+	case StepPluginPhaseSuccessful:
+	case StepPluginPhaseFailed:
+	case StepPluginPhaseError:
+	default:
+		return fmt.Errorf("phase '%s' is not valid", p)
+	}
+	return nil
+}
 
 type StepPluginOperation string
 

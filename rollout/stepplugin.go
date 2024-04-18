@@ -63,7 +63,11 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 	}
 	c.stepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
 
-	if status.Phase == v1alpha1.StepPluginPhaseRunning && result.RequeueAfter != nil {
+	if status == nil {
+		return nil
+	}
+
+	if status.Phase == v1alpha1.StepPluginPhaseRunning && result != nil && result.RequeueAfter != nil {
 		c.enqueueRolloutAfter(c.rollout, *result.RequeueAfter)
 		return nil
 	}

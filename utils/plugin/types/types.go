@@ -114,6 +114,7 @@ type PluginItem struct {
 	Name     string `json:"name" yaml:"name"`
 	Location string `json:"location" yaml:"location"`
 	Sha256   string `json:"sha256" yaml:"sha256"`
+	Disabled bool   `json:"disabled" yaml:"disabled"`
 
 	// Args holds command line arguments
 	Args []string `json:"args" yaml:"args"`

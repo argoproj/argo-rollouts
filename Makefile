@@ -19,6 +19,7 @@ IMAGE_TAG=latest
 DEV_IMAGE ?= false
 
 # E2E variables
+E2E_K8S_CONTEXT ?= rancher-desktop
 E2E_INSTANCE_ID ?= argo-rollouts-e2e
 E2E_TEST_OPTIONS ?=
 E2E_PARALLEL ?= 1
@@ -215,11 +216,15 @@ endif
 # https://www.jetbrains.com/help/go/attach-to-running-go-processes-with-debugger.html
 .PHONY: build-sample-metric-plugin-debug
 build-sample-metric-plugin-debug: ## build sample metric plugin with debug info
-	go build -gcflags="all=-N -l" -o metric-plugin test/cmd/metrics-plugin-sample/main.go
+	go build -gcflags="all=-N -l" -o plugin-bin/metric-plugin test/cmd/metrics-plugin-sample/main.go
 
 .PHONY: build-sample-traffic-plugin-debug
 build-sample-traffic-plugin-debug: ## build sample traffic plugin with debug info
-	go build -gcflags="all=-N -l" -o traffic-plugin test/cmd/trafficrouter-plugin-sample/main.go
+	go build -gcflags="all=-N -l" -o plugin-bin/traffic-plugin test/cmd/trafficrouter-plugin-sample/main.go
+
+.PHONY: build-sample-step-plugin-debug
+build-sample-step-plugin-debug: ## build sample traffic plugin with debug info
+	go build -gcflags="all=-N -l" -o plugin-bin/step-plugin test/cmd/step-plugin-sample/main.go
 
 .PHONY: plugin-image
 plugin-image: ## build plugin image
@@ -235,6 +240,13 @@ test: test-kustomize ## run all tests
 .PHONY: test-kustomize
 test-kustomize: ## run kustomize tests
 	./test/kustomize/test.sh
+
+step-plugin-e2e-setup:
+	@go build -gcflags="all=-N -l" -o plugin-bin/e2e-step-plugin test/cmd/step-plugin-e2e/main.go
+	@kubectl apply --context='${E2E_K8S_CONTEXT}' -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml
+
+step-plugin-e2e-run:
+	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit.xml --format=testname --packages="./test/e2e" --rerun-fails=0 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e -run 'TestStepPluginSuite'
 
 .PHONY: start-e2e
 start-e2e: ## start e2e test environment

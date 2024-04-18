@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: step-plugin-e2e-$$name$$
+spec:
+  selector:
+    matchLabels:
+      app: step-plugin-e2e-$$name$$
+  strategy:
+    canary:
+      steps:
+        - plugin:
+            name: step/e2e-test
+            config:
+              return: Successful
+        - plugin:
+            name: step/e2e-test
+            config:
+              return: $$phase$$
+  template:
+    metadata:
+      labels:
+        app: step-plugin-e2e-$$name$$
+    spec:
+      containers:
+        - name: basic
+          image: nginx:1.19-alpine
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 1m
