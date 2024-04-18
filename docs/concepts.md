@@ -47,3 +47,29 @@ A Canary deployment exposes a subset of users to the new version of the applicat
 
 The picture above shows a canary with two stages (10% and 33% of traffic goes to new version) but this is just an example. With Argo Rollouts you can define the exact number of stages
 and percentages of traffic according to your use case.
+
+## Which strategy to choose
+
+In general Blue/Green is the easier strategy to start with, but also the more limited. We recommend you start with Blue/Green deployments first and as you gain confidence for your metrics and applications switch to Canaries.
+
+You also need to examine if your application can handle canaries or not.
+
+* Blue/Green always works because only one application is active at a time. Not all applications can have different versions running in parallel at the same time (which is what canaries are doing)
+* Blue/Green is simpler because it works WITHOUT a traffic manager. Not all people like service meshes, and not all people have an ingress that is supported by Argo Rollouts
+* Blue/Green also works with services that use queues and databases (workers that fetch tasks)
+
+Here is a summary table for the two approaches.
+
+|                           |         Blue/Green         | Canary         |
+|--------------------------:|:-------------------------:|:--------------------------:|
+|                Ease of adoption |           Low             |     High                   | 
+|               Flexibility | Low        |  High                        | 
+|               Needs traffic provider | No        |  Yes                        | 
+|               Works with queue workers | Yes        |  No                        | 
+|               Works with shared/locked resources | Yes        |  No                        |
+|               Traffic switch | All or nothing        |  Gradual percentage                        |
+|               Failure Blast Radius | Massive impact       |  Low impact                       |
+
+!!! note
+    It is possible to have canaries without a traffic provider. The routing will be coarse and based
+    on the number of active pods. A traffic provider will give you many more routing options.
