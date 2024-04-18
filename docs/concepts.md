@@ -54,13 +54,15 @@ In general Blue/Green is the easier strategy to start with, but also the more li
 
 You also need to examine if your application can handle canaries or not.
 
-* Blue/Green always works because only one application is active at a time. Not all applications can have different versions running in parallel at the same time (which is what canaries are doing)
-* Blue/Green is simpler because it works WITHOUT a traffic manager. Not all people like service meshes, and not all people have an ingress that is supported by Argo Rollouts
-* Blue/Green also works with services that use queues and databases (workers that fetch tasks)
+* Blue/Green always works because only one application is active at a time. Not all applications can have different versions running in parallel at the same time (which is what canaries are doing). This can be a showstopper for adopting canary deployments especially for legacy applications.
+* Blue/Green is simpler because you can get their full value WITHOUT a traffic manager. While canaries can also work without a traffic manager, most of their advanced features assume a fine-grained way to control traffic. If you don't have a traffic manager, then you can easily get the full value
+of blue/green deployments but only the basic capabilities of canaries.
+* Blue/Green also works with services that use queues and databases (workers that fetch tasks). Argo Rollouts doesn't control traffic flow for
+connections it doesn't understand (i.e. binary/queue channels).
 
 Here is a summary table for the two approaches.
 
-|                           |         Blue/Green         | Canary         |
+|                           |         Blue/Green         | Canary with Traffic manager         |
 |--------------------------:|:-------------------------:|:--------------------------:|
 |                Ease of adoption |           Low             |     High                   | 
 |               Flexibility | Low        |  High                        | 
@@ -70,6 +72,4 @@ Here is a summary table for the two approaches.
 |               Traffic switch | All or nothing        |  Gradual percentage                        |
 |               Failure Blast Radius | Massive impact       |  Low impact                       |
 
-!!! note
-    It is possible to have canaries without a traffic provider. The routing will be coarse and based
-    on the number of active pods. A traffic provider will give you many more routing options.
+Note that that traffic manager can be any compatible Service Mesh or Ingress Controller or Gateway API implementation (via a plugin).
