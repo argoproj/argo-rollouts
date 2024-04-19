@@ -69,7 +69,7 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 		p.log.Errorf("error during plugin execution")
 		stepStatus.Phase = v1alpha1.StepPluginPhaseError
 		stepStatus.Message = err.Error()
-		stepStatus.Backoff = v1alpha1.DurationString(30 * time.Second)
+		stepStatus.Backoff = v1alpha1.DurationString((30 * time.Second).String())
 		return stepStatus, nil
 	}
 
