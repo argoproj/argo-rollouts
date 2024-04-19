@@ -490,7 +490,7 @@ func Test_rolloutContext_isStepPluginCompleted(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newRolloutContext(tt.statuses)
-			if got := c.isStepPluginCompleted(tt.index); got != tt.want {
+			if got := c.isStepPluginCompleted(tt.index, c.rollout.Spec.Strategy.Canary.Steps[tt.index].Plugin); got != tt.want {
 				t.Errorf("rolloutContext.isStepPluginCompleted() = %v, want %v", got, tt.want)
 			}
 		})

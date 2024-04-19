@@ -650,8 +650,6 @@ type PluginStep struct {
 	// +kubebuilder:validation:Type=object
 	// Config the configuration object for the specified plugin
 	Config json.RawMessage `json:"config,omitempty" protobuf:"bytes,2,opt,name=config"`
-
-	// json.RawMessage `json:"config,omitempty" protobuf:"bytes,2,opt,name=config"`
 }
 
 type SetMirrorRoute struct {
@@ -1042,17 +1040,19 @@ type RolloutAnalysisRunStatus struct {
 type StepPluginStatus struct {
 	Index      int32               `json:"index" protobuf:"bytes,1,name=index"`
 	Name       string              `json:"name" protobuf:"bytes,2,name=name"`
-	Operation  StepPluginOperation `json:"operation" protobuf:"bytes,3,name=operation"`
-	Phase      StepPluginPhase     `json:"phase" protobuf:"bytes,4,name=phase"`
+	Operation  StepPluginOperation `json:"operation" protobuf:"bytes,3,name=operation,casttype=StepPluginOperation"`
+	Phase      StepPluginPhase     `json:"phase" protobuf:"bytes,4,name=phase,casttype=StepPluginPhase"`
 	Message    string              `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
 	StartedAt  *metav1.Time        `json:"startedAt,omitempty" protobuf:"bytes,6,name=startedAt"`
 	UpdatedAt  *metav1.Time        `json:"updatedAt,omitempty" protobuf:"bytes,7,opt,name=updatedAt"`
 	FinishedAt *metav1.Time        `json:"finishedAt,omitempty" protobuf:"bytes,8,opt,name=finishedAt"`
+	Backoff    DurationString      `json:"backoff,omitempty" protobuf:"bytes,9,opt,name=backoff,casttype=DurationString"`
+	Executions int32               `json:"executions,omitempty" protobuf:"varint,10,opt,name=executions"`
 
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object
-	Status json.RawMessage `json:"status,omitempty" protobuf:"bytes,9,opt,name=status"`
+	Status json.RawMessage `json:"status,omitempty" protobuf:"bytes,11,opt,name=status"`
 }
 
 // StepPluginPhase is the overall phase of a StepPlugin

@@ -85,7 +85,7 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 	if err != nil {
 		return fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err)
 	}
-	status, result, err := stepPlugin.Run(c.rollout)
+	status, err := stepPlugin.Run(c.rollout)
 	if err != nil {
 		return fmt.Errorf("failed to run plugin: %w", err)
 	}
@@ -95,14 +95,14 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 		return nil
 	}
 
-	if status.Phase == v1alpha1.StepPluginPhaseRunning && result != nil && result.RequeueAfter != nil {
-		c.enqueueRolloutAfter(c.rollout, *result.RequeueAfter)
-		return nil
-	}
-
-	if status.Phase == v1alpha1.StepPluginPhaseError {
-		// It could be interesting to implement a backoff mechanism
-		c.enqueueRolloutAfter(c.rollout, 30*time.Second)
+	if status.Phase == v1alpha1.StepPluginPhaseRunning || status.Phase == v1alpha1.StepPluginPhaseError {
+		duration, err := status.Backoff.Duration()
+		if err != nil {
+			return fmt.Errorf("failed to parse backoff duration: %w", err)
+		}
+		// Add a little delay to make sure we reconcile after the backoff
+		duration += 5 * time.Second
+		c.enqueueRolloutAfter(c.rollout, duration)
 		return nil
 	}
 
@@ -121,7 +121,22 @@ func (c *rolloutContext) calculateStepPluginStatus() []v1alpha1.StepPluginStatus
 	return c.stepPluginStatuses
 }
 
-func (c *rolloutContext) isStepPluginCompleted(stepIndex int32) bool {
+func (c *rolloutContext) isStepPluginDisabled(stepIndex int32, step *v1alpha1.PluginStep) (bool, error) {
+	stepPlugin, err := c.stepPluginResolver.Resolve(stepIndex, *step, c.log)
+	if err != nil {
+		return false, err
+	}
+	return !stepPlugin.Enabled(), nil
+}
+
+func (c *rolloutContext) isStepPluginCompleted(stepIndex int32, step *v1alpha1.PluginStep) bool {
+	disabled, err := c.isStepPluginDisabled(stepIndex, step)
+	if err != nil {
+		// If there is an error, the plugin might not exist in the config. We do
+		c.log.Errorf("cannot resolve step plugin %s at index %d. Assuming it is enabled.", step.Name, stepIndex)
+		disabled = false
+	}
+
 	updatedPluginStatus := c.calculateStepPluginStatus()
 	runStatus := findCurrentStepStatus(updatedPluginStatus, stepIndex, v1alpha1.StepPluginOperationRun)
 	isRunning := runStatus != nil && runStatus.Phase == v1alpha1.StepPluginPhaseRunning
@@ -130,7 +145,11 @@ func (c *rolloutContext) isStepPluginCompleted(stepIndex int32) bool {
 		abortStatus := findCurrentStepStatus(updatedPluginStatus, stepIndex, v1alpha1.StepPluginOperationAbort)
 		isRunning = terminateStatus == nil && abortStatus == nil
 	}
-	return runStatus != nil && ((!isRunning && runStatus.Phase == v1alpha1.StepPluginPhaseRunning) || runStatus.Phase == v1alpha1.StepPluginPhaseFailed || runStatus.Phase == v1alpha1.StepPluginPhaseSuccessful)
+	return disabled ||
+		(runStatus != nil &&
+			((!isRunning && runStatus.Phase == v1alpha1.StepPluginPhaseRunning) ||
+				runStatus.Phase == v1alpha1.StepPluginPhaseFailed ||
+				runStatus.Phase == v1alpha1.StepPluginPhaseSuccessful))
 }
 
 func findCurrentStepStatus(status []v1alpha1.StepPluginStatus, stepIndex int32, operation v1alpha1.StepPluginOperation) *v1alpha1.StepPluginStatus {

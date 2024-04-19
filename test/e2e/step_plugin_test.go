@@ -19,7 +19,6 @@ import (
 
 const E2EStepPluginName = "step/e2e-test"
 const E2EStepPluginNameDisabled = "step/e2e-test-disabled"
-const E2EStepPluginNameInvalid = "step/e2e-test-invalid"
 
 type StepPluginSuite struct {
 	fixtures.E2ESuite
@@ -63,8 +62,10 @@ func IsStepPluginConfigured(c *fixtures.Common, config *corev1.ConfigMap) bool {
 func (s *StepPluginSuite) TestRolloutCompletesWhenStepSuccessful() {
 	s.Given().
 		RolloutTemplate("@step-plugin/template-rollout.yaml", map[string]string{"$$name$$": "successful", "$$phase$$": string(types.PhaseSuccessful)}).
-		When().ApplyManifests().WaitForRolloutStatus("Healthy").
-		UpdateSpec().WaitForRolloutStatus("Healthy").Then().
+		When().
+		ApplyManifests().WaitForRolloutStatus("Healthy").
+		UpdateSpec().WaitForRolloutStatus("Healthy").
+		Then().
 		ExpectStableRevision("2").
 		Assert(func(t *fixtures.Then) {
 			rollout := t.GetRollout()
@@ -81,8 +82,10 @@ func (s *StepPluginSuite) TestRolloutCompletesWhenStepSuccessful() {
 func (s *StepPluginSuite) TestRolloutAbortWhenStepFails() {
 	s.Given().
 		RolloutTemplate("@step-plugin/template-rollout.yaml", map[string]string{"$$name$$": "failed", "$$phase$$": string(types.PhaseFailed)}).
-		When().ApplyManifests().WaitForRolloutStatus("Healthy").
-		UpdateSpec().WaitForRolloutStatus("Degraded").Then().
+		When().
+		ApplyManifests().WaitForRolloutStatus("Healthy").
+		UpdateSpec().WaitForRolloutStatus("Degraded").
+		Then().
 		ExpectStableRevision("1").
 		Assert(func(t *fixtures.Then) {
 			rollout := t.GetRollout()
@@ -106,12 +109,12 @@ func (s *StepPluginSuite) TestRolloutAbortWhenStepFails() {
 func (s *StepPluginSuite) TestRolloutAbortStepsWhenAborted() {
 	s.Given().
 		RolloutTemplate("@step-plugin/template-rollout.yaml", map[string]string{"$$name$$": "aborted", "$$phase$$": string(types.PhaseRunning)}).
-		When().ApplyManifests().WaitForRolloutStatus("Healthy").
+		When().
+		ApplyManifests().WaitForRolloutStatus("Healthy").
 		UpdateSpec().WaitForRolloutStatus("Progressing").
 		WaitForRolloutCanaryStepIndex(1).
 		WaitForRolloutStepPluginRunning().
-		AbortRollout().
-		WaitForRolloutStatus("Degraded").
+		AbortRollout().WaitForRolloutStatus("Degraded").
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rollout := t.GetRollout()
@@ -141,12 +144,12 @@ func (s *StepPluginSuite) TestRolloutAbortStepsWhenAborted() {
 func (s *StepPluginSuite) TestRolloutCompletesWhenPromotedAndStepRunning() {
 	s.Given().
 		RolloutTemplate("@step-plugin/template-rollout.yaml", map[string]string{"$$name$$": "full-promotion", "$$phase$$": string(types.PhaseRunning)}).
-		When().ApplyManifests().WaitForRolloutStatus("Healthy").
+		When().
+		ApplyManifests().WaitForRolloutStatus("Healthy").
 		UpdateSpec().WaitForRolloutStatus("Progressing").
 		WaitForRolloutCanaryStepIndex(1).
 		WaitForRolloutStepPluginRunning().
-		PromoteRolloutFull().
-		WaitForRolloutStatus("Healthy").
+		PromoteRolloutFull().WaitForRolloutStatus("Healthy").
 		Then().
 		Assert(func(t *fixtures.Then) {
 			rollout := t.GetRollout()
@@ -177,8 +180,8 @@ spec:
 		WaitForRolloutCanaryStepIndex(1).
 		WaitForRolloutStepPluginRunning().
 		Wait(20 * time.Second).
+		WaitForRolloutStatus("Degraded").
 		Then().
-		ExpectRolloutStatus("Degraded").
 		Assert(func(t *fixtures.Then) {
 			rollout := t.GetRollout()
 			assert.EqualValues(s.T(), 1, *rollout.Status.CurrentStepIndex)
@@ -203,8 +206,8 @@ spec:
   progressDeadlineSeconds: 15`).
 		UpdateSpec().WaitForRolloutStatus("Progressing").
 		Wait(20 * time.Second).
+		WaitForRolloutStatus("Degraded").
 		Then().
-		ExpectRolloutStatus("Degraded").
 		Assert(func(t *fixtures.Then) {
 			rollout := t.GetRollout()
 			assert.EqualValues(s.T(), 1, *rollout.Status.CurrentStepIndex)
@@ -224,10 +227,10 @@ spec:
 func (s *StepPluginSuite) TestRolloutStatusIsNotUsedOnNewRollout() {
 	s.Given().
 		RolloutTemplate("@step-plugin/template-rollout.yaml", map[string]string{"$$name$$": "run-again", "$$phase$$": string(types.PhaseSuccessful)}).
-		When().ApplyManifests().WaitForRolloutStatus("Healthy").
-		UpdateSpec().WaitForRolloutStatus("Healthy").Then().
-		ExpectStableRevision("2").
-		When().UpdateSpec(`
+		When().
+		ApplyManifests().WaitForRolloutStatus("Healthy").
+		UpdateSpec().WaitForRolloutStatus("Healthy").Then().ExpectStableRevision("2").When().
+		UpdateSpec(`
 spec:
   strategy:
     canary:
@@ -236,7 +239,8 @@ spec:
           name: step/e2e-test
           config:
             return: Successful`).
-		UpdateSpec().WaitForRolloutStatus("Healthy").Then().
+		UpdateSpec().WaitForRolloutStatus("Healthy").
+		Then().
 		ExpectStableRevision("3").
 		Assert(func(t *fixtures.Then) {
 			rollout := t.GetRollout()
@@ -245,6 +249,42 @@ spec:
 			stepStatus := rollout.Status.Canary.StepPluginStatuses[0]
 			assert.EqualValues(s.T(), E2EStepPluginName, stepStatus.Name)
 			assert.EqualValues(s.T(), 0, stepStatus.Index)
+			assert.EqualValues(s.T(), v1alpha1.StepPluginPhaseSuccessful, stepStatus.Phase)
+			assert.EqualValues(s.T(), v1alpha1.StepPluginOperationRun, stepStatus.Operation)
+		})
+}
+
+func (s *StepPluginSuite) TestRolloutErrorWhenStepPluginNotConfigured() {
+	s.Given().
+		RolloutObjects("@step-plugin/invalid-rollout.yaml").
+		When().
+		ApplyManifests().WaitForRolloutStatus("Healthy").
+		UpdateSpec().WaitForRolloutStatus("Degraded").
+		Then().
+		ExpectStableRevision("1").
+		Assert(func(t *fixtures.Then) {
+			rollout := t.GetRollout()
+			assert.EqualValues(s.T(), 0, *rollout.Status.CurrentStepIndex)
+			assert.EqualValues(s.T(), 0, len(rollout.Status.Canary.StepPluginStatuses))
+			// Should really have some error returned to the user...
+		})
+}
+
+func (s *StepPluginSuite) TestRolloutSkipPluginWhenDisabled() {
+	s.Given().
+		RolloutTemplate("@step-plugin/disabled-rollout.yaml", map[string]string{"$$disabled_plugin$$": E2EStepPluginNameDisabled}).
+		When().
+		ApplyManifests().WaitForRolloutStatus("Healthy").
+		UpdateSpec().WaitForRolloutStatus("Healthy").
+		Then().
+		ExpectStableRevision("2").
+		Assert(func(t *fixtures.Then) {
+			rollout := t.GetRollout()
+			assert.EqualValues(s.T(), 1, len(rollout.Status.Canary.StepPluginStatuses))
+
+			stepStatus := rollout.Status.Canary.StepPluginStatuses[0]
+			assert.EqualValues(s.T(), E2EStepPluginName, stepStatus.Name)
+			assert.EqualValues(s.T(), 1, stepStatus.Index)
 			assert.EqualValues(s.T(), v1alpha1.StepPluginPhaseSuccessful, stepStatus.Phase)
 			assert.EqualValues(s.T(), v1alpha1.StepPluginOperationRun, stepStatus.Operation)
 		})

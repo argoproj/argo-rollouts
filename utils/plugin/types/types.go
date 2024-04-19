@@ -110,11 +110,20 @@ type StepPlugins struct {
 	Steps []PluginItem `json:"stepPlugins" yaml:"stepPlugins"`
 }
 
+type PluginType string
+
+const (
+	PluginTypeMetricProvider PluginType = "MetricProvider"
+	PluginTypeTrafficRouter  PluginType = "TrafficRouter"
+	PluginTypeStep           PluginType = "Step"
+)
+
 type PluginItem struct {
 	Name     string `json:"name" yaml:"name"`
 	Location string `json:"location" yaml:"location"`
 	Sha256   string `json:"sha256" yaml:"sha256"`
 	Disabled bool   `json:"disabled" yaml:"disabled"`
+	Type     PluginType
 
 	// Args holds command line arguments
 	Args []string `json:"args" yaml:"args"`

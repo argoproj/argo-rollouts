@@ -20,14 +20,11 @@ type stepPlugin struct {
 	log    *log.Entry
 }
 
-type StepResult struct {
-	RequeueAfter *time.Duration
-}
-
 type StepPlugin interface {
-	Run(*v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, *StepResult, error)
+	Run(*v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error)
 	Terminate(*v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error)
 	Abort(*v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error)
+	Enabled() bool
 }
 
 var (
@@ -36,9 +33,7 @@ var (
 )
 
 // Run exectues a plugin
-func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, *StepResult, error) {
-	result := &StepResult{}
-
+func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
 	stepStatus := p.getStepStatus(rollout, v1alpha1.StepPluginOperationRun)
 	if stepStatus == nil {
 		now := metatime.MetaNow()
@@ -50,25 +45,39 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 			Phase:     v1alpha1.StepPluginPhaseRunning,
 		}
 	}
+
 	if stepStatus.Phase == v1alpha1.StepPluginPhaseSuccessful || stepStatus.Phase == v1alpha1.StepPluginPhaseFailed {
-		return nil, nil, nil
+		return nil, nil
+	}
+
+	if stepStatus.Executions > 0 {
+		backoff, err := stepStatus.Backoff.Duration()
+		if err != nil {
+			return nil, fmt.Errorf("could not parse backoff duration: %w", err)
+		}
+		if stepStatus.UpdatedAt.Add(backoff).After(metatime.Now()) {
+			return nil, nil
+		}
 	}
 
 	resp, err := p.rpc.Run(rollout.DeepCopy(), p.getStepContext(stepStatus))
 	finishedAt := metatime.MetaNow()
+	stepStatus.Backoff = ""
 	stepStatus.UpdatedAt = &finishedAt
+	stepStatus.Executions++
 	if err.HasError() {
 		p.log.Errorf("error during plugin execution")
 		stepStatus.Phase = v1alpha1.StepPluginPhaseError
 		stepStatus.Message = err.Error()
-		return stepStatus, result, nil
+		stepStatus.Backoff = v1alpha1.DurationString(30 * time.Second)
+		return stepStatus, nil
 	}
 
 	stepStatus.Message = resp.Message
 	if resp.Phase != "" {
 		stepStatus.Phase = v1alpha1.StepPluginPhase(resp.Phase)
 		if err := stepStatus.Phase.Validate(); err != nil {
-			return nil, nil, fmt.Errorf("could not validate rpc phase: %w", err)
+			return nil, fmt.Errorf("could not validate rpc phase: %w", err)
 		}
 	}
 
@@ -82,13 +91,14 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 	}
 
 	if stepStatus.Phase == v1alpha1.StepPluginPhaseRunning {
-		result.RequeueAfter = &defaultRequeuDuration
+		backoff := defaultRequeuDuration
 		if resp.RequeueAfter > minRequeueDuration {
-			result.RequeueAfter = &resp.RequeueAfter
+			backoff = resp.RequeueAfter
 		}
+		stepStatus.Backoff = v1alpha1.DurationString(backoff.String())
 	}
 
-	return stepStatus, result, nil
+	return stepStatus, nil
 }
 
 func (p *stepPlugin) Terminate(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
@@ -185,6 +195,10 @@ func (p *stepPlugin) Abort(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatu
 	abortStatus.Message = resp.Message
 	abortStatus.FinishedAt = &finishedAt
 	return abortStatus, nil
+}
+
+func (p *stepPlugin) Enabled() bool {
+	return true
 }
 
 func (p *stepPlugin) getStepStatus(rollout *v1alpha1.Rollout, operation v1alpha1.StepPluginOperation) *v1alpha1.StepPluginStatus {

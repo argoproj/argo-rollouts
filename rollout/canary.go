@@ -350,7 +350,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	case currentStep.SetMirrorRoute != nil:
 		return true
 	case currentStep.Plugin != nil:
-		return c.isStepPluginCompleted(*currentStepIndex)
+		return c.isStepPluginCompleted(*currentStepIndex, currentStep.Plugin)
 	}
 	return false
 }

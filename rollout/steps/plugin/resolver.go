@@ -5,9 +5,30 @@ import (
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/client"
+	"github.com/argoproj/argo-rollouts/utils/config"
+	"github.com/argoproj/argo-rollouts/utils/plugin/types"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
+
+type disabledStepPlugin struct {
+}
+
+func (p *disabledStepPlugin) Run(_ *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
+	return nil, nil
+}
+
+func (p *disabledStepPlugin) Terminate(_ *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
+	return nil, nil
+}
+
+func (p *disabledStepPlugin) Abort(_ *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
+	return nil, nil
+}
+
+func (p *disabledStepPlugin) Enabled() bool {
+	return false
+}
 
 type resolver struct {
 }
@@ -21,6 +42,15 @@ func NewResolver() Resolver {
 }
 
 func (r *resolver) Resolve(index int32, plugin v1alpha1.PluginStep, log *log.Entry) (StepPlugin, error) {
+	if config, err := config.GetConfig(); err != nil {
+		return nil, fmt.Errorf("could not get config: %w", err)
+	} else {
+		plugin := config.GetPlugin(plugin.Name, types.PluginTypeStep)
+		if plugin != nil && plugin.Disabled {
+			return &disabledStepPlugin{}, nil
+		}
+	}
+
 	pluginClient, err := client.GetPlugin(plugin.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get step plugin %s: %w", plugin.Name, err)
