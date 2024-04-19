@@ -2552,6 +2552,13 @@
         "finishedAt": {
           "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
         },
+        "backoff": {
+          "type": "string"
+        },
+        "executions": {
+          "type": "integer",
+          "format": "int32"
+        },
         "status": {
           "type": "string",
           "format": "byte",

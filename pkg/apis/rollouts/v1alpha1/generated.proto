@@ -1771,10 +1771,14 @@ message StepPluginStatus {
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 8;
 
+  optional string backoff = 9;
+
+  optional int32 executions = 10;
+
   // +kubebuilder:validation:Schemaless
   // +kubebuilder:pruning:PreserveUnknownFields
   // +kubebuilder:validation:Type=object
-  optional bytes status = 9;
+  optional bytes status = 11;
 }
 
 message StickinessConfig {

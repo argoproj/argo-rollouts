@@ -16220,6 +16220,11 @@ spec:
                   stepPluginStatuses:
                     items:
                       properties:
+                        backoff:
+                          type: string
+                        executions:
+                          format: int32
+                          type: integer
                         finishedAt:
                           format: date-time
                           type: string

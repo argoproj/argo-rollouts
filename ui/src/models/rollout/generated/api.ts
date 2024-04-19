@@ -2848,6 +2848,18 @@ export interface GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginS
      * @type {string}
      * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
      */
+    backoff?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
+    executions?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GithubComArgoprojArgoRolloutsPkgApisRolloutsV1alpha1StepPluginStatus
+     */
     status?: string;
 }
 /**
