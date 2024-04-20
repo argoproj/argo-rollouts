@@ -22,18 +22,19 @@ type stepPluginContext struct {
 }
 
 func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
-	spc.stepPluginStatuses = c.rollout.Status.Canary.StepPluginStatuses
+	rollout := c.rollout.DeepCopy()
+	spc.stepPluginStatuses = rollout.Status.Canary.StepPluginStatuses
 
 	//On abort, we need to abort all successful previous steps
 	if c.pauseContext.IsAborted() {
 		// In an abort, the current step might be the current or last, depending on when the abort happened.
-		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
 		startingIndex := *currentStepIndex
 		for i := startingIndex; i >= 0; i-- {
-			if i >= int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
+			if i >= int32(len(rollout.Spec.Strategy.Canary.Steps)) {
 				continue
 			}
-			currentStep := &c.rollout.Spec.Strategy.Canary.Steps[i]
+			currentStep := &rollout.Spec.Strategy.Canary.Steps[i]
 			if currentStep.Plugin == nil {
 				continue
 			}
@@ -42,7 +43,7 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 			if err != nil {
 				return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", i, err))
 			}
-			status, err := stepPlugin.Abort(c.rollout)
+			status, err := stepPlugin.Abort(rollout)
 			if err != nil {
 				return spc.handleError(c, fmt.Errorf("failed to abort plugin: %w", err))
 			}
@@ -53,15 +54,15 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 
 	// On full promotion, we want to Terminate the last step stuck in Running
 	// At this point, the currentStepIndex is the current or last one
-	if c.rollout.Status.PromoteFull || rolloututil.IsFullyPromoted(c.rollout) {
-		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	if rollout.Status.PromoteFull || rolloututil.IsFullyPromoted(rollout) {
+		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
 		startingIndex := *currentStepIndex
 
 		for i := startingIndex; i >= 0; i-- {
-			if i >= int32(len(c.rollout.Spec.Strategy.Canary.Steps)) {
+			if i >= int32(len(rollout.Spec.Strategy.Canary.Steps)) {
 				continue
 			}
-			currentStep := &c.rollout.Spec.Strategy.Canary.Steps[i]
+			currentStep := &rollout.Spec.Strategy.Canary.Steps[i]
 			if currentStep.Plugin == nil {
 				continue
 			}
@@ -76,7 +77,7 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 				return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err))
 			}
 
-			status, err := stepPlugin.Terminate(c.rollout)
+			status, err := stepPlugin.Terminate(rollout)
 			if err != nil {
 				return spc.handleError(c, fmt.Errorf("failed to terminate plugin: %w", err))
 			}
@@ -87,8 +88,13 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 	}
 
 	// Normal execution flow of a step plugin
-	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
+	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
 	if currentStep == nil || currentStep.Plugin == nil {
+		return nil
+	}
+
+	if rollout.Status.Phase != v1alpha1.RolloutPhaseProgressing {
+		spc.log.Debug("Not reconciling step plugin because it is not progressing")
 		return nil
 	}
 
@@ -96,7 +102,7 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 	if err != nil {
 		return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err))
 	}
-	status, err := stepPlugin.Run(c.rollout)
+	status, err := stepPlugin.Run(rollout)
 	if err != nil {
 		return spc.handleError(c, fmt.Errorf("failed to run plugin: %w", err))
 	}
@@ -113,7 +119,8 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 		}
 		// Add a little delay to make sure we reconcile after the backoff
 		duration += 5 * time.Second
-		c.enqueueRolloutAfter(c.rollout, duration)
+		c.log.Debugf("queueing up rollout in %s because step plugin phase is %s", status.Backoff, status.Phase)
+		c.enqueueRolloutAfter(rollout, duration)
 		return nil
 	}
 
@@ -130,6 +137,9 @@ func (spc *stepPluginContext) handleError(c *rolloutContext, e error) error {
 
 	msg := fmt.Sprintf(conditions.RolloutReconciliationErrorMessage, e.Error())
 	c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutReconciliationErrorReason}, msg)
+
+	c.log.Debug("queueing up rollout in 30s because of transient error")
+	c.enqueueRolloutAfter(c.rollout, 30*time.Second)
 
 	return nil
 }

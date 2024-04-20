@@ -56,10 +56,12 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 			return nil, fmt.Errorf("could not parse backoff duration: %w", err)
 		}
 		if stepStatus.UpdatedAt.Add(backoff).After(metatime.Now()) {
+			p.log.Debug("skipping plugin Run due to backoff")
 			return nil, nil
 		}
 	}
 
+	p.log.Debug("calling RPC Run")
 	resp, err := p.rpc.Run(rollout.DeepCopy(), p.getStepContext(stepStatus))
 	finishedAt := metatime.MetaNow()
 	stepStatus.Backoff = ""
@@ -122,6 +124,8 @@ func (p *stepPlugin) Terminate(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginS
 		Operation: v1alpha1.StepPluginOperationTerminate,
 		Phase:     v1alpha1.StepPluginPhaseSuccessful,
 	}
+
+	p.log.Debug("calling RPC Terminate")
 	resp, err := p.rpc.Terminate(rollout.DeepCopy(), p.getStepContext(stepStatus))
 	finishedAt := metatime.MetaNow()
 	stepStatus.UpdatedAt = &finishedAt
@@ -170,6 +174,8 @@ func (p *stepPlugin) Abort(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatu
 		Operation: v1alpha1.StepPluginOperationAbort,
 		Phase:     v1alpha1.StepPluginPhaseSuccessful,
 	}
+
+	p.log.Debug("calling RPC Abort")
 	resp, err := p.rpc.Abort(rollout.DeepCopy(), p.getStepContext(stepStatus))
 	finishedAt := metatime.MetaNow()
 	stepStatus.UpdatedAt = &finishedAt

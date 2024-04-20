@@ -76,7 +76,7 @@ func (p *rpcPlugin) Run(rollout *v1alpha1.Rollout, context *types.RpcStepContext
 
 	var requeue time.Duration
 	if config.Requeue != "" {
-		v, err := time.ParseDuration(string(config.Requeue))
+		v, err := time.ParseDuration(config.Requeue)
 		if err != nil {
 			return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not parse requeue duration: %w", err).Error()}
 		}

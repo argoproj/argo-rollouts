@@ -17,6 +17,7 @@ spec:
             name: step/e2e-test
             config:
               return: $$phase$$
+              requeue: 17s
   template:
     metadata:
       labels:

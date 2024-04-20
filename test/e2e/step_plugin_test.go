@@ -175,11 +175,11 @@ func (s *StepPluginSuite) TestRolloutRetriesUntilDeadlineWhenRunning() {
 		When().ApplyManifests().WaitForRolloutStatus("Healthy").
 		UpdateSpec(`
 spec:
-  progressDeadlineSeconds: 15`).
+  progressDeadlineSeconds: 45`).
 		UpdateSpec().WaitForRolloutStatus("Progressing").
 		WaitForRolloutCanaryStepIndex(1).
 		WaitForRolloutStepPluginRunning().
-		Wait(20 * time.Second).
+		Wait(50 * time.Second).
 		WaitForRolloutStatus("Degraded").
 		Then().
 		Assert(func(t *fixtures.Then) {
@@ -194,6 +194,10 @@ spec:
 			assert.EqualValues(s.T(), v1alpha1.StepPluginOperationRun, stepStatus.Operation)
 			assert.NotEmpty(s.T(), stepStatus.Status)
 
+			// Performance test validating that the plugin is not constantly executed
+			assert.EqualValues(s.T(), "17s", stepStatus.Backoff)
+			assert.EqualValues(s.T(), 2, stepStatus.Executions)
+
 		})
 }
 
@@ -203,9 +207,9 @@ func (s *StepPluginSuite) TestRolloutRetriesUntilDeadlineWhenError() {
 		When().ApplyManifests().WaitForRolloutStatus("Healthy").
 		UpdateSpec(`
 spec:
-  progressDeadlineSeconds: 15`).
+  progressDeadlineSeconds: 45`).
 		UpdateSpec().WaitForRolloutStatus("Progressing").
-		Wait(20 * time.Second).
+		Wait(50 * time.Second).
 		WaitForRolloutStatus("Degraded").
 		Then().
 		Assert(func(t *fixtures.Then) {
@@ -220,6 +224,10 @@ spec:
 			assert.EqualValues(s.T(), v1alpha1.StepPluginOperationRun, stepStatus.Operation)
 			assert.Contains(s.T(), stepStatus.Message, "phase 'invalidPhaseCausingPluginError' is not valid")
 			assert.Empty(s.T(), stepStatus.Status)
+
+			// Performance test validating that the plugin is not constantly executed
+			assert.EqualValues(s.T(), "30s", stepStatus.Backoff)
+			assert.EqualValues(s.T(), 2, stepStatus.Executions)
 
 		})
 }
@@ -262,6 +270,7 @@ func (s *StepPluginSuite) TestRolloutErrorWhenStepPluginNotConfigured() {
 		UpdateSpec().WaitForRolloutStatus("Degraded").
 		Then().
 		ExpectStableRevision("1").
+		ExpectRolloutEventsContains([]string{"ReconciliationError"}).
 		Assert(func(t *fixtures.Then) {
 			rollout := t.GetRollout()
 			assert.EqualValues(s.T(), 0, *rollout.Status.CurrentStepIndex)
