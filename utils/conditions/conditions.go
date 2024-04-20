@@ -133,6 +133,11 @@ const (
 	// RolloutExperimentFailedMessage is added in a rollout when the experiment owned by a rollout fails to show any progress
 	RolloutExperimentFailedMessage = "Experiment '%s' owned by the Rollout '%q' has timed out."
 
+	// RolloutReconciliationErrorReason is added in a rollout when the reconciliation returns an error preventing progress
+	RolloutReconciliationErrorReason = "ReconciliationError"
+	// RolloutReconciliationErrorMessage is added in a rollout when the reconciliation returns an error preventing progress
+	RolloutReconciliationErrorMessage = "Reconciliation failed with error: %v"
+
 	// TimedOutReason is added in a rollout when its newest replica set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	TimedOutReason = "ProgressDeadlineExceeded"

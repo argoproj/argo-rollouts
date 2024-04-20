@@ -113,7 +113,6 @@ type ControllerConfig struct {
 	IngressWorkQueue                workqueue.RateLimitingInterface
 	MetricsServer                   *metrics.MetricsServer
 	Recorder                        record.EventRecorder
-	StepPluginResolver              plugin.Resolver
 }
 
 // reconcilerBase is a shared datastructure containing all clients and configuration necessary to
@@ -128,8 +127,7 @@ type reconcilerBase struct {
 	dynamicclientset dynamic.Interface
 	smiclientset     smiclientset.Interface
 
-	refResolver        TemplateRefResolver
-	stepPluginResolver plugin.Resolver
+	refResolver TemplateRefResolver
 
 	replicaSetLister              appslisters.ReplicaSetLister
 	replicaSetSynced              cache.InformerSynced
@@ -202,7 +200,6 @@ func NewController(cfg ControllerConfig) *Controller {
 		resyncPeriod:                  cfg.ResyncPeriod,
 		podRestarter:                  podRestarter,
 		refResolver:                   cfg.RefResolver,
-		stepPluginResolver:            cfg.StepPluginResolver,
 	}
 
 	controller := &Controller{
@@ -523,6 +520,10 @@ func (c *Controller) newRolloutContext(rollout *v1alpha1.Rollout) (*rolloutConte
 		pauseContext: &pauseContext{
 			rollout: rollout,
 			log:     logCtx,
+		},
+		stepPluginContext: &stepPluginContext{
+			resolver: plugin.NewResolver(),
+			log:      logCtx,
 		},
 		reconcilerBase: c.reconcilerBase,
 	}

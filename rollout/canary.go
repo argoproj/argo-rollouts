@@ -87,7 +87,7 @@ func (c *rolloutContext) rolloutCanary() error {
 		return c.syncRolloutStatusCanary()
 	}
 
-	err = c.reconcileCanaryPluginStep()
+	err = c.stepPluginContext.reconcile(c)
 	if err != nil {
 		return err
 	}
@@ -350,7 +350,7 @@ func (c *rolloutContext) completedCurrentCanaryStep() bool {
 	case currentStep.SetMirrorRoute != nil:
 		return true
 	case currentStep.Plugin != nil:
-		return c.isStepPluginCompleted(*currentStepIndex, currentStep.Plugin)
+		return c.stepPluginContext.isStepPluginCompleted(*currentStepIndex, currentStep.Plugin)
 	}
 	return false
 }
@@ -361,7 +361,8 @@ func (c *rolloutContext) syncRolloutStatusCanary() error {
 	newStatus.HPAReplicas = replicasetutil.GetActualReplicaCountForReplicaSets(c.allRSs)
 	newStatus.Selector = metav1.FormatLabelSelector(c.rollout.Spec.Selector)
 	newStatus.Canary.StablePingPong = c.rollout.Status.Canary.StablePingPong
-	newStatus.Canary.StepPluginStatuses = c.calculateStepPluginStatus()
+	newStatus.Canary.StepPluginStatuses = c.rollout.Status.Canary.StepPluginStatuses
+	c.stepPluginContext.updateStatus(&newStatus)
 
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 	newStatus.StableRS = c.rollout.Status.StableRS

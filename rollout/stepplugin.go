@@ -5,16 +5,27 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"github.com/argoproj/argo-rollouts/rollout/steps/plugin"
+	"github.com/argoproj/argo-rollouts/utils/conditions"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
 	rolloututil "github.com/argoproj/argo-rollouts/utils/rollout"
+	log "github.com/sirupsen/logrus"
 )
 
-func (c *rolloutContext) reconcileCanaryPluginStep() error {
+type stepPluginContext struct {
+	resolver plugin.Resolver
+	log      *log.Entry
+
+	stepPluginStatuses []v1alpha1.StepPluginStatus
+	hasError           bool
+}
+
+func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
+	spc.stepPluginStatuses = c.rollout.Status.Canary.StepPluginStatuses
 
 	//On abort, we need to abort all successful previous steps
 	if c.pauseContext.IsAborted() {
-		c.stepPluginStatuses = c.rollout.Status.Canary.StepPluginStatuses
-
 		// In an abort, the current step might be the current or last, depending on when the abort happened.
 		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(c.rollout)
 		startingIndex := *currentStepIndex
@@ -27,15 +38,15 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 				continue
 			}
 
-			stepPlugin, err := c.stepPluginResolver.Resolve(i, *currentStep.Plugin, c.log)
+			stepPlugin, err := spc.resolver.Resolve(i, *currentStep.Plugin, c.log)
 			if err != nil {
-				return fmt.Errorf("could not create step plugin at index %d : %w", i, err)
+				return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", i, err))
 			}
 			status, err := stepPlugin.Abort(c.rollout)
 			if err != nil {
-				return fmt.Errorf("failed to abort plugin: %w", err)
+				return spc.handleError(c, fmt.Errorf("failed to abort plugin: %w", err))
 			}
-			c.stepPluginStatuses = updateStepPluginStatus(c.stepPluginStatuses, status)
+			spc.updateStepPluginStatus(status)
 		}
 		return nil
 	}
@@ -54,22 +65,22 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 			if currentStep.Plugin == nil {
 				continue
 			}
-			runningStatus := findCurrentStepStatus(c.rollout.Status.Canary.StepPluginStatuses, i, v1alpha1.StepPluginOperationRun)
+			runningStatus := spc.findCurrentStepStatus(i, v1alpha1.StepPluginOperationRun)
 			if runningStatus == nil || runningStatus.Phase != v1alpha1.StepPluginPhaseRunning {
 				continue
 			}
 
 			// found the last running step
-			stepPlugin, err := c.stepPluginResolver.Resolve(i, *currentStep.Plugin, c.log)
+			stepPlugin, err := spc.resolver.Resolve(i, *currentStep.Plugin, c.log)
 			if err != nil {
-				return fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err)
+				return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err))
 			}
 
 			status, err := stepPlugin.Terminate(c.rollout)
 			if err != nil {
-				return fmt.Errorf("failed to terminate plugin: %w", err)
+				return spc.handleError(c, fmt.Errorf("failed to terminate plugin: %w", err))
 			}
-			c.stepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
+			spc.updateStepPluginStatus(status)
 			return nil
 		}
 		return nil
@@ -81,15 +92,15 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 		return nil
 	}
 
-	stepPlugin, err := c.stepPluginResolver.Resolve(*currentStepIndex, *currentStep.Plugin, c.log)
+	stepPlugin, err := spc.resolver.Resolve(*currentStepIndex, *currentStep.Plugin, c.log)
 	if err != nil {
-		return fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err)
+		return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err))
 	}
 	status, err := stepPlugin.Run(c.rollout)
 	if err != nil {
-		return fmt.Errorf("failed to run plugin: %w", err)
+		return spc.handleError(c, fmt.Errorf("failed to run plugin: %w", err))
 	}
-	c.stepPluginStatuses = updateStepPluginStatus(c.rollout.Status.Canary.StepPluginStatuses, status)
+	spc.updateStepPluginStatus(status)
 
 	if status == nil {
 		return nil
@@ -98,7 +109,7 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 	if status.Phase == v1alpha1.StepPluginPhaseRunning || status.Phase == v1alpha1.StepPluginPhaseError {
 		duration, err := status.Backoff.Duration()
 		if err != nil {
-			return fmt.Errorf("failed to parse backoff duration: %w", err)
+			return spc.handleError(c, fmt.Errorf("failed to parse backoff duration: %w", err))
 		}
 		// Add a little delay to make sure we reconcile after the backoff
 		duration += 5 * time.Second
@@ -113,47 +124,58 @@ func (c *rolloutContext) reconcileCanaryPluginStep() error {
 	return nil
 }
 
-func (c *rolloutContext) calculateStepPluginStatus() []v1alpha1.StepPluginStatus {
-	if c.stepPluginStatuses == nil {
-		return c.rollout.Status.Canary.StepPluginStatuses
-	}
+// handleError handles any error that should not cause the rollout reconciliation to fail
+func (spc *stepPluginContext) handleError(c *rolloutContext, e error) error {
+	spc.hasError = true
 
-	return c.stepPluginStatuses
+	msg := fmt.Sprintf(conditions.RolloutReconciliationErrorMessage, e.Error())
+	c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutReconciliationErrorReason}, msg)
+
+	return nil
 }
 
-func (c *rolloutContext) isStepPluginDisabled(stepIndex int32, step *v1alpha1.PluginStep) (bool, error) {
-	stepPlugin, err := c.stepPluginResolver.Resolve(stepIndex, *step, c.log)
+func (spc *stepPluginContext) updateStatus(status *v1alpha1.RolloutStatus) {
+	if spc.stepPluginStatuses != nil {
+		status.Canary.StepPluginStatuses = spc.stepPluginStatuses
+	}
+}
+
+func (spc *stepPluginContext) isStepPluginDisabled(stepIndex int32, step *v1alpha1.PluginStep) (bool, error) {
+	stepPlugin, err := spc.resolver.Resolve(stepIndex, *step, spc.log)
 	if err != nil {
 		return false, err
 	}
 	return !stepPlugin.Enabled(), nil
 }
 
-func (c *rolloutContext) isStepPluginCompleted(stepIndex int32, step *v1alpha1.PluginStep) bool {
-	disabled, err := c.isStepPluginDisabled(stepIndex, step)
-	if err != nil {
-		// If there is an error, the plugin might not exist in the config. We do
-		c.log.Errorf("cannot resolve step plugin %s at index %d. Assuming it is enabled.", step.Name, stepIndex)
-		disabled = false
+func (spc *stepPluginContext) isStepPluginCompleted(stepIndex int32, step *v1alpha1.PluginStep) bool {
+	if spc.hasError {
+		// If there was a transient error during the reconcile, we should retry
+		return false
 	}
 
-	updatedPluginStatus := c.calculateStepPluginStatus()
-	runStatus := findCurrentStepStatus(updatedPluginStatus, stepIndex, v1alpha1.StepPluginOperationRun)
+	if disabled, err := spc.isStepPluginDisabled(stepIndex, step); err != nil {
+		// If there is an error, the plugin might not exist in the config. Assume it is not disabled.
+		spc.log.Errorf("cannot resolve step plugin %s at index %d. Assuming it is enabled.", step.Name, stepIndex)
+	} else if disabled {
+		return true
+	}
+
+	runStatus := spc.findCurrentStepStatus(stepIndex, v1alpha1.StepPluginOperationRun)
 	isRunning := runStatus != nil && runStatus.Phase == v1alpha1.StepPluginPhaseRunning
 	if isRunning {
-		terminateStatus := findCurrentStepStatus(updatedPluginStatus, stepIndex, v1alpha1.StepPluginOperationTerminate)
-		abortStatus := findCurrentStepStatus(updatedPluginStatus, stepIndex, v1alpha1.StepPluginOperationAbort)
+		terminateStatus := spc.findCurrentStepStatus(stepIndex, v1alpha1.StepPluginOperationTerminate)
+		abortStatus := spc.findCurrentStepStatus(stepIndex, v1alpha1.StepPluginOperationAbort)
 		isRunning = terminateStatus == nil && abortStatus == nil
 	}
-	return disabled ||
-		(runStatus != nil &&
-			((!isRunning && runStatus.Phase == v1alpha1.StepPluginPhaseRunning) ||
-				runStatus.Phase == v1alpha1.StepPluginPhaseFailed ||
-				runStatus.Phase == v1alpha1.StepPluginPhaseSuccessful))
+	return runStatus != nil &&
+		((!isRunning && runStatus.Phase == v1alpha1.StepPluginPhaseRunning) ||
+			runStatus.Phase == v1alpha1.StepPluginPhaseFailed ||
+			runStatus.Phase == v1alpha1.StepPluginPhaseSuccessful)
 }
 
-func findCurrentStepStatus(status []v1alpha1.StepPluginStatus, stepIndex int32, operation v1alpha1.StepPluginOperation) *v1alpha1.StepPluginStatus {
-	for _, s := range status {
+func (spc *stepPluginContext) findCurrentStepStatus(stepIndex int32, operation v1alpha1.StepPluginOperation) *v1alpha1.StepPluginStatus {
+	for _, s := range spc.stepPluginStatuses {
 		if s.Index == stepIndex && s.Operation == operation {
 			return &s
 		}
@@ -161,24 +183,21 @@ func findCurrentStepStatus(status []v1alpha1.StepPluginStatus, stepIndex int32, 
 	return nil
 }
 
-func updateStepPluginStatus(statuses []v1alpha1.StepPluginStatus, status *v1alpha1.StepPluginStatus) []v1alpha1.StepPluginStatus {
+func (spc *stepPluginContext) updateStepPluginStatus(status *v1alpha1.StepPluginStatus) {
 	if status == nil {
-		return statuses
+		return
 	}
 
 	// Update new status and preserve order
-	newStatuses := []v1alpha1.StepPluginStatus{}
-	statusAdded := false
-	for _, s := range statuses {
-		if !statusAdded && s.Index == status.Index && s.Operation == status.Operation {
-			newStatuses = append(newStatuses, *status)
-			statusAdded = true
-			continue
+	statusUpdated := false
+	for i, s := range spc.stepPluginStatuses {
+		if !statusUpdated && s.Index == status.Index && s.Operation == status.Operation {
+			spc.stepPluginStatuses[i] = *status
+			statusUpdated = true
+			break
 		}
-		newStatuses = append(newStatuses, s)
 	}
-	if !statusAdded {
-		newStatuses = append(newStatuses, *status)
+	if !statusUpdated {
+		spc.stepPluginStatuses = append(spc.stepPluginStatuses, *status)
 	}
-	return newStatuses
 }
