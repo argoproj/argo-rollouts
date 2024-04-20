@@ -57,7 +57,7 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 		}
 		if stepStatus.UpdatedAt.Add(backoff).After(metatime.Now()) {
 			p.log.Debug("skipping plugin Run due to backoff")
-			return nil, nil
+			return stepStatus, nil
 		}
 	}
 

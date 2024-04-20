@@ -113,14 +113,15 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 	}
 
 	if status.Phase == v1alpha1.StepPluginPhaseRunning || status.Phase == v1alpha1.StepPluginPhaseError {
-		duration, err := status.Backoff.Duration()
+		backoff, err := status.Backoff.Duration()
 		if err != nil {
 			return spc.handleError(c, fmt.Errorf("failed to parse backoff duration: %w", err))
 		}
-		// Add a little delay to make sure we reconcile after the backoff
-		duration += 5 * time.Second
-		c.log.Debugf("queueing up rollout in %s because step plugin phase is %s", status.Backoff, status.Phase)
-		c.enqueueRolloutAfter(rollout, duration)
+
+		// Get the remaining time until the backoff + a little buffer
+		remaining := time.Until(status.UpdatedAt.Add(backoff)) + (5 * time.Second)
+		c.log.Debugf("queueing up rollout in %s because step plugin phase is %s", remaining, status.Phase)
+		c.enqueueRolloutAfter(rollout, remaining)
 		return nil
 	}
 
