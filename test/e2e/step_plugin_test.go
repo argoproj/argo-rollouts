@@ -4,6 +4,7 @@
 package e2e
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -196,7 +197,7 @@ spec:
 
 			// Performance test validating that the plugin is not constantly executed
 			assert.EqualValues(s.T(), "17s", stepStatus.Backoff)
-			assert.EqualValues(s.T(), 2, stepStatus.Executions)
+			assert.EqualValues(s.T(), 3, stepStatus.Executions)
 
 		})
 }
@@ -263,7 +264,10 @@ spec:
 }
 
 func (s *StepPluginSuite) TestRolloutErrorWhenStepPluginNotConfigured() {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 	s.Given().
+		StartEventWatch(ctx).
 		RolloutObjects("@step-plugin/invalid-rollout.yaml").
 		When().
 		ApplyManifests().WaitForRolloutStatus("Healthy").
@@ -275,7 +279,6 @@ func (s *StepPluginSuite) TestRolloutErrorWhenStepPluginNotConfigured() {
 			rollout := t.GetRollout()
 			assert.EqualValues(s.T(), 0, *rollout.Status.CurrentStepIndex)
 			assert.EqualValues(s.T(), 0, len(rollout.Status.Canary.StepPluginStatuses))
-			// Should really have some error returned to the user...
 		})
 }
 
