@@ -27,21 +27,20 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 
 	//On abort, we need to abort all successful previous steps
 	if c.pauseContext.IsAborted() {
-		// In an abort, the current step might be the current or last, depending on when the abort happened.
-		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
-		startingIndex := *currentStepIndex
-		for i := startingIndex; i >= 0; i-- {
-			if i >= int32(len(rollout.Spec.Strategy.Canary.Steps)) {
+		for i := len(spc.stepPluginStatuses) - 1; i >= 0; i-- {
+			pluginStatus := spc.stepPluginStatuses[i]
+			if pluginStatus.Operation != v1alpha1.StepPluginOperationRun {
+				// Only call abort for Run operation.
 				continue
 			}
-			currentStep := &rollout.Spec.Strategy.Canary.Steps[i]
-			if currentStep.Plugin == nil {
+			pluginStep := rollout.Spec.Strategy.Canary.Steps[pluginStatus.Index]
+			if pluginStep.Plugin == nil {
 				continue
 			}
 
-			stepPlugin, err := spc.resolver.Resolve(i, *currentStep.Plugin, c.log)
+			stepPlugin, err := spc.resolver.Resolve(pluginStatus.Index, *pluginStep.Plugin, c.log)
 			if err != nil {
-				return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", i, err))
+				return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", pluginStatus.Index, err))
 			}
 			status, err := stepPlugin.Abort(rollout)
 			if err != nil {
@@ -52,38 +51,29 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 		return nil
 	}
 
-	// On full promotion, we want to Terminate the last step stuck in Running
-	// At this point, the currentStepIndex is the current or last one
+	// On full promotion, we want to Terminate only the last step still in Running, if any
 	if rollout.Status.PromoteFull || rolloututil.IsFullyPromoted(rollout) {
-		_, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
-		startingIndex := *currentStepIndex
-
-		for i := startingIndex; i >= 0; i-- {
-			if i >= int32(len(rollout.Spec.Strategy.Canary.Steps)) {
-				continue
-			}
-			currentStep := &rollout.Spec.Strategy.Canary.Steps[i]
-			if currentStep.Plugin == nil {
-				continue
-			}
-			runningStatus := spc.findCurrentStepStatus(i, v1alpha1.StepPluginOperationRun)
-			if runningStatus == nil || runningStatus.Phase != v1alpha1.StepPluginPhaseRunning {
-				continue
-			}
-
-			// found the last running step
-			stepPlugin, err := spc.resolver.Resolve(i, *currentStep.Plugin, c.log)
-			if err != nil {
-				return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", *currentStepIndex, err))
-			}
-
-			status, err := stepPlugin.Terminate(rollout)
-			if err != nil {
-				return spc.handleError(c, fmt.Errorf("failed to terminate plugin: %w", err))
-			}
-			spc.updateStepPluginStatus(status)
+		stepIndex := spc.getStepToTerminate(rollout)
+		if stepIndex == nil {
 			return nil
 		}
+
+		pluginStep := rollout.Spec.Strategy.Canary.Steps[*stepIndex]
+		if pluginStep.Plugin == nil {
+			return nil
+		}
+
+		stepPlugin, err := spc.resolver.Resolve(*stepIndex, *pluginStep.Plugin, c.log)
+		if err != nil {
+			return spc.handleError(c, fmt.Errorf("could not create step plugin at index %d : %w", *stepIndex, err))
+		}
+
+		status, err := stepPlugin.Terminate(rollout)
+		if err != nil {
+			return spc.handleError(c, fmt.Errorf("failed to terminate plugin: %w", err))
+		}
+
+		spc.updateStepPluginStatus(status)
 		return nil
 	}
 
@@ -211,4 +201,21 @@ func (spc *stepPluginContext) updateStepPluginStatus(status *v1alpha1.StepPlugin
 	if !statusUpdated {
 		spc.stepPluginStatuses = append(spc.stepPluginStatuses, *status)
 	}
+}
+
+func (spc *stepPluginContext) getStepToTerminate(rollout *v1alpha1.Rollout) *int32 {
+	for i := len(rollout.Status.Canary.StepPluginStatuses) - 1; i >= 0; i-- {
+		pluginStep := rollout.Status.Canary.StepPluginStatuses[i]
+
+		if pluginStep.Operation == v1alpha1.StepPluginOperationTerminate && pluginStep.Phase == v1alpha1.StepPluginPhaseSuccessful {
+			// last running step is already terminated
+			return nil
+		}
+
+		if pluginStep.Operation == v1alpha1.StepPluginOperationRun && pluginStep.Phase == v1alpha1.StepPluginPhaseRunning {
+			// found the last running step
+			return &pluginStep.Index
+		}
+	}
+	return nil
 }

@@ -62,7 +62,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		rpcMock.On("Run", mock.Anything, mock.Anything).Run(validateArguments).Return(types.RpcStepResult{}, types.RpcError{}).Once()
 
 		p.index = 1
-		_, _, err := p.Run(r)
+		_, err := p.Run(r)
 
 		require.NoError(t, err)
 		rpcMock.AssertExpectations(t)
@@ -101,7 +101,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		rpcMock.On("Run", mock.Anything, mock.Anything).Run(validateArguments).Return(types.RpcStepResult{}, types.RpcError{}).Once()
 
 		p.index = 0
-		_, _, err := p.Run(r)
+		_, err := p.Run(r)
 
 		require.NoError(t, err)
 		rpcMock.AssertExpectations(t)
@@ -135,7 +135,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		}
 		rpcMock.On("Run", mock.Anything, mock.Anything).Return(rpcResult, types.RpcError{}).Once()
 
-		status, result, err := p.Run(r)
+		status, err := p.Run(r)
 
 		require.NoError(t, err)
 		rpcMock.AssertExpectations(t)
@@ -149,7 +149,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
 		assert.NotNil(t, status.FinishedAt)
-		assert.Nil(t, result.RequeueAfter)
+		assert.Empty(t, status.Backoff)
 	})
 	t.Run("Successful status", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -169,7 +169,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		}
 		rpcMock.On("Run", mock.Anything, mock.Anything).Return(rpcResult, types.RpcError{}).Once()
 
-		status, result, err := p.Run(r)
+		status, err := p.Run(r)
 
 		require.NoError(t, err)
 		rpcMock.AssertExpectations(t)
@@ -183,7 +183,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
-		assert.Nil(t, result.RequeueAfter)
+		assert.Nil(t, status.Backoff)
 	})
 	t.Run("Running status", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -212,7 +212,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		}
 		rpcMock.On("Run", mock.Anything, mock.Anything).Return(rpcResult, types.RpcError{}).Once()
 
-		status, result, err := p.Run(r)
+		status, err := p.Run(r)
 
 		require.NoError(t, err)
 		rpcMock.AssertExpectations(t)
@@ -244,7 +244,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		}
 		rpcMock.On("Run", mock.Anything, mock.Anything).Return(rpcResult, types.RpcError{}).Once()
 
-		status, result, err := p.Run(r)
+		status, err := p.Run(r)
 
 		require.NoError(t, err)
 		rpcMock.AssertExpectations(t)
@@ -277,7 +277,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		}
 		rpcMock.On("Run", mock.Anything, mock.Anything).Return(rpcResult, types.RpcError{}).Once()
 
-		status, result, err := p.Run(r)
+		status, err := p.Run(r)
 
 		require.NoError(t, err)
 		rpcMock.AssertExpectations(t)
@@ -310,7 +310,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		}
 		rpcMock.On("Run", mock.Anything, mock.Anything).Return(rpcResult, types.RpcError{}).Once()
 
-		status, result, err := p.Run(r)
+		status, err := p.Run(r)
 
 		require.NoError(t, err)
 		rpcMock.AssertExpectations(t)
@@ -324,7 +324,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
-		assert.Nil(t, result.RequeueAfter)
+		assert.Empty(t, status.Backoff)
 	})
 	t.Run("Error status", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -356,7 +356,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		}
 		rpcMock.On("Run", mock.Anything, mock.Anything).Return(invalidResult, expectedError).Once()
 
-		status, result, err := p.Run(r)
+		status, err := p.Run(r)
 
 		require.NoError(t, err)
 		rpcMock.AssertExpectations(t)
@@ -369,7 +369,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, expectedError.Error(), status.Message)
 		assert.Equal(t, currentStatus.Status, status.Status)
-		assert.Nil(t, result.RequeueAfter)
+		assert.Empty(t, status.Backoff)
 	})
 }
 
