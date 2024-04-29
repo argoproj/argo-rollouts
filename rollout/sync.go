@@ -281,7 +281,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 func (c *rolloutContext) syncReplicasOnly() error {
 	c.log.Infof("Syncing replicas only due to scaling event")
 	var err error
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false) //TODO: can update RS, updates newRS
 	if err != nil {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in syncReplicasOnly: %w", err)
 	}
@@ -293,7 +293,7 @@ func (c *rolloutContext) syncReplicasOnly() error {
 		if err != nil {
 			return nil
 		}
-		if err := c.reconcileBlueGreenReplicaSets(activeSvc); err != nil {
+		if err := c.reconcileBlueGreenReplicaSets(activeSvc); err != nil { //TODO: can update rs, does not update newRS
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
 			return fmt.Errorf("failed to reconcileBlueGreenReplicaSets in syncReplicasOnly: %w", err)
@@ -311,7 +311,7 @@ func (c *rolloutContext) syncReplicasOnly() error {
 	// The controller wants to use the rolloutCanary method to reconcile the rollout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
 	if c.rollout.Spec.Strategy.Canary != nil {
-		if _, err := c.reconcileCanaryReplicaSets(); err != nil {
+		if _, err := c.reconcileCanaryReplicaSets(); err != nil { //TODO: can update rs, does not update newRS
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
 			return fmt.Errorf("failed to reconcileCanaryReplicaSets in syncReplicasOnly: %w", err)
@@ -383,7 +383,23 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
-			return scaled, rs, fmt.Errorf("error updating replicaset %s: %w", rsCopy.Name, err)
+			if errors.IsConflict(err) {
+				c.log.Infof("Conflict when scaling replicaset %s. Retrying the scale operation as patch with new replicaset from cluster", rsCopy.Name)
+				rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
+				if err != nil {
+					return scaled, rs, fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
+				}
+				patch, _, err := diff.CreateTwoWayMergePatch(rs, rsCopy, appsv1.ReplicaSet{})
+				if err != nil {
+					return scaled, rs, fmt.Errorf("failed to create patch in scaleReplicaSet: %w", err)
+				}
+				c.log.Infof("Patching replicaset %s due to conflict, patch: %s", rsCopy.Name, patch)
+				_, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+				if err != nil {
+					return scaled, rs, fmt.Errorf("error patchin replicaset %s: %w", rsCopy.Name, err)
+				}
+			}
+			return scaled, rs, fmt.Errorf("error updating replicaset in scaleReplicaSet: %w", err)
 		}
 		err = c.replicaSetInformer.GetIndexer().Update(rs)
 		if err != nil {

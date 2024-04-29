@@ -161,7 +161,7 @@ func (c *rolloutContext) reconcileNewReplicaSet() (bool, error) {
 		} else if abortScaleDownDelaySeconds != nil {
 			// Don't annotate until need to ensure the stable RS is fully scaled
 			if c.stableRS.Status.AvailableReplicas == *c.rollout.Spec.Replicas {
-				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds)
+				err = c.addScaleDownDelay(c.newRS, *abortScaleDownDelaySeconds) //TODO: patches replicaset does not update newRS
 				if err != nil {
 					return false, err
 				}
@@ -233,7 +233,7 @@ func (c *rolloutContext) reconcileOtherReplicaSets() (bool, error) {
 	hasScaled := false
 	if c.rollout.Spec.Strategy.Canary != nil {
 		// Scale down old replica sets, need check replicasToKeep to ensure we can scale down
-		scaledDownCount, err := c.scaleDownOldReplicaSetsForCanary(otherRSs)
+		scaledDownCount, err := c.scaleDownOldReplicaSetsForCanary(otherRSs) //TODO: patches replicaset does not update newRS
 		if err != nil {
 			return false, nil
 		}
@@ -243,7 +243,7 @@ func (c *rolloutContext) reconcileOtherReplicaSets() (bool, error) {
 
 	// Scale down old replica sets
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
-		hasScaled, err = c.scaleDownOldReplicaSetsForBlueGreen(otherRSs)
+		hasScaled, err = c.scaleDownOldReplicaSetsForBlueGreen(otherRSs) //TODO: patches replicaset does not update newRS
 		if err != nil {
 			return false, nil
 		}
@@ -296,7 +296,7 @@ func (c *rolloutContext) scaleDownDelayHelper(rs *appsv1.ReplicaSet, annotatione
 			annotationedRSs++
 			desiredReplicaCount = *rs.Spec.Replicas
 			scaleDownDelaySeconds := defaults.GetScaleDownDelaySecondsOrDefault(c.rollout)
-			err := c.addScaleDownDelay(rs, scaleDownDelaySeconds)
+			err := c.addScaleDownDelay(rs, scaleDownDelaySeconds) //TODO: patches replicaset does not update newRS
 			if err != nil {
 				return annotationedRSs, desiredReplicaCount, err
 			}

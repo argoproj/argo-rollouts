@@ -69,17 +69,17 @@ func (c *rolloutContext) reconcile() error {
 		return err
 	}
 
-	isScalingEvent, err := c.isScalingEvent()
+	isScalingEvent, err := c.isScalingEvent() //TODO: Updates replicaset, updates newRS
 	if err != nil {
 		return err
 	}
 
 	if isScalingEvent {
-		return c.syncReplicasOnly()
+		return c.syncReplicasOnly() //TODO: Updates replicaset
 	}
 
 	if c.rollout.Spec.Strategy.BlueGreen != nil {
-		return c.rolloutBlueGreen()
+		return c.rolloutBlueGreen() //TODO: Updates replicaset, does not update newRS
 	}
 
 	// Due to the rollout validation before this, when we get here strategy is canary
