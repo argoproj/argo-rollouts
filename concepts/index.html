@@ -417,6 +417,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#which-strategy-to-choose" class="md-nav__link">
+    <span class="md-ellipsis">
+      Which strategy to choose
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3411,6 +3420,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#which-strategy-to-choose" class="md-nav__link">
+    <span class="md-ellipsis">
+      Which strategy to choose
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3465,6 +3483,90 @@ verifying correctness.</p>
 <p><a href="../concepts-assets/canary-deployments.png"><img alt="How Canary deployments work" src="../concepts-assets/canary-deployments.png" /></a></p>
 <p>The picture above shows a canary with two stages (10% and 33% of traffic goes to new version) but this is just an example. With Argo Rollouts you can define the exact number of stages
 and percentages of traffic according to your use case.</p>
+<h2 id="which-strategy-to-choose">Which strategy to choose<a class="headerlink" href="#which-strategy-to-choose" title="Permanent link">&para;</a></h2>
+<p>In general Blue/Green is the easier strategy to start with, but also the more limited. We recommend you start with Blue/Green deployments first and as you gain confidence for your metrics and applications switch to Canaries.</p>
+<p>You also need to examine if your application can handle canaries or not.</p>
+<ul>
+<li>Blue/Green always works because only one application is active at a time. Not all applications can have different versions running in parallel at the same time (which is what canaries are doing). This can be a showstopper for adopting canary deployments especially for legacy applications.</li>
+<li>Blue/Green is simpler because you can get their full value WITHOUT a traffic manager. While canaries can also work without a traffic manager, most of their advanced features assume a fine-grained way to control traffic. If you don't have a traffic manager, then you can easily get the full value
+of blue/green deployments but only the basic capabilities of canaries.</li>
+<li>Blue/Green also works with services that use queues and databases (workers that fetch tasks). Argo Rollouts doesn't control traffic flow for
+connections it doesn't understand (i.e. binary/queue channels).</li>
+</ul>
+<p>Here is a summary table for the possible approaches.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;"></th>
+<th style="text-align: center;">Blue/Green</th>
+<th style="text-align: center;">Basic Canary</th>
+<th style="text-align: center;">Canary with Traffic manager</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">Adoption Complexity</td>
+<td style="text-align: center;">Low</td>
+<td style="text-align: center;">Medium</td>
+<td style="text-align: center;">High</td>
+</tr>
+<tr>
+<td style="text-align: right;">Flexibility</td>
+<td style="text-align: center;">Low</td>
+<td style="text-align: center;">High</td>
+<td style="text-align: center;">Maximum</td>
+</tr>
+<tr>
+<td style="text-align: right;">Needs traffic provider</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: right;">Works with queue workers</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">No</td>
+</tr>
+<tr>
+<td style="text-align: right;">Works with shared/locked resources</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">No</td>
+</tr>
+<tr>
+<td style="text-align: right;">Traffic switch</td>
+<td style="text-align: center;">All or nothing</td>
+<td style="text-align: center;">Gradual percentage</td>
+<td style="text-align: center;">Gradual percentage</td>
+</tr>
+<tr>
+<td style="text-align: right;">Traffic control</td>
+<td style="text-align: center;">0% or 100%</td>
+<td style="text-align: center;">coarse grained</td>
+<td style="text-align: center;">fine grained</td>
+</tr>
+<tr>
+<td style="text-align: right;">Traffic depends on</td>
+<td style="text-align: center;">deployment state</td>
+<td style="text-align: center;">number of canary pods</td>
+<td style="text-align: center;">Any split option is possible</td>
+</tr>
+<tr>
+<td style="text-align: right;">Advanced routing scenarios</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td style="text-align: right;">Failure Blast Radius</td>
+<td style="text-align: center;">Massive impact</td>
+<td style="text-align: center;">Low impact</td>
+<td style="text-align: center;">Low impact</td>
+</tr>
+</tbody>
+</table>
+<p>Note that that traffic manager can be any compatible Service Mesh or Ingress Controller or Gateway API implementation (via a plugin).</p>
 
 
 
