@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: experiment-with-service-and-named-target-port
+spec:
+  duration: 10s
+  scaleDownDelaySeconds: 5
+  # List of pod template specs to run in the experiment as ReplicaSets
+  templates:
+    - name: test
+      replicas: 1
+      service:
+        name: test-service-with-named-target-port
+        ports:
+          - port: 80
+            targetPort: testport1
+      selector:
+        matchLabels:
+          app: experiment-with-service-and-named-target-port
+      template:
+        metadata:
+          labels:
+            app: experiment-with-service-and-named-target-port
+        spec:
+          containers:
+            - name: experiment-with-service-and-named-target-port
+              image: nginx:1.19-alpine
+              resources:
+                requests:
+                  memory: 16Mi
+                  cpu: 1m
+              ports:
+                 - name: testport1
+                   protocol: TCP
+                   containerPort: 8080

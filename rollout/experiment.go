@@ -3,7 +3,6 @@ package rollout
 import (
 	"context"
 	"fmt"
-
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -69,8 +68,13 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		if templateStep.Weight != nil || templateStep.Service != nil {
 			template.Service = &v1alpha1.TemplateService{}
 			// Need to check if Service is not nil for the case where Weight is not nil and Service is
-			if templateStep.Service != nil && templateStep.Service.Name != "" {
-				template.Service.Name = templateStep.Service.Name
+			if templateStep.Service != nil {
+				if templateStep.Service.Name != "" {
+					template.Service.Name = templateStep.Service.Name
+				}
+				if templateStep.Service.Ports != nil {
+					template.Service.Ports = templateStep.Service.Ports
+				}
 			}
 		}
 		templateRS := &appsv1.ReplicaSet{}

@@ -3,6 +3,7 @@ package fixtures
 import (
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"time"
 
@@ -450,6 +451,13 @@ func (t *Then) ExpectExperimentServiceCount(experimentName string, expectedCount
 			}
 		}
 		return count == expectedCount
+	})
+}
+
+func (t *Then) ExpectExperimentServicePort(experimentName string, templateName string, portIdx int, expectedPort int, expectedTargetPort intstr.IntOrString) *Then {
+	return t.ExpectExperimentServices(fmt.Sprintf("experiment service port and idx %d, port %d mapped to target port: %v", portIdx, expectedPort, expectedTargetPort), experimentName, func(templateToService map[string]*corev1.Service) bool {
+		return templateToService[templateName].Spec.Ports[portIdx].Port == int32(expectedPort) &&
+			templateToService[templateName].Spec.Ports[portIdx].TargetPort == expectedTargetPort
 	})
 }
 

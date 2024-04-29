@@ -57,6 +57,11 @@ spec:
     service:
       # Name of the Service (optional). If omitted, service: {} would also be acceptable.
       name: service-name
+      # Service port mappings(optional). This is useful when the container port is different from the desired service port.
+      # If omitted, the port will be mapped to the container port.
+      portMappings:
+      - containerPort: 8080
+        port: 80
     selector:
       matchLabels:
         app: canary-demo

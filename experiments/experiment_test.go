@@ -67,7 +67,6 @@ func newTestContext(ex *v1alpha1.Experiment, objects ...runtime.Object) *experim
 }
 
 func setExperimentService(template *v1alpha1.TemplateSpec) {
-	template.Service = &v1alpha1.TemplateService{}
 	template.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{
 		{
 			ContainerPort: 80,
