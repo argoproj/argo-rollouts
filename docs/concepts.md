@@ -47,3 +47,32 @@ A Canary deployment exposes a subset of users to the new version of the applicat
 
 The picture above shows a canary with two stages (10% and 33% of traffic goes to new version) but this is just an example. With Argo Rollouts you can define the exact number of stages
 and percentages of traffic according to your use case.
+
+## Which strategy to choose
+
+In general Blue/Green is the easier strategy to start with, but also the more limited. We recommend you start with Blue/Green deployments first and as you gain confidence for your metrics and applications switch to Canaries.
+
+You also need to examine if your application can handle canaries or not.
+
+* Blue/Green always works because only one application is active at a time. Not all applications can have different versions running in parallel at the same time (which is what canaries are doing). This can be a showstopper for adopting canary deployments especially for legacy applications.
+* Blue/Green is simpler because you can get their full value WITHOUT a traffic manager. While canaries can also work without a traffic manager, most of their advanced features assume a fine-grained way to control traffic. If you don't have a traffic manager, then you can easily get the full value
+of blue/green deployments but only the basic capabilities of canaries.
+* Blue/Green also works with services that use queues and databases (workers that fetch tasks). Argo Rollouts doesn't control traffic flow for
+connections it doesn't understand (i.e. binary/queue channels).
+
+Here is a summary table for the possible approaches.
+
+|                           |         Blue/Green        |       Basic Canary         | Canary with Traffic manager    |
+|--------------------------:|:-------------------------:|:--------------------------:| :-----------------------------:|
+|       Adoption Complexity |           Low             |       Medium               |        High                    |
+|        Flexibility        |           Low             |        High                |        Maximum                 |
+|    Needs traffic provider |                 No        |         No                 |           Yes                  | 
+|  Works with queue workers |                Yes        |         No                 |            No                  |
+|  Works with shared/locked resources | Yes             |         No                 |            No                  |
+|            Traffic switch |     All or nothing        |  Gradual percentage        |      Gradual percentage        |
+|           Traffic control |     0% or 100%            |  coarse grained            |     fine grained               |
+|       Traffic depends on  |     deployment state      |  number of canary pods     |     Any split option is possible                |
+| Advanced routing scenarios |         No               |       No                   |         Yes                    |
+|      Failure Blast Radius | Massive impact            |  Low impact                       | Low impact              |
+
+Note that that traffic manager can be any compatible Service Mesh or Ingress Controller or Gateway API implementation (via a plugin).
