@@ -3,6 +3,7 @@ package rollout
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/util/retry"
 	"sort"
 	"strconv"
 	"time"
@@ -373,33 +374,41 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 	scaled := false
 	var err error
 	if sizeNeedsUpdate || annotationsNeedUpdate {
-		rsCopy := rs.DeepCopy()
+
 		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
-		*(rsCopy.Spec.Replicas) = newScale
-		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
-		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
-			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+		updateRSFunc := func(rs *appsv1.ReplicaSet) *appsv1.ReplicaSet {
+			rsCopy := rs.DeepCopy()
+			*(rsCopy.Spec.Replicas) = newScale
+			annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
+			if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
+				delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
+			}
+			return rsCopy
 		}
+		rsCopy := updateRSFunc(rs)
 
 		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
 			if errors.IsConflict(err) {
-				c.log.Infof("Conflict when scaling replicaset %s. Retrying the scale operation as patch with new replicaset from cluster", rsCopy.Name)
-				rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
-				if err != nil {
-					return scaled, rs, fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
+				errConflict := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+					c.log.Infof("conflict when scaling replicaset %s. retrying the scale operation as patch with new replicaset from cluster", rsCopy.Name)
+					rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
+					if err != nil {
+						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
+					}
+
+					rsCopy := updateRSFunc(rs)
+
+					rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+
+					return err
+				})
+				if errConflict != nil {
+					return scaled, rs, fmt.Errorf("error updating replicaset in scaleReplicaSet RetryOnConflict: %w", errConflict)
 				}
-				patch, _, err := diff.CreateTwoWayMergePatch(rs, rsCopy, appsv1.ReplicaSet{})
-				if err != nil {
-					return scaled, rs, fmt.Errorf("failed to create patch in scaleReplicaSet: %w", err)
-				}
-				c.log.Infof("Patching replicaset %s due to conflict, patch: %s", rsCopy.Name, patch)
-				_, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
-				if err != nil {
-					return scaled, rs, fmt.Errorf("error patchin replicaset %s: %w", rsCopy.Name, err)
-				}
+			} else {
+				return scaled, rs, fmt.Errorf("error updating replicaset in scaleReplicaSet: %w", err)
 			}
-			return scaled, rs, fmt.Errorf("error updating replicaset in scaleReplicaSet: %w", err)
 		}
 		err = c.replicaSetInformer.GetIndexer().Update(rs)
 		if err != nil {
