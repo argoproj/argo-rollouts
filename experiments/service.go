@@ -3,6 +3,7 @@ package experiments
 import (
 	"context"
 	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -63,7 +64,7 @@ func GetServiceForExperiment(experiment *v1alpha1.Experiment, svc *corev1.Servic
 func (ec *experimentContext) CreateService(template v1alpha1.TemplateSpec, rs *appsv1.ReplicaSet) (*corev1.Service, error) {
 	// If service name is not provided, default to replica set name
 	serviceName := rs.Name
-	if template.Service.Name != "" {
+	if template.Service != nil && template.Service.Name != "" {
 		serviceName = template.Service.Name
 	}
 

@@ -133,7 +133,7 @@ func (ec *experimentContext) reconcileTemplate(template v1alpha1.TemplateSpec) {
 		ec.createReplicaSetForTemplate(template, templateStatus, logCtx, now)
 		rs = ec.templateRSs[template.Name]
 	} else {
-		if &template.Service != nil {
+		if template.Service != nil {
 			// Create service for template if service field is set
 			if desiredReplicaCount != 0 {
 				ec.createTemplateService(&template, templateStatus, rs)
@@ -273,7 +273,7 @@ func (ec *experimentContext) scaleTemplateRS(rs *appsv1.ReplicaSet, template v1a
 		templateStatus.Status = v1alpha1.TemplateStatusError
 		templateStatus.Message = fmt.Sprintf("Unable to scale ReplicaSet for template '%s' to desired replica count '%v': %v", templateStatus.Name, desiredReplicaCount, err)
 	} else {
-		if desiredReplicaCount == 0 && &template.Service != nil {
+		if desiredReplicaCount == 0 && template.Service != nil {
 			svc := ec.templateServices[template.Name]
 			ec.deleteTemplateService(svc, templateStatus, template.Name)
 		}

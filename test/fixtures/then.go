@@ -3,9 +3,10 @@ package fixtures
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-rollouts/experiments"
 
