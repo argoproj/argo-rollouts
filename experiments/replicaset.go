@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/diff"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -287,16 +289,39 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 	sizeNeedsUpdate := oldScale != newScale
 	scaled := false
 	var err error
+	var updatedRS *appsv1.ReplicaSet
 	if sizeNeedsUpdate {
 		rsCopy := rs.DeepCopy()
 		*(rsCopy.Spec.Replicas) = newScale
-		rs, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+
+		updatedRS, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+		if err != nil {
+			if errors.IsConflict(err) {
+				ec.log.Infof("Conflict when updating replicaset %s, falling back to patch", rs.Name)
+
+				patchRS := appsv1.ReplicaSet{}
+				patchRS.Spec.Replicas = rsCopy.Spec.Replicas
+
+				patch, changed, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
+				if err != nil {
+					return scaled, nil, err
+				}
+
+				if changed {
+					ec.log.Infof("Patching expirment replicaset with patch: %s", string(patch))
+					updatedRS, err = ec.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+					if err != nil {
+						return scaled, nil, err
+					}
+				}
+			}
+		}
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
 			ec.recorder.Eventf(ec.ex, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled %s ReplicaSet %s from %d to %d", scalingOperation, rs.Name, oldScale, newScale)
 		}
 	}
-	return scaled, rs, err
+	return scaled, updatedRS, err
 }
 
 func newReplicaSetAnnotations(experimentName, templateName string) map[string]string {

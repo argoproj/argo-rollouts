@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-rollouts/utils/diff"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts"
@@ -16,11 +17,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	patchtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -937,3 +940,78 @@ func remarshalRollout(r *v1alpha1.Rollout) *v1alpha1.Rollout {
 	}
 	return &remarshalled
 }
+
+// updateReplicaSetWithPatch updates the replicaset using patch and on
+func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs *appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
+	rsCopy := rs.DeepCopy()
+	updatedRS, err := c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Update(ctx, rs, metav1.UpdateOptions{})
+	if err != nil {
+		if errors.IsConflict(err) {
+			c.log.Infof("Conflict when updating replicaset %s, falling back to patch", rs.Name)
+
+			patchRS := appsv1.ReplicaSet{}
+			patchRS.Spec.Replicas = rsCopy.Spec.Replicas
+			patchRS.Annotations = rsCopy.Annotations
+			patchRS.Labels = rsCopy.Labels
+			patchRS.Spec.Template.Labels = rsCopy.Spec.Template.Labels
+			patchRS.Spec.Template.Annotations = rsCopy.Spec.Template.Annotations
+			patchRS.Spec.Selector = rsCopy.Spec.Selector
+
+			patch, changed, err := diff.CreateTwoWayMergePatch(appsv1.ReplicaSet{}, patchRS, appsv1.ReplicaSet{})
+			if err != nil {
+				return nil, err
+			}
+
+			if changed {
+				c.log.Infof("Patching replicaset with patch: %s", string(patch))
+				updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rs.Namespace).Patch(ctx, rs.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
+			if err != nil {
+				err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
+				return nil, err
+			}
+
+			return updatedRS, err
+		}
+	}
+
+	return updatedRS, err
+}
+
+// updateRolloutWithRetry updates the rollout with a retry if there is a conflict from an update operation, it runs the modifyRollout function to update a fresh rollout from the cluster.
+//func (c *rolloutContext) updateRolloutWithRetry(ctx context.Context, ro *v1alpha1.Rollout, modifyRollout func(ro *v1alpha1.Rollout) *v1alpha1.Rollout) (*v1alpha1.Rollout, error) {
+//	updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
+//	if err != nil {
+//		if errors.IsConflict(err) {
+//			retryCount := 0
+//			errRetry := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+//				retryCount++
+//				c.log.Infof("conflict when updating rollout %s, retrying the update operation with new rollout from cluster, attempt: %d", c.rollout.Name, retryCount)
+//				roGet, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Get(context.TODO(), c.rollout.Name, metav1.GetOptions{})
+//				if err != nil {
+//					return fmt.Errorf("error getting rollout %s: %w", c.rollout.Name, err)
+//				}
+//
+//				roCopy := modifyRollout(roGet)
+//				updatedRollout, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), roCopy, metav1.UpdateOptions{})
+//				if err != nil {
+//					return err
+//				}
+//
+//				return nil
+//			})
+//			if errRetry != nil {
+//				return nil, errRetry
+//			}
+//		} else {
+//			c.log.WithError(err).Error("Error: updating rollout revision")
+//			return nil, err
+//		}
+//	}
+//	return updatedRollout, nil
+//}
