@@ -3,10 +3,11 @@ package rollout
 import (
 	"context"
 	"fmt"
-	"k8s.io/client-go/util/retry"
 	"sort"
 	"strconv"
 	"time"
+
+	"k8s.io/client-go/util/retry"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -373,6 +374,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 
 	scaled := false
 	var err error
+	var updatedRS *appsv1.ReplicaSet
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 
 		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
@@ -387,33 +389,35 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		}
 		rsCopy := updateRSFunc(rs)
 
-		rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+		updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
 			if errors.IsConflict(err) {
 				errConflict := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 					c.log.Infof("conflict when scaling replicaset %s. retrying the scale operation as patch with new replicaset from cluster", rsCopy.Name)
-					rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
+					rsGet, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
 					if err != nil {
 						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
 					}
 
-					rsCopy := updateRSFunc(rs)
+					rsCopy := updateRSFunc(rsGet)
 
-					rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
-
+					updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+					if err != nil {
+						return err
+					}
 					return err
 				})
 				if errConflict != nil {
-					return scaled, rs, fmt.Errorf("error updating replicaset in scaleReplicaSet RetryOnConflict: %w", errConflict)
+					return scaled, nil, fmt.Errorf("error updating replicaset in scaleReplicaSet during RetryOnConflict: %w", errConflict)
 				}
 			} else {
-				return scaled, rs, fmt.Errorf("error updating replicaset in scaleReplicaSet: %w", err)
+				return scaled, nil, fmt.Errorf("error updating replicaset in scaleReplicaSet: %w", err)
 			}
 		}
 		err = c.replicaSetInformer.GetIndexer().Update(rs)
 		if err != nil {
 			err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
-			return scaled, rs, err
+			return scaled, nil, err
 		}
 
 		if sizeNeedsUpdate {
@@ -422,7 +426,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 			c.recorder.Eventf(rollout, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, conditions.ScalingReplicaSetMessage, scalingOperation, rs.Name, revision, oldScale, newScale)
 		}
 	}
-	return scaled, rs, err
+	return scaled, updatedRS, err
 }
 
 // calculateStatus calculates the common fields for all rollouts by looking into the provided replica sets.
