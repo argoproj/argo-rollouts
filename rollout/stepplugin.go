@@ -46,7 +46,10 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 			if err != nil {
 				return spc.handleError(c, fmt.Errorf("failed to abort plugin: %w", err))
 			}
-			spc.updateStepPluginStatus(status)
+			phaseTransition := spc.updateStepPluginStatus(status)
+			if phaseTransition {
+				spc.recordPhase(c, status)
+			}
 		}
 		return nil
 	}
@@ -76,7 +79,10 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 			return spc.handleError(c, fmt.Errorf("failed to terminate plugin: %w", err))
 		}
 
-		spc.updateStepPluginStatus(status)
+		phaseTransition := spc.updateStepPluginStatus(status)
+		if phaseTransition {
+			spc.recordPhase(c, status)
+		}
 		return nil
 	}
 
@@ -99,7 +105,11 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 	if err != nil {
 		return spc.handleError(c, fmt.Errorf("failed to run plugin: %w", err))
 	}
-	spc.updateStepPluginStatus(status)
+
+	phaseTransition := spc.updateStepPluginStatus(status)
+	if phaseTransition {
+		spc.recordPhase(c, status)
+	}
 
 	if status == nil {
 		return nil
@@ -130,12 +140,32 @@ func (spc *stepPluginContext) handleError(c *rolloutContext, e error) error {
 	spc.hasError = true
 
 	msg := fmt.Sprintf(conditions.RolloutReconciliationErrorMessage, e.Error())
-	c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.RolloutReconciliationErrorReason}, msg)
+	c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutReconciliationErrorReason}, msg)
 
 	c.log.Debug("queueing up rollout in 30s because of transient error")
 	c.enqueueRolloutAfter(c.rollout, 30*time.Second)
 
 	return nil
+}
+
+func (spc *stepPluginContext) recordPhase(c *rolloutContext, status *v1alpha1.StepPluginStatus) {
+	if status.Operation == v1alpha1.StepPluginOperationRun && status.Phase == v1alpha1.StepPluginPhaseSuccessful {
+		// If the run status is succesful, do not record event because the controller will record the RolloutStepCompleted
+		return
+	}
+
+	msg := fmt.Sprintf(conditions.StepPluginTransitionRunMessage, status.Name, status.Index+1, status.Phase)
+	if status.Operation == v1alpha1.StepPluginOperationAbort {
+		msg = fmt.Sprintf(conditions.StepPluginTransitionAbortMessage, status.Name, status.Index+1, status.Phase)
+	} else if status.Operation == v1alpha1.StepPluginOperationTerminate {
+		msg = fmt.Sprintf(conditions.StepPluginTransitionTerminateMessage, status.Name, status.Index+1, status.Phase)
+	}
+
+	if status.Phase == v1alpha1.StepPluginPhaseError || status.Phase == v1alpha1.StepPluginPhaseFailed {
+		c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.StepPluginTransitionReason}, msg)
+	} else {
+		c.recorder.Eventf(c.rollout, record.EventOptions{EventReason: conditions.StepPluginTransitionReason}, msg)
+	}
 }
 
 func (spc *stepPluginContext) updateStatus(status *v1alpha1.RolloutStatus) {
@@ -187,9 +217,10 @@ func (spc *stepPluginContext) findCurrentStepStatus(stepIndex int32, operation v
 	return nil
 }
 
-func (spc *stepPluginContext) updateStepPluginStatus(status *v1alpha1.StepPluginStatus) {
+func (spc *stepPluginContext) updateStepPluginStatus(status *v1alpha1.StepPluginStatus) bool {
+	phaseChanged := false
 	if status == nil {
-		return
+		return phaseChanged
 	}
 
 	// Update new status and preserve order
@@ -198,12 +229,16 @@ func (spc *stepPluginContext) updateStepPluginStatus(status *v1alpha1.StepPlugin
 		if !statusUpdated && s.Index == status.Index && s.Operation == status.Operation {
 			spc.stepPluginStatuses[i] = *status
 			statusUpdated = true
+			phaseChanged = s.Phase != status.Phase
 			break
 		}
 	}
 	if !statusUpdated {
 		spc.stepPluginStatuses = append(spc.stepPluginStatuses, *status)
+		phaseChanged = true
 	}
+
+	return phaseChanged
 }
 
 func (spc *stepPluginContext) getStepToTerminate(rollout *v1alpha1.Rollout) *int32 {

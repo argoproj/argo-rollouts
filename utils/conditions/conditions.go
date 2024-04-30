@@ -162,6 +162,12 @@ const (
 	// ServiceReferencingManagedService is added in a rollout when the multiple rollouts reference a Rollout
 	ServiceReferencingManagedService = "Service %q is managed by another Rollout"
 
+	// StepPluginTransitionReason is added to a Rollout when a step plugin transition to an unsuccessful phase
+	StepPluginTransitionReason           = "StepPluginTransition"
+	StepPluginTransitionRunMessage       = "Step plugin %s (step %d) transitioned to %s"
+	StepPluginTransitionAbortMessage     = "Step plugin %s (step %d) aborted (%s)"
+	StepPluginTransitionTerminateMessage = "Step plugin %s (step %d) terminated (%s)"
+
 	// TargetGroupHealthyReason is emitted when target group has been verified
 	TargetGroupVerifiedReason              = "TargetGroupVerified"
 	TargetGroupVerifiedRegistrationMessage = "Service %s (TargetGroup %s) verified: %d endpoints registered"
