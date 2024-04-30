@@ -97,8 +97,10 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
 			if errors.IsConflict(err) {
-				c.log.Infof("conflict when setting revision on replicaset %s. retrying the set revision operation with new replicaset from cluster", rsCopy.Name)
+				retryCount := 0
 				errRetry := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+					retryCount++
+					c.log.Infof("conflict when setting revision on replicaset %s. retrying the set revision operation with new replicaset from cluster attempt %d", rsCopy.Name, retryCount)
 					rsGet, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
 					if err != nil {
 						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
