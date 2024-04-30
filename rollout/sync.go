@@ -85,14 +85,15 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		minReadySecondsNeedsUpdate = rsCopy.Spec.MinReadySeconds != c.rollout.Spec.MinReadySeconds
 		affinityNeedsUpdate = replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
 
+		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
+		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
+
 		return
 	}
 
 	rsCopy, annotationsUpdated, minReadySecondsNeedsUpdate, affinityNeedsUpdate := updateRSFunc(c.newRS)
 
 	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
-		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
-		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
 		rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
 			if errors.IsConflict(err) {
