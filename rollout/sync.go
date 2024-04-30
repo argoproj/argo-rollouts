@@ -78,7 +78,7 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 		// annotationsToSkip from the parent rollout, and update revision and desiredReplicas)
 		// and also update the revision annotation in the rollout with the
 		// latest revision.
-		rsCopy = c.newRS.DeepCopy()
+		rsCopy = rs.DeepCopy()
 
 		// Set existing new replica set's annotation
 		annotationsUpdated = annotations.SetNewReplicaSetAnnotations(c.rollout, rsCopy, newRevision, true)
