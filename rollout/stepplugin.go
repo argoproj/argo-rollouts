@@ -51,6 +51,9 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 		return nil
 	}
 
+	// If we retry an aborted rollout, we need to have a clean status
+	spc.cleanStatusForRetry(rollout)
+
 	// On full promotion, we want to Terminate only the last step still in Running, if any
 	if rollout.Status.PromoteFull || rolloututil.IsFullyPromoted(rollout) {
 		stepIndex := spc.getStepToTerminate(rollout)
@@ -218,4 +221,31 @@ func (spc *stepPluginContext) getStepToTerminate(rollout *v1alpha1.Rollout) *int
 		}
 	}
 	return nil
+}
+
+// cleanStatusForRetry is expected to be called on a non-aborted rollout.
+// It validates that stepPluginStatuses does not contain outdated results, and remove them
+// if it does.
+func (spc *stepPluginContext) cleanStatusForRetry(rollout *v1alpha1.Rollout) {
+	if len(spc.stepPluginStatuses) == 0 || rollout.Status.Abort {
+		return
+	}
+
+	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
+	if currentStep == nil || int(*currentStepIndex) > 0 {
+		// Nothing to clean if rollout steps are completed or in progress
+		return
+	}
+
+	// if we are at step 0, it could be either that we haven't started, or we are progressing.
+	// if step 0 is a plugin, check if it is completed. In that case, we know that we should be at step > 0
+	// abd we are retrying
+	shouldCleanCurrentStatus := true
+	if currentStep.Plugin != nil {
+		shouldCleanCurrentStatus = spc.isStepPluginCompleted(*currentStepIndex, currentStep.Plugin)
+	}
+
+	if shouldCleanCurrentStatus {
+		spc.stepPluginStatuses = []v1alpha1.StepPluginStatus{}
+	}
 }

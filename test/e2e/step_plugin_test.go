@@ -142,6 +142,30 @@ func (s *StepPluginSuite) TestRolloutAbortStepsWhenAborted() {
 		})
 }
 
+func (s *StepPluginSuite) TestRolloutRetryAbortedRollout() {
+	s.Given().
+		RolloutTemplate("@step-plugin/template-rollout.yaml", map[string]string{"$$name$$": "aborted", "$$phase$$": string(types.PhaseRunning)}).
+		When().
+		ApplyManifests().WaitForRolloutStatus("Healthy").
+		UpdateSpec().WaitForRolloutStatus("Progressing").
+		WaitForRolloutCanaryStepIndex(1).
+		WaitForRolloutStepPluginRunning().
+		AbortRollout().WaitForRolloutStatus("Degraded").
+		RetryRollout().WaitForRolloutStepPluginRunning().
+		Then().
+		Assert(func(t *fixtures.Then) {
+			rollout := t.GetRollout()
+			assert.False(s.T(), rollout.Status.Abort)
+			assert.EqualValues(s.T(), 2, len(rollout.Status.Canary.StepPluginStatuses))
+
+			stepStatus := rollout.Status.Canary.StepPluginStatuses[1]
+			assert.EqualValues(s.T(), E2EStepPluginName, stepStatus.Name)
+			assert.EqualValues(s.T(), 1, stepStatus.Index)
+			assert.EqualValues(s.T(), v1alpha1.StepPluginPhaseRunning, stepStatus.Phase)
+			assert.EqualValues(s.T(), v1alpha1.StepPluginOperationRun, stepStatus.Operation)
+		})
+}
+
 func (s *StepPluginSuite) TestRolloutCompletesWhenPromotedAndStepRunning() {
 	s.Given().
 		RolloutTemplate("@step-plugin/template-rollout.yaml", map[string]string{"$$name$$": "full-promotion", "$$phase$$": string(types.PhaseRunning)}).
