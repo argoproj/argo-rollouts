@@ -20,14 +20,14 @@ import (
 func (c *rolloutContext) rolloutCanary() error {
 	var err error
 	if replicasetutil.PodTemplateOrStepsChanged(c.rollout, c.newRS) {
-		c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false) //TODO: updates replicaset
+		c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 		if err != nil {
 			return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary with PodTemplateOrStepsChanged: %w", err)
 		}
 		return c.syncRolloutStatusCanary()
 	}
 
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(true) //TODO: updates replicaset
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(true)
 	if err != nil {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in rolloutCanary create true: %w", err)
 	}
@@ -37,7 +37,7 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
-	err = c.reconcileEphemeralMetadata() //TODO: Updates Replicasets, does not update newRS
+	err = c.reconcileEphemeralMetadata()
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (c *rolloutContext) rolloutCanary() error {
 		return err
 	}
 
-	noScalingOccurred, err := c.reconcileCanaryReplicaSets() //TODO: Updates Replicasets, does not update newRS
+	noScalingOccurred, err := c.reconcileCanaryReplicaSets()
 	if err != nil {
 		return err
 	}
@@ -212,7 +212,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForCanary(oldRSs []*appsv1.Repli
 					desiredReplicaCount = 0
 				} else {
 					// 2. otherwise, honor scaledown delay second and keep replicas of the current step
-					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas) //TODO: patches replicaset does not update newRS
+					annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, *targetRS.Spec.Replicas)
 					if err != nil {
 						return totalScaledDown, err
 					}
@@ -426,11 +426,11 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 		c.log.Infof("Skipping canary/stable ReplicaSet reconciliation: %s", haltReason)
 		return false, nil
 	}
-	err := c.removeScaleDownDeadlines() //TODO: Updates replicaset, does not update newRS
+	err := c.removeScaleDownDeadlines()
 	if err != nil {
 		return false, err
 	}
-	scaledStableRS, err := c.reconcileCanaryStableReplicaSet() //TODO: Updates replicaset, does not update newRS
+	scaledStableRS, err := c.reconcileCanaryStableReplicaSet()
 	if err != nil {
 		return false, err
 	}
@@ -446,7 +446,7 @@ func (c *rolloutContext) reconcileCanaryReplicaSets() (bool, error) {
 		c.newRS = rs
 	}
 
-	scaledNewRS, err := c.reconcileNewReplicaSet() //TODO: updates rs, does not update newRS
+	scaledNewRS, err := c.reconcileNewReplicaSet()
 	if err != nil {
 		return false, err
 	}

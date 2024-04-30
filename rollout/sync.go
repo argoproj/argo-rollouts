@@ -283,7 +283,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 func (c *rolloutContext) syncReplicasOnly() error {
 	c.log.Infof("Syncing replicas only due to scaling event")
 	var err error
-	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false) //TODO: can update RS, updates newRS
+	c.newRS, err = c.getAllReplicaSetsAndSyncRevision(false)
 	if err != nil {
 		return fmt.Errorf("failed to getAllReplicaSetsAndSyncRevision in syncReplicasOnly: %w", err)
 	}
@@ -295,7 +295,7 @@ func (c *rolloutContext) syncReplicasOnly() error {
 		if err != nil {
 			return nil
 		}
-		if err := c.reconcileBlueGreenReplicaSets(activeSvc); err != nil { //TODO: can update rs, does not update newRS
+		if err := c.reconcileBlueGreenReplicaSets(activeSvc); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
 			return fmt.Errorf("failed to reconcileBlueGreenReplicaSets in syncReplicasOnly: %w", err)
@@ -313,7 +313,7 @@ func (c *rolloutContext) syncReplicasOnly() error {
 	// The controller wants to use the rolloutCanary method to reconcile the rollout if the rollout is not paused.
 	// If there are no scaling events, the rollout should only sync its status
 	if c.rollout.Spec.Strategy.Canary != nil {
-		if _, err := c.reconcileCanaryReplicaSets(); err != nil { //TODO: can update rs, does not update newRS
+		if _, err := c.reconcileCanaryReplicaSets(); err != nil {
 			// If we get an error while trying to scale, the rollout will be requeued
 			// so we can abort this resync
 			return fmt.Errorf("failed to reconcileCanaryReplicaSets in syncReplicasOnly: %w", err)

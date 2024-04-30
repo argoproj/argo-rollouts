@@ -63,7 +63,7 @@ func (c *rolloutContext) rolloutBlueGreen() error {
 		return err
 	}
 
-	err = c.reconcileEphemeralMetadata() //TODO: Update rs does not update newRS
+	err = c.reconcileEphemeralMetadata()
 	if err != nil {
 		return err
 	}
@@ -94,11 +94,11 @@ func (c *rolloutContext) reconcileBlueGreenReplicaSets(activeSvc *corev1.Service
 	if err != nil {
 		return err
 	}
-	err = c.reconcileBlueGreenStableReplicaSet(activeSvc) //TODO: updates rs, does not update newRS
+	err = c.reconcileBlueGreenStableReplicaSet(activeSvc)
 	if err != nil {
 		return err
 	}
-	_, err = c.reconcileNewReplicaSet() //TODO: updates rs, does not update newRS
+	_, err = c.reconcileNewReplicaSet()
 	if err != nil {
 		return err
 	}
@@ -235,7 +235,7 @@ func (c *rolloutContext) scaleDownOldReplicaSetsForBlueGreen(oldRSs []*appsv1.Re
 		}
 		var desiredReplicaCount int32
 		var err error
-		annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas) //TODO: patches replicaset does not update newRS
+		annotationedRSs, desiredReplicaCount, err = c.scaleDownDelayHelper(targetRS, annotationedRSs, rolloutReplicas)
 		if err != nil {
 			return false, err
 		}
