@@ -405,7 +405,8 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 					if err != nil {
 						return err
 					}
-					return err
+
+					return nil
 				})
 				if errConflict != nil {
 					return scaled, nil, fmt.Errorf("error updating replicaset in scaleReplicaSet during RetryOnConflict: %w", errConflict)

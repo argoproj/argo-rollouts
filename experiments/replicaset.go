@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/client-go/util/retry"
+
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -287,16 +289,41 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 	sizeNeedsUpdate := oldScale != newScale
 	scaled := false
 	var err error
+	var updatedRS *appsv1.ReplicaSet
 	if sizeNeedsUpdate {
 		rsCopy := rs.DeepCopy()
 		*(rsCopy.Spec.Replicas) = newScale
-		rs, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+		updatedRS, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+		if err != nil {
+			if errors.IsConflict(err) {
+				errRetry := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					ec.log.Infof("conflict when scaling replicaset %s. retrying the scale operation as patch with new replicaset from cluster", rsCopy.Name)
+					rsGet, err := ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
+					if err != nil {
+						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
+					}
+
+					*(rsGet.Spec.Replicas) = newScale
+
+					updatedRS, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsGet, metav1.UpdateOptions{})
+					if err != nil {
+						return err
+					}
+					return nil
+				})
+				if errRetry != nil {
+					return scaled, nil, errRetry
+				}
+			} else {
+				return scaled, nil, err
+			}
+		}
 		if err == nil && sizeNeedsUpdate {
 			scaled = true
 			ec.recorder.Eventf(ec.ex, record.EventOptions{EventReason: conditions.ScalingReplicaSetReason}, "Scaled %s ReplicaSet %s from %d to %d", scalingOperation, rs.Name, oldScale, newScale)
 		}
 	}
-	return scaled, rs, err
+	return scaled, updatedRS, err
 }
 
 func newReplicaSetAnnotations(experimentName, templateName string) map[string]string {
