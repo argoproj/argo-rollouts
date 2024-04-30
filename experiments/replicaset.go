@@ -297,7 +297,7 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 		if err != nil {
 			if errors.IsConflict(err) {
 				errRetry := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					ec.log.Infof("conflict when scaling replicaset %s. retrying the scale operation as patch with new replicaset from cluster", rsCopy.Name)
+					ec.log.Infof("conflict when scaling replicaset %s. retrying the scale operation with new replicaset from cluster", rsCopy.Name)
 					rsGet, err := ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
 					if err != nil {
 						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)

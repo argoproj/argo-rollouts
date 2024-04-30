@@ -73,24 +73,46 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	// Calculate revision number for this new replica set
 	newRevision := strconv.FormatInt(maxOldRevision+1, 10)
 
-	// Latest replica set exists. We need to sync its annotations (includes copying all but
-	// annotationsToSkip from the parent rollout, and update revision and desiredReplicas)
-	// and also update the revision annotation in the rollout with the
-	// latest revision.
-	rsCopy := c.newRS.DeepCopy()
+	updateRSFunc := func(rs *appsv1.ReplicaSet) (rsCopy *appsv1.ReplicaSet, annotationsUpdated bool, minReadySecondsNeedsUpdate bool, affinityNeedsUpdate bool) {
+		// Latest replica set exists. We need to sync its annotations (includes copying all but
+		// annotationsToSkip from the parent rollout, and update revision and desiredReplicas)
+		// and also update the revision annotation in the rollout with the
+		// latest revision.
+		rsCopy = c.newRS.DeepCopy()
 
-	// Set existing new replica set's annotation
-	annotationsUpdated := annotations.SetNewReplicaSetAnnotations(c.rollout, rsCopy, newRevision, true)
-	minReadySecondsNeedsUpdate := rsCopy.Spec.MinReadySeconds != c.rollout.Spec.MinReadySeconds
-	affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
+		// Set existing new replica set's annotation
+		annotationsUpdated = annotations.SetNewReplicaSetAnnotations(c.rollout, rsCopy, newRevision, true)
+		minReadySecondsNeedsUpdate = rsCopy.Spec.MinReadySeconds != c.rollout.Spec.MinReadySeconds
+		affinityNeedsUpdate = replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
+
+		return
+	}
+
+	rsCopy, annotationsUpdated, minReadySecondsNeedsUpdate, affinityNeedsUpdate := updateRSFunc(c.newRS)
 
 	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
 		rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating replicaset revision")
-			return nil, fmt.Errorf("error updating replicaset revision: %v", err)
+			if errors.IsConflict(err) {
+				c.log.Infof("conflict when setting revision on replicaset %s. retrying the set revision operation with new replicaset from cluster", rsCopy.Name)
+				errRetry := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+					rsGet, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
+					if err != nil {
+						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
+					}
+					rsCopy, _, _, _ := updateRSFunc(rsGet)
+					rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+					return err
+				})
+				if errRetry != nil {
+					return nil, errRetry
+				}
+			} else {
+				c.log.WithError(err).Error("Error: updating replicaset revision")
+				return nil, fmt.Errorf("error updating replicaset revision: %v", err)
+			}
 		}
 		c.log.Infof("Synced revision on ReplicaSet '%s' to '%s'", rs.Name, newRevision)
 		err = c.replicaSetInformer.GetIndexer().Update(rs)
@@ -393,7 +415,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		if err != nil {
 			if errors.IsConflict(err) {
 				errConflict := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-					c.log.Infof("conflict when scaling replicaset %s. retrying the scale operation as patch with new replicaset from cluster", rsCopy.Name)
+					c.log.Infof("conflict when scaling replicaset %s. retrying the scale operation with new replicaset from cluster", rsCopy.Name)
 					rsGet, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
 					if err != nil {
 						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
