@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-rollouts/utils/annotations"
 	"github.com/argoproj/argo-rollouts/utils/conditions"
 	"github.com/argoproj/argo-rollouts/utils/hash"
+	ingressutil "github.com/argoproj/argo-rollouts/utils/ingress"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	replicasetutil "github.com/argoproj/argo-rollouts/utils/replicaset"
@@ -550,6 +551,92 @@ func TestCanaryRolloutCreateFirstReplicasetWithSteps(t *testing.T) {
 	assert.JSONEq(t, calculatePatch(r, expectedPatch), patch)
 }
 
+func TestCanaryRolloutWithMaxWeightInTrafficRouting(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		maxWeight               *int32
+		setWeight               int32
+		expectedCreatedReplicas int32
+		expectedUpdatedReplicas int32
+	}{
+		{
+			name:                    "max weight 100",
+			maxWeight:               int32Ptr(100),
+			setWeight:               10,
+			expectedCreatedReplicas: 0,
+			expectedUpdatedReplicas: 1,
+		},
+		{
+			name:                    "max weight 1000",
+			maxWeight:               int32Ptr(1000),
+			setWeight:               200,
+			expectedCreatedReplicas: 0,
+			expectedUpdatedReplicas: 2,
+		},
+	}
+
+	for _, tc := range testCases {
+		f := newFixture(t)
+		defer f.Close()
+		steps := []v1alpha1.CanaryStep{{
+			SetWeight: int32Ptr(tc.setWeight),
+		}}
+		r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(1), intstr.FromInt(0))
+
+		canarySVCName := "canary"
+		stableSVCName := "stable"
+
+		ingressName := "ingress"
+		r1.Spec.Strategy.Canary.TrafficRouting = &v1alpha1.RolloutTrafficRouting{
+			MaxTrafficWeight: tc.maxWeight,
+			Nginx: &v1alpha1.NginxTrafficRouting{
+				StableIngress: ingressName,
+			},
+		}
+		r1.Spec.Strategy.Canary.StableService = stableSVCName
+		r1.Spec.Strategy.Canary.CanaryService = canarySVCName
+		r1.Status.StableRS = "895c6c4f9"
+		r2 := bumpVersion(r1)
+
+		f.rolloutLister = append(f.rolloutLister, r2)
+		f.objects = append(f.objects, r2)
+
+		rs1 := newReplicaSetWithStatus(r1, 10, 10)
+		rs2 := newReplicaSetWithStatus(r2, 1, 0)
+
+		stableSvc := newService(stableSVCName, 80,
+			map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, r1)
+
+		canarySvc := newService(canarySVCName, 80,
+			map[string]string{v1alpha1.DefaultRolloutUniqueLabelKey: rs2.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]}, r1)
+		f.replicaSetLister = append(f.replicaSetLister, rs1)
+
+		ing := newIngress(ingressName, canarySvc, stableSvc)
+		ing.Spec.Rules[0].HTTP.Paths[0].Backend.ServiceName = stableSVCName
+		f.kubeobjects = append(f.kubeobjects, rs1, canarySvc, stableSvc, ing)
+		f.serviceLister = append(f.serviceLister, canarySvc, stableSvc)
+		f.ingressLister = append(f.ingressLister, ingressutil.NewLegacyIngress(ing))
+
+		createdRSIndex := f.expectCreateReplicaSetAction(rs2)
+		updatedRSIndex := f.expectUpdateReplicaSetAction(rs2)
+		updatedRolloutIndex := f.expectUpdateRolloutStatusAction(r2)
+		f.expectPatchRolloutAction(r2)
+		f.run(getKey(r2, t))
+
+		createdRS := f.getCreatedReplicaSet(createdRSIndex)
+		assert.Equal(t, tc.expectedCreatedReplicas, *createdRS.Spec.Replicas)
+		updatedRS := f.getUpdatedReplicaSet(updatedRSIndex)
+		assert.Equal(t, tc.expectedUpdatedReplicas, *updatedRS.Spec.Replicas)
+
+		updatedRollout := f.getUpdatedRollout(updatedRolloutIndex)
+		progressingCondition := conditions.GetRolloutCondition(updatedRollout.Status, v1alpha1.RolloutProgressing)
+		assert.NotNil(t, progressingCondition)
+		assert.Equal(t, conditions.NewReplicaSetReason, progressingCondition.Reason)
+		assert.Equal(t, corev1.ConditionTrue, progressingCondition.Status)
+		assert.Equal(t, fmt.Sprintf(conditions.NewReplicaSetMessage, createdRS.Name), progressingCondition.Message)
+	}
+
+}
 func TestCanaryRolloutCreateNewReplicaWithCorrectWeight(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
@@ -870,7 +957,6 @@ func TestRollBackToActiveReplicaSetWithinWindow(t *testing.T) {
 
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
-	f.serviceLister = append(f.serviceLister)
 
 	// Switch back to version 1
 	r2.Spec.Template = r1.Spec.Template
@@ -1068,6 +1154,8 @@ func TestSyncRolloutWaitAddToQueue(t *testing.T) {
 	f.runController(key, true, false, c, i, k8sI)
 
 	// When the controller starts, it will enqueue the rollout while syncing the informer and during the reconciliation step
+	f.enqueuedObjectsLock.Lock()
+	defer f.enqueuedObjectsLock.Unlock()
 	assert.Equal(t, 2, f.enqueuedObjects[key])
 }
 
@@ -1116,6 +1204,8 @@ func TestSyncRolloutIgnoreWaitOutsideOfReconciliationPeriod(t *testing.T) {
 	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
 	f.runController(key, true, false, c, i, k8sI)
 	// When the controller starts, it will enqueue the rollout so we expect the rollout to enqueue at least once.
+	f.enqueuedObjectsLock.Lock()
+	defer f.enqueuedObjectsLock.Unlock()
 	assert.Equal(t, 1, f.enqueuedObjects[key])
 }
 
@@ -1566,8 +1656,6 @@ func TestCanaryRolloutWithInvalidPingServiceName(t *testing.T) {
 
 	f.rolloutLister = append(f.rolloutLister, r)
 	f.objects = append(f.objects, r)
-	f.kubeobjects = append(f.kubeobjects)
-	f.serviceLister = append(f.serviceLister)
 
 	patchIndex := f.expectPatchRolloutAction(r)
 	f.run(getKey(r, t))

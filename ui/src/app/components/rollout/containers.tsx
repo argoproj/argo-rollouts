@@ -9,6 +9,7 @@ import {faExclamationCircle, faPencilAlt, faSave, faTimes} from '@fortawesome/fr
 interface ContainersWidgetProps {
     containers: RolloutContainerInfo[];
     images: ImageInfo[];
+    name: string;
     interactive?: {
         editState: ReactStatePair;
         setImage: (container: string, image: string, tag: string) => void;
@@ -16,7 +17,7 @@ interface ContainersWidgetProps {
 }
 
 export const ContainersWidget = (props: ContainersWidgetProps) => {
-    const {containers, images, interactive} = props;
+    const {containers, images, name, interactive} = props;
     const [editing, setEditing] = interactive?.editState || [null, null];
     const inputMap: {[key: string]: string} = {};
     for (const container of containers) {
@@ -29,7 +30,7 @@ export const ContainersWidget = (props: ContainersWidgetProps) => {
         <React.Fragment>
             <div style={{display: 'flex', alignItems: 'center', height: '2em'}}>
                 <div className='info__title' style={{marginBottom: '0'}}>
-                    Containers
+                    {name}
                 </div>
 
                 {interactive &&

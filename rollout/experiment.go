@@ -50,6 +50,8 @@ func GetExperimentFromTemplate(r *v1alpha1.Rollout, stableRS, newRS *appsv1.Repl
 		Spec: v1alpha1.ExperimentSpec{
 			Duration:                step.Duration,
 			ProgressDeadlineSeconds: r.Spec.ProgressDeadlineSeconds,
+			DryRun:                  step.DryRun,
+			AnalysisRunMetadata:     step.AnalysisRunMetadata,
 		},
 	}
 

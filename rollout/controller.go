@@ -794,38 +794,64 @@ func (c *rolloutContext) getReferencedRolloutAnalyses() (*[]validation.AnalysisT
 }
 
 func (c *rolloutContext) getReferencedAnalysisTemplates(rollout *v1alpha1.Rollout, rolloutAnalysis *v1alpha1.RolloutAnalysis, templateType validation.AnalysisTemplateType, canaryStepIndex int) (*validation.AnalysisTemplatesWithType, error) {
-	templates := make([]*v1alpha1.AnalysisTemplate, 0)
-	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
 	fldPath := validation.GetAnalysisTemplateWithTypeFieldPath(templateType, canaryStepIndex)
 
-	for _, templateRef := range rolloutAnalysis.Templates {
-		if templateRef.ClusterScope {
-			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					return nil, field.Invalid(fldPath, templateRef.TemplateName, fmt.Sprintf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName))
-				}
-				return nil, err
-			}
-			clusterTemplates = append(clusterTemplates, template)
-		} else {
-			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
-			if err != nil {
-				if k8serrors.IsNotFound(err) {
-					return nil, field.Invalid(fldPath, templateRef.TemplateName, fmt.Sprintf("AnalysisTemplate '%s' not found", templateRef.TemplateName))
-				}
-				return nil, err
-			}
-			templates = append(templates, template)
-		}
-	}
+	templates, clusterTemplates, err := c.getReferencedAnalysisTemplatesFromRef(&rolloutAnalysis.Templates, fldPath)
 
 	return &validation.AnalysisTemplatesWithType{
 		AnalysisTemplates:        templates,
 		ClusterAnalysisTemplates: clusterTemplates,
 		TemplateType:             templateType,
 		CanaryStepIndex:          canaryStepIndex,
-	}, nil
+	}, err
+}
+
+func (c *rolloutContext) getReferencedAnalysisTemplatesFromRef(templateRefs *[]v1alpha1.AnalysisTemplateRef, fieldPath *field.Path) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate, error) {
+	templates := make([]*v1alpha1.AnalysisTemplate, 0)
+	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
+	for _, templateRef := range *templateRefs {
+		if templateRef.ClusterScope {
+			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, nil, field.Invalid(fieldPath, templateRef.TemplateName, fmt.Sprintf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName))
+				}
+				return nil, nil, err
+			}
+			clusterTemplates = append(clusterTemplates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerFldPath := field.NewPath("spec", "templates")
+				innerTemplates, innerClusterTemplates, innerErr := c.getReferencedAnalysisTemplatesFromRef(&template.Spec.Templates, innerFldPath)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
+		} else {
+			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					return nil, nil, field.Invalid(fieldPath, templateRef.TemplateName, fmt.Sprintf("AnalysisTemplate '%s' not found", templateRef.TemplateName))
+				}
+				return nil, nil, err
+			}
+			templates = append(templates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerFldPath := field.NewPath("spec", "templates")
+				innerTemplates, innerClusterTemplates, innerErr := c.getReferencedAnalysisTemplatesFromRef(&template.Spec.Templates, innerFldPath)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
+		}
+	}
+	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
+	return uniqueTemplates, uniqueClusterTemplates, nil
 }
 
 func (c *rolloutContext) getReferencedIngresses() (*[]ingressutil.Ingress, error) {

@@ -17,14 +17,14 @@ The GitHub notification service changes commit status using [GitHub Apps](https:
 3. Generate a private key, and download it automatically
 ![3](https://user-images.githubusercontent.com/18019529/108397926-d4a36300-725b-11eb-83fe-74795c8c3e03.png)
 4. Install app to account
-5. Store privateKey in `argocd-notifications-secret` Secret and configure GitHub integration
-in `argocd-notifications-cm` ConfigMap
+5. Store privateKey in `argo-rollouts-notification-secret` Secret and configure GitHub integration
+in `argo-rollouts-notification-configmap` ConfigMap
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.github: |
     appID: <app-id>
@@ -76,6 +76,7 @@ template.app-deployed: |
       logURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
       requiredContexts: []
       autoMerge: true
+      transientEnvironment: false
     pullRequestComment:
       content: |
         Application {{.app.metadata.name}} is now running new version of deployments manifests.

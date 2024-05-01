@@ -8,13 +8,13 @@
 ## Configuration
 
 1. Create a NewRelic [Api Key](https://docs.newrelic.com/docs/apis/intro-apis/new-relic-api-keys/#user-api-key)
-2. Store apiKey in `argocd-notifications-secret` Secret and configure NewRelic integration in `argocd-notifications-cm` ConfigMap
+2. Store apiKey in `argo-rollouts-notification-secret` Secret and configure NewRelic integration in `argo-rollouts-notification-configmap` ConfigMap
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argo-rollouts-notification-configmap
 data:
   service.newrelic: |
     apiURL: <api-url>

@@ -135,7 +135,7 @@ var (
 	MetricAnalysisTemplateInfo = prometheus.NewDesc(
 		"analysis_template_info",
 		"Information about analysis templates.",
-		append(namespaceNameLabels),
+		namespaceNameLabels,
 		nil,
 	)
 

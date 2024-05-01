@@ -143,6 +143,10 @@ message AnalysisRunSpec {
   // +patchStrategy=merge
   // +optional
   repeated MeasurementRetention measurementRetention = 5;
+
+  // TTLStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed
+  // +optional
+  optional TTLStrategy ttlStrategy = 6;
 }
 
 // AnalysisRunStatus is the status for a AnalysisRun resource
@@ -164,6 +168,9 @@ message AnalysisRunStatus {
 
   // DryRunSummary contains the final results from the metric executions in the dry-run mode
   optional RunSummary dryRunSummary = 6;
+
+  // CompletedAt indicates when the analysisRun completed
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time completedAt = 7;
 }
 
 // AnalysisRunStrategy configuration for the analysis runs and experiments to retain
@@ -195,6 +202,16 @@ message AnalysisTemplateList {
   repeated AnalysisTemplate items = 2;
 }
 
+message AnalysisTemplateRef {
+  // TemplateName name of template to use in AnalysisRun
+  // +optional
+  optional string templateName = 1;
+
+  // Whether to look for the templateName at cluster scope or namespace scope
+  // +optional
+  optional bool clusterScope = 2;
+}
+
 // AnalysisTemplateSpec is the specification for a AnalysisTemplate resource
 message AnalysisTemplateSpec {
   // Metrics contains the list of metrics to query as part of an analysis run
@@ -219,6 +236,11 @@ message AnalysisTemplateSpec {
   // +patchStrategy=merge
   // +optional
   repeated MeasurementRetention measurementRetention = 4;
+
+  // Templates reference to a list of analysis templates to combine with the rest of the metrics for an AnalysisRun
+  // +patchMergeKey=templateName
+  // +patchStrategy=merge
+  repeated AnalysisTemplateRef templates = 5;
 }
 
 // AntiAffinity defines which inter-pod scheduling rule to use for anti-affinity injection
@@ -770,6 +792,10 @@ message ExperimentSpec {
   // +patchStrategy=merge
   // +optional
   repeated MeasurementRetention measurementRetention = 8;
+
+  // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+  // +optional
+  optional AnalysisRunMetadata analysisRunMetadata = 9;
 }
 
 // ExperimentStatus is the status for a Experiment resource
@@ -1217,7 +1243,7 @@ message RolloutAnalysis {
   // Templates reference to a list of analysis templates to combine for an AnalysisRun
   // +patchMergeKey=templateName
   // +patchStrategy=merge
-  repeated RolloutAnalysisTemplate templates = 1;
+  repeated AnalysisTemplateRef templates = 1;
 
   // Args the arguments that will be added to the AnalysisRuns
   // +patchMergeKey=name
@@ -1258,16 +1284,6 @@ message RolloutAnalysisRunStatus {
   optional string message = 3;
 }
 
-message RolloutAnalysisTemplate {
-  // TemplateName name of template to use in AnalysisRun
-  // +optional
-  optional string templateName = 1;
-
-  // Whether to look for the templateName at cluster scope or namespace scope
-  // +optional
-  optional bool clusterScope = 2;
-}
-
 // RolloutCondition describes the state of a rollout at a certain point.
 message RolloutCondition {
   // Type of deployment condition.
@@ -1304,6 +1320,16 @@ message RolloutExperimentStep {
   // +patchMergeKey=name
   // +patchStrategy=merge
   repeated RolloutExperimentStepAnalysisTemplateRef analyses = 3;
+
+  // DryRun object contains the settings for running the analysis in Dry-Run mode
+  // +patchMergeKey=metricName
+  // +patchStrategy=merge
+  // +optional
+  repeated DryRun dryRun = 4;
+
+  // AnalysisRunMetadata labels and annotations that will be added to the AnalysisRuns
+  // +optional
+  optional AnalysisRunMetadata analysisRunMetadata = 5;
 }
 
 message RolloutExperimentStepAnalysisTemplateRef {
@@ -1585,6 +1611,9 @@ message RolloutTrafficRouting {
   // +kubebuilder:validation:Type=object
   // Plugins holds specific configuration that traffic router plugins can use for routing traffic
   map<string, bytes> plugins = 10;
+
+  // MaxTrafficWeight The total weight of traffic. If unspecified, it defaults to 100
+  optional int32 maxTrafficWeight = 11;
 }
 
 message RouteMatch {
@@ -1739,6 +1768,18 @@ message TLSRoute {
 
   // A list of all the SNI Hosts of the TLS Route desired to be matched in the given Istio VirtualService.
   repeated string sniHosts = 2;
+}
+
+// TTLStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed
+message TTLStrategy {
+  // SecondsAfterCompletion is the number of seconds to live after completion.
+  optional int32 secondsAfterCompletion = 1;
+
+  // SecondsAfterFailure is the number of seconds to live after failure.
+  optional int32 secondsAfterFailure = 2;
+
+  // SecondsAfterSuccess is the number of seconds to live after success.
+  optional int32 secondsAfterSuccess = 3;
 }
 
 message TemplateService {

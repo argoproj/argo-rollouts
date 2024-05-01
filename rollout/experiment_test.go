@@ -76,7 +76,7 @@ func TestRolloutCreateClusterTemplateExperiment(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
-	cat := clusterAnalysisTemplate("bar")
+	cat := clusterAnalysisTemplate("bar", "cluster-example")
 	steps := []v1alpha1.CanaryStep{{
 		Experiment: &v1alpha1.RolloutExperimentStep{
 			Templates: []v1alpha1.RolloutExperimentTemplate{{
@@ -906,4 +906,78 @@ func TestRolloutCreateWeightlessExperimentWithService(t *testing.T) {
 
 	assert.Equal(t, "canary-weightless-template", ex.Spec.Templates[1].Name)
 	assert.Nil(t, ex.Spec.Templates[1].Service)
+}
+
+// The Dry run and metadata should be forwarded from the rollout spec to the experiment spec
+func TestRolloutCreateExperimentWithDryRunAndMetadata(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	at := analysisTemplate("bar")
+	steps := []v1alpha1.CanaryStep{{
+		Experiment: &v1alpha1.RolloutExperimentStep{
+			Templates: []v1alpha1.RolloutExperimentTemplate{{
+				Name:     "stable-template",
+				SpecRef:  v1alpha1.StableSpecRef,
+				Replicas: pointer.Int32(1),
+			}},
+			Analyses: []v1alpha1.RolloutExperimentStepAnalysisTemplateRef{{
+				Name:         "test",
+				TemplateName: at.Name,
+			}},
+			AnalysisRunMetadata: v1alpha1.AnalysisRunMetadata{
+				Labels: map[string]string{
+					"foo":  "bar",
+					"foo2": "bar2",
+				},
+				Annotations: map[string]string{
+					"bar":  "foo",
+					"bar2": "foo2",
+				},
+			},
+			DryRun: []v1alpha1.DryRun{
+				{
+					MetricName: "someMetric",
+				},
+				{
+					MetricName: "someOtherMetric",
+				},
+			},
+		},
+	}}
+
+	r1 := newCanaryRollout("foo", 1, nil, steps, pointer.Int32Ptr(0), intstr.FromInt(0), intstr.FromInt(1))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 1, 1)
+	rs2 := newReplicaSetWithStatus(r2, 0, 0)
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+	rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
+
+	ex, _ := GetExperimentFromTemplate(r2, rs1, rs2)
+	r2 = updateCanaryRolloutStatus(r2, rs1PodHash, 1, 0, 1, false)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	createExIndex := f.expectCreateExperimentAction(ex)
+	f.expectPatchRolloutAction(r1)
+
+	f.run(getKey(r2, t))
+	createdEx := f.getCreatedExperiment(createExIndex)
+	assert.Equal(t, createdEx.Name, ex.Name)
+	assert.Equal(t, createdEx.Spec.Analyses[0].TemplateName, at.Name)
+	assert.Equal(t, createdEx.Spec.Analyses[0].Name, "test")
+
+	assert.Len(t, createdEx.Spec.AnalysisRunMetadata.Labels, 2)
+	assert.Equal(t, createdEx.Spec.AnalysisRunMetadata.Labels["foo"], "bar")
+	assert.Equal(t, createdEx.Spec.AnalysisRunMetadata.Labels["foo2"], "bar2")
+	assert.Len(t, createdEx.Spec.AnalysisRunMetadata.Annotations, 2)
+	assert.Equal(t, createdEx.Spec.AnalysisRunMetadata.Annotations["bar"], "foo")
+	assert.Equal(t, createdEx.Spec.AnalysisRunMetadata.Annotations["bar2"], "foo2")
+
+	assert.Len(t, createdEx.Spec.DryRun, 2)
+	assert.Equal(t, createdEx.Spec.DryRun[0].MetricName, "someMetric")
+	assert.Equal(t, createdEx.Spec.DryRun[1].MetricName, "someOtherMetric")
 }

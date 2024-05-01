@@ -56,7 +56,7 @@ type AnalysisTemplateSpec struct {
 	// Metrics contains the list of metrics to query as part of an analysis run
 	// +patchMergeKey=name
 	// +patchStrategy=merge
-	Metrics []Metric `json:"metrics" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,1,rep,name=metrics"`
+	Metrics []Metric `json:"metrics,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,1,rep,name=metrics"`
 	// Args are the list of arguments to the template
 	// +patchMergeKey=name
 	// +patchStrategy=merge
@@ -72,6 +72,10 @@ type AnalysisTemplateSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,4,rep,name=measurementRetention"`
+	// Templates reference to a list of analysis templates to combine with the rest of the metrics for an AnalysisRun
+	// +patchMergeKey=templateName
+	// +patchStrategy=merge
+	Templates []AnalysisTemplateRef `json:"templates,omitempty" patchStrategy:"merge" patchMergeKey:"templateName" protobuf:"bytes,5,rep,name=templates"`
 }
 
 // DurationString is a string representing a duration (e.g. 30s, 5m, 1h)
@@ -132,6 +136,16 @@ type MeasurementRetention struct {
 	MetricName string `json:"metricName" protobuf:"bytes,1,opt,name=metricName"`
 	// Limit is the maximum number of measurements to be retained for this given metric.
 	Limit int32 `json:"limit" protobuf:"varint,2,opt,name=limit"`
+}
+
+// TTLStrategy defines the strategy for the time to live depending on if the analysis succeeded or failed
+type TTLStrategy struct {
+	// SecondsAfterCompletion is the number of seconds to live after completion.
+	SecondsAfterCompletion *int32 `json:"secondsAfterCompletion,omitempty" protobuf:"varint,1,opt,name=secondsAfterCompletion"`
+	// SecondsAfterFailure is the number of seconds to live after failure.
+	SecondsAfterFailure *int32 `json:"secondsAfterFailure,omitempty" protobuf:"varint,2,opt,name=secondsAfterFailure"`
+	// SecondsAfterSuccess is the number of seconds to live after success.
+	SecondsAfterSuccess *int32 `json:"secondsAfterSuccess,omitempty" protobuf:"varint,3,opt,name=secondsAfterSuccess"`
 }
 
 // EffectiveCount is the effective count based on whether or not count/interval is specified
@@ -378,6 +392,9 @@ type AnalysisRunSpec struct {
 	// +patchStrategy=merge
 	// +optional
 	MeasurementRetention []MeasurementRetention `json:"measurementRetention,omitempty" patchStrategy:"merge" patchMergeKey:"metricName" protobuf:"bytes,5,rep,name=measurementRetention"`
+	// TTLStrategy object contains the strategy for the time to live depending on if the analysis succeeded or failed
+	// +optional
+	TTLStrategy *TTLStrategy `json:"ttlStrategy,omitempty" protobuf:"bytes,6,opt,name=ttlStrategy"`
 }
 
 // Argument is an argument to an AnalysisRun
@@ -423,6 +440,8 @@ type AnalysisRunStatus struct {
 	RunSummary RunSummary `json:"runSummary,omitempty" protobuf:"bytes,5,opt,name=runSummary"`
 	// DryRunSummary contains the final results from the metric executions in the dry-run mode
 	DryRunSummary *RunSummary `json:"dryRunSummary,omitempty" protobuf:"bytes,6,opt,name=dryRunSummary"`
+	// CompletedAt indicates when the analysisRun completed
+	CompletedAt *metav1.Time `json:"completedAt,omitempty" protobuf:"bytes,7,opt,name=completedAt"`
 }
 
 // RunSummary contains the final results from the metric executions

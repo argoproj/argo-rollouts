@@ -313,7 +313,7 @@ func (c *rolloutContext) reconcilePostPromotionAnalysisRun() (*v1alpha1.Analysis
 
 func (c *rolloutContext) reconcileBackgroundAnalysisRun() (*v1alpha1.AnalysisRun, error) {
 	currentAr := c.currentArs.CanaryBackground
-	if c.rollout.Spec.Strategy.Canary.Analysis == nil {
+	if c.rollout.Spec.Strategy.Canary.Analysis == nil || len(c.rollout.Spec.Strategy.Canary.Analysis.Templates) == 0 {
 		err := c.cancelAnalysisRuns([]*v1alpha1.AnalysisRun{currentAr})
 		return nil, err
 	}
@@ -431,51 +431,79 @@ func (c *rolloutContext) newAnalysisRunFromRollout(rolloutAnalysis *v1alpha1.Rol
 	name := strings.Join(nameParts, "-")
 	var run *v1alpha1.AnalysisRun
 	var err error
+	templates, clusterTemplates, err := c.getAnalysisTemplatesFromRefs(&rolloutAnalysis.Templates)
+	if err != nil {
+		return nil, err
+	}
+	runLabels := labels
+	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
+		runLabels[k] = v
+	}
+
+	for k, v := range c.rollout.Spec.Selector.MatchLabels {
+		runLabels[k] = v
+	}
+
+	runAnnotations := map[string]string{
+		annotations.RevisionAnnotation: revision,
+	}
+	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
+		runAnnotations[k] = v
+	}
+	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention,
+		runLabels, runAnnotations, name, "", c.rollout.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(c.rollout, controllerKind)}
+	return run, nil
+}
+
+func (c *rolloutContext) getAnalysisTemplatesFromRefs(templateRefs *[]v1alpha1.AnalysisTemplateRef) ([]*v1alpha1.AnalysisTemplate, []*v1alpha1.ClusterAnalysisTemplate, error) {
 	templates := make([]*v1alpha1.AnalysisTemplate, 0)
 	clusterTemplates := make([]*v1alpha1.ClusterAnalysisTemplate, 0)
-	for _, templateRef := range rolloutAnalysis.Templates {
+	for _, templateRef := range *templateRefs {
 		if templateRef.ClusterScope {
 			template, err := c.clusterAnalysisTemplateLister.Get(templateRef.TemplateName)
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
 					c.log.Warnf("ClusterAnalysisTemplate '%s' not found", templateRef.TemplateName)
 				}
-				return nil, err
+				return nil, nil, err
 			}
 			clusterTemplates = append(clusterTemplates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerTemplates, innerClusterTemplates, innerErr := c.getAnalysisTemplatesFromRefs(&template.Spec.Templates)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
 		} else {
 			template, err := c.analysisTemplateLister.AnalysisTemplates(c.rollout.Namespace).Get(templateRef.TemplateName)
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
 					c.log.Warnf("AnalysisTemplate '%s' not found", templateRef.TemplateName)
 				}
-				return nil, err
+				return nil, nil, err
 			}
 			templates = append(templates, template)
+			// Look for nested templates
+			if template.Spec.Templates != nil {
+				innerTemplates, innerClusterTemplates, innerErr := c.getAnalysisTemplatesFromRefs(&template.Spec.Templates)
+				if innerErr != nil {
+					return nil, nil, innerErr
+				}
+				clusterTemplates = append(clusterTemplates, innerClusterTemplates...)
+				templates = append(templates, innerTemplates...)
+			}
 		}
 
 	}
-	run, err = analysisutil.NewAnalysisRunFromTemplates(templates, clusterTemplates, args, rolloutAnalysis.DryRun, rolloutAnalysis.MeasurementRetention, name, "", c.rollout.Namespace)
-	if err != nil {
-		return nil, err
-	}
-	run.Labels = labels
-	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Labels {
-		run.Labels[k] = v
-	}
-
-	for k, v := range c.rollout.Spec.Selector.MatchLabels {
-		run.Labels[k] = v
-	}
-
-	run.Annotations = map[string]string{
-		annotations.RevisionAnnotation: revision,
-	}
-	for k, v := range rolloutAnalysis.AnalysisRunMetadata.Annotations {
-		run.Annotations[k] = v
-	}
-	run.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(c.rollout, controllerKind)}
-	return run, nil
+	uniqueTemplates, uniqueClusterTemplates := analysisutil.FilterUniqueTemplates(templates, clusterTemplates)
+	return uniqueTemplates, uniqueClusterTemplates, nil
 }
 
 func (c *rolloutContext) deleteAnalysisRuns(ars []*v1alpha1.AnalysisRun) error {

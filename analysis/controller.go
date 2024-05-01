@@ -6,6 +6,10 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/metric"
+	jobProvider "github.com/argoproj/argo-rollouts/metricproviders/job"
+	"github.com/aws/smithy-go/ptr"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	unstructuredutil "github.com/argoproj/argo-rollouts/utils/unstructured"
 
@@ -29,6 +33,10 @@ import (
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
 	"github.com/argoproj/argo-rollouts/utils/record"
 	timeutil "github.com/argoproj/argo-rollouts/utils/time"
+)
+
+var (
+	analysisRunGVK = v1alpha1.SchemeGroupVersion.WithKind("AnalysisRun")
 )
 
 // Controller is the controller implementation for Analysis resources
@@ -106,13 +114,13 @@ func NewController(cfg ControllerConfig) *Controller {
 
 	cfg.JobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
-			controller.enqueueIfCompleted(obj)
+			controller.enqueueJobIfCompleted(obj)
 		},
 		UpdateFunc: func(oldObj, newObj any) {
-			controller.enqueueIfCompleted(newObj)
+			controller.enqueueJobIfCompleted(newObj)
 		},
 		DeleteFunc: func(obj any) {
-			controller.enqueueIfCompleted(obj)
+			controller.enqueueJobIfCompleted(obj)
 		},
 	})
 
@@ -186,7 +194,35 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 	return c.persistAnalysisRunStatus(run, newRun.Status)
 }
 
-func (c *Controller) enqueueIfCompleted(obj any) {
+func (c *Controller) jobParentReference(obj any) (*v1.OwnerReference, string) {
+	job, ok := obj.(*batchv1.Job)
+	if !ok {
+		return nil, ""
+	}
+	// if it has owner reference, return it as is
+	ownerRef := v1.GetControllerOf(job)
+	// else if it's missing owner reference check if analysis run uid is set and
+	// if it is there use labels/annotations to create owner reference
+	if ownerRef == nil && job.Labels[jobProvider.AnalysisRunUIDLabelKey] != "" {
+		ownerRef = &v1.OwnerReference{
+			APIVersion:         analysisRunGVK.GroupVersion().String(),
+			Kind:               analysisRunGVK.Kind,
+			Name:               job.Annotations[jobProvider.AnalysisRunNameAnnotationKey],
+			UID:                types.UID(job.Labels[jobProvider.AnalysisRunUIDLabelKey]),
+			BlockOwnerDeletion: ptr.Bool(true),
+			Controller:         ptr.Bool(true),
+		}
+	}
+	ns := job.GetNamespace()
+	if job.Annotations != nil {
+		if job.Annotations[jobProvider.AnalysisRunNamespaceAnnotationKey] != "" {
+			ns = job.Annotations[jobProvider.AnalysisRunNamespaceAnnotationKey]
+		}
+	}
+	return ownerRef, ns
+}
+
+func (c *Controller) enqueueJobIfCompleted(obj any) {
 	job, ok := obj.(*batchv1.Job)
 	if !ok {
 		return
@@ -194,7 +230,7 @@ func (c *Controller) enqueueIfCompleted(obj any) {
 	for _, condition := range job.Status.Conditions {
 		switch condition.Type {
 		case batchv1.JobFailed, batchv1.JobComplete:
-			controllerutil.EnqueueParentObject(job, register.AnalysisRunKind, c.enqueueAnalysis)
+			controllerutil.EnqueueParentObject(job, register.AnalysisRunKind, c.enqueueAnalysis, c.jobParentReference)
 			return
 		}
 	}

@@ -163,6 +163,87 @@ type Manager struct {
 	notificationSecretInformerFactory    kubeinformers.SharedInformerFactory
 	jobInformerFactory                   kubeinformers.SharedInformerFactory
 	istioPrimaryDynamicClient            dynamic.Interface
+
+	onlyAnalysisMode bool
+}
+
+func NewAnalysisManager(
+	namespace string,
+	kubeclientset kubernetes.Interface,
+	argoprojclientset clientset.Interface,
+	jobInformer batchinformers.JobInformer,
+	analysisRunInformer informers.AnalysisRunInformer,
+	analysisTemplateInformer informers.AnalysisTemplateInformer,
+	clusterAnalysisTemplateInformer informers.ClusterAnalysisTemplateInformer,
+	resyncPeriod time.Duration,
+	metricsPort int,
+	healthzPort int,
+	k8sRequestProvider *metrics.K8sRequestsCountProvider,
+	dynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	clusterDynamicInformerFactory dynamicinformer.DynamicSharedInformerFactory,
+	namespaced bool,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	jobInformerFactory kubeinformers.SharedInformerFactory,
+) *Manager {
+	runtime.Must(rolloutscheme.AddToScheme(scheme.Scheme))
+	log.Info("Creating event broadcaster")
+
+	metricsAddr := fmt.Sprintf(listenAddr, metricsPort)
+	metricsServer := metrics.NewMetricsServer(metrics.ServerConfig{
+		Addr:                          metricsAddr,
+		RolloutLister:                 nil,
+		AnalysisRunLister:             analysisRunInformer.Lister(),
+		AnalysisTemplateLister:        analysisTemplateInformer.Lister(),
+		ClusterAnalysisTemplateLister: clusterAnalysisTemplateInformer.Lister(),
+		ExperimentLister:              nil,
+		K8SRequestProvider:            k8sRequestProvider,
+	})
+
+	healthzServer := NewHealthzServer(fmt.Sprintf(listenAddr, healthzPort))
+	analysisRunWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "AnalysisRuns")
+	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, nil)
+	analysisController := analysis.NewController(analysis.ControllerConfig{
+		KubeClientSet:        kubeclientset,
+		ArgoProjClientset:    argoprojclientset,
+		AnalysisRunInformer:  analysisRunInformer,
+		JobInformer:          jobInformer,
+		ResyncPeriod:         resyncPeriod,
+		AnalysisRunWorkQueue: analysisRunWorkqueue,
+		MetricsServer:        metricsServer,
+		Recorder:             recorder,
+	})
+
+	cm := &Manager{
+		wg:                            &sync.WaitGroup{},
+		metricsServer:                 metricsServer,
+		healthzServer:                 healthzServer,
+		jobSynced:                     jobInformer.Informer().HasSynced,
+		analysisRunSynced:             analysisRunInformer.Informer().HasSynced,
+		analysisTemplateSynced:        analysisTemplateInformer.Informer().HasSynced,
+		clusterAnalysisTemplateSynced: clusterAnalysisTemplateInformer.Informer().HasSynced,
+		analysisRunWorkqueue:          analysisRunWorkqueue,
+		analysisController:            analysisController,
+		namespace:                     namespace,
+		kubeClientSet:                 kubeclientset,
+		dynamicInformerFactory:        dynamicInformerFactory,
+		clusterDynamicInformerFactory: clusterDynamicInformerFactory,
+		namespaced:                    namespaced,
+		kubeInformerFactory:           kubeInformerFactory,
+		jobInformerFactory:            jobInformerFactory,
+		onlyAnalysisMode:              true,
+	}
+
+	_, err := rolloutsConfig.InitializeConfig(kubeclientset, defaults.DefaultRolloutsConfigMapName)
+	if err != nil {
+		log.Fatalf("Failed to init config: %v", err)
+	}
+
+	err = plugin.DownloadPlugins(plugin.FileDownloaderImpl{})
+	if err != nil {
+		log.Fatalf("Failed to download plugins: %v", err)
+	}
+
+	return cm
 }
 
 // NewManager returns a new manager to manage all the controllers
@@ -223,7 +304,7 @@ func NewManager(
 	ingressWorkqueue := workqueue.NewNamedRateLimitingQueue(queue.DefaultArgoRolloutsRateLimiter(), "Ingresses")
 
 	refResolver := rollout.NewInformerBasedWorkloadRefResolver(namespace, dynamicclientset, discoveryClient, argoprojclientset, rolloutsInformer.Informer())
-	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(), defaults.Namespace(), notificationSecretInformerFactory.Core().V1().Secrets().Informer(), notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer())
+	apiFactory := notificationapi.NewFactory(record.NewAPIFactorySettings(analysisRunInformer), defaults.Namespace(), notificationSecretInformerFactory.Core().V1().Secrets().Informer(), notificationConfigMapInformerFactory.Core().V1().ConfigMaps().Informer())
 	recorder := record.NewEventRecorder(kubeclientset, metrics.MetricRolloutEventsTotal, metrics.MetricNotificationFailedTotal, metrics.MetricNotificationSuccessTotal, metrics.MetricNotificationSend, apiFactory)
 	notificationsController := notificationcontroller.NewControllerWithNamespaceSupport(dynamicclientset.Resource(v1alpha1.RolloutGVR), rolloutsInformer.Informer(), apiFactory,
 		notificationcontroller.WithToUnstructured(func(obj metav1.Object) (*unstructured.Unstructured, error) {
@@ -441,11 +522,13 @@ func (c *Manager) Run(ctx context.Context, rolloutThreadiness, serviceThreadines
 	log.Info("Shutting down workers")
 	goPlugin.CleanupClients()
 
-	c.serviceWorkqueue.ShutDownWithDrain()
-	c.ingressWorkqueue.ShutDownWithDrain()
-	c.rolloutWorkqueue.ShutDownWithDrain()
-	c.experimentWorkqueue.ShutDownWithDrain()
-	c.analysisRunWorkqueue.ShutDownWithDrain()
+	if !c.onlyAnalysisMode {
+		c.serviceWorkqueue.ShutDownWithDrain()
+		c.ingressWorkqueue.ShutDownWithDrain()
+		c.rolloutWorkqueue.ShutDownWithDrain()
+		c.experimentWorkqueue.ShutDownWithDrain()
+	}
+
 	c.analysisRunWorkqueue.ShutDownWithDrain()
 
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second) // give max of 10 seconds for http servers to shut down
@@ -463,12 +546,6 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 	// Start the informer factories to begin populating the informer caches
 	log.Info("Starting Controllers")
 
-	c.notificationConfigMapInformerFactory.Start(ctx.Done())
-	c.notificationSecretInformerFactory.Start(ctx.Done())
-	if ok := cache.WaitForCacheSync(ctx.Done(), c.configMapSynced, c.secretSynced); !ok {
-		log.Fatalf("failed to wait for configmap/secret caches to sync, exiting")
-	}
-
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 	c.dynamicInformerFactory.Start(ctx.Done())
@@ -479,29 +556,50 @@ func (c *Manager) startLeading(ctx context.Context, rolloutThreadiness, serviceT
 
 	c.jobInformerFactory.Start(ctx.Done())
 
-	// Check if Istio installed on cluster before starting dynamicInformerFactory
-	if istioutil.DoesIstioExist(c.istioPrimaryDynamicClient, c.namespace) {
-		c.istioDynamicInformerFactory.Start(ctx.Done())
-	}
-
-	// Wait for the caches to be synced before starting workers
-	log.Info("Waiting for controller's informer caches to sync")
-	if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
-		log.Fatalf("failed to wait for caches to sync, exiting")
-	}
-	// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
-	if c.namespace == metav1.NamespaceAll {
-		if ok := cache.WaitForCacheSync(ctx.Done(), c.clusterAnalysisTemplateSynced); !ok {
-			log.Fatalf("failed to wait for cluster-scoped caches to sync, exiting")
+	if c.onlyAnalysisMode {
+		log.Info("Waiting for controller's informer caches to sync")
+		if ok := cache.WaitForCacheSync(ctx.Done(), c.analysisRunSynced, c.analysisTemplateSynced, c.jobSynced); !ok {
+			log.Fatalf("failed to wait for caches to sync, exiting")
 		}
+		// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
+		if c.namespace == metav1.NamespaceAll {
+			if ok := cache.WaitForCacheSync(ctx.Done(), c.clusterAnalysisTemplateSynced); !ok {
+				log.Fatalf("failed to wait for cluster-scoped caches to sync, exiting")
+			}
+		}
+		go wait.Until(func() { c.wg.Add(1); c.analysisController.Run(ctx, analysisThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+	} else {
+
+		c.notificationConfigMapInformerFactory.Start(ctx.Done())
+		c.notificationSecretInformerFactory.Start(ctx.Done())
+		if ok := cache.WaitForCacheSync(ctx.Done(), c.configMapSynced, c.secretSynced); !ok {
+			log.Fatalf("failed to wait for configmap/secret caches to sync, exiting")
+		}
+
+		// Check if Istio installed on cluster before starting dynamicInformerFactory
+		if istioutil.DoesIstioExist(c.istioPrimaryDynamicClient, c.namespace) {
+			c.istioDynamicInformerFactory.Start(ctx.Done())
+		}
+
+		// Wait for the caches to be synced before starting workers
+		log.Info("Waiting for controller's informer caches to sync")
+		if ok := cache.WaitForCacheSync(ctx.Done(), c.serviceSynced, c.ingressSynced, c.jobSynced, c.rolloutSynced, c.experimentSynced, c.analysisRunSynced, c.analysisTemplateSynced, c.replicasSetSynced, c.configMapSynced, c.secretSynced); !ok {
+			log.Fatalf("failed to wait for caches to sync, exiting")
+		}
+		// only wait for cluster scoped informers to sync if we are running in cluster-wide mode
+		if c.namespace == metav1.NamespaceAll {
+			if ok := cache.WaitForCacheSync(ctx.Done(), c.clusterAnalysisTemplateSynced); !ok {
+				log.Fatalf("failed to wait for cluster-scoped caches to sync, exiting")
+			}
+		}
+
+		go wait.Until(func() { c.wg.Add(1); c.rolloutController.Run(ctx, rolloutThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+		go wait.Until(func() { c.wg.Add(1); c.serviceController.Run(ctx, serviceThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+		go wait.Until(func() { c.wg.Add(1); c.ingressController.Run(ctx, ingressThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+		go wait.Until(func() { c.wg.Add(1); c.experimentController.Run(ctx, experimentThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+		go wait.Until(func() { c.wg.Add(1); c.analysisController.Run(ctx, analysisThreadiness); c.wg.Done() }, time.Second, ctx.Done())
+		go wait.Until(func() { c.wg.Add(1); c.notificationsController.Run(rolloutThreadiness, ctx.Done()); c.wg.Done() }, time.Second, ctx.Done())
+
 	}
-
-	go wait.Until(func() { c.wg.Add(1); c.rolloutController.Run(ctx, rolloutThreadiness); c.wg.Done() }, time.Second, ctx.Done())
-	go wait.Until(func() { c.wg.Add(1); c.serviceController.Run(ctx, serviceThreadiness); c.wg.Done() }, time.Second, ctx.Done())
-	go wait.Until(func() { c.wg.Add(1); c.ingressController.Run(ctx, ingressThreadiness); c.wg.Done() }, time.Second, ctx.Done())
-	go wait.Until(func() { c.wg.Add(1); c.experimentController.Run(ctx, experimentThreadiness); c.wg.Done() }, time.Second, ctx.Done())
-	go wait.Until(func() { c.wg.Add(1); c.analysisController.Run(ctx, analysisThreadiness); c.wg.Done() }, time.Second, ctx.Done())
-	go wait.Until(func() { c.wg.Add(1); c.notificationsController.Run(rolloutThreadiness, ctx.Done()); c.wg.Done() }, time.Second, ctx.Done())
-
 	log.Info("Started controller")
 }

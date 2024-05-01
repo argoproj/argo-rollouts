@@ -15,7 +15,7 @@ permissions:
 jobs:
   deploy:
     permissions:
-      contents: write  # for peaceiris/actions-gh-pages to push pages branch
+      contents: write # for peaceiris/actions-gh-pages to push pages branch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,14 +26,14 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5.0.0
         with:
-          go-version: '1.20'
+          go-version: '1.22'
       - name: build
         run: |
           pip install mkdocs mkdocs_material
           make docs
           mkdocs build
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site

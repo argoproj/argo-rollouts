@@ -358,6 +358,184 @@ templates together. The controller combines the `metrics` and `args` fields of a
     * Multiple metrics in the templates have the same name
     * Two arguments with the same name have different default values no matter the argument value in Rollout
 
+## Analysis Template referencing other Analysis Templates
+
+AnalysisTemplates and ClusterAnalysisTemplates may reference other templates.
+
+They can be combined with other metrics:
+
+=== "AnalysisTemplate"
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: error-rate
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: error-rate
+        interval: 5m
+        successCondition: result[0] <= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ---
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: rates
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: success-rate
+        interval: 5m
+        successCondition: result[0] >= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+      templates:
+      - templateName: error-rate
+        clusterScope: false
+    ```
+
+Or without additional metrics:
+
+=== "AnalysisTemplate"
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: success-rate
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: success-rate
+        interval: 5m
+        successCondition: result[0] >= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ---
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: error-rate
+    spec:
+      args:
+      - name: service-name
+      metrics:
+      - name: error-rate
+        interval: 5m
+        successCondition: result[0] <= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ---
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisTemplate
+    metadata:
+      name: rates
+    spec:
+      args:
+      - name: service-name
+      templates:
+      - templateName: success-rate
+        clusterScope: false
+      - templateName: error-rate
+        clusterScope: false
+    ```
+
+The result in the AnalysisRun will have the aggregation of metrics of each template:
+
+=== "AnalysisRun"
+
+    ```yaml
+    # NOTE: Generated AnalysisRun from a single template referencing several templates
+    apiVersion: argoproj.io/v1alpha1
+    kind: AnalysisRun
+    metadata:
+      name: guestbook-CurrentPodHash-templates-in-template
+    spec:
+      args:
+      - name: service-name
+        value: guestbook-svc.default.svc.cluster.local
+      metrics:
+      - name: success-rate
+        interval: 5m
+        successCondition: result[0] >= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code!~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+      - name: error-rate
+        interval: 5m
+        successCondition: result[0] <= 0.95
+        failureLimit: 3
+        provider:
+          prometheus:
+            address: http://prometheus.example.com:9090
+            query: |
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}",response_code=~"5.*"}[5m]
+              )) /
+              sum(irate(
+                istio_requests_total{reporter="source",destination_service=~"{{args.service-name}}"}[5m]
+              ))
+    ```
+
+!!! note
+    The same limitations as for the multiple templates feature apply.
+    The controller will error when merging the templates if:
+
+    * Multiple metrics in the templates have the same name
+    * Two arguments with the same name have different default values no matter the argument value in Rollout
+
+    However, if the same AnalysisTemplate is referenced several times along the chain of references, the controller will only keep it once and discard the other references.
+
 ## Analysis Template Arguments
 
 AnalysisTemplates may declare a set of arguments that can be passed by Rollouts. The args can then be used as in metrics configuration and are resolved at the time the AnalysisRun is created. Argument placeholders are defined as
@@ -852,6 +1030,24 @@ spec:
   measurementRetention:
   - metricName: test.*
     limit: 20
+```
+
+## Time-to-live (TTL) Strategy
+
+!!! important
+    Available since v1.7
+
+`ttlStrategy` limits the lifetime of an analysis run that has finished execution depending on if it Succeeded or Failed. If this struct is set, once the run finishes, it will be deleted after the time to live expires. If this field is unset, the analysis controller will keep the completed runs, unless they are associated with rollouts using other garbage collection policies (e.g. `successfulRunHistoryLimit` and `unsuccessfulRunHistoryLimit`).
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+spec:
+  ...
+  ttlStrategy:
+    secondsAfterCompletion: 3600
+    secondsAfterSuccess: 1800
+    secondsAfterFailure: 1800
 ```
 
 ## Inconclusive Runs

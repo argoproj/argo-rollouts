@@ -567,6 +567,19 @@ func isIndefiniteStep(r *v1alpha1.Rollout) bool {
 	return false
 }
 
+// isWaitingForReplicaSetScaleDown returns whether or not the rollout still has other replica sets with a scale down deadline annotation
+func isWaitingForReplicaSetScaleDown(r *v1alpha1.Rollout, newRS, stableRS *appsv1.ReplicaSet, allRSs []*appsv1.ReplicaSet) bool {
+	otherRSs := replicasetutil.GetOtherRSs(r, newRS, stableRS, allRSs)
+
+	for _, rs := range otherRSs {
+		if replicasetutil.HasScaleDownDeadline(rs) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutStatus) v1alpha1.RolloutStatus {
 	isPaused := len(c.rollout.Status.PauseConditions) > 0 || c.rollout.Spec.Paused
 	isAborted := c.pauseContext.IsAborted()
@@ -652,7 +665,8 @@ func (c *rolloutContext) calculateRolloutConditions(newStatus v1alpha1.RolloutSt
 				conditions.RemoveRolloutCondition(&newStatus, v1alpha1.RolloutProgressing)
 			}
 			conditions.SetRolloutCondition(&newStatus, *condition)
-		case !isIndefiniteStep(c.rollout) && conditions.RolloutTimedOut(c.rollout, &newStatus):
+		case !isIndefiniteStep(c.rollout) && !isWaitingForReplicaSetScaleDown(c.rollout, c.newRS, c.stableRS, c.allRSs) && conditions.RolloutTimedOut(c.rollout, &newStatus):
+
 			// Update the rollout with a timeout condition. If the condition already exists,
 			// we ignore this update.
 			msg := fmt.Sprintf(conditions.RolloutTimeOutMessage, c.rollout.Name)
