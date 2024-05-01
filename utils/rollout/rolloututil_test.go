@@ -389,6 +389,10 @@ func TestCanaryStepString(t *testing.T) {
 			step:           v1alpha1.CanaryStep{SetCanaryScale: &v1alpha1.SetCanaryScale{Replicas: pointer.Int32Ptr(5)}},
 			expectedString: "setCanaryScale{replicas: 5}",
 		},
+		{
+			step:           v1alpha1.CanaryStep{Plugin: &v1alpha1.PluginStep{Name: "foo"}},
+			expectedString: "plugin: foo",
+		},
 	}
 	for _, test := range tests {
 		assert.Equal(t, test.expectedString, CanaryStepString(test.step))

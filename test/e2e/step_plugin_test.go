@@ -316,12 +316,19 @@ func (s *StepPluginSuite) TestRolloutSkipPluginWhenDisabled() {
 		ExpectStableRevision("2").
 		Assert(func(t *fixtures.Then) {
 			rollout := t.GetRollout()
-			assert.EqualValues(s.T(), 1, len(rollout.Status.Canary.StepPluginStatuses))
+			assert.EqualValues(s.T(), 2, len(rollout.Status.Canary.StepPluginStatuses))
 
 			stepStatus := rollout.Status.Canary.StepPluginStatuses[0]
+			assert.EqualValues(s.T(), E2EStepPluginNameDisabled, stepStatus.Name)
+			assert.EqualValues(s.T(), 0, stepStatus.Index)
+			assert.EqualValues(s.T(), v1alpha1.StepPluginOperationRun, stepStatus.Operation)
+			assert.EqualValues(s.T(), true, stepStatus.Disabled)
+
+			stepStatus = rollout.Status.Canary.StepPluginStatuses[1]
 			assert.EqualValues(s.T(), E2EStepPluginName, stepStatus.Name)
 			assert.EqualValues(s.T(), 1, stepStatus.Index)
 			assert.EqualValues(s.T(), v1alpha1.StepPluginPhaseSuccessful, stepStatus.Phase)
 			assert.EqualValues(s.T(), v1alpha1.StepPluginOperationRun, stepStatus.Operation)
+			assert.EqualValues(s.T(), false, stepStatus.Disabled)
 		})
 }
