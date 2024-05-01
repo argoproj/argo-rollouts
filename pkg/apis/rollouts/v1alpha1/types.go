@@ -642,13 +642,13 @@ type CanaryStep struct {
 }
 
 type PluginStep struct {
-	// Name the name of the hashicorp go-plugin step to query
+	// Name of the hashicorp go-plugin step to query
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object
-	// Config the configuration object for the specified plugin
+	// Config is the configuration object for the specified plugin
 	Config json.RawMessage `json:"config,omitempty" protobuf:"bytes,2,opt,name=config"`
 }
 
@@ -998,7 +998,7 @@ type CanaryStatus struct {
 	Weights *TrafficWeights `json:"weights,omitempty" protobuf:"bytes,4,opt,name=weights"`
 	// StablePingPong For the ping-pong feature holds the current stable service, ping or pong
 	StablePingPong PingPongType `json:"stablePingPong,omitempty" protobuf:"bytes,5,opt,name=stablePingPong"`
-	// StepPluginStatuses Hold the status of the step plugins executed
+	// StepPluginStatuses holds the status of the step plugins executed
 	StepPluginStatuses []StepPluginStatus `json:"stepPluginStatuses,omitempty" protobuf:"bytes,6,rep,name=stepPluginStatuses"`
 }
 
@@ -1038,21 +1038,33 @@ type RolloutAnalysisRunStatus struct {
 }
 
 type StepPluginStatus struct {
-	Index      int32               `json:"index" protobuf:"bytes,1,name=index"`
-	Name       string              `json:"name" protobuf:"bytes,2,name=name"`
-	Operation  StepPluginOperation `json:"operation" protobuf:"bytes,3,name=operation,casttype=StepPluginOperation"`
-	Phase      StepPluginPhase     `json:"phase" protobuf:"bytes,4,name=phase,casttype=StepPluginPhase"`
-	Message    string              `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
-	StartedAt  *metav1.Time        `json:"startedAt,omitempty" protobuf:"bytes,6,name=startedAt"`
-	UpdatedAt  *metav1.Time        `json:"updatedAt,omitempty" protobuf:"bytes,7,opt,name=updatedAt"`
-	FinishedAt *metav1.Time        `json:"finishedAt,omitempty" protobuf:"bytes,8,opt,name=finishedAt"`
-	Backoff    DurationString      `json:"backoff,omitempty" protobuf:"bytes,9,opt,name=backoff,casttype=DurationString"`
-	Executions int32               `json:"executions,omitempty" protobuf:"varint,10,opt,name=executions"`
-	Disabled   bool                `json:"disabled,omitempty" protobuf:"bytes,11,opt,name=disabled"`
+	// Index is the matching step index of the executed plugin
+	Index int32 `json:"index" protobuf:"bytes,1,name=index"`
+	// Name is the matching step name of the executed plugin
+	Name string `json:"name" protobuf:"bytes,2,name=name"`
+	// Operation is the name of the operation that produced this status
+	Operation StepPluginOperation `json:"operation" protobuf:"bytes,3,name=operation,casttype=StepPluginOperation"`
+	// Phase is the resulting phase of the operation
+	Phase StepPluginPhase `json:"phase,omitempty" protobuf:"bytes,4,opt,name=phase,casttype=StepPluginPhase"`
+	// Message provides details on why the plugin is in its current phase
+	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+	// StartedAt indicates when the plugin was first called for the operation
+	StartedAt *metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,6,name=startedAt"`
+	// UpdatedAt indicates when the plugin was last called for the operation
+	UpdatedAt *metav1.Time `json:"updatedAt,omitempty" protobuf:"bytes,7,opt,name=updatedAt"`
+	// FinishedAt indicates when the operation was completed
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,8,opt,name=finishedAt"`
+	// Backoff is a duration to wait before trying to execute the operation again if it was not completed
+	Backoff DurationString `json:"backoff,omitempty" protobuf:"bytes,9,opt,name=backoff,casttype=DurationString"`
+	// Executions is the number of time the operation was executed
+	Executions int32 `json:"executions,omitempty" protobuf:"varint,10,opt,name=executions"`
+	// Disabled indicates if the plugin is globally disabled
+	Disabled bool `json:"disabled,omitempty" protobuf:"bytes,11,opt,name=disabled"`
 
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object
+	// Status holds the internal status of the plugin for this operation
 	Status json.RawMessage `json:"status,omitempty" protobuf:"bytes,12,opt,name=status"`
 }
 
@@ -1061,12 +1073,17 @@ type StepPluginPhase string
 
 // Possible StepPluginPhase values
 const (
-	StepPluginPhaseRunning    StepPluginPhase = "Running"
+	// StepPluginPhaseRunning is the phase of a step plugin when it has not completed its execution
+	StepPluginPhaseRunning StepPluginPhase = "Running"
+	// StepPluginPhaseSuccessful is the phase of a step plugin when the operation completed successfully
 	StepPluginPhaseSuccessful StepPluginPhase = "Successful"
-	StepPluginPhaseFailed     StepPluginPhase = "Failed"
-	StepPluginPhaseError      StepPluginPhase = "Error"
+	// StepPluginPhaseFailed is the phase of a step plugin when the operation completed unsuccessfully
+	StepPluginPhaseFailed StepPluginPhase = "Failed"
+	// StepPluginPhaseError is the phase of a step plugin when an unexpected error prevented the completion of the operation
+	StepPluginPhaseError StepPluginPhase = "Error"
 )
 
+// Validate that the object is a valid phase
 func (p StepPluginPhase) Validate() error {
 	switch p {
 	case StepPluginPhaseRunning:
@@ -1079,13 +1096,17 @@ func (p StepPluginPhase) Validate() error {
 	return nil
 }
 
+// StepPluginOperation is the operation executed by a step plugin
 type StepPluginOperation string
 
 // Possible StepPluginOperation values
 const (
-	StepPluginOperationRun       StepPluginOperation = "Run"
+	// StepPluginOperationRun is the value for the Run operation
+	StepPluginOperationRun StepPluginOperation = "Run"
+	// StepPluginOperationRun is the value for the Terminate operation
 	StepPluginOperationTerminate StepPluginOperation = "Terminate"
-	StepPluginOperationAbort     StepPluginOperation = "Abort"
+	// StepPluginOperationRun is the value for the Abort operation
+	StepPluginOperationAbort StepPluginOperation = "Abort"
 )
 
 type ALBStatus struct {

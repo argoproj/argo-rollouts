@@ -16254,7 +16254,6 @@ spec:
                       - index
                       - name
                       - operation
-                      - phase
                       type: object
                     type: array
                   weights:

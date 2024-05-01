@@ -984,7 +984,7 @@
           "items": {
             "$ref": "#/definitions/github.com.argoproj.argo_rollouts.pkg.apis.rollouts.v1alpha1.StepPluginStatus"
           },
-          "title": "StepPluginStatuses Hold the status of the step plugins executed"
+          "title": "StepPluginStatuses holds the status of the step plugins executed"
         }
       },
       "title": "CanaryStatus status fields that only pertain to the canary rollout"
@@ -1770,12 +1770,12 @@
       "properties": {
         "name": {
           "type": "string",
-          "title": "Name the name of the hashicorp go-plugin step to query"
+          "title": "Name of the hashicorp go-plugin step to query"
         },
         "config": {
           "type": "string",
           "format": "byte",
-          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nConfig the configuration object for the specified plugin"
+          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nConfig is the configuration object for the specified plugin"
         }
       }
     },
@@ -2529,43 +2529,54 @@
       "properties": {
         "index": {
           "type": "integer",
-          "format": "int32"
+          "format": "int32",
+          "title": "Index is the matching step index of the executed plugin"
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "title": "Name is the matching step name of the executed plugin"
         },
         "operation": {
-          "type": "string"
+          "type": "string",
+          "title": "Operation is the name of the operation that produced this status"
         },
         "phase": {
-          "type": "string"
+          "type": "string",
+          "title": "Phase is the resulting phase of the operation"
         },
         "message": {
-          "type": "string"
+          "type": "string",
+          "title": "Message provides details on why the plugin is in its current phase"
         },
         "startedAt": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "StartedAt indicates when the plugin was first called for the operation"
         },
         "updatedAt": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "UpdatedAt indicates when the plugin was last called for the operation"
         },
         "finishedAt": {
-          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time"
+          "$ref": "#/definitions/k8s.io.apimachinery.pkg.apis.meta.v1.Time",
+          "title": "FinishedAt indicates when the operation was completed"
         },
         "backoff": {
-          "type": "string"
+          "type": "string",
+          "title": "Backoff is a duration to wait before trying to execute the operation again if it was not completed"
         },
         "executions": {
           "type": "integer",
-          "format": "int32"
+          "format": "int32",
+          "title": "Executions is the number of time the operation was executed"
         },
         "disabled": {
-          "type": "boolean"
+          "type": "boolean",
+          "title": "Disabled indicates if the plugin is globally disabled"
         },
         "status": {
           "type": "string",
           "format": "byte",
-          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object"
+          "title": "+kubebuilder:validation:Schemaless\n+kubebuilder:pruning:PreserveUnknownFields\n+kubebuilder:validation:Type=object\nStatus holds the internal status of the plugin for this operation"
         }
       }
     },

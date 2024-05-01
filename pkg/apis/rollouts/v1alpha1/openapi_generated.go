@@ -1421,7 +1421,7 @@ func schema_pkg_apis_rollouts_v1alpha1_CanaryStatus(ref common.ReferenceCallback
 					},
 					"stepPluginStatuses": {
 						SchemaProps: spec.SchemaProps{
-							Description: "StepPluginStatuses Hold the status of the step plugins executed",
+							Description: "StepPluginStatuses holds the status of the step plugins executed",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -3539,7 +3539,7 @@ func schema_pkg_apis_rollouts_v1alpha1_PluginStep(ref common.ReferenceCallback) 
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name the name of the hashicorp go-plugin step to query",
+							Description: "Name of the hashicorp go-plugin step to query",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -3547,7 +3547,7 @@ func schema_pkg_apis_rollouts_v1alpha1_PluginStep(ref common.ReferenceCallback) 
 					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Config the configuration object for the specified plugin",
+							Description: "Config is the configuration object for the specified plugin",
 							Type:        []string{"string"},
 							Format:      "byte",
 						},
@@ -5184,75 +5184,87 @@ func schema_pkg_apis_rollouts_v1alpha1_StepPluginStatus(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"index": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int32",
+							Description: "Index is the matching step index of the executed plugin",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "Name is the matching step name of the executed plugin",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"operation": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "Operation is the name of the operation that produced this status",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"phase": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "Phase is the resulting phase of the operation",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"message": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Message provides details on why the plugin is in its current phase",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"startedAt": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+							Description: "StartedAt indicates when the plugin was first called for the operation",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"updatedAt": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+							Description: "UpdatedAt indicates when the plugin was last called for the operation",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"finishedAt": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+							Description: "FinishedAt indicates when the operation was completed",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"backoff": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Backoff is a duration to wait before trying to execute the operation again if it was not completed",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"executions": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Description: "Executions is the number of time the operation was executed",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 					"disabled": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
+							Description: "Disabled indicates if the plugin is globally disabled",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "byte",
+							Description: "Status holds the internal status of the plugin for this operation",
+							Type:        []string{"string"},
+							Format:      "byte",
 						},
 					},
 				},
