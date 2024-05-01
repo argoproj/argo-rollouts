@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -45,7 +46,45 @@ func newStepPluginStatus(operation v1alpha1.StepPluginOperation, phase v1alpha1.
 	return status
 }
 
-func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
+func Test_stepPluginContext_reconcile_ReconciliationError(t *testing.T) {
+	stepPluginResolver := mocks.NewResolver(t)
+	r := newStepPluginRollout()
+	logCtx := logutil.WithRollout(r)
+	roCtx := &rolloutContext{
+		rollout: r,
+		log:     logutil.WithRollout(r),
+		reconcilerBase: reconcilerBase{
+			enqueueRollout:      func(obj any) { t.Error("enqueueRollout should not be called") },
+			enqueueRolloutAfter: func(obj any, duration time.Duration) { t.Error("enqueueRolloutAfter should not be called") },
+			recorder:            record.NewFakeEventRecorder(),
+		},
+		pauseContext: &pauseContext{
+			rollout: r,
+			log:     logCtx,
+		},
+		stepPluginContext: &stepPluginContext{
+			resolver: stepPluginResolver,
+			log:      logCtx,
+		},
+	}
+
+	stepPluginResolver.On("Resolve", mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("test error"))
+
+	var requeuedAfter time.Duration
+	roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {
+		requeuedAfter = duration
+	}
+
+	err := roCtx.stepPluginContext.reconcile(roCtx)
+
+	require.NoError(t, err)
+	assert.Equal(t, roCtx.rollout.Status.Canary.StepPluginStatuses, roCtx.stepPluginContext.stepPluginStatuses)
+	assert.Equal(t, defaultControllerErrorBackoff, requeuedAfter)
+	assert.True(t, roCtx.stepPluginContext.hasError)
+
+}
+
+func Test_stepPluginContext_reconcile_SuccessfulReconciliation(t *testing.T) {
 	setup := func(t *testing.T) (*rolloutContext, *v1alpha1.StepPluginStatus) {
 		stepPluginResolver := mocks.NewResolver(t)
 		stepPluginMock := mocks.NewStepPlugin(t)
@@ -135,7 +174,7 @@ func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 	})
 }
 
-func Test_StepPlugin_RunningReconciliation(t *testing.T) {
+func Test_stepPluginContext_reconcile_RunningReconciliation(t *testing.T) {
 	setup := func(t *testing.T, phase v1alpha1.StepPluginPhase, backoff *time.Duration) (*rolloutContext, *v1alpha1.StepPluginStatus) {
 		stepPluginResolver := mocks.NewResolver(t)
 		stepPluginMock := mocks.NewStepPlugin(t)
@@ -214,7 +253,7 @@ func Test_StepPlugin_RunningReconciliation(t *testing.T) {
 	})
 }
 
-func Test_StepPlugin_FailedReconciliation(t *testing.T) {
+func Test_stepPluginContext_reconcile_FailedReconciliation(t *testing.T) {
 	setup := func(t *testing.T, phase v1alpha1.StepPluginPhase) (*rolloutContext, *v1alpha1.StepPluginStatus) {
 		stepPluginResolver := mocks.NewResolver(t)
 		stepPluginMock := mocks.NewStepPlugin(t)
@@ -284,7 +323,7 @@ func Test_StepPlugin_FailedReconciliation(t *testing.T) {
 	})
 }
 
-func Test_StepPlugin_FullyPromoted(t *testing.T) {
+func Test_stepPluginContext_reconcile_FullyPromoted(t *testing.T) {
 	newRolloutContext := func(t *testing.T) *rolloutContext {
 		r := newStepPluginRollout()
 
@@ -397,9 +436,39 @@ func Test_StepPlugin_FullyPromoted(t *testing.T) {
 		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 2)
 		assert.EqualExportedValues(t, roCtx.rollout.Status.Canary.StepPluginStatuses[1], roCtx.stepPluginContext.stepPluginStatuses[1])
 	})
+
+	t.Run("Reconciliation error", func(t *testing.T) {
+		roCtx, stepPluginMock := setup(t)
+		roCtx.rollout.Status.PromoteFull = true
+
+		runStatus := newStepPluginStatus(v1alpha1.StepPluginOperationTerminate, v1alpha1.StepPluginPhaseSuccessful)
+		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
+			{
+				Index:     runStatus.Index,
+				Name:      runStatus.Name,
+				Phase:     v1alpha1.StepPluginPhaseRunning,
+				Operation: v1alpha1.StepPluginOperationRun,
+			},
+		}
+
+		var requeuedAfter time.Duration
+		roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {
+			requeuedAfter = duration
+		}
+
+		stepPluginMock.On("Terminate", mock.Anything).Return(nil, fmt.Errorf("error"))
+
+		err := roCtx.stepPluginContext.reconcile(roCtx)
+
+		require.NoError(t, err)
+		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 1)
+		assert.Equal(t, roCtx.rollout.Status.Canary.StepPluginStatuses, roCtx.stepPluginContext.stepPluginStatuses)
+		assert.Equal(t, defaultControllerErrorBackoff, requeuedAfter)
+		assert.True(t, roCtx.stepPluginContext.hasError)
+	})
 }
 
-func Test_StepPlugin_Aborted(t *testing.T) {
+func Test_stepPluginContext_reconcile_Aborted(t *testing.T) {
 	setup := func(t *testing.T) (*rolloutContext, *mocks.Resolver) {
 		stepPluginResolver := mocks.NewResolver(t)
 
@@ -540,9 +609,48 @@ func Test_StepPlugin_Aborted(t *testing.T) {
 		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 4)
 		assert.Equal(t, roCtx.rollout.Status.Canary.StepPluginStatuses, roCtx.stepPluginContext.stepPluginStatuses)
 	})
+	t.Run("Reconciliation error", func(t *testing.T) {
+		roCtx, stepPluginResolver := setup(t)
+		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
+			{
+				Index:     0,
+				Name:      "test-plugin",
+				Operation: v1alpha1.StepPluginOperationRun,
+				Phase:     v1alpha1.StepPluginPhaseSuccessful,
+			},
+		}
+		roCtx.rollout.Status.CurrentStepIndex = int32Ptr(0)
+
+		runStatus := newStepPluginStatus(v1alpha1.StepPluginOperationTerminate, v1alpha1.StepPluginPhaseSuccessful)
+		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
+			{
+				Index:     runStatus.Index,
+				Name:      runStatus.Name,
+				Phase:     v1alpha1.StepPluginPhaseRunning,
+				Operation: v1alpha1.StepPluginOperationRun,
+			},
+		}
+
+		var requeuedAfter time.Duration
+		roCtx.enqueueRolloutAfter = func(obj any, duration time.Duration) {
+			requeuedAfter = duration
+		}
+
+		stepPluginMock := mocks.NewStepPlugin(t)
+		stepPluginResolver.On("Resolve", int32(0), mock.Anything, mock.Anything).Return(stepPluginMock, nil)
+		stepPluginMock.On("Abort", mock.Anything).Return(nil, fmt.Errorf("error"))
+
+		err := roCtx.stepPluginContext.reconcile(roCtx)
+
+		require.NoError(t, err)
+		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 1)
+		assert.Equal(t, roCtx.rollout.Status.Canary.StepPluginStatuses, roCtx.stepPluginContext.stepPluginStatuses)
+		assert.Equal(t, defaultControllerErrorBackoff, requeuedAfter)
+		assert.True(t, roCtx.stepPluginContext.hasError)
+	})
 }
 
-func Test_StepPlugin_Retry_After_Abort(t *testing.T) {
+func Test_stepPluginContext_reconcile_Retry_After_Abort(t *testing.T) {
 	setup := func(t *testing.T) (*rolloutContext, *mocks.Resolver) {
 		stepPluginResolver := mocks.NewResolver(t)
 
@@ -631,7 +739,7 @@ func Test_StepPlugin_Retry_After_Abort(t *testing.T) {
 	})
 }
 
-func Test_rolloutContext_isStepPluginCompleted(t *testing.T) {
+func Test_stepPluginContext_isStepPluginCompleted(t *testing.T) {
 	newRolloutContext := func(statuses []*v1alpha1.StepPluginStatus, hasError bool) *rolloutContext {
 		r := newStepPluginRollout()
 		logCtx := logutil.WithRollout(r)
@@ -747,4 +855,42 @@ func Test_rolloutContext_isStepPluginCompleted(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_stepPluginContext_updateStatus(t *testing.T) {
+
+	t.Run("status is not", func(t *testing.T) {
+		stepPluginContext := stepPluginContext{
+			stepPluginStatuses: nil,
+		}
+
+		expected := []v1alpha1.StepPluginStatus{}
+		status := &v1alpha1.RolloutStatus{
+			Canary: v1alpha1.CanaryStatus{
+				StepPluginStatuses: expected,
+			},
+		}
+
+		stepPluginContext.updateStatus(status)
+
+		assert.Equal(t, expected, status.Canary.StepPluginStatuses)
+	})
+	t.Run("status is set", func(t *testing.T) {
+
+		expected := []v1alpha1.StepPluginStatus{{}}
+
+		stepPluginContext := stepPluginContext{
+			stepPluginStatuses: expected,
+		}
+
+		status := &v1alpha1.RolloutStatus{
+			Canary: v1alpha1.CanaryStatus{
+				StepPluginStatuses: []v1alpha1.StepPluginStatus{},
+			},
+		}
+
+		stepPluginContext.updateStatus(status)
+
+		assert.Equal(t, expected, status.Canary.StepPluginStatuses)
+	})
 }
