@@ -39,6 +39,10 @@ func (s *StepPluginSuite) SetupSuite() {
 // getControllerConfiguredPlugin look at the controller default config map to find the list of plugins
 // This is a best effort because it does not mean the controller have these plugins configured in-memory
 func IsStepPluginConfigured(c *fixtures.Common, config *corev1.ConfigMap) bool {
+	if config == nil {
+		return false
+	}
+
 	var stepPlugins []types.PluginItem
 	if err := yaml.Unmarshal([]byte(config.Data["stepPlugins"]), &stepPlugins); err != nil {
 		c.CheckError(err)
