@@ -150,6 +150,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, rpcResult.Status, status.Status)
 		assert.NotNil(t, status.FinishedAt)
 		assert.Empty(t, status.Backoff)
+		assert.False(t, status.Disabled)
 	})
 	t.Run("Successful status", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -183,7 +184,8 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
-		assert.Nil(t, status.Backoff)
+		assert.EqualValues(t, "", status.Backoff)
+		assert.False(t, status.Disabled)
 	})
 	t.Run("Running status", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -226,6 +228,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
 		assert.EqualValues(t, rpcResult.RequeueAfter.String(), status.Backoff)
+		assert.False(t, status.Disabled)
 	})
 	t.Run("Running status without requeue", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -258,6 +261,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
 		assert.EqualValues(t, defaultRequeuDuration.String(), status.Backoff)
+		assert.False(t, status.Disabled)
 	})
 	t.Run("Running status with requeue too fast", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -291,6 +295,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
 		assert.EqualValues(t, defaultRequeuDuration.String(), status.Backoff)
+		assert.False(t, status.Disabled)
 	})
 	t.Run("Failed status", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -325,6 +330,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
 		assert.Empty(t, status.Backoff)
+		assert.False(t, status.Disabled)
 	})
 	t.Run("Error status", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -369,7 +375,8 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, expectedError.Error(), status.Message)
 		assert.Equal(t, currentStatus.Status, status.Status)
-		assert.Empty(t, status.Backoff)
+		assert.EqualValues(t, "30s", status.Backoff)
+		assert.False(t, status.Disabled)
 	})
 }
 
@@ -460,6 +467,7 @@ func Test_stepPlugin_Terminate(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginPhaseFailed, status.Phase)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Nil(t, status.Status)
+		assert.False(t, status.Disabled)
 	})
 	t.Run("Completes successfully", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -486,6 +494,7 @@ func Test_stepPlugin_Terminate(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginOperationTerminate, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Nil(t, status.Status)
+		assert.False(t, status.Disabled)
 	})
 
 	t.Run("Error status", func(t *testing.T) {
@@ -516,6 +525,7 @@ func Test_stepPlugin_Terminate(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginPhaseError, status.Phase)
 		assert.Contains(t, status.Message, expectedError.Error())
 		assert.Nil(t, status.Status)
+		assert.False(t, status.Disabled)
 	})
 }
 
@@ -621,6 +631,7 @@ func Test_stepPlugin_Abort(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginPhaseFailed, status.Phase)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Nil(t, status.Status)
+		assert.False(t, status.Disabled)
 	})
 	t.Run("Completes successfully", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -647,6 +658,7 @@ func Test_stepPlugin_Abort(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginOperationAbort, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Nil(t, status.Status)
+		assert.False(t, status.Disabled)
 	})
 
 	t.Run("Error status", func(t *testing.T) {
@@ -677,5 +689,81 @@ func Test_stepPlugin_Abort(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginPhaseError, status.Phase)
 		assert.Contains(t, status.Message, expectedError.Error())
 		assert.Nil(t, status.Status)
+		assert.False(t, status.Disabled)
+	})
+}
+
+func Test_disabledStepPlugin(t *testing.T) {
+	t.Run("Run always return disabled status", func(t *testing.T) {
+		p := disabledStepPlugin{
+			index: 0,
+			name:  "test",
+		}
+		r := &v1alpha1.Rollout{
+			Status: v1alpha1.RolloutStatus{
+				Canary: v1alpha1.CanaryStatus{
+					StepPluginStatuses: []v1alpha1.StepPluginStatus{},
+				},
+			},
+		}
+
+		status, err := p.Run(r)
+
+		require.NoError(t, err)
+
+		assert.Equal(t, p.name, status.Name)
+		assert.Equal(t, p.index, status.Index)
+		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
+		assert.True(t, status.Disabled)
+	})
+	t.Run("Abort has no effect", func(t *testing.T) {
+		p := disabledStepPlugin{
+			index: 0,
+			name:  "test",
+		}
+		r := &v1alpha1.Rollout{
+			Status: v1alpha1.RolloutStatus{
+				Canary: v1alpha1.CanaryStatus{
+					StepPluginStatuses: []v1alpha1.StepPluginStatus{
+						{
+							Index:     0,
+							Name:      "test",
+							Operation: v1alpha1.StepPluginOperationRun,
+							Phase:     v1alpha1.StepPluginPhaseSuccessful,
+						},
+					},
+				},
+			},
+		}
+
+		status, err := p.Abort(r)
+
+		require.NoError(t, err)
+		assert.Nil(t, status)
+	})
+	t.Run("Terminate has no effect", func(t *testing.T) {
+		p := disabledStepPlugin{
+			index: 0,
+			name:  "test",
+		}
+		r := &v1alpha1.Rollout{
+			Status: v1alpha1.RolloutStatus{
+				Canary: v1alpha1.CanaryStatus{
+					StepPluginStatuses: []v1alpha1.StepPluginStatus{
+						{
+							Index:     0,
+							Name:      "test",
+							Operation: v1alpha1.StepPluginOperationRun,
+							Phase:     v1alpha1.StepPluginPhaseRunning,
+						},
+					},
+				},
+			},
+		}
+
+		status, err := p.Terminate(r)
+
+		require.NoError(t, err)
+		assert.Nil(t, status)
 	})
 }

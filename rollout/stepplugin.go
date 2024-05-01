@@ -59,9 +59,6 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 		return nil
 	}
 
-	// If we retry an aborted rollout, we need to have a clean status
-	spc.cleanStatusForRetry(rollout)
-
 	// On full promotion, we want to Terminate only the last step still in Running, if any
 	if rollout.Status.PromoteFull || rolloututil.IsFullyPromoted(rollout) {
 		stepIndex := spc.getStepToTerminate(rollout)
@@ -90,6 +87,9 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 		}
 		return nil
 	}
+
+	// If we retry an aborted rollout, we need to have a clean status
+	spc.cleanStatusForRetry(rollout)
 
 	// Normal execution flow of a step plugin
 	currentStep, currentStepIndex := replicasetutil.GetCurrentCanaryStep(rollout)
@@ -134,7 +134,7 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 	}
 
 	if status.Phase == v1alpha1.StepPluginPhaseFailed {
-		c.pauseContext.AddAbort(status.Message)
+		c.pauseContext.AddAbort(fmt.Sprintf("Step Plugin %d (%s) failed: %s", status.Index+1, status.Name, status.Message))
 	}
 
 	return nil
