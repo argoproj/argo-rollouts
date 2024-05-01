@@ -1048,11 +1048,12 @@ type StepPluginStatus struct {
 	FinishedAt *metav1.Time        `json:"finishedAt,omitempty" protobuf:"bytes,8,opt,name=finishedAt"`
 	Backoff    DurationString      `json:"backoff,omitempty" protobuf:"bytes,9,opt,name=backoff,casttype=DurationString"`
 	Executions int32               `json:"executions,omitempty" protobuf:"varint,10,opt,name=executions"`
+	Disabled   bool                `json:"disabled,omitempty" protobuf:"bytes,11,opt,name=disabled"`
 
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object
-	Status json.RawMessage `json:"status,omitempty" protobuf:"bytes,11,opt,name=status"`
+	Status json.RawMessage `json:"status,omitempty" protobuf:"bytes,12,opt,name=status"`
 }
 
 // StepPluginPhase is the overall phase of a StepPlugin

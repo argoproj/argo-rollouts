@@ -3732,6 +3732,8 @@ spec:
                       properties:
                         backoff:
                           type: string
+                        disabled:
+                          type: boolean
                         executions:
                           format: int32
                           type: integer

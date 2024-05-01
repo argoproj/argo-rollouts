@@ -13,6 +13,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	defaultControllerErrorBackoff = time.Second * 30
+	defaultBackoffDelay           = time.Second * 5
+)
+
 type stepPluginContext struct {
 	resolver plugin.Resolver
 	log      *log.Entry
@@ -111,7 +116,7 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 		spc.recordPhase(c, status)
 	}
 
-	if status == nil {
+	if status == nil || status.Disabled {
 		return nil
 	}
 
@@ -122,7 +127,7 @@ func (spc *stepPluginContext) reconcile(c *rolloutContext) error {
 		}
 
 		// Get the remaining time until the backoff + a little buffer
-		remaining := time.Until(status.UpdatedAt.Add(backoff)) + (5 * time.Second)
+		remaining := time.Until(status.UpdatedAt.Add(backoff)) + defaultBackoffDelay
 		c.log.Debugf("queueing up rollout in %s because step plugin phase is %s", remaining, status.Phase)
 		c.enqueueRolloutAfter(rollout, remaining)
 		return nil
@@ -142,15 +147,15 @@ func (spc *stepPluginContext) handleError(c *rolloutContext, e error) error {
 	msg := fmt.Sprintf(conditions.RolloutReconciliationErrorMessage, e.Error())
 	c.recorder.Warnf(c.rollout, record.EventOptions{EventReason: conditions.RolloutReconciliationErrorReason}, msg)
 
-	c.log.Debug("queueing up rollout in 30s because of transient error")
-	c.enqueueRolloutAfter(c.rollout, 30*time.Second)
+	c.log.Debugf("queueing up rollout in %s because of transient error", defaultControllerErrorBackoff)
+	c.enqueueRolloutAfter(c.rollout, defaultControllerErrorBackoff)
 
 	return nil
 }
 
 func (spc *stepPluginContext) recordPhase(c *rolloutContext, status *v1alpha1.StepPluginStatus) {
-	if status.Operation == v1alpha1.StepPluginOperationRun && status.Phase == v1alpha1.StepPluginPhaseSuccessful {
-		// If the run status is succesful, do not record event because the controller will record the RolloutStepCompleted
+	if status.Disabled || status.Operation == v1alpha1.StepPluginOperationRun && status.Phase == v1alpha1.StepPluginPhaseSuccessful {
+		// If the run status is successful, do not record event because the controller will record the RolloutStepCompleted
 		return
 	}
 
@@ -174,28 +179,17 @@ func (spc *stepPluginContext) updateStatus(status *v1alpha1.RolloutStatus) {
 	}
 }
 
-func (spc *stepPluginContext) isStepPluginDisabled(stepIndex int32, step *v1alpha1.PluginStep) (bool, error) {
-	stepPlugin, err := spc.resolver.Resolve(stepIndex, *step, spc.log)
-	if err != nil {
-		return false, err
-	}
-	return !stepPlugin.Enabled(), nil
-}
-
-func (spc *stepPluginContext) isStepPluginCompleted(stepIndex int32, step *v1alpha1.PluginStep) bool {
+func (spc *stepPluginContext) isStepPluginCompleted(stepIndex int32, _ *v1alpha1.PluginStep) bool {
 	if spc.hasError {
 		// If there was a transient error during the reconcile, we should retry
 		return false
 	}
 
-	if disabled, err := spc.isStepPluginDisabled(stepIndex, step); err != nil {
-		// If there is an error, the plugin might not exist in the config. Assume it is not disabled.
-		spc.log.Errorf("cannot resolve step plugin %s at index %d. Assuming it is enabled.", step.Name, stepIndex)
-	} else if disabled {
+	runStatus := spc.findCurrentStepStatus(stepIndex, v1alpha1.StepPluginOperationRun)
+	if runStatus != nil && runStatus.Disabled {
 		return true
 	}
 
-	runStatus := spc.findCurrentStepStatus(stepIndex, v1alpha1.StepPluginOperationRun)
 	isRunning := runStatus != nil && runStatus.Phase == v1alpha1.StepPluginPhaseRunning
 	if isRunning {
 		terminateStatus := spc.findCurrentStepStatus(stepIndex, v1alpha1.StepPluginOperationTerminate)

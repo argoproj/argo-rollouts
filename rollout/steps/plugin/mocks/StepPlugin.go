@@ -43,24 +43,6 @@ func (_m *StepPlugin) Abort(_a0 *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, 
 	return r0, r1
 }
 
-// Enabled provides a mock function with given fields:
-func (_m *StepPlugin) Enabled() bool {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for Enabled")
-	}
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func() bool); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	return r0
-}
-
 // Run provides a mock function with given fields: _a0
 func (_m *StepPlugin) Run(_a0 *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
 	ret := _m.Called(_a0)

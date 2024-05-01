@@ -11,25 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type disabledStepPlugin struct {
-}
-
-func (p *disabledStepPlugin) Run(_ *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
-	return nil, nil
-}
-
-func (p *disabledStepPlugin) Terminate(_ *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
-	return nil, nil
-}
-
-func (p *disabledStepPlugin) Abort(_ *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
-	return nil, nil
-}
-
-func (p *disabledStepPlugin) Enabled() bool {
-	return false
-}
-
 type resolver struct {
 }
 
@@ -47,7 +28,10 @@ func (r *resolver) Resolve(index int32, plugin v1alpha1.PluginStep, log *log.Ent
 	} else {
 		plugin := config.GetPlugin(plugin.Name, types.PluginTypeStep)
 		if plugin != nil && plugin.Disabled {
-			return &disabledStepPlugin{}, nil
+			return &disabledStepPlugin{
+				index: index,
+				name:  plugin.Name,
+			}, nil
 		}
 	}
 

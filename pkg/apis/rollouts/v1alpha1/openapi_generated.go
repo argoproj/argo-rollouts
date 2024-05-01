@@ -5231,6 +5231,24 @@ func schema_pkg_apis_rollouts_v1alpha1_StepPluginStatus(ref common.ReferenceCall
 							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
+					"backoff": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"executions": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"disabled": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},

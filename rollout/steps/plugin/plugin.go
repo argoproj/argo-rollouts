@@ -20,22 +20,27 @@ type stepPlugin struct {
 	log    *log.Entry
 }
 
+type disabledStepPlugin struct {
+	index int32
+	name  string
+}
+
 type StepPlugin interface {
 	Run(*v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error)
 	Terminate(*v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error)
 	Abort(*v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error)
-	Enabled() bool
 }
 
 var (
 	minRequeueDuration    = time.Second * 10
 	defaultRequeuDuration = time.Second * 30
+	defaultErrorBackoff   = time.Second * 30
 )
 
 // Run exectues a plugin
 func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
 	stepStatus := p.getStepStatus(rollout, v1alpha1.StepPluginOperationRun)
-	if stepStatus == nil {
+	if stepStatus == nil || stepStatus.Disabled {
 		now := metatime.MetaNow()
 		stepStatus = &v1alpha1.StepPluginStatus{
 			Index:     p.index,
@@ -71,7 +76,7 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 		p.log.Errorf("error during plugin execution")
 		stepStatus.Phase = v1alpha1.StepPluginPhaseError
 		stepStatus.Message = err.Error()
-		stepStatus.Backoff = v1alpha1.DurationString((30 * time.Second).String())
+		stepStatus.Backoff = v1alpha1.DurationString(defaultErrorBackoff.String())
 		return stepStatus, nil
 	}
 
@@ -111,7 +116,7 @@ func (p *stepPlugin) Terminate(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginS
 	}
 
 	stepStatus := p.getStepStatus(rollout, v1alpha1.StepPluginOperationRun)
-	if stepStatus == nil || stepStatus.Phase != v1alpha1.StepPluginPhaseRunning {
+	if stepStatus == nil || stepStatus.Disabled || stepStatus.Phase != v1alpha1.StepPluginPhaseRunning {
 		// Step is not running, no need to call terminate
 		return nil, nil
 	}
@@ -161,7 +166,7 @@ func (p *stepPlugin) Abort(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatu
 	}
 
 	stepStatus := p.getStepStatus(rollout, v1alpha1.StepPluginOperationRun)
-	if stepStatus == nil || (stepStatus.Phase != v1alpha1.StepPluginPhaseRunning && stepStatus.Phase != v1alpha1.StepPluginPhaseSuccessful) {
+	if stepStatus == nil || stepStatus.Disabled || (stepStatus.Phase != v1alpha1.StepPluginPhaseRunning && stepStatus.Phase != v1alpha1.StepPluginPhaseSuccessful) {
 		// Step plugin isn't in a phase where it needs to be aborted
 		return nil, nil
 	}
@@ -203,8 +208,21 @@ func (p *stepPlugin) Abort(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatu
 	return abortStatus, nil
 }
 
-func (p *stepPlugin) Enabled() bool {
-	return true
+func (p *disabledStepPlugin) Run(_ *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
+	return &v1alpha1.StepPluginStatus{
+		Index:     p.index,
+		Name:      p.name,
+		Operation: v1alpha1.StepPluginOperationRun,
+		Disabled:  true,
+	}, nil
+}
+
+func (p *disabledStepPlugin) Terminate(_ *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
+	return nil, nil
+}
+
+func (p *disabledStepPlugin) Abort(_ *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
+	return nil, nil
 }
 
 func (p *stepPlugin) getStepStatus(rollout *v1alpha1.Rollout, operation v1alpha1.StepPluginOperation) *v1alpha1.StepPluginStatus {

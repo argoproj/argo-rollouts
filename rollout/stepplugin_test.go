@@ -8,9 +8,11 @@ import (
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/argoproj/argo-rollouts/rollout/steps/plugin/mocks"
 	logutil "github.com/argoproj/argo-rollouts/utils/log"
+	"github.com/argoproj/argo-rollouts/utils/record"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 )
@@ -26,18 +28,27 @@ func newStepPluginRollout() *v1alpha1.Rollout {
 	return newCanaryRollout("foo", 3, nil, steps, ptr.To(int32(0)), intstr.FromInt(1), intstr.FromInt(0))
 }
 
-func newStepPluginStatus() *v1alpha1.StepPluginStatus {
-	return &v1alpha1.StepPluginStatus{
-		Index:  0,
-		Name:   "test-plugin",
-		Status: json.RawMessage("value"),
+func newStepPluginStatus(operation v1alpha1.StepPluginOperation, phase v1alpha1.StepPluginPhase) *v1alpha1.StepPluginStatus {
+	now := metav1.Now()
+	status := &v1alpha1.StepPluginStatus{
+		Index:      0,
+		Name:       "test-plugin",
+		Status:     json.RawMessage("value"),
+		Operation:  operation,
+		Phase:      phase,
+		StartedAt:  &now,
+		UpdatedAt:  &now,
+		Executions: 1,
+		Backoff:    "0s",
 	}
+	return status
 }
 
 func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 	setup := func(t *testing.T) (*rolloutContext, *v1alpha1.StepPluginStatus) {
 		stepPluginResolver := mocks.NewResolver(t)
 		stepPluginMock := mocks.NewStepPlugin(t)
+		stepPluginMock.On("Enabled").Return(true).Maybe()
 		stepPluginResolver.On("Resolve", int32(0), mock.Anything, mock.Anything).Return(stepPluginMock, nil)
 
 		r := newStepPluginRollout()
@@ -48,6 +59,7 @@ func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 			reconcilerBase: reconcilerBase{
 				enqueueRollout:      func(obj any) { t.Error("enqueueRollout should not be called") },
 				enqueueRolloutAfter: func(obj any, duration time.Duration) { t.Error("enqueueRolloutAfter should not be called") },
+				recorder:            record.NewFakeEventRecorder(),
 			},
 			pauseContext: &pauseContext{
 				rollout: r,
@@ -59,15 +71,13 @@ func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 			},
 		}
 
-		runStatus := newStepPluginStatus()
+		runStatus := newStepPluginStatus(v1alpha1.StepPluginOperationRun, v1alpha1.StepPluginPhaseSuccessful)
 		stepPluginMock.On("Run", r).Return(runStatus, nil, nil)
-		runStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
 		return roCtx, runStatus
 	}
 
 	t.Run("Status is added when not present", func(t *testing.T) {
 		roCtx, runStatus := setup(t)
-		runStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
 
 		err := roCtx.stepPluginContext.reconcile(roCtx)
 
@@ -77,14 +87,14 @@ func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 	})
 	t.Run("Status is updated when existing", func(t *testing.T) {
 		roCtx, runStatus := setup(t)
-		runStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
 
 		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
-				Index:   runStatus.Index,
-				Name:    runStatus.Name,
-				Message: "this is the existing status",
-				Phase:   v1alpha1.StepPluginPhaseRunning,
+				Index:     runStatus.Index,
+				Name:      runStatus.Name,
+				Message:   "this is the existing status",
+				Operation: v1alpha1.StepPluginOperationRun,
+				Phase:     v1alpha1.StepPluginPhaseRunning,
 			},
 		}
 
@@ -96,20 +106,22 @@ func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 	})
 	t.Run("Status order is preserved when updating", func(t *testing.T) {
 		roCtx, runStatus := setup(t)
-		runStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
 
 		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
-				Index: 123,
-				Name:  runStatus.Name,
+				Index:     123,
+				Name:      runStatus.Name,
+				Operation: v1alpha1.StepPluginOperationRun,
 			},
 			{
-				Index: runStatus.Index,
-				Name:  runStatus.Name,
+				Index:     runStatus.Index,
+				Name:      runStatus.Name,
+				Operation: v1alpha1.StepPluginOperationRun,
 			},
 			{
-				Index: 456,
-				Name:  "other",
+				Index:     456,
+				Name:      "other",
+				Operation: v1alpha1.StepPluginOperationRun,
 			},
 		}
 
@@ -124,9 +136,10 @@ func Test_StepPlugin_SuccessfulReconciliation(t *testing.T) {
 }
 
 func Test_StepPlugin_RunningReconciliation(t *testing.T) {
-	setup := func(t *testing.T, phase v1alpha1.StepPluginPhase, requeueAfter *time.Duration) (*rolloutContext, *v1alpha1.StepPluginStatus) {
+	setup := func(t *testing.T, phase v1alpha1.StepPluginPhase, backoff *time.Duration) (*rolloutContext, *v1alpha1.StepPluginStatus) {
 		stepPluginResolver := mocks.NewResolver(t)
 		stepPluginMock := mocks.NewStepPlugin(t)
+		stepPluginMock.On("Enabled").Return(true).Maybe()
 		stepPluginResolver.On("Resolve", int32(0), mock.Anything, mock.Anything).Return(stepPluginMock, nil)
 
 		r := newStepPluginRollout()
@@ -136,7 +149,8 @@ func Test_StepPlugin_RunningReconciliation(t *testing.T) {
 			log:     logutil.WithRollout(r),
 			reconcilerBase: reconcilerBase{
 				enqueueRollout:      func(obj any) { t.Error("enqueueRollout should not be called") },
-				enqueueRolloutAfter: func(obj any, duration time.Duration) { t.Error("enqueueRolloutAfter should not be called") },
+				enqueueRolloutAfter: func(obj any, duration time.Duration) {},
+				recorder:            record.NewFakeEventRecorder(),
 			},
 			pauseContext: &pauseContext{
 				rollout: r,
@@ -148,13 +162,11 @@ func Test_StepPlugin_RunningReconciliation(t *testing.T) {
 			},
 		}
 
-		runStatus := newStepPluginStatus()
-		if requeueAfter != nil {
-			runStatus.Backoff = v1alpha1.DurationString(requeueAfter.String())
+		runStatus := newStepPluginStatus(v1alpha1.StepPluginOperationRun, phase)
+		if backoff != nil {
+			runStatus.Backoff = v1alpha1.DurationString(backoff.String())
 		}
-
 		stepPluginMock.On("Run", r).Return(runStatus, nil)
-		runStatus.Phase = phase
 		return roCtx, runStatus
 	}
 
@@ -172,10 +184,11 @@ func Test_StepPlugin_RunningReconciliation(t *testing.T) {
 
 		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
-				Index:   runStatus.Index,
-				Name:    runStatus.Name,
-				Message: "this is the existing status",
-				Phase:   v1alpha1.StepPluginPhaseRunning,
+				Index:     runStatus.Index,
+				Name:      runStatus.Name,
+				Message:   "this is the existing status",
+				Operation: v1alpha1.StepPluginOperationRun,
+				Phase:     v1alpha1.StepPluginPhaseRunning,
 			},
 		}
 
@@ -197,7 +210,8 @@ func Test_StepPlugin_RunningReconciliation(t *testing.T) {
 		err := roCtx.stepPluginContext.reconcile(roCtx)
 
 		require.NoError(t, err)
-		assert.Equal(t, expectedRequeueAfter, requeuedAfter)
+		assert.GreaterOrEqual(t, requeuedAfter, expectedRequeueAfter)
+		assert.LessOrEqual(t, requeuedAfter, expectedRequeueAfter+5*time.Second)
 	})
 }
 
@@ -205,6 +219,7 @@ func Test_StepPlugin_FailedReconciliation(t *testing.T) {
 	setup := func(t *testing.T, phase v1alpha1.StepPluginPhase) (*rolloutContext, *v1alpha1.StepPluginStatus) {
 		stepPluginResolver := mocks.NewResolver(t)
 		stepPluginMock := mocks.NewStepPlugin(t)
+		stepPluginMock.On("Enabled").Return(true).Maybe()
 		stepPluginResolver.On("Resolve", int32(0), mock.Anything, mock.Anything).Return(stepPluginMock, nil)
 
 		r := newStepPluginRollout()
@@ -215,6 +230,7 @@ func Test_StepPlugin_FailedReconciliation(t *testing.T) {
 			reconcilerBase: reconcilerBase{
 				enqueueRollout:      func(obj any) { t.Error("enqueueRollout should not be called") },
 				enqueueRolloutAfter: func(obj any, duration time.Duration) { t.Error("enqueueRolloutAfter should not be called") },
+				recorder:            record.NewFakeEventRecorder(),
 			},
 			pauseContext: &pauseContext{
 				rollout: r,
@@ -226,9 +242,8 @@ func Test_StepPlugin_FailedReconciliation(t *testing.T) {
 			},
 		}
 
-		runStatus := newStepPluginStatus()
+		runStatus := newStepPluginStatus(v1alpha1.StepPluginOperationRun, phase)
 		stepPluginMock.On("Run", r).Return(runStatus, nil, nil)
-		runStatus.Phase = phase
 		return roCtx, runStatus
 	}
 
@@ -246,10 +261,11 @@ func Test_StepPlugin_FailedReconciliation(t *testing.T) {
 
 		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
-				Index:   runStatus.Index,
-				Name:    runStatus.Name,
-				Message: "this is the existing status",
-				Phase:   v1alpha1.StepPluginPhaseRunning,
+				Index:     runStatus.Index,
+				Name:      runStatus.Name,
+				Message:   "this is the existing status",
+				Operation: v1alpha1.StepPluginOperationRun,
+				Phase:     v1alpha1.StepPluginPhaseRunning,
 			},
 		}
 
@@ -273,6 +289,7 @@ func Test_StepPlugin_FullyPromoted(t *testing.T) {
 	setup := func(t *testing.T) (*rolloutContext, *mocks.StepPlugin) {
 		stepPluginResolver := mocks.NewResolver(t)
 		stepPluginMock := mocks.NewStepPlugin(t)
+		stepPluginMock.On("Enabled").Return(true).Maybe()
 		stepPluginResolver.On("Resolve", int32(0), mock.Anything, mock.Anything).Return(stepPluginMock, nil)
 
 		r := newStepPluginRollout()
@@ -285,6 +302,7 @@ func Test_StepPlugin_FullyPromoted(t *testing.T) {
 			reconcilerBase: reconcilerBase{
 				enqueueRollout:      func(obj any) { t.Error("enqueueRollout should not be called") },
 				enqueueRolloutAfter: func(obj any, duration time.Duration) { t.Error("enqueueRolloutAfter should not be called") },
+				recorder:            record.NewFakeEventRecorder(),
 			},
 			pauseContext: &pauseContext{
 				rollout: r,
@@ -301,9 +319,7 @@ func Test_StepPlugin_FullyPromoted(t *testing.T) {
 
 	t.Run("Rollout is Terminated on full promotion", func(t *testing.T) {
 		roCtx, stepPluginMock := setup(t)
-		runStatus := newStepPluginStatus()
-		runStatus.Operation = v1alpha1.StepPluginOperationTerminate
-		runStatus.Phase = v1alpha1.StepPluginPhaseSuccessful
+		runStatus := newStepPluginStatus(v1alpha1.StepPluginOperationTerminate, v1alpha1.StepPluginPhaseSuccessful)
 		roCtx.rollout.Status.Canary.StepPluginStatuses = []v1alpha1.StepPluginStatus{
 			{
 				Index:     runStatus.Index,
@@ -337,6 +353,7 @@ func Test_StepPlugin_Aborted(t *testing.T) {
 			reconcilerBase: reconcilerBase{
 				enqueueRollout:      func(obj any) { t.Error("enqueueRollout should not be called") },
 				enqueueRolloutAfter: func(obj any, duration time.Duration) { t.Error("enqueueRolloutAfter should not be called") },
+				recorder:            record.NewFakeEventRecorder(),
 			},
 			pauseContext: &pauseContext{
 				rollout: r,
@@ -359,6 +376,12 @@ func Test_StepPlugin_Aborted(t *testing.T) {
 				Operation: v1alpha1.StepPluginOperationRun,
 				Phase:     v1alpha1.StepPluginPhaseSuccessful,
 			},
+			{
+				Index:     2,
+				Name:      "test-plugin",
+				Operation: v1alpha1.StepPluginOperationRun,
+				Phase:     v1alpha1.StepPluginPhaseRunning,
+			},
 		}
 		roCtx.rollout.Spec.Strategy.Canary.Steps = []v1alpha1.CanaryStep{
 			{
@@ -375,7 +398,7 @@ func Test_StepPlugin_Aborted(t *testing.T) {
 				},
 			},
 		}
-		roCtx.rollout.Status.CurrentStepIndex = int32Ptr(2)
+		roCtx.rollout.Status.CurrentStepIndex = int32Ptr(0)
 
 		expectedAbortStatus := []*v1alpha1.StepPluginStatus{}
 		for _, stepIndex := range []int32{0, 2} {
@@ -386,6 +409,7 @@ func Test_StepPlugin_Aborted(t *testing.T) {
 				Phase:     v1alpha1.StepPluginPhaseSuccessful,
 			}
 			stepPluginMock := mocks.NewStepPlugin(t)
+			stepPluginMock.On("Enabled").Return(true).Maybe()
 			stepPluginResolver.On("Resolve", stepIndex, mock.Anything, mock.Anything).Return(stepPluginMock, nil)
 			stepPluginMock.On("Abort", mock.Anything).Return(abortStatus, nil)
 			expectedAbortStatus = append(expectedAbortStatus, abortStatus)
@@ -394,10 +418,11 @@ func Test_StepPlugin_Aborted(t *testing.T) {
 		err := roCtx.stepPluginContext.reconcile(roCtx)
 
 		require.NoError(t, err)
-		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 3)
+		require.Len(t, roCtx.stepPluginContext.stepPluginStatuses, 4)
 		assert.EqualExportedValues(t, roCtx.rollout.Status.Canary.StepPluginStatuses[0], roCtx.stepPluginContext.stepPluginStatuses[0])
-		assert.EqualExportedValues(t, *expectedAbortStatus[1], roCtx.stepPluginContext.stepPluginStatuses[1])
-		assert.EqualExportedValues(t, *expectedAbortStatus[0], roCtx.stepPluginContext.stepPluginStatuses[2])
+		assert.EqualExportedValues(t, roCtx.rollout.Status.Canary.StepPluginStatuses[1], roCtx.stepPluginContext.stepPluginStatuses[1])
+		assert.EqualExportedValues(t, *expectedAbortStatus[1], roCtx.stepPluginContext.stepPluginStatuses[2])
+		assert.EqualExportedValues(t, *expectedAbortStatus[0], roCtx.stepPluginContext.stepPluginStatuses[3])
 	})
 }
 
@@ -407,8 +432,6 @@ func Test_StepPlugin_Aborted(t *testing.T) {
 
 //Reconcile:
 // Add disable feature
-
-// Helper: write helper functions?
 
 func Test_rolloutContext_isStepPluginCompleted(t *testing.T) {
 	newRolloutContext := func(statuses []*v1alpha1.StepPluginStatus, hasError bool) *rolloutContext {

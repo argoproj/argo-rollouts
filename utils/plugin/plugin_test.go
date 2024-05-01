@@ -73,16 +73,16 @@ func TestGetPluginInfo(t *testing.T) {
 				Name:      "argo-rollouts-config",
 				Namespace: "argo-rollouts",
 			},
-			Data: map[string]string{"steplugins": "\n  - name: argoproj-labs/steps\n    location: https://test/plugin\n    args: [\"-l 2\"]\n  - name: argoproj-labs/steps-sha\n    location: https://test/plugin\n    sha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+			Data: map[string]string{"stepPlugins": "\n  - name: argoproj-labs/steps\n    location: https://test/plugin\n    args: [\"-l 2\"]\n  - name: argoproj-labs/steps-sha\n    location: https://test/plugin\n    sha256: 74657374e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
 		}
 		client := fake.NewSimpleClientset(cm)
 
 		_, err := config.InitializeConfig(client, "argo-rollouts-config")
 		assert.NoError(t, err)
 
-		location, args, err := GetPluginInfo("argoproj-labs/step", types.PluginTypeStep)
+		location, args, err := GetPluginInfo("argoproj-labs/steps", types.PluginTypeStep)
 		assert.NoError(t, err)
-		fp, err := filepath.Abs(filepath.Join(defaults.DefaultRolloutPluginFolder, "argoproj-labs/step"))
+		fp, err := filepath.Abs(filepath.Join(defaults.DefaultRolloutPluginFolder, "argoproj-labs/steps"))
 		assert.NoError(t, err)
 		assert.Equal(t, fp, location)
 		assert.Equal(t, args, cmdArgs)

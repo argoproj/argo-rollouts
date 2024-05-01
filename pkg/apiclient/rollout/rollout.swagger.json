@@ -2559,6 +2559,9 @@
           "type": "integer",
           "format": "int32"
         },
+        "disabled": {
+          "type": "boolean"
+        },
         "status": {
           "type": "string",
           "format": "byte",

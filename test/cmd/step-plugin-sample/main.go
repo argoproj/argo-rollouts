@@ -38,7 +38,7 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				seed = int64(n)
+				seed = n
 			} else {
 				log.Fatal("No value for --seed argument")
 			}

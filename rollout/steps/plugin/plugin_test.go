@@ -225,7 +225,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
-		assert.Equal(t, rpcResult.RequeueAfter, *result.RequeueAfter)
+		assert.EqualValues(t, rpcResult.RequeueAfter.String(), status.Backoff)
 	})
 	t.Run("Running status without requeue", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -257,7 +257,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
-		assert.Equal(t, defaultRequeuDuration, *result.RequeueAfter)
+		assert.EqualValues(t, defaultRequeuDuration.String(), status.Backoff)
 	})
 	t.Run("Running status with requeue too fast", func(t *testing.T) {
 		p, rpcMock := setup(t)
@@ -290,7 +290,7 @@ func Test_stepPlugin_Run(t *testing.T) {
 		assert.Equal(t, v1alpha1.StepPluginOperationRun, status.Operation)
 		assert.Equal(t, rpcResult.Message, status.Message)
 		assert.Equal(t, rpcResult.Status, status.Status)
-		assert.Equal(t, defaultRequeuDuration, *result.RequeueAfter)
+		assert.EqualValues(t, defaultRequeuDuration.String(), status.Backoff)
 	})
 	t.Run("Failed status", func(t *testing.T) {
 		p, rpcMock := setup(t)

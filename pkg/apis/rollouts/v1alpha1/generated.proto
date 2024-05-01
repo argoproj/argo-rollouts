@@ -1775,10 +1775,12 @@ message StepPluginStatus {
 
   optional int32 executions = 10;
 
+  optional bool disabled = 11;
+
   // +kubebuilder:validation:Schemaless
   // +kubebuilder:pruning:PreserveUnknownFields
   // +kubebuilder:validation:Type=object
-  optional bytes status = 11;
+  optional bytes status = 12;
 }
 
 message StickinessConfig {
