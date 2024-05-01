@@ -228,11 +228,11 @@ spec:
 		ApplyManifests().
 		WaitForRolloutStatus("Healthy").
 		UpdateSpec().
-		Sleep(time.Second).
+		Sleep(3 * time.Second).
 		PromoteRolloutFull().
 		WaitForRolloutStatus("Healthy").
 		Then().
-		ExpectAnalysisRunCount(0)
+		ExpectAnalysisRunCount(1)
 }
 
 func (s *FunctionalSuite) TestRolloutRestart() {

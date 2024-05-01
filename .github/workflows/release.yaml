@@ -7,7 +7,7 @@ on:
 permissions: {}
 
 env:
-  GOLANG_VERSION: '1.20' # Note: go-version must also be set in job controller-image.with.go-version & plugin-image.with.go-version.
+  GOLANG_VERSION: '1.22' # Note: go-version must also be set in job controller-image.with.go-version & plugin-image.with.go-version.
 
 jobs:
   controller-image:
@@ -19,7 +19,7 @@ jobs:
     with:
       quay_image_name: quay.io/argoproj/argo-rollouts:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.20'
+      go-version: '1.22'
       platforms: linux/amd64,linux/arm64
       push: true
     secrets:
@@ -35,7 +35,7 @@ jobs:
     with:
       quay_image_name: quay.io/argoproj/kubectl-argo-rollouts:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: '1.20'
+      go-version: '1.22'
       platforms: linux/amd64,linux/arm64
       push: true
       target: kubectl-argo-rollouts
@@ -44,41 +44,40 @@ jobs:
       quay_password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
   controller-image-provenance:
-      needs:
-        - controller-image
-      permissions:
-        actions: read # for detecting the Github Actions environment.
-        id-token: write # for creating OIDC tokens for signing.
-        packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
-      # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-      uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.10.0
-      with:
-        image: quay.io/argoproj/argo-rollouts
-        digest: ${{ needs.controller-image.outputs.image-digest }}
-      secrets:
-        registry-username: ${{ secrets.QUAY_USERNAME }}
-        registry-password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+    needs:
+      - controller-image
+    permissions:
+      actions: read # for detecting the Github Actions environment.
+      id-token: write # for creating OIDC tokens for signing.
+      packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
+    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
+    with:
+      image: quay.io/argoproj/argo-rollouts
+      digest: ${{ needs.controller-image.outputs.image-digest }}
+    secrets:
+      registry-username: ${{ secrets.QUAY_USERNAME }}
+      registry-password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
   plugin-image-provenance:
-      needs:
-        - plugin-image
-      permissions:
-        actions: read # for detecting the Github Actions environment.
-        id-token: write # for creating OIDC tokens for signing.
-        packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
-      # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-      uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.10.0
-      with:
-        image: quay.io/argoproj/kubectl-argo-rollouts
-        digest: ${{ needs.plugin-image.outputs.image-digest }}
-      secrets:
-        registry-username: ${{ secrets.QUAY_USERNAME }}
-        registry-password: ${{ secrets.QUAY_ROBOT_TOKEN }}
-
+    needs:
+      - plugin-image
+    permissions:
+      actions: read # for detecting the Github Actions environment.
+      id-token: write # for creating OIDC tokens for signing.
+      packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
+    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
+    with:
+      image: quay.io/argoproj/kubectl-argo-rollouts
+      digest: ${{ needs.plugin-image.outputs.image-digest }}
+    secrets:
+      registry-username: ${{ secrets.QUAY_USERNAME }}
+      registry-password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
   release-artifacts:
     permissions:
-      contents: write  # for softprops/action-gh-release to create GitHub release
+      contents: write # for softprops/action-gh-release to create GitHub release
     runs-on: ubuntu-latest
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
@@ -99,7 +98,7 @@ jobs:
         uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@2b51285047da1547ffb1b2203d8be4c0af6b1f20 # v3.2.0
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
 
       - name: Generate release artifacts
         run: |
@@ -132,7 +131,6 @@ jobs:
         run: |
           echo "hashes=$(sha256sum ./dist/kubectl-argo-rollouts-* ./manifests/*.yaml | base64 -w0)" >> "$GITHUB_OUTPUT"
 
-
   release-artifacts-provenance:
     needs:
       - release-artifacts
@@ -141,10 +139,10 @@ jobs:
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.10.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
-      base64-subjects: "${{ needs.release-artifacts.outputs.hashes }}"
-      provenance-name: "argo-rollouts.intoto.jsonl"
+      base64-subjects: '${{ needs.release-artifacts.outputs.hashes }}'
+      provenance-name: 'argo-rollouts.intoto.jsonl'
       upload-assets: true
       draft-release: true
 
@@ -170,7 +168,7 @@ jobs:
           go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@e1523de7571e31dbe865fd2e80c5c7c23ae71eb4 # v3.4.0
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
         with:
           cosign-release: 'v2.2.0'
 
@@ -183,7 +181,7 @@ jobs:
           SIGS_BOM_VERSION: v0.2.1
           # comma delimited list of project relative folders to inspect for package
           # managers (gomod, yarn, npm).
-          PROJECT_FOLDERS: ".,./ui"
+          PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the container image to be inspected
           CONTAINER_IMAGE: quay.io/argoproj/argo-rollouts:${{ github.event.inputs.tag }}
 

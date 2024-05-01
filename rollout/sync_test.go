@@ -313,7 +313,7 @@ func TestCanaryPromoteFull(t *testing.T) {
 	r1 := newCanaryRollout("foo", 10, nil, steps, int32Ptr(0), intstr.FromInt(10), intstr.FromInt(0))
 	r1.Spec.Strategy.Canary.Analysis = &v1alpha1.RolloutAnalysisBackground{
 		RolloutAnalysis: v1alpha1.RolloutAnalysis{
-			Templates: []v1alpha1.RolloutAnalysisTemplate{
+			Templates: []v1alpha1.AnalysisTemplateRef{
 				{
 					TemplateName: at.Name,
 				},
@@ -359,14 +359,14 @@ func TestBlueGreenPromoteFull(t *testing.T) {
 	r1 := newBlueGreenRollout("foo", 10, nil, "active", "preview")
 	r1.Spec.Strategy.BlueGreen.AutoPromotionEnabled = pointer.BoolPtr(false)
 	r1.Spec.Strategy.BlueGreen.PrePromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{
+		Templates: []v1alpha1.AnalysisTemplateRef{
 			{
 				TemplateName: at.Name,
 			},
 		},
 	}
 	r1.Spec.Strategy.BlueGreen.PostPromotionAnalysis = &v1alpha1.RolloutAnalysis{
-		Templates: []v1alpha1.RolloutAnalysisTemplate{
+		Templates: []v1alpha1.AnalysisTemplateRef{
 			{
 				TemplateName: at.Name,
 			},
@@ -455,7 +455,7 @@ func TestSendStateChangeEvents(t *testing.T) {
 		recorder := record.NewFakeEventRecorder()
 		roCtx.recorder = recorder
 		roCtx.sendStateChangeEvents(&test.prevStatus, &test.newStatus)
-		assert.Equal(t, test.expectedEventReasons, recorder.Events)
+		assert.Equal(t, test.expectedEventReasons, recorder.Events())
 	}
 }
 

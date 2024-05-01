@@ -7,7 +7,7 @@
 
     background: $argo-color-gray-1;
     border-radius: 5px;
-    
+
     &__header {
         display: flex;
         align-items: center;
@@ -53,11 +53,11 @@
         }
 
         &--current {
-            border: 2px solid $sherbert;
+            border: 2px solid $argo-running-color;
         }
 
         &--current:hover {
-            border: 2px solid $sherbert;
+            border: 2px solid $argo-running-color;
         }
 
         &-title {

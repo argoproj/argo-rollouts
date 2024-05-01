@@ -97,7 +97,7 @@ func TestIncCounter(t *testing.T) {
 	buf := dto.Metric{}
 	m.Write(&buf)
 	assert.Equal(t, float64(3), *buf.Counter.Value)
-	assert.Equal(t, []string{"FooReason", "FooReason", "FooReason"}, rec.Events)
+	assert.Equal(t, []string{"FooReason", "FooReason", "FooReason"}, rec.Events())
 }
 
 func TestSendNotifications(t *testing.T) {
@@ -317,7 +317,13 @@ func TestNotificationSendPerformance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
-	log.Infof("mfs: %v, %v, %v, %v", *mfs[0], *mfs[0].Metric[0].Histogram.SampleCount, *mfs[0].Metric[0].Histogram.SampleSum, *mfs[0].Metric[0].Histogram.Bucket[0].CumulativeCount)
+	t.Logf(
+		"mfs: %s, %v, %v, %v",
+		mfs[0].GetName(),
+		mfs[0].GetMetric()[0].GetHistogram().GetSampleCount(),
+		mfs[0].GetMetric()[0].GetHistogram().GetSampleSum(),
+		mfs[0].GetMetric()[0].GetHistogram().GetBucket()[0].GetCumulativeCount(),
+	)
 	want := `# HELP notification_send_performance Notification send performance.
 			 # TYPE notification_send_performance histogram
 			 notification_send_performance_bucket{name="guestbook",namespace="default",le="0.01"} 0
@@ -484,6 +490,18 @@ func TestNewAPIFactorySettings(t *testing.T) {
 		},
 	}
 
+	expectedSecrets := map[string][]byte{
+		"notification-secret": []byte("secret-value"),
+	}
+
+	notificationsSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argo-rollouts-notification-secret",
+			Namespace: "default",
+		},
+		Data: expectedSecrets,
+	}
+
 	type expectedFunc func(obj map[string]interface{}, ar any) map[string]interface{}
 	type arInformerFunc func([]*v1alpha1.AnalysisRun) argoinformers.AnalysisRunInformer
 
@@ -506,6 +524,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"rollout":      obj,
 					"analysisRuns": ar,
 					"time":         timeExprs,
+					"secrets":      expectedSecrets,
 				}
 			},
 		},
@@ -531,6 +550,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"rollout":      obj,
 					"analysisRuns": nil,
 					"time":         timeExprs,
+					"secrets":      expectedSecrets,
 				}
 			},
 		},
@@ -545,6 +565,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 				return map[string]interface{}{
 					"rollout": obj,
 					"time":    timeExprs,
+					"secrets": expectedSecrets,
 				}
 			},
 		},
@@ -570,6 +591,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 					"rollout":      obj,
 					"analysisRuns": nil,
 					"time":         timeExprs,
+					"secrets":      expectedSecrets,
 				}
 			},
 		},
@@ -579,7 +601,7 @@ func TestNewAPIFactorySettings(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			settings := NewAPIFactorySettings(test.arInformer(test.ars))
-			getVars, err := settings.InitGetVars(nil, nil, nil)
+			getVars, err := settings.InitGetVars(nil, nil, &notificationsSecret)
 			require.NoError(t, err)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
