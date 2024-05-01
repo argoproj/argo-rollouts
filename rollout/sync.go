@@ -417,8 +417,10 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 		updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
 			if errors.IsConflict(err) {
+				retryCount := 0
 				errConflict := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-					c.log.Infof("conflict when scaling replicaset %s. retrying the scale operation with new replicaset from cluster", rsCopy.Name)
+					retryCount++
+					c.log.Infof("conflict when scaling replicaset %s. retrying the scale operation with new replicaset from cluster attempt %d", rsCopy.Name, retryCount)
 					rsGet, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Get(ctx, rsCopy.Name, metav1.GetOptions{})
 					if err != nil {
 						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
