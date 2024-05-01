@@ -5209,7 +5209,6 @@ func schema_pkg_apis_rollouts_v1alpha1_StepPluginStatus(ref common.ReferenceCall
 					"phase": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Phase is the resulting phase of the operation",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5268,7 +5267,7 @@ func schema_pkg_apis_rollouts_v1alpha1_StepPluginStatus(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"index", "name", "operation", "phase"},
+				Required: []string{"index", "name", "operation"},
 			},
 		},
 		Dependencies: []string{

@@ -25,9 +25,13 @@ type disabledStepPlugin struct {
 	name  string
 }
 
+// StepPlugin allows to execute different operation for a step plugin specifc to a rollout
 type StepPlugin interface {
+	// Run executes the run operation for of a step plugin and returns a Run operation status
 	Run(*v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error)
+	// Terminate cancels an ongoing running Run operation and returns a Terminate status if it did
 	Terminate(*v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error)
+	// Abort reverts a completed Run operation and returns a Terminate status if it did
 	Abort(*v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error)
 }
 
@@ -225,6 +229,7 @@ func (p *disabledStepPlugin) Abort(_ *v1alpha1.Rollout) (*v1alpha1.StepPluginSta
 	return nil, nil
 }
 
+// getStepStatus returns the existing status for the current operation
 func (p *stepPlugin) getStepStatus(rollout *v1alpha1.Rollout, operation v1alpha1.StepPluginOperation) *v1alpha1.StepPluginStatus {
 	for _, s := range rollout.Status.Canary.StepPluginStatuses {
 		if s.Index == p.index && s.Name == p.name && s.Operation == operation {
@@ -234,6 +239,7 @@ func (p *stepPlugin) getStepStatus(rollout *v1alpha1.Rollout, operation v1alpha1
 	return nil
 }
 
+// getStepContext returns the current step configuration with the from a previous operation, if any
 func (p *stepPlugin) getStepContext(stepStatus *v1alpha1.StepPluginStatus) *types.RpcStepContext {
 	var status json.RawMessage = nil
 	if stepStatus != nil {

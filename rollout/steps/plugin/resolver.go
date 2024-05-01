@@ -14,10 +14,13 @@ import (
 type resolver struct {
 }
 
+// Resolver allows to resolve a StepPlugin object
 type Resolver interface {
+	// Resolve is a factory to create the correct StepPlugin based on the current step and global configurations
 	Resolve(index int32, plugin v1alpha1.PluginStep, log *log.Entry) (StepPlugin, error)
 }
 
+// NewResolver creaates a new Resolver
 func NewResolver() Resolver {
 	return &resolver{}
 }

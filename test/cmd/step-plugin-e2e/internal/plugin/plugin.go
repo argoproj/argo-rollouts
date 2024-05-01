@@ -85,7 +85,7 @@ func (p *rpcPlugin) Run(rollout *v1alpha1.Rollout, context *types.RpcStepContext
 
 	phase := types.PhaseSuccessful
 	if config.Return != "" {
-		phase = types.Phase(config.Return)
+		phase = types.StepPhase(config.Return)
 		if err := phase.Validate(); err != nil {
 			return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not parse phase: %w", err).Error()}
 		}
@@ -115,7 +115,7 @@ func (p *rpcPlugin) Terminate(rollout *v1alpha1.Rollout, context *types.RpcStepC
 
 	phase := types.PhaseSuccessful
 	if config.Terminate.Return != "" {
-		phase = types.Phase(config.Terminate.Return)
+		phase = types.StepPhase(config.Terminate.Return)
 		if err := phase.Validate(); err != nil {
 			return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not parse phase: %w", err).Error()}
 		}
@@ -145,7 +145,7 @@ func (p *rpcPlugin) Abort(rollout *v1alpha1.Rollout, context *types.RpcStepConte
 
 	phase := types.PhaseSuccessful
 	if config.Abort.Return != "" {
-		phase = types.Phase(config.Abort.Return)
+		phase = types.StepPhase(config.Abort.Return)
 		if err := phase.Validate(); err != nil {
 			return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Errorf("could not parse phase: %w", err).Error()}
 		}
@@ -158,7 +158,7 @@ func (p *rpcPlugin) Type() string {
 	return "e2e-plugin"
 }
 
-func Result(state State, phase types.Phase, requeue time.Duration) (types.RpcStepResult, types.RpcError) {
+func Result(state State, phase types.StepPhase, requeue time.Duration) (types.RpcStepResult, types.RpcError) {
 	stateRaw, err := json.Marshal(state)
 	if err != nil {
 		return types.RpcStepResult{}, types.RpcError{ErrorString: fmt.Sprintf("Could not marshal state: %v", err)}
