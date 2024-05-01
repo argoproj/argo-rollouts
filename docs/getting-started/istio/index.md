@@ -220,6 +220,7 @@ kubectl argo rollouts get rollout rollouts-demo
 
 ## 2. Perform an update
 
+
 Update the rollout by changing the image, and wait for it to reached the paused state.
 
 ```shell
