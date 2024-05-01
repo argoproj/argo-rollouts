@@ -5,6 +5,7 @@ Organizations below are **officially** using Argo Rollouts. Please send a PR wit
 1. [ADP](https://www.adp.com)
 1. [Akuity](https://akuity.io/)
 1. [Alibaba Group](https://www.alibabagroup.com/)
+1. [Amadeus IT Group](https://amadeus.com/)
 1. [Ambassador Labs](https://www.getambassador.io)
 1. [Ant Group](https://www.antgroup.com/)
 1. [Bucketplace](https://www.bucketplace.co.kr/)

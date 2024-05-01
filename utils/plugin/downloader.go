@@ -43,12 +43,17 @@ func checkPluginExists(pluginLocation string) error {
 }
 
 func checkShaOfPlugin(pluginLocation string, expectedSha256 string) (bool, error) {
-	hasher := sha256.New()
 	fileBytes, err := os.ReadFile(pluginLocation)
 	if err != nil {
 		return false, fmt.Errorf("failed to read file %s: %w", pluginLocation, err)
 	}
-	fileSha256 := fmt.Sprintf("%x", hasher.Sum(fileBytes))
+	var fileSha256 string
+	if len(expectedSha256) == 64 {
+		fileSha256 = fmt.Sprintf("%x", sha256.Sum256(fileBytes))
+	} else {
+		hasher := sha256.New()
+		fileSha256 = fmt.Sprintf("%x", hasher.Sum(fileBytes))
+	}
 	match := fileSha256 == expectedSha256
 	if !match {
 		log.Printf("expected sha256: %s, actual sha256: %s, of downloaded metric plugin (%s)", expectedSha256, fileSha256, pluginLocation)
