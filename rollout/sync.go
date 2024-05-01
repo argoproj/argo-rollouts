@@ -154,8 +154,27 @@ func (c *rolloutContext) setRolloutRevision(revision string) error {
 	if annotations.SetRolloutRevision(c.rollout, revision) {
 		updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
 		if err != nil {
-			c.log.WithError(err).Error("Error: updating rollout revision")
-			return err
+			if errors.IsConflict(err) {
+				retryCount := 0
+				errRetry := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+					retryCount++
+					c.log.Infof("conflict when setting revision on rollout %s, retrying the set revision operation with new rollout from cluster, attempt: %d", c.rollout.Name, retryCount)
+					roGet, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Get(context.TODO(), c.rollout.Name, metav1.GetOptions{})
+					if err != nil {
+						return fmt.Errorf("error getting rollout %s: %w", c.rollout.Name, err)
+					}
+					annotations.SetRolloutRevision(roGet, revision)
+					updatedRollout, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), roGet, metav1.UpdateOptions{})
+					return err
+
+				})
+				if errRetry != nil {
+					return errRetry
+				}
+			} else {
+				c.log.WithError(err).Error("Error: updating rollout revision")
+				return err
+			}
 		}
 		c.rollout = updatedRollout.DeepCopy()
 		if err := c.refResolver.Resolve(c.rollout); err != nil {
