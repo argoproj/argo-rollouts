@@ -12,9 +12,12 @@ GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ;
 GIT_REMOTE_REPO=upstream
 VERSION=$(shell if [ ! -z "${GIT_TAG}" ] ; then echo "${GIT_TAG}" | sed -e "s/^v//"  ; else cat VERSION ; fi)
 
+
+TARGET_ARCH?=linux/amd64
+
 # docker image publishing options
-DOCKER_PUSH=false
-IMAGE_TAG=latest
+DOCKER_PUSH ?= false
+IMAGE_TAG ?= latest
 # build development images
 DEV_IMAGE ?= false
 
@@ -204,10 +207,11 @@ builder-image: ## build builder image
 .PHONY: image
 image:
 ifeq ($(DEV_IMAGE), true)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/step-plugin-e2e-linux-amd64 ./test/cmd/step-plugin-e2e
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/rollouts-controller-linux-amd64 ./cmd/rollouts-controller
-	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev ${DIST_DIR}
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) -f Dockerfile.dev ${DIST_DIR}
 else
-	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG)  .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-rollouts:$(IMAGE_TAG) ; fi
 
@@ -228,7 +232,7 @@ build-sample-step-plugin-debug: ## build sample traffic plugin with debug info
 
 .PHONY: plugin-image
 plugin-image: ## build plugin image
-	DOCKER_BUILDKIT=1 docker build --target kubectl-argo-rollouts -t $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) .
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) --target kubectl-argo-rollouts -t $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) .
 	if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)kubectl-argo-rollouts:$(IMAGE_TAG) ; fi
 
 ##@ Test
@@ -241,14 +245,11 @@ test: test-kustomize ## run all tests
 test-kustomize: ## run kustomize tests
 	./test/kustomize/test.sh
 
-step-plugin-e2e-setup:
-	@rm -rf plugin-bin
-	@go build -gcflags="all=-N -l" -o plugin-bin/e2e-step-plugin test/cmd/step-plugin-e2e/main.go
+setup-e2e:
 	@kubectl apply --context='${E2E_K8S_CONTEXT}' -f manifests/crds/rollout-crd.yaml
 	@kubectl apply --context='${E2E_K8S_CONTEXT}' -n argo-rollouts -f test/e2e/step-plugin/argo-rollouts-config.yaml
-
-step-plugin-e2e-run:
-	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit.xml --format=testname --packages="./test/e2e" --rerun-fails=0 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e -run 'TestStepPluginSuite'
+	@rm -rf plugin-bin
+	@go build -gcflags="all=-N -l" -o plugin-bin/e2e-step-plugin test/cmd/step-plugin-e2e/main.go
 
 .PHONY: start-e2e
 start-e2e: ## start e2e test environment
@@ -259,7 +260,7 @@ test-e2e: install-devtools-local
 	${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=junit.xml --format=testname --packages="./test/e2e" --rerun-fails=5 -- -timeout 60m -count 1 --tags e2e -p ${E2E_PARALLEL} -parallel ${E2E_PARALLEL} -v --short ./test/e2e ${E2E_TEST_OPTIONS}
 
 .PHONY: test-unit
- test-unit: install-devtools-local ## run unit tests
+test-unit: install-devtools-local ## run unit tests
 	${DIST_DIR}/gotestsum --junitfile=junit.xml --format=testname -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v ./test/cmd/metrics-plugin-sample`
 
 

@@ -41,7 +41,6 @@ var (
 	defaultErrorBackoff   = time.Second * 30
 )
 
-// Run exectues a plugin
 func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus, error) {
 	stepStatus := p.getStepStatus(rollout, v1alpha1.StepPluginOperationRun)
 	if stepStatus == nil || stepStatus.Disabled {
@@ -56,10 +55,13 @@ func (p *stepPlugin) Run(rollout *v1alpha1.Rollout) (*v1alpha1.StepPluginStatus,
 	}
 
 	if stepStatus.Phase == v1alpha1.StepPluginPhaseSuccessful || stepStatus.Phase == v1alpha1.StepPluginPhaseFailed {
+		// Already completed
 		return nil, nil
 	}
 
 	if stepStatus.Executions > 0 {
+		// If status existed, check the backoff to know if we are ready to retry.
+		// If we are not, return the status without modifying it.
 		backoff, err := stepStatus.Backoff.Duration()
 		if err != nil {
 			return nil, fmt.Errorf("could not parse backoff duration: %w", err)
