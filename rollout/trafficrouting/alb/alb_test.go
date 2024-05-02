@@ -722,15 +722,30 @@ func TestErrorPatchingServicePorts(t *testing.T) {
 	testErrorPatching(t, ro, []*networkingv1.Ingress{i, mi})
 }
 
+type fakeAWSClientBalancerFetchError struct {
+	Error   error
+	DNSName string
+}
+type fakeAWSTargetGroupFetchError struct {
+	Error           error
+	LoadBalancerARN string
+}
 type fakeAWSClient struct {
 	Ingresses                []string
 	targetGroups             []aws.TargetGroupMeta
+	targetGroupsErrors       []fakeAWSTargetGroupFetchError
 	loadBalancers            []*elbv2types.LoadBalancer
+	loadBalancerErrors       []fakeAWSClientBalancerFetchError
 	targetHealthDescriptions []elbv2types.TargetHealthDescription
 }
 
 func (f *fakeAWSClient) GetTargetGroupMetadata(ctx context.Context, loadBalancerARN string) ([]aws.TargetGroupMeta, error) {
 	result := []aws.TargetGroupMeta{}
+	for _, lb := range f.targetGroupsErrors {
+		if lb.LoadBalancerARN == loadBalancerARN {
+			return nil, lb.Error
+		}
+	}
 	for _, tg := range f.targetGroups {
 		if slices.Contains(tg.LoadBalancerArns, loadBalancerARN) {
 			result = append(result, tg)
@@ -740,6 +755,11 @@ func (f *fakeAWSClient) GetTargetGroupMetadata(ctx context.Context, loadBalancer
 }
 
 func (f *fakeAWSClient) FindLoadBalancerByDNSName(ctx context.Context, dnsName string) (*elbv2types.LoadBalancer, error) {
+	for _, lb := range f.loadBalancerErrors {
+		if lb.DNSName == dnsName {
+			return nil, lb.Error
+		}
+	}
 	for _, lb := range f.loadBalancers {
 		if lb.DNSName != nil && *lb.DNSName == dnsName {
 			return lb, nil
@@ -1253,6 +1273,69 @@ func TestVerifyWeightMultiIngress(t *testing.T) {
 		assert.True(t, *weightVerified)
 		assert.Equal(t, status.ALBs[0], *fakeClient.getAlbStatusMultiIngress("ingress", 0, 0))
 		assert.Equal(t, status.ALBs[1], *fakeClient.getAlbStatusMultiIngress("multi-ingress", 1, 2))
+	}
+
+	// LoadBalancer found, dns-mismatch
+	{
+		var status v1alpha1.RolloutStatus
+		r, fakeClient := newFakeReconciler(&status)
+		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
+			makeLoadBalancer("lb-abc123-name", "broken-dns-verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+			makeLoadBalancer("lb-multi-ingress-name", "verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
+		}
+		fakeClient.targetGroups = []aws.TargetGroupMeta{
+			makeTargetGroupForBalancer("lb-multi-ingress-name", "multi-ingress-canary-tg-abc123-name", 443, 11, "default/multi-ingress-canary-svc:443"),
+			makeTargetGroupForBalancer("lb-multi-ingress-name", "multi-ingress-stable-tg-abc123-name", 443, 89, "default/multi-ingress-stable-svc:443"),
+		}
+
+		weightVerified, err := r.VerifyWeight(10)
+		assert.NoError(t, err)
+		assert.False(t, *weightVerified)
+	}
+
+	// LoadBalancer found, but balancer fetch failed with error
+	{
+		expectedError := k8serrors.NewBadRequest("failed to fetch load balancer")
+		var status v1alpha1.RolloutStatus
+		r, fakeClient := newFakeReconciler(&status)
+		fakeClient.loadBalancerErrors = []fakeAWSClientBalancerFetchError{{
+			DNSName: "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com",
+			Error:   expectedError,
+		}}
+		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
+			makeLoadBalancer("lb-multi-ingress-name", "verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
+		}
+		fakeClient.targetGroups = []aws.TargetGroupMeta{
+			makeTargetGroupForBalancer("lb-multi-ingress-name", "multi-ingress-canary-tg-abc123-name", 443, 11, "default/multi-ingress-canary-svc:443"),
+			makeTargetGroupForBalancer("lb-multi-ingress-name", "multi-ingress-stable-tg-abc123-name", 443, 89, "default/multi-ingress-stable-svc:443"),
+		}
+
+		weightVerified, err := r.VerifyWeight(10)
+		assert.Equal(t, err, expectedError)
+		assert.False(t, *weightVerified)
+	}
+
+	// LoadBalancer found, but target group fetch failed with error
+	{
+		expectedError := k8serrors.NewBadRequest("failed to fetch target group")
+		var status v1alpha1.RolloutStatus
+		r, fakeClient := newFakeReconciler(&status)
+		fakeClient.loadBalancers = []*elbv2types.LoadBalancer{
+			makeLoadBalancer("lb-abc123-name", "verify-weight-test-abc-123.us-west-2.elb.amazonaws.com"),
+			makeLoadBalancer("lb-multi-ingress-name", "verify-weight-multi-ingress.us-west-2.elb.amazonaws.com"),
+		}
+		fakeClient.targetGroups = []aws.TargetGroupMeta{
+			makeTargetGroupForBalancer("lb-multi-ingress-name", "multi-ingress-canary-tg-abc123-name", 443, 11, "default/multi-ingress-canary-svc:443"),
+			makeTargetGroupForBalancer("lb-multi-ingress-name", "multi-ingress-stable-tg-abc123-name", 443, 89, "default/multi-ingress-stable-svc:443"),
+		}
+		fakeClient.targetGroupsErrors = []fakeAWSTargetGroupFetchError{{
+			LoadBalancerARN: *fakeClient.loadBalancers[0].LoadBalancerArn,
+			Error:           expectedError,
+		}}
+
+		weightVerified, err := r.VerifyWeight(10)
+		assert.Equal(t, err, expectedError)
+		assert.False(t, *weightVerified)
 	}
 }
 
