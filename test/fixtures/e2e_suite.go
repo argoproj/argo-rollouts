@@ -54,7 +54,7 @@ const (
 )
 
 var (
-	E2EWaitTimeout time.Duration = time.Second * 120
+	E2EWaitTimeout time.Duration = time.Second * 90
 	E2EPodDelay                  = 0
 
 	E2EALBIngressAnnotations map[string]string

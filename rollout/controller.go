@@ -280,7 +280,7 @@ func NewController(cfg ControllerConfig) *Controller {
 
 	cfg.ReplicaSetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
-			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
+			//controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
 		UpdateFunc: func(old, new any) {
 			newRS := new.(*appsv1.ReplicaSet)
@@ -290,10 +290,10 @@ func NewController(cfg ControllerConfig) *Controller {
 				// Two different versions of the same Replica will always have different RVs.
 				return
 			}
-			controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.enqueueRollout)
+			//controllerutil.EnqueueParentObject(new, register.RolloutKind, controller.enqueueRollout)
 		},
 		DeleteFunc: func(obj any) {
-			controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
+			//controllerutil.EnqueueParentObject(obj, register.RolloutKind, controller.enqueueRollout)
 		},
 	})
 
