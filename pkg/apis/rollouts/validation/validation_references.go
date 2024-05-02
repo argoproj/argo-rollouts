@@ -250,11 +250,11 @@ func validateNginxIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.
 }
 
 func validateAlbIngress(canary *v1alpha1.CanaryStrategy, ingress *ingressutil.Ingress, fldPath *field.Path) field.ErrorList {
-	ingresses := canary.TrafficRouting.ALB.Ingresses
 	allErrs := field.ErrorList{}
 	// If there are multiple ALB ingresses, and one of them is being validated,
 	// use that ingress name.
-	if ingresses != nil && slices.Contains(ingresses, ingress.GetName()) {
+	if ingressutil.CheckALBTrafficRoutingHasFieldsForMultiIngressScenario(canary.TrafficRouting.ALB) &&
+		ingressutil.CheckALBTrafficRoutingReferencesIngress(canary.TrafficRouting.ALB, ingress.GetName()) {
 		fldPath = fldPath.Child("alb").Child("ingresses")
 		serviceName := canary.StableService
 		ingressName := ingress.GetName()
