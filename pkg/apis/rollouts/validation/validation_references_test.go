@@ -955,7 +955,7 @@ func TestValidateRolloutAlbIngressesConfig(t *testing.T) {
 			stableIngress,
 			emptyIngresses,
 			stableIngresses,
-			failureCase2,
+			nil,
 		},
 		{
 			"Just .Ingress configured",
@@ -976,7 +976,7 @@ func TestValidateRolloutAlbIngressesConfig(t *testing.T) {
 			emptyIngress,
 			emptyIngresses,
 			stableIngresses,
-			nil,
+			failureCase1,
 		},
 	}
 
