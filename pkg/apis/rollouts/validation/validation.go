@@ -89,7 +89,7 @@ const (
 	InvalideStepRouteNameNotFoundInManagedRoutes = "Steps define a route that does not exist in spec.strategy.canary.trafficRouting.managedRoutes"
 
 	// ALB traffic routing errors
-	ALBServicePortsReferToUnknownIngress = "ServicePorts reference ingress which is not listed in .Ingresses field"
+	ALBServicePortsReferToUnknownIngress = "ServicePorts reference ingress which is not listed in .Ingress/.Ingresses field"
 	ALBNoServicePortsForIngress          = "Given Ingress has no associated ServicePort. Either specify default .ServicePort value or define specific ports for the Ingress under .ServicePorts"
 )
 
