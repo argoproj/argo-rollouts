@@ -93,7 +93,7 @@ func SingleAlbIngressConfigured(rollout *v1alpha1.Rollout) bool {
 
 // CheckALBTrafficRoutingHasFieldsForMultiIngressScenario returns true if either .Ingresses or .ServicePorts are set
 func CheckALBTrafficRoutingHasFieldsForMultiIngressScenario(a *v1alpha1.ALBTrafficRouting) bool {
-	return a.Ingresses != nil || a.ServicePorts != nil
+	return a.Ingresses != nil
 }
 
 // GetIngressesFromALBTrafficRouting returns a list of Ingresses and their associated ports.
