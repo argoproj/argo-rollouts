@@ -84,11 +84,106 @@ func SingleNginxIngressConfigured(rollout *v1alpha1.Rollout) bool {
 }
 
 func MultipleAlbIngressesConfigured(rollout *v1alpha1.Rollout) bool {
-	return rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses != nil
+	return CheckALBTrafficRoutingHasFieldsForMultiIngressScenario(rollout.Spec.Strategy.Canary.TrafficRouting.ALB)
 }
 
 func SingleAlbIngressConfigured(rollout *v1alpha1.Rollout) bool {
 	return rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress != ""
+}
+
+// CheckALBTrafficRoutingHasFieldsForMultiIngressScenario returns true if either .Ingresses or .ServicePorts are set
+func CheckALBTrafficRoutingHasFieldsForMultiIngressScenario(a *v1alpha1.ALBTrafficRouting) bool {
+	return a.Ingresses != nil || a.ServicePorts != nil
+}
+
+// GetIngressesFromALBTrafficRouting returns a list of Ingresses and their associated ports.
+// if .ServicePorts or .Ingresses are set -
+// returns unique ingresses list (falling back to .ServicePort where not specified).
+// Otherwise returns .Ingress and .ServicePort
+func GetIngressesFromALBTrafficRouting(a *v1alpha1.ALBTrafficRouting) []v1alpha1.ALBIngressWithPorts {
+	ingressPorts := make(map[string][]int32)
+	for _, ingressWithPort := range a.ServicePorts {
+		ingressPorts[ingressWithPort.Ingress] = ingressWithPort.ServicePorts
+	}
+
+	ingresses := a.Ingresses
+	if a.Ingresses == nil {
+		ingresses = []string{a.Ingress}
+	}
+
+	result := make([]v1alpha1.ALBIngressWithPorts, 0, len(ingresses))
+	for _, ingressName := range ingresses {
+		if _, ok := ingressPorts[ingressName]; ok {
+			result = append(result, v1alpha1.ALBIngressWithPorts{
+				Ingress:      ingressName,
+				ServicePorts: ingressPorts[ingressName],
+			})
+		} else {
+			result = append(result, v1alpha1.ALBIngressWithPorts{
+				Ingress:      ingressName,
+				ServicePorts: []int32{a.ServicePort},
+			})
+		}
+	}
+
+	return result
+}
+
+// GetAllIngressNamesFromALBTrafficRouting returns list of all ingresses that are referenced by the ALBTrafficRouting
+// prefixed with namespace if it is not empty
+func GetAllIngressNamesFromALBTrafficRouting(a *v1alpha1.ALBTrafficRouting, namespace string) []string {
+	visited := make(map[string]bool)
+	if a.Ingress != "" {
+		visited[a.Ingress] = true
+	}
+	for _, ingress := range a.Ingresses {
+		if _, ok := visited[ingress]; !ok {
+			visited[ingress] = true
+		}
+	}
+	for _, ingressesWithPorts := range a.ServicePorts {
+		if _, ok := visited[ingressesWithPorts.Ingress]; !ok {
+			visited[ingressesWithPorts.Ingress] = true
+		}
+	}
+	result := make([]string, 0, len(visited))
+	if namespace == "" {
+		for ingress := range visited {
+			result = append(result, ingress)
+		}
+	} else {
+		for ingress := range visited {
+			result = append(result, fmt.Sprintf("%s/%s", namespace, ingress))
+		}
+
+	}
+	return result
+}
+
+// CheckALBTrafficRoutingReferencesIngress checks if the ALBTrafficRouting references the ingress
+// in .ServicePorts, .Ingresses or .Ingress fields
+func CheckALBTrafficRoutingReferencesIngress(a *v1alpha1.ALBTrafficRouting, ingressName string) bool {
+	if a.ServicePorts != nil {
+		for i := range a.ServicePorts {
+			if a.ServicePorts[i].Ingress == ingressName {
+				return true
+			}
+		}
+	}
+
+	if a.Ingresses != nil {
+		for i := range a.Ingresses {
+			if a.Ingresses[i] == ingressName {
+				return true
+			}
+		}
+	}
+
+	if a.Ingress == ingressName {
+		return true
+	}
+
+	return false
 }
 
 // GetRolloutIngressKeys returns ingresses keys (namespace/ingressName) which are referenced by specified rollout
@@ -126,26 +221,9 @@ func GetRolloutIngressKeys(rollout *v1alpha1.Rollout) []string {
 
 	if rollout.Spec.Strategy.Canary != nil &&
 		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
-		rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil &&
-		rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress != "" {
-		ingresses = append(
-			ingresses,
-			fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingress),
-		)
-	}
-
-	// Scenario where one rollout is managing multiple ALB ingresses.
-	if rollout.Spec.Strategy.Canary != nil &&
-		rollout.Spec.Strategy.Canary.TrafficRouting != nil &&
-		rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil &&
-		rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses != nil {
-
-		for _, ingress := range rollout.Spec.Strategy.Canary.TrafficRouting.ALB.Ingresses {
-			ingresses = append(
-				ingresses,
-				fmt.Sprintf("%s/%s", rollout.Namespace, ingress),
-			)
-		}
+		rollout.Spec.Strategy.Canary.TrafficRouting.ALB != nil {
+		definedIngresses := GetAllIngressNamesFromALBTrafficRouting(rollout.Spec.Strategy.Canary.TrafficRouting.ALB, rollout.Namespace)
+		ingresses = append(ingresses, definedIngresses...)
 	}
 
 	return ingresses

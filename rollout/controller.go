@@ -942,9 +942,10 @@ func (c *rolloutContext) getReferencedALBIngresses(canary *v1alpha1.CanaryStrate
 	ingresses := []ingressutil.Ingress{}
 
 	// The rollout resource manages more than 1 ingress.
-	if canary.TrafficRouting.ALB.Ingresses != nil {
-		for _, ing := range canary.TrafficRouting.ALB.Ingresses {
-			ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, ing)
+	if ingressutil.CheckALBTrafficRoutingHasFieldsForMultiIngressScenario(canary.TrafficRouting.ALB) {
+		definedIngresses := ingressutil.GetIngressesFromALBTrafficRouting(canary.TrafficRouting.ALB)
+		for _, ing := range definedIngresses {
+			ingress, err := c.ingressWrapper.GetCached(c.rollout.Namespace, ing.Ingress)
 			if err != nil {
 				return handleCacheError("alb", []string{"ingresses"}, canary.TrafficRouting.ALB.Ingresses, err)
 			}
