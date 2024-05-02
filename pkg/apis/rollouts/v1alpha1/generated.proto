@@ -29,6 +29,14 @@ import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 // Package-wide variables from generator "generated".
 option go_package = "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1";
 
+message ALBIngressWithPorts {
+  // Ingress specifies name of the ingress ServicePorts refer to
+  optional string ingress = 1;
+
+  // ServicePorts define list of ports to be set for the ingress
+  repeated int32 servicePorts = 2;
+}
+
 message ALBStatus {
   optional AwsResourceRef loadBalancer = 1;
 
@@ -44,7 +52,9 @@ message ALBTrafficRouting {
   // Ingress refers to the name of an `Ingress` resource in the same namespace as the `Rollout`
   optional string ingress = 1;
 
-  // ServicePort refers to the port that the Ingress action should route traffic to
+  // ServicePort refers to the port that the Ingress action should route traffic to.
+  // Can be omitted if ports for each Ingress from .Ingresses list specified via ServicePorts
+  // +optional
   optional int32 servicePort = 2;
 
   // RootService references the service in the ingress to the controller should add the action to
@@ -61,6 +71,11 @@ message ALBTrafficRouting {
   // Ingresses refers to the name of an `Ingress` resource in the same namespace as the `Rollout` in a multi ingress scenario
   // +optional
   repeated string ingresses = 6;
+
+  // ServicePorts define ports for ingresses in a multi ingress scenario,
+  // in cases when when ingress has multiple ports or has port different from specified servicePort
+  // +optional
+  repeated ALBIngressWithPorts servicePorts = 7;
 }
 
 // AmbassadorTrafficRouting defines the configuration required to use Ambassador as traffic
