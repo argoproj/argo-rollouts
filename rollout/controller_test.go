@@ -792,6 +792,12 @@ func (f *fixture) expectPatchServiceAction(s *corev1.Service, newLabel string) i
 	return len
 }
 
+func (f *fixture) expectGetReplicaSetAction(r *appsv1.ReplicaSet) int {
+	len := len(f.kubeactions)
+	f.kubeactions = append(f.kubeactions, core.NewGetAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r.Name))
+	return len
+}
+
 func (f *fixture) expectCreateReplicaSetAction(r *appsv1.ReplicaSet) int {
 	len := len(f.kubeactions)
 	f.kubeactions = append(f.kubeactions, core.NewCreateAction(schema.GroupVersionResource{Resource: "replicasets"}, r.Namespace, r))
