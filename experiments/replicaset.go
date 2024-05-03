@@ -309,6 +309,8 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 
 					rsCopy.ObjectMeta.ResourceVersion = ""
 					rsGet.ObjectMeta.ResourceVersion = ""
+					rsCopy.ObjectMeta.ManagedFields = nil
+					rsGet.ObjectMeta.ManagedFields = nil
 					patch, changed, err := diff.CreateTwoWayMergePatch(rsCopy, rsGet, appsv1.ReplicaSet{})
 					if err != nil {
 						return err

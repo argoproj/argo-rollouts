@@ -103,6 +103,8 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 
 					rsCopy.ObjectMeta.ResourceVersion = ""
 					rsGet.ObjectMeta.ResourceVersion = ""
+					rsCopy.ObjectMeta.ManagedFields = nil
+					rsGet.ObjectMeta.ManagedFields = nil
 					patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
 					if err != nil {
 						return err
@@ -429,10 +431,8 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 	var err error
 	var updatedRS *appsv1.ReplicaSet
 	if sizeNeedsUpdate || annotationsNeedUpdate {
-
-		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
-
 		rsCopy := rs.DeepCopy()
+		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
 		*(rsCopy.Spec.Replicas) = newScale
 		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
 		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
@@ -453,6 +453,8 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 
 					rsCopy.ObjectMeta.ResourceVersion = ""
 					rsGet.ObjectMeta.ResourceVersion = ""
+					rsCopy.ObjectMeta.ManagedFields = nil
+					rsGet.ObjectMeta.ManagedFields = nil
 					patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
 					if err != nil {
 						return err

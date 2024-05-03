@@ -2173,9 +2173,9 @@ func TestSyncRolloutWaitAddToQueueWithConflict(t *testing.T) {
 	f.objects = append(f.objects, r2)
 
 	f.expectPatchRolloutAction(r2)
-	f.expectUpdateReplicaSetAction(rs2)
-	f.expectGetReplicaSetAction(rs2)
-	f.expectPatchReplicaSetAction(rs2)
+	f.expectUpdateReplicaSetAction(rs2) // attempt to scale replicaset but conflict
+	f.expectGetReplicaSetAction(rs2)    // get new replicaset from cluster
+	f.expectPatchReplicaSetAction(rs2)  // instead of update patch replicaset
 
 	key := fmt.Sprintf("%s/%s", r2.Namespace, r2.Name)
 	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
@@ -2188,9 +2188,4 @@ func TestSyncRolloutWaitAddToQueueWithConflict(t *testing.T) {
 	})
 
 	f.runController(key, true, false, c, i, k8sI)
-
-	// When the controller starts, it will enqueue the rollout while syncing the informer and during the reconciliation step
-	//f.enqueuedObjectsLock.Lock()
-	//defer f.enqueuedObjectsLock.Unlock()
-	//assert.Equal(t, 4, f.enqueuedObjects[key])
 }
