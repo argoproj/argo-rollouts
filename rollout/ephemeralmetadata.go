@@ -3,6 +3,9 @@ package rollout
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-rollouts/utils/diff"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,6 +87,20 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	// 2. Update ReplicaSet so that any new pods it creates will have the metadata
 	rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
 	if err != nil {
+		if errors.IsConflict(err) {
+			rsGet, err := c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Get(ctx, modifiedRS.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, modifiedRS, appsv1.ReplicaSet{})
+
+			if changed {
+				rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Patch(ctx, modifiedRS.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
 		return fmt.Errorf("error updating replicaset in syncEphemeralMetadata: %w", err)
 	}
 	err = c.replicaSetInformer.GetIndexer().Update(rs)

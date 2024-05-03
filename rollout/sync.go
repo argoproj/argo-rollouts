@@ -73,27 +73,22 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 	// Calculate revision number for this new replica set
 	newRevision := strconv.FormatInt(maxOldRevision+1, 10)
 
-	updateRSFunc := func(rs *appsv1.ReplicaSet) (rsCopy *appsv1.ReplicaSet, annotationsUpdated bool, minReadySecondsNeedsUpdate bool, affinityNeedsUpdate bool) {
-		// Latest replica set exists. We need to sync its annotations (includes copying all but
-		// annotationsToSkip from the parent rollout, and update revision and desiredReplicas)
-		// and also update the revision annotation in the rollout with the
-		// latest revision.
-		rsCopy = rs.DeepCopy()
+	// Latest replica set exists. We need to sync its annotations (includes copying all but
+	// annotationsToSkip from the parent rollout, and update revision and desiredReplicas)
+	// and also update the revision annotation in the rollout with the
+	// latest revision.
+	rsCopy := c.newRS.DeepCopy()
 
-		// Set existing new replica set's annotation
-		annotationsUpdated = annotations.SetNewReplicaSetAnnotations(c.rollout, rsCopy, newRevision, true)
-		minReadySecondsNeedsUpdate = rsCopy.Spec.MinReadySeconds != c.rollout.Spec.MinReadySeconds
-		affinityNeedsUpdate = replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
+	// Set existing new replica set's annotation
+	annotationsUpdated := annotations.SetNewReplicaSetAnnotations(c.rollout, rsCopy, newRevision, true)
+	minReadySecondsNeedsUpdate := rsCopy.Spec.MinReadySeconds != c.rollout.Spec.MinReadySeconds
+	affinityNeedsUpdate := replicasetutil.IfInjectedAntiAffinityRuleNeedsUpdate(rsCopy.Spec.Template.Spec.Affinity, *c.rollout)
+
+	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
 
 		rsCopy.Spec.MinReadySeconds = c.rollout.Spec.MinReadySeconds
 		rsCopy.Spec.Template.Spec.Affinity = replicasetutil.GenerateReplicaSetAffinity(*c.rollout)
 
-		return
-	}
-
-	rsCopy, annotationsUpdated, minReadySecondsNeedsUpdate, affinityNeedsUpdate := updateRSFunc(c.newRS)
-
-	if annotationsUpdated || minReadySecondsNeedsUpdate || affinityNeedsUpdate {
 		rs, err := c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
 			if errors.IsConflict(err) {
@@ -108,15 +103,17 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 
 					rsCopy.ObjectMeta.ResourceVersion = ""
 					rsGet.ObjectMeta.ResourceVersion = ""
-					patch, _, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
+					patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
 					if err != nil {
 						return err
 					}
 					c.log.Infof("Patching replicaset with patch in syncReplicaSetRevision: %s", string(patch))
 
-					rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
-					if err != nil {
-						return err
+					if changed {
+						rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+						if err != nil {
+							return err
+						}
 					}
 
 					return nil
@@ -434,16 +431,13 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 	if sizeNeedsUpdate || annotationsNeedUpdate {
 
 		oldScale := defaults.GetReplicasOrDefault(rs.Spec.Replicas)
-		updateRSFunc := func(rs *appsv1.ReplicaSet) *appsv1.ReplicaSet {
-			rsCopy := rs.DeepCopy()
-			*(rsCopy.Spec.Replicas) = newScale
-			annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
-			if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
-				delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
-			}
-			return rsCopy
+
+		rsCopy := rs.DeepCopy()
+		*(rsCopy.Spec.Replicas) = newScale
+		annotations.SetReplicasAnnotations(rsCopy, rolloutReplicas)
+		if fullScaleDown && !c.shouldDelayScaleDownOnAbort() {
+			delete(rsCopy.Annotations, v1alpha1.DefaultReplicaSetScaleDownDeadlineAnnotationKey)
 		}
-		rsCopy := updateRSFunc(rs)
 
 		updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
 		if err != nil {
@@ -459,15 +453,17 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 
 					rsCopy.ObjectMeta.ResourceVersion = ""
 					rsGet.ObjectMeta.ResourceVersion = ""
-					patch, _, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
+					patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
 					if err != nil {
 						return err
 					}
 					c.log.Infof("Patching replicaset with patch in scaleReplicaset: %s", string(patch))
 
-					updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
-					if err != nil {
-						return err
+					if changed {
+						updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+						if err != nil {
+							return err
+						}
 					}
 
 					return nil
@@ -479,7 +475,7 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 				return scaled, nil, fmt.Errorf("error updating replicaset in scaleReplicaSet: %w", err)
 			}
 		}
-		err = c.replicaSetInformer.GetIndexer().Update(rs)
+		err = c.replicaSetInformer.GetIndexer().Update(updatedRS)
 		if err != nil {
 			err = fmt.Errorf("error updating replicaset informer in scaleReplicaSet: %w", err)
 			return scaled, nil, err
