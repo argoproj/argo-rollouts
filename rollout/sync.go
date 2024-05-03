@@ -300,7 +300,7 @@ func (c *rolloutContext) createDesiredReplicaSet() (*appsv1.ReplicaSet, error) {
 		cond := conditions.NewRolloutCondition(v1alpha1.RolloutProgressing, corev1.ConditionFalse, conditions.FailedRSCreateReason, msg)
 		patchErr := c.patchCondition(c.rollout, newStatus, cond)
 		if patchErr != nil {
-			c.log.Warnf("Error Patching Rollout: %s", patchErr.Error())
+			c.log.Warnf("Error Patching Rollout Conditions: %s", patchErr.Error())
 		}
 		return nil, err
 	default:
