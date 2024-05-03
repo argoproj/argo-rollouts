@@ -107,9 +107,9 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 					if err != nil {
 						return err
 					}
-					c.log.Infof("Patching replicaset with patch in syncReplicaSetRevision: %s", string(patch))
 
 					if changed {
+						c.log.Infof("Patching replicaset with patch in syncReplicaSetRevision: %s", string(patch))
 						rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
 						if err != nil {
 							return err
@@ -457,9 +457,9 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 					if err != nil {
 						return err
 					}
-					c.log.Infof("Patching replicaset with patch in scaleReplicaset: %s", string(patch))
 
 					if changed {
+						c.log.Infof("Patching replicaset with patch in scaleReplicaset: %s", string(patch))
 						updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
 						if err != nil {
 							return err

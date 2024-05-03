@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-rollouts/utils/diff"
 	"time"
+
+	"github.com/argoproj/argo-rollouts/utils/diff"
 
 	"k8s.io/client-go/util/retry"
 
@@ -306,12 +307,19 @@ func (ec *experimentContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int
 						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
 					}
 
-					patch, _, err := diff.CreateTwoWayMergePatch(rsCopy, rsGet, appsv1.ReplicaSet{})
-					ec.log.Infof("Patching replicaset with patch in scaleReplicaSets(expirments): %s", string(patch))
-
-					updatedRS, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+					rsCopy.ObjectMeta.ResourceVersion = ""
+					rsGet.ObjectMeta.ResourceVersion = ""
+					patch, changed, err := diff.CreateTwoWayMergePatch(rsCopy, rsGet, appsv1.ReplicaSet{})
 					if err != nil {
 						return err
+					}
+
+					if changed {
+						ec.log.Infof("Patching replicaset with patch in scaleReplicaSets(expirments): %s", string(patch))
+						updatedRS, err = ec.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+						if err != nil {
+							return err
+						}
 					}
 					return nil
 				})

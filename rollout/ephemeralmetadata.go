@@ -3,6 +3,7 @@ package rollout
 import (
 	"context"
 	"fmt"
+
 	"github.com/argoproj/argo-rollouts/utils/diff"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -93,6 +94,9 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 				return err
 			}
 			patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, modifiedRS, appsv1.ReplicaSet{})
+			if err != nil {
+				return err
+			}
 
 			if changed {
 				c.log.Infof("Patching replicaset with patch in syncEphemeralMetadata: %s", string(patch))
