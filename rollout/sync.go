@@ -105,9 +105,21 @@ func (c *rolloutContext) syncReplicaSetRevision() (*appsv1.ReplicaSet, error) {
 					if err != nil {
 						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
 					}
-					rsCopy, _, _, _ := updateRSFunc(rsGet)
-					rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
-					return err
+
+					rsCopy.ObjectMeta.ResourceVersion = ""
+					rsGet.ObjectMeta.ResourceVersion = ""
+					patch, _, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
+					if err != nil {
+						return err
+					}
+					c.log.Infof("Patching replicaset with patch in syncReplicaSetRevision: %s", string(patch))
+
+					rs, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.ObjectMeta.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
+					if err != nil {
+						return err
+					}
+
+					return nil
 				})
 				if errRetry != nil {
 					return nil, errRetry
@@ -445,9 +457,15 @@ func (c *rolloutContext) scaleReplicaSet(rs *appsv1.ReplicaSet, newScale int32, 
 						return fmt.Errorf("error getting replicaset %s: %w", rsCopy.Name, err)
 					}
 
-					rsCopy := updateRSFunc(rsGet)
+					rsCopy.ObjectMeta.ResourceVersion = ""
+					rsGet.ObjectMeta.ResourceVersion = ""
+					patch, _, err := diff.CreateTwoWayMergePatch(rsGet, rsCopy, appsv1.ReplicaSet{})
+					if err != nil {
+						return err
+					}
+					c.log.Infof("Patching replicaset with patch in scaleReplicaset: %s", string(patch))
 
-					updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Update(ctx, rsCopy, metav1.UpdateOptions{})
+					updatedRS, err = c.kubeclientset.AppsV1().ReplicaSets(rsCopy.Namespace).Patch(ctx, rsCopy.Name, patchtypes.StrategicMergePatchType, patch, metav1.PatchOptions{})
 					if err != nil {
 						return err
 					}
