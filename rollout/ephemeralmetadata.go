@@ -95,6 +95,7 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 			patch, changed, err := diff.CreateTwoWayMergePatch(rsGet, modifiedRS, appsv1.ReplicaSet{})
 
 			if changed {
+				c.log.Infof("Patching replicaset with patch in syncEphemeralMetadata: %s", string(patch))
 				rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Patch(ctx, modifiedRS.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 				if err != nil {
 					return err
