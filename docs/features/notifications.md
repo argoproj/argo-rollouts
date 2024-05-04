@@ -160,6 +160,24 @@ data:
 
 Each condition might use several templates. Typically each template is responsible for generating a service-specific notification part.
 
+### User-defined context
+
+It is possible to define some shared context between all notification templates by setting a top-level YAML document of key-value pairs, which can then be used within templates, like so:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-notification-configmap
+data:
+  context: |
+    region: east
+    environmentName: staging
+
+  template.a-slack-template-with-context: |
+    message: "Something happened in {{ .context.environmentName }} in the {{ .context.region }} data center!"
+```
+
 ### Notification Metrics
 
 The following prometheus metrics are emitted when notifications are enabled in argo-rollouts.
