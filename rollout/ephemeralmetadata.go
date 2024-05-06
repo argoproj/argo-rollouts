@@ -2,12 +2,6 @@ package rollout
 
 import (
 	"context"
-	"fmt"
-	"k8s.io/client-go/util/retry"
-
-	"github.com/argoproj/argo-rollouts/utils/diff"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,43 +81,12 @@ func (c *rolloutContext) syncEphemeralMetadata(ctx context.Context, rs *appsv1.R
 	}
 
 	// 2. Update ReplicaSet so that any new pods it creates will have the metadata
-	rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Update(ctx, modifiedRS, metav1.UpdateOptions{})
+	rs, err = c.updateReplicaSetFallbackToPatch(ctx, modifiedRS)
 	if err != nil {
-		if errors.IsConflict(err) {
-			retryCount := 0
-			errConflict := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				c.log.Infof("conflict when adding ephemeralmetadata %s, retrying the scale operation with new replicaset from cluster, attempt: %d", rs.Name, retryCount)
-				rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Get(ctx, modifiedRS.Name, metav1.GetOptions{})
-				if err != nil {
-					return err
-				}
+		c.log.Infof("failed to sync ephemeral metadata %v to ReplicaSet %s: %v", podMetadata, rs.Name, err)
+		return err
+	}
 
-				rs.ObjectMeta.ResourceVersion = ""
-				rs.ObjectMeta.ResourceVersion = ""
-				rs.ObjectMeta.ManagedFields = nil
-				rs.ObjectMeta.ManagedFields = nil
-				patch, changed, err := diff.CreateTwoWayMergePatch(rs, modifiedRS, appsv1.ReplicaSet{})
-				if err != nil {
-					return err
-				}
-				if changed {
-					rs, err = c.kubeclientset.AppsV1().ReplicaSets(modifiedRS.Namespace).Patch(ctx, modifiedRS.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-					if err != nil {
-						return err
-					}
-				}
-				return nil
-			})
-			if errConflict != nil {
-				return fmt.Errorf("error updating replicaset in syncEphemeralMetadata in RetryOnConflict: %w", errConflict)
-			}
-		}
-		return fmt.Errorf("error updating replicaset in syncEphemeralMetadata: %w", err)
-	}
-	err = c.replicaSetInformer.GetIndexer().Update(rs)
-	if err != nil {
-		return fmt.Errorf("error updating replicaset informer in syncEphemeralMetadata: %w", err)
-	}
 	c.log.Infof("synced ephemeral metadata %v to ReplicaSet %s", podMetadata, rs.Name)
 	return nil
 }
