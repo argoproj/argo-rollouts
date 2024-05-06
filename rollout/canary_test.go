@@ -2147,7 +2147,7 @@ func TestCanaryReplicaAndSpecChangedTogether(t *testing.T) {
 	assert.NotEqual(t, originReplicas, int(*updated.Spec.Replicas))
 }
 
-func TestSyncRolloutWaitAddToQueueWithConflict(t *testing.T) {
+func TestSyncRolloutWithConflictInScaleReplicaSet(t *testing.T) {
 	f := newFixture(t)
 	defer f.Close()
 
@@ -2164,7 +2164,6 @@ func TestSyncRolloutWaitAddToQueueWithConflict(t *testing.T) {
 	r2 := bumpVersion(r1)
 
 	rs1 := newReplicaSetWithStatus(r1, 9, 9)
-	//rs1PodHash := rs1.Labels[v1alpha1.DefaultRolloutUniqueLabelKey]
 	rs2 := newReplicaSetWithStatus(r2, 1, 1)
 	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
 	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
@@ -2188,4 +2187,57 @@ func TestSyncRolloutWaitAddToQueueWithConflict(t *testing.T) {
 	})
 
 	f.runController(key, true, false, c, i, k8sI)
+
+	f.getPatchedRolloutWithoutConditions(0)
+}
+
+func TestSyncRolloutWithConflictInSyncReplicaSetRevision(t *testing.T) {
+	f := newFixture(t)
+	defer f.Close()
+
+	steps := []v1alpha1.CanaryStep{
+		{
+			SetWeight: int32Ptr(10),
+		}, {
+			Pause: &v1alpha1.RolloutPause{
+				Duration: v1alpha1.DurationFromInt(10),
+			},
+		},
+	}
+	r1 := newCanaryRollout("foo", 3, nil, steps, int32Ptr(1), intstr.FromInt(1), intstr.FromInt(0))
+	r2 := bumpVersion(r1)
+
+	rs1 := newReplicaSetWithStatus(r1, 3, 3)
+	rs2 := newReplicaSetWithStatus(r2, 3, 3)
+	rs2.Annotations["rollout.argoproj.io/revision"] = "1"
+
+	f.kubeobjects = append(f.kubeobjects, rs1, rs2)
+	f.replicaSetLister = append(f.replicaSetLister, rs1, rs2)
+
+	f.rolloutLister = append(f.rolloutLister, r2)
+	f.objects = append(f.objects, r2)
+
+	key := fmt.Sprintf("%s/%s", r1.Namespace, r1.Name)
+	c, i, k8sI := f.newController(func() time.Duration { return 30 * time.Minute })
+
+	f.kubeclient.PrependReactor("update", "replicasets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, &appsv1.ReplicaSet{}, errors.NewConflict(schema.GroupResource{
+			Group:    "Apps",
+			Resource: "ReplicaSet",
+		}, "", fmt.Errorf("test error"))
+	})
+
+	f.expectPatchRolloutAction(r2)
+	f.expectUpdateReplicaSetAction(rs1) // attempt to update replicaset revision but conflict
+	f.expectGetReplicaSetAction(rs1)    // get new replicaset from cluster
+	f.expectPatchReplicaSetAction(rs1)  // instead of update patch replicaset
+
+	f.expectUpdateReplicaSetAction(rs2) // attempt to scale replicaset but conflict
+	f.expectGetReplicaSetAction(rs2)    // get new replicaset from cluster
+	f.expectPatchReplicaSetAction(rs2)  // instead of update patch replicaset
+
+	f.runController(key, true, false, c, i, k8sI)
+
+	r2.ObjectMeta.Annotations["test"] = "test"
+	f.client.ArgoprojV1alpha1().Rollouts(r1.Namespace).Update(context.Background(), r2, metav1.UpdateOptions{})
 }
