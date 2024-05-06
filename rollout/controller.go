@@ -997,8 +997,53 @@ func (c *rolloutContext) updateReplicaSetFallbackToPatch(ctx context.Context, rs
 
 // updateRolloutFallbackToPatchWithoutStatus updates the rollout with a patch if there is a conflict from an update operation, be careful using this
 // because you might still be updating the rollout with stale data, this is a last resort.
-func (c *rolloutContext) updateRolloutFallbackToPatchWithoutStatus(ctx context.Context, ro *v1alpha1.Rollout) (*v1alpha1.Rollout, error) {
-	roCopy := ro.DeepCopy()
+//func (c *rolloutContext) updateRolloutFallbackToPatchWithoutStatus(ctx context.Context, ro *v1alpha1.Rollout) (*v1alpha1.Rollout, error) {
+//	roCopy := ro.DeepCopy()
+//	updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
+//	if err != nil {
+//		if errors.IsConflict(err) {
+//			retryCount := 0
+//			errRetry := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+//				retryCount++
+//				c.log.Infof("conflict when updating rollout %s, retrying the update operation with new rollout from cluster via a patch, attempt: %d", c.rollout.Name, retryCount)
+//				roGet, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Get(context.TODO(), c.rollout.Name, metav1.GetOptions{})
+//				if err != nil {
+//					return fmt.Errorf("error getting rollout %s: %w", c.rollout.Name, err)
+//				}
+//
+//				roCopy.ObjectMeta.ResourceVersion = ""
+//				roGet.ObjectMeta.ResourceVersion = ""
+//				roCopy.ObjectMeta.ManagedFields = nil
+//				roGet.ObjectMeta.ManagedFields = nil
+//				patch, changed, err := diff.CreateTwoWayMergePatch(roGet.Spec, roCopy.Spec, appsv1.ReplicaSet{})
+//				if err != nil {
+//					return err
+//				}
+//
+//				if changed {
+//					c.log.Infof("Patching rollout with patch: %s", string(patch))
+//					updatedRollout, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(roCopy.Namespace).Patch(ctx, roCopy.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
+//					if err != nil {
+//						return err
+//					}
+//				}
+//
+//				return nil
+//
+//			})
+//			if errRetry != nil {
+//				return nil, errRetry
+//			}
+//		} else {
+//			c.log.WithError(err).Error("Error: updating rollout revision")
+//			return nil, err
+//		}
+//	}
+//	return updatedRollout, nil
+//}
+
+// updateRolloutWithRetry updates the rollout with a retry if there is a conflict from an update operation, it runs the modifyRollout function to update a fresh rollout from the cluster.
+func (c *rolloutContext) updateRolloutWithRetry(ctx context.Context, ro *v1alpha1.Rollout, modifyRollout func(ro *v1alpha1.Rollout) *v1alpha1.Rollout) (*v1alpha1.Rollout, error) {
 	updatedRollout, err := c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), c.rollout, metav1.UpdateOptions{})
 	if err != nil {
 		if errors.IsConflict(err) {
@@ -1011,27 +1056,13 @@ func (c *rolloutContext) updateRolloutFallbackToPatchWithoutStatus(ctx context.C
 					return fmt.Errorf("error getting rollout %s: %w", c.rollout.Name, err)
 				}
 
-				roCopy.ObjectMeta.ResourceVersion = ""
-				roGet.ObjectMeta.ResourceVersion = ""
-				roCopy.ObjectMeta.ManagedFields = nil
-				roGet.ObjectMeta.ManagedFields = nil
-				roCopy.Status = v1alpha1.RolloutStatus{}
-				roGet.Status = v1alpha1.RolloutStatus{}
-				patch, changed, err := diff.CreateTwoWayMergePatch(roGet.Spec, roCopy.Spec, appsv1.ReplicaSet{})
+				roCopy := modifyRollout(roGet)
+				updatedRollout, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(c.rollout.Namespace).Update(context.TODO(), roCopy, metav1.UpdateOptions{})
 				if err != nil {
 					return err
 				}
 
-				if changed {
-					c.log.Infof("Patching rollout with patch: %s", string(patch))
-					updatedRollout, err = c.argoprojclientset.ArgoprojV1alpha1().Rollouts(roCopy.Namespace).Patch(ctx, roCopy.Name, patchtypes.MergePatchType, patch, metav1.PatchOptions{})
-					if err != nil {
-						return err
-					}
-				}
-
 				return nil
-
 			})
 			if errRetry != nil {
 				return nil, errRetry
